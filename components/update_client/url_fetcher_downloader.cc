@@ -133,7 +133,7 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
     return;
   }
   config_->SetUpdaterStatus(std::string(
-      updater_status_string_map.find(UpdaterStatus::kSlotLocked)->second));
+      GetUpdaterStatusStringMap().find(UpdaterStatus::kSlotLocked)->second));
   // Use 15 sec delay to allow for other updaters/loaders to settle down.
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,

@@ -100,22 +100,22 @@ void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
     auto status_iterator =
-        component_to_updater_status_map.find(crx_update_item_.state);
-    if (status_iterator == component_to_updater_status_map.end()) {
+        update_client::GetComponentToUpdaterStatusMap().find(crx_update_item_.state);
+    if (status_iterator == update_client::GetComponentToUpdaterStatusMap().end()) {
       status = "Status is unknown.";
     } else if (crx_update_item_.state == ComponentState::kUpToDate &&
                updater_configurator_->GetPreviousUpdaterStatus() ==
-                   updater_status_string_map.at(UpdaterStatus::kUpdated)) {
-      status = updater_status_string_map.at(UpdaterStatus::kUpdated);
+                   update_client::GetUpdaterStatusStringMap().at(UpdaterStatus::kUpdated)) {
+      status = update_client::GetUpdaterStatusStringMap().at(UpdaterStatus::kUpdated);
     } else {
-      status = updater_status_string_map.find(status_iterator->second)->second;
+      status = update_client::GetUpdaterStatusStringMap().find(status_iterator->second)->second;
     }
     if (crx_update_item_.state == ComponentState::kUpdateError) {
       // `QUICK_ROLL_FORWARD` update, adjust the message to "Updated locally,
       // pending restart".
       if (crx_update_item_.error_code ==
           static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD)) {
-        status = updater_status_string_map.at(UpdaterStatus::kRolledForward);
+        status = update_client::GetUpdaterStatusStringMap().at(UpdaterStatus::kRolledForward);
       } else {
         status +=
             ", error category is " +

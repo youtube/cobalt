@@ -52,6 +52,11 @@
 #include "base/win/windows_version.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <map>
+#include "base/no_destructor.h"
+#endif
+
 namespace update_client {
 
 const char kArchAmd64[] = "x86_64";
@@ -107,7 +112,7 @@ bool VerifyHash256(const std::string* content,
   hasher->Update(content->c_str(), content->size());
   hasher->Finish(actual_hash, sizeof(actual_hash));
 
-  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+  return base::span(actual_hash) == base::span(expected_hash);
 }
 #else  // defined(IN_MEMORY_UPDATES)
 bool VerifyFileHash256(const base::FilePath& filepath,
@@ -150,7 +155,7 @@ bool VerifyFileHash256(const base::FilePath& filepath,
 
   hasher->Finish(actual_hash, sizeof(actual_hash));
 
-  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+  return base::span(actual_hash) == base::span(expected_hash);
 }
 #endif  // defined(IN_MEMORY_UPDATES)
 
@@ -165,6 +170,44 @@ base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
   LOG(WARNING) << "ReadEvergreenVersion: unable to read version from "
                << installation_dir.value();
   return base::Version();
+}
+
+const std::map<ComponentState, UpdaterStatus>& GetComponentToUpdaterStatusMap() {
+  static const base::NoDestructor<std::map<ComponentState, UpdaterStatus>> map({
+      {ComponentState::kNew, UpdaterStatus::kNewUpdate},
+      {ComponentState::kChecking, UpdaterStatus::kChecking},
+      {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
+      {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
+      {ComponentState::kDownloading, UpdaterStatus::kDownloading},
+      {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
+      {ComponentState::kUpdating, UpdaterStatus::kUpdating},
+      {ComponentState::kUpdated, UpdaterStatus::kUpdated},
+      {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
+      {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
+      {ComponentState::kRun, UpdaterStatus::kRun},
+  });
+  return *map;
+}
+
+const std::map<UpdaterStatus, const char*>& GetUpdaterStatusStringMap() {
+  static const base::NoDestructor<std::map<UpdaterStatus, const char*>> map({
+      {UpdaterStatus::kNewUpdate, "Will check for update soon"},
+      {UpdaterStatus::kChecking, "Checking for update"},
+      {UpdaterStatus::kUpdateAvailable, "Update is available"},
+      {UpdaterStatus::kDownloadingDiff, "Downloading delta update"},
+      {UpdaterStatus::kDownloading, "Downloading update"},
+      {UpdaterStatus::kSlotLocked, "Slot is locked"},
+      {UpdaterStatus::kDownloaded, "Update is downloaded"},
+      {UpdaterStatus::kUpdatingDiff, "Installing delta update"},
+      {UpdaterStatus::kUpdating, "Installing update"},
+      {UpdaterStatus::kUpdated, "Update installed, pending restart"},
+      {UpdaterStatus::kRolledForward, "Updated locally, pending restart"},
+      {UpdaterStatus::kUpToDate, "App is up to date"},
+      {UpdaterStatus::kUpdateError, "Failed to update"},
+      {UpdaterStatus::kUninstalled, "Update uninstalled"},
+      {UpdaterStatus::kRun, "Transitioning..."},
+  });
+  return *map;
 }
 #else  // BUILDFLAG(IS_STARBOARD)
 

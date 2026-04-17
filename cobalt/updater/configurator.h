@@ -140,20 +140,20 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
   // TODO(b/449220798): Consider using PostTask and thread checker
   std::string updater_channel_ GUARDED_BY(updater_channel_lock_);
-  base::Lock updater_channel_lock_;
+  mutable base::Lock updater_channel_lock_;
   std::atomic<int32_t> is_forced_update_;
   std::string updater_status_ GUARDED_BY(updater_status_lock_);
-  base::Lock updater_status_lock_;
+  mutable base::Lock updater_status_lock_;
   std::string previous_updater_status_
       GUARDED_BY(previous_updater_status_lock_);
-  base::Lock previous_updater_status_lock_;
+  mutable base::Lock previous_updater_status_lock_;
   std::string user_agent_string_;
-  uint64_t min_free_space_bytes_ GUARDED_BY(min_free_space_bytes_lock_);
-  base::Lock min_free_space_bytes_lock_;
+  uint64_t min_free_space_bytes_GUARDED_BY(min_free_space_bytes_lock_);
+  mutable base::Lock min_free_space_bytes_lock_;
   std::atomic_bool use_compressed_updates_;
   std::atomic_bool allow_self_signed_packages_;
   std::string update_server_url_ GUARDED_BY(update_server_url_lock_);
-  base::Lock update_server_url_lock_;
+  mutable base::Lock update_server_url_lock_;
   std::atomic_bool require_network_encryption_;
 };
 

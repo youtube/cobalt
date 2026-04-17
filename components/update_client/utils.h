@@ -46,40 +46,10 @@ enum class UpdaterStatus {
 };
 
 // Mapping a component state to an updater status.
-// clang-format off
-const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map = {
-        // clang-format on
-        {ComponentState::kNew, UpdaterStatus::kNewUpdate},
-        {ComponentState::kChecking, UpdaterStatus::kChecking},
-        {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
-        {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
-        {ComponentState::kDownloading, UpdaterStatus::kDownloading},
-        {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
-        {ComponentState::kUpdating, UpdaterStatus::kUpdating},
-        {ComponentState::kUpdated, UpdaterStatus::kUpdated},
-        {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
-        {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
-        {ComponentState::kRun, UpdaterStatus::kRun},
-};
+const std::map<ComponentState, UpdaterStatus>& GetComponentToUpdaterStatusMap();
 
 // Translating an updater status to a status string.
-const std::map<UpdaterStatus, const char*> updater_status_string_map = {
-    {UpdaterStatus::kNewUpdate, "Will check for update soon"},
-    {UpdaterStatus::kChecking, "Checking for update"},
-    {UpdaterStatus::kUpdateAvailable, "Update is available"},
-    {UpdaterStatus::kDownloadingDiff, "Downloading delta update"},
-    {UpdaterStatus::kDownloading, "Downloading update"},
-    {UpdaterStatus::kSlotLocked, "Slot is locked"},
-    {UpdaterStatus::kDownloaded, "Update is downloaded"},
-    {UpdaterStatus::kUpdatingDiff, "Installing delta update"},
-    {UpdaterStatus::kUpdating, "Installing update"},
-    {UpdaterStatus::kUpdated, "Update installed, pending restart"},
-    {UpdaterStatus::kRolledForward, "Updated locally, pending restart"},
-    {UpdaterStatus::kUpToDate, "App is up to date"},
-    {UpdaterStatus::kUpdateError, "Failed to update"},
-    {UpdaterStatus::kUninstalled, "Update uninstalled"},
-    {UpdaterStatus::kRun, "Transitioning..."},
-};
+const std::map<UpdaterStatus, const char*>& GetUpdaterStatusStringMap();
 #endif // BUILDFLAG(IS_STARBOARD)
 
 // Defines a name-value pair that represents an installer attribute.
