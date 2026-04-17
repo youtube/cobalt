@@ -8,6 +8,7 @@
 #include <sstream>
 #include <utility>
 
+#include "base/no_destructor.h"
 #include "base/logging.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
@@ -48,6 +49,11 @@
 #include "url/url_util.h"
 
 namespace network::cors {
+
+std::string& CorsURLLoader::GetLastYoutubeAuthHeader() {
+  static base::NoDestructor<std::string> last_youtube_auth_header;
+  return *last_youtube_auth_header;
+}
 
 namespace {
 
@@ -742,6 +748,16 @@ void CorsURLLoader::StartRequest() {
               << " SiteForCookies: " << request_.site_for_cookies.ToDebugString()
               << " Referrer: " << request_.referrer;
 
+    std::string auth_header;
+    if (request_.headers.GetHeader(net::HttpRequestHeaders::kAuthorization, &auth_header)) {
+      if (auth_header.find("SAPISIDHASH") != std::string::npos) {
+        if (GetLastYoutubeAuthHeader() != auth_header) {
+          LOG(INFO) << "  [AUTH CAPTURE] Storing new SAPISIDHASH Authorization header.";
+          GetLastYoutubeAuthHeader() = auth_header;
+        }
+      }
+    }
+
     bool is_gcs_initiator = request_.request_initiator && request_.request_initiator->host() == "storage.googleapis.com";
     bool is_gcs_referrer = request_.referrer.host_piece() == "storage.googleapis.com";
 
@@ -768,15 +784,17 @@ void CorsURLLoader::StartRequest() {
       request_.headers.SetHeader("X-Origin", "https://www.youtube.com");
       request_.headers.SetHeader("X-Goog-AuthUser", "0");
 
-      std::string auth_header;
       if (request_.headers.GetHeader(net::HttpRequestHeaders::kAuthorization, &auth_header)) {
         LOG(INFO) << "  [DIAGNOSTIC] Authorization header present (starts with: " 
                   << auth_header.substr(0, 15) << "...)";
         if (auth_header.find("SAPISIDHASH") != std::string::npos) {
             LOG(INFO) << "  [DIAGNOSTIC] Found SAPISIDHASH in Authorization header.";
         }
+      } else if (!GetLastYoutubeAuthHeader().empty()) {
+        LOG(INFO) << "  [AUTH INJECTION] Injecting borrowed SAPISIDHASH Authorization header.";
+        request_.headers.SetHeader(net::HttpRequestHeaders::kAuthorization, GetLastYoutubeAuthHeader());
       } else {
-        LOG(INFO) << "  [DIAGNOSTIC] Authorization header MISSING.";
+        LOG(INFO) << "  [DIAGNOSTIC] Authorization header MISSING and no borrowed header available.";
       }
 
       // We used to strip Authorization here, but let's try keeping it 
