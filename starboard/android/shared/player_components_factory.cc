@@ -108,6 +108,50 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     return tunnel_mode_audio_session_id_ != -1;
   }
 
+  void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
+                              int* max_cached_frames,
+                              int* min_frames_per_append) const override {
+    SB_CHECK(max_cached_frames);
+    SB_CHECK(min_frames_per_append);
+    SB_DCHECK(AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend %
+                  AudioRendererSink::kAudioSinkFramesAlignment ==
+              0);
+    *min_frames_per_append =
+        AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
+
+    // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
+    // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
+    const auto sample_type =
+        SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+            ? kSbMediaAudioSampleTypeFloat32
+            : kSbMediaAudioSampleTypeInt16Deprecated;
+
+    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+        audio_stream_info.number_of_channels, sample_type,
+        audio_stream_info.samples_per_second);
+
+    if (tunnel_mode_audio_session_id_ != -1) {
+      // AudioTrack.setPlaybackParams() might need extra buffer to support
+      // playback speed greater than 1.0x.
+      const double kMaxPlaybackSpeed = 2.0;
+      JNIEnv* env = AttachCurrentThread();
+      min_frames_required = std::max<int>(
+          min_frames_required,
+          AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+              env, sample_type, audio_stream_info.number_of_channels,
+              audio_stream_info.samples_per_second) *
+              kMaxPlaybackSpeed);
+    }
+
+    // On Android 5.0, the size of audio renderer sink buffer need to be two
+    // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
+    // stop working after pause.
+    *max_cached_frames = min_frames_required * 2 +
+                         AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
+    *max_cached_frames = AlignUp(*max_cached_frames,
+                                 AudioRendererSink::kAudioSinkFramesAlignment);
+  }
+
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
@@ -176,13 +220,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, force_platform_opus_decoder_)
         << "kForcePlatformOpusDecoder is set to true, force using platform opus"
         << " codec instead of libopus.";
-  }
-
-  const int kAudioSinkFramesAlignment = 256;
-  const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-
-  static int AlignUp(int value, int alignment) {
-    return (value + alignment - 1) / alignment * alignment;
   }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
@@ -452,57 +489,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return components;
-  }
-
-  void GetAudioRendererParams(const CreationParameters& creation_parameters,
-                              int* max_cached_frames,
-                              int* min_frames_per_append) const override {
-    SB_CHECK(max_cached_frames);
-    SB_CHECK(min_frames_per_append);
-    SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
-              0);
-    *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
-
-    // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
-    // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
-    const auto sample_type =
-        SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
-            ? kSbMediaAudioSampleTypeFloat32
-            : kSbMediaAudioSampleTypeInt16Deprecated;
-
-    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        creation_parameters.audio_stream_info().number_of_channels, sample_type,
-        creation_parameters.audio_stream_info().samples_per_second);
-
-    // To avoid redundant IsTunnelModeSupported() checks, we simply only check
-    // if tunnel mode is enabled here.
-    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
-        creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      const bool force_tunnel_mode =
-          FeatureList::IsEnabled(features::kForceTunnelMode);
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (force_tunnel_mode ||
-          video_mime_type.GetParamBoolValue("tunnelmode", false)) {
-        // AudioTrack.setPlaybackParams() might need extra buffer to support
-        // playback speed greater than 1.0x.
-        const double kMaxPlaybackSpeed = 2.0;
-        JNIEnv* env = AttachCurrentThread();
-        min_frames_required = std::max<int>(
-            min_frames_required,
-            AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
-                env, sample_type,
-                creation_parameters.audio_stream_info().number_of_channels,
-                creation_parameters.audio_stream_info().samples_per_second) *
-                kMaxPlaybackSpeed);
-      }
-    }
-
-    // On Android 5.0, the size of audio renderer sink buffer need to be two
-    // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
-    // stop working after pause.
-    *max_cached_frames =
-        min_frames_required * 2 + kDefaultAudioSinkMinFramesPerAppend;
-    *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
   }
 
   NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateVideoDecoder(
