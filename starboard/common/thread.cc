@@ -34,14 +34,17 @@ namespace starboard {
 
 struct Thread::Data {
   std::string name_;
+  SbThreadPriority priority_;
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
 };
 
-Thread::Thread(std::string_view name) : d_(std::make_unique<Data>()) {
+Thread::Thread(std::string_view name, const Options& options)
+    : d_(std::make_unique<Data>()) {
   d_->name_.assign(name);
+  d_->priority_ = options.priority;
 }
 
 Thread::~Thread() {
@@ -91,6 +94,7 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
+  SbThreadSetPriority(this_ptr->d_->priority_);
 #if defined(__APPLE__)
   pthread_setname_np(this_ptr->d_->name_.c_str());
 #else

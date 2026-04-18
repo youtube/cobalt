@@ -34,7 +34,16 @@ class Semaphore;
 
 class Thread {
  public:
-  explicit Thread(std::string_view name);
+  struct Options {
+    Options() : priority(kSbThreadPriorityNormal) {}
+    Options& SetPriority(SbThreadPriority priority_in) {
+      priority = priority_in;
+      return *this;
+    }
+
+    SbThreadPriority priority;
+  };
+  explicit Thread(std::string_view name, const Options& options = Options());
   template <size_t N>
   explicit Thread(char const (&name)[N]) : Thread(std::string_view(name)) {
     // Common to all user code, limited by Linux pthreads default
