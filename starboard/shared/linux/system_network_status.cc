@@ -103,7 +103,10 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 class NotifierThread : public starboard::Thread {
  public:
   explicit NotifierThread(NetworkNotifier* notifier)
-      : starboard::Thread("NetworkNotifier"), notifier_(notifier) {}
+      : starboard::Thread(
+            "NetworkNotifier",
+            starboard::Thread::Options().SetPriority(kSbThreadPriorityLow)),
+        notifier_(notifier) {}
 
   void Run() override { NetworkNotifier::NotifierThreadEntry(notifier_); }
 
@@ -120,7 +123,6 @@ bool NetworkNotifier::Initialize() {
 }
 
 void* NetworkNotifier::NotifierThreadEntry(void* context) {
-  SbThreadSetPriority(kSbThreadPriorityLow);
   auto* notifier = static_cast<NetworkNotifier*>(context);
   int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   bool is_online;

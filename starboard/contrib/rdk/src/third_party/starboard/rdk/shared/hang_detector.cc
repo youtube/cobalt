@@ -101,30 +101,22 @@ seconds get_check_interval() {
 
 struct HangDetector
 {
-  static void* ThreadEntryPoint(void* context) {
-    SbThreadSetPriority(kSbThreadNoPriority);
-    SB_DCHECK(context);
-    static_cast<HangDetector*>(context)->DoWork();
-    return nullptr;
-  }
-
   HangDetector() {
     if ( check_interval_ == decltype(check_interval_)::max() )
       return;
 
-    thread_ = std::thread(&HangDetector::ThreadEntryPoint, this);
-
-    SB_DCHECK(thread_.joinable());
+    thread_ = std::make_unique<DetectorThread>(this);
+    thread_->Start();
   }
 
   ~HangDetector() {
-    if (thread_.joinable()) {
+    if (thread_) {
       std::unique_lock lock(mutex_);
       running_ = false;
       monitors_.clear();
       condition_.notify_all();
       lock.unlock();
-      thread_.join();
+      thread_->Join();
     }
   }
 
@@ -245,4 +237,16 @@ void HangMonitor::Reset() {
 }  // namespace shared
 }  // namespace rdk
 }  // namespace starboard
+}  // namespace third_party
+ard lock(hang_detector.Lock());
+  expiration_time_ = steady_clock::now() + hang_detector.GetCheckInterval();
+  expiration_count_ = 0;
+  tid_ = get_tid();
+}
+
+}  // namespace shared
+}  // namespace rdk
+}  // namespace starboard
+}  // namespace third_party
+ard
 }  // namespace third_party

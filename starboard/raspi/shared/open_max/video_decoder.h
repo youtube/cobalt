@@ -69,7 +69,6 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   };
 
   bool TryToDeliverOneFrame();
-  static void* ThreadEntryPoint(void* context);
   void RunLoop();
   scoped_refptr<VideoFrame> CreateFrame(const OMX_BUFFERHEADERTYPE* buffer);
 
@@ -83,7 +82,7 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   bool eos_written_;
   bool first_input_written_ = false;
 
-  std::optional<pthread_t> thread_;
+  std::unique_ptr<Thread> thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 
@@ -96,5 +95,8 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
 };
 
 }  // namespace starboard
+
+#endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
+        // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
