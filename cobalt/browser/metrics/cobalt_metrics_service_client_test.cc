@@ -23,11 +23,13 @@
 #include "base/path_service.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/version.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
@@ -781,6 +783,87 @@ TEST_F(CobaltMetricsServiceClientTest,
   // restarted, it should fire based on new_delay.
   task_environment_.FastForwardBy(new_delay);
   EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, CobaltMetricsIntervalFeatureTest) {
+  base::HistogramTester histogram_tester;
+  const int kCustomInterval = 10;  // 10 seconds
+
+  // Override feature flag and param.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltMetricsIntervalFeature,
+      {{"cobalt-metrics-interval", base::NumberToString(kCustomInterval)}});
+
+  // Re-initialize client to pick up new feature settings if needed,
+  // but wait, CobaltMetricsServiceClient::Initialize calls
+  // StartMemoryMetricsLogger. In our test SetUp, we already called
+  // CallInitialize(). Let's create a fresh client to be sure.
+  auto synthetic_trial_registry =
+      std::make_unique<variations::SyntheticTrialRegistry>();
+  auto custom_client = std::make_unique<TestCobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+      &prefs_);
+  custom_client->CallInitialize();
+
+  // Initially, no metrics recorded.
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+
+  // Fast forward by kCustomInterval - 1 second. Still no metrics.
+  task_environment_.FastForwardBy(base::Seconds(kCustomInterval - 1));
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+
+  // Fast forward by 1 more second. Now metrics should be recorded.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+          .size(),
+      1u);
+}
+
+TEST_F(CobaltMetricsServiceClientTest, MetricsIntervalDefaultProductionTest) {
+  // Verify that the feature is disabled by default.
+  EXPECT_FALSE(
+      base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature));
+
+  base::HistogramTester histogram_tester;
+
+  // Enable the feature without parameters to test the default param value
+  // (300s).
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltMetricsIntervalFeature);
+
+  // Re-initialize client to pick up new feature settings.
+  auto synthetic_trial_registry =
+      std::make_unique<variations::SyntheticTrialRegistry>();
+  auto production_client = std::make_unique<TestCobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+      &prefs_);
+  production_client->CallInitialize();
+
+  // Initially, no metrics recorded.
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+
+  // Fast forward by 299 seconds. Still no metrics.
+  task_environment_.FastForwardBy(base::Seconds(299));
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+
+  // Fast forward by 1 more second (total 300s). Now metrics should be recorded.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+          .size(),
+      1u);
 }
 
 }  // namespace cobalt

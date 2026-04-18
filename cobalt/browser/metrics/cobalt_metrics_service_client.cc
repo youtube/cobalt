@@ -25,6 +25,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/timer/timer.h"
 #include "base/version.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
@@ -46,16 +47,14 @@ class MetricsPollingState {
 
   void RecordMetricsAfterDelay() {
     base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
-    const base::CommandLine* command_line =
-        base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kMetricsInterval)) {
-      std::string interval_str =
-          command_line->GetSwitchValueASCII(switches::kMetricsInterval);
-      int interval_int;
-      if (base::StringToInt(interval_str, &interval_int) && interval_int > 0) {
+    if (base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature)) {
+      int interval_int = features::kCobaltMetricsIntervalParam.Get();
+      if (interval_int > 0) {
         delay = base::Seconds(interval_int);
       } else {
-        LOG(ERROR) << "Invalid metrics interval: " << interval_str;
+        LOG(WARNING) << "Invalid metrics interval from feature: "
+                     << interval_int
+                     << ". Falling back to memory_instrumentation default.";
       }
     }
 
