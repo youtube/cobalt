@@ -33,8 +33,6 @@
 namespace starboard {
 
 struct Thread::Data {
-  std::string name_;
-  SbThreadPriority priority_;
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
@@ -42,16 +40,13 @@ struct Thread::Data {
 };
 
 Thread::Thread(std::string_view name, const Options& options)
-    : d_(std::make_unique<Data>()) {
-  d_->name_.assign(name);
-  d_->priority_ = options.priority;
-}
+    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
   if (d_->started_.load()) {
     SB_DCHECK(d_->join_called_.load())
-        << "Thread '" << d_->name_ << "' was not joined before destruction.";
+        << "Thread '" << name_ << "' was not joined before destruction.";
   }
 }
 
@@ -94,11 +89,11 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
-  SbThreadSetPriority(this_ptr->d_->priority_);
+  SbThreadSetPriority(this_ptr->priority_);
 #if defined(__APPLE__)
-  pthread_setname_np(this_ptr->d_->name_.c_str());
+  pthread_setname_np(this_ptr->name_.c_str());
 #else
-  pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
+  pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
 #endif
   this_ptr->Run();
 
@@ -113,7 +108,7 @@ void Thread::Join() {
   d_->join_sema_.Put();
 
   if (!d_->started_.load()) {
-    SB_LOG(WARNING) << "Join() called on thread '" << d_->name_
+    SB_LOG(WARNING) << "Join() called on thread '" << name_
                     << "' which was not started. Ignoring.";
     return;
   }

@@ -35,13 +35,13 @@ class Semaphore;
 class Thread {
  public:
   struct Options {
-    Options() : priority(kSbThreadPriorityNormal) {}
+    Options() {}
     Options& SetPriority(SbThreadPriority priority_in) {
       priority = priority_in;
       return *this;
     }
 
-    SbThreadPriority priority;
+    SbThreadPriority priority = kSbThreadPriorityNormal;
   };
   explicit Thread(std::string_view name, const Options& options = Options());
   template <size_t N>
@@ -77,6 +77,8 @@ class Thread {
   Semaphore* join_sema();
   std::atomic_bool* joined_bool();
 
+  const std::string name_;
+  const SbThreadPriority priority_;
   struct Data;
   const std::unique_ptr<Data> d_;
 
