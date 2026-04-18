@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -41,7 +42,7 @@ class Thread {
       return *this;
     }
 
-    SbThreadPriority priority = kSbThreadPriorityNormal;
+    std::optional<SbThreadPriority> priority;
   };
   explicit Thread(std::string_view name, const Options& options = Options());
   template <size_t N>
@@ -78,7 +79,7 @@ class Thread {
   std::atomic_bool* joined_bool();
 
   const std::string name_;
-  const SbThreadPriority priority_;
+  const std::optional<SbThreadPriority> priority_;
   struct Data;
   const std::unique_ptr<Data> d_;
 
