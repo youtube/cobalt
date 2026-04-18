@@ -34,12 +34,12 @@ BASE_FEATURE(kHangReporting,
              "HangReporting",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kMetricsFeature,
-             "MetricsFeature",
+BASE_FEATURE(kCobaltMetricsIntervalFeature,
+             "CobaltMetricsInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<int> kMetricsIntervalParam{&kMetricsFeature,
-                                                    "metrics-interval", 300};
+const base::FeatureParam<int> kCobaltMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "cobalt-metrics-interval", 300};
 
 }  // namespace features
 }  // namespace cobalt

@@ -47,10 +47,14 @@ class MetricsPollingState {
 
   void RecordMetricsAfterDelay() {
     base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
-    if (base::FeatureList::IsEnabled(features::kMetricsFeature)) {
-      int interval_int = features::kMetricsIntervalParam.Get();
+    if (base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature)) {
+      int interval_int = features::kCobaltMetricsIntervalParam.Get();
       if (interval_int > 0) {
         delay = base::Seconds(interval_int);
+      } else {
+        LOG(WARNING) << "Invalid metrics interval from feature: "
+                     << interval_int
+                     << ". Falling back to memory_instrumentation default.";
       }
     }
 
