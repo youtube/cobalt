@@ -30,4 +30,16 @@ int RunAllBenchmarks(int argc, char** argv) {
 #if SB_IS(MODULAR)
 SB_EXPORT
 #endif  // SB_IS(MODULAR)
-STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks);
+STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
+
+#if BUILDFLAG(IS_STARBOARD)
+#if !SB_IS(EVERGREEN)
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+#endif  // !SB_IS(EVERGREEN)
+#else
+int main(int argc, char** argv) {
+  return RunAllBenchmarks(argc, argv);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)

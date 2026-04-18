@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(final_executable_type, "benchmark") {
+target("executable", "benchmark") {
   testonly = true
 
   sources = [
@@ -24,6 +24,7 @@ target(final_executable_type, "benchmark") {
 
   public_deps = [
     "//starboard:starboard_group",
+    "//starboard/common:common",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
