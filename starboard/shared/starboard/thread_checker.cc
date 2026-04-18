@@ -14,15 +14,46 @@
 
 #include "starboard/shared/starboard/thread_checker.h"
 
+#if !defined(_WIN32)
+#include <pthread.h>
+#endif
+#include <unistd.h>
+
+#include <atomic>
+
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
 namespace starboard {
-
 namespace {
+
+constexpr bool kEnableCacheTid = true;
+
 thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
 
+#if !defined(_WIN32)
+void ChildHandler() {
+  SB_CHECK(false) << "Fork detected! You should not use fork when Thread ID "
+                     "caching is enabled.";
+}
+
+// Register the fork handler exactly once at startup.
+bool g_fork_handler_registered = [] {
+  if (kEnableCacheTid) {
+    SB_CHECK_EQ(pthread_atfork(/*prepare=*/nullptr, /*parent=*/nullptr,
+                               /*child=*/&ChildHandler),
+                0);
+  }
+  return true;
+}();
+#endif  // !defined(_WIN32)
+
 SbThreadId GetThreadId() {
+  if (!kEnableCacheTid) {
+    return SbThreadGetId();
+  }
+
   if (tls_thread_id == kSbThreadInvalidId) {
     tls_thread_id = SbThreadGetId();
   }

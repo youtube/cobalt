@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
+#include <unistd.h>
+
+#include <atomic>
+
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
 namespace {
 
+// 1. Raw system call / Starboard API
 void BM_ThreadGetId(::benchmark::State& state) {
   for (auto _ : state) {
     ::benchmark::DoNotOptimize(SbThreadGetId());
@@ -25,18 +32,18 @@ void BM_ThreadGetId(::benchmark::State& state) {
 }
 BENCHMARK(BM_ThreadGetId);
 
-thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
-
-SbThreadId GetThreadId() {
-  if (tls_thread_id == kSbThreadInvalidId) {
-    tls_thread_id = SbThreadGetId();
+// 2. Simple TLS cache (no fork detection)
+thread_local SbThreadId tls_thread_id_simple = kSbThreadInvalidId;
+SbThreadId GetThreadIdSimple() {
+  if (tls_thread_id_simple == kSbThreadInvalidId) {
+    tls_thread_id_simple = SbThreadGetId();
   }
-  return tls_thread_id;
+  return tls_thread_id_simple;
 }
 
 void BM_ThreadGetIdCache(::benchmark::State& state) {
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(GetThreadId());
+    ::benchmark::DoNotOptimize(GetThreadIdSimple());
   }
 }
 BENCHMARK(BM_ThreadGetIdCache);
