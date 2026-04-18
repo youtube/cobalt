@@ -18,24 +18,28 @@
 namespace starboard {
 namespace {
 
-void BM_SbThreadGetId(::benchmark::State& state) {
+void BM_ThreadGetId(::benchmark::State& state) {
   for (auto _ : state) {
     ::benchmark::DoNotOptimize(SbThreadGetId());
   }
 }
-BENCHMARK(BM_SbThreadGetId);
+BENCHMARK(BM_ThreadGetId);
 
 thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
 
-void BM_ThreadLocalId(::benchmark::State& state) {
+SbThreadId GetThreadId() {
+  if (tls_thread_id == kSbThreadInvalidId) {
+    tls_thread_id = SbThreadGetId();
+  }
+  return tls_thread_id;
+}
+
+void BM_ThreadGetIdCache(::benchmark::State& state) {
   for (auto _ : state) {
-    if (tls_thread_id == kSbThreadInvalidId) {
-      tls_thread_id = SbThreadGetId();
-    }
-    ::benchmark::DoNotOptimize(tls_thread_id);
+    ::benchmark::DoNotOptimize(GetThreadId());
   }
 }
-BENCHMARK(BM_ThreadLocalId);
+BENCHMARK(BM_ThreadGetIdCache);
 
 }  // namespace
 }  // namespace starboard

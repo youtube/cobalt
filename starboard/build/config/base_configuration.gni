@@ -76,7 +76,7 @@ declare_args() {
   sb_filter_based_player = true
 
   # Used to enable benchmarks.
-  sb_enable_benchmark = false
+  sb_enable_benchmark = true
 
   # Where the Starboard ABI file for this platform can be found.
   sabi_path = "starboard/sabi/default/sabi.json"
