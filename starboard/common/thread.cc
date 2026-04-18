@@ -90,7 +90,7 @@ std::atomic_bool* Thread::joined_bool() {
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
   if (this_ptr->priority_) {
-    SB_CHECK(SbThreadSetPriority(*this_ptr->priority_));
+    SB_DCHECK(SbThreadSetPriority(*this_ptr->priority_));
   }
 #if defined(__APPLE__)
   pthread_setname_np(this_ptr->name_.c_str());
