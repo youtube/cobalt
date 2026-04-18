@@ -1214,7 +1214,7 @@ class PlayerImpl : public Player {
   static gboolean BusMessageCallback(GstBus* bus,
                                      GstMessage* message,
                                      gpointer user_data);
-  void ThreadEntryPoint();
+  static void* ThreadEntryPoint(void* context);
   static gboolean WorkerTask(gpointer user_data);
   static gboolean FinishSourceSetup(gpointer user_data);
   static void AppSrcNeedData(GstAppSrc* src, guint length, gpointer user_data);
@@ -1568,10 +1568,10 @@ PlayerImpl::~PlayerImpl() {
   GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline_));
   gst_bus_set_sync_handler(bus, nullptr, nullptr, nullptr);
   gst_object_unref(bus);
-  if (playback_thread_) {
+  if (playback_thread_.joinable()) {
     DispatchOnWorkerThread(new PlayerDestroyedTask(
       player_status_func_, player_, ticket_, context_, main_loop_));
-    playback_thread_->Join();
+    playback_thread_.join();
   }
   if (audio_caps_) {
     gst_caps_unref(audio_caps_);
@@ -1787,23 +1787,25 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
   return TRUE;
 }
 
-void PlaybackThread::Run() {
-  player_->ThreadEntryPoint();
-}
-
-void PlayerImpl::ThreadEntryPoint() {
+// static
+void* PlayerImpl::ThreadEntryPoint(void* context) {
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
+  SB_DCHECK(context);
   GST_TRACE("%d", SbThreadGetId());
 
-  state_ = State::kInitial;
+  PlayerImpl* self = reinterpret_cast<PlayerImpl*>(context);
+  self->state_ = State::kInitial;
 
-  g_main_context_push_thread_default(main_loop_context_);
+  g_main_context_push_thread_default(self->main_loop_context_);
 
-  hang_monitor_.Reset();
+  self->hang_monitor_.Reset();
 
-  DispatchOnWorkerThread(new PlayerStatusTask(
-      player_status_func_, player_, ticket_, context_,
+  self->DispatchOnWorkerThread(new PlayerStatusTask(
+      self->player_status_func_, self->player_, self->ticket_, self->context_,
       kSbPlayerStateInitialized));
-  g_main_loop_run(main_loop_);
+  g_main_loop_run(self->main_loop_);
+
+  return nullptr;
 }
 
 guint PlayerImpl::DispatchOnWorkerThread(Task* task) const {
@@ -3196,19 +3198,6 @@ SbPlayerPrivate::SbPlayerPrivate(
                      max_video_capabilities,
                      sample_deallocate_func,
                      decoder_status_func,
-                     player_status_func,
-                     player_error_func,
-                     context,
-                     output_mode,
-                     provider));
-    if (  !static_cast<PlayerImpl&>(*player_).IsValid() )
-      player_.reset(nullptr);
-  }
-}
-t(nullptr);
-  }
-}
-                   decoder_status_func,
                      player_status_func,
                      player_error_func,
                      context,

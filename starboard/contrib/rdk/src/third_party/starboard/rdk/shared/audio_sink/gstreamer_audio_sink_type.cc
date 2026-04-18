@@ -47,7 +47,6 @@
 #include <thread>
 #include <mutex>
 
-#include "starboard/common/thread.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
 #include "starboard/media.h"
@@ -104,22 +103,8 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
                                  GST_STREAM_VOLUME_FORMAT_LINEAR, volume);
   }
 
-  void AudioThreadFunc();
-
  private:
-  class AudioLoopThread : public ::starboard::Thread {
-   public:
-    explicit AudioLoopThread(GStreamerAudioSink* sink)
-        : Thread("audio_loop",
-                 Thread::Options().SetPriority(kSbThreadPriorityRealTime)),
-          sink_(sink) {}
-
-    void Run() override { sink_->AudioThreadFunc(); }
-
-   private:
-    GStreamerAudioSink* sink_;
-  };
-
+  static void* AudioThreadEntryPoint(void* context);
   static gboolean BusMessageCallback(GstBus* bus,
                                      GstMessage* message,
                                      gpointer user_data);
@@ -143,7 +128,7 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
   SbAudioSinkPrivate::ErrorFunc error_func_{nullptr};
   SbAudioSinkFrameBuffers frame_buffers_{nullptr};
   int frame_buffers_size_in_frames_{0};
-  std::unique_ptr<::starboard::Thread> audio_loop_thread_;
+  std::thread audio_loop_thread_;
   void* context_{nullptr};
   std::mutex mutex_;
   GstElement* pipeline_{nullptr};
@@ -250,8 +235,9 @@ GStreamerAudioSink::GStreamerAudioSink(
 
   g_main_context_pop_thread_default(main_loop_context_);
 
-  audio_loop_thread_ = std::make_unique<AudioLoopThread>(this);
-  audio_loop_thread_->Start();
+  audio_loop_thread_ = std::thread(&GStreamerAudioSink::AudioThreadEntryPoint, this);
+
+  SB_DCHECK(audio_loop_thread_.joinable());
 }
 
 GStreamerAudioSink::~GStreamerAudioSink() {
@@ -278,9 +264,7 @@ GStreamerAudioSink::~GStreamerAudioSink() {
   // this will wake up apprsc if it is waiting for data
   gst_app_src_set_max_bytes(GST_APP_SRC(appsrc_), 1);
 
-  if (audio_loop_thread_) {
-    audio_loop_thread_->Join();
-  }
+  audio_loop_thread_.join();
 
   gst_element_set_state(pipeline_, GST_STATE_NULL);
   if (source_id_ > -1) {
@@ -295,11 +279,18 @@ GStreamerAudioSink::~GStreamerAudioSink() {
   g_main_context_unref(main_loop_context_);
 }
 
-void GStreamerAudioSink::AudioThreadFunc() {
-  GST_TRACE_OBJECT(pipeline_, "TID: %d", SbThreadGetId());
-  g_main_context_push_thread_default(main_loop_context_);
-  hang_monitor_.Reset();
-  g_main_loop_run(mainloop_);
+// static
+void* GStreamerAudioSink::AudioThreadEntryPoint(void* context) {
+  SB_DCHECK(context);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
+
+  GStreamerAudioSink* sink = reinterpret_cast<GStreamerAudioSink*>(context);
+  GST_TRACE_OBJECT(sink->pipeline_, "TID: %d", SbThreadGetId());
+  g_main_context_push_thread_default(sink->main_loop_context_);
+  sink->hang_monitor_.Reset();
+  g_main_loop_run(sink->mainloop_);
+
+  return nullptr;
 }
 
 // static

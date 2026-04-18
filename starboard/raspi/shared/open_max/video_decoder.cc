@@ -29,19 +29,6 @@ const size_t kResourcePoolSize = 26;
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 5'000;
 
-class DecoderThread : public Thread {
- public:
-  explicit DecoderThread(OpenMaxVideoDecoder* decoder)
-      : Thread("omx_video_decoder",
-               Thread::Options().SetPriority(kSbThreadPriorityHigh)),
-        decoder_(decoder) {}
-
-  void Run() override { decoder_->RunLoop(); }
-
- private:
-  OpenMaxVideoDecoder* decoder_;
-};
-
 }  // namespace
 
 OpenMaxVideoDecoder::OpenMaxVideoDecoder(JobQueue* job_queue,
