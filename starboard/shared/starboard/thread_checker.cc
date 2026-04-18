@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
-#define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
+#include "starboard/shared/starboard/thread_checker.h"
 
-#include <atomic>
-
-#include "build/build_config.h"
 #include "starboard/common/log.h"
-#include "starboard/export.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 
-class SB_EXPORT ThreadChecker {
- public:
-  ThreadChecker();
+namespace {
+thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
 
-  bool CalledOnValidThread() const;
+SbThreadId GetThreadId() {
+  if (tls_thread_id == kSbThreadInvalidId) {
+    tls_thread_id = SbThreadGetId();
+  }
+  return tls_thread_id;
+}
+}  // namespace
 
- private:
-  const SbThreadId thread_id_;
-};
+ThreadChecker::ThreadChecker() : thread_id_(GetThreadId()) {
+  SB_CHECK(SbThreadIsValidId(thread_id_));
+}
+
+bool ThreadChecker::CalledOnValidThread() const {
+  return thread_id_ == GetThreadId();
+}
 
 }  // namespace starboard
-
-#endif  // STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_

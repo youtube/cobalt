@@ -123,6 +123,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_read.cc",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
+    "//starboard/shared/starboard/thread_checker.cc",
     "//starboard/shared/starboard/thread_checker.h",
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/system_get_total_gpu_memory.cc",

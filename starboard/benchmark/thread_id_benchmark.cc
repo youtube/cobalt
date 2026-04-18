@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
-#define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
-
-#include <atomic>
-
-#include "build/build_config.h"
-#include "starboard/common/log.h"
-#include "starboard/export.h"
 #include "starboard/thread.h"
+#include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
+namespace {
 
-class SB_EXPORT ThreadChecker {
- public:
-  ThreadChecker();
+void BM_SbThreadGetId(::benchmark::State& state) {
+  for (auto _ : state) {
+    ::benchmark::DoNotOptimize(SbThreadGetId());
+  }
+}
+BENCHMARK(BM_SbThreadGetId);
 
-  bool CalledOnValidThread() const;
+thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
 
- private:
-  const SbThreadId thread_id_;
-};
+void BM_ThreadLocalId(::benchmark::State& state) {
+  for (auto _ : state) {
+    if (tls_thread_id == kSbThreadInvalidId) {
+      tls_thread_id = SbThreadGetId();
+    }
+    ::benchmark::DoNotOptimize(tls_thread_id);
+  }
+}
+BENCHMARK(BM_ThreadLocalId);
 
+}  // namespace
 }  // namespace starboard
-
-#endif  // STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
