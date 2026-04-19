@@ -27,6 +27,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/string.h"
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 
@@ -89,14 +90,26 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
-  if (this_ptr->priority_) {
-    SB_DCHECK(SbThreadSetPriority(*this_ptr->priority_));
-  }
+
 #if defined(__APPLE__)
   pthread_setname_np(this_ptr->name_.c_str());
 #else
   pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
 #endif
+  bool priority_set = false;
+  if (this_ptr->priority_) {
+    priority_set = SbThreadSetPriority(*this_ptr->priority_);
+    if (!priority_set) {
+      SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
+                         "platform): requested_priority="
+                      << static_cast<int>(*this_ptr->priority_);
+    }
+  }
+  SB_LOG(INFO) << "Thread started: name=" << this_ptr->name_ << ", priority="
+               << (this_ptr->priority_ && priority_set
+                       ? std::to_string(static_cast<int>(*this_ptr->priority_))
+                       : "(default)");
+
   this_ptr->Run();
 
   TerminateOnThread();
