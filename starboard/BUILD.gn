@@ -99,13 +99,6 @@ if (!is_cobalt) {
   }
 }
 
-if (sb_enable_benchmark) {
-  group("starboard_benchmark_group") {
-    testonly = true
-    deps = [ "//starboard/benchmark" ]
-  }
-}
-
 if (is_cobalt_hermetic_build) {
   group("starboard_group") {
     deps = []
