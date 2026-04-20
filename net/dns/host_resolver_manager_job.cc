@@ -4,6 +4,13 @@
 
 #include "net/dns/host_resolver_manager_job.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
 #include <deque>
 #include <memory>
 #include <optional>
@@ -595,6 +602,10 @@ void HostResolverManager::Job::UpdatePriority() {
 }
 
 void HostResolverManager::Job::Start() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(41);
+#endif
+
   handle_.Reset();
   ++num_occupied_job_slots_;
 
@@ -1044,6 +1055,9 @@ void HostResolverManager::Job::CompleteRequests(
     bool allow_cache,
     bool secure,
     std::optional<TaskType> task_type) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(42);
+#endif
   CHECK(resolver_.get());
 
   // This job must be removed from resolver's |jobs_| now to make room for a

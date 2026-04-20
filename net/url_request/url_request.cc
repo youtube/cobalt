@@ -4,6 +4,13 @@
 
 #include "net/url_request/url_request.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
 #include <utility>
 
 #include "base/compiler_specific.h"
@@ -586,6 +593,10 @@ void URLRequest::set_allow_credentials(bool allow_credentials) {
 void URLRequest::Start() {
   DCHECK(delegate_);
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(39);
+#endif
+
   // We do not support credentials with a non-general
   // NetworkIsolationPartition.
   CHECK(isolation_info_.GetNetworkIsolationPartition() ==
@@ -916,6 +927,10 @@ void URLRequest::ReceivedRedirect(RedirectInfo redirect_info) {
 
 void URLRequest::NotifyResponseStarted(int net_error) {
   DCHECK_LE(net_error, 0);
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(40);
+#endif
 
   // Change status if there was an error.
   if (net_error != OK)
