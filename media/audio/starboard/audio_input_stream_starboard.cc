@@ -52,7 +52,10 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 
   LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
             << params_.sample_rate() << ", channels=" << params_.channels()
-            << ", buffer_size=" << buffer_size_bytes;
+            << ", buffer_size=" << buffer_size_bytes
+            << ", frames_per_buffer=" << params_.frames_per_buffer();
+  SB_LOG(INFO) << "KJ: Browser Process - Open with: "
+               << params_.AsHumanReadableString();
   microphone_ =
       SbMicrophoneCreate(info.id, params_.sample_rate(), buffer_size_bytes);
 

@@ -181,6 +181,9 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       return -1;
     }
 
+    SB_LOG(INFO) << "KJ: Hardware Read Request - " << audio_data_size
+                 << " bytes";
+
     if (!handle_) {
       // KJ: Virtual Mock Mode Logic
       int16_t* samples = static_cast<int16_t*>(out_audio_data);

@@ -60,6 +60,8 @@ void WebAudioMediaStreamAudioSink::OnSetFormat(
   DCHECK(params.IsValid());
 
   base::AutoLock auto_lock(lock_);
+  SB_LOG(INFO) << "KJ: WebAudio Sink - OnSetFormat: Input=" << params.AsHumanReadableString()
+               << ", Sink=" << sink_params_.AsHumanReadableString();
   DCHECK(sink_params_.IsValid());
 
   source_params_ = params;
