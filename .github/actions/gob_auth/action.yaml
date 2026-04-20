@@ -10,6 +10,11 @@ runs:
         METADATA_BASE_URL: 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default'
         METADATA_HEADER: 'Metadata-Flavor: Google'
       run: |
+        if [[ -n "$(git config --global http.cookiefile)" ]]; then
+          echo "GoB authentication is already configured. Skipping."
+          exit 0
+        fi
+
         if ! curl -s -m 2 -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email" > /dev/null; then
           echo "Metadata server not reachable. Skipping GoB authentication setup."
           exit 0

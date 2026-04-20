@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-#define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-
 #include <atomic>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <utility>
-#include <vector>
 
-#include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
@@ -113,9 +107,9 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                               int* min_frames_per_append) const override {
     SB_CHECK(max_cached_frames);
     SB_CHECK(min_frames_per_append);
-    SB_DCHECK(AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend %
-                  AudioRendererSink::kAudioSinkFramesAlignment ==
-              0);
+    SB_DCHECK_EQ(AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend %
+                     AudioRendererSink::kAudioSinkFramesAlignment,
+                 0);
     *min_frames_per_append =
         AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
 
@@ -323,7 +317,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid()) {
-        return Failure("Invalid audio MIME: '" + std::string(audio_mime) + "'");
+        return Failure("Invalid audio MIME: '" + audio_mime + "'");
       }
     }
 
@@ -337,7 +331,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           !video_mime_type.ValidateBoolParameter("tunnelmode") ||
           !video_mime_type.ValidateBoolParameter("enableflushduringseek") ||
           !video_mime_type.ValidateBoolParameter("enableresetaudiodecoder")) {
-        return Failure("Invalid video MIME: '" + std::string(video_mime) + "'");
+        return Failure("Invalid video MIME: '" + video_mime + "'");
       }
     }
 
@@ -606,7 +600,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     DrmSystem* drm_system_ptr =
         static_cast<DrmSystem*>(creation_parameters.drm_system());
     jobject j_media_crypto =
-        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
+        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : nullptr;
 
     bool is_encrypted = !!j_media_crypto;
     if (MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
@@ -684,5 +678,3 @@ bool PlayerComponents::Factory::OutputModeSupported(
 }
 
 }  // namespace starboard
-
-#endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_

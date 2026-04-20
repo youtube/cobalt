@@ -2,15 +2,9 @@ name: OverlayFS Workspace Checkout
 description: Uses an OverlayFS mount of a golden workspace to provide zero-copy, instant checkouts.
 
 inputs:
-  ref:
-    description: Git ref to checkout.
-    required: true
   path:
     description: Destination path (e.g. cobalt).
     required: true
-  run_sync:
-    description: Whether or not to run gclient sync for the PR.
-    default: 'true'
 
 outputs:
   cache_hit:
@@ -48,9 +42,9 @@ runs:
         # Ensure the directories exist
         mkdir -p "$UPPER_DIR" "$WORK_DIR" "$MERGED_DIR"
 
-        # If the golden workspace does not exist or is corrupted (missing .gclient), initialize it.
+        # If the golden workspace does not exist or is corrupted (missing .runner_cache_ready), initialize it.
         # This will only happen once per node!
-        if [ ! -f "$LOWER_DIR/.gclient" ]; then
+        if [ ! -f "$LOWER_DIR/.runner_cache_ready" ]; then
           IS_CACHE_HOT="false"
           echo "cache_hit=false" >> $GITHUB_OUTPUT
           echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
@@ -72,6 +66,9 @@ runs:
           echo "target_os=['android', 'linux']" >> .gclient
           echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history
+
+          # Create marker file to indicate the cache is fully populated and valid
+          touch "$LOWER_DIR/.runner_cache_ready"
         else
           IS_CACHE_HOT="true"
           echo "cache_hit=true" >> $GITHUB_OUTPUT
@@ -97,54 +94,3 @@ runs:
         git config --global --add safe.directory "$MERGED_DIR"
         git config --global --add safe.directory "$MERGED_DIR/src"
         git config --global --add safe.directory "$MERGED_DIR/depot_tools"
-
-        echo "Updating PR commit in upper layer..."
-        cd "$MERGED_DIR/src"
-        git fetch origin ${{ inputs.ref }}
-        git checkout ${{ inputs.ref }}
-
-        echo "Applying gclient configuration..."
-        cd "$MERGED_DIR"
-        export PATH="$MERGED_DIR/depot_tools:$PATH"
-
-        # Persist depot_tools and CIPD cache to the GitHub Actions environment for subsequent steps
-        echo "$MERGED_DIR/depot_tools" >> $GITHUB_PATH
-        echo "CIPD_CACHE_DIR=/runner-cache/cipd-cache" >> $GITHUB_ENV
-
-        echo "Bootstrapping Python 3 for depot_tools..."
-        # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source "$MERGED_DIR/depot_tools/bootstrap_python3" && bootstrap_python3
-
-        # Disable Chromium client side build telemetry
-        build_telemetry opt-out
-
-        # Set target OS
-        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
-          echo "target_os=['android']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
-          echo "target_os=['ios']" >> .gclient
-        fi
-
-        # Set target CPU
-        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
-          echo "target_cpu=['x64', 'arm64']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
-          echo "target_cpu=['x64', 'arm']" >> .gclient
-        fi
-
-        if [[ "${{ inputs.run_sync }}" == "true" ]]; then
-          echo "Syncing specific dependencies needed for this PR..."
-          cd "$MERGED_DIR"
-          gclient sync \
-            --verbose \
-            --shallow \
-            --no-history \
-            --reset \
-            --nohooks \
-            --force \
-            --delete_unversioned_trees \
-            --revision "${{ inputs.ref }}"
-
-          echo "Running gclient runhooks..."
-          gclient runhooks --verbose
-        fi
