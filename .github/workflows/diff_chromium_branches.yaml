@@ -44,16 +44,16 @@ jobs:
           # If upstream branches are provided as input, we are manually triggered
           if [[ -n "${UPSTREAM_BRANCHES}" ]]; then
             # If manually triggered, get branches from comma-separated branches from inputs
-            export DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -r -R '[split(",") | map(trim)] | map("\"" + . + "\"") | join(",")')
+            DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -r -R '[split(",") | map(trim)] | map("\"" + . + "\"") | join(",")')
           else
             # If label or synchronize Get the upstream branches from labels prefixed with $DIFF_PREFIX
-            DIFF_PREFIX=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -r '.diff_label_prefix')
-            export DIFF_LABELS=$(echo "$PR_LABELS" | jq -c -r --arg prefix "$DIFF_PREFIX" '[.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")] | map("\"" + . + "\"") | join(",")')
+            DIFF_PREFIX=$(cat "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json" | jq -r '.diff_label_prefix')
+            DIFF_LABELS=$(echo "$PR_LABELS" | jq -c -r --arg prefix "$DIFF_PREFIX" '[.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")] | map("\"" + . + "\"") | join(",")')
           fi
           # Selected all branches objects in the chromium_diffing.json that match the diff labels
           JQ_QUERY="[.stable_branches[] | select(.milestone | IN($DIFF_LABELS))]"
-          export UPSTREAM_BRANCHES=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c "${JQ_QUERY}")
-          echo "upstream_branches=${UPSTREAM_BRANCHES}" >> $GITHUB_OUTPUT
+          UPSTREAM_BRANCHES=$(cat "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json" | jq -c "${JQ_QUERY}")
+          echo "upstream_branches=${UPSTREAM_BRANCHES}" >> "$GITHUB_OUTPUT"
       - name: Set downstream branch
         id: set-downstream-branch
         env:
@@ -69,14 +69,14 @@ jobs:
             # Get the downstream branch from the labelled PR
             DOWNSTREAM_BRANCH="${{ github.ref }}"
           fi
-          echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> $GITHUB_OUTPUT
+          echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> "$GITHUB_OUTPUT"
       - name: Set code ownership
         id: set-code-ownership
         shell: bash
         run: |
           set -eux
-          CODE_OWNERSHIP=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c .code_ownership)
-          echo "code_ownership=${CODE_OWNERSHIP}" >> $GITHUB_OUTPUT
+          CODE_OWNERSHIP=$(cat "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json" | jq -c .code_ownership)
+          echo "code_ownership=${CODE_OWNERSHIP}" >> "$GITHUB_OUTPUT"
     outputs:
       upstream_branches: ${{ steps.set-upstream-branches.outputs.upstream_branches }}
       downstream_branch: ${{ steps.set-downstream-branch.outputs.downstream_branch }}
@@ -130,7 +130,7 @@ jobs:
             | .[]
           ')
           readarray -t PATHS_TO_CHECK_ARRAY <<< "$DOWNSTREAM_OWNED_FOLDER_TO_CHECK"
-          git diff --diff-filter=D HEAD..FETCH_HEAD -- ${PATHS_TO_CHECK_ARRAY[@]} > downstream_removal.diff
+          git diff --diff-filter=D HEAD..FETCH_HEAD -- "${PATHS_TO_CHECK_ARRAY[@]}" > downstream_removal.diff
       - name: Report Diffs
         run: |
           echo "This is will be replaced with proper logging later"
