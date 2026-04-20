@@ -79,43 +79,23 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 class MediaCodecDecoder::DecoderThread : public Thread {
  public:
-  explicit DecoderThread(MediaCodecDecoder* decoder)
-      : Thread(GetDecoderName(decoder->media_type_)), decoder_(decoder) {}
+  DecoderThread(std::string_view name,
+                std::function<void()> runnable,
+                std::optional<SbThreadPriority> priority = std::nullopt)
+      : Thread(name), runnable_(std::move(runnable)), priority_(priority) {
+    SB_CHECK(runnable_);
+  }
 
   void Run() override {
-    SbThreadSetPriority(decoder_->media_type_ == kSbMediaTypeAudio
-                            ? kSbThreadPriorityNormal
-                            : kSbThreadPriorityHigh);
-    decoder_->DecoderThreadFunc();
+    if (priority_) {
+      SbThreadSetPriority(priority_.value());
+    }
+    runnable_();
   }
 
  private:
-  MediaCodecDecoder* const decoder_;
-};
-
-class MediaCodecDecoder::VideoInputThread : public Thread {
- public:
-  explicit VideoInputThread(MediaCodecDecoder* decoder)
-      : Thread("VidDecIn"), decoder_(decoder) {}
-
-  void Run() override { decoder_->InputThreadFunc(); }
-
- private:
-  MediaCodecDecoder* const decoder_;
-};
-
-class MediaCodecDecoder::VideoOutputThread : public Thread {
- public:
-  explicit VideoOutputThread(MediaCodecDecoder* decoder)
-      : Thread("VidDecOut"), decoder_(decoder) {}
-
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityHigh);
-    decoder_->OutputThreadFunc();
-  }
-
- private:
-  MediaCodecDecoder* const decoder_;
+  const std::function<void()> runnable_;
+  const std::optional<SbThreadPriority> priority_;
 };
 
 // static
@@ -319,13 +299,18 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (use_dual_threads_) {
     SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
     if (!video_input_thread_) {
-      video_input_thread_ = std::make_unique<VideoInputThread>(this);
+      video_input_thread_ = std::make_unique<DecoderThread>(
+          "VidDecIn", [this] { InputThreadFunc(); });
       video_input_thread_->Start();
-      video_output_thread_ = std::make_unique<VideoOutputThread>(this);
+      video_output_thread_ = std::make_unique<DecoderThread>(
+          "VidDecOut", [this] { OutputThreadFunc(); }, kSbThreadPriorityHigh);
       video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
-    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_ = std::make_unique<DecoderThread>(
+        GetDecoderName(media_type_), [this] { DecoderThreadFunc(); },
+        media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
+                                         : kSbThreadPriorityHigh);
     decoder_thread_->Start();
   }
 

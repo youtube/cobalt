@@ -183,10 +183,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
   // simplify the handling of threading, including the difference of a/v
   // threading in the original implementation in DecoderThreadFunc() above.
-  class VideoInputThread;
   void InputThreadFunc();
 
-  class VideoOutputThread;
   void OutputThreadFunc();
 
   void TerminateDecoderThread();
