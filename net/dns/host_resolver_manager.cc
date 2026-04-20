@@ -1328,8 +1328,12 @@ void HostResolverManager::PushDnsTasks(bool system_task_allowed,
       break;
     case SecureDnsMode::kOff:
       DCHECK(!allow_cache || IsLocalTask(out_tasks->front()));
-      if (dns_tasks_allowed && insecure_tasks_allowed)
+      if (dns_tasks_allowed && insecure_tasks_allowed) {
+#if BUILDFLAG(IS_ANDROID)
+        LOG(INFO) << "ColinL PushDnsTasks: adding TaskType::DNS";
+#endif
         out_tasks->push_back(TaskType::DNS);
+      }
       break;
     default:
       NOTREACHED();
@@ -1381,6 +1385,9 @@ void HostResolverManager::CreateTaskSequence(
 
   switch (job_key.source) {
     case HostResolverSource::ANY:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL CreateTaskSequence: ANY host=" << job_key.host.ToString();
+#endif
       // Records DnsClient capability metrics, only when `source` is ANY. This
       // is to avoid the metrics being skewed by mechanical requests of other
       // source types.
@@ -1398,6 +1405,10 @@ void HostResolverManager::CreateTaskSequence(
         bool system_task_allowed =
             has_address_type &&
             job_key.secure_dns_mode != SecureDnsMode::kSecure;
+#if BUILDFLAG(IS_ANDROID)
+        LOG(INFO) << "ColinL CreateTaskSequence: dns_client_=" << (dns_client_ != nullptr)
+                  << " has_config=" << (dns_client_ && dns_client_->GetEffectiveConfig() != nullptr);
+#endif
         if (dns_client_ && dns_client_->GetEffectiveConfig()) {
           bool insecure_allowed =
               dns_client_->CanUseInsecureDnsTransactions() &&

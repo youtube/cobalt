@@ -494,12 +494,6 @@ int SystemHostResolverCall(const std::string& host,
                            int* os_error_opt,
                            handles::NetworkHandle network) {
   struct addrinfo hints = {0};
-#if BUILDFLAG(IS_ANDROID)
-  if (host == "www.youtube.com") {
-    LOG(INFO) << "ColinL forcing AF_INET for " << host;
-    address_family = ADDRESS_FAMILY_IPV4;
-  }
-#endif
   hints.ai_family = AddressFamilyToAF(address_family);
 
 #if BUILDFLAG(IS_WIN)
