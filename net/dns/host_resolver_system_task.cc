@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -43,8 +44,14 @@
 #include "net/dns/host_resolver_internal_result.h"
 #include "net/dns/public/host_resolver_source.h"
 
+#include "cobalt/browser/switches.h"
+
 #if BUILDFLAG(IS_WIN)
 #include "net/base/winsock_init.h"
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/features.h"
 #endif
 
 namespace net {
@@ -493,6 +500,12 @@ int SystemHostResolverCall(const std::string& host,
                            AddressList* addrlist,
                            int* os_error_opt,
                            handles::NetworkHandle network) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(cobalt::features::kUseIPv4)) {
+    address_family = ADDRESS_FAMILY_IPV4;
+  }
+#endif
+
   struct addrinfo hints = {0};
   hints.ai_family = AddressFamilyToAF(address_family);
 

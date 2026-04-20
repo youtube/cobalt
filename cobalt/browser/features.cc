@@ -38,6 +38,8 @@ BASE_FEATURE(kCobaltMetricsIntervalFeature,
              "CobaltMetricsInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kUseIPv4, "UseIPv4", base::FEATURE_DISABLED_BY_DEFAULT);
+
 const base::FeatureParam<int> kCobaltMetricsIntervalParam{
     &kCobaltMetricsIntervalFeature, "cobalt-metrics-interval", 300};
 
