@@ -18,8 +18,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * restart the application, rather than leaving the user stuck on an unresponsive black screen.
  */
 public class StartupGuard {
-    public static final String NAVIGATION_ERROR = "navigation_error";
-
     private final Handler handler;
     private final Runnable crashRunnable;
     private final AtomicLong startupStatus = new AtomicLong(0L);
