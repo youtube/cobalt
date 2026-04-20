@@ -786,6 +786,10 @@ TEST_F(CobaltMetricsServiceClientTest,
 }
 
 TEST_F(CobaltMetricsServiceClientTest, CobaltMetricsIntervalFeatureTest) {
+  // Reset the default client created in SetUp to prevent its background
+  // metrics loggers from interfering with this test's results.
+  client_.reset();
+
   base::HistogramTester histogram_tester;
   const int kCustomInterval = 10;  // 10 seconds
 
@@ -827,6 +831,10 @@ TEST_F(CobaltMetricsServiceClientTest, CobaltMetricsIntervalFeatureTest) {
 }
 
 TEST_F(CobaltMetricsServiceClientTest, MetricsIntervalDefaultProductionTest) {
+  // Reset the default client created in SetUp to prevent its background
+  // metrics loggers from interfering with this test's results.
+  client_.reset();
+
   // Verify that the feature is disabled by default.
   EXPECT_FALSE(
       base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature));
