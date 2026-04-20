@@ -80,6 +80,8 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
     browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
 
+    // Null chang to trigger CI.
+
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
     blink_gc_dump->numeric_entries["effective_size"] = 10 * 1024 * 1024;
