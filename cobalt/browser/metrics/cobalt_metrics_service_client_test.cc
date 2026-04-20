@@ -835,6 +835,7 @@ TEST_F(CobaltMetricsServiceClientTest, MetricsIntervalDefaultProductionTest) {
   // Reset the default client created in SetUp to prevent its background
   // metrics loggers from interfering with this test's results.
   client_.reset();
+  base::RunLoop().RunUntilIdle();
 
   // Verify that the feature is disabled by default.
   EXPECT_FALSE(
