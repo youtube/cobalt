@@ -40,7 +40,7 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
-Thread::Thread(std::string_view name, const Options& options)
+Thread::Thread(std::string_view name, const ThreadOptions& options)
     : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {

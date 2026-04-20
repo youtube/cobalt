@@ -29,6 +29,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
@@ -105,7 +106,7 @@ class NotifierThread : public starboard::Thread {
   explicit NotifierThread(NetworkNotifier* notifier)
       : starboard::Thread(
             "NetworkNotifier",
-            starboard::Thread::Options().SetPriority(kSbThreadPriorityLow)),
+            starboard::ThreadOptions().SetPriority(kSbThreadPriorityLow)),
         notifier_(notifier) {}
 
   void Run() override { NetworkNotifier::NotifierThreadEntry(notifier_); }

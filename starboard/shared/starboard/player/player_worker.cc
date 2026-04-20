@@ -21,6 +21,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
@@ -69,7 +70,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerErrorFunc player_error_func,
                            SbPlayer player,
                            void* context)
-    : job_thread_(JobThread::Create("player_worker", kSbThreadPriorityHigh)),
+    : job_thread_(JobThread::Create(
+          "player_worker",
+          ThreadOptions().SetPriority(kSbThreadPriorityHigh))),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),

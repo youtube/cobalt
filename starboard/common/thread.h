@@ -26,6 +26,7 @@
 #include <string>
 #include <string_view>
 
+#include "starboard/common/thread_options.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
 
@@ -35,18 +36,12 @@ class Semaphore;
 
 class Thread {
  public:
-  struct Options {
-    Options() = default;
-    Options& SetPriority(SbThreadPriority priority_in) {
-      priority = priority_in;
-      return *this;
-    }
-
-    std::optional<SbThreadPriority> priority;
-  };
-  explicit Thread(std::string_view name, const Options& options = Options());
+  using Options = ThreadOptions;
+  explicit Thread(std::string_view name,
+                  const ThreadOptions& options = ThreadOptions());
   template <size_t N>
-  explicit Thread(char const (&name)[N], const Options& options = Options())
+  explicit Thread(char const (&name)[N],
+                  const ThreadOptions& options = ThreadOptions())
       : Thread(std::string_view(name), options) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");

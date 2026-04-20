@@ -25,8 +25,9 @@ namespace starboard {
 
 class JobThread::WorkerThread : public Thread {
  public:
-  WorkerThread(std::string_view thread_name, SbThreadPriority priority)
-      : Thread(thread_name, Thread::Options().SetPriority(priority)) {}
+  explicit WorkerThread(std::string_view thread_name,
+                        const ThreadOptions& options)
+      : Thread(thread_name, options) {}
 
   void Run() override {
     auto job_queue = std::make_unique<JobQueue>();
@@ -51,13 +52,9 @@ class JobThread::WorkerThread : public Thread {
   std::unique_ptr<JobQueue> job_queue_to_transfer_;
 };
 
-std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name) {
-  return JobThread::Create(thread_name, kSbThreadPriorityNormal);
-}
-
 std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name,
-                                             SbThreadPriority priority) {
-  auto thread = std::make_unique<WorkerThread>(thread_name, priority);
+                                             const ThreadOptions& options) {
+  auto thread = std::make_unique<WorkerThread>(thread_name, options);
   thread->Start();
   auto job_queue = thread->TakeJobQueue();
   return std::unique_ptr<JobThread>(

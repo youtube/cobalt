@@ -49,7 +49,7 @@ class MinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(MinRequiredFramesTester* tester)
       : Thread("min_frames_test",
-               Thread::Options().SetPriority(kSbThreadPriorityLowest)),
+               ThreadOptions().SetPriority(kSbThreadPriorityLowest)),
         tester_(tester) {}
 
   void Run() override { tester_->TesterThreadFunc(); }
