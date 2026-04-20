@@ -287,21 +287,6 @@ void DecoderBufferAllocator::EnableDecommitableAllocatorStrategy() {
 }
 
 // static
-void DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase() {
-  auto* allocator = Get();
-  CHECK(allocator);
-  allocator->UpdateAllocatorStrategy(base::BindRepeating(
-      [](int initial_capacity, int allocation_unit)
-          -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
-        LOG(INFO)
-            << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
-        return std::make_unique<InPlaceReuseAllocatorStrategy>(
-            initial_capacity, allocation_unit,
-            /*enable_decommit_on_idle=*/false);
-      }));
-}
-
-// static
 void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
   auto* allocator = Get();
   CHECK(allocator);
@@ -341,20 +326,13 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
                     "strategy. Falling back to default.";
   }
 
-  // Keep the existing feature based logic as is, as the h5vcc settings based
-  // logic will be deprecated once Finch is ready.
-  if (base::FeatureList::IsEnabled(
-          kCobaltDecoderBufferAllocatorWithInPlaceMetadata)) {
-    strategy_ = std::make_unique<InPlaceReuseAllocatorStrategy>(
-        initial_capacity_, allocation_unit_,
-        /*enable_decommit_on_idle=*/false);
-    LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
-  } else {
-    strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
-        initial_capacity_, allocation_unit_, /*enable_decommit_on_idle=*/false);
-    LOG(INFO)
-        << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy.";
-  }
+  // Through experimentation, we have found that the
+  // InPlaceReuseAllocatorStrategy has better performance than the previous
+  // DefaultReuseAllocatorStrategy. See b/487332929 for more info.
+  strategy_ = std::make_unique<InPlaceReuseAllocatorStrategy>(
+      initial_capacity_, allocation_unit_,
+      /*enable_decommit_on_idle=*/false);
+  LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
 
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for decoder buffer pool.";

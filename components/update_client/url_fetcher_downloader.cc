@@ -83,7 +83,7 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 UrlFetcherDownloader::~UrlFetcherDownloader() = default;
 
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url, std::string* dst) {
 #else  // defined(IN_MEMORY_UPDATES)
@@ -151,7 +151,7 @@ base::OnceClosure UrlFetcherDownloader::DoStartDownload(const GURL& url, std::st
 base::OnceClosure UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 #endif  // defined(IN_MEMORY_UPDATES)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   LOG(INFO) << "UrlFetcherDownloader::DoStartDownload";
   if (is_cancelled_) {
     LOG(ERROR) << "UrlFetcherDownloader::DoStartDownload: Download already cancelled";
@@ -206,7 +206,7 @@ void UrlFetcherDownloader::CreateDownloadDir() {
 }
 #endif
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url,
                                                  CrxDownloaderError error) {
   LOG(INFO) << "UrlFetcherDownloader::ReportDownloadFailure";                                                
@@ -368,7 +368,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
 #else
     result.response = file_path_;
 #endif
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
     result.installation_index = cobalt_slot_management_.GetInstallationIndex();
 #endif
   }

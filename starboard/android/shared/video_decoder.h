@@ -115,6 +115,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
+  void ResetForTeardown() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
@@ -143,10 +144,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease(int64_t pts_us, int64_t release_at_us);
+  void OnVideoFrameRelease();
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
+
+  void ResetInternal(bool skip_flush);
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -173,12 +176,15 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
+  const std::optional<bool> use_dual_threads_;
+
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   void* surface_view_;
 
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
+  const bool skip_flush_on_decoder_teardown_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
@@ -186,6 +192,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
   const bool needs_fps_to_initialize_codec_;
+
+  // Enable MediaCodec OutputChecker to elminate dirty output callbacks after
+  // flush.
+  const bool enable_output_checker_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -251,6 +261,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   int max_buffered_output_frames_ = 0;
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
+  const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;

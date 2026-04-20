@@ -33,11 +33,11 @@ runs:
         repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
         ref: main
         fetch_depth: 0
-        path: depot_tools
+        path: cobalt/depot_tools
         use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      run: echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> ${GITHUB_PATH}
       shell: bash
 
     - name: Set CIPD Cache Directory
@@ -48,7 +48,7 @@ runs:
     - name: Bootstrap Bundled python3
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
+        source ${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3 && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -64,20 +64,26 @@ runs:
         set -x
         cd cobalt
 
-        gclient config \
-          --name=src \
-          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
-          "${REPOSITORY}"
+        if [ ! -f .gclient ]; then
+          gclient config \
+            --name=src \
+            --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+            "${REPOSITORY}"
+        else
+          echo ".gclient already exists. Skipping gclient config."
+        fi
       shell: bash
 
     - name: Set target OS
       shell: bash
       run: |
         cd cobalt
-        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
-          echo "target_os=['android']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
-          echo "target_os=['ios']" >> .gclient
+        if ! grep -q "target_os" .gclient; then
+          if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+            echo "target_os=['android']" >> .gclient
+          elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+            echo "target_os=['ios']" >> .gclient
+          fi
         fi
         gclient validate
 
@@ -85,41 +91,17 @@ runs:
       shell: bash
       run: |
         cd cobalt
-
-        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
-          echo "target_cpu=['x64', 'arm64']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
-          echo "target_cpu=['x64', 'arm']" >> .gclient
+        if ! grep -q "target_cpu" .gclient; then
+          if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+            echo "target_cpu=['x64', 'arm64']" >> .gclient
+          elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+            echo "target_cpu=['x64', 'arm']" >> .gclient
+          fi
         fi
         gclient validate
 
-    - name: Add GoB Authentication
-      shell: bash
-      env:
-        METADATA_BASE_URL: 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default'
-        METADATA_HEADER: 'Metadata-Flavor: Google'
-      run: |
-        if ! curl -s -m 2 -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email" > /dev/null; then
-          echo "Metadata server not reachable. Skipping GoB authentication setup."
-          exit 0
-        fi
-
-        SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
-        ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
-
-        if [[ -z "${SERVICE_ACCOUNT}" || -z "${ACCESS_TOKEN}" ]]; then
-          echo "::error::Failed to retrieve service account or access token from metadata server."
-          exit 1
-        fi
-
-        echo "::add-mask::${ACCESS_TOKEN}"
-        echo "Authenticating with ${SERVICE_ACCOUNT}"
-
-        GITCOOKIES_PATH="/tmp/gitcookies"
-        (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
-          "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
-
-        git config --global http.cookiefile "${GITCOOKIES_PATH}"
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'

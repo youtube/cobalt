@@ -324,13 +324,10 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
-    if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
-      task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
-    }
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_));
   }
 
   // The function can be called when there are in-flight Demuxer::Read() calls

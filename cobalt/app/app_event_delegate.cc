@@ -334,7 +334,11 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
 
   target_state_ = state;
 
-  bool is_downward = state > application_state_;
+  // The initial transition from kInitial to kStarted/kPreloaded is an
+  // 'activating' move, but numerically it looks like a deactivation. We
+  // explicitly exclude it here to avoid unnecessary blocking during startup.
+  bool is_deactivating = application_state_ != ApplicationState::kInitial &&
+                         state > application_state_;
 
   if (!is_transitioning_) {
     is_transitioning_ = true;
@@ -343,9 +347,9 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
                                   base::Unretained(this)));
   }
 
-  // If this is a downward transition, we MUST block the OS (Starboard) thread
-  // until the target state is reached.
-  if (is_downward) {
+  // If this is a deactivating transition, we MUST block the OS (Starboard)
+  // thread until the target state is reached.
+  if (is_deactivating) {
     if (content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
       // REQUIRED BEHAVIOR:
       // We must block the Starboard OS thread while still pumping Chromium's UI

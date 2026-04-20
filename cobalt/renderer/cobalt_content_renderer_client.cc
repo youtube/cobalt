@@ -47,6 +47,8 @@ const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
     "Media.EnableAv1StartupOptimization";
+const char kH5vccSettingsKeyMediaEnableCodecOutputChecker[] =
+    "Media.EnableCodecOutputChecker";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
@@ -63,6 +65,10 @@ const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
     "Media.VideoRendererMinDecodedFrames";
 const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
     "Media.MaxSamplesPerWrite";
+const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
+    "Media.SkipFlushOnDecoderTeardown";
+const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
+    "Media.UseDualThreadsForVideo";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -240,12 +246,24 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_av1_startup_optimization = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableCodecOutputChecker)) {
+    parsed.enable_codec_output_checker = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
     parsed.enable_flush_during_seek = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
+    parsed.skip_flush_on_decoder_teardown = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
+    parsed.use_dual_threads_for_video = *val != 0;
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(

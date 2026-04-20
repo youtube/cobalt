@@ -157,17 +157,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
-  if (name == "DecoderBuffer.EnableInPlaceReuseAllocatorBase") {
-    return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-          ::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase();
-          return true;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-          return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-        });
-  }
   if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {

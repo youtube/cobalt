@@ -8,6 +8,10 @@ on:
       start_commit:
         description: 'The commit to start rolling from, should point to the last release chore'
         type: string
+      max_commits:
+        description: 'Max number of commits to include on a single PR'
+        type: number
+        default: 10
 
 permissions:
   contents: read
@@ -63,13 +67,15 @@ jobs:
         env:
           TARGET_BRANCH: 27.lts
           START_COMMIT: ${{ inputs.start_commit }}
+          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
         run: |
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --target-branch "${TARGET_BRANCH}" \
-            --start-commit "${START_COMMIT}")
+            --start-commit "${START_COMMIT}" \
+            --max-commits "${MAX_COMMITS}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

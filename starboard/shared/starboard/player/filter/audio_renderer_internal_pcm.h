@@ -28,6 +28,7 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -68,7 +69,8 @@ class AudioRendererPcm : public AudioRenderer,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,
-                   int min_frames_per_append);
+                   int min_frames_per_append,
+                   const ExperimentalFeatures& experimental_features);
   ~AudioRendererPcm() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -104,6 +106,7 @@ class AudioRendererPcm : public AudioRenderer,
 
   const int max_cached_frames_;
   const int min_frames_per_append_;
+  const ExperimentalFeatures experimental_features_;
   // |buffered_frames_to_start_| would be initialized in OnFirstOutput().
   // Before it's initialized, set it to a large number.
   int buffered_frames_to_start_ = 48 * 1024;

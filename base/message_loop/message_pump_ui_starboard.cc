@@ -102,7 +102,7 @@ void MessagePumpUIStarboard::Run(Delegate* delegate) {
   //
   // To support this, we implement a standard nested Chromium message
   // loop here. This allows instantiating a nested
-  // `base::RunLoop` during downward transitions, which blocks the OS thread
+  // `base::RunLoop` during deactivating transitions, which blocks the OS thread
   // while simultaneously spinning up this inner `Run()` loop to process the
   // necessary asynchronous teardown tasks.
   SetDelegate(delegate);
