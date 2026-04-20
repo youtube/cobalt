@@ -84,8 +84,6 @@ runs:
         if [ ! -d "${DEST_PATH}/.git" ]; then
           git clone \
             --filter=blob:none \
-            --reference-if-able "${CACHE_PATH}" \
-            --dissociate \
             "${depth_arg[@]}" \
             "${REPO_URL}" \
             "${DEST_PATH}"
