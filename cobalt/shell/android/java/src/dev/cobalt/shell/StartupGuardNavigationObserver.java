@@ -1,5 +1,6 @@
 package dev.cobalt.shell;
 
+import android.util.Log;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
@@ -26,6 +27,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigation) {
         if (navigation.getUrl() != null &&
             navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
+            Log.v("cobalt", "ColinL setStartupMilestone:33 - Main navigation to YouTube started.");
             StartupGuard.getInstance().setStartupMilestone(33);
         }
     }
@@ -34,6 +36,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     public void didRedirectNavigation(NavigationHandle navigation) {
         if (navigation.getUrl() != null &&
             navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
+            Log.v("cobalt", "ColinL setStartupMilestone:36 - Navigation redirected to YouTube URL.");
             StartupGuard.getInstance().setStartupMilestone(36);
         }
 
@@ -47,6 +50,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     @Override
     public void didStartLoading(GURL url) {
         if (url != null && url.getSpec().startsWith(YOUTUBE_URL)) {
+            Log.v("cobalt", "ColinL setStartupMilestone:32 - YouTube URL started loading.");
             StartupGuard.getInstance().setStartupMilestone(32);
         }
     }
@@ -55,6 +59,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     public void didFailLoad(
         boolean isInPrimaryMainFrame, int errorCode, GURL failingUrl, int rfhLifecycleState) {
         if (failingUrl != null && failingUrl.getSpec().startsWith(YOUTUBE_URL)) {
+            Log.v("cobalt", "ColinL setStartupMilestone:34 - YouTube URL failed to load. Error: " + errorCode);
             StartupGuard.getInstance().setStartupMilestone(34);
         }
     }
@@ -63,6 +68,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigation) {
         if (navigation.getUrl() != null &&
             navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
+            Log.v("cobalt", "ColinL setStartupMilestone:35 - YouTube navigation finished successfully.");
             StartupGuard.getInstance().setStartupMilestone(35);
         }
 

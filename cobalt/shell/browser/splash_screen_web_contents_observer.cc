@@ -44,6 +44,8 @@ void SplashScreenWebContentsObserver::DidStartNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "ColinL setStartupMilestone:24 - Splash screen did start "
+                 "navigation.";
     starboard::StarboardBridge::GetInstance()->SetStartupMilestone(24);
   }
 #endif
@@ -53,6 +55,8 @@ void SplashScreenWebContentsObserver::DidFinishNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "ColinL setStartupMilestone:25 - Splash screen did finish "
+                 "navigation.";
     starboard::StarboardBridge::GetInstance()->SetStartupMilestone(25);
   }
 #endif
@@ -60,12 +64,16 @@ void SplashScreenWebContentsObserver::DidFinishNavigation(
 
 void SplashScreenWebContentsObserver::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO)
+      << "ColinL setStartupMilestone:23 - Splash screen did start loading.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(23);
 #endif
 }
 
 void SplashScreenWebContentsObserver::DidStopLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO)
+      << "ColinL setStartupMilestone:28 - Splash screen did stop loading.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(28);
 #endif
 }

@@ -4,6 +4,13 @@
 
 #include "net/quic/quic_session_pool_direct_job.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"  // nogncheck
+#endif
+
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/network_change_notifier.h"
@@ -62,9 +69,19 @@ QuicSessionPool::DirectJob::DirectJob(
 QuicSessionPool::DirectJob::~DirectJob() {}
 
 int QuicSessionPool::DirectJob::Run(CompletionOnceCallback callback) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:43 - QUIC direct job started.";
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(43);
+#endif
+
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
     callback_ = std::move(callback);
+  } else {
+#if BUILDFLAG(IS_ANDROID)
+    LOG(INFO) << "ColinL setStartupMilestone:44 - QUIC direct job finished (sync).";
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(44);
+#endif
   }
 
   return rv > 0 ? OK : rv;
@@ -147,6 +164,9 @@ int QuicSessionPool::DirectJob::DoResolveHost() {
 }
 
 int QuicSessionPool::DirectJob::DoResolveHostComplete(int rv) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL DirectJob::DoResolveHostComplete: rv=" << rv;
+#endif
   host_resolution_finished_ = true;
   dns_resolution_end_time_ = base::TimeTicks::Now();
   if (rv != OK) {
@@ -235,6 +255,10 @@ void QuicSessionPool::DirectJob::OnResolveHostComplete(int rv) {
 
 void QuicSessionPool::DirectJob::OnSessionAttemptComplete(int rv) {
   CHECK_NE(rv, ERR_IO_PENDING);
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:44 - QUIC direct job finished (async).";
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(44);
+#endif
   if (!callback_.is_null()) {
     std::move(callback_).Run(rv);
   }

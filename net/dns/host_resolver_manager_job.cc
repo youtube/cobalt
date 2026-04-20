@@ -4,6 +4,13 @@
 
 #include "net/dns/host_resolver_manager_job.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"  // nogncheck
+#endif
+
 #include <deque>
 #include <memory>
 #include <optional>
@@ -175,6 +182,11 @@ HostResolverManager::Job::Job(
   net_log_.BeginEvent(NetLogEventType::HOST_RESOLVER_MANAGER_JOB, [&] {
     return NetLogJobCreationParams(source_net_log.source());
   });
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL Job created: host=" << key_.host.ToString()
+            << " priority=" << (int)priority
+            << " num_tasks=" << tasks_.size();
+#endif
 }
 
 HostResolverManager::Job::~Job() {
@@ -426,6 +438,9 @@ void HostResolverManager::Job::RunNextTask() {
   }
 
   TaskType next_task = tasks_.front();
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL RunNextTask: " << (int)next_task;
+#endif
 
   // Schedule insecure DnsTasks and HostResolverSystemTasks with the
   // dispatcher.
@@ -456,12 +471,21 @@ void HostResolverManager::Job::RunNextTask() {
 
   switch (next_task) {
     case TaskType::SYSTEM:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL RunNextTask: SYSTEM";
+#endif
       StartSystemTask();
       break;
     case TaskType::DNS:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL RunNextTask: DNS";
+#endif
       StartDnsTask(false /* secure */);
       break;
     case TaskType::SECURE_DNS:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL RunNextTask: SECURE_DNS";
+#endif
       StartDnsTask(true /* secure */);
       break;
     case TaskType::MDNS:
@@ -595,6 +619,11 @@ void HostResolverManager::Job::UpdatePriority() {
 }
 
 void HostResolverManager::Job::Start() {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:41 - Host resolution job started. Host: " << key_.host.ToString();
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(41);
+#endif
+
   handle_.Reset();
   ++num_occupied_job_slots_;
 
@@ -619,6 +648,9 @@ void HostResolverManager::Job::Start() {
 }
 
 void HostResolverManager::Job::StartSystemTask() {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL StartSystemTask";
+#endif
   DCHECK(dispatched_);
   DCHECK_EQ(1, num_occupied_job_slots_);
   DCHECK(HasAddressType(key_.query_types));
@@ -705,6 +737,9 @@ void HostResolverManager::Job::InsecureCacheLookup() {
 }
 
 void HostResolverManager::Job::StartDnsTask(bool secure) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL StartDnsTask: secure=" << secure;
+#endif
   DCHECK_EQ(secure, !dispatched_);
   DCHECK_EQ(dispatched_ ? 1 : 0, num_occupied_job_slots_);
   DCHECK(!resolver_->ShouldForceSystemResolverDueToTestOverride());
@@ -1044,6 +1079,10 @@ void HostResolverManager::Job::CompleteRequests(
     bool allow_cache,
     bool secure,
     std::optional<TaskType> task_type) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:42 - Host resolution job finished. Host: " << key_.host.ToString();
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(42);
+#endif
   CHECK(resolver_.get());
 
   // This job must be removed from resolver's |jobs_| now to make room for a

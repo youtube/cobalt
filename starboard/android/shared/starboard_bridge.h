@@ -105,6 +105,8 @@ class StarboardBridge {
 
   void SetStartupMilestone(jint milestone) const;
 
+  void SetStartupDiagnosisInfo(const char* key, const char* value) const;
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;

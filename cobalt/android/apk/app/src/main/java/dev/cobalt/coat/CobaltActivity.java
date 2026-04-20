@@ -88,7 +88,7 @@ public abstract class CobaltActivity extends Activity {
 
   // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
   // logic will be activated for a given session.
-  private static final double STARTUP_GUARD_PROBABILITY = 0.25;
+  private static final double STARTUP_GUARD_PROBABILITY = 1;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -168,6 +168,7 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
+    Log.v(TAG, "ColinL setStartupMilestone:1 - Entering createContent, initializing command line.");
     StartupGuard.getInstance().setStartupMilestone(1);
 
     // Initializing the command line must occur before loading the library.
@@ -189,9 +190,11 @@ public abstract class CobaltActivity extends Activity {
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
 
+    Log.v(TAG, "ColinL setStartupMilestone:2 - Loading native libraries.");
     StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
+    Log.v(TAG, "ColinL setStartupMilestone:3 - Native libraries loaded successfully.");
     StartupGuard.getInstance().setStartupMilestone(3);
 
     // StarboardBridge initialization must happen right after library loading,
@@ -205,6 +208,7 @@ public abstract class CobaltActivity extends Activity {
       mStartDeepLink = "";
     }
 
+    Log.v(TAG, "ColinL setStartupMilestone:4 - Creating or handling StarboardBridge.");
     StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
@@ -214,6 +218,7 @@ public abstract class CobaltActivity extends Activity {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
+    Log.v(TAG, "ColinL setStartupMilestone:7 - StarboardBridge successfully initialized.");
     StartupGuard.getInstance().setStartupMilestone(7);
 
     mShellManager = new ShellManager(this);
@@ -253,6 +258,7 @@ public abstract class CobaltActivity extends Activity {
       StartupGuard.getInstance().disarm();
     }
 
+    Log.v(TAG, "ColinL setStartupMilestone:8 - Starting browser processes asynchronously.");
     StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
@@ -420,15 +426,15 @@ public abstract class CobaltActivity extends Activity {
     super.onCreate(savedInstanceState);
 
     // Use a random check to run the StartupGuard logic only a certain percentage of the time.
-    if (Math.random() < STARTUP_GUARD_PROBABILITY) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
-        Log.i(TAG, "StartupGuard is disabled by Java switch.");
-      } else {
-        StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
-      }
-    } else {
-      Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
-    }
+    // if (Math.random() < STARTUP_GUARD_PROBABILITY) {
+    //   if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+    //     Log.i(TAG, "StartupGuard is disabled by Java switch.");
+    //   } else {
+    //     StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+    //   }
+    // } else {
+    //   Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
+    // }
 
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
@@ -442,6 +448,7 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
+    Log.v(TAG, "ColinL setStartupMilestone:9 - Activity onCreate finished.");
     StartupGuard.getInstance().setStartupMilestone(9);
   }
 
@@ -493,6 +500,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    Log.v(TAG, "ColinL setStartupMilestone:10 - Activity onStart.");
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -521,6 +529,7 @@ public abstract class CobaltActivity extends Activity {
     updateShellActivityVisible(true);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
+    Log.v(TAG, "ColinL setStartupMilestone:11 - Activity onStart finished.");
     StartupGuard.getInstance().setStartupMilestone(11);
   }
 
@@ -556,6 +565,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    Log.v(TAG, "ColinL setStartupMilestone:12 - Activity onResume.");
     StartupGuard.getInstance().setStartupMilestone(12);
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -563,6 +573,7 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Request focus on the root view on resume.");
     }
     CobaltContentBrowserClient.dispatchFocus();
+    Log.v(TAG, "ColinL setStartupMilestone:13 - Activity onResume finished.");
     StartupGuard.getInstance().setStartupMilestone(13);
   }
 

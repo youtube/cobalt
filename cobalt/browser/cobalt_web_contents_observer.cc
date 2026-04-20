@@ -60,13 +60,13 @@ void CobaltWebContentsObserver::DidStartNavigation(
     return;
   }
 
-  // Start a navigation timer with a timeout callback to raise a
-  // network error dialog
-  timeout_timer_->Stop();
-  timeout_timer_->Start(
-      FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
-      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
-                     weak_factory_.GetWeakPtr()));
+  // // Start a navigation timer with a timeout callback to raise a
+  // // network error dialog
+  // timeout_timer_->Stop();
+  // timeout_timer_->Start(
+  //     FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
+  //     base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+  //                    weak_factory_.GetWeakPtr()));
 }
 
 // Opting for WebContentsObserver::DidFinishNavigation() over
@@ -89,6 +89,10 @@ void CobaltWebContentsObserver::DidFinishNavigation(
                              -net_error_code);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
+#if BUILDFLAG(IS_ANDROIDTV)
+    starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(
+        "navigation_error", net::ErrorToString(net_error_code).c_str());
+#endif
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",

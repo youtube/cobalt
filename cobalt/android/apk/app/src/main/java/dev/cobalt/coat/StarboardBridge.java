@@ -300,6 +300,7 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+    Log.w(TAG, "ColinL setStartupMilestone:37 - Raising platform error. Type: " + errorType + ", Data: " + data + ".");
     StartupGuard.getInstance().setStartupMilestone(37);
     mPlatformError = new PlatformError(mActivityHolder, errorType, data);
     mPlatformError.raise();
@@ -771,5 +772,10 @@ public class StarboardBridge {
   @CalledByNative
   protected void setStartupMilestone(int milestone) {
     StartupGuard.getInstance().setStartupMilestone(milestone);
+  }
+
+  @CalledByNative
+  protected void setStartupDiagnosisInfo(String key, String value) {
+    StartupGuard.getInstance().setDiagnosisInfo(key, value);
   }
 }
