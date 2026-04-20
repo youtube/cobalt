@@ -179,6 +179,8 @@ void AudioInputStreamStarboard::ReadAudio() {
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
                                                              frames_read);
 
+    SB_LOG(INFO) << "KJ: Browser Process - Pushing " << audio_bus_->frames()
+                 << " frames to Renderer @ " << params_.sample_rate() << "Hz";
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
 
     // If the read callback is behind schedule. Schedule the next one to run
