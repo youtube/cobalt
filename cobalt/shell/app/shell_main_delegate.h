@@ -30,7 +30,7 @@ class ShellContentBrowserClient;
 class ShellContentRendererClient;
 
 #if BUILDFLAG(SUPPORT_WEB_TESTS)
-class WebTestBrowserMainRunner;
+class CobaltWebTestBrowserMainRunner;
 #endif
 
 class ShellMainDelegate : public ContentMainDelegate {
@@ -73,11 +73,11 @@ class ShellMainDelegate : public ContentMainDelegate {
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and
   // |web_test_runner_| are mututally exclusive.
-  std::unique_ptr<WebTestBrowserMainRunner> web_test_runner_;
+  std::unique_ptr<CobaltWebTestBrowserMainRunner> web_test_runner_;
 #endif
 
-  std::unique_ptr<ShellContentBrowserClient> browser_client_;
-  std::unique_ptr<ShellContentRendererClient> renderer_client_;
+  std::unique_ptr<ContentBrowserClient> browser_client_;
+  std::unique_ptr<ContentRendererClient> renderer_client_;
   std::unique_ptr<ShellContentClient> content_client_;
 
   memory_system::MemorySystem memory_system_;

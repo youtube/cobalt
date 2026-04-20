@@ -46,6 +46,14 @@ extern const char kTestRegisterStandardScheme[];
 // Returns false if kDisableSplashScreen is present.
 bool ShouldCreateSplashScreen();
 
+// Runs Cobalt Shell in web test mode, injecting test-only behaviour for
+// blink web tests.
+extern const char kRunWebTests[];
+
+// Helper that returns true if kRunWebTests is present in the command line,
+// meaning Cobalt Shell is running in web test mode.
+bool IsRunWebTestsSwitchPresent();
+
 }  // namespace switches
 
 #endif  // COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
