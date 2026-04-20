@@ -289,8 +289,6 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
     return it->second;
   }
-  LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
-            << "combination is undefined with the new Omaha configs.";
 
   // All undefined channel requests go to the default config.
   LOG(INFO)
