@@ -24,6 +24,10 @@
 
 #include "starboard/common/log.h"
 
+// The PR_SET_VMA* symbols are originally from
+// https://android.googlesource.com/platform/bionic/+/lollipop-release/libc/private/bionic_prctl.h
+// and were subsequently added to mainline Linux in Jan 2022.
+//
 // We conditionally define these symbols here to support older
 // GNU/Linux operating systems that may not have these symbols yet.
 #if !defined(PR_SET_VMA)
