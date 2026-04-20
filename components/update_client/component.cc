@@ -60,8 +60,6 @@
 
 namespace update_client {
 
-
-
 Component::Component(const UpdateContext& update_context, const std::string& id)
     : id_(id),
       state_(std::make_unique<StateNew>(this)),
@@ -549,8 +547,6 @@ void Component::StateUpToDate::DoHandle() {
   component.NotifyObservers();
   EndState();
 }
-
-
 
 Component::StateUpdating::StateUpdating(Component* component)
     : State(component, ComponentState::kUpdating) {}

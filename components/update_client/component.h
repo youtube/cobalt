@@ -327,8 +327,6 @@ class Component {
     void DoHandle() override;
   };
 
-
-
   class StateUpdating : public State {
    public:
     explicit StateUpdating(Component* component);
