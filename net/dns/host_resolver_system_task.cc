@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/command_line.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -43,8 +42,6 @@
 #include "net/dns/host_resolver_cache.h"
 #include "net/dns/host_resolver_internal_result.h"
 #include "net/dns/public/host_resolver_source.h"
-
-#include "cobalt/browser/switches.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "net/base/winsock_init.h"

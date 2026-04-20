@@ -182,9 +182,11 @@ public abstract class CobaltActivity extends Activity {
 
       List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
 
-      if (commandLineArgs != null) {
-        // Add all array elements to index 0 of the list
-        extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+      if (!extraCommandLineArgs.isEmpty()) {
+        if (commandLineArgs != null) {
+          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+        }
+        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
       }
 
       CommandLineOverrideHelper.getFlagOverrides(

@@ -26,7 +26,7 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
 
   /** flag to force use IPv4 for system host resolution. */
-  public static final String USE_IPV4 = "EnableAsyncDnsAndDoH";
+  public static final String USE_IPV4 = "UseIPv4";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
