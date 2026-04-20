@@ -17,8 +17,11 @@
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
+#include "build/buildflag.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/interest_group/devtools_enums.h"
 #include "content/browser/interest_group/interest_group_manager_impl.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 #include "content/public/browser/global_routing_id.h"
@@ -39,7 +42,9 @@ namespace protocol {
 class StorageHandler
     : public DevToolsDomainHandler,
       public Storage::Backend,
+#if !BUILDFLAG(IS_COBALT)
       public content::InterestGroupManagerImpl::InterestGroupObserver,
+#endif  // !BUILDFLAG(IS_COBALT)
       public AttributionObserver,
       public content::SharedStorageRuntimeManager::
           SharedStorageObserverInterface {
@@ -118,12 +123,14 @@ class StorageHandler
       const std::string& issuerOrigin,
       std::unique_ptr<ClearTrustTokensCallback> callback) override;
 
+#if !BUILDFLAG(IS_COBALT)
   void GetInterestGroupDetails(
       const std::string& owner_origin_string,
       const std::string& name,
       std::unique_ptr<GetInterestGroupDetailsCallback> callback) override;
   Response SetInterestGroupTracking(bool enable) override;
   Response SetInterestGroupAuctionTracking(bool enable) override;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   void GetSharedStorageMetadata(
       const std::string& owner_origin_string,
@@ -164,6 +171,7 @@ class StorageHandler
   void SendPendingAttributionReports(
       std::unique_ptr<SendPendingAttributionReportsCallback>) override;
 
+#if !BUILDFLAG(IS_COBALT)
   void NotifyInterestGroupAuctionEventOccurred(
       base::Time event_time,
       content::InterestGroupAuctionEventType type,
@@ -180,12 +188,15 @@ class StorageHandler
       const std::string& in_owner_origin,
       const std::string& in_group_name,
       std::unique_ptr<std::vector<Binary>> in_hashes) override;
+#endif  // !BUILDFLAG(IS_COBALT)
 
  private:
   // See definition for lifetime information.
   class CacheStorageObserver;
   class IndexedDBObserver;
+#if !BUILDFLAG(IS_COBALT)
   class InterestGroupObserver;
+#endif  // !BUILDFLAG(IS_COBALT)
   class SharedStorageObserver;
   class QuotaManagerObserver;
 
@@ -199,6 +210,7 @@ class StorageHandler
   storage::QuotaManagerProxy* GetQuotaManagerProxy();
   AttributionManager* GetAttributionManager();
 
+#if !BUILDFLAG(IS_COBALT)
   // content::InterestGroupManagerImpl::InterestGroupObserver
   void OnInterestGroupAccessed(
       base::optional_ref<const std::string> auction_id,
@@ -209,6 +221,7 @@ class StorageHandler
       base::optional_ref<const url::Origin> component_seller_origin,
       std::optional<double> bid,
       base::optional_ref<const std::string> bid_currency) override;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // AttributionObserver
   void OnSourceHandled(
@@ -284,8 +297,10 @@ class StorageHandler
   std::unique_ptr<storage::QuotaOverrideHandle> quota_override_handle_;
   raw_ptr<DevToolsAgentHostClient> client_;
 
+#if !BUILDFLAG(IS_COBALT)
   bool interest_group_tracking_enabled_ = false;
   bool interest_group_auction_tracking_enabled_ = false;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   base::ScopedObservation<AttributionManager, AttributionObserver>
       attribution_observation_{this};

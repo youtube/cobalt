@@ -15,17 +15,20 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "build/buildflag.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 #include "content/common/content_export.h"
 #include "url/gurl.h"
 
+#if !BUILDFLAG(IS_COBALT)
 namespace blink {
 
 struct AdDescriptor;
 struct AdSize;
 
 }  // namespace blink
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace content {
 
@@ -79,6 +82,7 @@ class CONTENT_EXPORT FencedFrameURLMapping {
   void ImportPendingAdComponents(
       const std::vector<std::pair<GURL, FencedFrameConfig>>& components);
 
+#if !BUILDFLAG(IS_COBALT)
   // Move pending mapped `urn_uuid` from `pending_urn_uuid_to_url_map_` to
   // `urn_uuid_to_url_map_`. Then assign ad auction data as well as an ordered
   // list of ad component URLs, provided by a bidder running an auction, to the
@@ -101,6 +105,7 @@ class CONTENT_EXPORT FencedFrameURLMapping {
       base::RepeatingClosure on_navigate_callback,
       std::vector<blink::AdDescriptor> ad_component_descriptors,
       scoped_refptr<FencedFrameReporter> fenced_frame_reporter = nullptr);
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Generate a URN that is not yet mapped to a URL.
   // * For Shared Storage, it will be returned by

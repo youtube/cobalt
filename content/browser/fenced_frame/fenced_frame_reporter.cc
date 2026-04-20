@@ -38,7 +38,9 @@
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
-#include "content/browser/interest_group/interest_group_pa_report_util.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/interest_group/interest_group_pa_report_util.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/private_aggregation/private_aggregation_budget_key.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -48,7 +50,9 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
-#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -907,11 +911,13 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
     return;
   }
 
+#if !BUILDFLAG(IS_COBALT)
   SplitContributionsIntoBatchesThenSendToHost(
       /*requests=*/std::move(it->second), *private_aggregation_manager_,
       /*reporting_origin=*/winner_origin_.value(),
       /*aggregation_coordinator_origin=*/winner_aggregation_coordinator_origin_,
       main_frame_origin_);
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Remove the entry of key `pa_event_type` from
   // `private_aggregation_event_map_` to avoid possibly sending the same
@@ -982,12 +988,14 @@ std::set<std::string> FencedFrameReporter::GetReceivedPaEventsForTesting()
 std::map<std::string, FencedFrameReporter::FinalizedPrivateAggregationRequests>
 FencedFrameReporter::GetPrivateAggregationEventMapForTesting() {
   std::map<std::string, FinalizedPrivateAggregationRequests> out;
+#if !BUILDFLAG(IS_COBALT)
   for (auto& [event_type, requests] : private_aggregation_event_map_) {
     for (auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr&
              request : requests) {
       out[event_type].emplace_back(request.Clone());
     }
   }
+#endif  // !BUILDFLAG(IS_COBALT)
   return out;
 }
 

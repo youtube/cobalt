@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "build/buildflag.h"
 #include "content/browser/loader/prefetch_url_loader_service_context.h"
 #include "content/browser/loader/subresource_proxying_url_loader.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -88,8 +89,11 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
 
   if (!PrefetchURLLoaderServiceContext::IsPrefetchRequest(
           resource_request_in) &&
-      !resource_request_in.browsing_topics &&
-      !resource_request_in.ad_auction_headers) {
+      !resource_request_in.browsing_topics
+#if !BUILDFLAG(IS_COBALT)
+      && !resource_request_in.ad_auction_headers
+#endif  // !BUILDFLAG(IS_COBALT)
+) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
         "SubresourceProxyingURLLoaderService::CreateLoaderAndStart(): it's not "
@@ -99,7 +103,12 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
 
   if (PrefetchURLLoaderServiceContext::IsPrefetchRequest(resource_request_in) &&
       (resource_request_in.browsing_topics ||
-       resource_request_in.ad_auction_headers)) {
+#if !BUILDFLAG(IS_COBALT)
+       resource_request_in.ad_auction_headers
+#else
+       false
+#endif  // !BUILDFLAG(IS_COBALT)
+)) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
         "SubresourceProxyingURLLoaderService::CreateLoaderAndStart(): prefetch "
@@ -117,6 +126,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
     return;
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (resource_request_in.ad_auction_headers &&
       !base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     loader_factory_receivers_.ReportBadMessage(
@@ -125,6 +135,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
         "ad_auction_headers is set when InterestGroupStorage is disabled.");
     return;
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   if (PrefetchURLLoaderServiceContext::IsPrefetchRequest(resource_request_in)) {
     prefetch_url_loader_service_context_->CreatePrefetchLoaderAndStart(

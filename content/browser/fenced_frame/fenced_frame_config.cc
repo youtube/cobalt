@@ -13,7 +13,10 @@
 #include "services/network/public/cpp/permissions_policy/fenced_frame_permissions_policies.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "build/buildflag.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace content {
 
@@ -155,8 +158,11 @@ blink::FencedFrame::RedactedFencedFrameConfig FencedFrameConfig::RedactFor(
   RedactProperty(content_size_, entity, redacted_config.content_size_);
   RedactProperty(deprecated_should_freeze_initial_size_, entity,
                  redacted_config.deprecated_should_freeze_initial_size_);
+#if !BUILDFLAG(IS_COBALT)
   RedactProperty(ad_auction_data_, entity, redacted_config.ad_auction_data_);
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
   if (nested_configs_.has_value()) {
     std::optional<std::vector<FencedFrameConfig>>
         partially_redacted_nested_configs =
@@ -173,6 +179,7 @@ blink::FencedFrame::RedactedFencedFrameConfig FencedFrameConfig::RedactFor(
       redacted_config.nested_configs_.emplace(std::nullopt);
     }
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   RedactProperty(shared_storage_budget_metadata_, entity,
                  redacted_config.shared_storage_budget_metadata_);
@@ -190,7 +197,10 @@ blink::FencedFrame::RedactedFencedFrameConfig FencedFrameConfig::RedactFor(
 }
 
 FencedFrameProperties::FencedFrameProperties()
-    : ad_auction_data_(std::nullopt),
+    :
+#if !BUILDFLAG(IS_COBALT)
+      ad_auction_data_(std::nullopt),
+#endif  // !BUILDFLAG(IS_COBALT)
       nested_urn_config_pairs_(std::nullopt),
       shared_storage_budget_metadata_(std::nullopt),
       embedder_shared_storage_context_(std::nullopt),
@@ -216,7 +226,9 @@ FencedFrameProperties::FencedFrameProperties(const FencedFrameConfig& config)
       content_size_(config.content_size_),
       deprecated_should_freeze_initial_size_(
           config.deprecated_should_freeze_initial_size_),
+#if !BUILDFLAG(IS_COBALT)
       ad_auction_data_(config.ad_auction_data_),
+#endif  // !BUILDFLAG(IS_COBALT)
       on_navigate_callback_(config.on_navigate_callback_),
       nested_urn_config_pairs_(std::nullopt),
       shared_storage_budget_metadata_(std::nullopt),
@@ -237,6 +249,7 @@ FencedFrameProperties::FencedFrameProperties(const FencedFrameConfig& config)
         config.shared_storage_budget_metadata_->visibility_to_embedder_,
         config.shared_storage_budget_metadata_->visibility_to_content_);
   }
+#if !BUILDFLAG(IS_COBALT)
   if (config.nested_configs_) {
     nested_urn_config_pairs_.emplace(
         GenerateURNConfigVectorForConfigs(
@@ -244,6 +257,7 @@ FencedFrameProperties::FencedFrameProperties(const FencedFrameConfig& config)
         config.nested_configs_->visibility_to_embedder_,
         config.nested_configs_->visibility_to_content_);
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 FencedFrameProperties::FencedFrameProperties(const FencedFrameProperties&) =
@@ -264,8 +278,10 @@ FencedFrameProperties::RedactFor(FencedFrameEntity entity) const {
   RedactProperty(content_size_, entity, redacted_properties.content_size_);
   RedactProperty(deprecated_should_freeze_initial_size_, entity,
                  redacted_properties.deprecated_should_freeze_initial_size_);
+#if !BUILDFLAG(IS_COBALT)
   RedactProperty(ad_auction_data_, entity,
                  redacted_properties.ad_auction_data_);
+#endif  // !BUILDFLAG(IS_COBALT)
 
   if (nested_urn_config_pairs_.has_value()) {
     std::optional<std::vector<std::pair<GURL, FencedFrameConfig>>>
@@ -326,6 +342,7 @@ void FencedFrameProperties::UpdateMappedURL(GURL url) {
   mapped_url_->value_ = url;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::vector<std::pair<GURL, FencedFrameConfig>>
 FencedFrameProperties::GenerateURNConfigVectorForConfigs(
     const std::vector<FencedFrameConfig>& nested_configs) {
@@ -352,6 +369,7 @@ FencedFrameProperties::GenerateURNConfigVectorForConfigs(
   }
   return nested_urn_config_pairs;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 void FencedFrameProperties::UpdateParentParsedPermissionsPolicy(
     const network::PermissionsPolicy* parent_policy,

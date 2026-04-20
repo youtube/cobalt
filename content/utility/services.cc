@@ -19,8 +19,11 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/utility/content_utility_client.h"
 #include "content/public/utility/utility_thread.h"
-#include "content/services/auction_worklet/auction_worklet_service_impl.h"
-#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"
+#include "build/buildflag.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/services/auction_worklet/auction_worklet_service_impl.h"               // nogncheck
+#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "device/vr/buildflags/buildflags.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"

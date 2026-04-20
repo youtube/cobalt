@@ -75,6 +75,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "build/buildflag.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 #include "content/common/content_export.h"
 #include "third_party/blink/public/common/fenced_frame/redacted_fenced_frame_config.h"
@@ -106,7 +107,9 @@ std::string SubstituteMappedStrings(
     const std::string& input,
     const std::vector<std::pair<std::string, std::string>>& substitutions);
 
+#if !BUILDFLAG(IS_COBALT)
 using AdAuctionData = blink::FencedFrame::AdAuctionData;
+#endif  // !BUILDFLAG(IS_COBALT)
 using DeprecatedFencedFrameMode = blink::FencedFrame::DeprecatedFencedFrameMode;
 using SharedStorageBudgetMetadata =
     blink::FencedFrame::SharedStorageBudgetMetadata;
@@ -304,14 +307,17 @@ class CONTENT_EXPORT FencedFrameConfig {
   std::optional<FencedFrameProperty<bool>>
       deprecated_should_freeze_initial_size_;
 
+#if !BUILDFLAG(IS_COBALT)
   // Extra data set if `mapped_url` is the result of a Protected Audience
   // auction. Used to fill in `AdAuctionDocumentData` for the fenced frame that
   // navigates to `mapped_url`.
   std::optional<FencedFrameProperty<AdAuctionData>> ad_auction_data_;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Should be invoked whenever the URN is navigated to.
   base::RepeatingClosure on_navigate_callback_;
 
+#if !BUILDFLAG(IS_COBALT)
   // Configurations for nested ad components.
   // Currently only used by Protected Audience.
   // When a fenced frame loads this configuration, these component
@@ -319,6 +325,7 @@ class CONTENT_EXPORT FencedFrameConfig {
   // provided to the fenced frame for use in nested fenced frames.
   std::optional<FencedFrameProperty<std::vector<FencedFrameConfig>>>
       nested_configs_;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Contains the metadata needed for shared storage budget charging. Will be
   // initialized to std::nullopt if the associated URN is not generated from
@@ -433,20 +440,24 @@ class CONTENT_EXPORT FencedFrameProperties {
     return mapped_url_;
   }
 
+#if !BUILDFLAG(IS_COBALT)
   const std::optional<FencedFrameProperty<AdAuctionData>>& ad_auction_data()
       const {
     return ad_auction_data_;
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   const base::RepeatingClosure& on_navigate_callback() const {
     return on_navigate_callback_;
   }
 
+#if !BUILDFLAG(IS_COBALT)
   const std::optional<
       FencedFrameProperty<std::vector<std::pair<GURL, FencedFrameConfig>>>>
   nested_urn_config_pairs() const {
     return nested_urn_config_pairs_;
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   const std::optional<
       FencedFrameProperty<raw_ptr<const SharedStorageBudgetMetadata>>>&
@@ -564,9 +575,11 @@ class CONTENT_EXPORT FencedFrameProperties {
   FRIEND_TEST_ALL_PREFIXES(FencedFrameConfigMojomTraitsTest,
                            PropertiesCanDisableUntrustedNetworkTest);
 
+#if !BUILDFLAG(IS_COBALT)
   std::vector<std::pair<GURL, FencedFrameConfig>>
   GenerateURNConfigVectorForConfigs(
       const std::vector<FencedFrameConfig>& nested_configs);
+#endif  // !BUILDFLAG(IS_COBALT)
 
   std::optional<FencedFrameProperty<GURL>> mapped_url_;
 
@@ -579,7 +592,9 @@ class CONTENT_EXPORT FencedFrameProperties {
   std::optional<FencedFrameProperty<bool>>
       deprecated_should_freeze_initial_size_;
 
+#if !BUILDFLAG(IS_COBALT)
   std::optional<FencedFrameProperty<AdAuctionData>> ad_auction_data_;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Should be invoked when `mapped_url` is navigated to via the passed in
   // URN.

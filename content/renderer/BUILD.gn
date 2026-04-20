@@ -332,9 +332,8 @@ target(link_target_type, "renderer") {
   allow_circular_includes_from = []
 
   if (is_cobalt) {
-    deps += [
-      "//cobalt/media/audio:audio_decoder",
-    ]
+    deps += [ "//cobalt/media/audio:audio_decoder" ]
+    deps -= [ "//content/services/auction_worklet:auction_worklet" ]
   }
 
   if (is_android) {

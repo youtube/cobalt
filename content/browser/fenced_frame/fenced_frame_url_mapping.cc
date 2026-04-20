@@ -18,13 +18,16 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "build/buildflag.h"
 #include "net/base/schemeful_site.h"
 #include "services/network/public/cpp/permissions_policy/fenced_frame_permissions_policies.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/fenced_frame/fenced_frame_utils.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 #include "third_party/blink/public/common/interest_group/ad_display_size.h"
 #include "third_party/blink/public/common/interest_group/ad_display_size_utils.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "ui/display/screen.h"
 #include "url/gurl.h"
 
@@ -32,6 +35,7 @@ namespace content {
 
 namespace {
 
+#if !BUILDFLAG(IS_COBALT)
 int AdSizeToPixels(double size, blink::AdSize::LengthUnit unit) {
   switch (unit) {
     case blink::AdSize::LengthUnit::kPixels:
@@ -86,7 +90,9 @@ GURL SubstituteSizeIntoURL(const blink::AdDescriptor& ad_descriptor) {
 
   return GURL(SubstituteMappedStrings(ad_descriptor.url.spec(), substitutions));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // For each ad component and its parent, we examine its SchemefulSite, and
 // increment a count of how many ads correspond to that site. We then log the
 // highest number of ads which are same-site to one another (the largest value
@@ -133,6 +139,7 @@ class AdComponentMetrics {
   int same_site_component_max_count_ = 0;
   int total_component_count_ = 0;
 };
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
@@ -171,12 +178,13 @@ void FencedFrameURLMapping::ImportPendingAdComponents(
       return;
     }
 
-    UrnUuidToUrlMap::iterator it =
-        urn_uuid_to_url_map_.emplace(component_ad.first, component_ad.second)
-            .first;
+    urn_uuid_to_url_map_.emplace(component_ad.first, component_ad.second);
+#if !BUILDFLAG(IS_COBALT)
+    UrnUuidToUrlMap::iterator it = urn_uuid_to_url_map_.find(component_ad.first);
     it->second.nested_configs_.emplace(std::vector<FencedFrameConfig>(),
                                        VisibilityToEmbedder::kTransparent,
                                        VisibilityToContent::kTransparent);
+#endif  // !BUILDFLAG(IS_COBALT)
   }
 }
 
@@ -235,6 +243,7 @@ FencedFrameURLMapping::AddMappingForUrl(const GURL& url) {
       .first;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 blink::FencedFrame::RedactedFencedFrameConfig
 FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
     const GURL& urn_uuid,
@@ -296,7 +305,7 @@ FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
   std::vector<FencedFrameConfig> nested_configs;
   nested_configs.reserve(ad_component_descriptors.size());
   for (const auto& ad_component_descriptor : ad_component_descriptors) {
-    // This config has no urn:uuid. It will later be set when being read into
+    // This config has no_urn:uuid. It will later be set when being read into
     // `nested_urn_config_pairs` in `GenerateURNConfigVectorForConfigs()`.
     // For an ad component, the `fenced_frame_reporter` from its parent fenced
     // frame is reused. The pointer to its parent's fenced frame reporter is
@@ -349,6 +358,7 @@ FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
 
   return config.RedactFor(FencedFrameEntity::kEmbedder);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 std::optional<GURL> FencedFrameURLMapping::GeneratePendingMappedURN() {
   if (IsFull()) {
@@ -382,10 +392,12 @@ void FencedFrameURLMapping::ConvertFencedFrameURNToURL(
     properties = FencedFrameProperties(it->second);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (properties.has_value() && properties->ad_auction_data().has_value()) {
     base::UmaHistogramBoolean("Ads.InterestGroup.Auction.AdNavigationStarted",
                               true);
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   observer->OnFencedFrameURLMappingComplete(properties);
 }
@@ -486,6 +498,7 @@ void FencedFrameURLMapping::SubstituteMappedURL(
     }
     info.mapped_url_->value_ = substituted_url;
   }
+#if !BUILDFLAG(IS_COBALT)
   if (info.nested_configs_.has_value()) {
     for (auto& nested_config : info.nested_configs_->value_) {
       GURL substituted_url = GURL(SubstituteMappedStrings(
@@ -497,6 +510,7 @@ void FencedFrameURLMapping::SubstituteMappedURL(
       nested_config.mapped_url_->value_ = substituted_url;
     }
   }
+#endif  // !BUILDFLAG(IS_COBALT)
   it->second = std::move(info);
 }
 

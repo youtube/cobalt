@@ -12,6 +12,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "build/buildflag.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/test/fenced_frame_test_utils.h"
@@ -19,8 +20,10 @@
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/fenced_frame/fenced_frame_utils.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 #include "third_party/blink/public/common/interest_group/ad_display_size.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
@@ -29,6 +32,7 @@ namespace content {
 
 namespace {
 
+#if !BUILDFLAG(IS_COBALT)
 // Validates the mapping contained in `pending_ad_components`.
 //
 // `expected_mapped_ad_descriptors` contains the URLs the first URNs are
@@ -110,6 +114,7 @@ void ValidatePendingAdComponentsMap(
     }
   }
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 GURL GenerateAndVerifyPendingMappedURN(
     FencedFrameURLMapping* fenced_frame_url_mapping) {
@@ -280,6 +285,7 @@ TEST_F(FencedFrameURLMappingTest, RegisterTwoObservers) {
   EXPECT_EQ(std::nullopt, observer2.nested_urn_config_pairs());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` is empty. In this case, it should
 // be filled with URNs that are mapped to about:blank.
 TEST_F(FencedFrameURLMappingTest,
@@ -329,7 +335,9 @@ TEST_F(FencedFrameURLMappingTest,
   histogram_tester().ExpectBucketCount(
       blink::kAdComponentsCountForWinningBidHistogram, 0, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` has a single URL.
 TEST_F(FencedFrameURLMappingTest,
        AssignFencedFrameURLAndInterestGroupInfoOneAdComponentUrl) {
@@ -373,7 +381,9 @@ TEST_F(FencedFrameURLMappingTest,
   histogram_tester().ExpectBucketCount(
       blink::kAdComponentsCountForWinningBidHistogram, 1, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` has the maximum number of allowed
 // ad component URLs.
 TEST_F(FencedFrameURLMappingTest,
@@ -424,7 +434,9 @@ TEST_F(FencedFrameURLMappingTest,
       blink::kAdComponentsCountForWinningBidHistogram,
       kMaxAdAuctionAdComponents, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` has multiple ad component URLs from
 // different sites.
 TEST_F(FencedFrameURLMappingTest,
@@ -471,7 +483,9 @@ TEST_F(FencedFrameURLMappingTest,
   histogram_tester().ExpectBucketCount(
       blink::kAdComponentsCountForWinningBidHistogram, 3, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` has multiple ad component URLs from
 // different sites.
 TEST_F(FencedFrameURLMappingTest,
@@ -520,7 +534,9 @@ TEST_F(FencedFrameURLMappingTest,
   histogram_tester().ExpectBucketCount(
       blink::kAdComponentsCountForWinningBidHistogram, 3, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` has the maximum number of allowed
 // ad component URLs, and they're all identical. The main purpose of this test
 // is to make sure they receive unique URNs, despite being identical URLs.
@@ -569,7 +585,9 @@ TEST_F(FencedFrameURLMappingTest,
       blink::kAdComponentsCountForWinningBidHistogram,
       blink::MaxAdAuctionAdComponents(), 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Test the case `ad_component_descriptors` has a single URL.
 TEST_F(FencedFrameURLMappingTest, SubstituteFencedFrameURLs) {
   FencedFrameURLMapping fenced_frame_url_mapping;
@@ -630,6 +648,7 @@ TEST_F(FencedFrameURLMappingTest, SubstituteFencedFrameURLs) {
   histogram_tester().ExpectBucketCount(
       blink::kAdComponentsCountForWinningBidHistogram, 1, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // Test the correctness of the URN format. The URN is expected to be in the
 // format "urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" as per RFC-4122.
@@ -669,6 +688,7 @@ TEST_F(FencedFrameURLMappingTest, ReportingMetadataSuccess) {
   EXPECT_EQ(fenced_frame_reporter.get(), observer.fenced_frame_reporter());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Test that reporting metadata gets saved successfully.
 TEST_F(FencedFrameURLMappingTest, ReporterSuccessWithInterestGroupInfo) {
   FencedFrameURLMapping fenced_frame_url_mapping;
@@ -699,6 +719,7 @@ TEST_F(FencedFrameURLMappingTest, ReporterSuccessWithInterestGroupInfo) {
   histogram_tester().ExpectBucketCount(
       blink::kAdComponentsCountForWinningBidHistogram, 0, 1);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // Test that number of urn mappings limit is enforced for pending mapped urn
 // generation.

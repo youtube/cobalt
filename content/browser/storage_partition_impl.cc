@@ -38,6 +38,7 @@
 #include "base/threading/sequence_local_storage_slot.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/attribution_reporting/features.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
@@ -77,7 +78,9 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/host_zoom_level_context.h"
 #include "content/browser/indexed_db/indexed_db_control_wrapper.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/reconnectable_url_loader_factory.h"
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
@@ -908,7 +911,9 @@ class StoragePartitionImpl::DataDeletionHelper {
       storage::SpecialStoragePolicy* special_storage_policy,
       storage::FileSystemContext* filesystem_context,
       network::mojom::CookieManager* cookie_manager,
+#if !BUILDFLAG(IS_COBALT)
       InterestGroupManagerImpl* interest_group_manager,
+#endif  // !BUILDFLAG(IS_COBALT)
       AttributionManager* attribution_manager,
       AggregationService* aggregation_service,
       PrivateAggregationManagerImpl* private_aggregation_manager,
@@ -1478,6 +1483,7 @@ void StoragePartitionImpl::Initialize(
         this, path, special_storage_policy_);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     // Auction worklets on non-Android use dedicated processes; on Android due
     // to high cost of process launch they try to reuse renderers.
@@ -1494,6 +1500,7 @@ void StoragePartitionImpl::Initialize(
                             // context owns this storage partition.
                             base::Unretained(browser_context_)));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // The Topics API is not available in Incognito mode.
   if (!is_in_memory() &&
@@ -1879,7 +1886,11 @@ StoragePartitionImpl::GetDeviceBoundSessionManager() {
 
 InterestGroupManager* StoragePartitionImpl::GetInterestGroupManager() {
   DCHECK(initialized_);
+#if !BUILDFLAG(IS_COBALT)
   return interest_group_manager_.get();
+#else
+  return nullptr;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 BrowsingTopicsSiteDataManager*
@@ -2483,10 +2494,12 @@ void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
     network::AdAuctionEventRecord event_record,
     const std::optional<url::Origin>& top_frame_origin) {
   DCHECK(browser_context());
+#if !BUILDFLAG(IS_COBALT)
   interest_group_manager_->RecordViewClick(
       *browser_context(),
       url_loader_network_observers_.current_context().navigation_or_document(),
       top_frame_origin, std::move(event_record));
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -2759,7 +2772,10 @@ void StoragePartitionImpl::ClearDataImpl(
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(), special_storage_policy_.get(),
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-      interest_group_manager_.get(), attribution_manager_.get(),
+#if !BUILDFLAG(IS_COBALT)
+      interest_group_manager_.get(),
+#endif  // !BUILDFLAG(IS_COBALT)
+      attribution_manager_.get(),
       aggregation_service_.get(), private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -2943,7 +2959,9 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     storage::SpecialStoragePolicy* special_storage_policy,
     storage::FileSystemContext* filesystem_context,
     network::mojom::CookieManager* cookie_manager,
+#if !BUILDFLAG(IS_COBALT)
     InterestGroupManagerImpl* interest_group_manager,
+#endif  // !BUILDFLAG(IS_COBALT)
     AttributionManager* attribution_manager,
     AggregationService* aggregation_service,
     PrivateAggregationManagerImpl* private_aggregation_manager,
@@ -3025,6 +3043,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
          remove_mask_ & REMOVE_DATA_MASK_INTEREST_GROUPS);
   DCHECK(!(remove_mask_ & REMOVE_DATA_MASK_INTEREST_GROUPS_USER_CLEAR) ||
          remove_mask_ & REMOVE_DATA_MASK_INTEREST_GROUPS);
+#if !BUILDFLAG(IS_COBALT)
   if (remove_mask_ & REMOVE_DATA_MASK_INTEREST_GROUPS) {
     if (interest_group_manager) {
       // The internal interest group data is not specific to a site so it only
@@ -3050,6 +3069,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
       interest_group_manager->ClearPermissionsCache();
     }
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   if ((remove_mask_ & REMOVE_DATA_MASK_MEDIA_LICENSES)) {

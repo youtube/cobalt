@@ -24,7 +24,9 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/privacy_sandbox_invoking_api.h"
 #include "content/public/browser/render_frame_host.h"
-#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "net/url_request/referrer_policy.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
@@ -87,8 +89,12 @@ class CONTENT_EXPORT FencedFrameReporter
 
   using ReportingMacros = std::vector<std::pair<std::string, std::string>>;
 
+#if !BUILDFLAG(IS_COBALT)
   using FinalizedPrivateAggregationRequests = std::vector<
       auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr>;
+#else
+  using FinalizedPrivateAggregationRequests = std::vector<int>;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   using DestinationVariant = std::
       variant<DestinationEnumEvent, DestinationURLEvent, AutomaticBeaconEvent>;
