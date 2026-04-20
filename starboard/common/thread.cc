@@ -27,7 +27,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
-#include "starboard/common/string.h"
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 

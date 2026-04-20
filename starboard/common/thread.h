@@ -74,6 +74,7 @@ class Thread {
   Semaphore* join_sema();
   std::atomic_bool* joined_bool();
 
+ private:
   const std::string name_;
   const std::optional<SbThreadPriority> priority_;
   struct Data;
