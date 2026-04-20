@@ -52,7 +52,10 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 
   LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
             << params_.sample_rate() << ", channels=" << params_.channels()
-            << ", buffer_size=" << buffer_size_bytes;
+            << ", buffer_size=" << buffer_size_bytes
+            << ", frames_per_buffer=" << params_.frames_per_buffer();
+  SB_LOG(INFO) << "KJ: Browser Process - Open with: "
+               << params_.AsHumanReadableString();
   microphone_ =
       SbMicrophoneCreate(info.id, params_.sample_rate(), buffer_size_bytes);
 
@@ -179,6 +182,8 @@ void AudioInputStreamStarboard::ReadAudio() {
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
                                                              frames_read);
 
+    SB_LOG(INFO) << "KJ: Browser Process - Pushing " << audio_bus_->frames()
+                 << " frames to Renderer @ " << params_.sample_rate() << "Hz";
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
 
     // If the read callback is behind schedule. Schedule the next one to run
