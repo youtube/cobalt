@@ -15,22 +15,29 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
-#include <atomic>
-
-#include "build/build_config.h"
 #include "starboard/common/log.h"
-#include "starboard/export.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 
-class SB_EXPORT ThreadChecker {
+// A class that verifies that its methods are called on the same thread.
+class ThreadChecker {
  public:
-  ThreadChecker();
+  ThreadChecker() : thread_id_(GetThreadId()) {
+    SB_CHECK(SbThreadIsValidId(thread_id_));
+  }
 
-  bool CalledOnValidThread() const;
+  bool CalledOnValidThread() const { return thread_id_ == GetThreadId(); }
 
  private:
+  static inline SbThreadId GetThreadId() {
+    thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
+    if (tls_thread_id == kSbThreadInvalidId) {
+      tls_thread_id = SbThreadGetId();
+    }
+    return tls_thread_id;
+  }
+
   const SbThreadId thread_id_;
 };
 

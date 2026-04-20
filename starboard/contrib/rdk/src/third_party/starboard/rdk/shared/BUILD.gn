@@ -203,8 +203,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/system_request_reveal.cc",
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
-    "//starboard/shared/starboard/thread_checker.cc",
-    "//starboard/shared/starboard/thread_checker.h",
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/decode_target_release.cc",
