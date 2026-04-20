@@ -16,7 +16,7 @@ int statx(int dirfd, const char *restrict path, int flags, unsigned mask, struct
 
 	if (ret != -ENOSYS) return __syscall_ret(ret);
 #else  // defined(STARBOARD)
-  int ret = 0;
+	int ret = 0;
 #endif  // if !defined(STARBOARD)
 
 	struct stat st;
