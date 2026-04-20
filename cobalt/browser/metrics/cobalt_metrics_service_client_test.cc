@@ -349,9 +349,9 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   bool on_application_not_idle_internal_called_ = false;
 };
 
-class CobaltMetricsServiceClientTest : public ::testing::Test {
+class CobaltMetricsServiceClientBaseTest : public ::testing::Test {
  protected:
-  CobaltMetricsServiceClientTest() { mojo::core::Init(); }
+  CobaltMetricsServiceClientBaseTest() { mojo::core::Init(); }
 
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
@@ -377,25 +377,11 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         temp_dir_.GetPath(), metrics::StartupVisibility::kForeground);
     ASSERT_THAT(metrics_state_manager_, NotNull());
 
-    auto synthetic_trial_registry =
-        std::make_unique<variations::SyntheticTrialRegistry>();
-    synthetic_trial_registry_ = synthetic_trial_registry.get();
-
-    // Instantiate the test client and call Initialize to trigger mock creation.
-    // This simulates the two-phase initialization of the static Create().
-    client_ = std::make_unique<TestCobaltMetricsServiceClient>(
-        metrics_state_manager_.get(), std::move(synthetic_trial_registry),
-        &prefs_);
-    client_->CallInitialize();  // This will use the overridden factory methods.
-
     // Instantiate mock media client for testing
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     mock_media_client_ = std::make_unique<media::MockMediaClient>();
     media::SetMediaClient(mock_media_client_.get());
 #endif
-
-    ASSERT_THAT(client_->mock_metrics_service(), NotNull());
-    ASSERT_THAT(client_->mock_log_uploader(), NotNull());
   }
 
   void TearDown() override {
@@ -413,11 +399,39 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<base::ScopedPathOverride> path_override_;
   std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
-  std::unique_ptr<TestCobaltMetricsServiceClient> client_;
-  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<media::MockMediaClient> mock_media_client_;
 #endif
+};
+
+class CobaltMetricsServiceClientTest
+    : public CobaltMetricsServiceClientBaseTest {
+ protected:
+  void SetUp() override {
+    CobaltMetricsServiceClientBaseTest::SetUp();
+
+    InitializeClient();
+  }
+
+  std::unique_ptr<TestCobaltMetricsServiceClient> client_;
+  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+
+ private:
+  void InitializeClient() {
+    auto synthetic_trial_registry =
+        std::make_unique<variations::SyntheticTrialRegistry>();
+    synthetic_trial_registry_ = synthetic_trial_registry.get();
+
+    // Instantiate the test client and call Initialize to trigger mock creation.
+    // This simulates the two-phase initialization of the static Create().
+    client_ = std::make_unique<TestCobaltMetricsServiceClient>(
+        metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+        &prefs_);
+    client_->CallInitialize();  // This will use the overridden factory methods.
+
+    ASSERT_THAT(client_->mock_metrics_service(), NotNull());
+    ASSERT_THAT(client_->mock_log_uploader(), NotNull());
+  }
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
@@ -785,7 +799,7 @@ TEST_F(CobaltMetricsServiceClientTest,
   EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
 }
 
-TEST_F(CobaltMetricsServiceClientTest, CobaltMetricsIntervalFeatureTest) {
+TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
   base::HistogramTester histogram_tester;
   const int kCustomInterval = 10;  // 10 seconds
 
@@ -826,7 +840,8 @@ TEST_F(CobaltMetricsServiceClientTest, CobaltMetricsIntervalFeatureTest) {
       1u);
 }
 
-TEST_F(CobaltMetricsServiceClientTest, MetricsIntervalDefaultProductionTest) {
+TEST_F(CobaltMetricsServiceClientBaseTest,
+       MetricsIntervalDefaultProductionTest) {
   // Verify that the feature is disabled by default.
   EXPECT_FALSE(
       base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature));
