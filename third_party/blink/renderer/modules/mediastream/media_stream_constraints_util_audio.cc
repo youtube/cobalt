@@ -402,8 +402,12 @@ class EchoCancellationContainer {
   // Default constructor intended to temporarily create an empty object.
   EchoCancellationContainer()
       : ec_mode_allowed_values_(EchoCancellationTypeSet::EmptySet()),
-        device_parameters_(media::AudioParameters::UnavailableDeviceParams()),
-        is_device_capture_(true) {}
+        device_parameters_(media::AudioParameters::UnavailableDeviceParams())
+#if !BUILDFLAG(IS_COBALT)
+        ,
+        is_device_capture_(true)
+#endif
+  {}
 
   EchoCancellationContainer(Vector<EchoCancellationType> allowed_values,
                             bool has_active_source,
@@ -412,8 +416,12 @@ class EchoCancellationContainer {
                             AudioProcessingProperties properties,
                             bool is_reconfiguration_allowed)
       : ec_mode_allowed_values_(EchoCancellationTypeSet({allowed_values})),
-        device_parameters_(device_parameters),
-        is_device_capture_(is_device_capture) {
+        device_parameters_(device_parameters)
+#if !BUILDFLAG(IS_COBALT)
+        ,
+        is_device_capture_(is_device_capture)
+#endif
+  {
     if (!has_active_source)
       return;
 
@@ -493,11 +501,21 @@ class EchoCancellationContainer {
     DCHECK(!ec_mode_allowed_values_.is_universal());
 
     if (ec_constraint.HasIdeal() &&
-        ec_allowed_values_.Contains(ec_constraint.Ideal()))
+        ec_allowed_values_.Contains(ec_constraint.Ideal())) {
+#if BUILDFLAG(IS_COBALT)
+      return false;
+#else
       return is_device_capture_ && ec_constraint.Ideal();
+#endif
+    }
 
-    if (ec_allowed_values_.Contains(true))
+    if (ec_allowed_values_.Contains(true)) {
+#if BUILDFLAG(IS_COBALT)
+      return false;
+#else
       return is_device_capture_;
+#endif
+    }
 
     return false;
   }
@@ -624,8 +642,13 @@ class EchoCancellationContainer {
     // Echo cancellation is enabled by default for device capture and disabled
     // by default for content capture.
     if (EchoCancellationModeContains(true) &&
-        EchoCancellationModeContains(false))
+        EchoCancellationModeContains(false)) {
+#if BUILDFLAG(IS_COBALT)
+      return false;
+#else
       return is_device_capture_;
+#endif
+    }
 
     return EchoCancellationModeContains(true);
   }
@@ -633,7 +656,9 @@ class EchoCancellationContainer {
   BoolSet ec_allowed_values_;
   EchoCancellationTypeSet ec_mode_allowed_values_;
   media::AudioParameters device_parameters_;
+#if !BUILDFLAG(IS_COBALT)
   bool is_device_capture_;
+#endif
 };
 
 class AutoGainControlContainer {
