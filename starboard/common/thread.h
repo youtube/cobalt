@@ -36,7 +36,6 @@ class Semaphore;
 
 class Thread {
  public:
-  using Options = ThreadOptions;
   explicit Thread(std::string_view name,
                   const ThreadOptions& options = ThreadOptions());
   template <size_t N>
