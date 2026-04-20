@@ -235,7 +235,6 @@ ExportedSymbols::ExportedSymbols() {
 
   // POSIX APIs
   REGISTER_SYMBOL(aligned_alloc);
-  REGISTER_SYMBOL(atexit);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(fdatasync);

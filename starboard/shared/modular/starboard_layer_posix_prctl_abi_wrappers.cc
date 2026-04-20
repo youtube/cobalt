@@ -24,8 +24,14 @@
 
 #include "starboard/common/log.h"
 
-#ifndef PR_SET_VMA
+// We conditionally define these symbols here to support older
+// GNU/Linux operating systems that may not have these symbols yet.
+#if !defined(PR_SET_VMA)
 #define PR_SET_VMA 0x53564d41
+#endif
+
+#if !defined(PR_SET_VMA_ANON_NAME)
+#define PR_SET_VMA_ANON_NAME 0
 #endif
 
 namespace {
@@ -292,11 +298,16 @@ int __abi_wrap_prctl(int op, ...) {
       break;
     }
     case PR_SET_VMA: {
-      unsigned long arg2 = va_arg(args, unsigned long);
-      unsigned long arg3 = va_arg(args, unsigned long);
-      unsigned long arg4 = va_arg(args, unsigned long);
-      unsigned long arg5 = va_arg(args, unsigned long);
-      ret = prctl(platform_op, arg2, arg3, arg4, arg5);
+      unsigned long attr = va_arg(args, unsigned long);
+      unsigned long addr = va_arg(args, unsigned long);
+      unsigned long size = va_arg(args, unsigned long);
+      unsigned long val = va_arg(args, unsigned long);
+
+      unsigned long platform_attr = attr;
+      if (attr == MUSL_PR_SET_VMA_ANON_NAME) {
+        platform_attr = PR_SET_VMA_ANON_NAME;
+      }
+      ret = prctl(platform_op, platform_attr, addr, size, val);
       break;
     }
     // This default case shouldn't be reachable; if we weren't able to convert

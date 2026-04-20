@@ -43,18 +43,6 @@ namespace nplb {
 namespace {
 
 const char kVmaTagsFileNamePrefix[] = "cobalt_vma_tags";
-const char kVmaTagsFileNameSuffix[] = ".txt";
-
-std::mutex g_vma_tags_mutex;
-char g_vma_tags_file_path[256] = {0};
-
-void VmaTagFileCleanup() {
-  std::lock_guard<std::mutex> lock(g_vma_tags_mutex);
-  if (g_vma_tags_file_path[0] != '\0') {
-    unlink(g_vma_tags_file_path);
-    g_vma_tags_file_path[0] = '\0';
-  }
-}
 
 bool GetTempDir(char* path, size_t path_size) {
   if (SbSystemGetPath(kSbSystemPathTempDirectory, path, path_size)) {
@@ -73,76 +61,7 @@ bool GetTempDir(char* path, size_t path_size) {
 #endif
 }
 
-// Intercept prctl for SetVmaAnonName test to provide fallback.
-int test_prctl_wrapper(int option, ...) {
-  unsigned long arg2 = 0;
-  unsigned long arg3 = 0;
-  unsigned long arg4 = 0;
-  unsigned long arg5 = 0;
-
-  va_list args;
-  va_start(args, option);
-  arg2 = va_arg(args, unsigned long);
-  if (option == PR_SET_VMA) {
-    arg3 = va_arg(args, unsigned long);
-    arg4 = va_arg(args, unsigned long);
-    arg5 = va_arg(args, unsigned long);
-  }
-  va_end(args);
-
-  int result = prctl(option, arg2, arg3, arg4, arg5);
-
-  if (result == -1 && option == PR_SET_VMA && arg2 == PR_SET_VMA_ANON_NAME) {
-    int saved_errno = errno;
-    std::lock_guard<std::mutex> lock(g_vma_tags_mutex);
-    int fd = -1;
-
-    if (g_vma_tags_file_path[0] != '\0') {
-      fd = open(g_vma_tags_file_path, O_WRONLY | O_APPEND | O_CLOEXEC);
-      if (fd == -1) {
-        g_vma_tags_file_path[0] = '\0';
-      }
-    }
-
-    if (fd == -1 && g_vma_tags_file_path[0] == '\0') {
-      char temp_dir[256];
-      if (GetTempDir(temp_dir, sizeof(temp_dir))) {
-        char path_template[256];
-        // Include PID in naming to prevent race conditions between tests.
-        snprintf(path_template, sizeof(path_template), "%s/%s_%d_XXXXXX%s",
-                 temp_dir, kVmaTagsFileNamePrefix, getpid(),
-                 kVmaTagsFileNameSuffix);
-        fd = mkstemps(path_template, strlen(kVmaTagsFileNameSuffix));
-        if (fd != -1) {
-          snprintf(g_vma_tags_file_path, sizeof(g_vma_tags_file_path), "%s",
-                   path_template);
-          static bool cleanup_registered = false;
-          if (!cleanup_registered) {
-            atexit(VmaTagFileCleanup);
-            cleanup_registered = true;
-          }
-        }
-      }
-    }
-
-    if (fd != -1) {
-      char buf[256];
-      int len = snprintf(buf, sizeof(buf), "0x%lx 0x%lx %s\n", arg3,
-                         arg3 + arg4, (const char*)arg5);
-      if (len > 0) {
-        size_t write_len = std::min((size_t)len, sizeof(buf) - 1);
-        if (write(fd, buf, write_len) != -1) {
-          close(fd);
-          errno = saved_errno;
-          return 0;
-        }
-      }
-      close(fd);
-    }
-    errno = saved_errno;
-  }
-  return result;
-}
+// Checks /proc/self/maps to see if the memory mapping containing |addr| has
 
 TEST(PosixPrctlGeneralTests, FailsWithInvalidOption) {
   errno = 0;
@@ -767,9 +686,14 @@ TEST(PosixPrctlTest, SetVmaAnonName) {
 
   CleanupFallbackFiles();
 
-  int result =
-      test_prctl_wrapper(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)p,
-                         (unsigned long)kMapSize, (unsigned long)kVmaName);
+  int result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)p,
+                     (unsigned long)kMapSize, (unsigned long)kVmaName);
+
+  if (result == -1 && errno == EINVAL) {
+    free(p);
+    GTEST_SKIP() << "PR_SET_VMA_ANON_NAME not supported by kernel and no "
+                    "fallback provided.";
+  }
 
   EXPECT_EQ(result, 0);
 

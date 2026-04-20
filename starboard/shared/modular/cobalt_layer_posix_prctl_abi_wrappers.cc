@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include "starboard/common/log.h"
 #include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "starboard/system.h"
 
@@ -89,6 +90,10 @@ int prctl(int op, ...) {
       result = __abi_wrap_prctl(op, arg2, arg3, arg4, arg5);
 
       if (result == -1 && arg2 == MUSL_PR_SET_VMA_ANON_NAME) {
+        // If the kernel does not support PR_SET_VMA_ANON_NAME, we fall back to
+        // writing the VMA tags to a file in the temp directory. This allows
+        // developers to still identify memory regions in core dumps or via
+        // other tools.
         int saved_errno = errno;
         std::lock_guard<std::mutex> lock(g_vma_tags_mutex);
         int fd = -1;
@@ -112,6 +117,8 @@ int prctl(int op, ...) {
             if (fd != -1) {
               snprintf(g_vma_tags_file_path, sizeof(g_vma_tags_file_path), "%s",
                        path_template);
+              SB_LOG(INFO) << "Created VMA tags fallback file: "
+                           << g_vma_tags_file_path;
               static bool cleanup_registered = false;
               if (!cleanup_registered) {
                 atexit(VmaTagFileCleanup);
