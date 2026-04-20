@@ -89,6 +89,10 @@ void CobaltWebContentsObserver::DidFinishNavigation(
                              -net_error_code);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
+#if BUILDFLAG(IS_ANDROIDTV)
+    starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(
+        "navigation_error", net::ErrorToString(net_error_code).c_str());
+#endif
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
