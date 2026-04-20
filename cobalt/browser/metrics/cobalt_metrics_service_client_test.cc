@@ -789,6 +789,7 @@ TEST_F(CobaltMetricsServiceClientTest, CobaltMetricsIntervalFeatureTest) {
   // Reset the default client created in SetUp to prevent its background
   // metrics loggers from interfering with this test's results.
   client_.reset();
+  base::RunLoop().RunUntilIdle();
 
   base::HistogramTester histogram_tester;
   const int kCustomInterval = 10;  // 10 seconds
