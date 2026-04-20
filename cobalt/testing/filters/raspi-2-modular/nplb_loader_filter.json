@@ -1,0 +1,20 @@
+{
+  "failing_tests": [
+    "MaximumPlayerConfigurationExplorerTests*",
+    "MultiplePlayerTest.*",
+    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+    "PosixFileReadTest/*",
+    "PosixFileWriteTest/*",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+    "SbAudioSinkTest.*",
+    "SbLogFlushTest.DontCrashMeBro",
+    "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaSetAudioWriteDurationTests*",
+    "SbPlayerGetAudioConfigurationTests*",
+    "SbPlayerGetMediaTimeTests*",
+    "SbPlayerTest.*",
+    "SbPlayerWriteSampleTests*",
+    "VerticalVideoTests/VerticalVideoTest*"
+  ]
+}

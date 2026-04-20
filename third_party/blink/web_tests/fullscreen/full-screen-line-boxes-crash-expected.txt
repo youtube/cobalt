@@ -1,0 +1,5 @@
+PASS.
+WebKit didn't crash.
+EVENT(webkitfullscreenchange)
+END OF TEST
+

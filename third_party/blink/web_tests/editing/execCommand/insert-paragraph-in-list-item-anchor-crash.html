@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+selection_test(
+  [
+    '<div contenteditable>',
+      '<dl><a href="#"><b>foo</b>|</a></dl>',
+    '</div>',
+  ],
+  'insertParagraph',
+  [
+    '<div contenteditable>',
+      '<dl><a href="#"><b>foo</b></a><br>|<br></dl>',
+    '</div>',
+  ],
+  'InsertParagraph in the list item anchor not crash'
+);
+</script>

@@ -1,0 +1,6 @@
+{
+  "failing_tests": [
+    "ScopedDirTest.CloseOutOfScope",
+    "UtilsTest.EintrWrapper"
+  ]
+}

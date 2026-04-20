@@ -1,0 +1,101 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# This is a .pyl, or "Python Literal", file. You can treat it just like a
+# .json file, with the following exceptions:
+# * all keys must be quoted (use single quotes, please);
+# * comments are allowed, using '#' syntax; and
+# * trailing commas are allowed.
+#
+# List of files that are known to be _not_ deterministic. This is a "temporary"
+# workaround to find regression on the deterministic builders.
+#
+# TODO(sebmarchand): Remove this once all the files are deterministic.
+{
+  # TODO(thakis): Move android det bots to use two distinct build dirs,
+  # https://crbug.com/899438
+  'android': [
+    'gen/build/private_code_test/private_code_failure_test.json',
+  ],
+
+  'fuchsia': [
+    # https://crbug.com/40271942
+    'target1_test_rlib_crate_v0_2_unittests',
+    'target2_test_rlib_crate_v0_2_unittests',
+  ],
+
+  'linux': [
+    # These contain logs with timestamps in them. It's part of a test that
+    # just happens to partially run during compile.
+    'gen/build/private_code_test/private_code_failure_test.json',
+    'gen/chrome/chrome_private_code_test.json',
+   ],
+
+  'linux_component': [
+    # https://crbug.com/40271942
+    'target1_test_rlib_crate_v0_2_unittests',
+    'target2_test_rlib_crate_v0_2_unittests',
+    'obj/third_party/swiftshader/third_party/llvm-10.0/swiftshader_llvm_most/Attributes.o',
+
+    # TODO(hans): Remove once clang is fixed.
+    # https://crbug.com/1373836
+    'swiftshader_reactor_llvm_unittests',
+  ],
+
+  # TODO(thakis): Move mac det bots to use two distinct build dirs,
+  # https://crbug.com/899438
+  'mac': [
+  ],
+
+  # https://crbug.com/330260
+  'win': [
+    # https://crbug.com/40271942
+    'bindgen_static_fns_test_lib_unittests.exe',
+    'bindgen_static_fns_test_lib_unittests.exe.pdb',
+    'bindgen_test_lib_unittests.exe',
+    'bindgen_test_lib_unittests.exe.pdb',
+    'foo_tests.exe',
+    'foo_tests.exe.pdb',
+    'target1_test_rlib_crate_v0_2_unittests.exe',
+    'target1_test_rlib_crate_v0_2_unittests.exe.pdb',
+    'target2_test_rlib_crate_v0_2_unittests.exe',
+    'target2_test_rlib_crate_v0_2_unittests.exe.pdb',
+    'test_aliased_deps_unittests.exe',
+    'test_aliased_deps_unittests.exe.pdb',
+    'test_lib_v1_unittests.exe',
+    'test_lib_v1_unittests.exe.pdb',
+    'test_lib_v2_unittests.exe',
+    'test_lib_v2_unittests.exe.pdb',
+    'test_rust_exe_unittests.exe',
+    'test_rust_exe_unittests.exe.pdb',
+    'test_rust_metadata_unittests.exe',
+    'test_rust_metadata_unittests.exe.pdb',
+    'test_rust_static_library_unittests.exe',
+    'test_rust_static_library_unittests.exe.pdb',
+    'test_rust_unittests.exe',
+    'test_rust_unittests.exe.pdb',
+
+    # TODO(thakis): Figure out what's up with these three (and their isolate).
+    'mini_installer.exe',
+    'mini_installer.exe.pdb',
+    'previous_version_mini_installer.exe',
+
+    # These probably have mtimes in the zip headers and the scripts creating
+    # them probably should use zip_helpers.zip_directory() instead.
+    'mini_installer_tests.zip',
+
+    # TODO(crbug.com/40271942): Upstream fixes are happening to fix Windows exe
+    # determinisim from Rust (it produces non-reproducible paths in the linker
+    # command line which then is recorded in the PDB).
+    'test_control_flow_guard.exe',
+    'test_control_flow_guard.exe.pdb',
+    'cloud_authenticator_test_service.exe',
+    'cloud_authenticator_test_service.exe.pdb',
+
+    # TODO(crbug.com/419882718): TestSystemMsiInstallerStandaloneSetup.exe is
+    # produced by signing files using `signtool.exe` on each build, so the
+    # builds of this file are non-deterministic.
+    'test_installer\\TestSystemMsiInstallerStandaloneSetup.exe',
+  ],
+}

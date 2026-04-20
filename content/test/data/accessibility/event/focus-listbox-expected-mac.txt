@@ -1,0 +1,2 @@
+AXFocusedUIElementChanged on AXMenuItem AXValue='%C3%A7'
+AXSelectedChildrenChanged on AXList

@@ -1,0 +1,18 @@
+<style>
+  :host,
+  #focusHost {
+    /* Do not show outline when focused. */
+    outline: none;
+  }
+
+  /* Only active pages should be visible. */
+  :host(:not([active])) {
+    display: none;
+  }
+</style>
+<!-- This element should be focusable (e.g. After this page's respective menu
+  item is selected). Set tabindex="-1" so this element is focusable, but not
+  reachable via sequential keyboard navigation. -->
+<div id="focusHost" tabindex="-1" aria-label="[[ariaLabel]]">
+  <slot></slot>
+</div>

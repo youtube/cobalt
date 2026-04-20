@@ -1,0 +1,3 @@
+Test for bug 9504: img tag rewritten by innerHTML doesn't use image map.
+
+SUCCESS

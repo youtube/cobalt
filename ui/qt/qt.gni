@@ -1,0 +1,25 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/cast.gni")
+import("//build/config/sanitizers/sanitizers.gni")
+import("//build/config/sysroot.gni")
+
+# TODO(crbug.com/40260415): Allow QT in MSAN builds once QT is
+# added to the instrumented libraries.
+declare_args() {
+  use_qt5 = use_sysroot && is_linux && !is_castos && !is_msan
+  use_qt6 = use_sysroot && is_linux && !is_castos && !is_msan
+}
+
+declare_args() {
+  if (!use_sysroot && use_qt5) {
+    moc_qt5_path = ""
+  }
+  if (!use_sysroot && use_qt6) {
+    moc_qt6_path = ""
+  }
+}
+
+use_qt = use_qt5 || use_qt6

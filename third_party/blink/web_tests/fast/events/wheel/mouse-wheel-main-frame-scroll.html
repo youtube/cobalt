@@ -1,0 +1,24 @@
+<!DOCTYPE HTML>
+<html style="height:100%; overflow:scroll;">
+<head>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/gesture-util.js"></script>
+</head>
+<script>
+promise_test(async () => {
+  await mouseMoveTo(50, 50);
+  const pixelsToScrollY = 100;
+  await gestureScroll(() => {
+    return smoothScroll(
+      pixelsToScrollY, 50, 50, GestureSourceType.MOUSE_INPUT, 'down',
+      SPEED_INSTANT);
+  }, document.scrollingElement);
+  assert_equals(window.scrollY, pixelsToScrollY);
+}, "Mouse wheel scrolls properly on main frame.");
+</script>
+<body>
+<div style="height:1000px;">
+</div>
+</body>
+</html>

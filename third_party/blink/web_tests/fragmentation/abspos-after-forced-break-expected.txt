@@ -1,0 +1,7 @@
+Below, there should be a yellow square with a border, to the left of a blue square with no border. There must be no red!
+
+
+
+
+
+PASS

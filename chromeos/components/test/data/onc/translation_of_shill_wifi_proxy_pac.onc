@@ -1,0 +1,13 @@
+{
+  "Name": "",
+  "IPAddressConfigType":"DHCP",
+  "ProxySettings": {
+    "Type": "PAC",
+    "PAC": "http://pac.foo.com/script.pac"
+  },
+  "NameServersConfigType":"DHCP",
+  "Type": "WiFi",
+  "WiFi": {
+    "Security": "None"
+  }
+}

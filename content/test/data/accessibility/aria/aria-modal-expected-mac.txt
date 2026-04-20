@@ -1,0 +1,4 @@
+AXWebArea
+++AXGroup AXSubrole=AXApplicationDialog AXDescription='modal dialog'
+++++AXStaticText AXValue='Modal'
+++++AXButton AXTitle='Focus Me'

@@ -1,0 +1,9 @@
+{
+  "failing_tests": [
+    "CobaltMetricsServiceClientTest.*",
+    "CobaltMetricsServicesManagerClientTest.*",
+    "GlobalFeaturesTest.*",
+    "GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization",
+    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
+  ]
+}

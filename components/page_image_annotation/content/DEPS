@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/page_image_annotation/core",
+  "+content/public/common",
+]

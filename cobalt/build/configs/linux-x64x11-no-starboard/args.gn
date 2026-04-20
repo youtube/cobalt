@@ -1,0 +1,21 @@
+target_os = "linux"
+target_cpu = "x64"
+
+# This combination of build flags is intended to be used to build content_shell
+# with cobalt's custom web APIs in order to test these web APIs with
+# run_web_tests.py. The behavior of other targets, like cobalt, is undefined.
+is_cobalt = true
+is_starboard = false
+use_starboard_media = false
+
+# TODO(b/376141256): Decide if this flag is needed here or in .gclient file
+chrome_pgo_phase = 0
+
+# Force the chrome root store for linux/3P platforms.
+chrome_root_store_optional = false
+chrome_root_store_only = true
+trial_comparison_cert_verifier_supported = false
+
+# Disable Mozilla/NSS cert store access
+# We use Chromium root store
+use_nss_certs = false

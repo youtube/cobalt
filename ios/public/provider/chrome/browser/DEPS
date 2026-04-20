@@ -1,0 +1,11 @@
+include_rules = [
+  "+components/autofill/core/browser",
+  "+components/favicon_base",
+  "+components/metrics",
+  "+components/sync_sessions",
+  "+google_apis/gaia",
+  "+ios/web/public",
+  "+net",
+  "+services/network/public/cpp/shared_url_loader_factory.h",
+  "+services/metrics/public/cpp/ukm_source_id.h",
+]

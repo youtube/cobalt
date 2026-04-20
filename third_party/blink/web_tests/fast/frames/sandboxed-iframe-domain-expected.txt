@@ -1,0 +1,2 @@
+CONSOLE ERROR: Uncaught SecurityError: Failed to set the 'domain' property on 'Document': Assignment is forbidden for sandboxed iframes.
+

@@ -1,0 +1,34 @@
+This is a testharness.js-based test.
+Found 15 FAIL, 0 TIMEOUT, 0 NOTRUN.
+[FAIL] Can set 'white-space-collapse' to the 'discard' keyword: discard
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'white-space-collapse' to the 'preserve-spaces' keyword: preserve-spaces
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'white-space-trim' to CSS-wide keywords: initial
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to CSS-wide keywords: inherit
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to CSS-wide keywords: unset
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to CSS-wide keywords: revert
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to var() references:  var(--A)
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to the 'none' keyword: none
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to the 'discard-before' keyword: discard-before
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to the 'discard-after' keyword: discard-after
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] Can set 'white-space-trim' to the 'discard-inner' keyword: discard-inner
+  Failed to execute 'set' on 'StylePropertyMap': Invalid propertyName: white-space-trim
+[FAIL] 'white-space-trim' does not support 'discard-before discard-after'
+  Failed to execute 'get' on 'StylePropertyMapReadOnly': Invalid propertyName: white-space-trim
+[FAIL] 'white-space-trim' does not support 'discard-before discard-inner'
+  Failed to execute 'get' on 'StylePropertyMapReadOnly': Invalid propertyName: white-space-trim
+[FAIL] 'white-space-trim' does not support 'discard-after discard-inner'
+  Failed to execute 'get' on 'StylePropertyMapReadOnly': Invalid propertyName: white-space-trim
+[FAIL] 'white-space-trim' does not support 'discard-before discard-after discard-inner'
+  Failed to execute 'get' on 'StylePropertyMapReadOnly': Invalid propertyName: white-space-trim
+Harness: the test ran to completion.
+

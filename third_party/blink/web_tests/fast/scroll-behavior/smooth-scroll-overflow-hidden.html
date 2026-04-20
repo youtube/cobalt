@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+
+body { overflow: hidden; }
+#space { height: 2000px; }
+
+</style>
+<div id="space"></div>
+<script>
+
+async_test(t => {
+    onscrollend = t.step_func_done(() => {
+        assert_equals(scrollY, 500);
+    });
+    scroll({behavior: "smooth", top: 500});
+}, 'scroll');
+
+</script>

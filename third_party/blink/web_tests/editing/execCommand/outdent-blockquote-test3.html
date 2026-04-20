@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+
+// Because everything is selected, outdent should remove the outermost blockquote, thus the
+// first child after outdent is a text node; not a blockquote. This is consistent with Firefox.
+
+selection_test(
+    [
+        '<div contenteditable="true" id="contentDiv">^<blockquote class="webkit-indent-blockquote">',
+            '<blockquote class="webkit-indent-blockquote">A</blockquote>',
+                'B',
+            '</blockquote>|',
+        '</div>',
+    ],
+    'outdent',
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '<blockquote class="webkit-indent-blockquote">^A</blockquote>',
+            'B|',
+        '</div>',
+    ]);
+</script>

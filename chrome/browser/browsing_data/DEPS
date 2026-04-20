@@ -1,0 +1,4 @@
+include_rules = [
+  "+device/fido/cros/credential_store.h",
+  "+device/fido/platform_credential_store.h",
+]

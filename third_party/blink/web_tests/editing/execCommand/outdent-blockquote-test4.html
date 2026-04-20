@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+
+// Because everything is selected, outdent should remove the outermost blockquote,
+// leaving the remaining content as-is. That is consistent with Firefox. We insert
+// a <br>.
+
+selection_test(
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '^<blockquote class="webkit-indent-blockquote">',
+                '<blockquote class="webkit-indent-blockquote">',
+                    '<br>',
+                    'A',
+                '</blockquote>',
+                '<br>',
+                'B',
+            '</blockquote>|',
+        '</div>',
+    ],
+    'outdent',
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '<blockquote class="webkit-indent-blockquote">',
+                '^<br>',
+                'A',
+                '<br>',
+            '</blockquote>',
+            '<br>',
+            'B|',
+        '</div>',
+    ]);
+</script>

@@ -1,0 +1,6 @@
+[document web]
+++[paragraph]
+++++[static] name='This test is to check '
+++++[static]
+++++++[static] name='mark tag'
+++++[static] name='.'

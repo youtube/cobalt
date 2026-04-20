@@ -1,0 +1,8 @@
+{
+  "NetworkConfigurations": [
+  ],
+  "GlobalNetworkConfiguration": {
+    "AllowOnlyPolicyNetworksToConnect": true
+  },
+  "Type": "UnencryptedConfiguration"
+}

@@ -1,0 +1,120 @@
+%{
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "third_party/blink/renderer/core/css/parser/at_rule_descriptors.h"
+
+#include "third_party/blink/renderer/core/css/hash_tools.h"
+
+#ifdef _MSC_VER
+// Disable the warnings from casting a 64-bit pointer to 32-bit long
+// warning C4302: 'type cast': truncation from 'char (*)[28]' to 'long'
+// warning C4311: 'type cast': pointer truncation from 'char (*)[18]' to 'long'
+#pragma warning(disable : 4302 4311)
+#endif
+
+namespace blink {
+
+namespace {
+
+%}
+
+%struct-type
+struct Property;
+%omit-struct-type
+%language=C++
+%readonly-tables
+%compare-strncmp
+%define class-name AtRuleDescriptorHash
+%define lookup-function-name findDescriptorImpl
+%define hash-function-name descriptor_hash_function
+%define slot-name name_offset
+%define word-array-name descriptor_word_list
+%pic
+%enum
+%%
+{% for descriptor in descriptors %}
+{{descriptor.name}}, static_cast<int>(AtRuleDescriptorID::{{descriptor.name.to_upper_camel_case()}})
+{% if descriptor.alias %}
+{{descriptor.alias}}, static_cast<int>(AtRuleDescriptorID::{{descriptor.name.to_upper_camel_case()}})
+{% endif %}
+{% endfor %}
+%%
+
+const Property* FindDescriptor(const char* str, unsigned int len) {
+  return AtRuleDescriptorHash::findDescriptorImpl(str, len);
+}
+
+template <typename CharacterType>
+static AtRuleDescriptorID AsAtRuleDescriptorID(
+    base::span<const CharacterType> descriptor) {
+  // The span size can't be larger then the maximum `unsigned` value because it
+  // comes from a StringView.
+  unsigned length = static_cast<unsigned>(descriptor.size());
+  if (length == 0) {
+    return AtRuleDescriptorID::Invalid;
+  }
+  const CharacterType* descriptor_name = descriptor.data();
+  if (length >= 3 && descriptor_name[0] == '-' && descriptor_name[1] == '-') {
+    return AtRuleDescriptorID::Variable;
+  }
+  if (length > {{longest_name_length}}) {
+    return AtRuleDescriptorID::Invalid;
+  }
+
+  char buffer[{{longest_name_length}} + 1];  // 1 for null character
+
+  for (unsigned i = 0; i != length; ++i) {
+    CharacterType c = descriptor_name[i];
+    if (c == 0 || c >= 0x7F) {
+      return AtRuleDescriptorID::Invalid;  // illegal character
+    }
+    buffer[i] = ToASCIILower(c);
+  }
+  buffer[length] = '\0';
+
+  const char* name = buffer;
+  const Property* hash_table_entry = FindDescriptor(name, length);
+  if (!hash_table_entry) {
+    return AtRuleDescriptorID::Invalid;
+  }
+  return static_cast<AtRuleDescriptorID>(
+      hash_table_entry->id_and_exposed_bit & ~kNotKnownExposedPropertyBit);
+}
+
+}  // namespace
+
+AtRuleDescriptorID AsAtRuleDescriptorID(StringView string) {
+  return string.Is8Bit()
+             ? AsAtRuleDescriptorID(string.Span8())
+             : AsAtRuleDescriptorID(string.Span16());
+}
+
+CSSPropertyID AtRuleDescriptorIDAsCSSPropertyID(AtRuleDescriptorID id) {
+  switch (id) {
+  case AtRuleDescriptorID::Variable:
+    return CSSPropertyID::kVariable;
+{% for descriptor in descriptors %}
+  case AtRuleDescriptorID::{{descriptor.name.to_upper_camel_case()}}:
+    return CSSPropertyID::{{descriptor.name.to_enum_value()}};
+{% endfor %}
+  default:
+    NOTREACHED();
+  }
+}
+
+AtRuleDescriptorID CSSPropertyIDAsAtRuleDescriptor(CSSPropertyID id) {
+  switch (id) {
+  case CSSPropertyID::kVariable:
+    return AtRuleDescriptorID::Variable;
+{% for descriptor in descriptors %}
+  case CSSPropertyID::{{descriptor.name.to_enum_value()}}:
+    return AtRuleDescriptorID::{{descriptor.name.to_upper_camel_case()}};
+{% endfor %}
+  default:
+    return AtRuleDescriptorID::Invalid;
+  }
+}
+
+}  // namespace blink

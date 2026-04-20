@@ -1,0 +1,58 @@
+name: Workflow Debug
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  push:
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+
+permissions: {}
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "${GITHUB_CONTEXT}"
+        shell: bash
+      - name: Dump job context
+        env:
+          JOB_CONTEXT: ${{ toJson(job) }}
+        run: echo "${JOB_CONTEXT}"
+        shell: bash
+      - name: Dump steps context
+        env:
+          STEPS_CONTEXT: ${{ toJson(steps) }}
+        run: echo "${STEPS_CONTEXT}"
+        shell: bash
+      - name: Dump runner context
+        env:
+          RUNNER_CONTEXT: ${{ toJson(runner) }}
+        run: echo "${RUNNER_CONTEXT}"
+        shell: bash
+      - name: Default environment variables
+        run: |
+          echo "The job_id is: ${GITHUB_JOB}"
+          echo "The id of this action is: ${GITHUB_ACTION}"
+          echo "The run id is: ${GITHUB_RUN_ID}"
+          echo "The GitHub Actor's username is: ${GITHUB_ACTOR}"
+          echo "GitHub SHA: ${GITHUB_SHA}"
+        shell: bash
+      - name: Rate limit info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /rate_limit
+        shell: bash

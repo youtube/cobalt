@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>MediaKeys.getMetrics</title>
+        <script src="encrypted-media-utils.js"></script>
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+        <video></video>
+        <script>
+            async_test(function(test)
+            {
+              const opts = [{
+                initDataTypes: ['cenc', 'sinf', 'keyids'],
+                encryptionScheme: 'cbcs-1-9',
+                videoCapabilities: [{
+                    contentType: 'video/mp4; codecs="avc1.640028"'
+                }],
+                audioCapabilities: [{
+                    contentType: 'audio/mp4; codecs="mp4a.40.2"'
+                }],
+              }];
+
+              opts[0].videoCapabilities[0].robustness = 'SW_SECURE_DECODE';
+              opts[0].audioCapabilities[0].robustness = 'SW_SECURE_CRYPTO';
+
+              return navigator.requestMediaKeySystemAccess('com.widevine.alpha', opts)
+                .then(function(keySystemAccess) {
+                  return keySystemAccess.createMediaKeys();
+                })
+                .then(function (mediaKeys) {
+                  assert_not_equals(mediaKeys, null);
+                  const blob = mediaKeys.getMetrics();
+                  assert_true(blob.length > 0);
+                  test.done();
+                }).catch(function(error) {
+                    forceTestFailureFromPromise(test, error);
+                });
+            }, 'GetMetrics from MediaKeys.');
+        </script>
+    </body>
+</html>

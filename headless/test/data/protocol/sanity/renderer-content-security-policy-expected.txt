@@ -1,0 +1,5 @@
+Tests renderer: content security policy.
+requested url: http://example.com/
+pass256
+pass384
+pass512

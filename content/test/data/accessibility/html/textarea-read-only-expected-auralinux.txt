@@ -1,0 +1,3 @@
+[document web] focusable focused
+++[section]
+++++[entry] focusable multi-line selectable-text

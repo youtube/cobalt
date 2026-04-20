@@ -1,0 +1,5 @@
+TEST(getComputedStyle(document.documentElement).overflow == 'visible') OK
+EVENT(webkitfullscreenchange)
+TEST(getComputedStyle(document.documentElement).overflow == 'hidden') OK
+END OF TEST
+

@@ -1,0 +1,342 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+<head>
+<title>Test for keyboard operations of &lt;input type=range></title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+
+<input type=range id=horiz-range min=0 max=100 value=50 onchange='handleChange()'>
+<input type=range id=horiz-range-rtl dir=rtl min=0 max=100 value=50 onchange='handleChange()'>
+<input type=range id=vert-range min=0 max=100 value=50 onchange='handleChange()' style='writing-mode: vertical-lr;'>
+<input type=range id=vert-range-rtl dir=rtl min=0 max=100 value=50 onchange='handleChange()' style='writing-mode: vertical-lr;'>
+<input type=range id=slr min=0 max=100 value=50 onchange='handleChange()' style='writing-mode: sideways-lr;'>
+<input type=range id=step-any min=0 max=200 value=100 step='any' onchange='handleChange()' style='writing-mode: vertical-lr;'>
+<input type=range id=small-range min=0 max=10 value=6 step=3 onchange='handleChange()' style='writing-mode: vertical-lr;'>
+<input type=range id=disabled disabled min=0 max=100 value=1 step=1 onchange='handleChange()' style='writing-mode: vertical-lr;'>
+
+<script>
+
+function sendKey(element, keyName) {
+    eventSender.keyDown(keyName);
+}
+
+var changeEventCounter = 0;
+function handleChange() {
+  changeEventCounter++;
+}
+
+test(() => {
+  const input = document.getElementById('horiz-range');
+  input.focus();
+
+  // Press the up arrow key.
+  let lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '51');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Press the down arrow key.
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '50');
+
+  // Press the left arrow key.
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '49');
+
+  // Press the right arrow key.
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '50');
+
+  // Press the PageUp key.
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '60');
+
+  // Press the PageDown key.
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '50');
+
+  // Press the Home key.
+  sendKey(input, 'Home');
+  assert_equals(input.value, '0');
+
+  // Press the End key.
+  sendKey(input, 'End');
+  assert_equals(input.value, '100');
+
+  // Edge cases.
+  input.valueAsNumber = 0;
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '0');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '1');
+  input.valueAsNumber = 100;
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '100');
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '99');
+
+  input.valueAsNumber = 0;
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '0');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'Home');
+  assert_equals(input.value, '0');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+
+  input.valueAsNumber = 100;
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '100');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'End');
+  assert_equals(input.value, '100');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+}, 'Tests for a horizontal range');
+
+test(() => {
+  const input = document.getElementById('horiz-range-rtl');
+  input.focus();
+
+  // Press the up arrow key.
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '51');
+
+  // Press the down arrow key.
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '50');
+
+  // Press the left arrow key.
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '51');
+
+  // Press the right arrow key.
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '50');
+}, 'Tests for a horizontal range with RTL');
+
+test(() => {
+  const input = document.getElementById('vert-range');
+  input.focus();
+
+  // Press the up arrow key.
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '49');
+
+  // Press the down arrow key.
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '50');
+
+  // Press the left arrow key.
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '49');
+
+  // Press the right arrow key.
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '50');
+
+  // Press the PageUp key.
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '60');
+
+  // Press the PageDown key.
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '50');
+
+  // Press the Home key.
+  sendKey(input, 'Home');
+  assert_equals(input.value, '0');
+
+  // Press the End key.
+  sendKey(input, 'End');
+  assert_equals(input.value, '100');
+}, 'Tests for a vertical range');
+
+test(() => {
+  const input = document.getElementById('vert-range-rtl');
+  input.focus();
+
+  // Press the up arrow key.
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '51');
+
+  // Press the down arrow key.
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '50');
+
+  // Press the left arrow key.
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '49');
+
+  // Press the right arrow key.
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '50');
+
+  // Press the PageUp key.
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '60');
+
+  // Press the PageDown key.
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '50');
+
+  // Press the Home key.
+  sendKey(input, 'Home');
+  assert_equals(input.value, '0');
+
+  // Press the End key.
+  sendKey(input, 'End');
+  assert_equals(input.value, '100');
+}, 'Tests for a vertical range with rtl');
+
+test(() => {
+  const input = document.getElementById('slr');
+  input.focus();
+
+  // Press the up arrow key.
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '51');
+
+  // Press the down arrow key.
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '50');
+
+  // Press the left arrow key.
+  sendKey(input, 'ArrowLeft');
+  assert_equals(input.value, '51');
+
+  // Press the right arrow key.
+  sendKey(input, 'ArrowRight');
+  assert_equals(input.value, '50');
+}, 'Tests for a range in sideways-lr writing-mode');
+
+test(() => {
+  const input = document.getElementById('step-any');
+  input.focus();
+
+  // Press the up arrow key.
+  let lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '102');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Press the down arrow key.
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '100');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Press the pageup key.
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '120');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Press the pagedown key.
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '100');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Press the home key.
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'Home');
+  assert_equals(input.value, '0');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Press the end key.
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'End');
+  assert_equals(input.value, '200');
+  assert_equals(changeEventCounter, lastChangeEventCounter + 1);
+
+  // Edge cases.
+  input.valueAsNumber = 199;
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '200');
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '200');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '198');
+
+  input.valueAsNumber = 199;
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '200');
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '200');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '180');
+
+  input.valueAsNumber = 1;
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '0');
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '0');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'ArrowDown');
+  assert_equals(input.value, '2');
+
+  input.valueAsNumber = 1;
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '0');
+  lastChangeEventCounter = changeEventCounter;
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '0');
+  assert_equals(changeEventCounter, lastChangeEventCounter);
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '20');
+}, 'step=any cases');
+
+test(() => {
+  const input = document.getElementById('small-range');
+  input.focus();
+
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '9');
+
+  sendKey(input, 'PageDown');
+  assert_equals(input.value, '6');
+
+  sendKey(input, 'End');
+  assert_equals(input.value, '9');
+
+  sendKey(input, 'Home');
+  assert_equals(input.value, '0');
+
+  sendKey(input, 'End');
+  assert_equals(input.value, '9');
+}, 'small range');
+
+test(() => {
+  const input = document.getElementById('disabled');
+  input.focus();
+
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '1');
+  sendKey(input, 'Home');
+  assert_equals(input.value, '1');
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '1');
+  input.removeAttribute('disabled');
+
+  input.readOnly = true;
+  sendKey(input, 'ArrowUp');
+  assert_equals(input.value, '1');
+  sendKey(input, 'Home');
+  assert_equals(input.value, '1');
+  sendKey(input, 'PageUp');
+  assert_equals(input.value, '1');
+  input.readOnly = false;
+}, 'Disabled and read-only');
+</script>
+</body>
+</html>

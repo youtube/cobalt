@@ -1,0 +1,69 @@
+*/.*
+chai/*
+*/example/
+*/examples/
+*.html
+hydrolysis/hydrolysis.js
+*/jsdoc2md/
+*.lock
+*.md
+*.png
+*.sh
+*.svg
+*/test/
+*.ts
+@types/**/*
+*.woff
+*.yml
+Makefile
+mocha/*
+source-map.debug.js
+powered-test/es6-destructuring-assignments.js
+*.map
+typescript/lib/*
+typescript/loc/*
+
+# This is pulled in from html-minifier, but there is no plan to use the
+# --minify-js which is the only entry to that codepath.
+uglify-js/*
+
+# This is pulled in from ts-poet used by ts-proto, but the format option
+# isn't used, which is the only entry to that codepath.
+dprint-node/*
+
+# Exclude all Lit related files, except the ones in lit_include.txt
+@lit/*
+lit/*
+lit-element/*
+lit-html/*
+@lit-labs/*
+
+# Exclude all mediapipe tasks vision files, except the ones in npm_include.txt
+@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm
+@mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.js
+@mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm
+@mediapipe/tasks-vision/README.md
+@mediapipe/tasks-vision/package.json
+@mediapipe/tasks-vision/vision_bundle.cjs
+@mediapipe/tasks-vision/vision_bundle.cjs.map
+@mediapipe/tasks-vision/vision_bundle.mjs.map
+
+# Exclude unnecessary files from ts-proto.
+ts-proto/README.markdown
+
+# Exlude unnecessary files fom @rollup/wasm-node.
+@rollup/wasm-node/dist/es/*
+
+# Exclude unnecessary files from @typescript-eslint.
+@typescript-eslint/eslint-plugin/docs/*
+
+# Exclude unnecessary files from @azure.
+@azure/msal-browser/dist/*
+@azure/msal-browser/lib/*.cjs
+@azure/msal-browser/lib/*.js
+@azure/msal-browser/src/*
+@azure/msal-common/browser/*
+@azure/msal-common/dist/*
+@azure/msal-common/lib/*.cjs
+@azure/msal-common/lib/*.js
+@azure/msal-common/node/*

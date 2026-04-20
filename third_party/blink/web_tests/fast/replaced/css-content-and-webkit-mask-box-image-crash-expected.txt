@@ -1,0 +1,1 @@
+The test passes if you see the Safari icon below.

@@ -1,0 +1,105 @@
+Tests that cookies are set, updated and removed.
+Test started
+Enabling network
+
+Running test: deleteAllCookies
+
+Running test: nonUnicodeCookie
+Adding multiple cookies
+Num of cookies 1
+name: cookie1, value: привет, domain: .chromium.org, path: /path, session
+
+Running test: deleteAllCookies
+
+Running test: setCookieViaFetch
+Num of cookies 1
+name: name, value: value, domain: 127.0.0.1, path: /inspector-protocol/network/resources, session
+
+Running test: deleteAllCookies
+
+Running test: printCookieViaFetch
+Cookies as seen on server: "HTTP_COOKIE: foo=bar1\n"
+
+Running test: deleteAllCookies
+
+Running test: getPartitionedCookies
+Site has cookie in other partition: false
+Current cookie partition key: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}
+Site has cookie in other partition: false
+Current cookie partition key: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":true}
+Num of cookies 0
+
+Running test: setPartitionedCookie
+Setting Cookie
+Num of cookies 1
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}, secure, session, None
+Setting Cookie
+Num of cookies 2
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":true}, secure, session, None
+Setting Cookie
+Num of cookies 3
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":true}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://notinset.test","hasCrossSiteAncestor":true}, secure, session, None
+
+Running test: deleteAllCookies
+
+Running test: logCookies
+Num of cookies 0
+
+Running test: partitionedAndUnpartitionedCookiesWithSameName
+Setting Cookie
+Num of cookies 1
+name: __Host-foo, value: bar, domain: devtools.test, path: /, secure, session, None
+Setting Cookie
+Num of cookies 2
+name: __Host-foo, value: bar, domain: devtools.test, path: /, secure, session, None
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://example.test","hasCrossSiteAncestor":false}, secure, session, None
+Setting Cookie
+Num of cookies 3
+name: __Host-foo, value: bar, domain: devtools.test, path: /, secure, session, None
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://example.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://notinset.test","hasCrossSiteAncestor":false}, secure, session, None
+Deleting Cookie
+Num of cookies 2
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://example.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://notinset.test","hasCrossSiteAncestor":false}, secure, session, None
+Deleting Cookie
+Num of cookies 1
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://notinset.test","hasCrossSiteAncestor":false}, secure, session, None
+
+Running test: deleteAllCookies
+
+Running test: logCookies
+Num of cookies 0
+
+Running test: setPartitionedCookies
+Adding multiple cookies
+Num of cookies 3
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://example.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://notinset.test","hasCrossSiteAncestor":false}, secure, session, None
+
+Running test: getPartitionedCookies
+Site has cookie in other partition: true
+Current cookie partition key: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}
+Site has cookie in other partition: true
+Current cookie partition key: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":true}
+Num of cookies 3
+name: __Host-foo, value: bar, domain: devtools.test, path: /, partitionKey: {"topLevelSite":"https://example.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}, secure, session, None
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: {"topLevelSite":"https://notinset.test","hasCrossSiteAncestor":false}, secure, session, None
+
+Running test: deleteAllCookies
+
+Running test: getPartitionedCookieFromOpaqueOrigin
+Site has cookie in other partition: false
+Current cookie partition key: {"topLevelSite":"https://devtools.test","hasCrossSiteAncestor":false}
+Site has cookie in other partition: false
+Current cookie partition key: "<opaque>"
+Num of cookies 1
+name: __Host-foo, value: bar, domain: example.test, path: /, partitionKey: <opaque>, secure, session, None
+
+Running test: deleteAllCookies
+

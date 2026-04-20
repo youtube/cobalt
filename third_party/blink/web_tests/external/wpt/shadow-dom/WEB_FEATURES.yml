@@ -1,0 +1,9 @@
+features:
+- name: shadow-dom
+  files: "**"
+- name: slot-assign
+  files:
+  - imperative-slot-*
+- name: document-caretpositionfrompoint
+  files:
+  - Document-caretPositionFromPoint.tentative.html

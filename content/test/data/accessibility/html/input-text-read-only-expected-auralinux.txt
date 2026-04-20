@@ -1,0 +1,3 @@
+[document web] focusable
+++[section]
+++++[entry] name='Name' focusable focused single-line text-input-type:text caret_offset=0

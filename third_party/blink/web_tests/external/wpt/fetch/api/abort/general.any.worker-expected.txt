@@ -1,0 +1,6 @@
+This is a testharness.js-based test.
+Found 1 FAIL, 0 TIMEOUT, 0 NOTRUN.
+[FAIL] Readable stream synchronously cancels with AbortError if aborted before reading
+  assert_true: Cancel called sync expected true got false
+Harness: the test ran to completion.
+

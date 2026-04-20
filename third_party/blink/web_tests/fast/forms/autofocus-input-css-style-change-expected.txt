@@ -1,0 +1,3 @@
+The following text box should have focus and should be green.
+
+PASS

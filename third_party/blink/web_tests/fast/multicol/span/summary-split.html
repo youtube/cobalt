@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<p>Test that a spanner splitting a summary element doesn't have any ill effects.</p>
+<p>Below you should see 'PASS' three times. Letter spacing will vary.</p>
+<div id="container" style="display:none; -webkit-columns:4; -webkit-column-gap:0; width:4em; orphans:1; widows:1;">
+    <summary>
+        P<br>A<br>S<br>S
+        <div style="-webkit-column-span:all;">PASS</div>
+        P<br>A<br>S<br>S
+    </summary>
+</div>
+<script>
+    onload = function() {
+        document.body.offsetTop;
+        document.getElementById('container').style.display = "block";
+    }
+</script>

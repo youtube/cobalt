@@ -1,0 +1,26 @@
+Tests that screenshot works with clip
+{"format":"png","clip":{"x":0,"y":15018,"width":54,"height":54,"scale":1}}
+{
+    id : <number>
+    result : {
+        data : iVBORw0KGgoAAAANSUhEUgAAADYAAAA2CAYAAACMRWrdAAAAaUlEQVR4nOzasQ2AAAzEwCAxOJtDQcEMDncbWEn558x9z0LnLPWFXcescL0P+IOLLSOsRliNsBphNcJqhNUIqxFWI6xGWI2wGmE1wmqE1QirEVYjrEZYjbAaYTXCaoTVCKtZG3bYBMc8AAAA//8E9uQ1AAAABklEQVQDAEpxBtIpf8UuAAAAAElFTkSuQmCC
+    }
+    sessionId : <string>
+}
+{"format":"png","clip":{"x":0,"y":15018,"width":54,"height":54,"scale":0.5}}
+{
+    id : <number>
+    result : {
+        data : iVBORw0KGgoAAAANSUhEUgAAABsAAAAbCAYAAACN1PRVAAAAOElEQVR4nOzWsQkAMAwDQRk8uDdXIGSFCAz/hdpr1ZKtUH13St8bPywUGBgYGBgYGBjYWqySj/gAAAD//zUzfJwAAAAGSURBVAMAxFsGZt0vsIUAAAAASUVORK5CYII=
+    }
+    sessionId : <string>
+}
+{"format":"png","clip":{"x":0,"y":15018,"width":54,"height":54,"scale":2}}
+{
+    id : <number>
+    result : {
+        data : iVBORw0KGgoAAAANSUhEUgAAAGwAAABsCAYAAACPZlfNAAABHUlEQVR4nOzWwQnAMBADwTO4cHfuvEMayMJMC4tAe+beIWMPKYLFCBbzDXbW8CPnfTEsLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFiBIsRLEawGMFi1sy9Q4aFxQgWI1jMAwAA//8RVr84AAAABklEQVQDABBTB6rxw3ApAAAAAElFTkSuQmCC
+    }
+    sessionId : <string>
+}
+

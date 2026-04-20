@@ -1,0 +1,4 @@
+{
+  "name": "Test bundle for web_bundle_browsertest.cc",
+  "start_url": "https://test.example.org/"
+}

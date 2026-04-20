@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AudioBuffer Resampling</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      "use strict";
+      let context;
+      // Frequency of the sine wave.
+      const TONE_FREQUENCY = 440;
+      // Duration of the test.
+      const LENGTH_SECONDS = 0.5;
+
+      /**
+       * Generates a sine wave in a mono AudioBuffer.
+       * @param {BaseAudioContext} context - The audio context.
+       * @param {number} frequency - Frequency of the sine wave.
+       * @param {number} sampleRate - Sample rate for the buffer.
+       * @return {AudioBuffer} The generated AudioBuffer.
+       */
+      function createSineBuffer(context, frequency, sampleRate) {
+        const buffer = new AudioBuffer({
+            numberOfChannels: 1,
+            length: LENGTH_SECONDS * sampleRate,
+            sampleRate: sampleRate
+        });
+
+        const omega = 2 * Math.PI * frequency / sampleRate;
+        const channelData = buffer.getChannelData(0);
+        for (let k = 0; k < channelData.length; ++k) {
+          channelData[k] = Math.sin(omega * k);
+        }
+        return buffer;
+      }
+
+      /**
+       * Checks the rendered audio against a reference sine wave.
+       * Computes peak error and SNR, and asserts that they meet thresholds.
+       * @param {AudioBuffer} buffer - The rendered audio buffer.
+       */
+      function checkResult(buffer) {
+        let renderedData = buffer.getChannelData(0);
+        // Generate reference sine wave at the context's sample rate.
+        const referenceBuffer = createSineBuffer(
+            context, TONE_FREQUENCY, context.sampleRate);
+        const referenceData = referenceBuffer.getChannelData(0);
+        let signalEnergy = 0;
+        let noiseEnergy = 0;
+        let maxError = -1;
+        const halfLength = Math.floor(renderedData.length / 2);
+        for (let k = 0; k < halfLength; ++k) {
+          const diff = renderedData[k] - referenceData[k];
+          noiseEnergy += diff * diff;
+          signalEnergy += referenceData[k] * referenceData[k];
+          maxError = Math.max(maxError, Math.abs(diff));
+        }
+
+        // Minimum allowed signal-to-noise ratio.
+        const SNR_THRESHOLD = 22.35;
+        // Maximum allowed peak error.
+        const PEAK_THRESHOLD = 0.11;
+        const snr =
+            noiseEnergy === 0
+            ? 1000
+            : 10 * Math.log10(signalEnergy / noiseEnergy);
+        assert_less_than(
+            maxError, PEAK_THRESHOLD, "Peak error should be within threshold");
+        assert_greater_than(
+            snr, SNR_THRESHOLD, "SNR should be above threshold");
+      }
+
+      // Define the asynchronous test using promise_test().
+      promise_test(async () => {
+        // Context sample rate.
+        const SAMPLE_RATE = 48000;
+        // Buffer's sample rate.
+        const BUFFER_RATE = 3000;
+        context = new OfflineAudioContext(
+            1, LENGTH_SECONDS * SAMPLE_RATE, SAMPLE_RATE);
+        // Create a sine buffer at a different sample rate to force resampling.
+        const buffer = createSineBuffer(context, TONE_FREQUENCY, BUFFER_RATE);
+        let source = new AudioBufferSourceNode(context);
+        source.buffer = buffer;
+        source.connect(context.destination);
+        source.start();
+        const renderedBuffer = await context.startRendering();
+        checkResult(renderedBuffer);
+      }, "Resampling of an AudioBuffer");
+    </script>
+  </body>
+</html>

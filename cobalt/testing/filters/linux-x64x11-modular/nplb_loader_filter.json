@@ -1,0 +1,30 @@
+{
+  "failing_tests": [
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "PosixMemoryMapTest.CanChangeMemoryProtection",
+    "PosixThreadDetachTest.SunnyDay",
+    "PosixTimeClockTests.ClockReturnsNonNegative",
+    "SbAudioSinkTest.UpdateStatusCalled",
+    "SbLogFlushTest.DontCrashMeBro",
+    "PosixSocketSendTest.RainyDaySendToClosedSocket",
+    "PosixSocketSendtoTest.RainyDaySendToClosedSocket"
+  ],
+  "_filtered_b/467135717": [
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "PosixMemoryMapTest.CanChangeMemoryProtection",
+    "PosixThreadDetachTest.SunnyDay",
+    "PosixTimeClockTests.ClockReturnsNonNegative",
+    "SbAudioSinkTest.UpdateStatusCalled",
+    "SbLogFlushTest.DontCrashMeBro"
+  ]
+}

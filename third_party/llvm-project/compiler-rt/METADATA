@@ -1,0 +1,25 @@
+name: "compiler-rt"
+description:
+  "Subdirectory subtree of llvm-project."
+
+third_party {
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/external/github.com/llvm/llvm-project"
+    version: "27f27d15f6c90b026eca23b8ee238fdbf772fd80"
+    # from https://chromium.googlesource.com/chromium/src/+/refs/tags/114.0.5735.351/tools/clang/scripts/update.py#38
+    closest_version: "llvmorg-17-init-8029-g27f27d15"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "compiler-rt"
+  }
+  last_upgrade_date {
+    year: 2024
+    month: 2
+    day: 21
+  }
+  security {
+    mitigated_security_patch: "CVE-2024-31852"  # not applicable in Cobalt
+  }
+}

@@ -1,0 +1,11 @@
+Image map - test 2 - 2 Links (alt tags)
+----------------------
+
+------------
+Link1
+AXRole: AXLink
+------------
+Link2
+AXRole: AXLink
+
+

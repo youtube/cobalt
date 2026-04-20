@@ -1,0 +1,12 @@
+set noparent
+dhoss@chromium.org
+kmoon@chromium.org
+thestig@chromium.org
+
+per-file ..._ink_*=file://pdf/INK_OWNERS
+
+# Security/XFA-related questions/reviews only.
+tsepez@chromium.org
+
+# V8/gin-related questions/reviews only.
+mlippautz@chromium.org

@@ -1,0 +1,112 @@
+# Copyright 2023 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This file defines all third-party Rust dependencies approved for use
+# in Chromium.
+#
+# Crates which do not satisfy the rule-of-2 or which are testonly must be
+# marked as such in gnrt_config.toml.
+
+[package]
+name = "chromium"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+base64 = "0.22"
+bitflags = "2"
+bytes = "1"
+cxx = "1"
+fend-core = "1"
+font-types = "0.8"
+hex = "0.4"
+lazy_static = "1"
+libc = "0.2"
+llguidance = { version = "0.7.13", default-features = false, features = ["lark"] }
+png = "=0.18.0-rc"
+proc-macro2 = "1"
+prost = "0.13.3"
+qr_code = "2"
+quote = "1"
+read-fonts = "0.27.3"
+rustc-demangle-capi = "0.1"
+skrifa = "0.29"
+small_ctor = "0.1"
+static_assertions = "1"
+temporal_capi = "0.0.7"
+
+[dependencies.crc32fast]
+version = "1.4.2"
+features = ["nightly"]  # For optimized aarch64 implementation.
+
+[dependencies.icu_casemap]
+version = "2.0.0"
+default-features = false
+features = ["compiled_data"]
+
+[dependencies.icu_experimental]
+version = "0.3.0"
+default-features = false
+features = ["compiled_data"]
+
+[dependencies.icu_locale_core]
+version = "2.0.0"
+default-features = false
+
+[dependencies.icu_normalizer]
+version = "2.0.0"
+default-features = false
+features = ["compiled_data"]
+
+[dependencies.icu_properties]
+version = "2.0.0"
+default-features = false
+features = ["compiled_data"]
+
+[dependencies.icu_provider]
+version = "2.0.0"
+default-features = false
+
+# Without the `artifact` field Cargo will only build the `[lib]` target from a
+# dependency.  Specifying `artifact = "bin"` below allows Cargo (and `gnrt`) to
+# also cover `cxxbridge-cmd` when analyzing the dependency tree.  See also
+# https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#artifact-dependencies
+[dependencies.cxxbridge-cmd]
+version = "1"
+artifact = "bin"
+
+[dependencies.log]
+version = "0.4"
+# `release_max_level_info` disables debug and trace logs at compile time
+# when debug asserts are off, which is when DCHECK_IS_ON() is false.
+features = [ "std", "release_max_level_info" ]
+
+# Temporarily inform our cargo tooling that we care about
+# the new version of serde_json_lenient. We are in the midst
+# of CLs that move from the older to the newer.
+[dependencies.serde_json_lenient]
+package = "serde_json_lenient"
+version = "0.2"
+features = ["unbounded_depth", "float_roundtrip"]
+
+# Tweak required to transitive dependency to avoids some use of unsafe,
+# at the cost of requiring the nightly compiler.
+[dependencies.subtle]
+version = "2.6.1"
+features = ["core_hint_black_box"]
+
+[dependencies.syn]
+version = "2"
+features = ["full"]
+
+[dependencies.bytemuck]
+version = "1"
+features = ["nightly_portable_simd"]  # For std::simd coverage.
+
+[dependencies.zip]
+version = "3.0.0"
+default-features = false
+features = ["deflate-flate2"]

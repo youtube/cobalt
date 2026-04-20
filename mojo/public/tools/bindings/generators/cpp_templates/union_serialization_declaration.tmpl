@@ -1,0 +1,30 @@
+{%- import "union_macros.tmpl" as union_macros %}
+
+{%- set data_view = union|get_qualified_name_for_kind ~ "DataView" %}
+{%- set data_type = union|get_qualified_name_for_kind(internal=True) %}
+
+namespace internal {
+
+template <typename MaybeConstUserType>
+struct Serializer<{{data_view}}, MaybeConstUserType> {
+  using UserType = typename std::remove_const<MaybeConstUserType>::type;
+  using Traits = UnionTraits<{{data_view}}, UserType>;
+
+  static void Serialize(MaybeConstUserType& input,
+                        MessageFragment<{{data_type}}>& fragment,
+                        bool inlined) {
+    {{union_macros.serialize(union, "default")}}
+  }
+
+  static bool Deserialize({{data_type}}* input,
+                          UserType* output,
+                          Message* message) {
+    if (!input || input->is_null())
+      return CallSetToNullIfExists<Traits>(output);
+
+    {{data_view}} data_view(input, message);
+    return Traits::Read(data_view, output);
+  }
+};
+
+}  // namespace internal

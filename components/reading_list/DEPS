@@ -1,0 +1,7 @@
+include_rules = [ 
+  "+components/keyed_service",
+  "+components/prefs",
+  "+components/sync",
+  "+google_apis",
+  "+net",
+]

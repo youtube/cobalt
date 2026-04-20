@@ -1,0 +1,33 @@
+Tests that when uncaught exception in eval'ed script ending with //# sourceURL=url is logged into console, its stack trace will have the url as the script source. Bug 47252.
+
+evalURL.js:5 Uncaught Error: Exception in eval:with sourceURL
+    at b (evalURL.js:5:21)
+    at a (evalURL.js:10:15)
+    at evalSource (evalURL.js:13:11)
+    at eval (evalURL.js:14:9)
+    at eval (<anonymous>)
+    at <anonymous>:34:34
+b @ evalURL.js:5
+a @ evalURL.js:10
+evalSource @ evalURL.js:13
+eval @ evalURL.js:14
+(anonymous) @ VM:34
+setTimeout
+doEvalWithSourceURL @ VM:34
+(anonymous) @ console-uncaught-exception-in-eval.js:44
+VM:5 Uncaught Error: Exception in eval:anonymous
+    at b (eval at <anonymous> (inspected-page.html:40:34), <anonymous>:5:21)
+    at a (eval at <anonymous> (inspected-page.html:40:34), <anonymous>:10:15)
+    at evalSource (eval at <anonymous> (inspected-page.html:40:34), <anonymous>:13:11)
+    at eval (eval at <anonymous> (inspected-page.html:40:34), <anonymous>:14:9)
+    at eval (<anonymous>)
+    at <anonymous>:40:34
+b @ VM:5
+a @ VM:10
+evalSource @ VM:13
+eval @ VM:14
+(anonymous) @ VM:40
+setTimeout
+doAnonymousEvalWith @ VM:40
+(anonymous) @ console-uncaught-exception-in-eval.js:47
+

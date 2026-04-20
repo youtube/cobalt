@@ -1,0 +1,2 @@
+This test is to ensure that we do not crash when clearing floats during SVG load.
+PASS: Did not crash while rendering the SVG.

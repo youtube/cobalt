@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>Test createImageBitmap from a SVG image without natural size and with zero size</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  function loadImage(url) {
+    return new Promise(resolve => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.src = url;
+    });
+  }
+
+  function shouldBeClear(ctx, x, y) {
+    // should be transparent black pixels
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    assert_array_equals(d, [0, 0, 0, 0]);
+  }
+
+  function checkImageBitmap(bitmap) {
+    var canvas = document.createElement("canvas");
+    canvas.width = 100;
+    canvas.height = 100;
+    var ctx = canvas.getContext('2d', {willReadFrequently: true});
+    ctx.clearRect(0, 0, 100, 100);
+    ctx.drawImage(bitmap, 0, 0);
+    shouldBeClear(ctx, 0, 0);
+    shouldBeClear(ctx, 0, 99);
+    shouldBeClear(ctx, 99, 0);
+    shouldBeClear(ctx, 99, 99);
+  }
+
+  const IMAGE_WITHOUT_NATURAL_SIZE = '../../svg/hixie/intrinsic/resources/003.svg';
+  const IMAGE_WITH_ZERO_SIZE = 'resources/zeroSize.svg';
+
+  promise_test(async (t) => {
+    const image = await loadImage(IMAGE_WITHOUT_NATURAL_SIZE);
+    return promise_rejects_dom(t, "InvalidStateError",
+                               createImageBitmap(image));
+  }, 'createImageBitmap from an SVG without natural width and height');
+
+  promise_test(async (t) => {
+    const image = await loadImage(IMAGE_WITHOUT_NATURAL_SIZE);
+    return promise_rejects_dom(t, "InvalidStateError",
+                               createImageBitmap(image, 0, 0, 100, 100));
+  }, 'createImageBitmap from an SVG without natural width and height with crop rect');
+
+  promise_test(async () => {
+    const image = await loadImage(IMAGE_WITHOUT_NATURAL_SIZE);
+    const options = {resizeWidth: 50, resizeHeight: 50, resizeQuality: "high"};
+    const bitmap = await createImageBitmap(image, options);
+    checkImageBitmap(bitmap);
+  }, 'createImageBitmap from an SVG without natural width and height with resize');
+
+  promise_test(async (t) => {
+    const image = await loadImage(IMAGE_WITH_ZERO_SIZE);
+    return promise_rejects_dom(t, "InvalidStateError",
+                               createImageBitmap(image));
+  }, 'createImageBitmap from an SVG with zero size');
+
+  promise_test(async (t) => {
+    const image = await loadImage(IMAGE_WITH_ZERO_SIZE);
+    return promise_rejects_dom(t, "InvalidStateError",
+                               createImageBitmap(image, 0, 0, 100, 100));
+  }, 'createImageBitmap from a zero size SVG with crop rect');
+
+  promise_test(async (t) => {
+    const image = await loadImage(IMAGE_WITH_ZERO_SIZE);
+    const options = {resizeWidth: 50, resizeHeight: 50, resizeQuality: "high"};
+    return promise_rejects_dom(t, "InvalidStateError",
+                               createImageBitmap(image, options));
+  }, 'createImageBitmap from a zero size SVG with resize');
+</script>

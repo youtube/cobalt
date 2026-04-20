@@ -1,0 +1,3 @@
+AriaProperties changed on role=textbox, name=textbox1
+AriaProperties changed on role=textbox, name=textbox2
+AriaProperties changed on role=textbox, name=textbox3

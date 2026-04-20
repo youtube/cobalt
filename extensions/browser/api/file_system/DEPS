@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/filename_generation",
+  "+ui/shell_dialogs",
+]

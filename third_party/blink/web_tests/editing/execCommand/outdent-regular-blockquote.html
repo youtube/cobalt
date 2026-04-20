@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<p>This tests outdenting "two", the second paragraph in a regular blockquote (not created by WebKit).  After outdenting two, there should be exactly two blockquotes.</p>
+<script>
+
+selection_test(
+    [
+      '<div contenteditable="true">',
+        '<blockquote id="test">one<br>|two<br>three</blockquote>',
+      '</div>',
+    ],
+    'Outdent',
+    [
+      '<div contenteditable="true">',
+        '<blockquote id="test">',
+          'one<br>',
+        '</blockquote>',
+        '|two<br>',
+        '<blockquote>',
+          'three',
+        '</blockquote>',
+      '</div>',
+    ],
+    'Outdent two');
+</script>

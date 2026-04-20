@@ -1,0 +1,12 @@
+{
+  "_comment": "TODO(b/403007005): Disabled new locale tests.",
+  "failing_tests": [
+    "FileTempTest.*",
+    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
+    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
+    "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
+    "PosixSocketSendTest.RainyDaySendToClosedSocket",
+    "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
+    "PosixStrftimeTest.TimezoneOffsetSpecifier"
+  ]
+}

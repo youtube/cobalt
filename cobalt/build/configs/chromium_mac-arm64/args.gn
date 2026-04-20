@@ -1,0 +1,2 @@
+target_os = "mac"
+target_cpu = "arm64"

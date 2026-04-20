@@ -1,0 +1,23 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "fuchsia"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "PrintHeaderFooter": true
+        },
+        "prefs": {
+          "printing.print_header_footer": {
+            "value": true
+          }
+        }
+      }
+    ]
+  }
+]

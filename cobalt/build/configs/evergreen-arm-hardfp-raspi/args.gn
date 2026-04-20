@@ -1,0 +1,3 @@
+import("//cobalt/build/configs/raspi-2-modular/args.gn")
+
+use_evergreen = true

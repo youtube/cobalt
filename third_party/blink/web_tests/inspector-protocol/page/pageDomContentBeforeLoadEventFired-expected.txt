@@ -1,0 +1,16 @@
+Tests Page.domContentEventFired is triggered before Page.loadEventFired for a non-blank page
+{
+    method : Page.domContentEventFired
+    params : {
+        timestamp : <number>
+    }
+    sessionId : <string>
+}
+{
+    method : Page.loadEventFired
+    params : {
+        timestamp : <number>
+    }
+    sessionId : <string>
+}
+

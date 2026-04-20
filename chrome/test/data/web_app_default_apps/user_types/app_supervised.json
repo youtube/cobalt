@@ -1,0 +1,6 @@
+{
+  "app_url": "https://www.google.com/supervised",
+  "create_shortcuts": true,
+  "launch_container": "tab",
+  "user_type": ["supervised"]
+}

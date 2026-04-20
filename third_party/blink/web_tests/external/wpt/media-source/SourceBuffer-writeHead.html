@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>SourceBuffer.writeHead test cases</title>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="mediasource-util.js"></script>
+</head>
+
+<body>
+    <div id="log"></div>
+    <script>
+        // TODO: b/388319612 - Cobalt: Add adaptive formats to mediasource-util.js.
+        function sourcebuffer_writehead_test(testFunction, description, options, useSegmentsMode) {
+            mediasource_testafterdataloaded(function (test, mediaElement, mediaSource, segmentInfo, sourceBuffer, mediaData) {
+                if (useSegmentsMode) {
+                    sourceBuffer.mode = "segments";
+                }
+                mediaElement.addEventListener("error", test.unreached_func("Unexpected event 'error'"));
+                testFunction(test, segmentInfo, sourceBuffer, mediaData);
+            }, description, options);
+        }
+
+        function append_initial_segment(test, sourceBuffer, segmentInfo, mediaData, callback) {
+            let segment = MediaSourceUtil.extractSegmentData(mediaData, segmentInfo.init);
+            test.expectEvent(sourceBuffer, "updateend", "segment append ended.");
+            sourceBuffer.appendBuffer(segment);
+            test.waitForExpectedEvents(callback);
+        }
+
+        function append_segment(test, sourceBuffer, segmentInfo, mediaData, index, callback) {
+            if (index >= segmentInfo.media.length) {
+                callback();
+                return;
+            }
+            let mediaSegment = MediaSourceUtil.extractSegmentData(mediaData, segmentInfo.media[index]);
+            test.expectEvent(sourceBuffer, "updateend", "media segment append ended.");
+            sourceBuffer.appendBuffer(mediaSegment);
+            test.waitForExpectedEvents(callback);
+        }
+
+        sourcebuffer_writehead_test(function (test, segmentInfo, sourceBuffer, mediaData) {
+            let index = 0;
+            // Write and check that the writeHead updates to the correct end timestamp for all segments.
+            function write_and_check_all_segments() {
+                append_segment(test, sourceBuffer, segmentInfo, mediaData, index, function () {
+                    assert_equals(sourceBuffer.writeHead, segmentInfo.media[index].endtimea);
+                    index = index + 1;
+                    if (index >= segmentInfo.media.length) {
+                        test.done();
+                        return;
+                    }
+                    write_and_check_all_segments();
+                });
+            };
+
+            // writeHead should be 0 with no data appended.
+            assert_equals(sourceBuffer.writeHead, 0);
+            append_initial_segment(test, sourceBuffer, segmentInfo, mediaData, function () {
+                // The initial writeHead to match the start time of the next buffer.
+                assert_equals(sourceBuffer.writeHead, segmentInfo.media[0].timea);
+                write_and_check_all_segments();
+            });
+        }, "Append and check all segments in sequence mode", {}, false);
+
+        sourcebuffer_writehead_test(function (test, segmentInfo, sourceBuffer, mediaData) {
+            // Append all segments in reverse order, after the initial segment.
+            let index = segmentInfo.media.length - 1;
+            // Stores the running expected writeHead by summing the durations of appended segments.
+            let expectedWriteHead = 0;
+            function write_and_check_all_segments() {
+                append_segment(test, sourceBuffer, segmentInfo, mediaData, index, function () {
+                    let segmentLength = segmentInfo.media[index].endtimea - segmentInfo.media[index].timea;
+                    expectedWriteHead = expectedWriteHead + segmentLength;
+                    assert_equals(sourceBuffer.writeHead, expectedWriteHead);
+                    index = index - 1;
+                    if (index <= 0) {
+                        test.done();
+                        return;
+                    }
+                    write_and_check_all_segments();
+                });
+            };
+
+            assert_equals(sourceBuffer.writeHead, 0);
+            append_initial_segment(test, sourceBuffer, segmentInfo, mediaData, function () {
+                assert_equals(sourceBuffer.writeHead, segmentInfo.media[0].timea);
+                expectedWriteHead = segmentInfo.media[0].timea;
+                write_and_check_all_segments();
+            });
+        }, "Append and check all segments in reverse order in segments mode", {}, true);
+
+        sourcebuffer_writehead_test(function (test, segmentInfo, sourceBuffer, mediaData) {
+            assert_equals(sourceBuffer.writeHead, 0);
+            test.done();
+        }, "No data appended", {}, false);
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,34 @@
+name: GoB Authentication
+description: Sets up GoB authentication using GCE metadata.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Add GoB Authentication
+      shell: bash
+      env:
+        METADATA_BASE_URL: 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default'
+        METADATA_HEADER: 'Metadata-Flavor: Google'
+      run: |
+        if ! curl -s -m 2 -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email" > /dev/null; then
+          echo "Metadata server not reachable. Skipping GoB authentication setup."
+          exit 0
+        fi
+
+        SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
+        ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
+
+        if [[ -z "${SERVICE_ACCOUNT}" || -z "${ACCESS_TOKEN}" ]]; then
+          echo "::error::Failed to retrieve service account or access token from metadata server."
+          exit 1
+        fi
+
+        echo "::add-mask::${ACCESS_TOKEN}"
+        echo "Authenticating with ${SERVICE_ACCOUNT}"
+
+        GITCOOKIES_PATH="${{ runner.temp }}/gitcookies"
+        mkdir -p "$(dirname "${GITCOOKIES_PATH}")"
+        (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
+          "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
+
+        git config --global http.cookiefile "${GITCOOKIES_PATH}"

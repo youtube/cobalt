@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+
+<div><input type='range' id='slider1' min='0' max='100' step='10'></div>
+<div><input type='range' id='slider2' min='0' max='100' step='10' style='touch-action:none;'></div>
+<div><input type='range' id='slider3' min='0' max='100' step='10' style='writing-mode:vertical-lr; direction:rtl;'></div>
+
+<script>
+function forceLayoutUpdate() {
+   document.body.offsetTop;
+}
+
+test(() => {
+  forceLayoutUpdate();
+  const slider1 = document.getElementById('slider1');
+  const slider2 = document.getElementById('slider2');
+  const slider3 = document.getElementById('slider3')
+  const container1 = internals.shadowRoot(slider1).children[0];
+  const container2 = internals.shadowRoot(slider2).children[0];
+  const container3 = internals.shadowRoot(slider3).children[0];
+
+  assert_equals(getComputedStyle(container1).touchAction, 'pan-y');
+  assert_equals(getComputedStyle(container2).touchAction, 'pan-y');
+  assert_equals(getComputedStyle(container3).touchAction, 'pan-x');
+  assert_equals(getComputedStyle(slider2).touchAction, 'none');
+
+  slider1.style='writing-mode: vertical-lr;';
+  slider3.style='';
+  forceLayoutUpdate();
+
+  assert_equals(getComputedStyle(container1).touchAction, 'pan-x');
+  assert_equals(getComputedStyle(container3).touchAction, 'pan-y');
+}, 'Tests that each <input type="range"> has the correct pan-x or pan-y touch-action inside its shadow element: container. This touch-action is under the user-specified touch-action, and will update with the writing-mode.');
+
+</script>

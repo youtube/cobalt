@@ -1,0 +1,2 @@
+CONSOLE ERROR: Uncaught RangeError: Maximum call stack size exceeded.
+Pass when no crash observed.

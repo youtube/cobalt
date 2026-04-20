@@ -1,0 +1,1 @@
+Test for making sure that a crash does not happen when a focused node is removed in processing focusin eventListner.

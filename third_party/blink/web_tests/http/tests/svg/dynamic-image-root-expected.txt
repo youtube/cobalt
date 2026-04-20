@@ -1,0 +1,1 @@
+Result: load([object SVGImageElement])

@@ -1,0 +1,4 @@
+document.write invalid entity shouldn't crash
+&#x
+
+PASS: If this test doesn't crash in debug builds
