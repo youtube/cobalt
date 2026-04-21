@@ -155,28 +155,7 @@ static_library("starboard_platform") {
     "uikit_media_session_client.mm",
   ]
 
-  if (is_internal_build) {
-    sources += [
-      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h",
-      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.mm",
-    ]
-  }
-
   sources += common_player_sources
-
-  sources += [
-    # TODO: b/469333751, b/460479616 - the tvOS versions depend on internal
-    # files.
-    "//starboard/shared/stub/drm_close_session.cc",
-    "//starboard/shared/stub/drm_create_system.cc",
-    "//starboard/shared/stub/drm_destroy_system.cc",
-    "//starboard/shared/stub/drm_generate_session_update_request.cc",
-    "//starboard/shared/stub/drm_get_metrics.cc",
-    "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
-    "//starboard/shared/stub/drm_update_server_certificate.cc",
-    "//starboard/shared/stub/drm_update_session.cc",
-  ]
-
   sources -= [
     # Exclude these files from common_player_sources, because they are not used
     # by tvOS.
@@ -190,12 +169,11 @@ static_library("starboard_platform") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
-  deps = [
-    "//base",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//third_party/angle:includes",
-    "//third_party/libvpx",
-    "//third_party/opus",
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
   frameworks = [
@@ -208,10 +186,50 @@ static_library("starboard_platform") {
     "VideoToolbox.framework",
   ]
 
-  public_deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+  deps = [
+    "//base",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//third_party/angle:includes",
+    "//third_party/libvpx",
+    "//third_party/opus",
   ]
+
+  if (is_internal_build) {
+    sources += [
+      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h",
+      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.mm",
+      "//starboard/shared/widevine/drm_system_widevine.cc",
+      "//starboard/shared/widevine/drm_system_widevine.h",
+      "//starboard/shared/widevine/widevine_storage.cc",
+      "//starboard/shared/widevine/widevine_storage.h",
+      "//starboard/shared/widevine/widevine_timer.cc",
+      "//starboard/shared/widevine/widevine_timer.h",
+      "media/drm_close_session.mm",
+      "media/drm_create_system.mm",
+      "media/drm_destroy_system.mm",
+      "media/drm_generate_session_update_request.mm",
+      "media/drm_get_metrics.mm",
+      "media/drm_is_server_certificate_updatable.mm",
+      "media/drm_update_server_certificate.mm",
+      "media/drm_update_session.mm",
+      "media/oemcrypto_engine_device_properties_uikit.h",
+      "media/oemcrypto_engine_device_properties_uikit.mm",
+    ]
+    deps += [
+      "//starboard/shared/widevine:oemcrypto",
+      "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
+      "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
+    ]
+  } else {
+    sources += [
+      "//starboard/shared/stub/drm_close_session.cc",
+      "//starboard/shared/stub/drm_create_system.cc",
+      "//starboard/shared/stub/drm_destroy_system.cc",
+      "//starboard/shared/stub/drm_generate_session_update_request.cc",
+      "//starboard/shared/stub/drm_get_metrics.cc",
+      "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
+      "//starboard/shared/stub/drm_update_server_certificate.cc",
+      "//starboard/shared/stub/drm_update_session.cc",
+    ]
+  }
 }

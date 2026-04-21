@@ -444,7 +444,6 @@ jobs:
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
-          ref: ${{ github.sha }}
 
       - name: Runner Cache Hot
         if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
@@ -456,7 +455,6 @@ jobs:
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
-        if: ${{ contains(matrix.platform, 'tvos') }}
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
@@ -468,7 +466,6 @@ jobs:
           use_cache: true
 
       - name: Set Up Depot Tools
-        if: ${{ contains(matrix.platform, 'tvos') }}
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
 
@@ -793,8 +790,6 @@ jobs:
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
-          ref: ${{ github.sha }}
-          run_sync: 'false'
 
       - name: Runner Cache Hot
         if: steps.overlay_workspace.outputs.cache_hit == 'true'
@@ -804,6 +799,20 @@ jobs:
         if: steps.overlay_workspace.outputs.cache_hit != 'true'
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
+
+      - name: Checkout
+        uses: ./.github/actions/checkout
+        with:
+          path: cobalt/src
+          ref: ${{ github.sha }}
+          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          use_cache: true
+
+      - name: Set Up Depot Tools
+        id: setup-depot-tools
+        uses: ./.github/actions/depot_tools
+        with:
+          run_sync: 'false'
 
       - name: Run Web Tests
         uses: ./.github/actions/web_tests

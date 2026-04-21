@@ -46,6 +46,10 @@ class AudioRendererSinkImpl : public AudioRendererSink {
   explicit AudioRendererSinkImpl(CreateAudioSinkFunc create_audio_sink_func);
   ~AudioRendererSinkImpl() override;
 
+  void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
+                              int* max_cached_frames,
+                              int* min_frames_per_append) const override;
+
  private:
   // AudioRendererSink methods
   bool IsAudioSampleTypeSupported(

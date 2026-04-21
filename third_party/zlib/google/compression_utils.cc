@@ -4,6 +4,10 @@
 
 #include "third_party/zlib/google/compression_utils.h"
 
+#if defined(COBALT)
+#include "build/build_config.h"
+#endif
+
 #include "base/check_op.h"
 #include "base/process/memory.h"
 
@@ -55,10 +59,17 @@ bool GzipCompress(base::span<const uint8_t> input, std::string* output) {
           compressed_data, &compressed_data_size,
           reinterpret_cast<const Bytef*>(input.data()), input_size, nullptr,
           nullptr) != Z_OK) {
+#if BUILDFLAG(IS_COBALT)
+    base::UncheckedFree(compressed_data);
+#else
     free(compressed_data);
+#endif
     return false;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  output->assign(compressed_data, compressed_data + compressed_data_size);
+#else
   Bytef* resized_data =
       reinterpret_cast<Bytef*>(realloc(compressed_data, compressed_data_size));
   if (!resized_data) {
@@ -66,17 +77,24 @@ bool GzipCompress(base::span<const uint8_t> input, std::string* output) {
     return false;
   }
   output->assign(resized_data, resized_data + compressed_data_size);
+#endif
+
   DCHECK_EQ(input_size, GetUncompressedSize(*output));
 
+#if BUILDFLAG(IS_COBALT)
+  base::UncheckedFree(compressed_data);
+#else
   free(resized_data);
+#endif
   return true;
 }
 
 bool GzipUncompress(const std::string& input, std::string* output) {
   std::string uncompressed_output;
   uLongf uncompressed_size = static_cast<uLongf>(GetUncompressedSize(input));
-  if (size_t{uncompressed_size} > uncompressed_output.max_size())
+  if (size_t{uncompressed_size} > uncompressed_output.max_size()) {
     return false;
+  }
 
   uncompressed_output.resize(uncompressed_size);
   if (zlib_internal::GzipUncompressHelper(
@@ -96,8 +114,9 @@ bool GzipUncompress(base::span<const char> input, base::span<char> output) {
 bool GzipUncompress(base::span<const uint8_t> input,
                     base::span<uint8_t> output) {
   uLongf uncompressed_size = GetUncompressedSize(input);
-  if (uncompressed_size > output.size())
+  if (uncompressed_size > output.size()) {
     return false;
+  }
   return zlib_internal::GzipUncompressHelper(
              reinterpret_cast<Bytef*>(output.data()), &uncompressed_size,
              reinterpret_cast<const Bytef*>(input.data()),

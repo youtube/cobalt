@@ -208,12 +208,6 @@ class PlayerComponents {
     VideoComponents CreateStubVideoComponents(
         const CreationParameters& creation_parameters);
 
-    // Check AudioRenderer ctor for more details on the parameters.
-    virtual void GetAudioRendererParams(
-        const CreationParameters& creation_parameters,
-        int* max_cached_frames,
-        int* min_frames_per_append) const;
-
    private:
     Factory(const Factory&) = delete;
     void operator=(const Factory&) = delete;

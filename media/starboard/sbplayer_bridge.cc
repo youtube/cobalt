@@ -93,6 +93,13 @@ const int* ToIntPointer(const std::optional<int>& val) {
   return &*val;
 }
 
+const bool* ToBoolPointer(const std::optional<bool>& val) {
+  if (!val) {
+    return nullptr;
+  }
+  return &*val;
+}
+
 }  // namespace
 
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
@@ -734,6 +741,7 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+
 #if BUILDFLAG(IS_ANDROID)
   const StarboardExtensionPlayerSetVideoSurfaceViewApi*
       player_set_video_surface_view_extension =
@@ -764,12 +772,16 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.disable_low_performance_sw_decoder;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
+    extension_features.enable_codec_output_checker =
+        experimental_features_.enable_codec_output_checker;
     extension_features.flush_decoder_during_reset =
         experimental_features_.enable_flush_during_seek;
     extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
     extension_features.skip_flush_on_decoder_teardown =
         experimental_features_.skip_flush_on_decoder_teardown;
+    extension_features.use_dual_threads_for_video =
+        ToBoolPointer(experimental_features_.use_dual_threads_for_video);
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
         experimental_features_.video_decoder_initial_preroll_count);
     extension_features.video_renderer_min_decoded_frames =

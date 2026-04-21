@@ -386,3 +386,15 @@ copy("rdk_cobalt_keymap") {
   sources = [ "cobalt/content/etc/keymapping.json" ]
   outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }
+
+group("loader_app_rdk_plugin") {
+  data_deps = [":loader_app($starboard_toolchain)"]
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  target("shared_library", "loader_app") {
+    output_dir = root_build_dir
+    deps = [ "//starboard/loader_app:loader_app_sources" ]
+    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+  }
+}

@@ -211,7 +211,12 @@ static const char* MetricSizeToVersionSuffix(
 
 }  // namespace
 
-CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() = default;
+CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
+  // The emitter is created on the main thread but will be used
+  // on a background sequence maintained by base::SequenceBound
+  // in CobaltMetricsServiceClient.
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+}
 
 void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);

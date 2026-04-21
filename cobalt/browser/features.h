@@ -35,6 +35,13 @@ extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
 
+// Enables overriding the default metrics collection interval with a fixed
+// value.
+extern const base::Feature kCobaltMetricsIntervalFeature;
+
+// Sets the interval for memory and CPU metrics collection in seconds.
+extern const base::FeatureParam<int> kCobaltMetricsIntervalParam;
+
 }  // namespace features
 }  // namespace cobalt
 
