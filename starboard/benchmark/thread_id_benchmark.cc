@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pthread.h>
-#include <unistd.h>
-
-#include <atomic>
-
-#include "starboard/common/log.h"
 #include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
@@ -32,18 +26,20 @@ void BM_ThreadGetId(::benchmark::State& state) {
 }
 BENCHMARK(BM_ThreadGetId);
 
-// 2. Simple TLS cache (no fork detection)
-thread_local SbThreadId tls_thread_id_simple = kSbThreadInvalidId;
-SbThreadId GetThreadIdSimple() {
-  if (tls_thread_id_simple == kSbThreadInvalidId) {
-    tls_thread_id_simple = SbThreadGetId();
+// 2. Simple TLS cache
+SbThreadId GetThreadId() {
+  // NOTE: We can cache the thread ID in thread-local storage since Cobalt
+  // doesn't use fork().
+  thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
+  if (tls_thread_id == kSbThreadInvalidId) {
+    tls_thread_id = SbThreadGetId();
   }
-  return tls_thread_id_simple;
+  return tls_thread_id;
 }
 
 void BM_ThreadGetIdCache(::benchmark::State& state) {
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(GetThreadIdSimple());
+    ::benchmark::DoNotOptimize(GetThreadId());
   }
 }
 BENCHMARK(BM_ThreadGetIdCache);
