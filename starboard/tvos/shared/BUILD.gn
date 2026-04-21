@@ -14,6 +14,10 @@
 
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
+if (is_internal_build) {
+  import("//cobalt/internal/starboard/shared/uikit/uikit.gni")
+}
+
 static_library("test_support") {
   testonly = true
 
@@ -112,7 +116,6 @@ static_library("starboard_platform") {
     "media/drm_manager.h",
     "media/drm_manager.mm",
     "media/drm_system_platform.h",
-    "media/drm_system_platform.mm",
     "media/playback_capabilities.h",
     "media/playback_capabilities.mm",
     "media/player_components_factory.mm",
@@ -196,8 +199,6 @@ static_library("starboard_platform") {
 
   if (is_internal_build) {
     sources += [
-      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h",
-      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.mm",
       "//starboard/shared/widevine/drm_system_widevine.cc",
       "//starboard/shared/widevine/drm_system_widevine.h",
       "//starboard/shared/widevine/widevine_storage.cc",
@@ -215,6 +216,9 @@ static_library("starboard_platform") {
       "media/oemcrypto_engine_device_properties_uikit.h",
       "media/oemcrypto_engine_device_properties_uikit.mm",
     ]
+
+    sources += internal_uikit_sources
+
     deps += [
       "//starboard/shared/widevine:oemcrypto",
       "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
@@ -230,6 +234,7 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
       "//starboard/shared/stub/drm_update_server_certificate.cc",
       "//starboard/shared/stub/drm_update_session.cc",
+      "media/drm_system_platform.mm",
     ]
   }
 }
