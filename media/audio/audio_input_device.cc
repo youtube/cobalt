@@ -161,8 +161,8 @@ void AudioInputDevice::Start() {
     return;
 
   state_ = CREATING_STREAM;
-  ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_,
-                     kRequestedSharedMemoryCount);
+  int segment_count = base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) ? 32 : 10;
+  ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_, segment_count);
 }
 
 void AudioInputDevice::Stop() {
@@ -303,9 +303,10 @@ void AudioInputDevice::OnStreamCreated(
                                 base::Unretained(alive_checker_.get()))
           : base::DoNothing();
 
+  int segment_count = base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) ? 32 : 10;
   audio_callback_ = std::make_unique<AudioInputDevice::AudioThreadCallback>(
       audio_parameters_, std::move(shared_memory_region),
-      kRequestedSharedMemoryCount, enable_uma_, callback_,
+      segment_count, enable_uma_, callback_,
       notify_alive_closure);
   audio_thread_ = std::make_unique<AudioDeviceThread>(
       audio_callback_.get(), std::move(socket_handle), "AudioInputDevice",

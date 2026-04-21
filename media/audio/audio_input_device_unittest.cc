@@ -39,9 +39,9 @@ namespace media {
 namespace {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-const int kRequestedSharedMemoryCount = 32u;
+const int kMemorySegmentCount = 32u;
 #else
-const int kRequestedSharedMemoryCount = 10u;
+const int kMemorySegmentCount = 10u;
 #endif
 
 class MockAudioInputIPC : public AudioInputIPC {

@@ -16,6 +16,9 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+
 namespace blink {
 
 // Size of the buffer that WebAudio processes each time, it is the same value
@@ -32,11 +35,9 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       track_stopped_(false),
       platform_buffer_duration_(platform_buffer_duration),
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-                   media::ChannelLayoutConfig::Mono(),
-#else
-                   media::ChannelLayoutConfig::Stereo(),
-#endif
+                   (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
+                       ? media::ChannelLayoutConfig::Mono()
+                       : media::ChannelLayoutConfig::Stereo(),
                    context_sample_rate,
                    kWebAudioRenderBufferSize)
 {

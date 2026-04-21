@@ -28,6 +28,8 @@
 #include <inttypes.h>
 
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_audio_source_options.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
@@ -103,11 +105,10 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
           context, media_stream, audio_track, std::move(provider));
 
   // Initializes the node with the stereo output channel.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  node->SetFormat(1, context.sampleRate());
-#else
-  node->SetFormat(2, context.sampleRate());
-#endif
+  node->SetFormat(
+      (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
+          ? 1 : 2,
+      context.sampleRate());
 
   // Lets the context know this source node started.
   context.NotifySourceNodeStartedProcessing(node);

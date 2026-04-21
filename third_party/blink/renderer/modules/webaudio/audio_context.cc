@@ -10,6 +10,9 @@
 #include "build/build_config.h"
 #include "media/audio/audio_device_description.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/features.h"
@@ -203,7 +206,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // Force 16kHz default for Cobalt if no rate is specified.
   // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
   // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
-  if (!sample_rate.has_value()) {
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) && !sample_rate.has_value()) {
     sample_rate = kSampleRate;
     LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
   }
@@ -211,14 +214,10 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
 
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // For Cobalt, default to a "silent" sink (no hardware speakers).
-  // This avoids opening a 48kHz AudioTrack just to drive the 16kHz microphone graph.
-  // The graph will be driven by a software timer instead.
-  WebAudioSinkDescriptor sink_descriptor(frame_token);
-#else
-  WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
-#endif
+  WebAudioSinkDescriptor sink_descriptor =
+      (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
+          ? WebAudioSinkDescriptor(frame_token)
+          : WebAudioSinkDescriptor(g_empty_string, frame_token);
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.

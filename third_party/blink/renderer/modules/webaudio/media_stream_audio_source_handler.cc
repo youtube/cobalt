@@ -7,6 +7,8 @@
 #include <inttypes.h>
 
 #include "base/synchronization/lock.h"
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node_output.h"
 #include "third_party/blink/renderer/modules/webaudio/base_audio_context.h"
@@ -18,11 +20,6 @@ namespace {
 
 // Default to mono for Cobalt/Starboard to avoid latency-inducing upmixing.
 // Standard Chromium defaults to stereo.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-constexpr unsigned kDefaultNumberOfOutputChannels = 1;
-#else
-constexpr unsigned kDefaultNumberOfOutputChannels = 2;
-#endif
 
 }  // namespace
 
@@ -34,12 +31,18 @@ MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
                    node.context()->sampleRate()),
       audio_source_provider_(std::move(audio_source_provider)) {
   SendLogMessage(__func__, "");
-  AddOutput(kDefaultNumberOfOutputChannels);
+  
+  unsigned default_channels =
+      (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
+          ? 1 : 2;
+  AddOutput(default_channels);
 
   // Force Mono mode end-to-end for Starboard to avoid latency-inducing upmixers.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
-  channel_count_ = 1;
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
+    channel_count_ = 1;
+  }
 #endif
 
   Initialize();

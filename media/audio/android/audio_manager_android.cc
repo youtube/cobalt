@@ -436,7 +436,8 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Check if this is a fast-track request by checking for our special prefix.
   static constexpr char kFastTrackPrefix[] = "fast-track-";
-  if (base::StartsWith(device_id, kFastTrackPrefix)) {
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) &&
+      base::StartsWith(device_id, kFastTrackPrefix)) {
     std::string session_id = device_id.substr(sizeof(kFastTrackPrefix) -1);
     std::unique_ptr<PreStartedEntry> entry;
     {
@@ -620,8 +621,10 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return new StarboardAudioInputStream(this, params);
-#else
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    return new StarboardAudioInputStream(this, params);
+  }
+#endif
 
   if (__builtin_available(android AAUDIO_MIN_API, *)) {
     if (UseAAudioInput()) {
@@ -639,8 +642,6 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
 #else
   return nullptr;
 #endif
-
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
@@ -651,8 +652,10 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return new StarboardAudioInputStream(this, params);
-#else
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    return new StarboardAudioInputStream(this, params);
+  }
+#endif
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
   if (!UseAAudioPerStreamDeviceSelection()) {
@@ -686,8 +689,6 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 #else
   return nullptr;
 #endif
-
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
