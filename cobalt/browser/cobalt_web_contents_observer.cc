@@ -89,10 +89,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
                              -net_error_code);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
-#if BUILDFLAG(IS_ANDROID)
-    starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(
-        "navigation_error", net::ErrorToString(net_error_code).c_str());
-#endif
+    SetStartupDiagnosisInfo("navigation_error", net::ErrorToString(net_error_code).c_str());
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
@@ -101,6 +98,12 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     platform_error_raised_count_ = 0;
 #endif
   }
+}
+
+void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key, const char* value) {
+#if BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(key, value);
+#endif
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {

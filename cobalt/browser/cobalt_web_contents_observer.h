@@ -42,6 +42,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   virtual void RaisePlatformError();
+  virtual void SetStartupDiagnosisInfo(const char* key, const char* value);
 
  protected:
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
@@ -49,9 +50,9 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
  private:
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROID)
   int platform_error_raised_count_ = 0;
-#endif  // BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_ANDROID)
 };
 
 }  // namespace cobalt
