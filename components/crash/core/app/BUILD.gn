@@ -262,7 +262,7 @@ if (enable_cobalt_hermetic_hacks) {
     ]
 
     if (is_cobalt && is_androidtv) {
-      # This is change is for Cobalt on AndroidTV. It enables crashpad handler
+      # This change is for Cobalt on AndroidTV. It enables crashpad handler
       # launch with android linker and with java crashpad handler.
       ldflags = [ "-Wl,--export-dynamic" ]
     }
