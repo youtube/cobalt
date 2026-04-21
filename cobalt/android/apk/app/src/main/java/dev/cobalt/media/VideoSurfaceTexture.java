@@ -16,6 +16,7 @@ package dev.cobalt.media;
 
 import android.graphics.SurfaceTexture;
 import android.view.Surface;
+import androidx.annotation.GuardedBy;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -26,6 +27,11 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class VideoSurfaceTexture extends SurfaceTexture {
+  private final Object mLock = new Object();
+
+  @GuardedBy("mLock")
+  private long mNativeVideoSurfaceTextureBridge;
+
   @CalledByNative
   VideoSurfaceTexture(int texName) {
     super(texName);
@@ -33,17 +39,27 @@ public class VideoSurfaceTexture extends SurfaceTexture {
 
   @CalledByNative
   void setOnFrameAvailableListener(final long nativeVideoSurfaceTextureBridge) {
+    synchronized (mLock) {
+      mNativeVideoSurfaceTextureBridge = nativeVideoSurfaceTextureBridge;
+    }
     super.setOnFrameAvailableListener(
         new SurfaceTexture.OnFrameAvailableListener() {
           @Override
           public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-            VideoSurfaceTextureJni.get().onFrameAvailable(nativeVideoSurfaceTextureBridge);
+            synchronized (mLock) {
+              if (mNativeVideoSurfaceTextureBridge != 0) {
+                VideoSurfaceTextureJni.get().onFrameAvailable(mNativeVideoSurfaceTextureBridge);
+              }
+            }
           }
         });
   }
 
   @CalledByNative
   void removeOnFrameAvailableListener() {
+    synchronized (mLock) {
+      mNativeVideoSurfaceTextureBridge = 0;
+    }
     super.setOnFrameAvailableListener(null);
   }
 
