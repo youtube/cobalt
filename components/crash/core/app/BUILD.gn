@@ -261,17 +261,13 @@ if (enable_cobalt_hermetic_hacks) {
       "//third_party/crashpad/crashpad/handler",
     ]
 
-<<<<<<< HEAD
-    if (is_mac && (is_component_build || is_asan || is_ubsan_any)) {
-=======
     if (is_cobalt && is_androidtv) {
       # This is change is for Cobalt on AndroidTV. It enables crashpad handler
       # launch with android linker and with java crashpad handler.
       ldflags = [ "-Wl,--export-dynamic" ]
     }
 
-    if (is_mac && (is_component_build || is_asan)) {
->>>>>>> a25a6cde60 (Crashpad launch with android system Linker Loader (API 29+) (#9637))
+    if (is_mac && (is_component_build || is_asan || is_ubsan_any)) {
       ldflags = [
         # The handler is in
         # Chromium.app/Contents/Frameworks/Chromium Framework.framework/Versions/A/Helpers/
