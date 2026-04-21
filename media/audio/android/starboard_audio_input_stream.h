@@ -29,7 +29,7 @@ class AudioManagerAndroid;
 class StarboardAudioInputStream : public AudioInputStream {
  public:
   static const int kMaxNumOfBuffersInQueue = 2;
-  static const int kSampleRateHz = 16000;
+  static const int kSampleRate = 16000;
   static const int kSamplesPerBuffer = 128;
   static const int kDefaultBufferSizeInBytes = 1024;
 
@@ -85,28 +85,28 @@ class StarboardAudioInputStream : public AudioInputStream {
   // |buffer_size_bytes_| and |simple_buffer_queue_|.
   base::Lock lock_;
 
-  raw_ptr<AudioManagerAndroid> audio_manager_;
+  raw_ptr<AudioManagerAndroid> audio_manager_ = nullptr;
 
-  raw_ptr<AudioInputCallback> callback_;
+  raw_ptr<AudioInputCallback> callback_ = nullptr;
 
   // Shared engine interfaces for the app.
   media::ScopedSLObjectItf recorder_object_;
   media::ScopedSLObjectItf engine_object_;
 
-  SLRecordItf recorder_;
+  SLRecordItf recorder_ = nullptr;
 
   // Buffer queue recorder interface.
-  SLAndroidSimpleBufferQueueItf simple_buffer_queue_;
+  SLAndroidSimpleBufferQueueItf simple_buffer_queue_ = nullptr;
 
   SLAndroidDataFormat_PCM_EX format_;
 
   // Audio buffers that are allocated in SetupAudioBuffer().
   std::unique_ptr<uint8_t[]> audio_data_[kMaxNumOfBuffersInQueue];
 
-  int active_buffer_index_;
-  int buffer_size_bytes_;
+  int active_buffer_index_ = 0;
+  int buffer_size_bytes_ = 0;
 
-  bool started_;
+  bool started_ = false;
 
   base::TimeDelta hardware_delay_;
 

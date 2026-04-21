@@ -24,7 +24,7 @@
 
 namespace media {
 
-const int StarboardAudioInputStream::kSampleRateHz;
+const int StarboardAudioInputStream::kSampleRate;
 const int StarboardAudioInputStream::kSamplesPerBuffer;
 
 // static
@@ -39,19 +39,13 @@ bool StarboardAudioInputStream::RequestRuntimePermission() {
 
 StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_manager,
                                                      const AudioParameters& params)
-    : audio_manager_(audio_manager),
-      callback_(nullptr),
-      recorder_(nullptr),
-      simple_buffer_queue_(nullptr),
-      active_buffer_index_(0),
-      buffer_size_bytes_(0),
-      started_(false) {
+    : audio_manager_(audio_manager) {
   DVLOG(2) << __func__;
 
   // Hardcode to 16kHz Mono 16-bit PCM (Starboard style)
   format_.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
   format_.numChannels = 1;
-  format_.sampleRate = kSampleRateHz * 1000; // milliHertz
+  format_.sampleRate = kSampleRate * 1000; // milliHertz
   format_.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
   format_.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
   format_.channelMask = SL_SPEAKER_FRONT_CENTER;
@@ -62,8 +56,8 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   // If the passed params are already 16kHz, this is easy.
   // C25 used 128 samples per buffer.
   // Let's use what's passed but ensure it's calculated for 16-bit Mono.
-  int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : kSampleRateHz;
-  buffer_size_bytes_ = (kSampleRateHz * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
+  int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : kSampleRate;
+  buffer_size_bytes_ = (kSampleRate * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
 
   // If we couldn't scale it properly, just use a reasonable default.
   if (buffer_size_bytes_ == 0) {
@@ -71,22 +65,22 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   }
 
   audio_bus_ = media::AudioBus::Create(1, buffer_size_bytes_ / sizeof(int16_t));
-  hardware_delay_ = base::Seconds(audio_bus_->frames() / static_cast<double>(kSampleRateHz));
+  hardware_delay_ = base::Seconds(audio_bus_->frames() / static_cast<double>(kSampleRate));
 }
 
 StarboardAudioInputStream::~StarboardAudioInputStream() {
   DVLOG(2) << __func__;
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(!recorder_object_.Get());
-  DCHECK(!engine_object_.Get());
-  DCHECK(!recorder_);
-  DCHECK(!simple_buffer_queue_);
-  DCHECK(!audio_data_[0]);
+  CHECK(thread_checker_.CalledOnValidThread());
+  CHECK(!recorder_object_.Get());
+  CHECK(!engine_object_.Get());
+  CHECK(!recorder_);
+  CHECK(!simple_buffer_queue_);
+  CHECK(!audio_data_[0]);
 }
 
 AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
   LOG(INFO) << "StarboardAudioInputStream::Open";
-  DCHECK(thread_checker_.CalledOnValidThread());
+  CHECK(thread_checker_.CalledOnValidThread());
 
   if (engine_object_.Get()) {
     LOG(INFO) << "StarboardAudioInputStream already Open (Pre-started)";
@@ -122,10 +116,10 @@ AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
 
 void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(callback);
-  DCHECK(recorder_);
-  DCHECK(simple_buffer_queue_);
+  CHECK(thread_checker_.CalledOnValidThread());
+  CHECK(callback);
+  CHECK(recorder_);
+  CHECK(simple_buffer_queue_);
 
   base::AutoLock lock(lock_);
   callback_ = callback;
@@ -133,7 +127,7 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 }
 
 void StarboardAudioInputStream::Stop() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  CHECK(thread_checker_.CalledOnValidThread());
   {
     base::AutoLock lock(lock_);
     if (!started_) {
@@ -288,7 +282,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   }
 }
 void StarboardAudioInputStream::SetupAudioBuffer() {
-  DCHECK(!audio_data_[0]);
+  CHECK(!audio_data_[0]);
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
     audio_data_[i] = std::make_unique<uint8_t[]>(buffer_size_bytes_);
   }

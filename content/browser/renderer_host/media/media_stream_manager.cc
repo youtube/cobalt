@@ -67,12 +67,6 @@
 #include "crypto/hmac.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/audio_system.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/audio/audio_manager.h"
-#if BUILDFLAG(IS_ANDROID)
-#include "media/audio/android/starboard_audio_input_stream.h"
-#endif
-#endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
 #include "media/base/media_switches.h"
@@ -108,6 +102,13 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "content/browser/media/captured_surface_controller.h"
+#endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/audio_manager.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "media/audio/android/starboard_audio_input_stream.h"
+#endif
 #endif
 
 using ::blink::mojom::MediaDeviceType;
@@ -553,7 +554,6 @@ bool IsApplicationLoopbackAudioDevice(MediaStreamDevice* device) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 constexpr int kSampleRate = 16'000;
 constexpr int kSamplesPerBuffer = 128;
-
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace

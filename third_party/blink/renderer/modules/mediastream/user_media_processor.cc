@@ -10,10 +10,6 @@
 #include <utility>
 #include <vector>
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -66,6 +62,10 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/geometry/size.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 

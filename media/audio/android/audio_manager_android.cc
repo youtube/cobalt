@@ -23,11 +23,6 @@
 #include "media/audio/android/audio_device_id.h"
 #include "media/audio/android/audio_device_type.h"
 #include "media/audio/android/audio_track_output_stream.h"
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/audio/android/starboard_audio_input_stream.h"
-#endif
-
 #include "media/audio/audio_device_description.h"
 #include "media/audio/audio_features.h"
 #include "media/audio/audio_manager.h"
@@ -42,11 +37,15 @@
 #include "media/audio/android/opensles_output.h"
 #endif
 
-// Must come after all headers that specialize FromJniType() / ToJniType().
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/android/starboard_audio_input_stream.h"
+#endif
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
 #endif
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "media/base/android/media_jni_headers/AudioManagerAndroid_jni.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #pragma clang diagnostic pop
@@ -155,18 +154,15 @@ void AudioManagerAndroid::InitializeIfNeeded() {
 void AudioManagerAndroid::ShutdownOnAudioThread() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Clean up any un-consumed pre-started streams.
-  std::vector<AudioInputStream*> streams_to_release;
+  base::flat_map<std::string, std::unique_ptr<PreStartedEntry>> streams_to_release;
   {
     base::AutoLock lock(pre_started_streams_lock_);
-    for (auto& it : pre_started_streams_) {
-      if (it.second->stream) {
-        streams_to_release.push_back(it.second->stream);
-      }
-    }
-    pre_started_streams_.clear();
+    streams_to_release = std::move(pre_started_streams_);
   }
-  for (auto* stream : streams_to_release) {
-    stream->Close();
+  for (auto& it : streams_to_release) {
+    if (it.second->stream) {
+      it.second->stream->Close();
+    }
   }
 #endif
 
@@ -374,7 +370,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   // Hardcode Mono to bypass JNI/Probing overhead.
   // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
-  int sample_rate = StarboardAudioInputStream::kSampleRateHz;
+  int sample_rate = StarboardAudioInputStream::kSampleRate;
   int buffer_size = StarboardAudioInputStream::kSamplesPerBuffer;
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
