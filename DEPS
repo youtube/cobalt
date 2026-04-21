@@ -2950,9 +2950,14 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
+<<<<<<< HEAD
 # Cobalt: imported
 #  'src/third_party/webrtc':
 #    Var('webrtc_git') + '/src.git' + '@' + '4bbba1198503ef1c57b9a447723324f4df479b74',
+=======
+  'src/third_party/webrtc':
+    Var('webrtc_git') + '/src.git' + '@' + '7ad61a0a06fac695468b843e17b81a6ab19d0feb',
+>>>>>>> 5281ec90bc7 (Rebase refresh on 2026-04-16 for m138.)
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
