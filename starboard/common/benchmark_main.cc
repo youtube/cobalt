@@ -32,14 +32,25 @@ SB_EXPORT
 #endif  // SB_IS(MODULAR)
 STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 
+// This is how to build and run this benchmark.
+//
+// On Linux:
+// $ autoninja -C out/linux-x64x11_qa starboard/benchmark:benchmark
+// $ ./out/linux-x64x11_qa/benchmark --benchmark_filter="BM_*"
+//
+// On Android:
+// $ autoninja -C out/android-arm_qa starboard/benchmark:benchmark
+// $ adb push out/android-arm_qa/benchmark /data/local/tmp/
+// $ adb shell chmod +x /data/local/tmp/benchmark
+// $ adb shell /data/local/tmp/benchmark --benchmark_filter="BM_*"
+//
+
+#if !SB_IS(EVERGREEN) && !SB_IS(MODULAR)
+int main(int argc, char** argv) {
 #if BUILDFLAG(IS_STARBOARD)
-#if !SB_IS(EVERGREEN)
-int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
-}
-#endif  // !SB_IS(EVERGREEN)
 #else
-int main(int argc, char** argv) {
   return RunAllBenchmarks(argc, argv);
-}
 #endif  // BUILDFLAG(IS_STARBOARD)
+}
+#endif  // !SB_IS(EVERGREEN) && !SB_IS(MODULAR)
