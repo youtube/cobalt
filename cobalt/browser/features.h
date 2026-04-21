@@ -43,7 +43,7 @@ extern const base::Feature kCobaltMetricsIntervalFeature;
 extern const base::FeatureParam<int> kCobaltMetricsIntervalParam;
 
 // Use IPv4 for system host resolution.
-extern const base::Feature kUseIPv4;
+extern const base::Feature kUseIPv4ForDNS;
 
 }  // namespace features
 }  // namespace cobalt

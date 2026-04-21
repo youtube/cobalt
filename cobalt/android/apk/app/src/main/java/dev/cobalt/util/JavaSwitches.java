@@ -26,13 +26,13 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
 
   /** flag to force use IPv4 for system host resolution. */
-  public static final String USE_IPV4 = "UseIPv4";
+  public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
-    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4)) {
-      extraCommandLineArgs.add("--enable-features=UseIPv4");
+    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
+      extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
     }
 
     return extraCommandLineArgs;

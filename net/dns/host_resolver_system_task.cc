@@ -498,7 +498,7 @@ int SystemHostResolverCall(const std::string& host,
                            int* os_error_opt,
                            handles::NetworkHandle network) {
 #if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(cobalt::features::kUseIPv4)) {
+  if (base::FeatureList::IsEnabled(cobalt::features::kUseIPv4ForDNS)) {
     address_family = ADDRESS_FAMILY_IPV4;
   }
 #endif
