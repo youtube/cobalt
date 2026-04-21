@@ -24,12 +24,14 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -148,13 +150,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
+                ExperimentalFeatures{},
                 /*surface_view=*/nullptr,
-                /*flush_decoder_during_reset=*/false,
-                /*reset_audio_decoder=*/false,
-                /*video_initial_max_frames_in_decoder=*/std::nullopt,
-                /*video_max_pending_input_frames=*/std::nullopt,
-                /*video_decoder_initial_preroll_count=*/std::nullopt,
-                /*video_decoder_poll_interval_ms=*/std::nullopt,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),

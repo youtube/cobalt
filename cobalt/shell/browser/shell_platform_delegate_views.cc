@@ -411,18 +411,14 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
     shell_data.window_widget->Show();
   }
 }
-
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
   ShellData& shell_data = shell_data_map_.at(shell);
   if (!shell_data.window_widget) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
   }
 
-  if (IsVisible()) {
-    SetContents(shell);
-  }
+  SetContents(shell);
 }
-
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
   ShellData& shell_data = shell_data_map_.at(shell);
   if (shell_data.window_widget) {

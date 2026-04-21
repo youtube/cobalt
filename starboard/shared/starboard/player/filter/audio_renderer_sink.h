@@ -19,12 +19,16 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 
 // The interface used by AudioRendererPcm to output audio samples.
 class AudioRendererSink {
  public:
+  static const int kAudioSinkFramesAlignment = 256;
+  static const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+
   class RenderCallback {
    public:
     virtual void GetSourceStatus(int* frames_in_buffer,
@@ -45,6 +49,10 @@ class AudioRendererSink {
   };
 
   virtual ~AudioRendererSink() {}
+
+  virtual void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
+                                      int* max_cached_frames,
+                                      int* min_frames_per_append) const = 0;
 
   virtual bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const = 0;
