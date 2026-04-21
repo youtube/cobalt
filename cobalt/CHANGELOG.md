@@ -40,7 +40,7 @@ This document records all notable changes made to Cobalt since the last release.
 
  - Cobalt has experimental Web Assembly capability
 
-   Web Assembly is enabled as experimental capabality on android-arm and
+   Web Assembly is enabled as experimental capability on android-arm and
    development build configurations.
 
  - Improved crash insights with application state added to crash reports
