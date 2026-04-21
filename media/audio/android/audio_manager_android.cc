@@ -439,8 +439,9 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Check if this is a fast-track request by checking for our special prefix.
-  if (base::StartsWith(device_id, "fast-track-")) {
-    std::string session_id = device_id.substr(11); // Length of "fast-track-"
+  static constexpr char kFastTrackPrefix[] = "fast-track-";
+  if (base::StartsWith(device_id, kFastTrackPrefix)) {
+    std::string session_id = device_id.substr(sizeof(kFastTrackPrefix) -1);
     std::unique_ptr<PreStartedEntry> entry;
     {
       base::AutoLock lock(pre_started_streams_lock_);

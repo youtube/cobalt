@@ -370,7 +370,7 @@ UserMediaRequest* UserMediaRequest::Create(
   }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "UserMediaRequest: Requested audio constraints: "
-            << audio.ToString().Utf8();
+            << audio.ToString();
 #endif
 
   MediaConstraints video =
@@ -380,7 +380,7 @@ UserMediaRequest* UserMediaRequest::Create(
   }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "UserMediaRequest: Requested video constraints: "
-            << video.ToString().Utf8();
+            << video.ToString();
 #endif
 
   std::string display_surface_constraint;

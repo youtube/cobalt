@@ -12,7 +12,6 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
-#include "media/audio/android/starboard_audio_input_stream.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #include "base/containers/contains.h"
@@ -344,6 +343,10 @@ bool ShouldDeferDeviceSettingsSelection(
     const ExecutionContext* execution_context) {
   return false;
 }
+#endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr int kSamplesPerBuffer = 128;
 #endif
 
 }  // namespace
@@ -735,7 +738,7 @@ void UserMediaProcessor::SetupAudioInput() {
     // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
     // and its default processing dependencies.
     blink::AudioCaptureSettings settings(
-        "default", /*requested_buffer_size=*/media::StarboardAudioInputStream::kSamplesPerBuffer,
+        "default", /*requested_buffer_size=*/kSamplesPerBuffer,
         /*disable_local_echo=*/false,
         /*enable_automatic_output_device_selection=*/false,
         blink::AudioCaptureSettings::ProcessingType::kUnprocessed,

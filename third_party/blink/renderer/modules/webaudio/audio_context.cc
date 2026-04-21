@@ -206,8 +206,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
   if (!sample_rate.has_value()) {
     sample_rate = media::StarboardAudioInputStream::kSampleRateHz;
-    LOG(INFO) << "Cobalt: Force-set sample rate to " <<
-      media::StarboardAudioInputStream::kSampleRateHz;
+    LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
