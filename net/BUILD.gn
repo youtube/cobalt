@@ -1865,6 +1865,9 @@ source_set("net_deps") {
 
   if (is_android) {
     public_deps += [ ":net_jni_headers" ]
+    if (is_cobalt) {
+      public_deps += [ "//starboard/android/shared:starboard_platform" ]
+    }
   }
 
   if (is_fuchsia) {
@@ -3458,6 +3461,10 @@ target(_test_target_type, "net_unittests") {
 
     if (enable_chrome_android_internal) {
       data_deps += [ "//clank/build/bot/filters:net_unittests_filters" ]
+    }
+
+    if (is_cobalt) {
+      deps += [ "//starboard/android/shared:starboard_platform" ]
     }
   }
 
