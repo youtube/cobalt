@@ -1,7 +1,17 @@
 name: tvos
-permissions: read-all
 
 on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  push:
+    branches:
+      - main
+      - experimental/*
+      - feature/*
   workflow_dispatch:
     inputs:
       nightly:
@@ -9,12 +19,8 @@ on:
         required: true
         type: boolean
         default: false
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+
+permissions: read-all
 
 jobs:
   # This is default Chromium build config
