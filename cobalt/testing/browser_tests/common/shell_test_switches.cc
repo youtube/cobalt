@@ -20,11 +20,4 @@ namespace switches {
 
 const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
 
-const char kRunWebTests[] = "run-web-tests";
-
-bool IsRunWebTestsSwitchPresent() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kRunWebTests);
-}
-
 }  // namespace switches
