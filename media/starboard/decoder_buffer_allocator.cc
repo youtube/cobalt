@@ -37,6 +37,8 @@ namespace media {
 
 namespace {
 
+// The current default AllocatorStrategy is InPlaceReuseAllocatorBase.
+// To see more context as to why this is the case, see b/487332929.
 using DefaultReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
         starboard::InPlaceReuseAllocatorBase>;
@@ -326,7 +328,8 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
       initial_capacity_, allocation_unit_,
       /*enable_decommit_on_idle=*/false);
-  LOG(INFO) << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy.";
+  LOG(INFO) << "DecoderBufferAllocator is using "
+               "DefaultReuseAllocatorStrategy.";
 
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for decoder buffer pool.";
