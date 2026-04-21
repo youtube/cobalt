@@ -522,7 +522,8 @@ public abstract class CobaltActivity extends Activity {
     super.onStart();
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable corresponding resume event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onresume event
       webContents.onResume();
     }
@@ -547,7 +548,8 @@ public abstract class CobaltActivity extends Activity {
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable freeze event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onfreeze event
       webContents.onFreeze();
     }

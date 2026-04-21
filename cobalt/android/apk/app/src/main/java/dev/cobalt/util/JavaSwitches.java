@@ -25,6 +25,9 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
 
+  /** flag to re-enable freeze and resume events */
+  public static final String ENABLE_FREEZE = "EnableFreeze";
+
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
