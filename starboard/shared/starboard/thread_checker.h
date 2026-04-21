@@ -31,6 +31,8 @@ class ThreadChecker {
 
  private:
   static inline SbThreadId GetThreadId() {
+    // NOTE: We can cache the thread ID in thread-local storage since Cobalt
+    // doesn't use fork().
     thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
     if (tls_thread_id == kSbThreadInvalidId) {
       tls_thread_id = SbThreadGetId();
