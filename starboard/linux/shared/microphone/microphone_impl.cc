@@ -121,7 +121,8 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
 
 class SbMicrophoneImpl : public SbMicrophonePrivate {
  public:
-  SbMicrophoneImpl() : handle_(nullptr), sine_index_(0) {}
+  SbMicrophoneImpl()
+      : handle_(nullptr), sine_index_(0), total_frames_produced_(0) {}
   ~SbMicrophoneImpl() override { Close(); }
 
   bool Open() override {
@@ -149,6 +150,8 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       SB_LOG(ERROR) << "OpenPcm failed: " << result.error();
       SB_LOG(INFO) << "KJ: Falling back to VIRTUAL MOCK mic.";
       handle_ = nullptr;
+      sine_index_ = 0;
+      total_frames_produced_ = 0;
       return true;
     }
 
@@ -185,22 +188,23 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
                  << " bytes";
 
     if (!handle_) {
-      // KJ: Virtual Mock Mode Logic
+      // KJ: Virtual Mock Mode Logic - Filling entire requested buffer.
       int16_t* samples = static_cast<int16_t*>(out_audio_data);
       int frames_to_read = audio_data_size / (kChannels * sizeof(int16_t));
 
       for (int i = 0; i < frames_to_read; ++i) {
         // Generate 1kHz sine wave: 32767 * sin(2 * pi * 1000 * t)
-        // M_PI might not be defined, using 3.14159265358979323846
         samples[i] = static_cast<int16_t>(
-            32767.0 * sin(2.0 * 3.14159265358979323846 * 1000.0 *
-                          (sine_index_++) / 16000.0));
+            32767.0 *
+            sin(2.0 * 3.14159265358979323846 * 1000.0 * (sine_index_++) /
+                static_cast<double>(kSampleRateInHz)));
       }
 
-      usleep(10000);  // Simulate 10ms hardware interval
-      SB_LOG(INFO) << "KJ: Virtual Capture - Read " << frames_to_read
-                   << " frames @ 16000Hz (Total bytes: " << audio_data_size
-                   << ")";
+      total_frames_produced_ += frames_to_read;
+
+      SB_LOG(INFO) << "KJ: Virtual Capture - Read(frames)=" << frames_to_read
+                   << ", sample rate=" << kSampleRateInHz
+                   << ", total frame produced=" << total_frames_produced_;
       return frames_to_read * kChannels * sizeof(int16_t);
     }
 
@@ -249,6 +253,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
  private:
   snd_pcm_t* handle_;
   int64_t sine_index_;
+  int64_t total_frames_produced_;
 };
 
 }  // namespace
