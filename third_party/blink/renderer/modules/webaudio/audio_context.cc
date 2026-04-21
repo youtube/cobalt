@@ -4,10 +4,6 @@
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/audio/android/starboard_audio_input_stream.h"
-#endif
-
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/to_string.h"
@@ -153,6 +149,9 @@ bool IsAudible(const AudioBus* rendered_data) {
 
 using blink::SetSinkIdResolver;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr int kSampleRate = 16'000;
+#endif
 }  // namespace
 
 AudioContext* AudioContext::Create(ExecutionContext* context,
@@ -205,7 +204,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
   // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
   if (!sample_rate.has_value()) {
-    sample_rate = media::StarboardAudioInputStream::kSampleRateHz;
+    sample_rate = kSampleRate;
     LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

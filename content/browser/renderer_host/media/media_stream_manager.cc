@@ -69,7 +69,9 @@
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/audio/audio_manager.h"
+#if BUILDFLAG(IS_ANDROID)
 #include "media/audio/android/starboard_audio_input_stream.h"
+#endif
 #endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -547,6 +549,12 @@ bool IsApplicationLoopbackAudioDevice(MediaStreamDevice* device) {
   return blink::IsAudioInputMediaType(device->type) &&
          media::AudioDeviceDescription::IsApplicationLoopbackDevice(device->id);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr int kSampleRate = 16'000;
+constexpr int kSamplesPerBuffer = 128;
+
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
 
@@ -2640,13 +2648,21 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
       request->video_type() == MediaStreamType::NO_SERVICE) {
     LOG(INFO) << "SetUpRequest: FAST-TRACKING Cobalt Audio Request";
 
+#if BUILDFLAG(IS_ANDROID)
     // On Android, we MUST check/request OS permission on the UI thread.
-    // On other platforms, RequestRuntimePermission() returns true immediately.
     GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
         FROM_HERE,
         base::BindOnce(&media::StarboardAudioInputStream::RequestRuntimePermission),
         base::BindOnce(&MediaStreamManager::CompleteFastTrackSetUp,
                        base::Unretained(this), label, request->GetWeakPtr()));
+#else
+    // On other platforms, RequestRuntimePermission() returns true immediately.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MediaStreamManager::CompleteFastTrackSetUp,
+                       base::Unretained(this), label, request->GetWeakPtr(),
+                       true));
+#endif
     return;
   }
 #endif
@@ -2752,8 +2768,7 @@ void MediaStreamManager::CompleteFastTrackSetUp(
   media::AudioParameters params(
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
       media::ChannelLayoutConfig::Mono(),
-      media::StarboardAudioInputStream::kSampleRateHz,
-      media::StarboardAudioInputStream::kSamplesPerBuffer);
+      kSampleRate, kSamplesPerBuffer);
 
   // Use a special prefix for the device_id to carry the session_id to the
   // AudioThread. This allows deterministic lookup of the pre-started stream.
