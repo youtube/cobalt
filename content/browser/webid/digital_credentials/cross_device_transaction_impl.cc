@@ -130,9 +130,7 @@ void TransactionImpl::AdapterPoweredChanged(device::BluetoothAdapter* adapter,
   }
   if (!powered && !waiting_for_power_) {
     FIDO_LOG(EVENT) << "Lost BLE power during digital identity transaction.";
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback_),
-                                  base::unexpected(SystemError::kLostPower)));
+    std::move(callback_).Run(base::unexpected(SystemError::kLostPower));
     return;
   }
   if (powered && waiting_for_power_) {
