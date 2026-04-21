@@ -38,7 +38,7 @@ This document records all notable changes made to Cobalt since the last release.
  - New counters ( [CVals](/cobalt/doc/cvals.md) ) for monitoring disk writes and WebP rendering speed
  - Native telemetry from Cobalt through [Chrome UMA](https://chromium.googlesource.com/chromium/src/+/master/tools/metrics/histograms/README.md) ( User Metrics ) instrumentation
 
- - Cobalt has experimental Web Assembly capability
+ - Cobalt has experimental [WebAssembly](https://webassembly.org/) (Wasm) capability
 
    WebAssembly is enabled as experimental capability on android-arm and
    development build configurations.
