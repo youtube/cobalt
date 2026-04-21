@@ -43,9 +43,6 @@ constexpr char kUseUncompressedUpdates[] = "use_uncompressed_updates";
 // PROD update server.
 constexpr char kUseQAUpdateServer[] = "use_qa_update_server";
 
-// Sets the interval for memory and CPU metrics collection in seconds.
-constexpr char kMetricsInterval[] = "metrics-interval";
-
 }  // namespace switches
 }  // namespace cobalt
 

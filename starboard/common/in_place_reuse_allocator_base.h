@@ -136,7 +136,8 @@ class InPlaceReuseAllocatorBase : public Allocator {
   InPlaceReuseAllocatorBase(Allocator* fallback_allocator,
                             size_t initial_capacity,
                             size_t allocation_increment,
-                            size_t max_capacity = 0);
+                            size_t max_capacity,
+                            bool enable_decommit_on_idle);
   ~InPlaceReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -183,6 +184,9 @@ class InPlaceReuseAllocatorBase : public Allocator {
   // If non-zero, this is an upper bound on how large we will let the capacity
   // expand.
   const size_t max_capacity_in_bytes_;
+
+  // Whether to decommit memory when the pool becomes idle.
+  const bool enable_decommit_on_idle_ = false;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.

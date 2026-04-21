@@ -87,7 +87,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   void SetAllocateOnDemand(bool enabled);
-  static void EnableInPlaceReuseAllocatorBase();
+  static void EnableDecommitableAllocatorStrategy();
   static void EnableMediaBufferPoolStrategy();
 
  private:
