@@ -44,9 +44,9 @@ class MetricsPollingState {
   MetricsPollingState() = default;
   virtual ~MetricsPollingState() = default;
 
-  virtual void RecordMetricsAfterDelay(const base::FeatureParam<int>& interval_param) {
+  void RecordMetricsAfterDelay(const base::FeatureParam<int>& interval_param) {
     base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
-    
+
     if (base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature)) {
       int interval = interval_param.Get();
       if (interval > 0) {
@@ -58,11 +58,11 @@ class MetricsPollingState {
     }
 
     timer_.Start(FROM_HERE, delay, this, &MetricsPollingState::RequestMetrics);
-  };
+  }
 
   virtual void RequestMetrics() = 0;
 
- protected:
+ private:
   base::OneShotTimer timer_;
 };
 
@@ -72,9 +72,10 @@ class CobaltMetricsServiceClient::MemoryPollingState
   explicit MemoryPollingState(
       scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter)
       : memory_emitter_(std::move(memory_emitter)) {}
-  
+
   void RecordMetricsAfterDelay() {
-    MetricsPollingState::RecordMetricsAfterDelay(features::kMemoryMetricsIntervalParam);
+    MetricsPollingState::RecordMetricsAfterDelay(
+        features::kMemoryMetricsIntervalParam);
   }
 
   void RequestMetrics() override {
@@ -91,7 +92,8 @@ class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
       : cpu_emitter_(std::move(cpu_emitter)) {}
 
   void RecordMetricsAfterDelay() {
-    MetricsPollingState::RecordMetricsAfterDelay(features::kCpuMetricsIntervalParam);
+    MetricsPollingState::RecordMetricsAfterDelay(
+        features::kCpuMetricsIntervalParam);
   }
 
   void RequestMetrics() override {
