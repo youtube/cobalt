@@ -248,8 +248,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_internal.cc",
     #"speech_synthesis_is_supported.cc",
     #"speech_synthesis_speak.cc",
-    "starboard_bridge.cc",
-    "starboard_bridge.h",
+    "starboard_bridge_jni.cc",
     "starboard_feature_list.cc",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
@@ -310,6 +309,7 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
+    ":starboard_bridge",
     "//cobalt/android:jni_headers",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
@@ -349,6 +349,21 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+}
+
+static_library("starboard_bridge") {
+  sources = [
+    "starboard_bridge.cc",
+    "starboard_bridge.h",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [
+    "//base",
+    "//cobalt/android:jni_headers",
+    "//starboard/common",
+  ]
 }
 
 config("symbolize_config") {

@@ -1866,7 +1866,7 @@ source_set("net_deps") {
   if (is_android) {
     public_deps += [ ":net_jni_headers" ]
     if (is_cobalt) {
-      public_deps += [ "//starboard/android/shared:starboard_platform" ]
+      public_deps += [ "//starboard/android/shared:starboard_bridge" ]
     }
   }
 
