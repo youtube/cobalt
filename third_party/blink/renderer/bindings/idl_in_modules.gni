@@ -515,25 +515,6 @@ static_idl_files_in_modules = [
   "//third_party/blink/renderer/modules/ml/webnn/ml_operand.idl",
   "//third_party/blink/renderer/modules/ml/webnn/ml_operand_descriptor.idl",
   "//third_party/blink/renderer/modules/ml/worker_navigator_ml.idl",
-]
-
-if (is_cobalt) {
-  static_idl_files_in_modules -= [
-    "//third_party/blink/renderer/modules/ml/ml.idl",
-    "//third_party/blink/renderer/modules/ml/ml_context.idl",
-    "//third_party/blink/renderer/modules/ml/ml_context_options.idl",
-    "//third_party/blink/renderer/modules/ml/navigator_ml.idl",
-    "//third_party/blink/renderer/modules/ml/webnn/ml_tensor.idl",
-    "//third_party/blink/renderer/modules/ml/webnn/ml_tensor_descriptor.idl",
-    "//third_party/blink/renderer/modules/ml/webnn/ml_graph.idl",
-    "//third_party/blink/renderer/modules/ml/webnn/ml_graph_builder.idl",
-    "//third_party/blink/renderer/modules/ml/webnn/ml_operand.idl",
-    "//third_party/blink/renderer/modules/ml/webnn/ml_operand_descriptor.idl",
-    "//third_party/blink/renderer/modules/ml/worker_navigator_ml.idl",
-  ]
-}
-
-static_idl_files_in_modules += [
   "//third_party/blink/renderer/modules/mojo/mojo_file_system_access.idl",
   "//third_party/blink/renderer/modules/navigatorcontentutils/navigator_content_utils.idl",
   "//third_party/blink/renderer/modules/netinfo/navigator_network_information.idl",
@@ -1324,6 +1305,20 @@ if (is_cobalt) {
             "//third_party/blink/renderer/modules/cobalt/window_h_5_vcc.idl",
           ],
           "abspath")
+  
+  static_idl_files_in_modules -= [
+    "//third_party/blink/renderer/modules/ml/ml.idl",
+    "//third_party/blink/renderer/modules/ml/ml_context.idl",
+    "//third_party/blink/renderer/modules/ml/ml_context_options.idl",
+    "//third_party/blink/renderer/modules/ml/navigator_ml.idl",
+    "//third_party/blink/renderer/modules/ml/webnn/ml_tensor.idl",
+    "//third_party/blink/renderer/modules/ml/webnn/ml_tensor_descriptor.idl",
+    "//third_party/blink/renderer/modules/ml/webnn/ml_graph.idl",
+    "//third_party/blink/renderer/modules/ml/webnn/ml_graph_builder.idl",
+    "//third_party/blink/renderer/modules/ml/webnn/ml_operand.idl",
+    "//third_party/blink/renderer/modules/ml/webnn/ml_operand_descriptor.idl",
+    "//third_party/blink/renderer/modules/ml/worker_navigator_ml.idl",
+  ]
 
   if (use_starboard_media) {
     static_idl_files_in_modules += get_path_info(
