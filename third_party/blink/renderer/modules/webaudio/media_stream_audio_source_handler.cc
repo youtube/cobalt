@@ -32,9 +32,12 @@ MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
       audio_source_provider_(std::move(audio_source_provider)) {
   SendLogMessage(__func__, "");
   
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   unsigned default_channels =
-      (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
-          ? 1 : 2;
+      base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) ? 1 : 2;
+#else
+  unsigned default_channels = 2;
+#endif
   AddOutput(default_channels);
 
   // Force Mono mode end-to-end for Starboard to avoid latency-inducing upmixers.

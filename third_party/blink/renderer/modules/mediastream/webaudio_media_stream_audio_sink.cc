@@ -35,9 +35,13 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       track_stopped_(false),
       platform_buffer_duration_(platform_buffer_duration),
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                   (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                   base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)
                        ? media::ChannelLayoutConfig::Mono()
                        : media::ChannelLayoutConfig::Stereo(),
+#else
+                   media::ChannelLayoutConfig::Stereo(),
+#endif
                    context_sample_rate,
                    kWebAudioRenderBufferSize)
 {

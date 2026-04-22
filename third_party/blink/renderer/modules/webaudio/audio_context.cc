@@ -215,9 +215,13 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
   WebAudioSinkDescriptor sink_descriptor =
-      (BUILDFLAG(USE_STARBOARD_MEDIA) && base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack))
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)
           ? WebAudioSinkDescriptor(frame_token)
           : WebAudioSinkDescriptor(g_empty_string, frame_token);
+#else
+      WebAudioSinkDescriptor(g_empty_string, frame_token);
+#endif
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.
