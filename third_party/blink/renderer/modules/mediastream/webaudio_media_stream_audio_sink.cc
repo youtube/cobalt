@@ -65,6 +65,12 @@ void WebAudioMediaStreamAudioSink::OnSetFormat(
   DCHECK(sink_params_.IsValid());
 
   source_params_ = params;
+  pre_roll_frames_ = params.sample_rate() * 120 / 1000; // 120ms cushion
+  max_allowed_frames_ = params.sample_rate() * 400 / 1000; // 400ms max latency
+  is_pre_rolling_ = true;
+  LOG(INFO) << "KJ: WebAudio Sink: Pre-roll cushion set to " << pre_roll_frames_
+            << " frames, max latency " << max_allowed_frames_ << " frames";
+
   // Create the audio converter with |disable_fifo| as false so that the
   // converter will request source_params.frames_per_buffer() each time.
   // This will not increase the complexity as there is only one client to
@@ -94,19 +100,36 @@ void WebAudioMediaStreamAudioSink::OnData(
                static_cast<void*>(this), "frames", audio_bus.frames());
 
   base::AutoLock auto_lock(lock_);
-  if (!is_enabled_)
+  if (!fifo_.get())
     return;
+
+  if (!is_enabled_) {
+    // Before consumer starts, allow filling the FIFO up to pre-roll frames
+    // so we have a cushion ready for the first pull.
+    if (fifo_->frames() < pre_roll_frames_) {
+      fifo_->Push(&audio_bus);
+      LOG(INFO) << "KJ: WebAudio Sink: Pre-filling FIFO: level=" << fifo_->frames();
+    }
+    return;
+  }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                "WebAudioMediaStreamAudioSink::OnData under lock");
 
-  DCHECK(fifo_.get());
   DCHECK_EQ(audio_bus.channels(), source_params_.channels());
   DCHECK_EQ(audio_bus.frames(), source_params_.frames_per_buffer());
 
   if (fifo_->frames() + audio_bus.frames() <= fifo_->max_frames()) {
     fifo_->Push(&audio_bus);
     total_frames_pushed_ += audio_bus.frames();
+
+    if (is_enabled_ && fifo_->frames() > max_allowed_frames_) {
+      LOG(WARNING) << "KJ: WebAudio Sink: FIFO OVERFLOW (latency too high): level=" << fifo_->frames()
+                   << ", clearing and re-entering pre-roll";
+      fifo_->Clear();
+      is_pre_rolling_ = true;
+    }
+
     LOG(INFO) << "KJ: WebAudio Sink: FIFO Input: frames=" << audio_bus.frames()
               << ", level_after=" << fifo_->frames()
               << ", total_pushed=" << total_frames_pushed_
@@ -174,6 +197,16 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
   lock_.AssertAcquired();
   const int frames_to_consume = audio_bus->frames();
   base::TimeTicks now = base::TimeTicks::Now();
+
+  if (is_pre_rolling_) {
+    if (fifo_->frames() < pre_roll_frames_) {
+      audio_bus->Zero();
+      return 1.0;
+    }
+    is_pre_rolling_ = false;
+    LOG(INFO) << "KJ: WebAudio Sink: Pre-roll complete. FIFO level=" << fifo_->frames();
+  }
+
   if (fifo_->frames() >= audio_bus->frames()) {
     total_frames_read_since_last_log_ += frames_to_consume;
 
@@ -197,6 +230,7 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
     LOG(WARNING) << "KJ: WebAudio Sink: FIFO STARVATION: requested=" << frames_to_consume
                  << ", available=" << fifo_->frames()
                  << ", ts=" << now;
+    is_pre_rolling_ = true;
     audio_bus->Zero();
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                  "WebAudioMediaStreamAudioSink::ProvideInput underrun",
