@@ -483,8 +483,10 @@ void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   base::TimeDelta delay = now_time - capture_time;
   stats_reporter_.ReportCallback(delay, glitch_info);
 
-  SB_LOG(INFO) << "KJ: Renderer Received - " << audio_bus->frames() << " frames @ "
-               << audio_parameters_.sample_rate() << "Hz";
+  LOG(INFO) << "KJ: Renderer Process: Received data: frames=" << audio_bus->frames()
+            << ", rate=" << audio_parameters_.sample_rate()
+            << ", arrival_ts=" << now_time
+            << ", capture_ts=" << capture_time;
 
   capture_callback_->Capture(audio_bus, capture_time, buffer->params.volume,
                              buffer->params.key_pressed);

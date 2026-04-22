@@ -90,6 +90,11 @@ class MODULES_EXPORT WebAudioMediaStreamAudioSink
   media::AudioParameters source_params_ GUARDED_BY(lock_);
   media::AudioParameters sink_params_ GUARDED_BY(lock_);
 
+  base::TimeTicks last_rate_log_time_ GUARDED_BY(lock_);
+  int64_t total_frames_consumed_ GUARDED_BY(lock_) = 0;
+  int64_t total_frames_read_since_last_log_ GUARDED_BY(lock_) = 0;
+  int64_t total_frames_pushed_ GUARDED_BY(lock_) = 0;
+
   // Protects the above variables.
   base::Lock lock_;
 

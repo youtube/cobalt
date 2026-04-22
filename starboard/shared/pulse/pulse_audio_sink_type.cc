@@ -564,24 +564,25 @@ void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
 
 void PulseAudioSinkType::AudioThreadFunc() {
   for (;;) {
+    int64_t start_time = CurrentMonotonicTime();
+    bool has_running_sink = false;
     {
-      bool has_running_sink = false;
-      {
-        // TODO: The scope of the lock is too wide.
-        std::lock_guard lock(mutex_);
-        if (destroying_) {
-          break;
-        }
-        for (PulseAudioSink* sink : sinks_) {
-          has_running_sink |= sink->WriteFrameIfNecessary(context_);
-        }
-        pa_mainloop_iterate(mainloop_, 0, NULL);
+      // TODO: The scope of the lock is too wide.
+      std::lock_guard lock(mutex_);
+      if (destroying_) {
+        break;
       }
-      if (has_running_sink) {
-        usleep(kAudioRunningSleepIntervalUsec);
-      } else {
-        usleep(kAudioIdleSleepIntervalUsec);
+      for (PulseAudioSink* sink : sinks_) {
+        has_running_sink |= sink->WriteFrameIfNecessary(context_);
       }
+      pa_mainloop_iterate(mainloop_, 0, NULL);
+    }
+
+    int64_t interval = has_running_sink ? kAudioRunningSleepIntervalUsec
+                                        : kAudioIdleSleepIntervalUsec;
+    int64_t work_time = CurrentMonotonicTime() - start_time;
+    if (work_time < interval) {
+      usleep(interval - work_time);
     }
   }
 }
