@@ -17,6 +17,9 @@
 
 #include "starboard/export.h"
 
+// The following MUSL_PR_* constants are the ABI-stable values expected by the
+// musl-based "Cobalt" layer. These must remain stable even if the underlying
+// platform's <sys/prctl.h> values differ.
 #define MUSL_PR_SET_PDEATHSIG 1
 #define MUSL_PR_GET_PDEATHSIG 2
 #define MUSL_PR_GET_DUMPABLE 3

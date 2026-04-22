@@ -12,23 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <dirent.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
-#include <sys/resource.h>
 #include <unistd.h>
 
-#include <algorithm>
-#include <mutex>
-#include <vector>
-
-#include "starboard/common/log.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // From third_party/musl/include/sys/prctl.h
@@ -42,26 +32,34 @@
 namespace nplb {
 namespace {
 
-const char kVmaTagsFileNamePrefix[] = "cobalt_vma_tags";
-
-bool GetTempDir(char* path, size_t path_size) {
-  if (SbSystemGetPath(kSbSystemPathTempDirectory, path, path_size)) {
-    return true;
-  }
-  const char* tmpdir = getenv("TMPDIR");
-  if (tmpdir) {
-    snprintf(path, path_size, "%s", tmpdir);
-    return true;
-  }
-#if !defined(SB_IS_ANDROID)
-  snprintf(path, path_size, "/tmp");
-  return true;
-#else
-  return false;
-#endif
-}
-
 // Checks /proc/self/maps to see if the memory mapping containing |addr| has
+// the specified |name|.
+bool VmaIsNamed(void* addr, const char* name) {
+  FILE* fp = fopen("/proc/self/maps", "r");
+  if (!fp) {
+    return false;
+  }
+
+  char line[1024];
+  bool found = false;
+  unsigned long target_addr = reinterpret_cast<unsigned long>(addr);
+
+  while (fgets(line, sizeof(line), fp)) {
+    unsigned long start, end;
+    if (sscanf(line, "%lx-%lx", &start, &end) != 2) {
+      continue;
+    }
+    if (target_addr >= start && target_addr < end) {
+      if (strstr(line, name)) {
+        found = true;
+      }
+      break;
+    }
+  }
+
+  fclose(fp);
+  return found;
+}
 
 TEST(PosixPrctlGeneralTests, FailsWithInvalidOption) {
   errno = 0;
@@ -568,152 +566,29 @@ TEST_F(PosixPrctlPtracerTests, SetFailsWithInvalidValue) {
 
 const char kVmaName[] = "TestVmaName";
 
-// Checks /proc/self/maps to see if the memory mapping containing |addr| has
-// the specified |name|. This is the expected outcome when the kernel supports
-// PR_SET_VMA_ANON_NAME.
-bool VmaIsNamed(void* addr, const char* name) {
-  FILE* fp = fopen("/proc/self/maps", "r");
-  if (!fp) {
-    return false;
-  }
-
-  char line[1024];
-  bool found = false;
-  unsigned long target_addr = (unsigned long)addr;
-
-  while (fgets(line, sizeof(line), fp)) {
-    unsigned long start, end;
-    if (sscanf(line, "%lx-%lx", &start, &end) != 2) {
-      continue;
-    }
-    if (target_addr >= start && target_addr < end) {
-      if (strstr(line, name)) {
-        found = true;
-      }
-      break;
-    }
-  }
-
-  fclose(fp);
-  return found;
-}
-
-// Checks for the existence and content of any fallback file matching the
-// prefix. This is the expected outcome when the kernel does NOT support
-// PR_SET_VMA_ANON_NAME.
-bool FallbackFileIsCorrect(unsigned long start,
-                           unsigned long size,
-                           const char* name) {
-  char temp_dir[256];
-  if (!GetTempDir(temp_dir, sizeof(temp_dir))) {
-    return false;
-  }
-
-  DIR* dir = opendir(temp_dir);
-  if (!dir) {
-    return false;
-  }
-
-  bool found = false;
-  struct dirent* entry;
-  char pid_prefix[256];
-  snprintf(pid_prefix, sizeof(pid_prefix), "%s_%d_", kVmaTagsFileNamePrefix,
-           getpid());
-
-  while ((entry = readdir(dir)) != nullptr) {
-    if (strncmp(entry->d_name, pid_prefix, strlen(pid_prefix)) == 0) {
-      char file_path[512];
-      snprintf(file_path, sizeof(file_path), "%s/%s", temp_dir, entry->d_name);
-
-      FILE* fp = fopen(file_path, "r");
-      if (!fp) {
-        continue;
-      }
-
-      char line[1024];
-      while (fgets(line, sizeof(line), fp)) {
-        unsigned long file_start, file_end;
-        char file_name[256];
-        if (sscanf(line, "0x%lx 0x%lx %s", &file_start, &file_end, file_name) ==
-            3) {
-          if (file_start == start && file_end == start + size &&
-              strcmp(file_name, name) == 0) {
-            found = true;
-            break;
-          }
-        }
-      }
-      fclose(fp);
-      if (found) {
-        break;
-      }
-    }
-  }
-  closedir(dir);
-  return found;
-}
-
-void CleanupFallbackFiles() {
-  char temp_dir[256];
-  if (!GetTempDir(temp_dir, sizeof(temp_dir))) {
-    return;
-  }
-
-  DIR* dir = opendir(temp_dir);
-  if (!dir) {
-    return;
-  }
-
-  struct dirent* entry;
-  char pid_prefix[256];
-  snprintf(pid_prefix, sizeof(pid_prefix), "%s_%d_", kVmaTagsFileNamePrefix,
-           getpid());
-
-  while ((entry = readdir(dir)) != nullptr) {
-    if (strncmp(entry->d_name, pid_prefix, strlen(pid_prefix)) == 0) {
-      char file_path[512];
-      snprintf(file_path, sizeof(file_path), "%s/%s", temp_dir, entry->d_name);
-      unlink(file_path);
-    }
-  }
-  closedir(dir);
-}
-
 TEST(PosixPrctlTest, SetVmaAnonName) {
   const size_t kMapSize = 4096;
   void* p = malloc(kMapSize);
   ASSERT_NE(p, nullptr);
 
-  CleanupFallbackFiles();
-
-  int result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)p,
-                     (unsigned long)kMapSize, (unsigned long)kVmaName);
+  int result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+                     reinterpret_cast<unsigned long>(p),
+                     static_cast<unsigned long>(kMapSize),
+                     reinterpret_cast<unsigned long>(kVmaName));
 
   if (result == -1 && errno == EINVAL) {
     free(p);
-    GTEST_SKIP() << "PR_SET_VMA_ANON_NAME not supported by kernel and no "
-                    "fallback provided.";
+    GTEST_SKIP() << "PR_SET_VMA_ANON_NAME not supported by kernel.";
   }
 
-  EXPECT_EQ(result, 0);
+  ASSERT_EQ(result, 0) << "prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME) failed. "
+                          "Errno: "
+                       << errno << " (" << strerror(errno) << ")";
 
-  bool vma_is_named = VmaIsNamed(p, kVmaName);
-  bool fallback_file_is_correct =
-      FallbackFileIsCorrect((unsigned long)p, kMapSize, kVmaName);
-
-  EXPECT_TRUE(vma_is_named || fallback_file_is_correct)
-      << "VMA name was not set via prctl and fallback file was not created or "
-         "is incorrect.";
-
-  if (vma_is_named) {
-    SbLog(kSbLogPriorityInfo, "VMA naming supported by the kernel.\n");
-  }
-  if (fallback_file_is_correct) {
-    SbLog(kSbLogPriorityInfo, "VMA naming fallback used.\n");
-  }
+  EXPECT_TRUE(VmaIsNamed(p, kVmaName))
+      << "VMA name was not found in /proc/self/maps.";
 
   free(p);
-  CleanupFallbackFiles();
 }
 
 }  // namespace
