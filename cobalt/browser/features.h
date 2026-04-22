@@ -42,6 +42,9 @@ extern const base::Feature kCobaltMetricsIntervalFeature;
 // Sets the interval for memory and CPU metrics collection in seconds.
 extern const base::FeatureParam<int> kCobaltMetricsIntervalParam;
 
+// Use IPv4 for system host resolution.
+extern const base::Feature kUseIPv4ForDNS;
+
 }  // namespace features
 }  // namespace cobalt
 

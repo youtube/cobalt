@@ -3,6 +3,8 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -19,6 +21,7 @@ public class StartupGuard {
     private final Handler handler;
     private final Runnable crashRunnable;
     private final AtomicLong startupStatus = new AtomicLong(0L);
+    private final Map<String, String> diagnosisInfo = new HashMap<>();
 
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
@@ -35,9 +38,23 @@ public class StartupGuard {
             @Override
             public void run() {
                 throw new RuntimeException(
-                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x" + Long.toHexString(startupStatus.get()));
+                        "Application startup may not have succeeded, crash triggered by StartupGuard. "
+                                + getStartupStatusAndDiagnosisInfo());
             }
         };
+    }
+
+    private String getStartupStatusAndDiagnosisInfo() {
+        StringBuilder message = new StringBuilder();
+        message.append("Status: 0x");
+        message.append(Long.toHexString(startupStatus.get()));
+        synchronized (diagnosisInfo) {
+            if (!diagnosisInfo.isEmpty()) {
+                message.append(", Diagnosis Info: ");
+                message.append(diagnosisInfo.toString());
+            }
+        }
+        return message.toString();
     }
 
     /**
@@ -63,6 +80,18 @@ public class StartupGuard {
     }
 
     /**
+     * Sets startup diagnosis info.
+     * @param key The key for the diagnosis info.
+     * @param value The value for the diagnosis info.
+     */
+    public void setDiagnosisInfo(String key, String value) {
+        synchronized (diagnosisInfo) {
+            Log.v(TAG, "StartupGuard setDiagnosisInfo: " + key + "=" + value);
+            diagnosisInfo.put(key, value);
+        }
+    }
+
+    /**
      * Schedules the forced crash to happen after the specified delay.
      * @param delaySeconds The delay in seconds before the crash is triggered.
      */
@@ -81,7 +110,7 @@ public class StartupGuard {
     public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Long.toHexString(startupStatus.get()));
+            Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
         }
     }
 }

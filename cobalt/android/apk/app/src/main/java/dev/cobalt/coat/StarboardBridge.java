@@ -772,4 +772,9 @@ public class StarboardBridge {
   protected void setStartupMilestone(int milestone) {
     StartupGuard.getInstance().setStartupMilestone(milestone);
   }
+
+  @CalledByNative
+  protected void setStartupDiagnosisInfo(String key, String value) {
+    StartupGuard.getInstance().setDiagnosisInfo(key, value);
+  }
 }
