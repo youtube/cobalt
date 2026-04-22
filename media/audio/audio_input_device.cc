@@ -36,6 +36,8 @@ namespace media {
 
 namespace {
 
+
+
 // The number of shared memory buffer segments indicated to browser process
 // in order to avoid data overwriting. This number can be any positive number,
 // dependent how fast the renderer process can pick up captured data from
@@ -161,7 +163,12 @@ void AudioInputDevice::Start() {
     return;
 
   state_ = CREATING_STREAM;
-  int segment_count = base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) ? 32 : 10;
+  int segment_count = kRequestedSharedMemoryCount;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    segment_count = 10;
+  }
+#endif
   ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_, segment_count);
 }
 
@@ -303,7 +310,12 @@ void AudioInputDevice::OnStreamCreated(
                                 base::Unretained(alive_checker_.get()))
           : base::DoNothing();
 
-  int segment_count = base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) ? 32 : 10;
+  int segment_count = kRequestedSharedMemoryCount;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    segment_count = 10;
+  }
+#endif
   audio_callback_ = std::make_unique<AudioInputDevice::AudioThreadCallback>(
       audio_parameters_, std::move(shared_memory_region),
       segment_count, enable_uma_, callback_,
