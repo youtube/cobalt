@@ -264,7 +264,6 @@ class ScopedProcessSetDumpable {
   bool was_dumpable_;
 };
 
-<<<<<<< HEAD
 // Count how many mappings exist in a process.
 //
 // Return 0 in case of error (since a process necessarily has at least a
@@ -321,17 +320,12 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
   *swap_pss = value->swap_pss;
 }
 
-=======
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
 #if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
 struct LibChrobaltMem {
   uint32_t pss_kb = 0;
   uint32_t rss_kb = 0;
 };
 
-<<<<<<< HEAD
-LibChrobaltMem GetLibChrobaltMem(base::ProcessId pid) {
-=======
 struct SmapsRollup {
   uint32_t pss_kb = 0;
   uint32_t rss_kb = 0;
@@ -340,42 +334,18 @@ struct SmapsRollup {
 void GetSmapsRollup(base::ProcessId pid,
                     const char* needle,
                     SmapsRollup* rollup) {
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
   std::string file_name =
       "/proc/" +
       (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
   if (!smaps_file) {
-<<<<<<< HEAD
-    return {};
-=======
     return;
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
   }
 
   char line[kMaxLineSize];
   uint64_t total_pss_kb = 0;
   uint64_t total_rss_kb = 0;
-<<<<<<< HEAD
-  bool is_libchrobalt_region = false;
-  while (fgets(line, kMaxLineSize, smaps_file.get())) {
-    if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0])) &&
-        !absl::ascii_isupper(static_cast<unsigned char>(line[0]))) {
-      const char kLibName[] = "libchrobalt.so";
-      const char* found = strstr(line, kLibName);
-      if (found) {
-        bool prefix_matches = (found == line || *(found - 1) == '/');
-        char next_char = found[strlen(kLibName)];
-        bool suffix_matches =
-            (next_char == '\0' || next_char == '\n' || next_char == '\r' ||
-             absl::ascii_isspace(static_cast<unsigned char>(next_char)));
-        is_libchrobalt_region = prefix_matches && suffix_matches;
-      } else {
-        is_libchrobalt_region = false;
-      }
-    } else if (is_libchrobalt_region) {
-=======
   bool is_matching_region = false;
   while (fgets(line, kMaxLineSize, smaps_file.get())) {
     if (base::IsHexDigit(static_cast<unsigned char>(line[0])) &&
@@ -383,7 +353,6 @@ void GetSmapsRollup(base::ProcessId pid,
       const char* found = strstr(line, needle);
       is_matching_region = (found != nullptr);
     } else if (is_matching_region) {
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
       uint64_t value_kb = 0;
       if (strncmp(line, "Pss:", 4) == 0) {
         if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
@@ -396,12 +365,6 @@ void GetSmapsRollup(base::ProcessId pid,
       }
     }
   }
-<<<<<<< HEAD
-  LibChrobaltMem result;
-  result.pss_kb = base::saturated_cast<uint32_t>(total_pss_kb);
-  result.rss_kb = base::saturated_cast<uint32_t>(total_rss_kb);
-  return result;
-=======
   rollup->pss_kb = base::saturated_cast<uint32_t>(total_pss_kb);
   rollup->rss_kb = base::saturated_cast<uint32_t>(total_rss_kb);
 }
@@ -416,7 +379,6 @@ uint32_t GetPartitionAllocRss(base::ProcessId pid) {
   SmapsRollup rollup;
   GetSmapsRollup(pid, "<anon:partition_alloc>", &rollup);
   return rollup.rss_kb;
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
 }
 #endif
 
@@ -429,58 +391,11 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
   g_proc_smaps_for_testing = f;
 }
 
-// static
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
                                  mojom::RawOSMemDump* dump) {
-<<<<<<< HEAD
   auto info = GetMemoryInfo(handle);
   if (!info.has_value()) {
-=======
-  // TODO(chiniforooshan): There is no need to read both /statm and /status
-  // files. Refactor to get everything from /status using ProcessMetric.
-  auto statm_file = GetProcPidDir(pid).Append("statm");
-  auto autoclose = base::ScopedFD(open(statm_file.value().c_str(), O_RDONLY));
-  int statm_fd = autoclose.get();
-
-  if (statm_fd == -1)
-    return false;
-
-  uint64_t resident_pages;
-  uint64_t shared_pages;
-  bool success = GetResidentAndSharedPagesFromStatmFile(
-      statm_fd, &resident_pages, &shared_pages);
-
-  if (!success)
-    return false;
-
-  auto process_metrics = CreateProcessMetrics(pid);
-
-  static const size_t page_size = base::GetPageSize();
-  uint64_t rss_anon_bytes = (resident_pages - shared_pages) * page_size;
-  uint64_t vm_swap_bytes = process_metrics->GetVmSwapBytes();
-
-  dump->platform_private_footprint->rss_anon_bytes = rss_anon_bytes;
-  dump->platform_private_footprint->vm_swap_bytes = vm_swap_bytes;
-  dump->resident_set_kb = process_metrics->GetResidentSetSize() / 1024;
-#if BUILDFLAG(IS_COBALT)
-  dump->vm_size_kb = process_metrics->GetVmSizeBytes() / 1024;
-#endif
-  dump->peak_resident_set_kb = GetPeakResidentSetSize(pid);
-  dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
-
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
-  LibChrobaltMem lib_mem = GetLibChrobaltMem(pid);
-  dump->libchrobalt_pss_kb = lib_mem.pss_kb;
-  dump->libchrobalt_rss_kb = lib_mem.rss_kb;
-  dump->partition_alloc_rss_kb = GetPartitionAllocRss(pid);
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(SUPPORTS_CODE_ORDERING)
-  if (!base::android::AreAnchorsSane()) {
-    DLOG(WARNING) << "Incorrect code ordering";
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
     return false;
   }
 
@@ -495,6 +410,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
   dump->libchrobalt_pss_kb = lib_mem.pss_kb;
   dump->libchrobalt_rss_kb = lib_mem.rss_kb;
+  dump->partition_alloc_rss_kb = GetPartitionAllocRss(handle);
 #endif
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {

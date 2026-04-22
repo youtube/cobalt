@@ -375,16 +375,12 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     }
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
-<<<<<<< HEAD
-      std::optional<uint64_t> value =
-=======
       // Skip the standard PartitionAlloc metric if we are overriding it with
       // the more accurate RSS value below.
       if (std::string_view(item.uma_name) == "PartitionAlloc") {
         continue;
       }
-      absl::optional<uint64_t> value =
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
+      std::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
         EmitProcessUma(ptype, item, value.value());
@@ -410,21 +406,20 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     base::UmaHistogramMemoryLargeMB(
         std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltRss",
         static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
-<<<<<<< HEAD
-=======
 
     base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".PartitionAllocRss",
+        std::string(kMemoryHistogramPrefix) + process_name +
+            ".PartitionAllocRss",
         static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
 
     // Override the Experimental PartitionAlloc histogram with the more accurate
     // RSS value from smaps.
-    std::string pa_uma_name = base::StrCat(
-        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "PartitionAlloc"});
+    std::string pa_uma_name =
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "PartitionAlloc"});
     base::UmaHistogramMemoryLargeMB(
         pa_uma_name,
         static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
 #endif
   }
 

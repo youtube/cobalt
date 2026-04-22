@@ -90,15 +90,11 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
 #if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
   os_dump->libchrobalt_pss_kb = internal_os_dump.libchrobalt_pss_kb;
   os_dump->libchrobalt_rss_kb = internal_os_dump.libchrobalt_rss_kb;
-<<<<<<< HEAD
+  os_dump->partition_alloc_rss_kb = internal_os_dump.partition_alloc_rss_kb;
 #endif
   os_dump->mappings_count = internal_os_dump.mappings_count;
   os_dump->pss_kb = internal_os_dump.pss_kb;
   os_dump->swap_pss_kb = internal_os_dump.swap_pss_kb;
-=======
-  os_dump->partition_alloc_rss_kb = internal_os_dump.partition_alloc_rss_kb;
-#endif
->>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
 #endif
   return os_dump;
 }
