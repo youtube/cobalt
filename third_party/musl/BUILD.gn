@@ -835,6 +835,7 @@ static_library("c_internal") {
     "src/stdio/__lockfile.c",
     "src/stdio/__overflow.c",
     "src/stdio/__stdio_close.c",
+    "src/stdio/__stdio_exit.c",
     "src/stdio/__stdio_read.c",
     "src/stdio/__stdio_seek.c",
     "src/stdio/__stdio_write.c",
