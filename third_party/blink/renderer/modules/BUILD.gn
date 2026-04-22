@@ -775,6 +775,7 @@ source_set("unit_tests") {
 
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
+    deps -= [ "//third_party/blink/renderer/modules/ml:unit_tests" ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
