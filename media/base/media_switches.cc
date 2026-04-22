@@ -518,10 +518,6 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
              base::FEATURE_DISABLED_BY_DEFAULT);
-// When disabled, Cobalt rejects progressive video formats.
-BASE_FEATURE(kCobaltProgressivePlayback,
-             "CobaltProgressivePlayback",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,

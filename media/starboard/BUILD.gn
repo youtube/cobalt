@@ -18,7 +18,6 @@ import("//starboard/build/buildflags.gni")
 
 assert(use_starboard_media, "This file is only for use_starboard_media builds")
 
-import("//media/media_options.gni")
 import("//starboard/build/buildflags.gni")
 
 config("disable_unreachable_warnings") {
@@ -61,27 +60,6 @@ source_set("starboard") {
   ]
 
   sources = []
-  if (!media_use_ffmpeg) {
-    sources += [
-      "progressive/avc_access_unit.cc",
-      "progressive/avc_access_unit.h",
-      "progressive/avc_parser.cc",
-      "progressive/avc_parser.h",
-      "progressive/data_source_reader.cc",
-      "progressive/data_source_reader.h",
-      "progressive/mp4_map.cc",
-      "progressive/mp4_map.h",
-      "progressive/mp4_parser.cc",
-      "progressive/mp4_parser.h",
-      "progressive/progressive_demuxer.cc",
-      "progressive/progressive_demuxer.h",
-      "progressive/progressive_parser.cc",
-      "progressive/progressive_parser.h",
-      "progressive/rbsp_stream.cc",
-      "progressive/rbsp_stream.h",
-    ]
-  }
-
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_decoder_buffer_allocator_strategy.h",
@@ -116,15 +94,12 @@ source_set("starboard") {
     "//mojo/public/cpp/bindings:bindings",
     "//starboard:starboard_group",
     "//starboard/common",
+    "//third_party/abseil-cpp:absl",
     "//url",
   ]
 
   if (is_android) {
     deps += [ "//media/base/android" ]
-  }
-
-  if (!media_use_ffmpeg) {
-    deps += [ "//third_party/abseil-cpp:absl" ]
   }
 
   # TODO(b/380940036): remove the circular dependency.
@@ -139,13 +114,6 @@ source_set("starboard") {
 source_set("unit_tests") {
   testonly = true
   sources = []
-  if (!media_use_ffmpeg) {
-    sources += [
-      "progressive/mock_data_source_reader.h",
-      "progressive/mp4_map_unittest.cc",
-      "progressive/rbsp_stream_unittest.cc",
-    ]
-  }
   if (use_starboard_media) {
     sources += [
       "decoder_buffer_allocator_strategy_test.cc",
