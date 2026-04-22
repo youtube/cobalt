@@ -180,6 +180,15 @@ public abstract class CobaltActivity extends Activity {
       }
       commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
+      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
+
+      if (!extraCommandLineArgs.isEmpty()) {
+        if (commandLineArgs != null) {
+          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+        }
+        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
+      }
+
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
@@ -513,7 +522,8 @@ public abstract class CobaltActivity extends Activity {
     super.onStart();
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable corresponding resume event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onresume event
       webContents.onResume();
     }
@@ -538,7 +548,8 @@ public abstract class CobaltActivity extends Activity {
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable freeze event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onfreeze event
       webContents.onFreeze();
     }

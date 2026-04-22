@@ -33,11 +33,11 @@ runs:
         repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
         ref: main
         fetch_depth: 0
-        path: depot_tools
+        path: cobalt/depot_tools
         use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      run: echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> ${GITHUB_PATH}
       shell: bash
 
     - name: Set CIPD Cache Directory
@@ -48,7 +48,7 @@ runs:
     - name: Bootstrap Bundled python3
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
+        source ${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3 && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -64,20 +64,26 @@ runs:
         set -x
         cd cobalt
 
-        gclient config \
-          --name=src \
-          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
-          "${REPOSITORY}"
+        if [ ! -f .gclient ]; then
+          gclient config \
+            --name=src \
+            --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+            "${REPOSITORY}"
+        else
+          echo ".gclient already exists. Skipping gclient config."
+        fi
       shell: bash
 
     - name: Set target OS
       shell: bash
       run: |
         cd cobalt
-        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
-          echo "target_os=['android']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
-          echo "target_os=['ios']" >> .gclient
+        if ! grep -q "target_os" .gclient; then
+          if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+            echo "target_os=['android']" >> .gclient
+          elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+            echo "target_os=['ios']" >> .gclient
+          fi
         fi
         gclient validate
 
@@ -85,11 +91,12 @@ runs:
       shell: bash
       run: |
         cd cobalt
-
-        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
-          echo "target_cpu=['x64', 'arm64']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
-          echo "target_cpu=['x64', 'arm']" >> .gclient
+        if ! grep -q "target_cpu" .gclient; then
+          if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+            echo "target_cpu=['x64', 'arm64']" >> .gclient
+          elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+            echo "target_cpu=['x64', 'arm']" >> .gclient
+          fi
         fi
         gclient validate
 

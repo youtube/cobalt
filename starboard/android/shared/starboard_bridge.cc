@@ -419,4 +419,12 @@ void StarboardBridge::SetStartupMilestone(jint milestone) const {
   Java_StarboardBridge_setStartupMilestone(env, j_starboard_bridge_, milestone);
 }
 
+void StarboardBridge::SetStartupDiagnosisInfo(const char* key,
+                                              const char* value) const {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_StarboardBridge_setStartupDiagnosisInfo(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, key),
+      ConvertUTF8ToJavaString(env, value));
+}
+
 }  // namespace starboard
