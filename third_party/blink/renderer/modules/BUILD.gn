@@ -191,6 +191,9 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
+
+    # Removed because WebML is not required for Cobalt.
+    sub_modules -= [ "//third_party/blink/renderer/modules/ml" ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
