@@ -411,11 +411,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      use_dual_threads_(experimental_features.use_dual_threads_for_video),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      use_dual_threads_(experimental_features.use_dual_threads_for_video),
       surface_view_(surface_view),
       enable_flush_during_seek_(enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
@@ -428,12 +428,14 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
+      enable_output_checker_(experimental_features.enable_codec_output_checker),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
-      number_of_preroll_frames_(
+      initial_number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
               kInitialPrerollFrameCount)),
+      number_of_preroll_frames_(initial_number_of_preroll_frames_),
       bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
                   ? std::make_unique<VideoSurfaceTextureBridge>(this)
                   : nullptr) {
@@ -817,7 +819,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_);
+      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
+      enable_output_checker_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1011,7 +1014,8 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
           ->GetMaxOutputVideoBuffers(output_format_.value());
   if (max_output_buffers > 0 &&
-      max_output_buffers < kInitialPrerollFrameCount) {
+      max_output_buffers <
+          static_cast<int>(initial_number_of_preroll_frames_)) {
     number_of_preroll_frames_ = max_output_buffers;
   }
 }

@@ -15,8 +15,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_
 
-#include <jni.h>
-
 #include <atomic>
 #include <deque>
 #include <memory>
@@ -98,7 +96,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<bool> use_dual_threads);
+      std::optional<bool> use_dual_threads,
+      bool enable_output_checker);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -127,6 +126,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
+      bool enable_output_checker,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -178,16 +178,13 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   };
 
   class DecoderThread;
-
   void DecoderThreadFunc();
 
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
   // simplify the handling of threading, including the difference of a/v
   // threading in the original implementation in DecoderThreadFunc() above.
-  static void* InputThreadEntryPoint(void* context);
   void InputThreadFunc();
 
-  static void* OutputThreadEntryPoint(void* context);
   void OutputThreadFunc();
 
   void TerminateDecoderThread();
@@ -265,9 +262,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // Working threads to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
   // Only used when |use_dual_threads_| is true.
-  pthread_t video_input_thread_ = 0;
+  std::unique_ptr<Thread> video_input_thread_;
   // Only used when |use_dual_threads_| is true.
-  pthread_t video_output_thread_ = 0;
+  std::unique_ptr<Thread> video_output_thread_;
 
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };

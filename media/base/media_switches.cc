@@ -522,10 +522,6 @@ BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
              base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt reports buffering state during flush.
-BASE_FEATURE(kCobaltReportBufferingStateDuringFlush,
-             "CobaltReportBufferingStateDuringFlush",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,

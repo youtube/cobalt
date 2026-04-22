@@ -193,6 +193,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
   const bool needs_fps_to_initialize_codec_;
 
+  // Enable MediaCodec OutputChecker to elminate dirty output callbacks after
+  // flush.
+  const bool enable_output_checker_;
+
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
@@ -257,6 +261,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   int max_buffered_output_frames_ = 0;
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
+  const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;

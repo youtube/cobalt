@@ -34,6 +34,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   // The fields should be in alphabetical order.
   bool disable_low_performance_sw_decoder;
   bool enable_av1_startup_optimization;
+  bool enable_codec_output_checker;
   bool flush_decoder_during_reset;
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;

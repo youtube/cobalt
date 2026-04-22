@@ -16,6 +16,7 @@
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -36,7 +37,8 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
     // Set a short interval for memory metrics to verify periodic recording.
-    command_line->AppendSwitchASCII(switches::kMetricsInterval, "1");
+    command_line->AppendSwitchASCII(
+        "enable-features", "CobaltMetricsInterval:cobalt-metrics-interval/1");
   }
 };
 
