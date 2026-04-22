@@ -38,7 +38,104 @@
 #define PR_SET_VMA_ANON_NAME 0
 #endif
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+
+#include <map>
+#include <mutex>
+
+#ifndef __NR_memfd_create
+// Source:
+// https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
+#if defined(__x86_64__)
+#define __NR_memfd_create 319  // x64
+// Source:
+// https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/unistd.h
+#elif defined(__aarch64__)
+#define __NR_memfd_create 279  // arm64
+// Source:
+// https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_32.tbl
+#elif defined(__i386__)
+#define __NR_memfd_create 356  // x86
+// Source:
+// https://github.com/torvalds/linux/blob/master/arch/arm/tools/syscall.tbl
+#elif defined(__arm__)
+#define __NR_memfd_create 385  // arm
+#endif
+#endif
+
+#ifndef MFD_CLOEXEC
+// Source:
+// https://github.com/torvalds/linux/blob/master/include/uapi/linux/memfd.h
+#define MFD_CLOEXEC 0x0001U
+#endif
+
 namespace {
+
+int GetProtForAddress(unsigned long target_addr) {
+  int fd = open("/proc/self/maps", O_RDONLY);
+  if (fd == -1) {
+    return -1;
+  }
+
+  char buf[4096];
+  int prot = 0;
+  bool found = false;
+  ssize_t n;
+  std::string line;
+
+  // Simple line-by-line parser for /proc/self/maps
+  while ((n = read(fd, buf, sizeof(buf))) > 0) {
+    for (ssize_t i = 0; i < n; ++i) {
+      if (buf[i] == '\n') {
+        unsigned long start, end;
+        char p[5];
+        if (sscanf(line.c_str(), "%lx-%lx %4s", &start, &end, p) == 3) {
+          if (target_addr >= start && target_addr < end) {
+            if (p[0] == 'r') {
+              prot |= PROT_READ;
+            }
+            if (p[1] == 'w') {
+              prot |= PROT_WRITE;
+            }
+            if (p[2] == 'x') {
+              prot |= PROT_EXEC;
+            }
+            found = true;
+            break;
+          }
+        }
+        line.clear();
+      } else {
+        line += buf[i];
+      }
+    }
+    if (found) {
+      break;
+    }
+  }
+  close(fd);
+  return found ? prot : -1;
+}
+
+int GetNamedFd(const char* name) {
+  static std::mutex g_named_fds_mutex;
+  static std::map<const std::string, int> g_named_fds;
+
+  std::lock_guard<std::mutex> lock(g_named_fds_mutex);
+  auto it = g_named_fds.find(name);
+  if (it != g_named_fds.end()) {
+    return it->second;
+  }
+
+  int fd = syscall(__NR_memfd_create, name, MFD_CLOEXEC);
+  if (fd != -1) {
+    ftruncate(fd, 1024ULL * 1024 * 1024 * 1024);
+    g_named_fds[name] = fd;
+  }
+  return fd;
+}
 
 int musl_op_to_platform_op(int musl_op) {
   switch (musl_op) {
@@ -312,6 +409,23 @@ int __abi_wrap_prctl(int op, ...) {
         platform_attr = PR_SET_VMA_ANON_NAME;
       }
       ret = prctl(platform_op, platform_attr, addr, size, val);
+
+      if (ret == -1 && errno == EINVAL &&
+          platform_attr == PR_SET_VMA_ANON_NAME) {
+        // Fallback to memfd trick.
+        int prot = GetProtForAddress(addr);
+        if (prot != -1) {
+          int fd = GetNamedFd((const char*)val);
+          if (fd != -1) {
+            // Note: We don't copy data here. This fallback is best-effort
+            // and intended for use immediately after allocation.
+            if (mmap((void*)addr, size, prot, MAP_FIXED | MAP_PRIVATE, fd, 0) !=
+                MAP_FAILED) {
+              ret = 0;
+            }
+          }
+        }
+      }
       break;
     }
     // This default case shouldn't be reachable; if we weren't able to convert
