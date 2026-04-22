@@ -38,7 +38,7 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
     // Set a short interval for memory metrics to verify periodic recording.
     command_line->AppendSwitchASCII(
         "enable-features",
-        "CobaltMetricsInterval:memory-metrics-interval/1, "
+        "CobaltMetricsInterval:memory-metrics-interval/1,"
         "CobaltMetricsInterval:cpu-metrics-interval/1");
   }
 };
