@@ -39,6 +39,7 @@
 
 namespace cobalt {
 
+// TODO(b/495528560): Unify CPU and memory polling state into one class.
 class MetricsPollingState {
  public:
   MetricsPollingState() = default;
@@ -350,19 +351,22 @@ void CobaltMetricsServiceClient::SetMetricsListener(
 
 void CobaltMetricsServiceClient::ScheduleMemoryRecordForTesting(
     base::OnceClosure done_callback) {
-  if (memory_state_) {
-    memory_state_.AsyncCall(&MemoryPollingState::SetCallbackForTesting)
-        .WithArgs(std::move(done_callback));
-    memory_state_.AsyncCall(&MemoryPollingState::RequestMetrics);
-  }
+  ScheduleRecordForTestingInternal(memory_state_, std::move(done_callback));
 }
 
 void CobaltMetricsServiceClient::ScheduleCpuRecordForTesting(
     base::OnceClosure done_callback) {
-  if (cpu_state_) {
-    cpu_state_.AsyncCall(&CpuPollingState::SetCallbackForTesting)
+  ScheduleRecordForTestingInternal(cpu_state_, std::move(done_callback));
+}
+
+template <typename T>
+void CobaltMetricsServiceClient::ScheduleRecordForTestingInternal(
+    base::SequenceBound<T>& state,
+    base::OnceClosure done_callback) {
+  if (state) {
+    state.AsyncCall(&T::SetCallbackForTesting)
         .WithArgs(std::move(done_callback));
-    cpu_state_.AsyncCall(&CpuPollingState::RequestMetrics);
+    state.AsyncCall(&T::RequestMetrics);
   }
 }
 

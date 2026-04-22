@@ -205,6 +205,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 #endif
 }
 
+// TODO: b/489836051 - Investigate periodic memory metrics recording failures on
+// Starboard.
 #if BUILDFLAG(IS_STARBOARD)
 #define MAYBE_RecordsCpuMetrics DISABLED_RecordsCpuMetrics
 #else
@@ -230,8 +232,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  EXPECT_GE(histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(),
-            1u);
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
   // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0
   // on the first call
   EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),

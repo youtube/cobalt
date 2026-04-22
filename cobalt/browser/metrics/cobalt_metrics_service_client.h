@@ -134,6 +134,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Starts the periodic CPU metrics logger.
   void StartCpuMetricsLogger();
 
+  template <typename T>
+  void ScheduleRecordForTestingInternal(base::SequenceBound<T>& state,
+                                        base::OnceClosure done_callback);
+
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
       metrics::MetricsStateManager* state_manager,
