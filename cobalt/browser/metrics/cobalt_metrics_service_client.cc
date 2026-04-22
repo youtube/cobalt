@@ -29,7 +29,6 @@
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
-#include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -45,25 +44,25 @@ class MetricsPollingState {
   MetricsPollingState() = default;
   virtual ~MetricsPollingState() = default;
 
-  void RecordMetricsAfterDelay() {
+  virtual void RecordMetricsAfterDelay(const base::FeatureParam<int>& interval_param) {
     base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
+    
     if (base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature)) {
-      int interval_int = features::kCobaltMetricsIntervalParam.Get();
-      if (interval_int > 0) {
-        delay = base::Seconds(interval_int);
+      int interval = interval_param.Get();
+      if (interval > 0) {
+        delay = base::Seconds(interval);
       } else {
-        LOG(WARNING) << "Invalid metrics interval from feature: "
-                     << interval_int
+        LOG(WARNING) << "Invalid metrics interval from feature: " << interval
                      << ". Falling back to memory_instrumentation default.";
       }
     }
 
     timer_.Start(FROM_HERE, delay, this, &MetricsPollingState::RequestMetrics);
-  }
+  };
 
   virtual void RequestMetrics() = 0;
 
- private:
+ protected:
   base::OneShotTimer timer_;
 };
 
@@ -73,6 +72,10 @@ class CobaltMetricsServiceClient::MemoryPollingState
   explicit MemoryPollingState(
       scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter)
       : memory_emitter_(std::move(memory_emitter)) {}
+  
+  void RecordMetricsAfterDelay() {
+    MetricsPollingState::RecordMetricsAfterDelay(features::kMemoryMetricsIntervalParam);
+  }
 
   void RequestMetrics() override {
     memory_emitter_->FetchAndEmitProcessMemoryMetrics();
@@ -86,6 +89,10 @@ class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
  public:
   explicit CpuPollingState(scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter)
       : cpu_emitter_(std::move(cpu_emitter)) {}
+
+  void RecordMetricsAfterDelay() {
+    MetricsPollingState::RecordMetricsAfterDelay(features::kCpuMetricsIntervalParam);
+  }
 
   void RequestMetrics() override {
     cpu_emitter_->FetchAndEmitCpuMetrics();
