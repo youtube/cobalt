@@ -1058,7 +1058,7 @@ void HangWatcher::DoDumpWithoutCrashing(
   TRACE_EVENT("latency", "HangWatcher::DoDumpWithoutCrashing");
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing" << watch_state_snapshot.IsActionable();
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: " << watch_state_snapshot.IsActionable();
 #endif
 
   capture_in_progress_.store(true, std::memory_order_relaxed);
