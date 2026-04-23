@@ -1,7 +1,6 @@
 {
   "comment": "TODO: b/450568428 - Investigate these failing tests",
   "failing_tests": [
-    "MediaCapabilitiesCache*",
     "MimeUtilTest.ChecksSupportedFlacContainers",
     "MimeUtilTest.ChecksSupportedMp3Containers",
     "MimeUtilTest.ChecksSupportedPcmContainers",
