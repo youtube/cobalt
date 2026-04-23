@@ -807,7 +807,8 @@ TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
       features::kCobaltMetricsIntervalFeature,
-      {{"cobalt-metrics-interval", base::NumberToString(kCustomInterval)}});
+      {{"memory-metrics-interval", base::NumberToString(kCustomInterval)},
+       {"cpu-metrics-interval", base::NumberToString(kCustomInterval)}});
 
   // Re-initialize client to pick up new feature settings if needed,
   // but wait, CobaltMetricsServiceClient::Initialize calls
@@ -824,12 +825,16 @@ TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by kCustomInterval - 1 second. Still no metrics.
   task_environment_.FastForwardBy(base::Seconds(kCustomInterval - 1));
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by 1 more second. Now metrics should be recorded.
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -838,6 +843,9 @@ TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
       histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
           .size(),
       1u);
+  // CPU metrics should also be recorded.
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
 }
 
 TEST_F(CobaltMetricsServiceClientBaseTest,
@@ -865,12 +873,16 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by 299 seconds. Still no metrics.
   task_environment_.FastForwardBy(base::Seconds(299));
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by 1 more second (total 300s). Now metrics should be recorded.
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -879,6 +891,8 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
       histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
           .size(),
       1u);
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
 }
 
 }  // namespace cobalt
