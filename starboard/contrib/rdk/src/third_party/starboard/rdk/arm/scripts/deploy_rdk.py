@@ -117,19 +117,6 @@ def main():
             return
 
 
-    # 1. Apply Patch if missing
-    if os.path.exists("rdk_plugin_temporary.patch"):
-        is_applied = subprocess.run(
-            ["git", "apply", "--reverse", "--check", "rdk_plugin_temporary.patch"], 
-            capture_output=True
-        ).returncode == 0
-        
-        if not is_applied:
-            print("=== Applying rdk_plugin_temporary.patch ===")
-            run_command(["git", "apply", "rdk_plugin_temporary.patch"])
-        else:
-            print("=== Patch already applied. ===")
-
     # 2. Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
     out_dir = args.out_dir or f"out/{PLATFORM}_{config}"
