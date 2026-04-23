@@ -19,6 +19,8 @@
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
+#include "cobalt/browser/h5vcc_circular_buffer/h5vcc_circular_buffer_impl.h"
+#include "cobalt/browser/h5vcc_circular_buffer/public/mojom/h5vcc_circular_buffer.mojom.h"
 #include "cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
@@ -104,6 +106,9 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));
+  binder_map->Add<h5vcc_circular_buffer::mojom::H5vccCircularBuffer>(
+      base::BindRepeating(
+          &h5vcc_circular_buffer::H5vccCircularBufferImpl::Create));
 }
 
 }  // namespace cobalt

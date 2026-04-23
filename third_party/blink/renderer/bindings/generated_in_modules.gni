@@ -2391,6 +2391,8 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_gravity_sensor.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_gyroscope.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_gyroscope.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_circular_buffer.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_circular_buffer.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_handwriting_drawing.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_handwriting_drawing.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_handwriting_recognizer.cc",

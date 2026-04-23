@@ -56,6 +56,14 @@ class UnzipperImpl : public update_client::Unzipper {
     LOG(INFO) << "Unzip took " << time_unzip_took_usec << " milliseconds.";
   }
 #endif
+
+  base::OnceClosure DecodeXz(const base::FilePath& xz_file,
+                             const base::FilePath& destination,
+                             UnzipCompleteCallback callback) override {
+    LOG(ERROR) << "DecodeXz is not supported on Cobalt.";
+    std::move(callback).Run(false);
+    return base::OnceClosure();
+  }
 };
 
 }  // namespace
