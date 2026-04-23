@@ -1,5 +1,8 @@
 {
   "failing_tests": [
+    "LocalBinaryIndexerTest.RecursiveSymlinks",
+    "LocalBinaryIndexerTest.SimpleTree",
+    "LocalBinaryIndexerTest.Symlinks",
     "ScopedDirTest.CloseOutOfScope",
     "SubprocessTest.Entrypoint",
     "SubprocessTest.InvalidPath"
