@@ -130,6 +130,10 @@ source_set("test_support") {
 }
 
 test("blink_heap_unittests") {
+  sources = []
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
   deps = [ ":blink_heap_unittests_sources" ]
 
   if (is_android) {
