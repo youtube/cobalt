@@ -14,10 +14,27 @@
 
 package dev.cobalt.util;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Defines the constant names for feature switches used in Kimono.
  */
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+
+  public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
+    List<String> extraCommandLineArgs = new ArrayList<>();
+
+    // if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
+    //   extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
+    // }
+
+    // Enable HappyEyeballsV3 feature
+    extraCommandLineArgs.add("--enable-features=HappyEyeballsV3");
+
+    return extraCommandLineArgs;
+  }
 }

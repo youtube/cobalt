@@ -93,8 +93,6 @@ public final class CommandLineOverrideHelper {
         // It is important to use a feature override instead of the
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
-        // Enable HappyEyeballsV3 feature
-        paramOverrides.add("HappyEyeballsV3");
 
         return paramOverrides;
     }
