@@ -91,7 +91,7 @@ def run_command(
                 full_output.append(line)
         process.wait()
         if check and process.returncode != 0:
-            sys.exit(process.returncode)
+            raise subprocess.CalledProcessError(process.returncode, command, output="".join(full_output))
         return "".join(full_output)
 
     process = subprocess.run(
