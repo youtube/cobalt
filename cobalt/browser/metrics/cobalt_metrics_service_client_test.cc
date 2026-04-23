@@ -79,9 +79,10 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->process_type =
         memory_instrumentation::mojom::ProcessType::BROWSER;
     browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
-    browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
-    browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
-    browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+    browser_dump->os_dump->private_footprint_kb = 10240;    // 10 MB
+    browser_dump->os_dump->resident_set_kb = 20480;         // 20 MB
+    browser_dump->os_dump->shared_footprint_kb = 5120;      // 5 MB
+    browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
 
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
