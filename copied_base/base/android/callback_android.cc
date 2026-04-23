@@ -4,11 +4,14 @@
 
 #include "base/android/callback_android.h"
 
+#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
-#include "base/base_jni/Callback_jni.h"
 #include "base/time/time.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_jni/Callback_jni.h"
 
 namespace base {
 namespace android {

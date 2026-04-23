@@ -8,9 +8,8 @@
 #include <string>
 #include <utility>
 
+#include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/android_runtime_unchecked_jni_headers/Runnable_jni.h"
-#include "base/base_jni/TaskRunnerImpl_jni.h"
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
@@ -23,6 +22,10 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/android_runtime_unchecked_jni_headers/Runnable_jni.h"
+#include "base/base_jni/TaskRunnerImpl_jni.h"
 
 namespace base {
 
