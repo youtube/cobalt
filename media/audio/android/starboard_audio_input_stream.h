@@ -81,13 +81,11 @@ class StarboardAudioInputStream : public AudioInputStream {
 
   base::ThreadChecker thread_checker_;
 
-  // Protects |callback_|, |active_buffer_index_|, |audio_data_|,
-  // |buffer_size_bytes_| and |simple_buffer_queue_|.
   base::Lock lock_;
 
   raw_ptr<AudioManagerAndroid> audio_manager_ = nullptr;
 
-  raw_ptr<AudioInputCallback> callback_ = nullptr;
+  raw_ptr<AudioInputCallback> callback_ GUARDED_BY(lock_) = nullptr; 
 
   // Shared engine interfaces for the app.
   media::ScopedSLObjectItf recorder_object_;
@@ -96,15 +94,15 @@ class StarboardAudioInputStream : public AudioInputStream {
   SLRecordItf recorder_ = nullptr;
 
   // Buffer queue recorder interface.
-  SLAndroidSimpleBufferQueueItf simple_buffer_queue_ = nullptr;
+  SLAndroidSimpleBufferQueueItf simple_buffer_queue_ GUARDED_BY(lock_) = nullptr;
 
   SLAndroidDataFormat_PCM_EX format_;
 
   // Audio buffers that are allocated in SetupAudioBuffer().
-  std::unique_ptr<uint8_t[]> audio_data_[kMaxNumOfBuffersInQueue];
+  std::unique_ptr<uint8_t[]> audio_data_[kMaxNumOfBuffersInQueue] GUARDED_BY(lock_);
 
-  int active_buffer_index_ = 0;
-  int buffer_size_bytes_ = 0;
+  int active_buffer_index_ GUARDED_BY(lock_) = 0;
+  int buffer_size_bytes_ GUARDED_BY(lock_) = 0;
 
   bool started_ = false;
 

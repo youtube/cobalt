@@ -96,8 +96,11 @@ AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
   // This allows the hardware to warm up while the Renderer thread is busy.
   SLresult err = SL_RESULT_UNKNOWN_ERROR;
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
-    err = (*simple_buffer_queue_)->Enqueue(
-        simple_buffer_queue_, audio_data_[i].get(), buffer_size_bytes_);
+    {
+      base::AutoLock lock(lock_);
+      err = (*simple_buffer_queue_)->Enqueue(
+          simple_buffer_queue_, audio_data_[i].get(), buffer_size_bytes_);
+    }
     if (SL_RESULT_SUCCESS != err) {
       HandleError(err);
       return AudioInputStream::OpenOutcome::kFailed;
@@ -118,10 +121,10 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 
   CHECK(thread_checker_.CalledOnValidThread());
   CHECK(callback);
-  CHECK(recorder_);
-  CHECK(simple_buffer_queue_);
 
   base::AutoLock lock(lock_);
+  CHECK(recorder_);
+  CHECK(simple_buffer_queue_);
   callback_ = callback;
   started_ = true;
 }
@@ -140,8 +143,14 @@ void StarboardAudioInputStream::Stop() {
   if (recorder_) {
     (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
   }
-  if (simple_buffer_queue_) {
-    (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
+  
+  SLAndroidSimpleBufferQueueItf queue = nullptr;
+  {
+    base::AutoLock lock(lock_);
+    queue = simple_buffer_queue_;
+  }
+  if (queue) {
+    (*queue)->Clear(queue);
   }
 }
 
@@ -231,16 +240,22 @@ bool StarboardAudioInputStream::CreateRecorder() {
           recorder_object_.Get(), SL_IID_RECORD, &recorder_),
       false);
 
+  SLAndroidSimpleBufferQueueItf queue = nullptr;
   LOG_ON_FAILURE_AND_RETURN(
       recorder_object_->GetInterface(recorder_object_.Get(),
                                      SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
-                                     &simple_buffer_queue_),
+                                     &queue),
       false);
 
   LOG_ON_FAILURE_AND_RETURN(
-      (*simple_buffer_queue_)->RegisterCallback(
-          simple_buffer_queue_, SimpleBufferQueueCallback, this),
+      (*queue)->RegisterCallback(
+          queue, SimpleBufferQueueCallback, this),
       false);
+
+  {
+    base::AutoLock lock(lock_);
+    simple_buffer_queue_ = queue;
+  }
 
   return true;
 }
@@ -282,6 +297,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   }
 }
 void StarboardAudioInputStream::SetupAudioBuffer() {
+  base::AutoLock lock(lock_);
   CHECK(!audio_data_[0]);
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
     audio_data_[i] = std::make_unique<uint8_t[]>(buffer_size_bytes_);
@@ -289,6 +305,7 @@ void StarboardAudioInputStream::SetupAudioBuffer() {
 }
 
 void StarboardAudioInputStream::ReleaseAudioBuffer() {
+  base::AutoLock lock(lock_);
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
     audio_data_[i].reset();
   }
@@ -296,8 +313,13 @@ void StarboardAudioInputStream::ReleaseAudioBuffer() {
 
 void StarboardAudioInputStream::HandleError(SLresult error) {
   DLOG(ERROR) << "Starboard Input error " << error;
-  if (callback_)
-    callback_->OnError();
+  AudioInputCallback* callback = nullptr;
+  {
+    base::AutoLock lock(lock_);
+    callback = callback_;
+  }
+  if (callback)
+    callback->OnError();
 }
 
 }  // namespace media
