@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
+
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "media/base/audio_decoder.h"
@@ -40,7 +42,7 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
     return nullptr;
   }
 
-  absl::optional<SupportedVideoDecoderConfigs>
+  std::optional<SupportedVideoDecoderConfigs>
   GetPlatformSupportedVideoDecoderConfigs() final {
     return {};
   }

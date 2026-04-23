@@ -144,7 +144,7 @@ void StarboardRendererWrapper::SetCdm(CdmContext* cdm_context,
 }
 
 void StarboardRendererWrapper::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
+    std::optional<base::TimeDelta> latency_hint) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetRenderer()->SetLatencyHint(latency_hint);
 }

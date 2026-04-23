@@ -15,6 +15,8 @@
 #ifndef MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 #define MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
@@ -71,7 +73,7 @@ class StarboardRendererWrapper
                   RendererClient* client,
                   PipelineStatusCallback init_cb) override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override;
   void Flush(base::OnceClosure flush_cb) override;
   void StartPlayingFrom(base::TimeDelta time) override;
   void SetPlaybackRate(double playback_rate) override;

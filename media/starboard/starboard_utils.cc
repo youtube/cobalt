@@ -286,7 +286,7 @@ ENUM_EQ(kSbMediaRangeIdDerived, gfx::ColorSpace::RangeID::DERIVED);
 
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const VideoColorSpace& color_space,
-    const absl::optional<gfx::HDRMetadata>& hdr_metadata,
+    const std::optional<gfx::HDRMetadata>& hdr_metadata,
     const std::string& mime_type) {
   SbMediaColorMetadata sb_media_color_metadata = {};
 
