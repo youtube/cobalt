@@ -212,6 +212,13 @@ if (absl_build_tests) {
       ":config",
       ":core_headers",
     ]
+    if (is_cobalt_hermetic_build) {
+      sources += [ "//starboard/testing/sbeventhandle_from_main_no_args.cc" ]
+      deps += [
+        "//starboard/common",
+        "//starboard/elf_loader:sabi_string",
+      ]
+    }
   }
 }
 
