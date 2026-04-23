@@ -124,6 +124,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  using GetDecodeTargetGraphicsContextProviderFunc =
+      base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
+  void set_decode_target_graphics_context_provider(
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func);
 
   SbPlayerInterface* GetSbPlayerInterface();
 
@@ -267,6 +273,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   SbWindow sb_window_ = kSbWindowInvalid;
 
   raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
+
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
 
   // Message to signal a capability changed error.
   // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be

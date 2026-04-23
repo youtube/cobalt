@@ -41,6 +41,22 @@ namespace cobalt {
 // state and ensures that events are handled in a strict linear order,
 // synthesizing intermediate transitions when necessary. The actual execution of
 // lifecycle actions and side effects is delegated to the AppEventRunner.
+//
+// Through the course of the lifecycle, application_state_ may change as such:
+//
+//                       ┌──────────┐
+//                       │ kInitial │
+//                       └──────────┘
+//                         │      │
+//          ┌──────────────┘      └──────┐
+//          ↓                            ↓
+//    ┌──────────┐   ┌──────────┐   ┌────────────┐   ┌─────────┐   ╔══════════╗
+//    │ kStarted │ ↔ │ kBlurred │ ↔ │ kConcealed │ ↔ │ kFrozen │ → ║ kStopped ║
+//    └──────────┘   └──────────┘   └────────────┘   └─────────┘   ╚══════════╝
+//
+// Each box corresponds to an AppEventDelegate::ApplicationState. The ↔ arrows
+// represent bidirectional transitions handled via TransitionToLifeCycleState,
+// which ensures all intermediate states are traversed.
 class AppEventDelegate {
  public:
   // ApplicationState defines the lifecycle states of the application.

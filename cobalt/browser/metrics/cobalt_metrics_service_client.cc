@@ -29,7 +29,6 @@
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
-#include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -40,20 +39,21 @@
 
 namespace cobalt {
 
+// TODO(b/495528560): Unify CPU and memory polling state into one class.
 class MetricsPollingState {
  public:
   MetricsPollingState() = default;
   virtual ~MetricsPollingState() = default;
 
-  void RecordMetricsAfterDelay() {
+  void RecordMetricsAfterDelay(const base::FeatureParam<int>& interval_param) {
     base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
+
     if (base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature)) {
-      int interval_int = features::kCobaltMetricsIntervalParam.Get();
-      if (interval_int > 0) {
-        delay = base::Seconds(interval_int);
+      int interval = interval_param.Get();
+      if (interval > 0) {
+        delay = base::Seconds(interval);
       } else {
-        LOG(WARNING) << "Invalid metrics interval from feature: "
-                     << interval_int
+        LOG(WARNING) << "Invalid metrics interval from feature: " << interval
                      << ". Falling back to memory_instrumentation default.";
       }
     }
@@ -74,9 +74,18 @@ class CobaltMetricsServiceClient::MemoryPollingState
       scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter)
       : memory_emitter_(std::move(memory_emitter)) {}
 
+  void RecordMetricsAfterDelay() {
+    MetricsPollingState::RecordMetricsAfterDelay(
+        features::kMemoryMetricsIntervalParam);
+  }
+
   void RequestMetrics() override {
     memory_emitter_->FetchAndEmitProcessMemoryMetrics();
     RecordMetricsAfterDelay();
+  }
+
+  void SetCallbackForTesting(base::OnceClosure callback) {
+    memory_emitter_->set_callback_for_testing(std::move(callback));
   }
 
  private:
@@ -87,9 +96,18 @@ class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
   explicit CpuPollingState(scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter)
       : cpu_emitter_(std::move(cpu_emitter)) {}
 
+  void RecordMetricsAfterDelay() {
+    MetricsPollingState::RecordMetricsAfterDelay(
+        features::kCpuMetricsIntervalParam);
+  }
+
   void RequestMetrics() override {
     cpu_emitter_->FetchAndEmitCpuMetrics();
     RecordMetricsAfterDelay();
+  }
+
+  void SetCallbackForTesting(base::OnceClosure callback) {
+    cpu_emitter_->set_callback_for_testing(std::move(callback));
   }
 
  private:
@@ -339,12 +357,25 @@ void CobaltMetricsServiceClient::SetMetricsListener(
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
 
-void CobaltMetricsServiceClient::ScheduleRecordForTesting(
+void CobaltMetricsServiceClient::ScheduleMemoryRecordForTesting(
     base::OnceClosure done_callback) {
-  scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
-      CreateMemoryMetricsEmitter();
-  emitter->set_callback_for_testing(std::move(done_callback));
-  emitter->FetchAndEmitProcessMemoryMetrics();
+  ScheduleRecordForTestingInternal(memory_state_, std::move(done_callback));
+}
+
+void CobaltMetricsServiceClient::ScheduleCpuRecordForTesting(
+    base::OnceClosure done_callback) {
+  ScheduleRecordForTestingInternal(cpu_state_, std::move(done_callback));
+}
+
+template <typename T>
+void CobaltMetricsServiceClient::ScheduleRecordForTestingInternal(
+    base::SequenceBound<T>& state,
+    base::OnceClosure done_callback) {
+  if (state) {
+    state.AsyncCall(&T::SetCallbackForTesting)
+        .WithArgs(std::move(done_callback));
+    state.AsyncCall(&T::RequestMetrics);
+  }
 }
 
 scoped_refptr<CobaltMemoryMetricsEmitter>

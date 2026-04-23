@@ -181,7 +181,6 @@ source_set("metrics") {
   ]
   deps = [
     ":features",
-    ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",

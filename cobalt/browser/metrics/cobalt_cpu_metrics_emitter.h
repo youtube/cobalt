@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/process/process_metrics.h"
 #include "base/sequence_checker.h"
@@ -38,14 +39,20 @@ class CobaltCpuMetricsEmitter
 
   void FetchAndEmitCpuMetrics();
 
+  void set_callback_for_testing(base::OnceClosure callback) {
+    callback_for_testing_ = std::move(callback);
+  }
+
  protected:
-  // TODO(b/492251096): add tests for CPU metrics emitter class
   virtual ~CobaltCpuMetricsEmitter();
+
+  virtual double GetCpuUsage();
 
  private:
   friend class base::RefCountedThreadSafe<CobaltCpuMetricsEmitter>;
 
   std::unique_ptr<base::ProcessMetrics> process_metrics_;
+  base::OnceClosure callback_for_testing_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

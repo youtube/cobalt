@@ -35,6 +35,10 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
   void Initialize(base::UnguessableToken channel_token,
                   int32_t route_id,
                   base::OnceClosure callback) override;
+  void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override;
 
  private:
   void OnWillDestroyStub(bool have_context) override;

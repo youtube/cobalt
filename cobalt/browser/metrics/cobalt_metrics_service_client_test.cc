@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/system/sys_info.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
@@ -78,9 +79,10 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->process_type =
         memory_instrumentation::mojom::ProcessType::BROWSER;
     browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
-    browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
-    browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
-    browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+    browser_dump->os_dump->private_footprint_kb = 10240;    // 10 MB
+    browser_dump->os_dump->resident_set_kb = 20480;         // 20 MB
+    browser_dump->os_dump->shared_footprint_kb = 5120;      // 5 MB
+    browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
 
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -212,6 +214,21 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
   ~TestProcessMemoryMetricsEmitter() override = default;
 };
 
+class TestCpuMetricsEmitter : public CobaltCpuMetricsEmitter {
+ public:
+  TestCpuMetricsEmitter() = default;
+
+  // Mock CPU usage to verify accurate recording of average.
+  double GetCpuUsage() override {
+    const int num_processors = base::SysInfo::NumberOfProcessors();
+    double mock_usage = 50.0 * num_processors;  // 50% per core.
+    return mock_usage;
+  }
+
+ protected:
+  ~TestCpuMetricsEmitter() override = default;
+};
+
 // Mock for MetricsService to verify construction of a specific MetricsService
 // in tests.
 class MockMetricsService : public metrics::MetricsService {
@@ -310,6 +327,10 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   scoped_refptr<CobaltMemoryMetricsEmitter> CreateMemoryMetricsEmitter()
       override {
     return base::MakeRefCounted<TestProcessMemoryMetricsEmitter>();
+  }
+
+  scoped_refptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter() override {
+    return base::MakeRefCounted<TestCpuMetricsEmitter>();
   }
 
   void OnApplicationNotIdleInternal() override {
@@ -491,12 +512,27 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
+  base::HistogramTester histogram_tester;
+
+  // Trigger CPU usage dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50),
+            1);
+}
+
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   base::HistogramTester histogram_tester;
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.
@@ -595,7 +631,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.
@@ -807,7 +843,8 @@ TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
       features::kCobaltMetricsIntervalFeature,
-      {{"cobalt-metrics-interval", base::NumberToString(kCustomInterval)}});
+      {{"memory-metrics-interval", base::NumberToString(kCustomInterval)},
+       {"cpu-metrics-interval", base::NumberToString(kCustomInterval)}});
 
   // Re-initialize client to pick up new feature settings if needed,
   // but wait, CobaltMetricsServiceClient::Initialize calls
@@ -824,12 +861,16 @@ TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by kCustomInterval - 1 second. Still no metrics.
   task_environment_.FastForwardBy(base::Seconds(kCustomInterval - 1));
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by 1 more second. Now metrics should be recorded.
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -838,6 +879,9 @@ TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
       histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
           .size(),
       1u);
+  // CPU metrics should also be recorded.
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
 }
 
 TEST_F(CobaltMetricsServiceClientBaseTest,
@@ -865,12 +909,16 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by 299 seconds. Still no metrics.
   task_environment_.FastForwardBy(base::Seconds(299));
   EXPECT_EQ(0u, histogram_tester
                     .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
                     .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
 
   // Fast forward by 1 more second (total 300s). Now metrics should be recorded.
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -879,6 +927,8 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
       histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
           .size(),
       1u);
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
 }
 
 }  // namespace cobalt
