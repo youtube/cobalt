@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>H5vccCircularBuffer E2E Test</title>
+  <script>
+    // This file is used for E2E testing of the H5vccCircularBuffer.
+    // The goal is to verify that data survives a hard crash (kill -9) of Cobalt.
+    //
+    // The test runs in two phases:
+    // Phase 1: Cobalt starts with an empty buffer, this script writes data and sets status to "WRITTEN".
+    //          The test script then kills Cobalt.
+    // Phase 2: Cobalt restarts. This script should find the data written in Phase 1,
+    //          verify it, and set status to "SUCCESS".
+
+    window.test_status = "INIT";
+
+    async function runTest() {
+      try {
+        const buffer = new H5vccCircularBuffer('gel_e2e');
+        const data = buffer.peek();
+
+        if (data) {
+          // Data found! This should happen in Phase 2 after the crash.
+          console.log("E2E: Found data in buffer: " + data);
+          if (data === "e2e_test_data") {
+            window.test_status = "SUCCESS";
+            buffer.pop(); // Clean up for next test run
+          } else {
+            window.test_status = "FAIL_WRONG_DATA";
+          }
+        } else {
+          // Buffer is empty. This should happen in Phase 1.
+          console.log("E2E: Buffer empty, writing data...");
+          buffer.append("e2e_test_data");
+          // Signal to the test script that data has been written.
+          window.test_status = "WRITTEN";
+        }
+      } catch (e) {
+        window.test_status = "ERROR: " + e.message;
+        console.error(e);
+      }
+    }
+
+    // Run the test after a short delay to ensure everything is loaded and ready.
+    setTimeout(runTest, 1000);
+  </script>
+</head>
+<body>
+  <h1>H5vccCircularBuffer E2E Test</h1>
+  <div id="status">Check console logs or window.test_status</div>
+</body>
+</html>

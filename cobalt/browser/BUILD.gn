@@ -59,6 +59,7 @@ source_set("browser") {
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//cobalt/browser/h5vcc_circular_buffer",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
     "//cobalt/browser/h5vcc_metrics/public/mojom",

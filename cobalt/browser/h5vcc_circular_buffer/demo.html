@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>H5vccCircularBuffer Demo & Manual Test</title>
+  <script>
+    window.test_status = "INIT";
+
+    async function initDemo() {
+      try {
+        const buffer = new H5vccCircularBuffer('gel_demo');
+        const data = buffer.peek();
+
+        const statusDiv = document.getElementById('startup_status');
+        if (data) {
+          statusDiv.innerHTML = "<p style='color: green;'>Found data on startup: <b>" + data + "</b></p>";
+          // Provide a button to commit it
+          document.getElementById('commit_section').style.display = 'block';
+        } else {
+          statusDiv.innerHTML = "<p>Buffer is empty.</p>";
+          // Auto write something to test recovery
+          const newData = "demo_data_" + Date.now();
+          buffer.append(newData);
+          statusDiv.innerHTML += "<p style='color: blue;'>Automatically wrote new data to buffer: <b>" + newData + "</b></p>";
+        }
+      } catch (e) {
+        document.getElementById('startup_status').innerText = "Error: " + e.message;
+        console.error(e);
+      }
+    }
+
+    function popData() {
+      try {
+        const buffer = new H5vccCircularBuffer('gel_demo');
+        buffer.pop();
+        document.getElementById('startup_status').innerHTML = "<p>Data popped. Buffer should be empty now.</p>";
+        document.getElementById('commit_section').style.display = 'none';
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
+    }
+
+    function closeApp() {
+      window.close();
+    }
+
+    setTimeout(initDemo, 1000);
+  </script>
+</head>
+<body>
+  <h1>H5vccCircularBuffer Demo & Manual Test</h1>
+
+  <div id="explanations">
+    <h2>What is this?</h2>
+    <p>This page demonstrates the usage of the <code>H5vccCircularBuffer</code> interface for reliable logging.</p>
+    <p>The goal of this circular buffer is to survive application crashes. Data written to it is persisted in a memory-mapped file.</p>
+  </div>
+  <hr>
+
+  <div>
+    <h2>Startup Check</h2>
+    <div id="startup_status">Checking buffer...</div>
+  </div>
+  <hr>
+
+  <div id="commit_section" style="display: none;">
+    <h2>Manage Data</h2>
+    <button onclick="popData()">Pop (Remove) Oldest Event</button>
+    <hr>
+  </div>
+
+  <div>
+    <h2>Manual Test Instructions</h2>
+    <ol>
+      <li>Load this page. It will check the buffer.</li>
+      <li>If empty, it will automatically write a unique string (e.g., <code>demo_data_[timestamp]</code>).</li>
+      <li><b>To test crash resilience</b>: Open a terminal and hard kill Cobalt using <code>kill -9 [PID]</code>.</li>
+      <li>Restart Cobalt and load this page again.</li>
+      <li>You should see the data written in step 2 displayed in the "Startup Check" section!</li>
+    </ol>
+  </div>
+  <hr>
+
+  <div>
+    <h2>Control</h2>
+    <button onclick="closeApp()">Close Application (Clean Exit)</button>
+  </div>
+</body>
+</html>

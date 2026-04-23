@@ -292,6 +292,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
+    "//cobalt/storage/circular_buffer_test.cc",
   ]
 
   if (is_starboard) {
@@ -329,6 +330,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
+    "//cobalt/storage",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/prefs",
