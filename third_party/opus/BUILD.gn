@@ -568,6 +568,10 @@ test("test_opus_encode") {
 test("test_opus_decode") {
   sources = [ "src/tests/test_opus_decode.c" ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/sbeventhandle_main_no_loader_args.cc" ]
+  }
+
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
     "//build/config/compiler:no_chromium_code",
@@ -576,6 +580,12 @@ test("test_opus_decode") {
   ]
 
   deps = [ ":opus" ]
+  if (is_cobalt_hermetic_build) {
+    deps += [
+      "//starboard/common",
+      "//starboard/elf_loader:sabi_string",
+    ]
+  }
 }
 
 test("test_opus_padding") {
