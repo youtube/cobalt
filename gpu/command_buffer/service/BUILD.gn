@@ -9,6 +9,10 @@ import("//third_party/dawn/scripts/dawn_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
+if (is_android) {
+  import("//build/config/android/config.gni")
+}
+
 group("service") {
   if (is_component_build) {
     public_deps = [ "//gpu" ]
@@ -554,8 +558,6 @@ target(link_target_type, "gles2_sources") {
     sources += [
       "ahardwarebuffer_utils.cc",
       "ahardwarebuffer_utils.h",
-      "image_reader_gl_owner.cc",
-      "image_reader_gl_owner.h",
       "ref_counted_lock.cc",
       "ref_counted_lock.h",
       "shared_image/ahardwarebuffer_image_backing_factory.cc",
@@ -580,6 +582,15 @@ target(link_target_type, "gles2_sources") {
       "texture_owner.cc",
       "texture_owner.h",
     ]
+
+    # These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
+    # available past Android API 26 (a.k.a. Android 8 a.k.a. Oreo).
+    if (default_min_sdk_version >= 26) {
+      sources += [
+        "image_reader_gl_owner.cc",
+        "image_reader_gl_owner.h",
+      ]
+    }
 
     # For AImageReader.
     libs = [ "mediandk" ]
@@ -668,10 +679,14 @@ if (is_android) {
   source_set("android_texture_owner_unittests") {
     testonly = true
     sources = [
-      "image_reader_gl_owner_unittest.cc",
       "surface_texture_gl_owner_unittest.cc",
       "surface_texture_transform_unittest.cc",
     ]
+    # These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
+    # available past Android API 26 (a.k.a. Android 8 a.k.a. Oreo).
+    if (default_min_sdk_version >= 26) {
+      sources += [ "image_reader_gl_owner_unittest.cc" ]
+    }
 
     # For AImageReader_getFormat()
     libs = [ "mediandk" ]
