@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/android/trace_event_binding.h"
+
 #include <jni.h>
 
 #include <set>
 
+#include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/trace_event_binding.h"
-#include "base/base_jni/TraceEvent_jni.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
@@ -16,6 +18,9 @@
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/trace_event/trace_event_impl.h"  // no-presubmit-check
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_jni/TraceEvent_jni.h"
 
 namespace base {
 namespace android {
