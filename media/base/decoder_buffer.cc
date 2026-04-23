@@ -63,47 +63,44 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // --- Starboard-specific Constructor Implementations ---
-DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
-  if (size_ > 0) {
+DecoderBuffer::DecoderBuffer(size_t size) {
+  if (size > 0) {
     CHECK(s_allocator);
-    Initialize(DemuxerStream::UNKNOWN);
+    Initialize(DemuxerStream::UNKNOWN, size);
   }
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
-                             size_t size)
-    : size_(size) {
+                             size_t size) {
   if (!data) {
-    CHECK_EQ(size_, 0u);
+    CHECK_EQ(size, 0u);
     return;
   }
 
   CHECK(s_allocator);
-  Initialize(type);
-  s_allocator->Write(allocator_data_->handle, data, size_);
+  Initialize(type, size);
+  s_allocator->Write(allocator_data_->handle, data, size);
 }
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
-                             base::span<const uint8_t> data)
-    : size_(data.size()) {
+                             base::span<const uint8_t> data) {
   if (data.empty()) {
     return;
   }
   CHECK(s_allocator);
-  Initialize(type);
+  Initialize(type, data.size());
   memcpy(writable_data(), data.data(), data.size());
 }
 
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : DecoderBuffer(DemuxerStream::UNKNOWN, data) {}
 
-DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
-    : size_(data.size()) {
+DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data) {
   if (data.empty()) {
     return;
   }
   CHECK(s_allocator);
-  Initialize(DemuxerStream::UNKNOWN);
+  Initialize(DemuxerStream::UNKNOWN, data.size());
   memcpy(writable_data(), data.data(), data.size());
 }
 
@@ -169,7 +166,7 @@ DecoderBuffer::~DecoderBuffer() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+void DecoderBuffer::Initialize(DemuxerStream::Type type, size_t size) {
   DCHECK(s_allocator);
   DCHECK(data_.empty());
   DCHECK(!allocator_data_);
@@ -177,8 +174,8 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
 
   int alignment = s_allocator->GetBufferAlignment();
   allocator_data_.emplace(type,
-                          s_allocator->Allocate(type, size_, alignment),
-                          size_);
+                          s_allocator->Allocate(type, size, alignment),
+                          size);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

@@ -242,7 +242,7 @@ class MEDIA_EXPORT DecoderBuffer
   size_t size() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return size_;
+    return allocator_data_ ? allocator_data_->size : 0u;
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().size() : data_.size();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -278,7 +278,7 @@ class MEDIA_EXPORT DecoderBuffer
 
   bool empty() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return size_ == 0u;
+    return !allocator_data_ || allocator_data_->size == 0u;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().empty() : data_.empty();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -418,7 +418,6 @@ class MEDIA_EXPORT DecoderBuffer
   };
   // Encoded data, allocated from DecoderBuffer::Allocator.
   std::optional<AllocatorData> allocator_data_;
-  size_t size_ = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Encoded data, if it is stored on the heap.
@@ -453,7 +452,7 @@ class MEDIA_EXPORT DecoderBuffer
   const bool is_end_of_stream_ : 1 = false;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void Initialize(DemuxerStream::Type type);
+  void Initialize(DemuxerStream::Type type, size_t size);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
