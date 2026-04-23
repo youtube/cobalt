@@ -97,6 +97,12 @@ assert(!is_win || is_clang,
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
   import("//third_party/jni_zero/jni_zero.gni")
+
+  # JNI headers for copied_base are generated under jni_headers/copied_base/base.
+  # Add it to the include dirs so the regular '#include "base/..."' includes work.
+  config("copied_base_jni_include_dir") {
+    include_dirs = [ "$jni_headers_dir/copied_base" ]
+  }
 }
 
 if (is_fuchsia) {
@@ -1378,6 +1384,8 @@ component("base") {
       "android/trace_event_binding.h",
     ]
 
+    public_configs += [ ":copied_base_jni_include_dir" ]
+    
     deps += [
       ":base_jni",
       ":process_launcher_jni",
