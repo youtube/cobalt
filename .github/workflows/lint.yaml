@@ -38,6 +38,14 @@ jobs:
           # HEAD commit from the base branch (i.e. HEAD~1).
           fetch-depth: 2
           filter: blob:none
+          sparse-checkout: |
+            .github
+            .pre-commit-config.yaml
+            .clang-format
+            .pylintrc
+      - name: Sparse checkout changed files
+        run: |
+          git diff --name-only HEAD~1 HEAD | git sparse-checkout add --stdin
       - name: Run pre-commit
         run: |
           export SKIP=chromium-pre-commit
