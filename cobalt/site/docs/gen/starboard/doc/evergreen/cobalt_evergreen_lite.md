@@ -1,3 +1,6 @@
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Evergreen Lite Partner Doc
 
 ## What is Cobalt Evergreen Lite?
