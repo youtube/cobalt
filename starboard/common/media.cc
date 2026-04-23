@@ -624,6 +624,10 @@ const char* GetMediaVideoCodecName(SbMediaVideoCodec codec) {
       return "vp8";
     case kSbMediaVideoCodecVp9:
       return "vp9";
+#if SB_API_VERSION >= 18
+    case kSbMediaVideoCodecAv2:
+      return "av2";
+#endif  // SB_API_VERSION >= 18
   }
   SB_NOTREACHED();
   return "invalid";

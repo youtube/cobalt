@@ -381,6 +381,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbMediaVideoCodecAv1,
       kSbMediaVideoCodecVp8,
       kSbMediaVideoCodecVp9,
+#if SB_API_VERSION >= 18
+      kSbMediaVideoCodecAv2,
+#endif  // SB_API_VERSION >= 18
   };
   // clang-format on
 

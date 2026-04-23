@@ -54,6 +54,9 @@ typedef enum SbMediaVideoCodec {
   kSbMediaVideoCodecAv1,
   kSbMediaVideoCodecVp8,
   kSbMediaVideoCodecVp9,
+#if SB_API_VERSION >= 18
+  kSbMediaVideoCodecAv2,
+#endif  // SB_API_VERSION >= 18
 } SbMediaVideoCodec;
 
 // Types of audio elementary streams that can be supported.
