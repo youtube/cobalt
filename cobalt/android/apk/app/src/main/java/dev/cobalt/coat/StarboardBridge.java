@@ -285,8 +285,14 @@ public class StarboardBridge {
     }
   }
 
-  // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
-  public void requestStop(int errorLevel) {}
+  /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  public void requestStop(int errorLevel) {
+    applicationStopping();
+    Activity activity = mActivityHolder.get();
+    if (activity != null) {
+      activity.finishAndRemoveTask();
+    }
+  }
 
   public boolean onSearchRequested() {
     return false;
@@ -765,5 +771,10 @@ public class StarboardBridge {
   @CalledByNative
   protected void setStartupMilestone(int milestone) {
     StartupGuard.getInstance().setStartupMilestone(milestone);
+  }
+
+  @CalledByNative
+  protected void setStartupDiagnosisInfo(String key, String value) {
+    StartupGuard.getInstance().setDiagnosisInfo(key, value);
   }
 }

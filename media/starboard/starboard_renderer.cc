@@ -324,13 +324,10 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
-    if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
-      task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
-    }
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_));
   }
 
   // The function can be called when there are in-flight Demuxer::Read() calls
@@ -621,9 +618,8 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
-      // TODO(b/375070492): Implement decode-to-texture support
-      SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-      audio_config, audio_mime_type, video_config, video_mime_type,
+      get_decode_target_graphics_context_provider_func_, audio_config,
+      audio_mime_type, video_config, video_mime_type,
       // TODO(b/326497953): Support suspend/resume.
       // TODO(b/326508279): Support background mode.
       sb_window_, drm_system_, this,
@@ -1126,6 +1122,13 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+void StarboardRenderer::set_decode_target_graphics_context_provider(
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func) {
+  get_decode_target_graphics_context_provider_func_ =
+      get_decode_target_graphics_context_provider_func;
 }
 
 }  // namespace media

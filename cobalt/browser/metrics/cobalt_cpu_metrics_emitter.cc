@@ -16,30 +16,33 @@
 
 #include <algorithm>
 
-#include "base/check_op.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info.h"
 
 namespace cobalt {
 
-CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() = default;
+CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() {
+  // The emitter is created on the main thread but will be used
+  // on a background sequence maintained by base::SequenceBound
+  // in CobaltMetricsServiceClient.
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+}
 
 CobaltCpuMetricsEmitter::~CobaltCpuMetricsEmitter() = default;
 
-void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
-    base::ProcessMetrics* process_metrics) {
+void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!process_metrics) {
+
+  if (!process_metrics_) {
+    process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
+  }
+
+  if (!process_metrics_) {
     return;
   }
 
-  // Total CPU utilization in percentage of all cores in between every call.
-  constexpr double kInvalidCPUUsageValue = 0.0;
-  const double cpu_usage =
-      process_metrics->GetPlatformIndependentCPUUsage().value_or(
-          kInvalidCPUUsageValue);
-
+  const double cpu_usage = GetCpuUsage();
   const int num_processors = base::SysInfo::NumberOfProcessors();
   DCHECK_GT(num_processors, 0)
       << "Platform returned invalid number of processors.";
@@ -47,6 +50,17 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
   base::UmaHistogramPercentage(
       "CPU.Total.UsageInPercentage",
       base::ClampRound<int>(cpu_usage / std::max(1, num_processors)));
+
+  if (callback_for_testing_) {
+    std::move(callback_for_testing_).Run();
+  }
+}
+
+double CobaltCpuMetricsEmitter::GetCpuUsage() {
+  // Total CPU utilization in percentage of all cores in between every call.
+  constexpr double kInvalidCPUUsageValue = 0.0;
+  return process_metrics_->GetPlatformIndependentCPUUsage().value_or(
+      kInvalidCPUUsageValue);
 }
 
 }  // namespace cobalt

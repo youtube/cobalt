@@ -20,10 +20,40 @@ pipeline () {
   # Run mac specific setup steps.
   setup_mac
 
+  local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
+  git config --global --add safe.directory "${gclient_root}/src"
+  local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
+
+  # Set up gclient and run sync.
+  ##############################################################################
+  cd "${gclient_root}"
+  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
+  export PATH="${PATH}:${gclient_root}/tools/depot_tools"
+  gclient config --name=src "${git_url}"
+  echo "target_os=['ios']" >> .gclient
+  # -D, --delete_unversioned_trees
+  # -f, --force force update even for unchanged modules
+  # -R, --reset resets any local changes before updating (git only)
+  gclient sync -v \
+    --shallow \
+    --no-history \
+    -D \
+    -f \
+    -R \
+    -r "${KOKORO_GIT_COMMIT_src}"
+  build_telemetry opt-out
+
+  # Run GN and Ninja.
+  ##############################################################################
+  cd "${gclient_root}/src"
+  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
+    --script-executable=/usr/bin/python3
+  for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
+    echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
+  done
   # Build Cobalt.
-  local out_dir="${WORKSPACE_COBALT}/out/${PLATFORM}_${CONFIG}"
-  run_gn "${out_dir}" "${TARGET_PLATFORM}" "${EXTRA_GN_ARGUMENTS:-}"
-  ninja_build "${out_dir}" "${TARGET}"
+  local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
+  autoninja -C "${out_dir}" ${TARGET}  # TARGET may expand to multiple args
 
   # Package and upload nightly release archive.
   if is_release_build && is_release_config; then
@@ -65,15 +95,6 @@ setup_mac () {
       "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 
   export DEVELOPER_DIR="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
-
-  # Install GN.
-  cp -a ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/third-party/mac/bin/gn \
-    /usr/local/bin
-
-  # Install Sccache v0.3.3 - last version before OpenDAL was introduced.
-  # Sccache with OpenDAL doesn't work on Ventura internal cluster.
-  sudo cp -a ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/third-party/mac/bin/sccache \
-    /usr/local/bin
 
   # Configure PATH.
   export PATH="/usr/local/opt/bison/bin:/usr/libexec:$PATH"

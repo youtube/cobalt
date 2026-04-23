@@ -175,6 +175,12 @@ source_set("dns") {
 
   deps = [ "//net:net_deps" ]
 
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/browser:features"
+    ]
+  }
+
   public_deps = [
     ":dns_client",
     ":host_resolver",

@@ -44,6 +44,10 @@ class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
     RaisePlatformErrorProxy();
   }
 
+  void SetStartupDiagnosisInfo(const char* key, const char* value) override {
+    // Do nothing in tests to avoid JNI calls.
+  }
+
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer) {
     CobaltWebContentsObserver::SetTimerForTestInternal(std::move(timer));
   }
