@@ -469,9 +469,17 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   dns_config_change_manager_ = std::make_unique<DnsConfigChangeManager>();
 
-  host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
-      net::HostResolver::ManagerOptions(),
-      net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(), net_log_);
+  if (base::FeatureList::IsEnabled(net::features::kHappyEyeballsV3)) {
+    net::HostResolver::ManagerOptions options;
+    options.insecure_dns_client_enabled = true;
+    host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
+      options, net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(),
+      net_log_);
+  } else {
+    host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
+        net::HostResolver::ManagerOptions(),
+        net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(), net_log_);
+  }
   host_resolver_factory_ = std::make_unique<net::HostResolver::Factory>();
 
   http_auth_cache_copier_ = std::make_unique<HttpAuthCacheCopier>();

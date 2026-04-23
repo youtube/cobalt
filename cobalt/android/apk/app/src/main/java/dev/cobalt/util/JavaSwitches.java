@@ -38,6 +38,9 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
     }
 
+    // Enable HappyEyeballsV3 feature
+    extraCommandLineArgs.add("--enable-features=HappyEyeballsV3");
+
     return extraCommandLineArgs;
   }
 }
