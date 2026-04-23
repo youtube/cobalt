@@ -17,7 +17,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 
 // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #endif
 
@@ -46,10 +46,10 @@ bool CobaltTextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
 
 void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
   // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
-#endif  // BUILDFLAG(IS_ANDROIDTV)
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
