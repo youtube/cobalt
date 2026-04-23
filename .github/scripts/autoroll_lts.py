@@ -10,8 +10,9 @@ _SKIP_LIST = {
         # Reorders deleted BUILD_STATUS.md file (#9476, #9508).
         '7e6524981fdd6ab3c87bc55785343d40116a05e5',
         'adda40a0d3b08b9302f441e76eef0391c70e0462',
-        # Modifies deleted workflow trigger files (#9473).
+        # Modifies deleted workflow trigger files (#9473, #10110).
         'b24037232cbc7a74bf01dbc4c93dbe9701328b5e',
+        '234bf5073b12bcd7a08e44eaeb42f809137a440e',
         # Skia import commits, already applied in #9625 (#9624).
         'b77e86a96022541455c239778a4a62462d790c73',
         '8ed51696a04da8b51b82d6540b3b314347c43794',
