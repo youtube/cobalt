@@ -11,8 +11,11 @@
 #include "media/audio/audio_device_description.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
+#endif
+
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/features.h"

@@ -10,8 +10,10 @@
 #include <utility>
 #include <vector>
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
+#endif
 
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
