@@ -10,6 +10,11 @@ test("storage_unittests") {
     "//storage/common:unittests",
   ]
 
+  sources = []
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
+
   if (is_ios) {
     deps += [ "//storage/test:test_bundle_data" ]
   } else {
