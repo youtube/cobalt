@@ -436,6 +436,9 @@ ipcz_source_set("ipcz_tests_sources") {
 # that it gets compile coverage from Chromium infrastructure.
 test("ipcz_tests") {
   sources = [ "test/run_all_tests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
   deps = [
     ":ipcz_tests_sources_standalone",
     ":test_buildflags",
