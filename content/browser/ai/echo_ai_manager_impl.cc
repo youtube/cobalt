@@ -7,8 +7,11 @@
 #include "base/no_destructor.h"
 #include "base/supports_user_data.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/language/core/common/locale_util.h"
-#include "components/optimization_guide/core/optimization_guide_features.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/optimization_guide/core/optimization_guide_features.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/ai/echo_ai_language_model.h"
 #include "content/browser/ai/echo_ai_rewriter.h"
 #include "content/browser/ai/echo_ai_summarizer.h"
@@ -206,6 +209,15 @@ void EchoAIManagerImpl::CreateSummarizer(
 
 void EchoAIManagerImpl::GetLanguageModelParams(
     GetLanguageModelParamsCallback callback) {
+#if BUILDFLAG(IS_COBALT)
+  std::move(callback).Run(blink::mojom::AILanguageModelParams::New(
+      blink::mojom::AILanguageModelSamplingParams::New(
+          /*top_k=*/1,
+          /*temperature=*/1.0f),
+      blink::mojom::AILanguageModelSamplingParams::New(
+          /*top_k=*/1,
+          /*temperature=*/2.0f)));
+#else
   std::move(callback).Run(blink::mojom::AILanguageModelParams::New(
       blink::mojom::AILanguageModelSamplingParams::New(
           optimization_guide::features::GetOnDeviceModelDefaultTopK(),
@@ -213,6 +225,7 @@ void EchoAIManagerImpl::GetLanguageModelParams(
       blink::mojom::AILanguageModelSamplingParams::New(
           optimization_guide::features::GetOnDeviceModelMaxTopK(),
           /*temperature=*/2.0f)));
+#endif
 }
 
 void EchoAIManagerImpl::CanCreateWriter(
@@ -322,6 +335,14 @@ void EchoAIManagerImpl::ReturnAILanguageModelCreationResult(
     base::flat_set<blink::mojom::AILanguageModelPromptType>
         enabled_input_types) {
   mojo::PendingRemote<blink::mojom::AILanguageModel> language_model;
+#if BUILDFLAG(IS_COBALT)
+  auto model_sampling_params =
+      sampling_params
+          ? std::move(sampling_params)
+          : blink::mojom::AILanguageModelSamplingParams::New(
+                /*top_k=*/1,
+                /*temperature=*/1.0f);
+#else
   auto model_sampling_params =
       sampling_params
           ? std::move(sampling_params)
@@ -329,6 +350,7 @@ void EchoAIManagerImpl::ReturnAILanguageModelCreationResult(
                 optimization_guide::features::GetOnDeviceModelDefaultTopK(),
                 optimization_guide::features::
                     GetOnDeviceModelDefaultTemperature());
+#endif
 
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<EchoAILanguageModel>(model_sampling_params->Clone(),

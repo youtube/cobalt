@@ -10,7 +10,10 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/time/time.h"
-#include "components/optimization_guide/core/optimization_guide_features.h"
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/optimization_guide/core/optimization_guide_features.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/ai/echo_ai_manager_impl.h"
 #include "content/public/browser/browser_thread.h"
 #include "mojo/public/cpp/bindings/remote.h"

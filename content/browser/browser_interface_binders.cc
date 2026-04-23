@@ -18,8 +18,8 @@
 #include "cc/base/switches.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
+#include "components/optimization_guide/public/mojom/model_broker.mojom.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
-#include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "components/viz/host/gpu_client.h"
 #include "content/browser/attribution_reporting/attribution_internals.mojom.h"
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
@@ -1305,8 +1305,10 @@ void PopulateBinderMapWithContext(
   map->Add<blink::mojom::StorageAccessHandle>(
       base::BindRepeating(&StorageAccessHandle::Create));
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<optimization_guide::mojom::ModelBroker>(base::BindRepeating(
       &EmptyBinderForFrame<optimization_guide::mojom::ModelBroker>));
+#endif  // !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     map->Add<blink::mojom::AIManager>(
         base::BindRepeating(&EmptyBinderForFrame<blink::mojom::AIManager>));
