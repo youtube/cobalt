@@ -535,6 +535,10 @@ test("gl_unittests") {
     "test/egl_initialization_displays_unittest.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
+
   if (!use_ozone) {
     sources += [ "gl_surface_egl_unittest.cc" ]
   }
