@@ -85,7 +85,7 @@ class StarboardAudioInputStream : public AudioInputStream {
 
   raw_ptr<AudioManagerAndroid> audio_manager_ = nullptr;
 
-  raw_ptr<AudioInputCallback> callback_ GUARDED_BY(lock_) = nullptr; 
+  raw_ptr<AudioInputCallback> callback_ GUARDED_BY(lock_) = nullptr;
 
   // Shared engine interfaces for the app.
   media::ScopedSLObjectItf recorder_object_;

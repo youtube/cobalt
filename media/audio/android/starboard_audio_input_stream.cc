@@ -143,7 +143,7 @@ void StarboardAudioInputStream::Stop() {
   if (recorder_) {
     (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
   }
-  
+
   SLAndroidSimpleBufferQueueItf queue = nullptr;
   {
     base::AutoLock lock(lock_);
