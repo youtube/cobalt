@@ -50,8 +50,11 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
-#include "content/browser/interest_group/ad_auction_headers_util.h"
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
+#include "content/browser/interest_group/ad_auction_headers_util.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -1736,11 +1739,13 @@ NavigationRequest::NavigationRequest(
       is_pdf_(is_pdf),
       is_embedder_initiated_fenced_frame_navigation_(
           is_embedder_initiated_fenced_frame_navigation),
+#if !BUILDFLAG(IS_COBALT)
       fenced_frame_properties_(
           is_embedder_initiated_fenced_frame_navigation
               ? std::make_optional(FencedFrameProperties(common_params_->url))
               : std::nullopt),
       embedder_shared_storage_context_(embedder_shared_storage_context),
+#endif
       has_ad_auction_headers_attribute_(frame_tree_node->ad_auction_headers()),
       request_method_(common_params_->method) {
   TRACE_EVENT_WITH_FLOW1("navigation", "NavigationRequest::NavigationRequest",
@@ -2057,12 +2062,14 @@ NavigationRequest::NavigationRequest(
                         *topics_header_value_result.header_value);
     }
 
+#if !BUILDFLAG(IS_COBALT)
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
             *frame_tree_node_, url::Origin::Create(common_params_->url))) {
       ad_auction_headers_eligible_ = true;
       headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
+#endif
   }
 
   begin_params_->headers = headers.ToString();
@@ -2293,10 +2300,12 @@ NavigationRequest::~NavigationRequest() {
     navigation_handle_proxy_->DidFinish();
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   if (is_deferred_on_fenced_frame_url_mapping_) {
     CHECK(NeedFencedFrameURLMapping());
     GetFencedFrameURLMap().RemoveObserverForURN(common_params_->url, this);
   }
+#endif
 
   RecordEarlyRenderFrameHostSwapMetrics();
 
@@ -2425,6 +2434,7 @@ void NavigationRequest::BeginNavigation() {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
   // If this is a fenced frame with a urn:uuid, or an iframe with a urn::uuid
   // given blink::features::kAllowURNsInIframes is enabled, then convert it to a
   // url before starting the navigation; otherwise, proceed directly with the
@@ -2470,7 +2480,9 @@ void NavigationRequest::BeginNavigation() {
     // NavigationRequest.
     return;
   }
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
   // Send any potential navigation start automatic beacons for this frame.
   frame_tree_node_->current_frame_host()
       ->MaybeSendFencedFrameAutomaticReportingBeacon(
@@ -2487,6 +2499,7 @@ void NavigationRequest::BeginNavigation() {
     base::UmaHistogramEnumeration(blink::kFencedFrameTopNavigationHistogram,
                                   blink::FencedFrameNavigationState::kBegin);
   }
+#endif
 
   BeginNavigationImpl();
 }
@@ -2647,6 +2660,9 @@ FencedFrameURLMapping& NavigationRequest::GetFencedFrameURLMap() {
 }
 
 bool NavigationRequest::NeedFencedFrameURLMapping() {
+#if BUILDFLAG(IS_COBALT)
+  return false;
+#else
   if (!blink::IsValidUrnUuidURL(common_params_->url)) {
     return false;
   }
@@ -2658,8 +2674,10 @@ bool NavigationRequest::NeedFencedFrameURLMapping() {
     is_embedder_initiated_fenced_frame_navigation_ = true;
   }
   return is_embedder_initiated_fenced_frame_navigation_;
+#endif
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void NavigationRequest::OnFencedFrameURLMappingComplete(
     const std::optional<FencedFrameProperties>& properties) {
   TRACE_EVENT_WITH_FLOW0("navigation",
@@ -2732,6 +2750,7 @@ void NavigationRequest::OnFencedFrameURLMappingComplete(
   BeginNavigationImpl();  // DO NOT ADD CODE after this, because it might have
                           // destroyed `this`.
 }
+#endif
 
 void NavigationRequest::BeginNavigationImpl() {
   TRACE_EVENT_WITH_FLOW0("navigation", "NavigationRequest::BeginNavigationImpl",
@@ -5794,11 +5813,13 @@ void NavigationRequest::OnRedirectChecksComplete(
                                *topics_header_value_result.header_value);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
     ad_auction_headers_eligible_ = false;
     removed_headers.push_back(kAdAuctionRequestHeaderKey);
   }
+#endif
 
   if (shared_storage_writable_opted_in_) {
     // On a redirect, the PermissionsPolicy may change the status of this
@@ -6424,12 +6445,14 @@ void NavigationRequest::CommitNavigation() {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
                                     response() ? response()->headers : nullptr);
   } else if (has_ad_auction_headers_attribute_) {
     RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
   }
+#endif
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();
@@ -6637,6 +6660,7 @@ void NavigationRequest::CommitNavigation() {
   commit_params_->modified_runtime_features =
       runtime_feature_state_context_.GetFeatureOverrides();
 
+#if !BUILDFLAG(IS_COBALT)
   // Documents loaded from fenced frame configs can opt into allowing
   // cross-origin subframes to use their reporting metadata to send
   // `reportEvent()` beacons. The cross-origin subframes still require a
@@ -6701,6 +6725,7 @@ void NavigationRequest::CommitNavigation() {
     commit_params_->fenced_frame_properties =
         computed_fenced_frame_properties->RedactFor(entity);
   }
+#endif
 
   commit_params_->load_with_storage_access = ShouldLoadWithStorageAccess(
       begin_params(), common_params(), frame_tree_node()->current_frame_host(),
@@ -7193,13 +7218,16 @@ net::Error NavigationRequest::CheckCSPDirectives(
 
   // [frame-src] or [fenced-frame-src]
   if (parent_policies) {
-    bool is_opaque_fenced_frame_root_navigation =
+    bool is_opaque_fenced_frame_root_navigation = false;
+#if !BUILDFLAG(IS_COBALT)
+    is_opaque_fenced_frame_root_navigation =
         frame_tree_node_->IsFencedFrameRoot() &&
         fenced_frame_properties_.has_value() &&
         fenced_frame_properties_->mapped_url().has_value() &&
         !fenced_frame_properties_->mapped_url()
              ->GetValueForEntity(FencedFrameEntity::kEmbedder)
              .has_value();
+#endif
     if (!IsAllowedByCSPDirective(
             parent_policies->content_security_policies, &parent_context,
             frame_tree_node_->IsFencedFrameRoot()
@@ -8557,6 +8585,7 @@ void NavigationRequest::ReadyToCommitNavigation(bool is_error) {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
   // For fenced frames, update the mapped URL to be the URL from navigation
   // commit (after redirects), because we want future same-origin checks to be
   // performed with respect to the first origin committed in the fenced frame.
@@ -8584,6 +8613,7 @@ void NavigationRequest::ReadyToCommitNavigation(bool is_error) {
           GetParentFrameOrOuterDocument()->GetLastCommittedOrigin());
     }
   }
+#endif
 
   if (ready_to_commit_callback_for_testing_)
     std::move(ready_to_commit_callback_for_testing_).Run();
@@ -10483,6 +10513,17 @@ bool NavigationRequest::ShouldReplaceCurrentEntryForFailedNavigation() const {
 }
 
 const std::optional<FencedFrameProperties>&
+NavigationRequest::GetFencedFrameProperties() const {
+#if BUILDFLAG(IS_COBALT)
+  static base::NoDestructor<std::optional<FencedFrameProperties>> empty_properties;
+  return *empty_properties;
+#else
+  return fenced_frame_properties_;
+#endif
+}
+
+#if !BUILDFLAG(IS_COBALT)
+const std::optional<FencedFrameProperties>&
 NavigationRequest::ComputeFencedFrameProperties(
     FencedFramePropertiesNodeSource node_source) const {
   if (node_source == FencedFramePropertiesNodeSource::kFrameTreeRoot &&
@@ -10500,9 +10541,19 @@ NavigationRequest::ComputeFencedFrameProperties(
 
   return frame_tree_node_->GetFencedFrameProperties(node_source);
 }
+#else
+const std::optional<FencedFrameProperties>&
+NavigationRequest::ComputeFencedFrameProperties() const {
+  static base::NoDestructor<std::optional<FencedFrameProperties>> empty_properties;
+  return *empty_properties;
+}
+#endif
 
 const std::optional<base::UnguessableToken>
 NavigationRequest::ComputeFencedFrameNonce() const {
+#if BUILDFLAG(IS_COBALT)
+  return std::nullopt;
+#else
   // For partition nonce, all nested frame inside a fenced frame tree should
   // operate on the partition nonce of the frame tree root.
   const std::optional<FencedFrameProperties>& computed_fenced_frame_properties =
@@ -10520,6 +10571,7 @@ NavigationRequest::ComputeFencedFrameNonce() const {
   }
   return computed_fenced_frame_properties->partition_nonce()
       ->GetValueIgnoringVisibility();
+#endif
 }
 
 void NavigationRequest::RenderFallbackContentForObjectTag() {

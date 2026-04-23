@@ -4,9 +4,12 @@
 
 #include "content/browser/devtools/frame_auto_attacher.h"
 
+#include "build/build_config.h"
 #include "base/containers/contains.h"
 #include "base/time/time.h"
-#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
@@ -191,10 +194,12 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       // This is similar to frames and pages above.
       ReattachServiceWorkers();
     }
+#if !BUILDFLAG(IS_COBALT)
     if (render_frame_host_ && !observing_auction_worklets_) {
       observing_auction_worklets_ = true;
       DebuggableAuctionWorkletTracker::GetInstance()->AddObserver(this);
     }
+#endif
     if (render_frame_host_ && !observing_shared_storage_worklets_) {
       observing_shared_storage_worklets_ = true;
       SharedStorageWorkletDevToolsManager::GetInstance()->AddObserver(this);
@@ -204,10 +209,12 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       ServiceWorkerDevToolsManager::GetInstance()->RemoveObserver(this);
       observing_service_workers_ = false;
     }
+#if !BUILDFLAG(IS_COBALT)
     if (observing_auction_worklets_) {
       DebuggableAuctionWorkletTracker::GetInstance()->RemoveObserver(this);
       observing_auction_worklets_ = false;
     }
+#endif
     if (observing_shared_storage_worklets_) {
       SharedStorageWorkletDevToolsManager::GetInstance()->RemoveObserver(this);
       observing_shared_storage_worklets_ = false;
@@ -238,6 +245,7 @@ void FrameAutoAttacher::WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) {
 
 void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                                               bool& should_pause_on_start) {
+#if !BUILDFLAG(IS_COBALT)
   if (!render_frame_host_)
     return;
   if (!AuctionWorkletDevToolsAgentHost::IsRelevantTo(render_frame_host_,
@@ -249,6 +257,7 @@ void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                          .GetOrCreateFor(worklet)
                          .get(),
                      should_pause_on_start);
+#endif
 }
 
 void FrameAutoAttacher::SharedStorageWorkletCreated(
@@ -320,8 +329,10 @@ void FrameAutoAttacher::UpdateFrames() {
           return RenderFrameHost::FrameIterationAction::kSkipChildren;
         });
 
+#if !BUILDFLAG(IS_COBALT)
     AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAllForFrame(
         render_frame_host_, &new_auction_worklet_hosts);
+#endif
 
     SharedStorageWorkletDevToolsManager::GetInstance()->GetAllForFrame(
         render_frame_host_, &new_shared_storage_worklet_hosts);

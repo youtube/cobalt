@@ -4,6 +4,7 @@
 
 #include "content/browser/shared_storage/shared_storage_worklet_host.h"
 
+#include "build/build_config.h"
 #include <stdint.h>
 
 #include <optional>
@@ -25,7 +26,9 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/shared_storage_worklet_devtools_manager.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/renderer_host/page_impl.h"
@@ -1250,6 +1253,10 @@ void SharedStorageWorkletHost::SharedStorageRemainingBudget(
 
 void SharedStorageWorkletHost::GetInterestGroups(
     GetInterestGroupsCallback callback) {
+#if BUILDFLAG(IS_COBALT)
+  std::move(callback).Run(
+      blink::mojom::GetInterestGroupsResult::NewGroups({}));
+#else
   InterestGroupManagerImpl* interest_group_manager =
       static_cast<InterestGroupManagerImpl*>(
           storage_partition_->GetInterestGroupManager());
@@ -1303,6 +1310,7 @@ void SharedStorageWorkletHost::GetInterestGroups(
                     std::move(mojom_groups)));
           },
           base::ElapsedTimer(), std::move(callback)));
+#endif
 }
 
 void SharedStorageWorkletHost::DidAddMessageToConsole(

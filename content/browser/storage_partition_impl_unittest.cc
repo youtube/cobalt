@@ -83,7 +83,10 @@
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_utils.h"
-#include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom.h"
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "net/base/network_isolation_key.h"
 #include "net/base/schemeful_site.h"
 #include "net/base/test_completion_callback.h"

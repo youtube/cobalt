@@ -28,7 +28,10 @@
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/service_worker/embedded_worker_instance_client_impl.h"
 #include "content/renderer/worker/shared_worker_factory_impl.h"
-#include "content/services/auction_worklet/auction_worklet_service_impl.h"
+#include "build/buildflag.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/services/auction_worklet/auction_worklet_service_impl.h"  // nogncheck
+#endif
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -192,7 +195,7 @@ void ExposeRendererInterfacesToBrowser(
   binders->Add<mojom::ResourceUsageReporter>(
       base::BindRepeating(&CreateResourceUsageReporter, render_thread),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   binders->Add<auction_worklet::mojom::AuctionWorkletService>(
       base::BindRepeating(
           &auction_worklet::AuctionWorkletServiceImpl::CreateForRenderer),
