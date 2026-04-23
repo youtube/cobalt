@@ -154,6 +154,8 @@ HttpStreamPool::HttpStreamPool(HttpNetworkSession* http_network_session,
           std::min(kHttpStreamPoolMaxStreamPerPool.Get(),
                    kHttpStreamPoolMaxStreamPerGroup.Get())) {
   CHECK(http_network_session_);
+  LOG(INFO) << "ColinL HttpStreamPool created. HappyEyeballsV3 enabled: "
+            << base::FeatureList::IsEnabled(features::kHappyEyeballsV3);
   if (cleanup_on_ip_address_change) {
     NetworkChangeNotifier::AddIPAddressObserver(this);
   }

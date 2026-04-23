@@ -1280,6 +1280,13 @@ void HostResolverManager::PushDnsTasks(bool system_task_allowed,
                                        std::deque<TaskType>* out_tasks) {
   DCHECK(dns_client_);
   DCHECK(dns_client_->GetEffectiveConfig());
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL PushDnsTasks: system_task_allowed=" << system_task_allowed
+            << " secure_dns_mode=" << (int)secure_dns_mode
+            << " insecure_tasks_allowed=" << insecure_tasks_allowed
+            << " allow_cache=" << allow_cache
+            << " prioritize_local_lookups=" << prioritize_local_lookups;
+#endif
 
   // If a catch-all DNS block has been set for unit tests, we shouldn't send
   // DnsTasks. It is still necessary to call this method, however, so that the

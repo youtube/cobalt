@@ -136,6 +136,9 @@ HttpStreamPool::AttemptManager::TcpBasedAttempt::~TcpBasedAttempt() {
 void HttpStreamPool::AttemptManager::TcpBasedAttempt::Start() {
   CHECK(attempt_);
   start_time_ = base::TimeTicks::Now();
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL TcpBasedAttempt::Start";
+#endif
   int rv = attempt_->Start(base::BindOnce(&TcpBasedAttempt::OnAttemptComplete,
                                           weak_ptr_factory_.GetWeakPtr()));
   manager_->net_log().AddEvent(

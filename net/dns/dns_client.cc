@@ -281,6 +281,12 @@ class DnsClientImpl : public DnsClient {
     if (IsEqual(new_effective_config, GetEffectiveConfig()))
       return false;
 
+    if (new_effective_config) {
+      LOG(INFO) << "ColinL UpdateDnsConfig: nameservers=" << new_effective_config->nameservers.size()
+                << " unhandled_options=" << new_effective_config->unhandled_options
+                << " dot_active=" << new_effective_config->dns_over_tls_active;
+    }
+
     insecure_fallback_failures_ = 0;
     UpdateSession(std::move(new_effective_config));
 

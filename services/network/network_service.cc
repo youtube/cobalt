@@ -469,12 +469,18 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   dns_config_change_manager_ = std::make_unique<DnsConfigChangeManager>();
 
-  net::HostResolver::ManagerOptions options;
-  options.insecure_dns_client_enabled = true;
-
-  host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
+  if (base::FeatureList::IsEnabled(net::features::kHappyEyeballsV3)) {
+    net::HostResolver::ManagerOptions options;
+    options.insecure_dns_client_enabled = true;
+    host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
       options, net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(),
       net_log_);
+  } else {
+    host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
+        net::HostResolver::ManagerOptions(),
+        net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(), net_log_);
+  }
+
   host_resolver_factory_ = std::make_unique<net::HostResolver::Factory>();
 
   http_auth_cache_copier_ = std::make_unique<HttpAuthCacheCopier>();
@@ -747,6 +753,8 @@ void NetworkService::ConfigureStubHostResolver(
       host_resolver_manager_->IsHappyEyeballsV3Enabled();
   host_resolver_manager_->SetIsHappyEyeballsV3Enabled(
       happy_eyeballs_v3_enabled);
+  LOG(INFO) << "ColinL HappyEyeballsV3 being set to: " << happy_eyeballs_v3_enabled
+            << " (feature flag is: " << base::FeatureList::IsEnabled(net::features::kHappyEyeballsV3) << ")";
   if (happy_eyeballs_v3_changed) {
     for (NetworkContext* network_context : network_contexts_) {
       network_context->CloseAllConnections(base::DoNothing());

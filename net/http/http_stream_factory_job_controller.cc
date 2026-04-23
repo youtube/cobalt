@@ -850,6 +850,12 @@ int HttpStreamFactory::JobController::DoCreateJobs() {
   alternative_service_info_ = GetAlternativeServiceInfoFor(
       http_request_info_url_, request_info_, delegate_, stream_type_);
 
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL JobController::DoCreateJobs: IsHappyEyeballsV3Enabled="
+            << session_->host_resolver()->IsHappyEyeballsV3Enabled()
+            << " is_direct=" << proxy_info_.is_direct()
+            << " not_websocket=" << !is_websocket_;
+#endif
   if (session_->host_resolver()->IsHappyEyeballsV3Enabled() &&
       proxy_info_.is_direct() && !is_websocket_) {
     SwitchToHttpStreamPool();

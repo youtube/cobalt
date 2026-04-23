@@ -186,6 +186,9 @@ HostResolverManager::Job::Job(
   LOG(INFO) << "ColinL Job created: host=" << key_.host.ToString()
             << " priority=" << (int)priority
             << " num_tasks=" << tasks_.size();
+  for (TaskType task : tasks_) {
+    LOG(INFO) << "ColinL Job task: " << (int)task;
+  }
 #endif
 }
 
@@ -649,7 +652,8 @@ void HostResolverManager::Job::Start() {
 
 void HostResolverManager::Job::StartSystemTask() {
 #if BUILDFLAG(IS_ANDROID)
-  LOG(INFO) << "ColinL StartSystemTask";
+  LOG(INFO) << "ColinL StartSystemTask with family: "
+            << (int)HostResolver::DnsQueryTypeSetToAddressFamily(key_.query_types);
 #endif
   DCHECK(dispatched_);
   DCHECK_EQ(1, num_occupied_job_slots_);

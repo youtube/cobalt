@@ -1809,6 +1809,10 @@ void HttpStreamPool::AttemptManager::OnTcpBasedAttemptSlow(
   raw_attempt->set_is_slow(true);
   ++slow_tcp_based_attempt_count_;
   ip_endpoint_state_tracker_.OnEndpointSlow(raw_attempt->ip_endpoint());
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL OnTcpBasedAttemptSlow: triggered backup attempt for endpoint: "
+            << raw_attempt->ip_endpoint().ToString();
+#endif
 
   // Don't attempt the same IP endpoint.
   MaybeAttemptTcpBased(/*exclude_ip_endpoint=*/raw_attempt->ip_endpoint());
