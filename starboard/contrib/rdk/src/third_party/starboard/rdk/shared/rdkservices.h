@@ -76,7 +76,7 @@ public:
 
 class Accessibility {
 public:
-  static void SetSettings(const std::string& json);
+  static void SetSettings(const std::string& json, bool notify_app);
   static bool GetSettings(std::string& out_json);
   static bool GetCaptionSettings(SbAccessibilityCaptionSettings* out);
   static bool GetDisplaySettings(SbAccessibilityDisplaySettings* out);
