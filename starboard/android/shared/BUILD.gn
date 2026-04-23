@@ -379,6 +379,18 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
+static_library("test_support") {
+  testonly = true
+  public_deps = [ "//testing/gtest" ]
+
+  deps = [ ":starboard_platform" ]
+
+  sources = [
+    "starboard_test_environment.cc",
+    "starboard_test_environment.h",
+  ]
+}
+
 test("starboard_platform_tests") {
   testonly = true
 
@@ -402,6 +414,7 @@ test("starboard_platform_tests") {
 
   deps = [
     ":starboard_platform",
+    ":test_support",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
