@@ -109,7 +109,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
   // Forces a metrics record for testing.
-  void ScheduleRecordForTesting(base::OnceClosure done_callback);
+  void ScheduleMemoryRecordForTesting(base::OnceClosure done_callback);
+  void ScheduleCpuRecordForTesting(base::OnceClosure done_callback);
 
  protected:
   explicit CobaltMetricsServiceClient(
@@ -132,6 +133,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
   // Starts the periodic CPU metrics logger.
   void StartCpuMetricsLogger();
+
+  template <typename T>
+  void ScheduleRecordForTestingInternal(base::SequenceBound<T>& state,
+                                        base::OnceClosure done_callback);
 
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
