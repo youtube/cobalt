@@ -38,7 +38,7 @@ class FakeGraphicsContextProvider {
   FakeGraphicsContextProvider();
   ~FakeGraphicsContextProvider();
 
-  SbWindow window() { return kSbWindowInvalid; }
+  SbWindow window() { return window_; }
   SbDecodeTargetGraphicsContextProvider* decoder_target_provider() {
     return &decoder_target_provider_;
   }
@@ -60,6 +60,8 @@ class FakeGraphicsContextProvider {
   };
 
   void RunLoop();
+
+  void InitializeWindow();
 
   void InitializeEGL();
 
@@ -83,6 +85,8 @@ class FakeGraphicsContextProvider {
 
   std::unique_ptr<GlesContextThread> gles_context_thread_;
   std::atomic<SbThreadId> gles_context_thread_id_{kSbThreadInvalidId};
+
+  SbWindow window_;
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };
