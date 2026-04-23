@@ -514,10 +514,6 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
     &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
-// When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
-BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
-             "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,
