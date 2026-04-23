@@ -242,6 +242,10 @@ test("compositor_unittests") {
     "transform_animation_curve_adapter_unittest.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
+
   data = [ "//ui/gfx/test/data/compositor/" ]
 
   deps = [
