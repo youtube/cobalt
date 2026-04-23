@@ -65,6 +65,21 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::StrictMock;
 
+namespace {
+
+constexpr uint64_t kKiB = 1024;
+constexpr uint64_t kMiB = 1024 * 1024;
+
+constexpr char kEffectiveSize[] = "effective_size";
+constexpr char kAllocatedObjectsSize[] = "allocated_objects_size";
+constexpr char kVirtualCommittedSize[] = "virtual_committed_size";
+constexpr char kWasted[] = "wasted";
+constexpr char kFragmentation[] = "fragmentation";
+constexpr char kSyscallsPerMinute[] = "syscalls_per_minute";
+constexpr char kSizeInBytes[] = "size_in_bytes";
+
+}  // namespace
+
 class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
  public:
   TestProcessMemoryMetricsEmitter() = default;
@@ -79,55 +94,53 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->process_type =
         memory_instrumentation::mojom::ProcessType::BROWSER;
     browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
-    browser_dump->os_dump->private_footprint_kb = 10240;    // 10 MB
-    browser_dump->os_dump->resident_set_kb = 20480;         // 20 MB
-    browser_dump->os_dump->shared_footprint_kb = 5120;      // 5 MB
-    browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
-    browser_dump->os_dump->malloc_rss_kb = 10240;           // 10 MB
-    browser_dump->os_dump->v8_rss_kb = 12288;               // 12 MB
-    browser_dump->os_dump->libchrobalt_rss_kb = 10240;      // 10 MB
-    browser_dump->os_dump->libchrobalt_pss_kb = 8192;       // 8 MB
+    browser_dump->os_dump->private_footprint_kb = 10 * kKiB;    // 10 MB
+    browser_dump->os_dump->resident_set_kb = 20 * kKiB;         // 20 MB
+    browser_dump->os_dump->shared_footprint_kb = 5 * kKiB;      // 5 MB
+    browser_dump->os_dump->partition_alloc_rss_kb = 16 * kKiB;  // 16 MB
+    browser_dump->os_dump->malloc_rss_kb = 10 * kKiB;           // 10 MB
+    browser_dump->os_dump->v8_rss_kb = 12 * kKiB;               // 12 MB
+    browser_dump->os_dump->libchrobalt_rss_kb = 10 * kKiB;      // 10 MB
+    browser_dump->os_dump->libchrobalt_pss_kb = 8 * kKiB;       // 8 MB
 
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    blink_gc_dump->numeric_entries["effective_size"] = 10 * 1024 * 1024;
-    blink_gc_dump->numeric_entries["allocated_objects_size"] = 6 * 1024 * 1024;
+    blink_gc_dump->numeric_entries[kEffectiveSize] = 10 * kMiB;
+    blink_gc_dump->numeric_entries[kAllocatedObjectsSize] = 6 * kMiB;
     browser_dump->chrome_allocator_dumps["blink_gc"] = std::move(blink_gc_dump);
 
     // Add a blink_gc/main dump
     auto blink_gc_main_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    blink_gc_main_dump->numeric_entries["effective_size"] = 5 * 1024 * 1024;
-    blink_gc_main_dump->numeric_entries["allocated_objects_size"] =
-        3 * 1024 * 1024;
+    blink_gc_main_dump->numeric_entries[kEffectiveSize] = 5 * kMiB;
+    blink_gc_main_dump->numeric_entries[kAllocatedObjectsSize] = 3 * kMiB;
     browser_dump->chrome_allocator_dumps["blink_gc/main"] =
         std::move(blink_gc_main_dump);
 
     // Add a malloc dump
     auto malloc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    malloc_dump->numeric_entries["effective_size"] = 10 * 1024 * 1024;
-    malloc_dump->numeric_entries["allocated_objects_size"] = 8 * 1024 * 1024;
-    malloc_dump->numeric_entries["syscalls_per_minute"] = 100;
+    malloc_dump->numeric_entries[kEffectiveSize] = 10 * kMiB;
+    malloc_dump->numeric_entries[kAllocatedObjectsSize] = 8 * kMiB;
+    malloc_dump->numeric_entries[kSyscallsPerMinute] = 100;
     browser_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
 
     auto malloc_pa_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    malloc_pa_dump->numeric_entries["virtual_committed_size"] =
-        12 * 1024 * 1024;
-    malloc_pa_dump->numeric_entries["wasted"] = 2 * 1024 * 1024;
-    malloc_pa_dump->numeric_entries["fragmentation"] = 16;
+    malloc_pa_dump->numeric_entries[kVirtualCommittedSize] = 12 * kMiB;
+    malloc_pa_dump->numeric_entries[kWasted] = 2 * kMiB;
+    malloc_pa_dump->numeric_entries[kFragmentation] = 16;
     browser_dump->chrome_allocator_dumps["malloc/partitions/allocator"] =
         std::move(malloc_pa_dump);
 
     auto malloc_tc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    malloc_tc_dump->numeric_entries["size"] = 1 * 1024 * 1024;
+    malloc_tc_dump->numeric_entries[MemoryAllocatorDump::kNameSize] = 1 * kMiB;
     browser_dump
         ->chrome_allocator_dumps["malloc/partitions/allocator/thread_cache"] =
         std::move(malloc_tc_dump);
 
     auto malloc_q_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    malloc_q_dump->numeric_entries["size_in_bytes"] = 512 * 1024;
+    malloc_q_dump->numeric_entries[kSizeInBytes] = 512 * kKiB;
     browser_dump->chrome_allocator_dumps
         ["malloc/partitions/allocator/scheduler_loop_quarantine"] =
         std::move(malloc_q_dump);
@@ -135,117 +148,118 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     // Add Skia Glyph Cache dump
     auto skia_glyph_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    skia_glyph_dump->numeric_entries["size"] = 2 * 1024 * 1024;
+    skia_glyph_dump->numeric_entries[MemoryAllocatorDump::kNameSize] = 2 * kMiB;
     browser_dump->chrome_allocator_dumps["skia/sk_glyph_cache"] =
         std::move(skia_glyph_dump);
 
     // Add Font Caches dump
     auto font_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    font_dump->numeric_entries["size"] = 1024 * 1024;
+    font_dump->numeric_entries[MemoryAllocatorDump::kNameSize] = kMiB;
     browser_dump->chrome_allocator_dumps["font_caches/shape_caches"] =
         std::move(font_dump);
 
     // Add blink_objects dumps
     auto doc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    doc_dump->numeric_entries["object_count"] = 3;
+    doc_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 3;
     browser_dump->chrome_allocator_dumps["blink_objects/Document"] =
         std::move(doc_dump);
 
     auto frame_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    frame_dump->numeric_entries["object_count"] = 1;
+    frame_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 1;
     browser_dump->chrome_allocator_dumps["blink_objects/Frame"] =
         std::move(frame_dump);
 
     auto layout_dump_obj =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    layout_dump_obj->numeric_entries["object_count"] = 10;
+    layout_dump_obj->numeric_entries[MemoryAllocatorDump::kNameObjectCount] =
+        10;
     browser_dump->chrome_allocator_dumps["blink_objects/LayoutObject"] =
         std::move(layout_dump_obj);
 
     auto node_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    node_dump->numeric_entries["object_count"] = 50;
+    node_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 50;
     browser_dump->chrome_allocator_dumps["blink_objects/Node"] =
         std::move(node_dump);
 
     // Add Java Heap dump
     auto java_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    java_dump->numeric_entries["effective_size"] = 4 * 1024 * 1024;
+    java_dump->numeric_entries[kEffectiveSize] = 4 * kMiB;
     browser_dump->chrome_allocator_dumps["java_heap"] = std::move(java_dump);
 
     // Add LevelDatabase dump
     auto leveldb_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    leveldb_dump->numeric_entries["effective_size"] = 512 * 1024;
+    leveldb_dump->numeric_entries[kEffectiveSize] = 512 * kKiB;
     browser_dump->chrome_allocator_dumps["leveldatabase"] =
         std::move(leveldb_dump);
 
     // Add PartitionAlloc dump
     auto pa_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    pa_dump->numeric_entries["effective_size"] = 16 * 1024 * 1024;
+    pa_dump->numeric_entries[kEffectiveSize] = 16 * kMiB;
     browser_dump->chrome_allocator_dumps["partition_alloc"] =
         std::move(pa_dump);
 
     auto pa_allocated_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    pa_allocated_dump->numeric_entries["effective_size"] = 12 * 1024 * 1024;
+    pa_allocated_dump->numeric_entries[kEffectiveSize] = 12 * kMiB;
     browser_dump->chrome_allocator_dumps["partition_alloc/allocated_objects"] =
         std::move(pa_allocated_dump);
 
     auto pa_fast_malloc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    pa_fast_malloc_dump->numeric_entries["size"] = 4 * 1024 * 1024;
-    pa_fast_malloc_dump->numeric_entries["virtual_committed_size"] =
-        5 * 1024 * 1024;
-    pa_fast_malloc_dump->numeric_entries["fragmentation"] = 20;
+    pa_fast_malloc_dump->numeric_entries[MemoryAllocatorDump::kNameSize] =
+        4 * kMiB;
+    pa_fast_malloc_dump->numeric_entries[kVirtualCommittedSize] = 5 * kMiB;
+    pa_fast_malloc_dump->numeric_entries[kFragmentation] = 20;
     browser_dump
         ->chrome_allocator_dumps["partition_alloc/partitions/fast_malloc"] =
         std::move(pa_fast_malloc_dump);
 
     auto pa_buffer_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    pa_buffer_dump->numeric_entries["size"] = 2 * 1024 * 1024;
-    pa_buffer_dump->numeric_entries["virtual_committed_size"] = 3 * 1024 * 1024;
-    pa_buffer_dump->numeric_entries["fragmentation"] = 33;
+    pa_buffer_dump->numeric_entries[MemoryAllocatorDump::kNameSize] = 2 * kMiB;
+    pa_buffer_dump->numeric_entries[kVirtualCommittedSize] = 3 * kMiB;
+    pa_buffer_dump->numeric_entries[kFragmentation] = 33;
     browser_dump->chrome_allocator_dumps["partition_alloc/partitions/buffer"] =
         std::move(pa_buffer_dump);
 
     auto pa_array_buffer_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    pa_array_buffer_dump->numeric_entries["size"] = 8 * 1024 * 1024;
-    pa_array_buffer_dump->numeric_entries["virtual_committed_size"] =
-        10 * 1024 * 1024;
-    pa_array_buffer_dump->numeric_entries["fragmentation"] = 20;
+    pa_array_buffer_dump->numeric_entries[MemoryAllocatorDump::kNameSize] =
+        8 * kMiB;
+    pa_array_buffer_dump->numeric_entries[kVirtualCommittedSize] = 10 * kMiB;
+    pa_array_buffer_dump->numeric_entries[kFragmentation] = 20;
     browser_dump
         ->chrome_allocator_dumps["partition_alloc/partitions/array_buffer"] =
         std::move(pa_array_buffer_dump);
 
     auto pa_layout_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    pa_layout_dump->numeric_entries["size"] = 1 * 1024 * 1024;
-    pa_layout_dump->numeric_entries["virtual_committed_size"] = 2 * 1024 * 1024;
-    pa_layout_dump->numeric_entries["fragmentation"] = 50;
+    pa_layout_dump->numeric_entries[MemoryAllocatorDump::kNameSize] = 1 * kMiB;
+    pa_layout_dump->numeric_entries[kVirtualCommittedSize] = 2 * kMiB;
+    pa_layout_dump->numeric_entries[kFragmentation] = 50;
     browser_dump->chrome_allocator_dumps["partition_alloc/partitions/layout"] =
         std::move(pa_layout_dump);
 
     // Add Skia dump (total)
     auto skia_total_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    skia_total_dump->numeric_entries["effective_size"] = 2 * 1024 * 1024;
+    skia_total_dump->numeric_entries[kEffectiveSize] = 2 * kMiB;
     browser_dump->chrome_allocator_dumps["skia"] = std::move(skia_total_dump);
 
     // Add Sqlite dump
     auto sqlite_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    sqlite_dump->numeric_entries["effective_size"] = 1 * 1024;
+    sqlite_dump->numeric_entries[kEffectiveSize] = 1 * kKiB;
     browser_dump->chrome_allocator_dumps["sqlite"] = std::move(sqlite_dump);
 
     // Add UI dump
     auto ui_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    ui_dump->numeric_entries["effective_size"] = 2 * 1024;
+    ui_dump->numeric_entries[kEffectiveSize] = 2 * kKiB;
     browser_dump->chrome_allocator_dumps["ui"] = std::move(ui_dump);
 
     // Add V8 dump
     auto v8_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    v8_dump->numeric_entries["effective_size"] = 12 * 1024 * 1024;
-    v8_dump->numeric_entries["allocated_objects_size"] = 10 * 1024 * 1024;
+    v8_dump->numeric_entries[kEffectiveSize] = 12 * kMiB;
+    v8_dump->numeric_entries[kAllocatedObjectsSize] = 10 * kMiB;
     browser_dump->chrome_allocator_dumps["v8"] = std::move(v8_dump);
 
     dump_ptr->process_dumps.push_back(std::move(browser_dump));
@@ -256,14 +270,13 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     renderer_dump->process_type =
         memory_instrumentation::mojom::ProcessType::RENDERER;
     renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
-    renderer_dump->os_dump->private_footprint_kb = 20480;   // 20 MB
-    renderer_dump->os_dump->partition_alloc_rss_kb = 2048;  // 2 MB
+    renderer_dump->os_dump->private_footprint_kb = 20 * kKiB;   // 20 MB
+    renderer_dump->os_dump->partition_alloc_rss_kb = 2 * kKiB;  // 2 MB
 
     auto renderer_blink_gc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
-    renderer_blink_gc_dump->numeric_entries["effective_size"] = 8 * 1024 * 1024;
-    renderer_blink_gc_dump->numeric_entries["allocated_objects_size"] =
-        5 * 1024 * 1024;
+    renderer_blink_gc_dump->numeric_entries[kEffectiveSize] = 8 * kMiB;
+    renderer_blink_gc_dump->numeric_entries[kAllocatedObjectsSize] = 5 * kMiB;
     renderer_dump->chrome_allocator_dumps["blink_gc"] =
         std::move(renderer_blink_gc_dump);
 
