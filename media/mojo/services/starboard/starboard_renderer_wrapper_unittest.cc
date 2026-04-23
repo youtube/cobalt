@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
@@ -30,6 +31,7 @@
 #include "media/base/test_helpers.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "starboard/decode_target.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -136,6 +138,13 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
     std::move(callback).Run();
   }
 
+  void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
  private:
   void OnWillDestroyStub(bool have_context) override {}
 };
@@ -160,7 +169,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
                 )),
-        mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
+        mock_gpu_factory_(dedicated_task_runner) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
     // via SetGpuFactoryForTesting().
@@ -208,6 +217,10 @@ class StarboardRendererWrapperTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  scoped_refptr<base::SequencedTaskRunner> dedicated_task_runner =
+      base::ThreadPool::CreateSingleThreadTaskRunner(
+          /*traits=*/{},
+          base::SingleThreadTaskRunnerThreadMode::DEDICATED);
   cobalt::media::VideoGeometrySetterService video_geometry_setter_service_;
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;
