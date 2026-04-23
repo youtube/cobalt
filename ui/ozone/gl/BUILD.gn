@@ -7,6 +7,10 @@ import("//testing/test.gni")
 test("ozone_gl_unittests") {
   sources = [ "native_pixmap_gl_binding_unittest.cc" ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
+
   deps = [
     "//base/test:test_support",
     "//testing/gtest",
