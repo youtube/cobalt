@@ -340,12 +340,6 @@ class MEDIA_EXPORT DecoderBuffer
     decrypt_config_ = std::move(decrypt_config);
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void shrink_to(size_t size) {
-    DCHECK_LE(size, size_);
-    size_ = size;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return is_end_of_stream_; }
 
   bool is_key_frame() const {
