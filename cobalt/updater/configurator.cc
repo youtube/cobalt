@@ -277,13 +277,6 @@ update_client::UpdaterStateProvider Configurator::GetUpdaterStateProvider()
 std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
                                            const std::string& version,
                                            const int sb_version) {
-  if (updater_channel == "ltsnightly" || updater_channel == "ltsnightlyqa") {
-    return kOmahaCobaltLTSNightlyAppID;
-  }
-  if (version.find(".lts.") == std::string::npos &&
-      version.find(".master.") != std::string::npos) {
-    return kOmahaCobaltTrunkAppID;
-  }
   std::string channel(updater_channel);
   // This regex matches to all static channels for C25 and newer in the format
   // of XXltsY.
@@ -296,22 +289,12 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
     return it->second;
   }
-  LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
-            << "combination is undefined with the new Omaha configs.";
 
-  // All undefined channel requests go to prod configs except for static
-  // channel requestsf for C24 and older.
-  // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
-  if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
-      sb_version >= 14 && sb_version <= 16) {
-    const auto it = kChannelAndSbVersionToOmahaIdMap.find(
-        "prod" + std::to_string(sb_version));
-    if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
-      return it->second;
-    }
-  }
-  LOG(INFO) << __func__ << " starboard version is invalid.";
-  return kOmahaCobaltAppID;
+  // All undefined channel requests go to the default config.
+  LOG(INFO)
+      << "Configurator::GetAppGuidHelper individual config for updater "
+      << "channel and starboard combination is undefined. Using default config";
+  return kOmahaCobalt27AppID;
 }
 
 std::string Configurator::GetAppGuid() const {

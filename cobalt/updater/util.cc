@@ -97,10 +97,7 @@ const std::unordered_map<std::string, std::string>
 
 const char kDefaultManifestVersion[] = "1.0.0";
 
-const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
-const char kOmahaCobaltLTSNightlyAppID[] =
-    "{26CD2F67-091F-4680-A9A9-2229635B65A5}";
-const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
+const char kOmahaCobalt27AppID[] = "{7B255C60-876C-41E1-A5E7-C0F9EBE78772}";
 
 bool CreateProductDirectory(base::FilePath* path) {
   if (!GetProductDirectoryPath(path)) {
