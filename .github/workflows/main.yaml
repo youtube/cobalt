@@ -521,9 +521,9 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
+        config: [devel, qa, gold]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_${{ matrix.config }}_test_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -541,7 +541,7 @@ jobs:
           nightly: ${{ inputs.nightly }}
           test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ matrix.config }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
