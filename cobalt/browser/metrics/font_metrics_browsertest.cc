@@ -76,7 +76,7 @@ IN_PROC_BROWSER_TEST_F(FontMetricsBrowserTest, DISABLED_RecordsFontHistograms) {
   ASSERT_TRUE(client);
 
   base::RunLoop run_loop;
-  client->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   base::RunLoop().RunUntilIdle();

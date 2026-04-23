@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/system/sys_info.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
@@ -212,6 +213,21 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
   ~TestProcessMemoryMetricsEmitter() override = default;
 };
 
+class TestCpuMetricsEmitter : public CobaltCpuMetricsEmitter {
+ public:
+  TestCpuMetricsEmitter() = default;
+
+  // Mock CPU usage to verify accurate recording of average.
+  double GetCpuUsage() override {
+    const int num_processors = base::SysInfo::NumberOfProcessors();
+    double mock_usage = 50.0 * num_processors;  // 50% per core.
+    return mock_usage;
+  }
+
+ protected:
+  ~TestCpuMetricsEmitter() override = default;
+};
+
 // Mock for MetricsService to verify construction of a specific MetricsService
 // in tests.
 class MockMetricsService : public metrics::MetricsService {
@@ -310,6 +326,10 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   scoped_refptr<CobaltMemoryMetricsEmitter> CreateMemoryMetricsEmitter()
       override {
     return base::MakeRefCounted<TestProcessMemoryMetricsEmitter>();
+  }
+
+  scoped_refptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter() override {
+    return base::MakeRefCounted<TestCpuMetricsEmitter>();
   }
 
   void OnApplicationNotIdleInternal() override {
@@ -491,12 +511,27 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
+  base::HistogramTester histogram_tester;
+
+  // Trigger CPU usage dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50),
+            1);
+}
+
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   base::HistogramTester histogram_tester;
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.
@@ -595,7 +630,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.
