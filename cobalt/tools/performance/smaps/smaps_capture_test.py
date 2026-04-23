@@ -111,13 +111,14 @@ class SmapsCaptureTest(unittest.TestCase):
     pids = capturer.get_pids()
 
     self.assertEqual(pids, ['12345'])
-    self.mock_subprocess.run.assert_called_with(
-        ['adb', '-s', 'test-serial', 'shell', 'run-as', 'test.process',
-         'pidof', 'test.process'],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=10)
+    self.mock_subprocess.run.assert_called_with([
+        'adb', '-s', 'test-serial', 'shell', 'run-as', 'test.process', 'pidof',
+        'test.process'
+    ],
+                                                capture_output=True,
+                                                text=True,
+                                                check=False,
+                                                timeout=10)
 
   def test_get_pids_linux_success(self):
     """Tests successful PID retrieval on Linux."""
@@ -222,13 +223,14 @@ class SmapsCaptureTest(unittest.TestCase):
     self.mock_open.assert_called_with(
         'test_logs/smaps_20250101_120000_12345.txt', 'w', encoding='utf-8')
     self.mock_file_handle.write.assert_called_with('android smaps content')
-    self.mock_subprocess.run.assert_called_with(
-        ['adb', '-s', 'test-serial', 'shell', 'run-as', 'test.process',
-         'cat', '/proc/12345/smaps'],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False)
+    self.mock_subprocess.run.assert_called_with([
+        'adb', '-s', 'test-serial', 'shell', 'run-as', 'test.process', 'cat',
+        '/proc/12345/smaps'
+    ],
+                                                capture_output=True,
+                                                text=True,
+                                                timeout=30,
+                                                check=False)
     self.mock_os.path.getsize.assert_called()
     self.mock_os.remove.assert_not_called()
 

@@ -377,9 +377,11 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
       // Skip the standard PartitionAlloc metric if we are overriding it with
       // the more accurate RSS value below.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
       if (std::string_view(item.uma_name) == "PartitionAlloc") {
         continue;
       }
+#endif
       std::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
