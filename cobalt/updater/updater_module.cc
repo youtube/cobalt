@@ -33,7 +33,6 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/updater/util.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/cobalt_slot_management.h"
@@ -100,23 +99,29 @@ const base::TimeDelta kDefaultUpdateCheckDelay =
 void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
-    auto status_iterator =
-        component_to_updater_status_map.find(crx_update_item_.state);
-    if (status_iterator == component_to_updater_status_map.end()) {
+    auto status_iterator = update_client::GetComponentToUpdaterStatusMap().find(
+        crx_update_item_.state);
+    if (status_iterator ==
+        update_client::GetComponentToUpdaterStatusMap().end()) {
       status = "Status is unknown.";
     } else if (crx_update_item_.state == ComponentState::kUpToDate &&
                updater_configurator_->GetPreviousUpdaterStatus() ==
-                   updater_status_string_map.at(UpdaterStatus::kUpdated)) {
-      status = updater_status_string_map.at(UpdaterStatus::kUpdated);
+                   update_client::GetUpdaterStatusStringMap().at(
+                       UpdaterStatus::kUpdated)) {
+      status = update_client::GetUpdaterStatusStringMap().at(
+          UpdaterStatus::kUpdated);
     } else {
-      status = updater_status_string_map.find(status_iterator->second)->second;
+      status = update_client::GetUpdaterStatusStringMap()
+                   .find(status_iterator->second)
+                   ->second;
     }
     if (crx_update_item_.state == ComponentState::kUpdateError) {
       // `QUICK_ROLL_FORWARD` update, adjust the message to "Updated locally,
       // pending restart".
       if (crx_update_item_.error_code ==
           static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD)) {
-        status = updater_status_string_map.at(UpdaterStatus::kRolledForward);
+        status = update_client::GetUpdaterStatusStringMap().at(
+            UpdaterStatus::kRolledForward);
       } else {
         status +=
             ", error category is " +
@@ -297,13 +302,13 @@ void UpdaterModule::Update() {
     return;
   }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
   bool skip_verify_public_key_hash = false;
   bool require_network_encryption = true;
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   update_client_->Update(
       app_ids,
@@ -319,12 +324,12 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
