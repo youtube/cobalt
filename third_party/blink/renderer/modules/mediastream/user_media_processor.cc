@@ -727,13 +727,8 @@ void UserMediaProcessor::SetupAudioInput() {
   }
 
   if (blink::IsDeviceMediaType(audio_controls.stream_type)) {
-    bool use_fast_path = false;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    use_fast_path = base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack);
-#endif
-
-    if (use_fast_path) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
       SendLogMessage(
           base::StringPrintf("Cobalt: SetupAudioInput({request_id=%d}) => "
                              "(Shortcut handshake, hardcoding capabilities)",
@@ -768,17 +763,18 @@ void UserMediaProcessor::SetupAudioInput() {
               current_request_info_->stream_controls()->audio.stream_type));
 
       SetupVideoInput();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-    } else {
-      SendLogMessage(
-          base::StringPrintf("SetupAudioInput({request_id=%d}) => "
-                             "(Requesting device capabilities)",
-                             current_request_info_->request_id()));
-      current_request_info_->StartTrace("GetAudioInputCapabilities");
-      GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
-          WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
-                        WrapWeakPersistent(this), WrapPersistent(request)));
+      return;
     }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+    SendLogMessage(
+        base::StringPrintf("SetupAudioInput({request_id=%d}) => "
+                           "(Requesting device capabilities)",
+                           current_request_info_->request_id()));
+    current_request_info_->StartTrace("GetAudioInputCapabilities");
+    GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
+        WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
+                      WrapWeakPersistent(this), WrapPersistent(request)));
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(
