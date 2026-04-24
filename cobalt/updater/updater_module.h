@@ -62,7 +62,7 @@ class Observer : public update_client::UpdateClient::Observer {
   }
 
   // Overrides for update_client::UpdateClient::Observer.
-  void OnEvent(Events event, const std::string& id) override;
+  void OnEvent(const update_client::CrxUpdateItem& item) override;
 
  private:
   scoped_refptr<update_client::UpdateClient> update_client_;

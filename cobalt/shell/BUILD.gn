@@ -307,6 +307,11 @@ static_library("cobalt_shell_lib") {
       "common/device_authentication.h",
     ]
   }
+  deps = []
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
+  }
 }
 
 # This component provides a ContentMainDelegate for Content Shell and derived

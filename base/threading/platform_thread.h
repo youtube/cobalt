@@ -358,8 +358,26 @@ using IsViaIPC = base::StrongAlias<class IsViaIPCTag, bool>;
 
 class BASE_EXPORT PlatformThreadLinux : public PlatformThreadBase {
  public:
+#if BUILDFLAG(IS_STARBOARD)
+  // Starboard (via musl libc) defines struct sched_param with extra internal
+  // fields (e.g. __reserved1). Using standard aggregate initialization (e.g. {8})
+  // triggers -Wmissing-field-initializers. To cleanly zero-initialize all fields
+  // and set just the priority without triggering warnings, we use a constexpr
+  // lambda.
+  static constexpr struct sched_param kRealTimeAudioPrio = []() {
+    struct sched_param p = {};
+    p.sched_priority = 8;
+    return p;
+  }();
+  static constexpr struct sched_param kRealTimeDisplayPrio = []() {
+    struct sched_param p = {};
+    p.sched_priority = 6;
+    return p;
+  }();
+#else
   static constexpr struct sched_param kRealTimeAudioPrio = {8};
   static constexpr struct sched_param kRealTimeDisplayPrio = {6};
+#endif
 
   // Sets a delegate which handles thread type changes for this process. This
   // must be externally synchronized with any call to SetCurrentThreadType.

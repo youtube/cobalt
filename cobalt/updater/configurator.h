@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -88,17 +89,18 @@ class Configurator : public update_client::Configurator {
       override;
   scoped_refptr<update_client::UnzipperFactory> GetUnzipperFactory() override;
   scoped_refptr<update_client::PatcherFactory> GetPatcherFactory() override;
-  bool EnabledDeltas() const override;
   bool EnabledBackgroundDownloader() const override;
   bool EnabledCupSigning() const override;
   PrefService* GetPrefService() const override;
-  update_client::ActivityDataService* GetActivityDataService() const override;
-  absl::optional<bool> IsMachineExternallyManaged() const override;
+  std::optional<bool> IsMachineExternallyManaged() const override;
   bool IsPerUserInstall() const override;
   std::string GetAppGuid() const override;
   std::unique_ptr<update_client::ProtocolHandlerFactory>
   GetProtocolHandlerFactory() const override;
   update_client::UpdaterStateProvider GetUpdaterStateProvider() const override;
+  update_client::PersistedData* GetPersistedData() const override;
+  scoped_refptr<update_client::CrxCache> GetCrxCache() const override;
+  bool IsConnectionMetered() const override;
 
   void SetChannel(const std::string& updater_channel) override;
 
@@ -148,7 +150,7 @@ class Configurator : public update_client::Configurator {
       GUARDED_BY(previous_updater_status_lock_);
   mutable base::Lock previous_updater_status_lock_;
   std::string user_agent_string_;
-  uint64_t min_free_space_bytes_GUARDED_BY(min_free_space_bytes_lock_);
+  uint64_t min_free_space_bytes_ GUARDED_BY(min_free_space_bytes_lock_);
   mutable base::Lock min_free_space_bytes_lock_;
   std::atomic_bool use_compressed_updates_;
   std::atomic_bool allow_self_signed_packages_;
