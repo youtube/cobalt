@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 18
 
+### Removed SbThreadSampler
+The SbThreadSampler is no longer user. Instead POSIX APIs are used directly.
+
 ### Support decode-to-texture mode
 Implementations of `DecodeTarget` for YUV planes should ensure they use
 `GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
