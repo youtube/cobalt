@@ -97,6 +97,10 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecH265;
     case VideoCodec::kAV1:
       return kSbMediaVideoCodecAv1;
+#if SB_API_VERSION >= 18 && COBALT_MEDIA_ENABLE_AV2_SUPPORT
+    case VideoCodec::kAV2:
+      return kSbMediaVideoCodecAv2;
+#endif  // SB_API_VERSION >= 18 && COBALT_MEDIA_ENABLE_AV2_SUPPORT
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
       LOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
