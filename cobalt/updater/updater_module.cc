@@ -133,7 +133,8 @@ void Observer::OnEvent(const update_client::CrxUpdateItem& item) {
   }
 
   updater_configurator_->SetUpdaterStatus(status);
-  LOG_IF(INFO, status != "Downloading update") << "Updater status is" << status;
+  LOG_IF(INFO, status != "Downloading update")
+      << "Updater status is " << status;
 }
 
 UpdaterModule::UpdaterModule(
