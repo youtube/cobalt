@@ -3191,6 +3191,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   // today to suppress the event when the user navigates to the new tab page.
   virtual bool ShouldSuppressAXLoadComplete(RenderFrameHost* rfh);
 
+#if !BUILDFLAG(IS_COBALT)                      
   // Binds the AIManager for a given `browser_context` to `receiver`. The
   // created AIManager will be owned by the `context_user_data`. The
   // RenderFrameHost may be null if this is called for a service worker or
@@ -3201,6 +3202,7 @@ class CONTENT_EXPORT ContentBrowserClient {
       base::SupportsUserData* context_user_data,
       RenderFrameHost* rfh,
       mojo::PendingReceiver<blink::mojom::AIManager> receiver);
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Binds the TranslationManager for the given `browser_context`,
   // `context_user_data` and `origin` to `receiver`. The created

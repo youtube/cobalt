@@ -1128,6 +1128,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                           base::Unretained(host->GetProcess())));
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     // We take the `document_associated_data` when the callback runs because
     // RenderFrameHosts live across multiple documents. Even though the current
@@ -1143,6 +1144,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         base::Unretained(GetContentClient()->browser()),
         base::Unretained(host)));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   if (base::FeatureList::IsEnabled(blink::features::kTranslationAPI)) {
     map->Add<blink::mojom::TranslationManager>(base::BindRepeating(
@@ -1444,6 +1446,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
       RenderProcessHost::NotificationServiceCreatorType::kDedicatedWorker,
       host));
 
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     map->Add<blink::mojom::AIManager>(
         base::BindRepeating(&ContentBrowserClient::BindAIManager,
@@ -1451,6 +1454,8 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
                             host->GetProcessHost()->GetBrowserContext(),
                             base::Unretained(host), /*rfh=*/nullptr));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
+
   if (base::FeatureList::IsEnabled(blink::features::kTranslationAPI)) {
     map->Add<blink::mojom::TranslationManager>(base::BindRepeating(
         [](DedicatedWorkerHost* host,
@@ -1556,6 +1561,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
         &BindWebNNContextProviderForWorker<SharedWorkerHost>,
         base::Unretained(host)));
   }
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     map->Add<blink::mojom::AIManager>(
         base::BindRepeating(&ContentBrowserClient::BindAIManager,
@@ -1563,6 +1569,8 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
                             host->GetProcessHost()->GetBrowserContext(),
                             base::Unretained(host), /*rfh=*/nullptr));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
+
   if (base::FeatureList::IsEnabled(blink::features::kTranslationAPI)) {
     map->Add<blink::mojom::TranslationManager>(base::BindRepeating(
         [](SharedWorkerHost* host,
@@ -1736,10 +1744,13 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
         &BindWebNNContextProviderForWorker<ServiceWorkerHost>,
         base::Unretained(host)));
   }
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     map->Add<blink::mojom::AIManager>(base::BindRepeating(
         &ServiceWorkerHost::BindAIManager, base::Unretained(host)));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
+
   if (base::FeatureList::IsEnabled(blink::features::kTranslationAPI)) {
     map->Add<blink::mojom::TranslationManager>(base::BindRepeating(
         [](ServiceWorkerHost* host,
