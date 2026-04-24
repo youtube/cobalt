@@ -316,15 +316,27 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
   // line until Q.
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_Q) {
+#if BUILDFLAG(IS_COBALT)
+    LOG(INFO) << "Freeze detection: SDK version below Q: No linker support.";
+#endif
     return false;
   }
 
   Dl_info info;
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt on Android TV uses a standalone ELF executable instead of a
+  // library-based trampoline. We only need dladdr to succeed so we can
+  // identify the APK mount point from info.dli_fname.
+  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0) {
+    return false;
+  }
+#else
   if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0 ||
       dlsym(dlopen(info.dli_fname, RTLD_NOLOAD | RTLD_LAZY),
             "CrashpadHandlerMain") == nullptr) {
     return false;
   }
+#endif
 
   std::string local_handler_library(info.dli_fname);
 
@@ -345,6 +357,10 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
   local_handler_library = "";
 #else
   local_handler_trampoline += "libcrashpad_handler_trampoline.so";
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: trampoline = " << local_handler_trampoline;
 #endif
 
   handler_trampoline->swap(local_handler_trampoline);
@@ -490,6 +506,9 @@ bool GetHandlerPath(base::FilePath* exe_dir, base::FilePath* handler_path) {
     return false;
   }
   *handler_path = exe_dir->Append("libchrome_crashpad_handler.so");
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: GetHandlerPath: " << *handler_path;
+#endif
   return true;
 }
 
@@ -651,6 +670,7 @@ class HandlerStarter {
       // Reporting is not supported on these versions due to engineering cost
       // and low traffic.
       if (use_java_handler_) {
+        LOG(INFO) << "Freeze detection: Skipping Java handler for client on Cobalt ATV.";
         return false;
       }
 #endif
@@ -659,6 +679,9 @@ class HandlerStarter {
         return false;
       }
 
+#if BUILDFLAG(IS_COBALT)
+      LOG(INFO) << "Freeze detection: Launching handler " << (use_java_handler_ ? "with Java" : "with Linker") << " for client.";
+#endif
       bool result =
           use_java_handler_
               ? GetCrashpadClient().StartJavaHandlerForClient(
@@ -675,6 +698,9 @@ class HandlerStarter {
       return false;
     }
 
+#if BUILDFLAG(IS_COBALT)
+    LOG(INFO) << "Freeze detection: Launching standard handler for client.";
+#endif
     return GetCrashpadClient().StartHandlerForClient(
         handler_path, database_path, metrics_path, url, process_annotations,
         arguments, fd);
