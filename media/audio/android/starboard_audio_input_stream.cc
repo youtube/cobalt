@@ -1,14 +1,27 @@
 // Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Starboard specific low latency path based on
+// media/audio/android/opensles_input.cc
 
 #include "media/audio/android/starboard_audio_input_stream.h"
 
 #include "base/logging.h"
 #include "base/time/time.h"
 
-#if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_permission_requester.h"
-#endif
 
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
@@ -29,12 +42,8 @@ const int StarboardAudioInputStream::kSamplesPerBuffer;
 
 // static
 bool StarboardAudioInputStream::RequestRuntimePermission() {
-#if BUILDFLAG(IS_ANDROID)
   return starboard::RequestRecordAudioPermission(
       base::android::AttachCurrentThread());
-#else
-  return true;
-#endif
 }
 
 StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_manager,
@@ -131,42 +140,39 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 
 void StarboardAudioInputStream::Stop() {
   CHECK(thread_checker_.CalledOnValidThread());
-  {
-    base::AutoLock lock(lock_);
-    if (!started_) {
-      return;
-    }
-    started_ = false;
-    callback_ = nullptr;
+  if (!started_) {
+    return;
   }
 
-  if (recorder_) {
-    (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
-  }
+  base::AutoLock lock(lock_);
 
-  SLAndroidSimpleBufferQueueItf queue = nullptr;
-  {
-    base::AutoLock lock(lock_);
-    queue = simple_buffer_queue_;
-  }
-  if (queue) {
-    (*queue)->Clear(queue);
-  }
+  // Stop recording by setting the record state to SL_RECORDSTATE_STOPPED.
+  LOG_ON_FAILURE_AND_RETURN(
+      (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED));
+
+  // Clear the buffer queue to get rid of old data when resuming recording.
+  LOG_ON_FAILURE_AND_RETURN(
+      (*simple_buffer_queue_)->Clear(simple_buffer_queue_));
+
+  started_ = false;
+  callback_ = nullptr;
 }
 
 void StarboardAudioInputStream::Close() {
+  CHECK(thread_checker_.CalledOnValidThread());
   Stop();
 
-  // Destroy OpenSLES objects outside the lock.
+   // Destroy OpenSLES objects outside the lock.
   // These calls are synchronous and wait for any pending callbacks to finish.
   // If we held the lock here, we would deadlock with ReadBufferQueue.
   recorder_object_.Reset();
   engine_object_.Reset();
-
   {
     base::AutoLock lock(lock_);
+
     simple_buffer_queue_ = nullptr;
     recorder_ = nullptr;
+
     ReleaseAudioBuffer();
   }
   audio_manager_->ReleaseInputStream(this);
@@ -284,8 +290,10 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   }
 
   if (callback) {
-    callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
-                     0.0, {});
+    callback->OnData(audio_bus_.get(),
+                     base::TimeTicks::Now() - hardware_delay_,
+                     /*volume= - 0 indicates no vol control*/0.0,
+                     /*audio_glitch_info*/{});
   }
 
   base::AutoLock lock(lock_);
@@ -317,6 +325,7 @@ void StarboardAudioInputStream::HandleError(SLresult error) {
   {
     base::AutoLock lock(lock_);
     callback = callback_;
+    callback_ = nullptr;
   }
   if (callback)
     callback->OnError();
