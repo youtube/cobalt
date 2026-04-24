@@ -19,7 +19,6 @@
     "gl:gl_unittests_loader",
     "gl:ozone_gl_unittests_loader",
     "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
-    "third_party/boringssl:boringssl_pki_tests_loader",
     "third_party/ipcz/src:ipcz_tests_loader",
     "third_party/opus:opus_tests_loader",
     "third_party/opus:test_opus_decode_loader",
@@ -36,7 +35,8 @@
     "ui/events:events_unittests_loader",
     "ui/ozone:ozone_unittests_loader",
     "storage:storage_unittests_loader",
-    "third_party/blink/common:blink_common_unittests_loader"
+    "third_party/blink/common:blink_common_unittests_loader",
+    "third_party/boringssl:boringssl_pki_tests_loader"
   ],
   "executables": [
     "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
@@ -48,10 +48,12 @@
     "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py",
-    "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py"
+    "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py"
   ],
   "disabled": {
     "storage:storage_unittests_loader": "b/486053350 - Failing in first full CI run",
-    "third_party/blink/common:blink_common_unittests_loader": "b/486053350 - Failing in first full CI run"
+    "third_party/blink/common:blink_common_unittests_loader": "b/486053350 - Failing in first full CI run",
+    "third_party/boringssl:boringssl_pki_tests_loader": "b/486053350 - Failing in first full CI run"
   }
 }
