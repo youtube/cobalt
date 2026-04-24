@@ -1,6 +1,7 @@
 // Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 #define SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 
@@ -24,7 +25,7 @@ FORWARD_DECLARE_TEST(ProfilingJsonExporterTest, MemoryMaps);
 }
 
 namespace memory_instrumentation {
-
+class DetailedMetricsDelegate;
 // This class provides synchronous access to memory metrics for a process with a
 // given |pid|. These interfaces have platform-specific restrictions:
 //  * On Android, due to sandboxing restrictions, processes can only access
@@ -52,7 +53,8 @@ class COMPONENT_EXPORT(
   // the current process is used
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
-                               mojom::RawOSMemDump* dump);
+                               mojom::RawOSMemDump* dump,
+                               base::WeakPtr<DetailedMetricsDelegate> delegate = nullptr);
 #if BUILDFLAG(IS_APPLE)
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
@@ -67,10 +69,21 @@ class COMPONENT_EXPORT(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static void SetProcSmapsForTesting(FILE*);
+#if BUILDFLAG(IS_COBALT)
+  static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
+#endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
  private:
+#if BUILDFLAG(IS_COBALT)
+  static bool FillDetailedMetrics(base::ProcessHandle handle,
+                                  const MemDumpFlagSet& flags,
+                                  mojom::RawOSMemDump* dump,
+                                  base::WeakPtr<DetailedMetricsDelegate> delegate) { return false; }
+  static bool ReadDetailedMetricsFile(base::ProcessHandle handle,
+                                      base::WeakPtr<DetailedMetricsDelegate> delegate) { return false; }
+#endif
   FRIEND_TEST_ALL_PREFIXES(OSMetricsTest, ParseProcSmaps);
   FRIEND_TEST_ALL_PREFIXES(OSMetricsTest, TestWinModuleReading);
   FRIEND_TEST_ALL_PREFIXES(OSMetricsTest, TestMachOReading);

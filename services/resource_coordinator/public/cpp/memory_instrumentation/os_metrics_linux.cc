@@ -591,7 +591,8 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
-                                 mojom::RawOSMemDump* dump) {
+                                 mojom::RawOSMemDump* dump,
+                                 base::WeakPtr<DetailedMetricsDelegate> delegate) {
   auto info = GetMemoryInfo(handle);
   if (!info.has_value()) {
     return false;
@@ -605,15 +606,9 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
 #if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(IS_ANDROID)
-  PopulateCobaltSmapsMetrics(handle, dump);
-#else  // BUILDFLAG(IS_LINUX)
-  LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
-  dump->libchrobalt_pss_kb = lib_mem.pss_kb;
-  dump->libchrobalt_rss_kb = lib_mem.rss_kb;
-  dump->partition_alloc_rss_kb = GetPartitionAllocRss(handle);
-#endif  // BUILDFLAG(IS_LINUX)
-#endif  // BUILDFLAG(IS_COBALT)
+  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS))
+    FillDetailedMetrics(handle, flags, dump, std::move(delegate));
+#endif
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
     dump->mappings_count = CountMappings(handle);
