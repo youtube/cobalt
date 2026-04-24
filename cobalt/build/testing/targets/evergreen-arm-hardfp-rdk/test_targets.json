@@ -14,7 +14,6 @@
     "third_party/zlib:zlib_unittests_loader"
   ],
   "TODO(b/486053350): Crashes on missing SbEventHandle": [
-    "examples:views_examples_unittests_loader",
     "gl:gl_unittests_loader",
     "gl:ozone_gl_unittests_loader",
     "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
@@ -36,7 +35,8 @@
     "storage:storage_unittests_loader",
     "third_party/blink/common:blink_common_unittests_loader",
     "third_party/boringssl:boringssl_pki_tests_loader",
-    "ui/compositor:compositor_unittests_loader"
+    "ui/compositor:compositor_unittests_loader",
+    "ui/views/examples:views_examples_unittests_loader"
   ],
   "executables": [
     "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
@@ -50,12 +50,14 @@
     "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py",
-    "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py"
+    "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py"
   ],
   "disabled": {
     "storage:storage_unittests_loader": "b/486053350 - Failing in first full CI run",
     "third_party/blink/common:blink_common_unittests_loader": "b/486053350 - Failing in first full CI run",
     "third_party/boringssl:boringssl_pki_tests_loader": "b/486053350 - Failing in first full CI run",
-    "ui/compositor:compositor_unittests_loader": "b/486053350 - Failing in first full CI run"
+    "ui/compositor:compositor_unittests_loader": "b/486053350 - Failing in first full CI run",
+    "ui/views/examples:views_examples_unittests_loader": "b/486053350 - Failing in first full CI run"
   }
 }
