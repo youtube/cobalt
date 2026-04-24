@@ -333,7 +333,8 @@ void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
       base::Milliseconds(2000));
 }
 
-void StarboardRenderer::CreateNewPlayerBridgeAfterDestruction(TimeDelta seek_time) {
+void StarboardRenderer::CreateNewPlayerBridgeAfterDestruction(
+    TimeDelta seek_time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "Recreating SbPlayerBridge for codec change, seeking to "
             << seek_time;
@@ -867,12 +868,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  DCHECK(player_bridge_);
-
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
       DCHECK(audio_read_in_progress_);
       audio_read_in_progress_ = false;
+      if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+        return;
+      }
+      DCHECK(player_bridge_);
       for (const auto& buffer : buffers) {
         if (!buffer->end_of_stream()) {
           last_audio_sample_interval_ =
@@ -884,6 +887,10 @@ void StarboardRenderer::OnDemuxerStreamRead(
     } else {
       DCHECK(video_read_in_progress_);
       video_read_in_progress_ = false;
+      if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+        return;
+      }
+      DCHECK(player_bridge_);
       for (const auto& buffer : buffers) {
         if (buffer->end_of_stream()) {
           is_video_eos_written_ = true;
@@ -907,9 +914,12 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
   } else if (status == DemuxerStream::kConfigChanged) {
     if (stream == audio_stream_) {
+      DCHECK(audio_read_in_progress_);
+      audio_read_in_progress_ = false;
       client_->OnAudioConfigChange(stream->audio_decoder_config());
     } else {
-      DCHECK_EQ(stream, video_stream_);
+      DCHECK(video_read_in_progress_);
+      video_read_in_progress_ = false;
       client_->OnVideoConfigChange(stream->video_decoder_config());
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
@@ -917,15 +927,15 @@ void StarboardRenderer::OnDemuxerStreamRead(
       paint_video_hole_frame_cb_.Run(
           stream->video_decoder_config().visible_rect().size());
     }
+
+    if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+      return;
+    }
+
     UpdateDecoderConfig(stream);
     if (codec_or_format_change_pending_) {
       // Don't read from the stream until player is recreated.
       // The recreation logic in OnPlayerStatus will trigger a new read.
-      if (stream == audio_stream_) {
-        audio_read_in_progress_ = false;
-      } else {
-        video_read_in_progress_ = false;
-      }
       return;
     }
     stream->Read(
@@ -945,6 +955,10 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+    return;
+  }
 
   // In case if the callback is fired when creation of the `player_bridge_`
   // fails.
