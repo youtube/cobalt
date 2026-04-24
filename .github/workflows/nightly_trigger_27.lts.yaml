@@ -1,4 +1,4 @@
-name: nightly_trigger_main
+name: nightly_trigger_27.lts
 
 on:
   schedule:
@@ -6,23 +6,22 @@ on:
     - cron: '0 10,12,14 * * *'
   workflow_dispatch:
 
+permissions: {}
+
+env:
+  GITHUB_REPO: ${{ github.repository }}
+
 jobs:
   trigger_main:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: main
-          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run android_27.lts --ref main -f nightly=true
-          gh workflow run evergreen_27.lts --ref main -f nightly=true
-          gh workflow run linux_27.lts --ref main -f nightly=true
+          gh workflow run android_27.lts --ref main -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run evergreen_27.lts --ref main -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run linux_27.lts --ref main -f nightly=true --repo "${GITHUB_REPO}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

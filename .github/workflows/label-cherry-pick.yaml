@@ -82,6 +82,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           filter: blob:none
+          sparse-checkout: |
+            .github
 
       - name: Setup Git
         run: |

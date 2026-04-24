@@ -187,8 +187,8 @@ void NetworkFetcher::DownloadToFile(
       url_loader_factory_.get(),
       base::BindOnce(
           [](const network::SimpleURLLoader* simple_url_loader,
-             DownloadToFileCompleteCallback
-                 download_to_file_complete_callback) {
+             DownloadToFileCompleteCallback download_to_file_complete_callback,
+             base::FilePath file_path) {
             std::move(download_to_file_complete_callback)
                 .Run(simple_url_loader->NetError(),
                      simple_url_loader->GetContentSize());
