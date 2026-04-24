@@ -144,10 +144,14 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     STATE_INITIALIZING,      // Initializing to create SbPlayerBridge.
     STATE_FLUSHED,           // After initialization or after flush completed.
     STATE_PLAYING,           // After StartPlayingFrom has been called.
+    STATE_RECREATING,        // Recreating SbPlayerBridge for codec change.
     STATE_ERROR
   };
 
+  void CreatePlayerBridgeInternal();
   void CreatePlayerBridge();
+  void CreateNewPlayerBridgeAfterDestruction(TimeDelta seek_time);
+  void DrainPlayerForCodecChange();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
