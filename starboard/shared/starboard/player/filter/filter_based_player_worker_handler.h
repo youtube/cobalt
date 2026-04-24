@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -25,6 +26,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
@@ -110,6 +112,10 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool video_prerolled_ = false;
   bool audio_ended_ = false;
   bool video_ended_ = false;
+
+  // For preroll event tracing.
+  MediaEventTracer audio_preroll_track_;
+  MediaEventTracer video_preroll_track_;
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
