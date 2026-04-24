@@ -2,7 +2,6 @@
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "TODO(todo): EGL init issue, needs new image": [],
   "TODO(b/486053854): Tests pass but crashes on exit": [
-    "gpu:gl_tests_loader",
     "gpu:gpu_unittests_loader",
     "ipc:ipc_tests_loader",
     "sql:sql_unittests_loader",
@@ -35,7 +34,8 @@
     "third_party/opus:test_opus_encode_loader",
     "third_party/opus:test_opus_decode_loader",
     "third_party/opus:test_opus_padding_loader",
-    "cc:cc_unittests_loader"
+    "cc:cc_unittests_loader",
+    "gpu:gl_tests_loader"
   ],
   "executables": [
     "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
@@ -55,7 +55,8 @@
     "out/evergreen-arm-hardfp-rdk_devel/test_opus_encode_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/test_opus_decode_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/test_opus_padding_loader.py",
-    "out/evergreen-arm-hardfp-rdk_devel/cc_unittests_loader.py"
+    "out/evergreen-arm-hardfp-rdk_devel/cc_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/gl_tests_loader.py"
   ],
   "disabled": {
     "storage:storage_unittests_loader": "b/486053350 - Failing in first full CI run",
@@ -67,6 +68,7 @@
     "third_party/opus:test_opus_encode_loader": "b/486053350 - Failing in first full CI run",
     "third_party/opus:test_opus_decode_loader": "b/486053350 - Failing in first full CI run",
     "third_party/opus:test_opus_padding_loader": "b/486053350 - Failing in first full CI run",
-    "cc:cc_unittests_loader": "b/486053854 - Failing in first full CI run"
+    "cc:cc_unittests_loader": "b/486053854 - Failing in first full CI run",
+    "gpu:gl_tests_loader": "b/486053854 - Failing in first full CI run"
   }
 }
