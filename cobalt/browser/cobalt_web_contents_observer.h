@@ -41,7 +41,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  virtual void RaisePlatformError();
+  virtual void RaisePlatformError(int error_type, long data, const std::string& url);
   virtual void SetStartupDiagnosisInfo(const char* key, const char* value);
 
  protected:

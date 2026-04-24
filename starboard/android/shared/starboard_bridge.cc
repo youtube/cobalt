@@ -248,10 +248,11 @@ ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
 
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
-                                         jlong data) {
+                                         jlong data,
+                                         const std::string& url) {
   SB_DCHECK(env);
   Java_StarboardBridge_raisePlatformError(env, j_starboard_bridge_, errorType,
-                                          data);
+                                          data, ConvertUTF8ToJavaString(env, url));
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {

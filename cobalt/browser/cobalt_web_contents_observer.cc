@@ -66,7 +66,7 @@ void CobaltWebContentsObserver::DidStartNavigation(
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
       base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr(), kJniErrorTypeConnectionError, 0, handle->GetURL().spec()));
 }
 
 // Opting for WebContentsObserver::DidFinishNavigation() over
@@ -91,7 +91,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
               << net::ErrorToString(net_error_code);
     SetStartupDiagnosisInfo("navigation_error",
                             net::ErrorToString(net_error_code).c_str());
-    RaisePlatformError();
+    RaisePlatformError(kJniErrorTypeConnectionError, 0, navigation_handle->GetURL().spec());
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
                               false);
@@ -109,7 +109,7 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
 #endif
 }
 
-void CobaltWebContentsObserver::RaisePlatformError() {
+void CobaltWebContentsObserver::RaisePlatformError(int error_type, long data, const std::string& url) {
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
@@ -121,7 +121,7 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
-  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
+  starboard_bridge->RaisePlatformError(env, error_type, data, url);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #else

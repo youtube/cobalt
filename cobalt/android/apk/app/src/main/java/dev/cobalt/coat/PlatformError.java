@@ -32,6 +32,7 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.content_public.browser.WebContents;
 import org.jni_zero.NativeMethods;
 
@@ -68,19 +69,22 @@ public class PlatformError
 
   private static final String RETRY_PARAM_KEY = "netdialog_retry";
   private static final String RETRY_PARAM_VALUE = "1";
+  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
 
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
   private final long mData;
   private final Handler mUiThreadHandler;
+  private final String mUrl;
 
   private Dialog mDialog;
   private int mResponse;
 
-  public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data) {
+  public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
+    mUrl = url;
     mUiThreadHandler = new Handler(Looper.getMainLooper());
     mResponse = CANCELLED;
   }
@@ -179,15 +183,20 @@ public class PlatformError
             if (webContents == null) {
               Log.e(TAG, "WebContents is null and not available to reload the URL.");
             } else {
-              String currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
-
-              // Reloading the web contents as a fallback if the URL is empty to attempt a fresh navigation.
-              // Otherwise, add a param to the URL to indicate a bootstrap request with a retry from the network dialog
+              String currentUrl = mUrl;
               if (currentUrl.isEmpty()) {
-                Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
-                webContents.getNavigationController().reload(/*param=*/true);
+                Log.i(TAG, "DEBUG: No URL provided, using visible URL");
+                currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+              }
+
+              int retryCount = sRetryCount.incrementAndGet();
+
+              // Add a param to the URL to indicate a bootstrap request with a retry from the network dialog
+              if (currentUrl.isEmpty()) {
+                Log.i(TAG, "DEBUG: Visible URL and fallback URL are empty, reloading without adding retry param");
+                webContents.getNavigationController().reload(true);
               } else {
-                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl));
+                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
               }
             }
           }
@@ -220,15 +229,39 @@ public class PlatformError
   //TODO(b/496219065): Add unit tests for retry URL param logic
   /** Adds a retry param to the URL if not already present to differentiate
    *  bootstrap requests that originate from a network dialog retry.
+   *  Note: Uri.Builder handles appending query parameters before the fragment (hash) correctly.
    */
-  private String addRetryUrlParam(String url) {
+  String addRetryUrlParam(String url, int count) {
     Uri parsedUri = Uri.parse(url);
-    if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
-      Uri.Builder uriBuilder = parsedUri.buildUpon();
-      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
-      return uriBuilder.build().toString();
+    Uri.Builder uriBuilder = parsedUri.buildUpon();
+
+    String paramStr = RETRY_PARAM_KEY + "=" + count;
+    String currentQuery = parsedUri.getQuery();
+
+    if (currentQuery != null && currentQuery.contains(RETRY_PARAM_KEY)) {
+      String newQuery = currentQuery.replaceAll(RETRY_PARAM_KEY + "=[^&]*", paramStr);
+      uriBuilder.encodedQuery(newQuery);
+    } else {
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, String.valueOf(count));
     }
-    return url;
+
+    String result = uriBuilder.build().toString();
+    Log.i(TAG, "DEBUG: Reloading URL with retry param: " + result);
+    return result;
   }
 
+  @androidx.annotation.VisibleForTesting
+  static void resetRetryCount() {
+    sRetryCount.set(0);
+  }
+
+  @androidx.annotation.VisibleForTesting
+  void setDialog(Dialog dialog) {
+    this.mDialog = dialog;
+  }
+
+  @androidx.annotation.VisibleForTesting
+  int getResponse() {
+    return mResponse;
+  }
 }
