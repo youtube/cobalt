@@ -756,9 +756,11 @@ void SbPlayerBridge::CreatePlayer() {
       &SbPlayerBridge::PlayerErrorCB, this,
       // TODO: b/429021006 - Add H5vcc flag to post egl calls on gpu thread to
       // clear SurfaceView.
-      output_mode_ == kSbPlayerOutputModeDecodeToTexture
-          ? get_decode_target_graphics_context_provider_func_.Run()
-          : nullptr);
+      // TODO (johneocampo) : Revert this change once PR is ready.
+      get_decode_target_graphics_context_provider_func_.Run());
+  // output_mode_ == kSbPlayerOutputModeDecodeToTexture
+  //     ? get_decode_target_graphics_context_provider_func_.Run()
+  //     : nullptr);
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)

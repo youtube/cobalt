@@ -577,8 +577,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
-    // The default value of |force_reset_surface| would be true.
-    bool force_reset_surface = true;
+    // TODO: b/429021006 - Connect this flag to H5VCC.
+    bool force_clear_surface = false;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
@@ -590,11 +590,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             video_mime_type->GetParamStringValue("hdrinfoendianness",
                                                  /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-      }
-      if (video_mime_type &&
-          video_mime_type->ValidateBoolParameter("forceresetsurface")) {
-        force_reset_surface =
-            video_mime_type->GetParamBoolValue("forceresetsurface", true);
       }
       if (video_mime_type &&
           video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
@@ -636,7 +631,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        force_reset_surface, force_big_endian_hdr_metadata,
+        force_clear_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         experimental_features);
