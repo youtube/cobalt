@@ -43,6 +43,11 @@ UNIT_FACTORS = {
     '.PartitionAlloc': 1.0,
     '.Skia': 1.0,
     '.V8': 1.0,
+    '.CodeOther': 1.0,
+    '.Fonts': 1.0,
+    '.AshmemJit': 1.0,
+    '.AndroidRuntime': 1.0,
+    '.Stacks': 1.0,
     'Memory.Total.TileMemory': 1.0,
 
     # Small metrics (KiB -> MB)
