@@ -32,7 +32,10 @@ class ThreadChecker {
  private:
   static inline SbThreadId GetThreadId() {
     // NOTE: We can cache the thread ID in thread-local storage since Cobalt
-    // doesn't use fork().
+    // doesn't use fork(). If fork() were used, the child process would inherit
+    // the stale cached ID, (which would then be stale), and we would need to
+    // clear the TLS cache as is done in:
+    // http://go/cobalt-src/main:base/threading/platform_thread_posix.cc;drc=37870fc4cfbf46727225adada6e3a7eab61ab4fb
     thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
     if (tls_thread_id == kSbThreadInvalidId) {
       tls_thread_id = SbThreadGetId();
