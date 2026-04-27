@@ -325,12 +325,16 @@ void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
   state_ = STATE_RECREATING;
   player_bridge_.reset();
 
+#if BUILDFLAG(IS_ANDROID)
   // Schedule the actual creation asynchronously
   task_runner_->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&StarboardRenderer::CreateNewPlayerBridgeAfterDestruction,
                      weak_factory_.GetWeakPtr(), seek_time),
       base::Milliseconds(2000));
+#else // BUILDFLAG(IS_ANDROID)
+  CreateNewPlayerBridgeAfterDestruction(seek_time);
+#endif // BUILDFLAG(IS_ANDROID)
 }
 
 void StarboardRenderer::CreateNewPlayerBridgeAfterDestruction(
@@ -815,6 +819,7 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     if (player_bridge_->video_config().IsValidConfig() &&
         (player_bridge_->video_config().codec() != decoder_config.codec() ||
          player_bridge_->video_mime_type() != stream->mime_type())) {
+      LOG(INFO) << "TEST changeType occurring!";
       DrainPlayerForCodecChange();
       return;  // Don't update the config on the current player.
     }
@@ -937,6 +942,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // Don't read from the stream until player is recreated.
       // The recreation logic in OnPlayerStatus will trigger a new read.
       return;
+    }
+    if (stream == audio_stream_) {
+      audio_read_in_progress_ = true;
+    } else {
+      video_read_in_progress_ = true;
     }
     stream->Read(
         max_buffers,
@@ -1087,7 +1097,6 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
         LOG(INFO) << "Player initialized during recreation, resuming playback.";
         state_ = STATE_PLAYING;
         player_bridge_->Seek(seek_time_);
-        player_bridge_->SetPlaybackRate(playback_rate_);
         StoreMediaTime(seek_time_);
         is_video_eos_written_ = false;
       } else if (init_cb_) {
@@ -1107,6 +1116,9 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "Audio write duration is " << audio_write_duration_;
+      if (player_bridge_) {
+        player_bridge_->SetPlaybackRate(playback_rate_);
+      }
       break;
     case kSbPlayerStateEndOfStream:
       if (codec_or_format_change_pending_) {

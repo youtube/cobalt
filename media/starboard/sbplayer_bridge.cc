@@ -307,11 +307,6 @@ void SbPlayerBridge::WriteBuffers(
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  if (video_stream_info_.codec == kSbMediaVideoCodecVp9) {
-    LOG(INFO) << "TEST we have VP9!";
-  } else if (video_stream_info_.codec == kSbMediaVideoCodecH264) {
-    LOG(INFO) << "TEST we have H264!";
-  }
   WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
 
