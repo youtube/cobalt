@@ -21,10 +21,13 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -61,6 +64,14 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   ASSERT_TRUE(manager_client);
   auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
+
+  // Exercise V8 by loading a page with JavaScript
+  GURL test_url(
+      "data:text/html,<html><head><script>let arrays = []; for (let i = 0; i < "
+      "1000; i++) { arrays.push(new Array(1000).fill('hello')); } "
+      "console.log('V8 exercised');</script></head><body>V8 "
+      "Test</body></html>");
+  EXPECT_TRUE(content::NavigateToURL(shell()->web_contents(), test_url));
 
   // Trigger a memory dump manually for testing and wait for it.
   base::RunLoop run_loop;
@@ -112,6 +123,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
       "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
+  check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.NewSpace");
+  check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.OldSpace");
+  check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.CodeSpace");
+  check_histogram(
+      "Memory.Experimental.Browser2.Small.V8.Main.Heap.LargeObjectSpace");
   check_histogram("Memory.Experimental.Browser2.Skia");
   check_histogram("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache");
   check_histogram("Memory.Experimental.Browser2.Small.FontCaches");
@@ -220,6 +236,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
 
   auto* features = GlobalFeatures::GetInstance();
   features->metrics_services_manager()->UpdateUploadPermissions(true);

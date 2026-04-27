@@ -180,31 +180,31 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      {}},
     {"v8/main/heap/new_space",
      "V8.Main.Heap.NewSpace",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"v8/main/heap/old_space",
      "V8.Main.Heap.OldSpace",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"v8/main/heap/code_space",
      "V8.Main.Heap.CodeSpace",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"v8/main/heap/map_space",
      "V8.Main.Heap.MapSpace",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"v8/main/heap/large_object_space",
      "V8.Main.Heap.LargeObjectSpace",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
@@ -262,6 +262,7 @@ void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
     for (const auto& metric : kAllocatorDumpNamesForMetrics) {
       mad_list.push_back(metric.dump_name);
     }
+
     instrumentation->RequestGlobalDump(mad_list, std::move(callback));
   } else {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -416,6 +417,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
 #endif
       std::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
+
       if (value) {
         EmitProcessUma(ptype, item, value.value());
       }
