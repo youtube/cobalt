@@ -147,23 +147,17 @@ def package_and_deploy(
     device_id: str,
     out_dir: Path,
     remote_dir: str,
-    deps_file: Optional[Path],
+    deps_file: Path,
     mode: str,
 ) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
-    tar_cmd = [
-        "tar", "-czvf", archive_name,
-        "-C", str(out_dir)
-    ]
-    
-    if deps_file:
-        tar_cmd.extend(["-T", str(deps_file)])
-
     if mode == "plugin":
-        tar_cmd.append("libloader_app.so")
+        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", deps_file.name, "libloader_app.so"]
+    else:
+        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", deps_file.name]
 
     run_command(tar_cmd)
     run_command(["adb", "-s", device_id, "shell", f"mkdir -p {remote_dir}"])
@@ -305,7 +299,7 @@ def main() -> None:
         deps_file = None
     else:
         # Standard deployment uses cobalt_loader to generate the runtime_deps list.
-        targets = ["cobalt_loader loader_app"]
+        targets = ["cobalt_loader", "loader_app"]
         deps_file = out_dir / "cobalt_loader.runtime_deps"
         
         if args.mode == "plugin":
