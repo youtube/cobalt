@@ -27,6 +27,7 @@ namespace starboard {
 // dedicated function.
 struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
+  bool allow_audio_writing_on_pause = false;
   bool disable_low_performance_sw_decoder = false;
   bool enable_av1_startup_optimization = false;
   bool enable_codec_output_checker = false;
