@@ -9,7 +9,7 @@ import("sources.gni")
 
 proto_library("chrome_track_event") {
   proto_in_dir = "//"
-  proto_out_dir = "base/tracing/protos"
+  proto_out_dir = "copied_base/base/tracing/protos"
   import_dirs = [ "//third_party/perfetto/" ]
   sources = chrome_track_event_sources
   generate_cc = false
