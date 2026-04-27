@@ -18,20 +18,30 @@ This script handles the full lifecycle of building, packaging, deploying,
 and launching Cobalt (as a plugin or executable) or Cobalt tests on RDK.
 
 Prerequisite:
-  Set the RDK_DEVICE_ID environment variable (e.g., export RDK_DEVICE_ID=...).
-  Obtain the ID by running 'adb devices'.
+  Set the RDK_DEVICE_ID environment variable.
+  (Obtain the ID by running 'adb devices')
+  export RDK_DEVICE_ID=<device_id>
 
 Usage Examples:
-  1. Build and deploy as Cobalt plugin:
+  1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
 
-  2. Build, deploy, and RUN Cobalt plugin:
+  2. Build, deploy, and RUN Cobalt plugin on device:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
 
-  3. Build and run nplb tests:
+  3. Build, deploy, and RUN nplb tests on device (uses devel config):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  4. Deploy only the libcobalt library:
+  4. Build and deploy as standalone executable (loader_app):
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --mode executable
+
+  5. Force deploy and run even if artifacts are up-to-date:
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
+
+  6. Reset RDK display (fixes stuck sessions caused by executable mode):
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
+
+  7. Deploy only the libcobalt library:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
 """
 
@@ -57,18 +67,7 @@ def run_command(
     check: bool = True,
     stream_output: bool = False,
 ) -> str:
-    """Utility to run shell commands.
-
-    Args:
-        command: Command to execute (string or list).
-        capture_output: Whether to return the stdout.
-        verbose: Whether to print the command before executing.
-        check: Whether to exit on non-zero return code.
-        stream_output: Whether to print output in real-time.
-
-    Returns:
-        The command output if capture_output or stream_output is True.
-    """
+    """Utility to run shell commands."""
     if verbose:
         cmd_str = command if isinstance(command, str) else " ".join(command)
         print(f">>> Executing: {cmd_str}")
@@ -91,7 +90,8 @@ def run_command(
                 full_output.append(line)
         process.wait()
         if check and process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, command, output="".join(full_output))
+            raise subprocess.CalledProcessError(process.returncode, command,
+                                              "".join(full_output))
         return "".join(full_output)
 
     process = subprocess.run(
@@ -150,27 +150,25 @@ def package_and_deploy(
     deps_file: Optional[Path],
     mode: str,
 ) -> None:
-    """Packages artifacts into a tarball and pushes to device."""
+    """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
-    gen_dir = out_dir / "gen"
-    gen_dir.mkdir(parents=True, exist_ok=True)
+    archive_name = "archive.tar.gz"
 
-    if Path("gen/build_info.json").exists():
-        run_command(["cp", "gen/build_info.json", str(gen_dir)])
-
-    tar_cmd = ["tar", "-czf", "archive.tar.gz", "-C", str(out_dir)]
+    tar_cmd = [
+        "tar", "-czvf", archive_name,
+        "-C", str(out_dir)
+    ]
+    
     if deps_file:
         tar_cmd.extend(["-T", str(deps_file)])
 
-    if mode == "plugin" and (out_dir / "libloader_app.so").exists():
+    if mode == "plugin":
         tar_cmd.append("libloader_app.so")
-    elif mode == "executable" and (out_dir / "loader_app").exists():
-        tar_cmd.append("loader_app")
 
     run_command(tar_cmd)
     run_command(["adb", "-s", device_id, "shell", f"mkdir -p {remote_dir}"])
-    run_command(["adb", "-s", device_id, "push", "archive.tar.gz", f"{remote_dir}/"])
-    Path("archive.tar.gz").unlink(missing_ok=True)
+    run_command(["adb", "-s", device_id, "push", archive_name, f"{remote_dir}/"])
+    Path(archive_name).unlink(missing_ok=True)
 
 
 def launch_on_device(
@@ -306,13 +304,15 @@ def main() -> None:
         remote_dir = DEFAULT_REMOTE_DIR if args.mode == "plugin" else EXECUTABLE_REMOTE_DIR
         deps_file = None
     else:
-        targets = ["loader_app", "cobalt"]
+        # Standard deployment uses cobalt_loader to generate the runtime_deps list.
+        targets = ["cobalt_loader loader_app"]
+        deps_file = out_dir / "cobalt_loader.runtime_deps"
+        
         if args.mode == "plugin":
-            remote_dir = DEFAULT_REMOTE_DIR
             targets.append("loader_app_rdk_plugin")
+            remote_dir = DEFAULT_REMOTE_DIR
         else:
             remote_dir = EXECUTABLE_REMOTE_DIR
-        deps_file = out_dir / "cobalt_loader.runtime_deps"
 
     configure_build(PLATFORM, config, out_dir)
     build_output = build_targets(out_dir, targets)

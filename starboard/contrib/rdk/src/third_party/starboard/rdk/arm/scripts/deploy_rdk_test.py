@@ -73,9 +73,58 @@ class TestDeployRdk(unittest.TestCase):
         )
         self.assertTrue(found_reset, "rdkDisplay remove was not called for --reset")
 
+    def test_plugin_mode_packaging(self):
+        """Verifies targets and tar command for plugin mode."""
+        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+
+        argv = ["deploy_rdk.py", "--mode", "plugin", "--force-deploy"]
+        with mock.patch("sys.argv", argv):
+            deploy_rdk.main()
+
+        # Check targets built: cobalt_loader and loader_app_rdk_plugin
+        build_call = next(call for call in self.mock_run.call_args_list 
+                         if "autoninja" in str(call))
+        targets = build_call[0][0]
+        self.assertIn("cobalt_loader", targets)
+        self.assertIn("loader_app_rdk_plugin", targets)
+
+        # Check tar command: -C <out_dir>, -T <deps_file>, and libloader_app.so
+        tar_call = next(call for call in self.mock_run.call_args_list 
+                       if "tar" in str(call))
+        tar_args = tar_call[0][0]
+        self.assertIn("-czvf", tar_args)
+        self.assertIn("-C", tar_args)
+        self.assertIn("-T", tar_args)
+        self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
+        self.assertIn("libloader_app.so", tar_args)
+
+    def test_executable_mode_packaging(self):
+        """Verifies targets and tar command for executable mode."""
+        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+
+        argv = ["deploy_rdk.py", "--mode", "executable", "--force-deploy"]
+        with mock.patch("sys.argv", argv):
+            deploy_rdk.main()
+
+        # Check targets built: cobalt_loader
+        build_call = next(call for call in self.mock_run.call_args_list 
+                         if "autoninja" in str(call))
+        targets = build_call[0][0]
+        self.assertIn("cobalt_loader", targets)
+        self.assertNotIn("loader_app_rdk_plugin", targets)
+
+        # Check tar command: -C <out_dir> and -T <deps_file>
+        tar_call = next(call for call in self.mock_run.call_args_list 
+                       if "tar" in str(call))
+        tar_args = tar_call[0][0]
+        self.assertIn("-czvf", tar_args)
+        self.assertIn("-C", tar_args)
+        self.assertIn("-T", tar_args)
+        self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
+        self.assertNotIn("libloader_app.so", tar_args)
+
     def test_plugin_mode_launch(self):
         """Verifies plugin mode uses deactivate -> sleep -> activate sequence."""
-        # Mocking build output to trigger deployment logic
         self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
 
         argv = ["deploy_rdk.py", "--mode", "plugin", "--run", "--force-deploy"]
@@ -122,7 +171,6 @@ class TestDeployRdk(unittest.TestCase):
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
-        # Check for the correct remote directory creation and push
         found_remote_dir = False
         found_push = False
         for call_args in self.mock_run.call_args_list:
