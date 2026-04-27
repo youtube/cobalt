@@ -221,6 +221,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   base::HistogramTester histogram_tester;
 
+  base::ScopedAllowBlockingForTesting allow_blocking;
   auto* features = GlobalFeatures::GetInstance();
   features->metrics_services_manager()->UpdateUploadPermissions(true);
 
