@@ -10,11 +10,6 @@
 #include <utility>
 #include <vector>
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/feature_list.h"
-#include "media/base/media_switches.h"
-#endif
-
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -69,6 +64,9 @@
 #include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "cobalt/media/audio/audio_input_constants.h"
+#include "media/base/media_switches.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -348,10 +346,6 @@ bool ShouldDeferDeviceSettingsSelection(
     const ExecutionContext* execution_context) {
   return false;
 }
-#endif
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-constexpr int kSamplesPerBuffer = 128;
 #endif
 
 }  // namespace
@@ -744,7 +738,7 @@ void UserMediaProcessor::SetupAudioInput() {
       // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
       // and its default processing dependencies.
       blink::AudioCaptureSettings settings(
-          "default", /*requested_buffer_size=*/kSamplesPerBuffer,
+          "default", /*requested_buffer_size=*/cobalt::media::kSamplesPerBuffer,
           /*disable_local_echo=*/false,
           /*enable_automatic_output_device_selection=*/false,
           blink::AudioCaptureSettings::ProcessingType::kUnprocessed,

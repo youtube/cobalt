@@ -25,6 +25,7 @@
 
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
+#include "cobalt/media/audio/audio_input_constants.h"
 
 #define LOG_ON_FAILURE_AND_RETURN(op, ...)      \
   do {                                          \
@@ -36,9 +37,6 @@
   } while (0)
 
 namespace media {
-
-const int StarboardAudioInputStream::kSampleRate;
-const int StarboardAudioInputStream::kSamplesPerBuffer;
 
 // static
 bool StarboardAudioInputStream::RequestRuntimePermission() {
@@ -54,7 +52,7 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   // Hardcode to 16kHz Mono 16-bit PCM (Starboard style)
   format_.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
   format_.numChannels = 1;
-  format_.sampleRate = kSampleRate * 1000; // milliHertz
+  format_.sampleRate = cobalt::media::kSampleRate * 1000; // milliHertz
   format_.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
   format_.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
   format_.channelMask = SL_SPEAKER_FRONT_CENTER;
@@ -65,8 +63,8 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   // If the passed params are already 16kHz, this is easy.
   // C25 used 128 samples per buffer.
   // Let's use what's passed but ensure it's calculated for 16-bit Mono.
-  int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : kSampleRate;
-  buffer_size_bytes_ = (kSampleRate * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
+  int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : cobalt::media::kSampleRate;
+  buffer_size_bytes_ = (cobalt::media::kSampleRate * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
 
   // If we couldn't scale it properly, just use a reasonable default.
   if (buffer_size_bytes_ == 0) {
@@ -74,7 +72,7 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   }
 
   audio_bus_ = media::AudioBus::Create(1, buffer_size_bytes_ / sizeof(int16_t));
-  hardware_delay_ = base::Seconds(audio_bus_->frames() / static_cast<double>(kSampleRate));
+  hardware_delay_ = base::Seconds(audio_bus_->frames() / static_cast<double>(cobalt::media::kSampleRate));
 }
 
 StarboardAudioInputStream::~StarboardAudioInputStream() {
@@ -162,17 +160,15 @@ void StarboardAudioInputStream::Close() {
   CHECK(thread_checker_.CalledOnValidThread());
   Stop();
 
-   // Destroy OpenSLES objects outside the lock.
+  // Destroy OpenSLES objects outside the lock.
   // These calls are synchronous and wait for any pending callbacks to finish.
   // If we held the lock here, we would deadlock with ReadBufferQueue.
   recorder_object_.Reset();
   engine_object_.Reset();
   {
     base::AutoLock lock(lock_);
-
     simple_buffer_queue_ = nullptr;
     recorder_ = nullptr;
-
     ReleaseAudioBuffer();
   }
   audio_manager_->ReleaseInputStream(this);
@@ -292,8 +288,8 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   if (callback) {
     callback->OnData(audio_bus_.get(),
                      base::TimeTicks::Now() - hardware_delay_,
-                     /*volume= - 0 indicates no vol control*/0.0,
-                     /*audio_glitch_info*/{});
+                     /*volume=(0 indicates no vol control)*/0.0,
+                     /*audio_glitch_info=*/{});
   }
 
   base::AutoLock lock(lock_);

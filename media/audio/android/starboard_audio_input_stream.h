@@ -32,6 +32,7 @@
 #include "media/audio/android/opensles_util.h"
 #include "media/audio/audio_io.h"
 #include "media/base/audio_parameters.h"
+#include "cobalt/media/audio/audio_input_constants.h"
 
 namespace media {
 
@@ -44,8 +45,6 @@ class AudioManagerAndroid;
 class StarboardAudioInputStream : public AudioInputStream {
  public:
   static const int kMaxNumOfBuffersInQueue = 2;
-  static const int kSampleRate = 16000;
-  static const int kSamplesPerBuffer = 128;
   static const int kDefaultBufferSizeInBytes = 1024;
 
   StarboardAudioInputStream(AudioManagerAndroid* manager,

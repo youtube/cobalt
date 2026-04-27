@@ -4,6 +4,10 @@
 
 #include "media/audio/android/audio_manager_android.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "cobalt/media/audio/audio_input_constants.h"
+#endif
+
 #include <memory>
 #include <optional>
 
@@ -370,8 +374,8 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   // Hardcode Mono to bypass JNI/Probing overhead.
   // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
-  int sample_rate = StarboardAudioInputStream::kSampleRate;
-  int buffer_size = StarboardAudioInputStream::kSamplesPerBuffer;
+  int sample_rate = cobalt::media::kSampleRate;
+  int buffer_size = cobalt::media::kSamplesPerBuffer;
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                          ChannelLayoutConfig::FromLayout<channel_layout>(),

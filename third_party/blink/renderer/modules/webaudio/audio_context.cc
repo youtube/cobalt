@@ -58,6 +58,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
+#include "cobalt/media/audio/audio_input_constants.h"
 #endif
 
 namespace blink {
@@ -154,9 +155,6 @@ bool IsAudible(const AudioBus* rendered_data) {
 
 using blink::SetSinkIdResolver;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-constexpr int kSampleRate = 16'000;
-#endif
 }  // namespace
 
 AudioContext* AudioContext::Create(ExecutionContext* context,
@@ -209,7 +207,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
   // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
   if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) && !sample_rate.has_value()) {
-    sample_rate = kSampleRate;
+    sample_rate = cobalt::media::kSampleRate;
     LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

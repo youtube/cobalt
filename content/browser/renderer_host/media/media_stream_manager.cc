@@ -106,6 +106,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/audio/audio_manager.h"
+#include "cobalt/media/audio/audio_input_constants.h"
 #if BUILDFLAG(IS_ANDROID)
 #include "media/audio/android/starboard_audio_input_stream.h"
 #endif
@@ -550,11 +551,6 @@ bool IsApplicationLoopbackAudioDevice(MediaStreamDevice* device) {
   return blink::IsAudioInputMediaType(device->type) &&
          media::AudioDeviceDescription::IsApplicationLoopbackDevice(device->id);
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-constexpr int kSampleRate = 16'000;
-constexpr int kSamplesPerBuffer = 128;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
 
@@ -2769,7 +2765,7 @@ void MediaStreamManager::CompleteFastTrackSetUp(
   media::AudioParameters params(
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
       media::ChannelLayoutConfig::Mono(),
-      kSampleRate, kSamplesPerBuffer);
+      cobalt::media::kSampleRate, cobalt::media::kSamplesPerBuffer);
 
   // Use a special prefix for the device_id to carry the session_id to the
   // AudioThread. This allows deterministic lookup of the pre-started stream.
