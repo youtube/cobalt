@@ -244,9 +244,11 @@ using CheckedContiguousConstIterator = CheckedContiguousIterator<const T>;
 // [3] https://wg21.link/pointer.traits.optmem
 namespace std {
 
+#if _LIBCPP_VERSION <= 170000
 template <typename T>
 struct __is_cpp17_contiguous_iterator<::base::CheckedContiguousIterator<T>>
     : true_type {};
+#endif
 
 template <typename T>
 struct pointer_traits<::base::CheckedContiguousIterator<T>> {

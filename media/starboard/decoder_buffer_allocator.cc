@@ -37,10 +37,9 @@ namespace media {
 
 namespace {
 
+// The current default AllocatorStrategy is InPlaceReuseAllocatorBase.
+// To see more context as to why this is the case, see b/487332929.
 using DefaultReuseAllocatorStrategy =
-    BidirectionalFitDecoderBufferAllocatorStrategy<
-        starboard::ReuseAllocatorBase>;
-using InPlaceReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
         starboard::InPlaceReuseAllocatorBase>;
 using starboard::experimental::MediaBufferPool;
@@ -261,16 +260,28 @@ void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
 }
 
 // static
-void DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase() {
+void DecoderBufferAllocator::EnableDecommitableAllocatorStrategy() {
   auto* allocator = Get();
   CHECK(allocator);
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
-        LOG(INFO)
-            << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
-        return std::make_unique<InPlaceReuseAllocatorStrategy>(initial_capacity,
-                                                               allocation_unit);
+        // The default values of initial_capacity and allocation_unit are often
+        // 4 MB, which in the extreme case aren't enough to hold a key frame.
+        // Increase them to 8 MB to accommodate all known key frames without
+        // special allocations in the underlying allocator.
+        constexpr int kAllocationUnit = 8 * 1024 * 1024;
+
+        LOG(INFO) << "DecoderBufferAllocator is using "
+                     "DefaultReuseAllocatorStrategy with decommit enabled. "
+                  << "initial_capacity (" << initial_capacity
+                  << ") and allocation_unit (" << allocation_unit
+                  << ") are ignored and set to " << kAllocationUnit
+                  << " bytes.";
+
+        return std::make_unique<DefaultReuseAllocatorStrategy>(
+            kAllocationUnit, kAllocationUnit,
+            /*enable_decommit_on_idle=*/true);
       }));
 }
 
@@ -314,19 +325,11 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
                     "strategy. Falling back to default.";
   }
 
-  // Keep the existing feature based logic as is, as the h5vcc settings based
-  // logic will be deprecated once Finch is ready.
-  if (base::FeatureList::IsEnabled(
-          kCobaltDecoderBufferAllocatorWithInPlaceMetadata)) {
-    strategy_ = std::make_unique<InPlaceReuseAllocatorStrategy>(
-        initial_capacity_, allocation_unit_);
-    LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
-  } else {
-    strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
-        initial_capacity_, allocation_unit_);
-    LOG(INFO)
-        << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy.";
-  }
+  strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
+      initial_capacity_, allocation_unit_,
+      /*enable_decommit_on_idle=*/false);
+  LOG(INFO) << "DecoderBufferAllocator is using "
+               "DefaultReuseAllocatorStrategy.";
 
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for decoder buffer pool.";

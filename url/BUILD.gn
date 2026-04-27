@@ -12,6 +12,7 @@ import("//third_party/jni_zero/jni_zero.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
+  import("//starboard/build/config/android_toolchain.gni")
 }
 
 buildflag_header("buildflags") {
@@ -131,7 +132,7 @@ if (is_android || is_robolectric) {
     }
   }
 }
-if (is_android && current_toolchain == default_toolchain) {
+if (is_android && current_toolchain == android_toolchain) {
   # TODO(agrieve): Remove alias once usages are removed.
   java_group("gurl_java") {
     deps = [ ":url_java" ]

@@ -32,10 +32,6 @@
 #include "cobalt/media/base/cval_stats.h"
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-#include "cobalt/media/base/decode_target_provider.h"
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 #include "cobalt/media/base/decoder_buffer_cache.h"
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -43,6 +39,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "starboard/media.h"
@@ -92,9 +89,9 @@ class SbPlayerBridge {
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
                      encrypted_media_init_data_encountered_cb,
-                 DecodeTargetProvider* const decode_target_provider,
                  std::string pipeline_identifier);
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -109,17 +106,9 @@ class SbPlayerBridge {
                  Host* host,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-                 DecodeTargetProvider* const decode_target_provider,
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size,
-                 bool flush_decoder_during_reset,
-                 bool reset_audio_decoder,
-                 std::optional<int> initial_max_frames_in_decoder,
-                 std::optional<int> max_pending_input_frames,
-                 std::optional<int> video_decoder_initial_preroll_count,
-                 std::optional<int> video_decoder_poll_interval_ms
+                 const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
@@ -333,10 +322,6 @@ class SbPlayerBridge {
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
 
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  DecodeTargetProvider* const decode_target_provider_;
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
   // Keep copies of the mime type strings instead of using the ones in the
   // DemuxerStreams to ensure that the strings are always valid.
   std::string audio_mime_type_;
@@ -344,12 +329,7 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
-  const bool flush_decoder_during_reset_;
-  const bool reset_audio_decoder_;
-  const std::optional<int> initial_max_frames_in_decoder_;
-  const std::optional<int> max_pending_input_frames_;
-  const std::optional<int> video_decoder_initial_preroll_count_;
-  const std::optional<int> video_decoder_poll_interval_ms_;
+  const ExperimentalFeatures experimental_features_;
 
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
   // Set the maximum size in bytes of an input buffer for video.

@@ -16,6 +16,7 @@
                 "gen/licenses_cobalt.txt",
                 "libcobalt.so",
                 "loader_app",
+                "libloader_app.so",
                 {
                     "from_file": "cobalt_shell.pak",
                     "to_file": "content/cobalt_shell.pak"

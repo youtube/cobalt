@@ -32,8 +32,12 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
 
   bool GetInfo(SbDecodeTargetInfo* out_info) final;
 
-  jobject surface_texture() const { return surface_texture_.obj(); }
-  jobject surface() const { return surface_.obj(); }
+  const base::android::ScopedJavaGlobalRef<jobject>& surface_texture() const {
+    return surface_texture_;
+  }
+  const base::android::ScopedJavaGlobalRef<jobject>& surface() const {
+    return surface_;
+  }
 
   void set_dimension(const Size& size) {
     info_.planes[0].width = size.width;

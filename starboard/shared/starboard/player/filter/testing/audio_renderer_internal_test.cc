@@ -112,7 +112,8 @@ class AudioRendererTest : public ::testing::Test {
     audio_renderer_.reset(new AudioRendererPcm(
         &job_queue_, std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
-        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
+        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend,
+        ExperimentalFeatures()));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
         std::bind(&AudioRendererTest::OnPrerolled, this),

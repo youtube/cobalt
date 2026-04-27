@@ -21,13 +21,16 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/system/sys_info.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/version.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
@@ -76,9 +79,14 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->process_type =
         memory_instrumentation::mojom::ProcessType::BROWSER;
     browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
-    browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
-    browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
-    browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+    browser_dump->os_dump->private_footprint_kb = 10240;    // 10 MB
+    browser_dump->os_dump->resident_set_kb = 20480;         // 20 MB
+    browser_dump->os_dump->shared_footprint_kb = 5120;      // 5 MB
+    browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
+    browser_dump->os_dump->malloc_rss_kb = 10240;           // 10 MB
+    browser_dump->os_dump->v8_rss_kb = 12288;               // 12 MB
+    browser_dump->os_dump->libchrobalt_rss_kb = 10240;      // 10 MB
+    browser_dump->os_dump->libchrobalt_pss_kb = 8192;       // 8 MB
 
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -187,7 +195,8 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     renderer_dump->process_type =
         memory_instrumentation::mojom::ProcessType::RENDERER;
     renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
-    renderer_dump->os_dump->private_footprint_kb = 20480;  // 20 MB
+    renderer_dump->os_dump->private_footprint_kb = 20480;   // 20 MB
+    renderer_dump->os_dump->partition_alloc_rss_kb = 2048;  // 2 MB
 
     auto renderer_blink_gc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -208,6 +217,21 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
 
  protected:
   ~TestProcessMemoryMetricsEmitter() override = default;
+};
+
+class TestCpuMetricsEmitter : public CobaltCpuMetricsEmitter {
+ public:
+  TestCpuMetricsEmitter() = default;
+
+  // Mock CPU usage to verify accurate recording of average.
+  double GetCpuUsage() override {
+    const int num_processors = base::SysInfo::NumberOfProcessors();
+    double mock_usage = 50.0 * num_processors;  // 50% per core.
+    return mock_usage;
+  }
+
+ protected:
+  ~TestCpuMetricsEmitter() override = default;
 };
 
 // Mock for MetricsService to verify construction of a specific MetricsService
@@ -310,6 +334,10 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
     return base::MakeRefCounted<TestProcessMemoryMetricsEmitter>();
   }
 
+  scoped_refptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter() override {
+    return base::MakeRefCounted<TestCpuMetricsEmitter>();
+  }
+
   void OnApplicationNotIdleInternal() override {
     on_application_not_idle_internal_called_ = true;
   }
@@ -347,9 +375,9 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   bool on_application_not_idle_internal_called_ = false;
 };
 
-class CobaltMetricsServiceClientTest : public ::testing::Test {
+class CobaltMetricsServiceClientBaseTest : public ::testing::Test {
  protected:
-  CobaltMetricsServiceClientTest() { mojo::core::Init(); }
+  CobaltMetricsServiceClientBaseTest() { mojo::core::Init(); }
 
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
@@ -375,25 +403,11 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         temp_dir_.GetPath(), metrics::StartupVisibility::kForeground);
     ASSERT_THAT(metrics_state_manager_, NotNull());
 
-    auto synthetic_trial_registry =
-        std::make_unique<variations::SyntheticTrialRegistry>();
-    synthetic_trial_registry_ = synthetic_trial_registry.get();
-
-    // Instantiate the test client and call Initialize to trigger mock creation.
-    // This simulates the two-phase initialization of the static Create().
-    client_ = std::make_unique<TestCobaltMetricsServiceClient>(
-        metrics_state_manager_.get(), std::move(synthetic_trial_registry),
-        &prefs_);
-    client_->CallInitialize();  // This will use the overridden factory methods.
-
     // Instantiate mock media client for testing
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     mock_media_client_ = std::make_unique<media::MockMediaClient>();
     media::SetMediaClient(mock_media_client_.get());
 #endif
-
-    ASSERT_THAT(client_->mock_metrics_service(), NotNull());
-    ASSERT_THAT(client_->mock_log_uploader(), NotNull());
   }
 
   void TearDown() override {
@@ -411,11 +425,39 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<base::ScopedPathOverride> path_override_;
   std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
-  std::unique_ptr<TestCobaltMetricsServiceClient> client_;
-  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<media::MockMediaClient> mock_media_client_;
 #endif
+};
+
+class CobaltMetricsServiceClientTest
+    : public CobaltMetricsServiceClientBaseTest {
+ protected:
+  void SetUp() override {
+    CobaltMetricsServiceClientBaseTest::SetUp();
+
+    InitializeClient();
+  }
+
+  std::unique_ptr<TestCobaltMetricsServiceClient> client_;
+  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+
+ private:
+  void InitializeClient() {
+    auto synthetic_trial_registry =
+        std::make_unique<variations::SyntheticTrialRegistry>();
+    synthetic_trial_registry_ = synthetic_trial_registry.get();
+
+    // Instantiate the test client and call Initialize to trigger mock creation.
+    // This simulates the two-phase initialization of the static Create().
+    client_ = std::make_unique<TestCobaltMetricsServiceClient>(
+        metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+        &prefs_);
+    client_->CallInitialize();  // This will use the overridden factory methods.
+
+    ASSERT_THAT(client_->mock_metrics_service(), NotNull());
+    ASSERT_THAT(client_->mock_log_uploader(), NotNull());
+  }
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
@@ -475,12 +517,27 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
+  base::HistogramTester histogram_tester;
+
+  // Trigger CPU usage dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50),
+            1);
+}
+
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   base::HistogramTester histogram_tester;
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.
@@ -500,6 +557,18 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
           .GetAllSamples("Memory.Experimental.Browser2.Malloc.AllocatedObjects")
           .size(),
       1u);
+
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Malloc", 10),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc", 16),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
+      0);
+#endif
 
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Tiny.NumberOfDocuments", 3),
@@ -523,13 +592,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
                 "Memory.Experimental.Browser2.Small.LevelDatabase", 512),
             0);
   EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.Malloc", 10),
-            0);
-  EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Malloc.AllocatedObjects", 8),
-            0);
-  EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.PartitionAlloc", 16),
             0);
   EXPECT_GT(
       histogram_tester.GetBucketCount(
@@ -547,9 +610,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Small.UI", 2),
             0);
-  EXPECT_GT(
-      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
-      0);
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.V8.AllocatedObjects", 10),
             0);
@@ -579,7 +639,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.
@@ -781,6 +841,102 @@ TEST_F(CobaltMetricsServiceClientTest,
   // restarted, it should fire based on new_delay.
   task_environment_.FastForwardBy(new_delay);
   EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientBaseTest, CobaltMetricsIntervalFeatureTest) {
+  base::HistogramTester histogram_tester;
+  const int kCustomInterval = 10;  // 10 seconds
+
+  // Override feature flag and param.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltMetricsIntervalFeature,
+      {{"memory-metrics-interval", base::NumberToString(kCustomInterval)},
+       {"cpu-metrics-interval", base::NumberToString(kCustomInterval)}});
+
+  // Re-initialize client to pick up new feature settings if needed,
+  // but wait, CobaltMetricsServiceClient::Initialize calls
+  // StartMemoryMetricsLogger. In our test SetUp, we already called
+  // CallInitialize(). Let's create a fresh client to be sure.
+  auto synthetic_trial_registry =
+      std::make_unique<variations::SyntheticTrialRegistry>();
+  auto custom_client = std::make_unique<TestCobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+      &prefs_);
+  custom_client->CallInitialize();
+
+  // Initially, no metrics recorded.
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
+
+  // Fast forward by kCustomInterval - 1 second. Still no metrics.
+  task_environment_.FastForwardBy(base::Seconds(kCustomInterval - 1));
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
+
+  // Fast forward by 1 more second. Now metrics should be recorded.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+          .size(),
+      1u);
+  // CPU metrics should also be recorded.
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
+}
+
+TEST_F(CobaltMetricsServiceClientBaseTest,
+       MetricsIntervalDefaultProductionTest) {
+  // Verify that the feature is disabled by default.
+  EXPECT_FALSE(
+      base::FeatureList::IsEnabled(features::kCobaltMetricsIntervalFeature));
+
+  base::HistogramTester histogram_tester;
+
+  // Enable the feature without parameters to test the default param value
+  // (300s).
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltMetricsIntervalFeature);
+
+  // Re-initialize client to pick up new feature settings.
+  auto synthetic_trial_registry =
+      std::make_unique<variations::SyntheticTrialRegistry>();
+  auto production_client = std::make_unique<TestCobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+      &prefs_);
+  production_client->CallInitialize();
+
+  // Initially, no metrics recorded.
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
+
+  // Fast forward by 299 seconds. Still no metrics.
+  task_environment_.FastForwardBy(base::Seconds(299));
+  EXPECT_EQ(0u, histogram_tester
+                    .GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+                    .size());
+  EXPECT_EQ(
+      0u, histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size());
+
+  // Fast forward by 1 more second (total 300s). Now metrics should be recorded.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+          .size(),
+      1u);
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
 }
 
 }  // namespace cobalt

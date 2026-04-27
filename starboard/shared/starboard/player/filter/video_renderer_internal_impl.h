@@ -20,11 +20,13 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -47,7 +49,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                     std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-                    scoped_refptr<VideoRendererSink> sink);
+                    scoped_refptr<VideoRendererSink> sink,
+                    const ExperimentalFeatures& experimental_features);
   ~VideoRendererImpl() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -62,6 +65,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void WriteEndOfStream() override;
 
   void Seek(int64_t seek_to_time) override;
+  void SetPlaybackRate(double playback_rate) override;
 
   bool IsEndOfStreamWritten() const override {
     return end_of_stream_written_.load();
@@ -85,11 +89,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
-  struct PrerollParameters {
-    int32_t min_input_buffers;
-    int32_t min_decoded_frames;
-  };
-  const std::optional<PrerollParameters> preroll_params_;
+  const ExperimentalFeatures experimental_features_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;

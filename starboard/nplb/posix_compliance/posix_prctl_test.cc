@@ -14,15 +14,52 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
-#include <sys/resource.h>
 #include <unistd.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+// From third_party/musl/include/sys/prctl.h
+#ifndef PR_SET_VMA
+#define PR_SET_VMA 0x53564d41
+#endif
+#ifndef PR_SET_VMA_ANON_NAME
+#define PR_SET_VMA_ANON_NAME 0
+#endif
+
 namespace nplb {
 namespace {
+
+// Checks /proc/self/maps to see if the memory mapping containing |addr| has
+// the specified |name|.
+bool VmaIsNamed(void* addr, const char* name) {
+  FILE* fp = fopen("/proc/self/maps", "r");
+  if (!fp) {
+    return false;
+  }
+
+  char line[1024];
+  bool found = false;
+  unsigned long target_addr = reinterpret_cast<unsigned long>(addr);
+
+  while (fgets(line, sizeof(line), fp)) {
+    unsigned long start, end;
+    if (sscanf(line, "%lx-%lx", &start, &end) != 2) {
+      continue;
+    }
+    if (target_addr >= start && target_addr < end) {
+      if (strstr(line, name)) {
+        found = true;
+      }
+      break;
+    }
+  }
+
+  fclose(fp);
+  return found;
+}
 
 TEST(PosixPrctlGeneralTests, FailsWithInvalidOption) {
   errno = 0;
@@ -525,6 +562,33 @@ TEST_F(PosixPrctlPtracerTests, SetFailsWithInvalidValue) {
   EXPECT_EQ(-1, prctl(PR_SET_PTRACER, -100000));
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for invalid value, but got: "
                            << errno << " (" << strerror(errno) << ")";
+}
+
+const char kVmaName[] = "TestVmaName";
+
+TEST(PosixPrctlTest, SetVmaAnonName) {
+  const size_t kMapSize = 4096;
+  void* p = malloc(kMapSize);
+  ASSERT_NE(p, nullptr);
+
+  int result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+                     reinterpret_cast<unsigned long>(p),
+                     static_cast<unsigned long>(kMapSize),
+                     reinterpret_cast<unsigned long>(kVmaName));
+
+  if (result == -1 && errno == EINVAL) {
+    free(p);
+    GTEST_SKIP() << "PR_SET_VMA_ANON_NAME not supported by kernel.";
+  }
+
+  ASSERT_EQ(result, 0) << "prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME) failed. "
+                          "Errno: "
+                       << errno << " (" << strerror(errno) << ")";
+
+  EXPECT_TRUE(VmaIsNamed(p, kVmaName))
+      << "VMA name was not found in /proc/self/maps.";
+
+  free(p);
 }
 
 }  // namespace

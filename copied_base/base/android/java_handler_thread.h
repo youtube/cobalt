@@ -12,13 +12,12 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/dcheck_is_on.h"
 #include "base/memory/raw_ptr.h"
+#include "base/message_loop/message_pump_for_ui.h"
 #include "base/task/sequence_manager/sequence_manager.h"
 #include "base/task/sequence_manager/task_queue.h"
 #include "base/task/single_thread_task_runner.h"
 
 namespace base {
-
-class MessagePumpForUI;
 
 namespace android {
 
