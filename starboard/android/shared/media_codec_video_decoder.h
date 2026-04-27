@@ -192,10 +192,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
   const bool needs_fps_to_initialize_codec_;
-
   // Enable MediaCodec OutputChecker to elminate dirty output callbacks after
   // flush.
   const bool enable_output_checker_;
+  // Workaround for b/506257255, which skips some video frames to make the
+  // effective frame rate no more than 60 fps. This is only used for tunnel
+  // mode.
+  const bool skip_video_frames_over_60_fps_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
