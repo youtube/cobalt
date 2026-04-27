@@ -213,7 +213,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 
 // TODO: b/489836051 - Investigate periodic memory metrics recording failures on
 // Starboard.
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
 #define MAYBE_RecordsCpuMetrics DISABLED_RecordsCpuMetrics
 #else
 #define MAYBE_RecordsCpuMetrics RecordsCpuMetrics
