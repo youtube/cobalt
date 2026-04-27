@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
+#include "cobalt/shell/renderer/web_test/cobalt_web_test_content_renderer_client.h"
 
-#include "base/command_line.h"
+namespace content {
 
-namespace switches {
+CobaltWebTestContentRendererClient::CobaltWebTestContentRendererClient() {}
 
-const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+CobaltWebTestContentRendererClient::~CobaltWebTestContentRendererClient() {}
 
-}  // namespace switches
+}  // namespace content

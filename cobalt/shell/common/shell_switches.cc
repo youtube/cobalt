@@ -70,4 +70,10 @@ bool ShouldCreateSplashScreen() {
   return !command_line->HasSwitch(kDisableSplashScreen);
 }
 
+const char kRunWebTests[] = "run-web-tests";
+
+bool IsRunWebTestsSwitchPresent() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(kRunWebTests);
+}
+
 }  // namespace switches

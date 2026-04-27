@@ -18,20 +18,13 @@
 #define COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_TEST_SWITCHES_H_
 
 #include "build/build_config.h"
+#include "cobalt/shell/common/shell_switches.h"
 
 namespace switches {
 
 // Exposes the window.internals object to JavaScript for interactive development
 // and debugging of web tests that rely on it.
 extern const char kExposeInternalsForTesting[];
-
-// Runs Cobalt Shell in web test mode, injecting test-only behaviour for
-// blink web tests.
-extern const char kRunWebTests[];
-
-// Helper that returns true if kRunWebTests is present in the command line,
-// meaning Cobalt Shell is running in web test mode.
-bool IsRunWebTestsSwitchPresent();
 
 }  // namespace switches
 

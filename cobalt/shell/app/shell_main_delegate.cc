@@ -62,9 +62,9 @@
 #endif
 
 #if BUILDFLAG(SUPPORT_WEB_TESTS)
-#include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
-#include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
-#include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
+#include "cobalt/shell/browser/web_test/cobalt_web_test_browser_main_runner.h"
+#include "cobalt/shell/browser/web_test/cobalt_web_test_content_browser_client.h"
+#include "cobalt/shell/renderer/web_test/cobalt_web_test_content_renderer_client.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -191,7 +191,7 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
     const bool browser_process =
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
     if (browser_process) {
-      web_test_runner_ = std::make_unique<WebTestBrowserMainRunner>();
+      web_test_runner_ = std::make_unique<CobaltWebTestBrowserMainRunner>();
       web_test_runner_->Initialize();
     }
   }
@@ -351,7 +351,18 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   if (!ShouldCreateFeatureList(invoked_in)) {
     // Apply field trial testing configuration since content did not.
-    browser_client_->CreateFeatureListAndFieldTrials();
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
+    if (switches::IsRunWebTestsSwitchPresent()) {
+      static_cast<CobaltWebTestContentBrowserClient*>(browser_client_.get())
+          ->CreateFeatureListAndFieldTrials();
+    } else {
+      static_cast<ShellContentBrowserClient*>(browser_client_.get())
+          ->CreateFeatureListAndFieldTrials();
+    }
+#else
+    static_cast<ShellContentBrowserClient*>(browser_client_.get())
+        ->CreateFeatureListAndFieldTrials();
+#endif
   }
   if (!ShouldInitializeMojo(invoked_in)) {
     InitializeMojoCore();
@@ -390,7 +401,7 @@ ContentClient* ShellMainDelegate::CreateContentClient() {
 ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
 #if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
-    browser_client_ = std::make_unique<WebTestContentBrowserClient>();
+    browser_client_ = std::make_unique<CobaltWebTestContentBrowserClient>();
     return browser_client_.get();
   }
 #endif
@@ -401,7 +412,7 @@ ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
 #if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
-    renderer_client_ = std::make_unique<WebTestContentRendererClient>();
+    renderer_client_ = std::make_unique<CobaltWebTestContentRendererClient>();
     return renderer_client_.get();
   }
 #endif

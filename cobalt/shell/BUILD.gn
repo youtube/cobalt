@@ -28,8 +28,7 @@ if (is_ios) {
 # true.
 shell_use_toolkit_views = toolkit_views && !is_castos
 
-support_web_tests =
-    !is_android && !(is_ios && target_platform == "tvos") && !is_starboard
+support_web_tests = !is_android && !(is_ios && target_platform == "tvos")
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
@@ -305,6 +304,17 @@ static_library("cobalt_shell_lib") {
     sources += [
       "common/device_authentication.cc",
       "common/device_authentication.h",
+    ]
+  }
+
+  if (support_web_tests) {
+    sources += [
+      "browser/web_test/cobalt_web_test_browser_main_runner.cc",
+      "browser/web_test/cobalt_web_test_browser_main_runner.h",
+      "browser/web_test/cobalt_web_test_content_browser_client.cc",
+      "browser/web_test/cobalt_web_test_content_browser_client.h",
+      "renderer/web_test/cobalt_web_test_content_renderer_client.cc",
+      "renderer/web_test/cobalt_web_test_content_renderer_client.h",
     ]
   }
 }
