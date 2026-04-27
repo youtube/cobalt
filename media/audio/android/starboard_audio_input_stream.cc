@@ -142,18 +142,26 @@ void StarboardAudioInputStream::Stop() {
     return;
   }
 
-  base::AutoLock lock(lock_);
+  SLAndroidSimpleBufferQueueItf queue = nullptr;
+  SLRecordItf recorder = nullptr;
+  {
+    base::AutoLock lock(lock_);
+    started_ = false;
+    callback_ = nullptr;
+    queue = simple_buffer_queue_;
+    recorder = recorder_;
+  }
 
   // Stop recording by setting the record state to SL_RECORDSTATE_STOPPED.
-  LOG_ON_FAILURE_AND_RETURN(
-      (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED));
+  if (recorder) {
+    LOG_ON_FAILURE_AND_RETURN(
+        (*recorder)->SetRecordState(recorder, SL_RECORDSTATE_STOPPED));
+  }
 
   // Clear the buffer queue to get rid of old data when resuming recording.
-  LOG_ON_FAILURE_AND_RETURN(
-      (*simple_buffer_queue_)->Clear(simple_buffer_queue_));
-
-  started_ = false;
-  callback_ = nullptr;
+  if (queue) {
+    LOG_ON_FAILURE_AND_RETURN((*queue)->Clear(queue));
+  }
 }
 
 void StarboardAudioInputStream::Close() {
@@ -169,8 +177,8 @@ void StarboardAudioInputStream::Close() {
     base::AutoLock lock(lock_);
     simple_buffer_queue_ = nullptr;
     recorder_ = nullptr;
-    ReleaseAudioBuffer();
   }
+  ReleaseAudioBuffer();
   audio_manager_->ReleaseInputStream(this);
 }
 
