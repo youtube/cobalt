@@ -112,8 +112,7 @@ struct StarboardRendererTraits {
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote,
       GetStarboardCommandBufferStubCB
-          get_starboard_command_buffer_stub_cb,
-      AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
+          get_starboard_command_buffer_stub_cb);
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };
@@ -275,7 +274,6 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
   const gpu::GpuPreferences gpu_preferences_;
   const gpu::GpuDriverBugWorkarounds gpu_workarounds_;
   const gpu::GpuFeatureInfo gpu_feature_info_;

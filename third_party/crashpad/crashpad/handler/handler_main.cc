@@ -583,6 +583,9 @@ int HandlerMain(int argc,
                 char* argv[],
                 const UserStreamDataSources* user_stream_sources) {
   InitCrashpadLogging();
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: Crashpad logging initialized in HandlerMain.";
+#endif
 
   InstallCrashHandler();
   CallMetricsRecordNormalExit metrics_record_normal_exit;
