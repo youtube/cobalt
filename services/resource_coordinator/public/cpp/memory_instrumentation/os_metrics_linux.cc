@@ -528,6 +528,33 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
 
 FILE* g_proc_smaps_for_testing = nullptr;
 
+base::Lock& GetTestingGlobalsLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
+#if BUILDFLAG(IS_COBALT)
+// static
+base::File OSMetrics::GetSmapsFileForScanning(base::ProcessHandle handle) {
+  base::AutoLock testing_lock(GetTestingGlobalsLock());
+  if (g_proc_smaps_for_testing) {
+    int fd = dup(fileno(g_proc_smaps_for_testing));
+    if (fd >= 0) {
+      base::File file(fd);
+      file.Seek(base::File::FROM_BEGIN, 0);
+      return file;
+    }
+  }
+  std::string file_name =
+      "/proc/" +
+      (handle == base::kNullProcessHandle ? "self"
+                                          : base::NumberToString(handle)) +
+      "/smaps";
+  return base::File(base::FilePath(file_name),
+                    base::File::FLAG_OPEN | base::File::FLAG_READ);
+}
+#endif
+
 // static
 void OSMetrics::SetProcSmapsForTesting(FILE* f) {
   g_proc_smaps_for_testing = f;
