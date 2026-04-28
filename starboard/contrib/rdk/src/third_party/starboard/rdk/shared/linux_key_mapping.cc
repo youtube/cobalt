@@ -16,6 +16,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "third_party/starboard/rdk/shared/linux_key_mapping.h"
+#include "third_party/starboard/rdk/shared/system/system_get_path.h"
 
 #include <core/JSON.h>
 #include <core/Enumerate.h>
@@ -251,7 +252,14 @@ struct LinuxKeyMappingImpl {
   LinuxKeyMappingImpl() {
     const int kBufferSize = 256;
     char buffer[kBufferSize];
+
+    // kept for backward compatibility, however new keymaps should not be added
+    // in this location as it changes after evergeen update
     if (SbSystemGetPath(kSbSystemPathContentDirectory, buffer, kBufferSize)) {
+      ReadFromFile(std::string(buffer).append("/etc/keymapping.json"));
+    }
+
+    if (system::GetContentDirectory(buffer, kBufferSize)) {
       ReadFromFile(std::string(buffer).append("/etc/keymapping.json"));
     }
   }
