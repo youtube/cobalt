@@ -46,7 +46,7 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 // $ adb shell /data/local/tmp/benchmark --benchmark_filter="BM_*"
 //
 
-#if !SB_IS(EVERGREEN) && !SB_IS(MODULAR)
+#if !SB_IS(EVERGREEN)
 int main(int argc, char** argv) {
 #if BUILDFLAG(IS_STARBOARD)
   return SbRunStarboardMain(argc, argv, SbEventHandle);
@@ -54,4 +54,4 @@ int main(int argc, char** argv) {
   return RunAllBenchmarks(argc, argv);
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
-#endif  // !SB_IS(EVERGREEN) && !SB_IS(MODULAR)
+#endif  // !SB_IS(EVERGREEN)
