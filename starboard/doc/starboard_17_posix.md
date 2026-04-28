@@ -235,7 +235,7 @@ deprecated and removed, and the standard POSIX APIs are used instead:
 ### Related Starboard APIs Added
 
 ```
-SbThreadSetPriority
+SbThreadSetPriority (deprecated)
 SbThreadGetPriority
 SbPosixSocketWaiterAdd
 SbPosixSocketWaiterRemove

@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -137,7 +138,8 @@ bool OpenMaxVideoDecoder::TryToDeliverOneFrame() {
 // static
 void* OpenMaxVideoDecoder::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "omx_video_decoder");
-  SbThreadSetPriority(kSbThreadPriorityHigh);
+  
+  SetCurrentThreadPriority(kSbThreadPriorityHigh);
   OpenMaxVideoDecoder* decoder =
       reinterpret_cast<OpenMaxVideoDecoder*>(context);
   decoder->RunLoop();

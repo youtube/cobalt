@@ -30,7 +30,40 @@
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
 
+
+#include <sys/resource.h>
+
+#include "starboard/thread.h"
 namespace starboard {
+
+inline bool SetCurrentThreadPriority(SbThreadPriority priority) {
+  int nice_value = 0;
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      nice_value = 19;
+      break;
+    case kSbThreadPriorityLow:
+      nice_value = 10;
+      break;
+    case kSbThreadNoPriority:
+    case kSbThreadPriorityNormal:
+      nice_value = 0;
+      break;
+    case kSbThreadPriorityHigh:
+      nice_value = -8;
+      break;
+    case kSbThreadPriorityHighest:
+      nice_value = -16;
+      break;
+    case kSbThreadPriorityRealTime:
+      nice_value = -19;
+      break;
+    default:
+      return false;
+  }
+  return setpriority(PRIO_PROCESS, 0, nice_value) == 0;
+}
+
 
 class Semaphore;
 

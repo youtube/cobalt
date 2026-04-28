@@ -25,6 +25,7 @@
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -869,7 +870,7 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    SbThreadSetPriority(kSbThreadPriorityHigh);
+    SetCurrentThreadPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);

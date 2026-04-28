@@ -14,9 +14,7 @@
 
 #include "starboard/thread.h"
 
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  return false;
-}
+
 
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   return false;

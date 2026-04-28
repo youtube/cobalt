@@ -19,24 +19,7 @@
 #include "starboard/thread.h"
 
 namespace {
-int SbPriorityToNice(SbThreadPriority priority) {
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-      return 19;
-    case kSbThreadPriorityLow:
-      return 10;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      return 0;
-    case kSbThreadPriorityHigh:
-      return -8;
-    case kSbThreadPriorityHighest:
-      return -16;
-    case kSbThreadPriorityRealTime:
-      return -19;
-  }
-  return 0;
-}
+
 
 SbThreadPriority NiceToSbPriority(int nice) {
   if (nice == 19) {
@@ -62,10 +45,7 @@ SbThreadPriority NiceToSbPriority(int nice) {
 
 }  // namespace
 
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  int res = setpriority(PRIO_PROCESS, 0, SbPriorityToNice(priority));
-  return res == 0;
-}
+
 
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   errno = 0;

@@ -97,7 +97,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 #endif
   bool priority_set = false;
   if (this_ptr->priority_) {
-    priority_set = SbThreadSetPriority(*this_ptr->priority_);
+    priority_set = SetCurrentThreadPriority(*this_ptr->priority_);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="

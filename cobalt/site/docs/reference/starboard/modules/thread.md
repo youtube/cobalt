@@ -238,7 +238,7 @@ the context returned from `SbThreadSamplerFreeze`.
 bool SbThreadSamplerThaw(SbThreadSampler sampler)
 ```
 
-### SbThreadSetPriority
+### SbThreadSetPriority (deprecated)
 
 Set the thread priority of the current thread.
 
