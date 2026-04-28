@@ -24,7 +24,7 @@ target("executable", "benchmark") {
 
   public_deps = [
     "//starboard:starboard_group",
-    "//starboard/common:common",
+    "//starboard/common",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
