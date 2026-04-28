@@ -349,6 +349,14 @@
 #define BUILDFLAG_INTERNAL_IS_STARBOARD_TOOLCHAIN() (0)
 #endif
 
+// TODO(b/492704919): remove when the AOSP workaround to remove cobalt deps from
+// starboard is fixed.
+#if defined(ENABLE_BUILDFLAG_IS_PARTNER_TOOLCHAIN)
+#define BUILDFLAG_INTERNAL_IS_PARTNER_TOOLCHAIN() (1)
+#else
+#define BUILDFLAG_INTERNAL_IS_PARTNER_TOOLCHAIN() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)
