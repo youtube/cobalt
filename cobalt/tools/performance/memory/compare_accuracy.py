@@ -88,10 +88,6 @@ def get_uma_data(uma_log: str) -> List[Dict[str, Any]]:
               if delta_count > 0:
                 val = delta_sum / delta_count
                 snapshot['metrics'][name] = val
-            else:
-              # First appearance of this histogram
-              if curr_count > 0:
-                snapshot['metrics'][name] = curr_sum / curr_count
 
             prev_metrics[name] = (curr_sum, curr_count)
 
@@ -103,7 +99,10 @@ def get_uma_data(uma_log: str) -> List[Dict[str, Any]]:
 
 
 def aggregate_smaps(snapshot: Dict[str, Any]) -> Dict[str, float]:
-  """Aggregates Smaps regions into Cobalt categories (RSS in MiB)."""
+  """Aggregates Smaps regions into Cobalt categories (RSS in MiB).
+
+  NOTE: The sub-metric categorization heuristics are currently Android-specific.
+  """
   res = {
       'total': snapshot['total_memory'].get('rss', 0) / 1024.0,
       'partition_alloc': 0.0,
@@ -188,7 +187,7 @@ def run_comparison(uma_history: List[Dict[str, Any]], smaps_json: str) -> None:
     print(f'Warning: {jitter_warnings} matches have a time delta > 5s. '
           'Expect increased Max Error due to jitter.\n')
 
-  header = (f"{'Metric':<45} | {'UMA (MB)':>10} | {'Smaps (MB)':>10} | "
+  header = (f"{'Metric':<60} | {'UMA (MB)':>10} | {'Smaps (MB)':>10} | "
             f"{'Delta':>8} | {'Error %':>8}")
   print(header)
   print('-' * len(header))
@@ -208,7 +207,8 @@ def run_comparison(uma_history: List[Dict[str, Any]], smaps_json: str) -> None:
         uma_vals.append(u_val)
         smaps_vals.append(s_val)
         delta = u_val - s_val
-        error_pct = (delta / s_val * 100) if s_val > 0 else 0
+        error_pct = (delta / s_val *
+                     100) if s_val > 0 else (100.0 if u_val > 0 else 0.0)
         errors.append(error_pct)
 
     if uma_vals:
@@ -219,7 +219,7 @@ def run_comparison(uma_history: List[Dict[str, Any]], smaps_json: str) -> None:
       label = uma_name
       if is_experimental:
         label += ' (Accurate Override)'
-      print(f'{label[:45]:<45} | {u_med:>10.2f} | {s_med:>10.2f} | '
+      print(f'{label[:60]:<60} | {u_med:>10.2f} | {s_med:>10.2f} | '
             f'{d_med:>8.2f} | {e_med:>7.2f}%')
       all_errors[uma_name] = errors
 
@@ -227,7 +227,7 @@ def run_comparison(uma_history: List[Dict[str, Any]], smaps_json: str) -> None:
   for name, errors in all_errors.items():
     median_err = statistics.median(errors)
     max_err = max(errors, key=abs)
-    print(f'  - {name:<45}: {median_err:>6.2f}% (Max: {max_err:>6.2f}%)')
+    print(f'  - {name:<60}: {median_err:>6.2f}% (Max: {max_err:>6.2f}%)')
 
 
 def main() -> None:
