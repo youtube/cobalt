@@ -82,20 +82,17 @@ class MediaCodecDecoder::DecoderThread : public Thread {
   DecoderThread(std::string_view name,
                 std::function<void()> runnable,
                 std::optional<SbThreadPriority> priority = std::nullopt)
-      : Thread(name), runnable_(std::move(runnable)), priority_(priority) {
+      : Thread(name,
+               priority ? ThreadOptions().SetPriority(priority.value())
+                        : ThreadOptions()),
+        runnable_(std::move(runnable)) {
     SB_CHECK(runnable_);
   }
 
-  void Run() override {
-    if (priority_) {
-      SbThreadSetPriority(priority_.value());
-    }
-    runnable_();
-  }
+  void Run() override { runnable_(); }
 
  private:
   const std::function<void()> runnable_;
-  const std::optional<SbThreadPriority> priority_;
 };
 
 // static
