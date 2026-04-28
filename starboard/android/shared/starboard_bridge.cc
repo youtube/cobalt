@@ -84,6 +84,8 @@ jboolean JNI_StarboardBridge_InitJNI(
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
 
+  LOG(INFO)
+      << "ColinL setStartupMilestone:5 - StarboardBridge JNI initialized.";
   StarboardBridge::GetInstance()->SetStartupMilestone(5);
   return true;
 }

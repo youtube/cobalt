@@ -453,8 +453,11 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const std::string& deep_link) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (create_splash_screen_web_contents) {
+    LOG(INFO)
+        << "ColinL setStartupMilestone:19 - Creating splash screen window.";
     starboard::StarboardBridge::GetInstance()->SetStartupMilestone(19);
   } else {
+    LOG(INFO) << "ColinL setStartupMilestone:18 - Creating new browser window.";
     starboard::StarboardBridge::GetInstance()->SetStartupMilestone(18);
   }
 #endif
@@ -506,6 +509,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
 #if BUILDFLAG(IS_ANDROIDTV)
+    LOG(INFO) << "ColinL setStartupMilestone:20 - Primary main frame created.";
     starboard::StarboardBridge::GetInstance()->SetStartupMilestone(20);
 #endif
     g_platform->MainFrameCreated(this);
@@ -514,6 +518,8 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 
 void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:27 - Primary main document element "
+               "available.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
 #endif
 }
@@ -521,6 +527,8 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
                           const GURL& validated_url) {
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:31 - Did finish load. URL: "
+            << validated_url;
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(31);
 #endif
 }
@@ -530,8 +538,12 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
   if (navigation_handle->IsInPrimaryMainFrame()) {
     if (navigation_handle->GetURL() ==
         "https://www.youtube.com/tv") {  // Splash
+      LOG(INFO) << "ColinL setStartupMilestone:22 - Did start navigation "
+                   "(Splash URL).";
       starboard::StarboardBridge::GetInstance()->SetStartupMilestone(22);
     } else {
+      LOG(INFO) << "ColinL setStartupMilestone:29 - Did start navigation. URL: "
+                << navigation_handle->GetURL();
       starboard::StarboardBridge::GetInstance()->SetStartupMilestone(29);
     }
   }
@@ -543,8 +555,13 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
   if (navigation_handle->IsInPrimaryMainFrame()) {
     if (navigation_handle->GetURL() ==
         "https://www.youtube.com/tv") {  // Splash
+      LOG(INFO) << "ColinL setStartupMilestone:26 - Did finish navigation "
+                   "(Splash URL).";
       starboard::StarboardBridge::GetInstance()->SetStartupMilestone(26);
     } else {
+      LOG(INFO)
+          << "ColinL setStartupMilestone:30 - Did finish navigation. URL: "
+          << navigation_handle->GetURL();
       starboard::StarboardBridge::GetInstance()->SetStartupMilestone(30);
     }
   }
@@ -554,6 +571,7 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 
 void Shell::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:21 - Did start loading.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(21);
 #endif
 }
