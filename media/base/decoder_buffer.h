@@ -412,18 +412,23 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   struct AllocatorData {
+    AllocatorData(DemuxerStream::Type type, Allocator::Handle handle, size_t size)
+        : stream_type_(type), handle(handle), size(size) {}
+
     DemuxerStream::Type stream_type_ = DemuxerStream::UNKNOWN;
     Allocator::Handle handle = Allocator::kInvalidHandle;
     size_t size = 0;
   };
   // Encoded data, allocated from DecoderBuffer::Allocator.
-  std::optional<AllocatorData> allocator_data_;
+  const std::optional<AllocatorData> allocator_data_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Encoded data, if it is stored on the heap.
-  base::HeapArray<uint8_t> data_;
+  const base::HeapArray<uint8_t> data_;
 
  private:
+  DecoderBuffer(DemuxerStream::Type type, size_t size);
+
   // ***************************************************************************
   // WARNING: This is a highly allocated object. Care should be taken when
   // adding any fields to make sure they are absolutely necessary. If a field
@@ -450,10 +455,6 @@ class MEDIA_EXPORT DecoderBuffer
 
   // Whether the buffer represent the end of stream.
   const bool is_end_of_stream_ : 1 = false;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void Initialize(DemuxerStream::Type type, size_t size);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media
