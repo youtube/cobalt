@@ -34,6 +34,7 @@
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/buildflags.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/embedder/performance_manager_lifetime.h"
@@ -85,6 +86,12 @@ GURL GetStartupURL() {
   if (command_line->HasSwitch(switches::kBrowserTest)) {
     return GURL();
   }
+
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    return GURL();
+  }
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // Delay renderer creation on Android until surface is ready.

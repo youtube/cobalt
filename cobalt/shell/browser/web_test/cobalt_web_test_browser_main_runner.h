@@ -15,7 +15,7 @@
 #ifndef COBALT_SHELL_BROWSER_WEB_TEST_COBALT_WEB_TEST_BROWSER_MAIN_RUNNER_H_
 #define COBALT_SHELL_BROWSER_WEB_TEST_COBALT_WEB_TEST_BROWSER_MAIN_RUNNER_H_
 
-#include "content/public/common/main_function_params.h"
+#include "base/task/single_thread_task_runner.h"
 
 namespace content {
 
@@ -24,8 +24,8 @@ class CobaltWebTestBrowserMainRunner {
   CobaltWebTestBrowserMainRunner();
   ~CobaltWebTestBrowserMainRunner();
 
-  void Initialize();
-  void RunBrowserMain(content::MainFunctionParams parameters);
+  void StartWatchdog(
+      scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner);
 };
 
 }  // namespace content

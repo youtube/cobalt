@@ -105,7 +105,8 @@ base::LazyInstance<content::ShellCrashReporterClient>::Leaky
 void InitLogging(const base::CommandLine& command_line) {
   LoggingDest dest = LoggingDest::kFile;
 
-  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "stderr") {
+  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "stderr" ||
+      command_line.HasSwitch(switches::kRunWebTests)) {
     dest = LoggingDest::kStderr;
   }
 
@@ -173,6 +174,12 @@ void InitLogging(const base::CommandLine& command_line) {
   logging::InitLogging(settings);
   logging::SetLogItems(true /* Process ID */, true /* Thread ID */,
                        true /* Timestamp */, false /* Tick count */);
+
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
+  if (command_line.HasSwitch(switches::kRunWebTests)) {
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
+  }
+#endif
 }
 
 }  // namespace
@@ -198,7 +205,6 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
     if (browser_process) {
       web_test_runner_ = std::make_unique<CobaltWebTestBrowserMainRunner>();
-      web_test_runner_->Initialize();
     }
   }
 #endif
@@ -269,13 +275,9 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 
 #if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
-    // Web tests implement their own BrowserMain() replacement.
-    web_test_runner_->RunBrowserMain(std::move(main_function_params));
-    web_test_runner_.reset();
-    // Returning 0 to indicate that we have replaced BrowserMain() and the
-    // caller should not call BrowserMain() itself. Web tests do not ever
-    // return an error.
-    return 0;
+    // Web tests implement their own watchdog background thread.
+    web_test_runner_->StartWatchdog(
+        base::SingleThreadTaskRunner::GetCurrentDefault());
   }
 #endif
 

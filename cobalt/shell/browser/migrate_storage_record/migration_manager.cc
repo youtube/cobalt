@@ -29,6 +29,7 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/buildflags.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/url_matcher/url_util.h"
 #include "content/public/browser/render_frame_host.h"
@@ -243,6 +244,12 @@ void MigrationManager::DoMigrationTasksOnce(
   if (migration_attempted_.test_and_set()) {
     return;
   }
+
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("run-web-tests")) {
+    return;
+  }
+#endif
 
   auto storage = ReadStorage();
   if (!storage ||

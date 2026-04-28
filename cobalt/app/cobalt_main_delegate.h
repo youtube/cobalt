@@ -65,6 +65,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
 
  private:
   bool is_visible_;
+
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;

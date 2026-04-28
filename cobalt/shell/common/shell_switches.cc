@@ -67,6 +67,9 @@ const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
 bool ShouldCreateSplashScreen() {
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(kRunWebTests)) {
+    return false;
+  }
   return !command_line->HasSwitch(kDisableSplashScreen);
 }
 

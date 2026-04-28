@@ -36,6 +36,12 @@
 #include "components/crash/core/app/crashpad.h"
 #endif
 
+#include "cobalt/shell/buildflags.h"
+#include "cobalt/shell/common/shell_switches.h"
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
+#include "cobalt/shell/browser/web_test/cobalt_web_test_browser_main_runner.h"
+#endif
+
 namespace cobalt {
 
 CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link,
@@ -144,6 +150,22 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
+
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    fprintf(stderr,
+            "DEBUG: CobaltMainDelegate::RunProcess - web_test_runner_ is %p\n",
+            web_test_runner_.get());
+    fflush(stderr);
+    if (web_test_runner_) {
+      web_test_runner_->StartWatchdog(
+          base::SingleThreadTaskRunner::GetCurrentDefault());
+      // Do NOT reset web_test_runner_ yet, otherwise it gets destroyed while
+      // watchdog is running. Also do NOT return 0, we need to let Cobalt
+      // initialize the main message loop!
+    }
+  }
+#endif
 
   main_runner_ = content::BrowserMainRunner::Create();
 
