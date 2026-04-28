@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/android/rules.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -325,6 +326,17 @@ static_library("starboard_platform") {
     "//base",
     "//third_party/opus",
   ]
+
+  # TODO(b/492704919): this forces the build of large parts of Chromium with
+  # //copied_base/base. The dependency flow needs to be reversed so that
+  # starboard doesn't depend on cobalt.
+  if (is_partner_toolchain) {
+    public_deps -= [
+      "//cobalt/browser/client_hint_headers",
+      "//cobalt/browser/h5vcc_accessibility:manager",
+      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+    ]
+  }
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     sources -= [

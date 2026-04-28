@@ -16,4 +16,3 @@ inotify_rm_watch
 ioctl
 memfd_create
 sched_setscheduler
-statx
