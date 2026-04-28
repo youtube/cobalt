@@ -35,7 +35,7 @@ class ThreadChecker {
     // doesn't use fork(). If fork() were used, the child process would inherit
     // the stale cached ID, (which would then be stale), and we would need to
     // clear the TLS cache as is done in:
-    // http://go/cobalt-src/main:base/threading/platform_thread_posix.cc;drc=37870fc4cfbf46727225adada6e3a7eab61ab4fb
+    // https://github.com/youtube/cobalt/blob/c38073920388e75c8a4451811e723562cf63ca58/base/threading/platform_thread_posix.cc
     thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
     if (tls_thread_id == kSbThreadInvalidId) {
       tls_thread_id = SbThreadGetId();
