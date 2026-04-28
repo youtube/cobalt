@@ -126,6 +126,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.NewSpace");
   check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.OldSpace");
   check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.CodeSpace");
+  check_histogram("Memory.Experimental.Browser2.Small.V8.Main.Heap.MapSpace");
   check_histogram(
       "Memory.Experimental.Browser2.Small.V8.Main.Heap.LargeObjectSpace");
   check_histogram("Memory.Experimental.Browser2.Skia");
