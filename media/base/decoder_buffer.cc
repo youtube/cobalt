@@ -75,7 +75,9 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-  s_allocator->Write(allocator_data_->handle, data, size);
+  if (size > 0) {
+    s_allocator->Write(allocator_data_->handle, data, size);
+  }
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
@@ -108,7 +110,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
         if (size == 0) {
           return std::nullopt;
         }
-        DCHECK(s_allocator);
+        CHECK(s_allocator);
         DCHECK_EQ(s_allocator->GetBufferPadding(), 0);
         return AllocatorData(type,
                              s_allocator->Allocate(
