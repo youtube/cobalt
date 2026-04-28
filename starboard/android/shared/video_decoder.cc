@@ -795,6 +795,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
+      // We manually call AddRef() here because `decode_target_` is stored as a
+      // raw pointer. This ensures Starboard claims its initial ownership of the
+      // target, preventing it from stealing Chromium's reference and deleting
+      // the texture prematurely during TeardownCodec().
+      decode_target_->AddRef();
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();
