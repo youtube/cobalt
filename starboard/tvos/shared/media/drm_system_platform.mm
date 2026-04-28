@@ -17,22 +17,6 @@
 namespace starboard {
 
 // static
-DrmSystemPlatform* DrmSystemPlatform::Create(
-    void* context,
-    SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
-    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
-    SbDrmSessionClosedFunc session_closed_callback) {
-  return new DrmSystemPlatform(
-      context, update_request_callback, session_updated_callback,
-      key_statuses_changed_callback, server_certificate_updated_callback,
-      session_closed_callback);
-}
-
-DrmSystemPlatform::~DrmSystemPlatform() = default;
-
-// static
 bool DrmSystemPlatform::IsKeySystemSupported(const char* key_system) {
   return false;
 }
@@ -51,52 +35,5 @@ std::string DrmSystemPlatform::GetName() {
 std::string DrmSystemPlatform::GetKeySystemName() {
   return "";
 }
-
-void DrmSystemPlatform::GenerateSessionUpdateRequest(
-    int ticket,
-    const char* type,
-    const void* initialization_data,
-    int initialization_data_size) {}
-
-void DrmSystemPlatform::UpdateSession(int ticket,
-                                      const void* key,
-                                      int key_size,
-                                      const void* session_id,
-                                      int session_id_size) {}
-
-void DrmSystemPlatform::CloseSession(const void* session_id,
-                                     int session_id_size) {}
-
-SbDrmSystemPrivate::DecryptStatus DrmSystemPlatform::Decrypt(
-    InputBuffer* buffer) {
-  return kFailure;
-}
-
-bool DrmSystemPlatform::IsServerCertificateUpdatable() {
-  return false;
-}
-
-void DrmSystemPlatform::UpdateServerCertificate(int ticket,
-                                                const void* certificate,
-                                                int certificate_size) {}
-
-const void* DrmSystemPlatform::GetMetrics(int* size) {
-  return nullptr;
-}
-
-AVContentKey* DrmSystemPlatform::GetContentKey(const uint8_t* key_id,
-                                               int key_id_size) {
-  return nullptr;
-}
-
-void DrmSystemPlatform::OnOutputObscuredChanged(bool is_obscured) {}
-
-DrmSystemPlatform::DrmSystemPlatform(
-    void* context,
-    SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
-    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
-    SbDrmSessionClosedFunc session_closed_callback) {}
 
 }  // namespace starboard
