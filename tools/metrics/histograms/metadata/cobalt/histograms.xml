@@ -141,6 +141,7 @@ Always run the pretty print utility on this file after editing:
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
   <summary>
     Records whether a primary main frame navigation timed out before completion
     or failure. This is logged when the navigation timer fires.
@@ -213,17 +214,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration"
-    units="ms" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes to initiate the flush of local storage during a
-    graceful application exit (e.g., via window.h5vcc.system.exit()). As
-    `Flush()` is an asynchronous operation, this metric captures the time until
-    the commit is scheduled, not the completion of the data write to persistent
-    storage.
-  </summary>
-</histogram>
+
 
 <histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
     expires_after="never">
@@ -498,14 +489,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Media.AllocatedEncodedBuffer" expires_after="never">
+<histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records the memory allocated by media decoder buffer for video and audio.
   </summary>
 </histogram>
 
-<histogram name="Memory.Media.EstimatedDecodedBuffer" expires_after="never">
+<histogram name="Memory.Media.EstimatedDecodedBuffer" units="MB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records total estimated memory allocation used for media output buffer by
