@@ -8,3 +8,7 @@ use_evergreen = true
 rdk_build_with_yocto = false
 rdk_starboard_root = "//starboard/contrib/rdk/src"
 rdk_enable_securityagent = false
+v8_enable_webassembly = false
+v8_enable_maglev = false
+icu_use_data_file = true
+enable_dav1d_decoder = false
