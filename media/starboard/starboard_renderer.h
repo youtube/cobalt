@@ -144,10 +144,14 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     STATE_INITIALIZING,      // Initializing to create SbPlayerBridge.
     STATE_FLUSHED,           // After initialization or after flush completed.
     STATE_PLAYING,           // After StartPlayingFrom has been called.
+    STATE_RECREATING,        // Recreating SbPlayerBridge for codec change.
     STATE_ERROR
   };
 
+  void CreatePlayerBridgeInternal();
   void CreatePlayerBridge();
+  void CreateNewPlayerBridgeAfterDestruction(TimeDelta seek_time);
+  void DrainPlayerForCodecChange();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
@@ -185,11 +189,19 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              TimeDelta time_ahead_of_playback,
                              bool is_preroll);
 
-  void OnBufferingStateChange(BufferingState state);
+  void OnBufferingStateChange(BufferingState buffering_state);
 
+  void RecreatePlayerBridge(TimeDelta seek_time);
+
+  // The following member variables are only accessed on |task_runner_|.
   State state_;
-  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  const std::unique_ptr<MediaLog> media_log_;
+
+  // Used to signal that a codec or format change is in progress.
+  bool codec_or_format_change_pending_ = false;
+
+  // Callbacks and objects passed in during initialization.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  std::unique_ptr<MediaLog> media_log_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
   const TimeDelta audio_write_duration_local_;

@@ -14,6 +14,9 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include <chrono>
+#include <thread>
+
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -277,6 +280,105 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   }
 
   CreatePlayerBridge();
+}
+
+void StarboardRenderer::CreatePlayerBridgeInternal() {
+  AudioDecoderConfig invalid_audio_config;
+  const AudioDecoderConfig& audio_config =
+      audio_stream_ ? audio_stream_->audio_decoder_config()
+                    : invalid_audio_config;
+  VideoDecoderConfig invalid_video_config;
+  const VideoDecoderConfig& video_config =
+      video_stream_ ? video_stream_->video_decoder_config()
+                    : invalid_video_config;
+
+  const std::string audio_mime_type =
+      audio_stream_ ? audio_stream_->mime_type() : "";
+  const std::string video_mime_type =
+      video_stream_ ? video_stream_->mime_type() : "";
+
+  player_bridge_.reset(new SbPlayerBridge(
+      GetSbPlayerInterface(), task_runner_,
+      get_decode_target_graphics_context_provider_func_, audio_config,
+      audio_mime_type, video_config, video_mime_type,
+      // TODO(b/326497953): Support suspend/resume.
+      // TODO(b/326508279): Support background mode.
+      sb_window_, drm_system_, this,
+      // TODO(b/326497953): Support suspend/resume.
+      false,
+      // TODO(b/326825450): Revisit 360 videos.
+      kSbPlayerOutputModeInvalid, max_video_capabilities_,
+      // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+      /*max_video_input_size=*/-1, experimental_features_
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      // TODO: b/475294958 - Revisit platform-specific codes above starboard.
+      surface_view_
+#endif  // BUILDFLAG(IS_ANDROID)
+      ));
+}
+
+void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "Destroying SbPlayerBridge, will recreate shortly.";
+
+  state_ = STATE_RECREATING;
+  player_bridge_.reset();
+
+#if BUILDFLAG(IS_ANDROID)
+  // Schedule the actual creation asynchronously
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&StarboardRenderer::CreateNewPlayerBridgeAfterDestruction,
+                     weak_factory_.GetWeakPtr(), seek_time),
+      base::Milliseconds(2000));
+#else // BUILDFLAG(IS_ANDROID)
+  CreateNewPlayerBridgeAfterDestruction(seek_time);
+#endif // BUILDFLAG(IS_ANDROID)
+}
+
+void StarboardRenderer::CreateNewPlayerBridgeAfterDestruction(
+    TimeDelta seek_time) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "Recreating SbPlayerBridge for codec change, seeking to "
+            << seek_time;
+
+  CreatePlayerBridgeInternal();
+
+  if (!player_bridge_->IsValid()) {
+    LOG(ERROR) << "Failed to recreate SbPlayerBridge for codec change: "
+               << player_bridge_->GetPlayerCreationErrorMessage();
+    state_ = STATE_ERROR;
+    client_->OnError(PIPELINE_ERROR_DECODE);
+    return;
+  }
+
+  // Copied from CreatePlayerBridge success path
+  ApplyPendingBounds();
+  const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
+  switch (output_mode) {
+    case kSbPlayerOutputModeDecodeToTexture:
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kDecodeToTexture);
+      break;
+    case kSbPlayerOutputModePunchOut:
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kPunchOut);
+      break;
+    case kSbPlayerOutputModeInvalid:
+      NOTREACHED() << "Invalid SbPlayer output mode";
+      break;
+  }
+
+  if (audio_stream_) {
+    UpdateDecoderConfig(audio_stream_);
+  }
+
+  player_bridge_->SetVolume(volume_);
+
+  // Save the seek time. We will Seek and request data once the new
+  // player initializes (in OnPlayerStatus).
+  seek_time_ = seek_time;
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -591,20 +693,6 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  AudioDecoderConfig invalid_audio_config;
-  const AudioDecoderConfig& audio_config =
-      audio_stream_ ? audio_stream_->audio_decoder_config()
-                    : invalid_audio_config;
-  VideoDecoderConfig invalid_video_config;
-  const VideoDecoderConfig& video_config =
-      video_stream_ ? video_stream_->video_decoder_config()
-                    : invalid_video_config;
-
-  const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
-  const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
-
   std::string error_message;
 
   DCHECK(!player_bridge_);
@@ -616,25 +704,8 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   LOG(INFO) << "Creating SbPlayerBridge.";
 
-  player_bridge_.reset(new SbPlayerBridge(
-      GetSbPlayerInterface(), task_runner_,
-      get_decode_target_graphics_context_provider_func_, audio_config,
-      audio_mime_type, video_config, video_mime_type,
-      // TODO(b/326497953): Support suspend/resume.
-      // TODO(b/326508279): Support background mode.
-      sb_window_, drm_system_, this,
-      // TODO(b/326497953): Support suspend/resume.
-      false,
-      // TODO(b/326825450): Revisit 360 videos.
-      kSbPlayerOutputModeInvalid, max_video_capabilities_,
-      // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      /*max_video_input_size=*/-1, experimental_features_
-#if BUILDFLAG(IS_ANDROID)
-      ,
-      // TODO: b/475294958 - Revisit platform-specific codes above starboard.
-      surface_view_
-#endif  // BUILDFLAG(IS_ANDROID)
-      ));
+  CreatePlayerBridgeInternal();
+
   if (player_bridge_->IsValid()) {
     // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
     // returns no audio configurations, update the write durations again
@@ -710,6 +781,19 @@ void StarboardRenderer::ApplyPendingBounds() {
   player_bridge_->SetBounds(*output_rect_);
 }
 
+void StarboardRenderer::DrainPlayerForCodecChange() {
+  LOG(INFO) << "Codec or format change detected. Draining current player.";
+  codec_or_format_change_pending_ = true;
+  if (audio_stream_) {
+    player_bridge_->WriteBuffers(DemuxerStream::AUDIO,
+                                 {DecoderBuffer::CreateEOSBuffer()});
+  }
+  if (video_stream_) {
+    player_bridge_->WriteBuffers(DemuxerStream::VIDEO,
+                                 {DecoderBuffer::CreateEOSBuffer()});
+  }
+}
+
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -719,10 +803,26 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
+
+    if (player_bridge_->audio_config().IsValidConfig() &&
+        (player_bridge_->audio_config().codec() != decoder_config.codec() ||
+         player_bridge_->audio_mime_type() != stream->mime_type())) {
+      DrainPlayerForCodecChange();
+      return;
+    }
+
     player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
+
+    if (player_bridge_->video_config().IsValidConfig() &&
+        (player_bridge_->video_config().codec() != decoder_config.codec() ||
+         player_bridge_->video_mime_type() != stream->mime_type())) {
+      LOG(INFO) << "TEST changeType occurring!";
+      DrainPlayerForCodecChange();
+      return;  // Don't update the config on the current player.
+    }
 
     player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
 
@@ -773,12 +873,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  DCHECK(player_bridge_);
-
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
       DCHECK(audio_read_in_progress_);
       audio_read_in_progress_ = false;
+      if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+        return;
+      }
+      DCHECK(player_bridge_);
       for (const auto& buffer : buffers) {
         if (!buffer->end_of_stream()) {
           last_audio_sample_interval_ =
@@ -790,6 +892,10 @@ void StarboardRenderer::OnDemuxerStreamRead(
     } else {
       DCHECK(video_read_in_progress_);
       video_read_in_progress_ = false;
+      if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+        return;
+      }
+      DCHECK(player_bridge_);
       for (const auto& buffer : buffers) {
         if (buffer->end_of_stream()) {
           is_video_eos_written_ = true;
@@ -813,9 +919,12 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
   } else if (status == DemuxerStream::kConfigChanged) {
     if (stream == audio_stream_) {
+      DCHECK(audio_read_in_progress_);
+      audio_read_in_progress_ = false;
       client_->OnAudioConfigChange(stream->audio_decoder_config());
     } else {
-      DCHECK_EQ(stream, video_stream_);
+      DCHECK(video_read_in_progress_);
+      video_read_in_progress_ = false;
       client_->OnVideoConfigChange(stream->video_decoder_config());
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
@@ -823,7 +932,22 @@ void StarboardRenderer::OnDemuxerStreamRead(
       paint_video_hole_frame_cb_.Run(
           stream->video_decoder_config().visible_rect().size());
     }
+
+    if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+      return;
+    }
+
     UpdateDecoderConfig(stream);
+    if (codec_or_format_change_pending_) {
+      // Don't read from the stream until player is recreated.
+      // The recreation logic in OnPlayerStatus will trigger a new read.
+      return;
+    }
+    if (stream == audio_stream_) {
+      audio_read_in_progress_ = true;
+    } else {
+      video_read_in_progress_ = true;
+    }
     stream->Read(
         max_buffers,
         base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
@@ -841,6 +965,10 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (codec_or_format_change_pending_ || state_ == STATE_RECREATING) {
+    return;
+  }
 
   // In case if the callback is fired when creation of the `player_bridge_`
   // fails.
@@ -965,8 +1093,15 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      CHECK(init_cb_);
-      std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
+      if (state_ == STATE_RECREATING) {
+        LOG(INFO) << "Player initialized during recreation, resuming playback.";
+        state_ = STATE_PLAYING;
+        player_bridge_->Seek(seek_time_);
+        StoreMediaTime(seek_time_);
+        is_video_eos_written_ = false;
+      } else if (init_cb_) {
+        std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
+      }
       break;
     case kSbPlayerStatePrerolling:
       break;
@@ -981,8 +1116,16 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "Audio write duration is " << audio_write_duration_;
+      if (player_bridge_) {
+        player_bridge_->SetPlaybackRate(playback_rate_);
+      }
       break;
     case kSbPlayerStateEndOfStream:
+      if (codec_or_format_change_pending_) {
+        codec_or_format_change_pending_ = false;
+        RecreatePlayerBridge(GetMediaTime());
+        return;
+      }
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
