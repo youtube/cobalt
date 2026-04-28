@@ -557,6 +557,27 @@ Response StorageHandler::GetStorageKeyForFrame(
   return Response::Success();
 }
 
+Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
+                                       std::string* serialized_storage_key) {
+  if (frame_id.has_value()) {
+    return GetStorageKeyForFrame(frame_id.value(), serialized_storage_key);
+  }
+
+  // Fallback for current target if it's a frame
+  if (frame_host_) {
+    if (frame_host_->GetStorageKey().origin().opaque()) {
+      return Response::ServerError(
+          "Frame corresponds to an opaque origin and its storage key cannot be "
+          "serialized");
+    }
+    *serialized_storage_key = frame_host_->GetStorageKey().Serialize();
+    return Response::Success();
+  }
+
+  return Response::ServerError(
+      "Could not determine storage key for the target (workers not supported yet in this implementation).");
+}
+
 namespace {
 uint32_t GetRemoveDataMask(const std::string& storage_types) {
   std::vector<std::string> types = base::SplitString(
