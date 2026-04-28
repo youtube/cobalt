@@ -313,7 +313,6 @@ static_library("starboard_platform") {
     "//cobalt/android:jni_headers",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
-    "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
     "//starboard/extension:feature_config_header",

@@ -172,6 +172,13 @@ void Application::InjectDateTimeConfigurationChangedEvent() {
   Inject(new Event(kSbEventDateTimeConfigurationChanged, NULL, NULL));
 }
 
+void Application::InjectAccessibilityTextToSpeechSettingsChangedEvent(
+    bool enabled) {
+  bool* enabled_data = new bool(enabled);
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+                   enabled_data, &DeleteDestructor<bool>));
+}
+
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
