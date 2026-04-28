@@ -43,9 +43,6 @@ source_set("starboard") {
     # TODO(b/375218518): Revisit FormatSupportQueryMetrics
     "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
 
-    # TODO(b/375232937): Enable IAMF
-    "COBALT_MEDIA_ENABLE_IAMF_SUPPORT=0",
-
     # TODO(b/326654546): Revisit max video input size
     "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
 
