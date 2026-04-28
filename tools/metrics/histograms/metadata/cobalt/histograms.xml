@@ -542,7 +542,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Media.EstimatedDecodedBuffer" expires_after="never">
+<histogram name="Memory.Media.EstimatedDecodedBuffer" units="MB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records total estimated memory allocation used for media output buffer by
