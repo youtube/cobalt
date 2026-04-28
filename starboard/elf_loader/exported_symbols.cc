@@ -216,14 +216,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
-  REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadGetId);
   REGISTER_SYMBOL(SbThreadGetPriority);
-  REGISTER_SYMBOL(SbThreadSamplerCreate);
-  REGISTER_SYMBOL(SbThreadSamplerDestroy);
-  REGISTER_SYMBOL(SbThreadSamplerFreeze);
-  REGISTER_SYMBOL(SbThreadSamplerIsSupported);
-  REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetPriority);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
