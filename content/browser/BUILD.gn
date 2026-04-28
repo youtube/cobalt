@@ -2628,26 +2628,6 @@ source_set("browser") {
       "//third_party/blink/public/mojom:memory_usage_monitor_linux_mojo_bindings",
     ]
   }
-  if (is_cobalt_hermetic_build) {
-    sources -= [
-      "child_process_launcher_helper_linux.cc",
-      "font_access/font_enumeration_data_source_linux.cc",
-      "font_access/font_enumeration_data_source_linux.h",
-      "font_service.cc",
-      "font_service.h",
-      "sandbox_host_linux.cc",
-      "sandbox_host_linux.h",
-      "sandbox_ipc_linux.cc",
-      "sandbox_ipc_linux.h",
-      "zygote_host/zygote_host_impl_linux.cc",
-      "zygote_host/zygote_host_impl_linux.h",
-    ]
-    sources += [
-      "child_process_launcher_helper_starboard.cc",
-    ]
-    public_deps -= [ "//components/services/font/public/mojom" ]
-    deps -= [ "//components/services/font:lib" ]
-  }
 
   if (is_win) {
     deps += [
@@ -3607,6 +3587,32 @@ source_set("browser") {
       "//media/mojo/mojom:speech_recognition",
       "//ui/base",
     ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [ "child_process_launcher_helper_starboard.cc" ]
+
+    if (is_android) {
+      sources -= [ "child_process_launcher_helper_android.cc" ]
+    }
+
+    if (is_linux) {
+      sources -= [
+        "child_process_launcher_helper_linux.cc",
+        "font_access/font_enumeration_data_source_linux.cc",
+        "font_access/font_enumeration_data_source_linux.h",
+        "font_service.cc",
+        "font_service.h",
+        "sandbox_host_linux.cc",
+        "sandbox_host_linux.h",
+        "sandbox_ipc_linux.cc",
+        "sandbox_ipc_linux.h",
+        "zygote_host/zygote_host_impl_linux.cc",
+        "zygote_host/zygote_host_impl_linux.h",
+      ]
+      public_deps -= [ "//components/services/font/public/mojom" ]
+      deps -= [ "//components/services/font:lib" ]
+    }
   }
 
   if (enable_devtools_frontend) {
