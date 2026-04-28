@@ -169,6 +169,13 @@ config("buildflag_defines") {
   if (current_toolchain == starboard_toolchain) {
     defines += [ "ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN" ]
   }
+
+  # Use BUILDFLAG(IS_PARTNER_TOOLCHAIN) to guard customizations that should
+  # only be built for the partner toolchains, as defined at
+  # starboard/build/config/toolchain_variables.gni.
+  if (is_partner_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_PARTNER_TOOLCHAIN" ]
+  }
 }
 
 config("no_mallinfo") {

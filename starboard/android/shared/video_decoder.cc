@@ -39,6 +39,7 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -562,6 +563,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
+  MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
+                    input_buffers.front()->timestamp(), "size",
+                    input_buffers.size());
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
@@ -790,6 +795,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
+      // We manually call AddRef() here because `decode_target_` is stored as a
+      // raw pointer. This ensures Starboard claims its initial ownership of the
+      // target, preventing it from stealing Chromium's reference and deleting
+      // the texture prematurely during TeardownCodec().
+      decode_target_->AddRef();
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();

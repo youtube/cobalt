@@ -87,10 +87,19 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   os_dump->private_footprint_swap_kb =
       internal_os_dump.platform_private_footprint->vm_swap_bytes / 1024;
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt-specific memory metrics start
   os_dump->libchrobalt_pss_kb = internal_os_dump.libchrobalt_pss_kb;
   os_dump->libchrobalt_rss_kb = internal_os_dump.libchrobalt_rss_kb;
   os_dump->partition_alloc_rss_kb = internal_os_dump.partition_alloc_rss_kb;
+  os_dump->v8_rss_kb = internal_os_dump.v8_rss_kb;
+  os_dump->malloc_rss_kb = internal_os_dump.malloc_rss_kb;
+  os_dump->code_other_rss_kb = internal_os_dump.code_other_rss_kb;
+  os_dump->fonts_rss_kb = internal_os_dump.fonts_rss_kb;
+  os_dump->ashmem_jit_rss_kb = internal_os_dump.ashmem_jit_rss_kb;
+  os_dump->android_runtime_rss_kb = internal_os_dump.android_runtime_rss_kb;
+  os_dump->stacks_rss_kb = internal_os_dump.stacks_rss_kb;
+  // Cobalt-specific memory metrics end
 #endif
   os_dump->mappings_count = internal_os_dump.mappings_count;
   os_dump->pss_kb = internal_os_dump.pss_kb;
