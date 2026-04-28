@@ -76,6 +76,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int64_t start_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      bool allow_audio_writing_on_pause,
       bool pause_using_audio_track_state,
       void* context);
 
@@ -123,6 +124,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      bool allow_audio_writing_on_pause,
       bool pause_using_audio_track_state,
       void* context);
   ~AudioTrackAudioSink() override;
@@ -156,9 +158,11 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const ConsumeFramesFunc consume_frames_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
-  const bool pause_using_audio_track_state_;
   const int max_frames_per_request_;
   void* const context_;
+
+  const bool allow_audio_writing_on_pause_;
+  const bool pause_using_audio_track_state_;
 
   AudioTrackBridge bridge_;
 

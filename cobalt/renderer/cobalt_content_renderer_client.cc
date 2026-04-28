@@ -1,6 +1,16 @@
-// Copyright 2025 The Cobalt Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
@@ -40,6 +50,8 @@
 namespace cobalt {
 
 namespace {
+
+const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
 const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
     "Media.DisableLowPerformanceSoftwareDecoder";
@@ -285,6 +297,19 @@ ExperimentalFeatures ProcessH5vccSettings(
   return parsed;
 }
 
+class CobaltWidevineL3KeySystemInfo : public cdm::WidevineKeySystemInfo {
+ public:
+  using cdm::WidevineKeySystemInfo::WidevineKeySystemInfo;
+
+  std::string GetBaseKeySystemName() const override {
+    return kWidevineL3KeySystem;
+  }
+
+  bool IsSupportedKeySystem(const std::string& key_system) const override {
+    return key_system == kWidevineL3KeySystem;
+  }
+};
+
 }  // namespace
 
 void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
@@ -391,6 +416,18 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       kSessionTypes,                 // Hardware secure session types.
       Robustness::HW_SECURE_CRYPTO,  // Max audio robustness.
       Robustness::HW_SECURE_ALL,     // Max video robustness.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+
+  key_system_infos->emplace_back(new CobaltWidevineL3KeySystemInfo(
+      codecs,                        // Regular codecs.
+      kEncryptionSchemes,            // Encryption schemes.
+      kSessionTypes,                 // Session types.
+      {},                            // Hardware secure codecs.
+      {},                            // Hardware secure encryption schemes.
+      {},                            // Hardware secure session types.
+      Robustness::SW_SECURE_CRYPTO,  // Max audio robustness.
+      Robustness::SW_SECURE_DECODE,  // Max video robustness.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
 }

@@ -390,6 +390,146 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Browser.AndroidRuntimeRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) consumed by the Android/Dalvik runtime environment.
+    This tracks ART image files (.art), Optimized Android Template files
+    (.oat), and internal Dalvik allocator regions (e.g., dalvik-main space).
+    Currently restricted to Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.AshmemJitRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) consumed by anonymous shared memory (Ashmem) and
+    the Just-In-Time (JIT) compilation cache. This tracks mappings tagged with
+    /dev/ashmem/ and memfd:jit-cache. Currently restricted to Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.CodeOtherRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) consumed by non-Cobalt executable code and
+    read-only data mappings. This is a catch-all for system libraries (.so),
+    GPU drivers (e.g., libGLES_mali.so), the application package (.apk), and
+    compiled Java bytecode (.dex). Excludes the main libchrobalt.so.
+    Currently restricted to Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.FontsRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) consumed by system and application font mappings,
+    specifically TrueType (.ttf) and TrueType Collection (.ttc) files.
+    Currently restricted to Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.LibChrobaltPss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The Proportional Set Size (PSS) of the core libchrobalt.so library. PSS
+    accounts for the fact that some pages of the library may be shared with
+    other processes.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.LibChrobaltRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical Resident Set Size (RSS) of the core libchrobalt.so library.
+    This represents the total number of pages from this library currently
+    resident in RAM.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.MallocRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) used by the system allocator. On Android, this
+    typically tracks the scudo allocator and the standard [heap] region.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.PartitionAllocRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) consumed specifically by PartitionAlloc's
+    anonymous mappings, which are used for most of Cobalt's internal
+    object allocations.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.StacksRss" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The physical memory (RSS) consumed by all thread stacks and Thread-Local
+    Storage (TLS) regions within the process.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.Browser2.AndroidRuntime" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Accurate RSS for the Android Runtime pillar (ART/Dalvik). This is used for
+    the cumulative CDF breakdown of the total ResidentSet. Currently restricted
+    to Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.Browser2.AshmemJit" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Accurate RSS for the Ashmem and JIT cache pillar. This is used for the
+    cumulative CDF breakdown of the total ResidentSet. Currently restricted to
+    Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.Browser2.CodeOther" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Accurate RSS for the CodeOther pillar (system libs, APK, drivers). This is
+    used for the cumulative CDF breakdown of the total ResidentSet. Currently
+    restricted to Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.Browser2.Fonts" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Accurate RSS for the Fonts pillar (.ttf/.ttc). This is used for the
+    cumulative CDF breakdown of the total ResidentSet. Currently restricted to
+    Android.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.Browser2.Stacks" units="MiB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Accurate RSS for the thread stacks pillar. This is used for the
+    cumulative CDF breakdown of the total ResidentSet.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
