@@ -2557,7 +2557,7 @@ buildflag_header("cfi_buildflags") {
 
 buildflag_header("debugging_buildflags") {
   header = "debugging_buildflags.h"
-  header_dir = "base/debug"
+  header_dir = "copied_base/base/debug"
   enable_gdbinit_warning =
       is_debug && (strip_absolute_paths_from_debug_symbols || use_custom_libcxx)
   enable_lldbinit_warning =
