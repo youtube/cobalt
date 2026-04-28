@@ -535,60 +535,6 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Experimental.Browser2.PartitionAlloc.FastMalloc"
-    units="MiB" expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    The physical memory consumed by the FastMalloc partition in PartitionAlloc.
-  </summary>
-</histogram>
-
-<histogram
-    name="Memory.Experimental.Browser2.PartitionAlloc.FastMalloc.CommittedSize"
-    units="MiB" expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    The committed virtual address space for the FastMalloc partition in
-    PartitionAlloc.
-  </summary>
-</histogram>
-
-<histogram
-    name="Memory.Experimental.Browser2.PartitionAlloc.FastMalloc.Fragmentation"
-    units="%" expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    The fragmentation percentage for the FastMalloc partition in PartitionAlloc.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Experimental.Browser2.PartitionAlloc.Layout"
-    units="MiB" expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    The physical memory consumed by the Layout partition in PartitionAlloc.
-  </summary>
-</histogram>
-
-<histogram
-    name="Memory.Experimental.Browser2.PartitionAlloc.Layout.CommittedSize"
-    units="MiB" expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    The committed virtual address space for the Layout partition in
-    PartitionAlloc.
-  </summary>
-</histogram>
-
-<histogram
-    name="Memory.Experimental.Browser2.PartitionAlloc.Layout.Fragmentation"
-    units="%" expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    The fragmentation percentage for the Layout partition in PartitionAlloc.
-  </summary>
-</histogram>
-
 <histogram name="Memory.Experimental.Browser2.Stacks" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
