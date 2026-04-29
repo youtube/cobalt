@@ -106,9 +106,7 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
       kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
-#if SB_API_VERSION >= 18
       kSbMediaVideoCodecAv2,
-#endif  // SB_API_VERSION >= 18
   };
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
@@ -137,9 +135,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
       kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
-#if SB_API_VERSION >= 18
       kSbMediaVideoCodecAv2,
-#endif  // SB_API_VERSION >= 18
   };
   int kMaxVideoInputSizes[] = {0, 777000, 3110500};
 

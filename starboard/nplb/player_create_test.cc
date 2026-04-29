@@ -381,9 +381,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbMediaVideoCodecAv1,
       kSbMediaVideoCodecVp8,
       kSbMediaVideoCodecVp9,
-#if SB_API_VERSION >= 18
       kSbMediaVideoCodecAv2,
-#endif  // SB_API_VERSION >= 18
   };
   // clang-format on
 
@@ -402,9 +400,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kVideoCodecs[6]:
     case kVideoCodecs[7]:
     case kVideoCodecs[8]:
-#if SB_API_VERSION >= 18
     case kVideoCodecs[9]:
-#endif  // SB_API_VERSION >= 18
       break;
   }
 

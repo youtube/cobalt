@@ -162,10 +162,8 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
         return false;
       }
       break;
-#if SB_API_VERSION >= 18
     case kSbMediaVideoCodecAv2:
       return false;
-#endif  // SB_API_VERSION >= 18
   }
 
   std::string cryptoblockformat =

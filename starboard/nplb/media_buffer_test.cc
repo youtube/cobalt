@@ -48,10 +48,7 @@ constexpr SbMediaVideoCodec kVideoCodecs[] = {
 
     kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265, kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,  kSbMediaVideoCodecAv1,
-    kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
-#if SB_API_VERSION >= 18
-    kSbMediaVideoCodecAv2,
-#endif  // SB_API_VERSION >= 18
+    kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,  kSbMediaVideoCodecAv2,
 };
 
 constexpr SbMediaType kMediaTypes[] = {
@@ -147,9 +144,7 @@ TEST(SbMediaBufferTest, VideoCodecs) {
     case kVideoCodecs[6]:
     case kVideoCodecs[7]:
     case kVideoCodecs[8]:
-#if SB_API_VERSION >= 18
     case kVideoCodecs[9]:
-#endif  // SB_API_VERSION >= 18
       break;
   }
 }
