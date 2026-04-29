@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "=== Cobalt New Checkout Setup ==="
 
