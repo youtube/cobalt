@@ -166,42 +166,50 @@ void AudioInputStreamStarboard::ReadAudio() {
     return;
   }
 
-  const int buffer_size_bytes =
+  const size_t target_buffer_size_bytes =
       params_.frames_per_buffer() * params_.channels() * sizeof(int16_t);
 
-  int bytes_to_read = buffer_size_bytes - accumulated_bytes_;
+  // Read as much data as possible from the microphone.
+  // 2048 bytes is large enough to hold a couple of 720-byte bursts.
+  std::vector<uint8_t> temp_read_buf(2048);
   int bytes_read = SbMicrophoneRead(
-      microphone_, reinterpret_cast<char*>(buffer_.data()) + accumulated_bytes_,
-      bytes_to_read);
+      microphone_, reinterpret_cast<char*>(temp_read_buf.data()),
+      temp_read_buf.size());
 
   if (bytes_read > 0) {
-    LOG(INFO) << "SAMSUNG DEBUG - Starboard Read: " << bytes_read
-              << " bytes (Target: " << bytes_to_read
-              << "). Accumulated: " << accumulated_bytes_ + bytes_read;
-    accumulated_bytes_ += bytes_read;
+    LOG(INFO) << "SAMSUNG DEBUG - Starboard Read: " << bytes_read << " bytes.";
+    audio_fifo_.insert(audio_fifo_.end(), temp_read_buf.data(),
+                       temp_read_buf.data() + bytes_read);
   } else if (bytes_read == 0) {
-    LOG(INFO) << "SAMSUNG DEBUG - Starboard Read: ZERO (Starvation/Stall)";
+    // No data available.
   } else if (bytes_read < 0) {
-    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read
-                  << ". Dropping this buffer.";
+    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read << ".";
     HandleError("SbMicrophoneRead");
     return;
   }
 
-  if (accumulated_bytes_ == buffer_size_bytes) {
+  // Smooth consumption: only push ONE chunk if available.
+  // This decouples consumption rate from production bursts.
+  if (audio_fifo_.size() >= target_buffer_size_bytes) {
+    memcpy(buffer_.data(), audio_fifo_.data(), target_buffer_size_bytes);
+    audio_fifo_.erase(audio_fifo_.begin(),
+                      audio_fifo_.begin() + target_buffer_size_bytes);
+
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
         buffer_.data(), params_.frames_per_buffer());
 
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
-    accumulated_bytes_ = 0;
 
-    // Schedule next read based on nominal buffer duration to maintain timing.
-    next_read_time_ =
-        std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
+    LOG(INFO) << "SAMSUNG DEBUG - Pushed chunk. Starboard FIFO Level: "
+              << audio_fifo_.size() << " bytes.";
   } else {
-    // Not enough data yet, or read 0. Retry sooner to catch remaining bytes.
-    next_read_time_ = base::TimeTicks::Now() + buffer_duration_ / 2;
+    LOG(INFO) << "SAMSUNG DEBUG - Not enough data to push. FIFO Level: "
+              << audio_fifo_.size() << " bytes.";
   }
+
+  // Schedule next read based on nominal buffer duration to maintain timing.
+  next_read_time_ =
+      std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
 
   // base::Unretained is safe here because the AudioInputStreamStarboard owns
   // capture_thread_, and the thread is stopped before this object is
