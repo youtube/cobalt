@@ -93,7 +93,7 @@ using SetCookiesCallback = Storage::Backend::SetCookiesCallback;
 
 struct UsageListInitializer {
   const char* type;
-  int64_t blink::mojom::UsageBreakdown::*usage_member;
+  int64_t blink::mojom::UsageBreakdown::* usage_member;
 };
 
 UsageListInitializer initializers[] = {
@@ -536,6 +536,19 @@ void StorageHandler::ClearCookies(
                      std::move(callback)));
 }
 
+Response StorageHandler::SerializeStorageKey(
+    RenderFrameHostImpl* rfh,
+    std::string* serialized_storage_key) {
+  const blink::StorageKey& storage_key = rfh->GetStorageKey();
+  if (storage_key.origin().opaque()) {
+    return Response::ServerError(
+        "Frame corresponds to an opaque origin and its storage key cannot be "
+        "serialized");
+  }
+  *serialized_storage_key = storage_key.Serialize();
+  return Response::Success();
+}
+
 Response StorageHandler::GetStorageKeyForFrame(
     const std::string& frame_id,
     std::string* serialized_storage_key) {
@@ -547,14 +560,23 @@ Response StorageHandler::GetStorageKeyForFrame(
   if (!node) {
     return Response::InvalidParams("Frame tree node for given frame not found");
   }
-  RenderFrameHostImpl* rfh = node->current_frame_host();
-  if (rfh->GetStorageKey().origin().opaque()) {
-    return Response::ServerError(
-        "Frame corresponds to an opaque origin and its storage key cannot be "
-        "serialized");
+  return SerializeStorageKey(node->current_frame_host(),
+                             serialized_storage_key);
+}
+
+Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
+                                       std::string* serialized_storage_key) {
+  if (frame_id.has_value()) {
+    return GetStorageKeyForFrame(frame_id.value(), serialized_storage_key);
   }
-  *serialized_storage_key = rfh->GetStorageKey().Serialize();
-  return Response::Success();
+
+  if (frame_host_) {
+    return SerializeStorageKey(frame_host_, serialized_storage_key);
+  }
+
+  return Response::ServerError(
+      "Could not determine storage key for the target (workers not supported "
+      "yet in this implementation).");
 }
 
 namespace {
