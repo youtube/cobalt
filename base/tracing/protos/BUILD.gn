@@ -2,11 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//starboard/build/config/toolchain_variables.gni")
 import("//third_party/perfetto/gn/proto_library.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//tools/grit/grit_rule.gni")
 import("sources.gni")
+
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
 
 if (is_cobalt && is_partner_toolchain) {
   group("chrome_track_event") {
