@@ -79,6 +79,10 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
       context_(context),
       callbacks_(callbacks),
       hdcp_lost_(false),
+      media_drm_bridge_(
+          MediaDrmBridge::Create(base::raw_ref<MediaDrmBridge::Host>(*this),
+                                 key_system_,
+                                 enable_app_provisioning_)),
       session_id_mapper_(enable_app_provisioning_
                              ? std::make_unique<DrmSessionIdMapper>()
                              : nullptr) {
@@ -88,9 +92,6 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
 
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
-  media_drm_bridge_ =
-      MediaDrmBridge::Create(base::raw_ref<MediaDrmBridge::Host>(*this),
-                             key_system_, enable_app_provisioning_);
   if (!media_drm_bridge_) {
     return;
   }

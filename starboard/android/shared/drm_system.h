@@ -135,8 +135,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   const std::string key_system_;
   const bool enable_app_provisioning_;
-  void* context_;
-  // TODO: Update key statuses to Cobalt.
+  void* const context_;
   const Callbacks callbacks_;
 
   std::mutex mutex_;
@@ -148,7 +147,10 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
 
-  std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+  // Guaranteed to be non-null for any instance returned by the factory method.
+  // However, it can be null during destruction if the factory method fails
+  // to create the bridge and destroys the instance.
+  const std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
 
   ThreadChecker thread_checker_;
 
