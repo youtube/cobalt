@@ -29,6 +29,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
@@ -135,7 +136,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   const std::string key_system_;
   const bool enable_app_provisioning_;
-  void* const context_;
+  const raw_ptr<void> context_;
   const Callbacks callbacks_;
 
   std::mutex mutex_;
