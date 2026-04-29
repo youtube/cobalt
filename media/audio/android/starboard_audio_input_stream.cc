@@ -44,35 +44,35 @@ bool StarboardAudioInputStream::RequestRuntimePermission() {
       base::android::AttachCurrentThread());
 }
 
-StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_manager,
-                                                     const AudioParameters& params)
-    : audio_manager_(audio_manager) {
+StarboardAudioInputStream::StarboardAudioInputStream(
+    AudioManagerAndroid* audio_manager,
+    const AudioParameters& params)
+    : audio_manager_(audio_manager),
+      format_({
+          SL_ANDROID_DATAFORMAT_PCM_EX,              // formatType
+          1,                                         // numChannels
+          cobalt::media::kSampleRate * 1000,         // sampleRate (milliHertz)
+          SL_PCMSAMPLEFORMAT_FIXED_16,               // bitsPerSample
+          SL_PCMSAMPLEFORMAT_FIXED_16,               // containerSize
+          SL_SPEAKER_FRONT_CENTER,                   //  channelMask
+          SL_BYTEORDER_LITTLEENDIAN,                 // endianness
+          SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT,  // representation
+      }),
+      buffer_size_bytes_([&]() {
+        int input_sample_rate = params.sample_rate() > 0
+                                    ? params.sample_rate()
+                                    : cobalt::media::kSampleRate;
+        int size = (cobalt::media::kSampleRate * params.frames_per_buffer() /
+                    input_sample_rate) *
+                   sizeof(int16_t);
+        return size == 0 ? kDefaultBufferSizeInBytes : size;
+      }()),
+      audio_bus_(
+          media::AudioBus::Create(1, buffer_size_bytes_ / sizeof(int16_t))),
+      hardware_delay_(
+          base::Seconds(audio_bus_->frames() /
+                        static_cast<double>(cobalt::media::kSampleRate))) {
   DVLOG(2) << __func__;
-
-  // Hardcode to 16kHz Mono 16-bit PCM (Starboard style)
-  format_.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
-  format_.numChannels = 1;
-  format_.sampleRate = cobalt::media::kSampleRate * 1000; // milliHertz
-  format_.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
-  format_.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
-  format_.channelMask = SL_SPEAKER_FRONT_CENTER;
-  format_.endianness = SL_BYTEORDER_LITTLEENDIAN;
-  format_.representation = SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT;
-
-  // Use the params to determine the buffer size, but we'll be 16kHz
-  // If the passed params are already 16kHz, this is easy.
-  // C25 used 128 samples per buffer.
-  // Let's use what's passed but ensure it's calculated for 16-bit Mono.
-  int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : cobalt::media::kSampleRate;
-  buffer_size_bytes_ = (cobalt::media::kSampleRate * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
-
-  // If we couldn't scale it properly, just use a reasonable default.
-  if (buffer_size_bytes_ == 0) {
-      buffer_size_bytes_ = kDefaultBufferSizeInBytes; // Reasonable fallback
-  }
-
-  audio_bus_ = media::AudioBus::Create(1, buffer_size_bytes_ / sizeof(int16_t));
-  hardware_delay_ = base::Seconds(audio_bus_->frames() / static_cast<double>(cobalt::media::kSampleRate));
 }
 
 StarboardAudioInputStream::~StarboardAudioInputStream() {
@@ -213,7 +213,7 @@ bool StarboardAudioInputStream::CreateRecorder() {
   SLDataLocator_AndroidSimpleBufferQueue buffer_queue = {
       SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
       static_cast<SLuint32>(kMaxNumOfBuffersInQueue)};
-  SLDataSink audio_sink = {&buffer_queue, &format_};
+  SLDataSink audio_sink = {&buffer_queue, (void*)&format_};
 
   const SLInterfaceID interface_id[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
                                         SL_IID_ANDROIDCONFIGURATION};

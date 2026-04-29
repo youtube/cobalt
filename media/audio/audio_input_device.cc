@@ -43,6 +43,7 @@ namespace {
 // dependent how fast the renderer process can pick up captured data from
 // shared memory.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// increased to 32 to provide a larger buffer if renderer is busy
 const int kRequestedSharedMemoryCount = 32;
 #else
 const int kRequestedSharedMemoryCount = 10;

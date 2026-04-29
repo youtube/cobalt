@@ -4,10 +4,6 @@
 
 #include "media/audio/android/audio_manager_android.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "cobalt/media/audio/audio_input_constants.h"
-#endif
-
 #include <memory>
 #include <optional>
 
@@ -42,10 +38,8 @@
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "cobalt/media/audio/audio_input_constants.h"
 #include "media/audio/android/starboard_audio_input_stream.h"
-#endif
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
 #endif
@@ -258,7 +252,7 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
   AddDefaultDevice(device_names);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // simplfified flow - just return default.
+  // simplfified flow - just return, device_names is set to default.
   return;
 #else
   // Get list of available audio devices.
@@ -373,15 +367,14 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Hardcode Mono to bypass JNI/Probing overhead.
   // This is now thread-safe and can be called from any thread to avoid hops.
-  constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
-  int sample_rate = cobalt::media::kSampleRate;
-  int buffer_size = cobalt::media::kSamplesPerBuffer;
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         ChannelLayoutConfig::FromLayout<channel_layout>(),
-                         sample_rate, buffer_size);
+                         ChannelLayoutConfig::FromLayout<CHANNEL_LAYOUT_MONO>(),
+                         cobalt::media::kSampleRate,
+                         cobalt::media::kSamplesPerBuffer);
   params.set_effects(AudioParameters::NO_EFFECTS);
-  LOG(INFO) << "Starboard Input Stream:" << __func__ << "params=" << params.AsHumanReadableString();
+  LOG(INFO) << "Starboard Input Stream:" << __func__ << "params="
+    << params.AsHumanReadableString();
   return params;
 #else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());

@@ -7,15 +7,15 @@
 #include <inttypes.h>
 
 #include "base/synchronization/lock.h"
+#include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
+#include "third_party/blink/renderer/modules/webaudio/audio_node_output.h"
+#include "third_party/blink/renderer/modules/webaudio/base_audio_context.h"
+#include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
 #endif
-#include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
-#include "third_party/blink/renderer/modules/webaudio/audio_node_output.h"
-#include "third_party/blink/renderer/modules/webaudio/base_audio_context.h"
-#include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 
 namespace blink {
 

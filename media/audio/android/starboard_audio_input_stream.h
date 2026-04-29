@@ -97,7 +97,7 @@ class StarboardAudioInputStream : public AudioInputStream {
 
   base::Lock lock_;
 
-  raw_ptr<AudioManagerAndroid> audio_manager_ = nullptr;
+  const raw_ptr<AudioManagerAndroid> audio_manager_ = nullptr;
 
   raw_ptr<AudioInputCallback> callback_ GUARDED_BY(lock_) = nullptr;
 
@@ -110,19 +110,19 @@ class StarboardAudioInputStream : public AudioInputStream {
   // Buffer queue recorder interface.
   SLAndroidSimpleBufferQueueItf simple_buffer_queue_ GUARDED_BY(lock_) = nullptr;
 
-  SLAndroidDataFormat_PCM_EX format_;
+  const SLAndroidDataFormat_PCM_EX format_;
 
   // Audio buffers that are allocated in SetupAudioBuffer().
   std::unique_ptr<uint8_t[]> audio_data_[kMaxNumOfBuffersInQueue] GUARDED_BY(lock_);
 
   int active_buffer_index_ GUARDED_BY(lock_) = 0;
-  int buffer_size_bytes_ GUARDED_BY(lock_) = 0;
+  const int buffer_size_bytes_ GUARDED_BY(lock_) = 0;
 
   bool started_ = false;
 
-  base::TimeDelta hardware_delay_;
+  const std::unique_ptr<media::AudioBus> audio_bus_;
 
-  std::unique_ptr<media::AudioBus> audio_bus_;
+  const base::TimeDelta hardware_delay_;
 
   base::WeakPtrFactory<StarboardAudioInputStream> weak_factory_{this};
 };

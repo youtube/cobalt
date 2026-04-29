@@ -28,16 +28,16 @@
 #include <inttypes.h>
 
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_audio_source_options.h"
+#include "third_party/blink/renderer/modules/webaudio/audio_context.h"
+#include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
+#include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_handler.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
 #endif
 
-#include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_audio_source_options.h"
-#include "third_party/blink/renderer/modules/webaudio/audio_context.h"
-#include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
-#include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_handler.h"
 
 namespace blink {
 
