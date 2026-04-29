@@ -33,15 +33,12 @@ def find_runtime_deps(build_dir):
           'gen.runtime/cobalt/testing/browser_tests/',
           'cobalt_browsertests__test_runner_script.runtime_deps'
       ],
-      'linux': ['', 'cobalt_browsertests.runtime_deps']
+      'generic': ['', 'cobalt_browsertests.runtime_deps']
   }
-  platform = None
   if 'android' in build_dir:
     platform = 'android'
-  elif 'linux' in build_dir:
-    platform = 'linux'
   else:
-    return platform
+    platform = 'generic'
 
   # Try exact match first
   exact_deps_file = os.path.join(build_dir, *deps_by_platform[platform])
@@ -290,7 +287,8 @@ def main():
       raise ValueError(f'Unsupported compression: {args.compression}')
 
     subprocess.run([
-        'tar', '-I', compression_flag, '-C', stage_dir, '-cf', args.output, '.'
+        'tar', '--use-compress-program', compression_flag, '-C', stage_dir,
+        '-cf', args.output, '.'
     ],
                    check=True)
 
