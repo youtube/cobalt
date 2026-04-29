@@ -214,8 +214,6 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-
-
 <histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -489,14 +487,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB" expires_after="never">
+<histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
+    expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records the memory allocated by media decoder buffer for video and audio.
   </summary>
 </histogram>
 
-<histogram name="Memory.Media.EstimatedDecodedBuffer" units="MB" expires_after="never">
+<histogram name="Memory.Media.EstimatedDecodedBuffer" units="MB"
+    expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records total estimated memory allocation used for media output buffer by
