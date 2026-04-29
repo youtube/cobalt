@@ -136,10 +136,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   const std::string key_system_;
   const bool enable_app_provisioning_;
   void* context_;
-  SbDrmSessionUpdateRequestFunc update_request_callback_;
-  SbDrmSessionUpdatedFunc session_updated_callback_;
   // TODO: Update key statuses to Cobalt.
-  SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const Callbacks callbacks_;
 
   std::mutex mutex_;
 

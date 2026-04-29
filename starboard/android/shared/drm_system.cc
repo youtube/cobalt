@@ -77,13 +77,15 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
       enable_app_provisioning_(
           features::FeatureList::IsEnabled(features::kEnableAppProvisioning)),
       context_(context),
-      update_request_callback_(callbacks.update_request),
-      session_updated_callback_(callbacks.session_updated),
-      key_statuses_changed_callback_(callbacks.key_statuses_changed),
+      callbacks_(callbacks),
       hdcp_lost_(false),
       session_id_mapper_(enable_app_provisioning_
                              ? std::make_unique<DrmSessionIdMapper>()
                              : nullptr) {
+  SB_CHECK(callbacks_.update_request);
+  SB_CHECK(callbacks_.session_updated);
+  SB_CHECK(callbacks_.key_statuses_changed);
+
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   media_drm_bridge_ =
@@ -236,7 +238,7 @@ void DrmSystem::UpdateSession(int ticket,
   MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
       std::string_view(static_cast<const char*>(session_id), session_id_size));
-  session_updated_callback_(
+  callbacks_.session_updated(
       this, context_, ticket,
       result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
       result.error_message.c_str(), session_id, session_id_size);
@@ -274,7 +276,7 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
 
   SB_LOG_IF(ERROR, !result.ok()) << "UpdateSession failed: " << result;
 
-  session_updated_callback_(
+  callbacks_.session_updated(
       this, context_, ticket,
       result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
       result.error_message.c_str(), session_id.data(), session_id.size());
@@ -357,10 +359,10 @@ void DrmSystem::OnSessionUpdate(int ticket,
     eme_session_id = session_id;
   }
 
-  update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
-                           request_type, /*error_message=*/nullptr,
-                           eme_session_id.data(), eme_session_id.size(),
-                           content.data(), content.size(), kNoUrl);
+  callbacks_.update_request(this, context_, ticket, kSbDrmStatusSuccess,
+                            request_type, /*error_message=*/nullptr,
+                            eme_session_id.data(), eme_session_id.size(),
+                            content.data(), content.size(), kNoUrl);
 }
 
 void DrmSystem::OnProvisioningRequest(std::string_view content) {
@@ -380,11 +382,11 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
   }
 
   SB_LOG(INFO) << "Return provision request using pending ticket=" << ticket;
-  update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
-                           kSbDrmSessionRequestTypeIndividualizationRequest,
-                           /*error_message=*/nullptr, eme_session_id.data(),
-                           eme_session_id.size(), content.data(),
-                           content.size(), kNoUrl);
+  callbacks_.update_request(this, context_, ticket, kSbDrmStatusSuccess,
+                            kSbDrmSessionRequestTypeIndividualizationRequest,
+                            /*error_message=*/nullptr, eme_session_id.data(),
+                            eme_session_id.size(), content.data(),
+                            content.size(), kNoUrl);
 }
 
 void DrmSystem::OnKeyStatusChange(
@@ -412,10 +414,10 @@ void DrmSystem::OnKeyStatusChange(
     }
   }
 
-  key_statuses_changed_callback_(this, context_, eme_session_id.data(),
-                                 eme_session_id.size(),
-                                 static_cast<int>(drm_key_ids.size()),
-                                 drm_key_ids.data(), drm_key_statuses.data());
+  callbacks_.key_statuses_changed(this, context_, eme_session_id.data(),
+                                  eme_session_id.size(),
+                                  static_cast<int>(drm_key_ids.size()),
+                                  drm_key_ids.data(), drm_key_statuses.data());
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
@@ -436,10 +438,10 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
     std::vector<SbDrmKeyStatus> drm_key_statuses(drm_key_ids.size(),
                                                  kSbDrmKeyStatusRestricted);
 
-    key_statuses_changed_callback_(this, context_, session_id.data(),
-                                   session_id.size(),
-                                   static_cast<int>(drm_key_ids.size()),
-                                   drm_key_ids.data(), drm_key_statuses.data());
+    callbacks_.key_statuses_changed(
+        this, context_, session_id.data(), session_id.size(),
+        static_cast<int>(drm_key_ids.size()), drm_key_ids.data(),
+        drm_key_statuses.data());
   }
 }
 
