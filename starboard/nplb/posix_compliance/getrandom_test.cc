@@ -37,15 +37,12 @@ TEST(GetRandomTest, FillsBuffer) {
   ssize_t result2 = getrandom(buf2.data(), buf2.size(), 0);
   ASSERT_EQ(result2, kBufSize) << "getrandom failed: " << strerror(errno);
 
+  // It is mathematically possible that these assertions fail even though the
+  // random number generator is working properly (the odds are 1 in 2^4096 and
+  // 1 in 2^2048 respectively). If they do, rerunning the test should fix it.
   EXPECT_NE(buf1, buf2) << "Two random buffers should not be identical.";
 
-  bool all_zero = true;
-  for (char c : buf1) {
-    if (c != 0) {
-      all_zero = false;
-      break;
-    }
-  }
+  bool all_zero = std::ranges::all_of(buf1, [](char c) { return c == 0; });
   EXPECT_FALSE(all_zero) << "Random buffer should not be all zeros.";
 }
 
