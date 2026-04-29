@@ -14,7 +14,6 @@
 
 #include "starboard/android/shared/video_decoder.h"
 
-#include <android/api-level.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -50,7 +49,6 @@ namespace {
 
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -268,6 +266,9 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
                                           const SbDrmKeyId* key_ids,
                                           const SbDrmKeyStatus* key_statuses) {}
 
+const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
+    StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
+    StubDrmSessionKeyStatusesChangedFunc};
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -447,9 +448,16 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SB_DCHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
-    drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
-        "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
-        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
+
+    auto tunnel_mode_drm_system = DrmSystem::Create(
+        "com.widevine.alpha", /*context=*/nullptr, kStubDrmSystemCallbacks);
+    if (!tunnel_mode_drm_system) {
+      *error_message =
+          "Failed to create DrmSystem for tunnel mode enforcement.";
+      return;
+    }
+
+    drm_system_to_enforce_tunnel_mode_ = std::move(tunnel_mode_drm_system);
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 

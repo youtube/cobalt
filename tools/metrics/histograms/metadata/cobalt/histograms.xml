@@ -194,6 +194,7 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration"
     units="ms" expires_after="never">
+<<<<<<< add-part-malloc-breakdown
   <owner>charleykim@google.com</owner>
   <summary>
     Records the time it takes to initiate the flush of local storage during a
@@ -206,6 +207,8 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration"
     units="ms" expires_after="never">
+=======
+>>>>>>> main
   <owner>charleykim@google.com</owner>
   <summary>
     Records the time it takes to initiate the flush of local storage during a
@@ -544,14 +547,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< add-part-malloc-breakdown
 <histogram name="Memory.Media.AllocatedEncodedBuffer" expires_after="never">
+=======
+<histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
+    expires_after="never">
+>>>>>>> main
   <owner>tasunny@google.com</owner>
   <summary>
     Records the memory allocated by media decoder buffer for video and audio.
   </summary>
 </histogram>
 
+<<<<<<< add-part-malloc-breakdown
 <histogram name="Memory.Media.EstimatedDecodedBuffer" expires_after="never">
+=======
+<histogram name="Memory.Media.EstimatedDecodedBuffer" units="MB"
+    expires_after="never">
+>>>>>>> main
   <owner>tasunny@google.com</owner>
   <summary>
     Records total estimated memory allocation used for media output buffer by
