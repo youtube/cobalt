@@ -38,6 +38,7 @@ namespace {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::atomic<int> g_max_pending_bytes_per_parse{StreamParser::kMaxPendingBytesPerParse};  // 128KiB
+  std::atomic<int> g_video_buffer_size_clamp_mb{0};
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 base::TimeDelta EndTimestamp(const StreamParser::BufferQueue& queue) {
@@ -75,6 +76,11 @@ unsigned GetMSEBufferSizeLimitIfExists(std::string_view switch_string) {
 // static
 void SourceBufferState::SetMaxPendingBytesPerParseOverride(int max_bytes) {
   g_max_pending_bytes_per_parse = max_bytes;
+}
+
+// static
+void SourceBufferState::SetVideoBufferSizeClampMb(int mb) {
+  g_video_buffer_size_clamp_mb = mb;
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -815,6 +821,11 @@ void SourceBufferState::SetStreamMemoryLimits() {
 
   size_t video_buf_size_limit =
       GetMSEBufferSizeLimitIfExists(switches::kMSEVideoBufferSizeLimitMb);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!video_buf_size_limit && g_video_buffer_size_clamp_mb > 0) {
+    video_buf_size_limit = g_video_buffer_size_clamp_mb * 1024 * 1024;
+  }
+#endif
   if (video_buf_size_limit) {
     MEDIA_LOG(INFO, media_log_)
         << "Custom video per-track SourceBuffer size limit="
@@ -822,18 +833,6 @@ void SourceBufferState::SetStreamMemoryLimits() {
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
- size_t video_buf_size_limit_clamp =
-      GetMSEBufferSizeLimitIfExists(switches::kMSEVideoBufferSizeLimitClampMb);
-  if (video_buf_size_limit_clamp) {
-    MEDIA_LOG(INFO, media_log_)
-        << "Custom video per-track SourceBuffer size clamp limit(MiB)="
-        << (video_buf_size_limit_clamp / 1024 / 1024);
-    for (const auto& it : video_streams_)
-      it.second->SetStreamMemoryLimitClamp(video_buf_size_limit_clamp);
-  }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void SourceBufferState::OnNewMediaSegment() {

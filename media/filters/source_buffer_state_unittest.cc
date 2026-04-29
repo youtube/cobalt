@@ -382,4 +382,24 @@ TEST_F(SourceBufferStateTest, TrackIdsSwappedInSecondInitSegment) {
   AppendDataAndReportTracks(sbs, std::move(tracks2));
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST_F(SourceBufferStateTest, SetVideoBufferSizeClampMb) {
+  SourceBufferState::SetVideoBufferSizeClampMb(10);
+
+  std::unique_ptr<SourceBufferState> sbs =
+      CreateAndInitSourceBufferState("vp9");
+
+  std::unique_ptr<MediaTracks> tracks(new MediaTracks());
+  AddVideoTrack(tracks, VideoCodec::kVP9, 1);
+
+  EXPECT_FOUND_CODEC_NAME(Video, "vp9");
+  EXPECT_MEDIA_LOG("{\"info\":\"Custom video per-track SourceBuffer size limit=10485760\"}");
+  EXPECT_CALL(*this, MediaTracksUpdatedMock(_));
+  EXPECT_TRUE(AppendDataAndReportTracks(sbs, std::move(tracks)));
+  
+  // Reset for other tests just in case.
+  SourceBufferState::SetVideoBufferSizeClampMb(0);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media
