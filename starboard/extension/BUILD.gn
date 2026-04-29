@@ -18,6 +18,7 @@ source_set("feature_config_header") {
   visibility = [
     "//cobalt/android:java_features_srcjar",
     "//cobalt/common/features:features",
+    "//starboard/android/shared:shared_starboard",
     "//starboard/android/shared:starboard_platform",
   ]
   sources = [ "feature_config.h" ]
