@@ -127,6 +127,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'getifaddrs',
     'getpeername',
     'getpid',
+    'getrandom',
     'getrlimit',
     'getsockname',
     'getsockopt',
