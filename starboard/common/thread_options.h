@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_
-#define STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_
+#ifndef STARBOARD_COMMON_THREAD_OPTIONS_H_
+#define STARBOARD_COMMON_THREAD_OPTIONS_H_
 
-#include <pthread.h>
+#include <optional>
 
 #include "starboard/thread.h"
 
-class SbThreadSamplerPrivate {
- public:
-  explicit SbThreadSamplerPrivate(pthread_t thread);
-  ~SbThreadSamplerPrivate();
+namespace starboard {
 
-  SbThreadContext Freeze();
-  bool Thaw();
-  pthread_t thread() { return thread_; }
+struct ThreadOptions {
+  ThreadOptions() = default;
+  ThreadOptions& SetPriority(SbThreadPriority priority_in) {
+    priority = priority_in;
+    return *this;
+  }
 
- private:
-  pthread_t thread_;
+  std::optional<SbThreadPriority> priority;
 };
 
-#endif  // STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_
+}  // namespace starboard
+
+#endif  // STARBOARD_COMMON_THREAD_OPTIONS_H_

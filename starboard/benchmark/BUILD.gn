@@ -19,6 +19,7 @@ target(final_executable_type, "benchmark") {
     "//starboard/common/benchmark_main.cc",
     "memory_benchmark.cc",
     "thread_benchmark.cc",
+    "thread_id_benchmark.cc",
   ]
 
   public_deps = [

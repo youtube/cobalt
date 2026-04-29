@@ -80,6 +80,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/storage_write_record.cc",
     "//starboard/shared/stub/system_symbolize.cc",
     "accessibility_extension.cc",

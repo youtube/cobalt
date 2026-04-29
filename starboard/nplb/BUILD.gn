@@ -307,7 +307,6 @@ test("nplb") {
       "system_symbolize_test.cc",
       "thread_get_id_test.cc",
       "thread_priority_test.cc",
-      "thread_sampler_test.cc",
       "thread_test.cc",
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",
