@@ -42,19 +42,19 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
                   private Thread {
  public:
-  static std::unique_ptr<DrmSystem> Create(
-      std::string_view key_system,
-      void* context,
-      SbDrmSessionUpdateRequestFunc update_request_callback,
-      SbDrmSessionUpdatedFunc session_updated_callback,
-      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+  struct Callbacks {
+    SbDrmSessionUpdateRequestFunc update_request;
+    SbDrmSessionUpdatedFunc session_updated;
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
+  };
+  static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
+                                           void* context,
+                                           Callbacks callbacks);
 
   DrmSystem(PassKey<DrmSystem>,
             std::string_view key_system,
             void* context,
-            SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback,
-            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+            Callbacks callbacks);
 
   ~DrmSystem() override;
   // SbDrmSystemPrivate override begins

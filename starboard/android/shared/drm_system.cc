@@ -57,36 +57,29 @@ DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 }  // namespace
 
 // static
-std::unique_ptr<DrmSystem> DrmSystem::Create(
-    std::string_view key_system,
-    void* context,
-    SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
-  auto drm_system = std::make_unique<DrmSystem>(
-      PassKey<DrmSystem>(), key_system, context, update_request_callback,
-      session_updated_callback, key_statuses_changed_callback);
+std::unique_ptr<DrmSystem> DrmSystem::Create(std::string_view key_system,
+                                             void* context,
+                                             Callbacks callbacks) {
+  auto drm_system = std::make_unique<DrmSystem>(PassKey<DrmSystem>(),
+                                                key_system, context, callbacks);
   if (!drm_system->media_drm_bridge_) {
     return nullptr;
   }
   return drm_system;
 }
 
-DrmSystem::DrmSystem(
-    PassKey<DrmSystem>,
-    std::string_view key_system,
-    void* context,
-    SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback)
+DrmSystem::DrmSystem(PassKey<DrmSystem>,
+                     std::string_view key_system,
+                     void* context,
+                     Callbacks callbacks)
     : Thread("DrmSystemThread"),
       key_system_(key_system),
       enable_app_provisioning_(
           features::FeatureList::IsEnabled(features::kEnableAppProvisioning)),
       context_(context),
-      update_request_callback_(update_request_callback),
-      session_updated_callback_(session_updated_callback),
-      key_statuses_changed_callback_(key_statuses_changed_callback),
+      update_request_callback_(callbacks.update_request),
+      session_updated_callback_(callbacks.session_updated),
+      key_statuses_changed_callback_(callbacks.key_statuses_changed),
       hdcp_lost_(false),
       session_id_mapper_(enable_app_provisioning_
                              ? std::make_unique<DrmSessionIdMapper>()
