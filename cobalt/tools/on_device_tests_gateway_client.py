@@ -122,8 +122,12 @@ def _get_test_args_and_dimensions(
       f'job_timeout_sec={args.job_timeout_sec}',
       f'test_timeout_sec={args.test_timeout_sec}',
       f'start_timeout_sec={args.start_timeout_sec}',
-      f'retry_level={args.retry_level}',
   ]
+
+  if args.retry_level:
+    test_args.extend([
+        f'retry_level={args.retry_level}',
+    ])
 
   if args.test_attempts:
     test_args.extend([
@@ -357,7 +361,6 @@ def main() -> int:
   trigger_args.add_argument(
       '--retry_level',
       type=str,
-      default='ERROR',
       choices=['ERROR', 'FAIL'],
       help='Retry level for failed tests.',
   )
