@@ -29,4 +29,4 @@ is_starboardized_toolchain = is_starboard_toolchain || is_default_toolchain
 # to libcobalt.so, in Evergreen-compatible platforms, i.e. the "starboard" and
 # "native_target" toolchains.
 is_partner_toolchain =
-    (is_starboard && is_starboard_toolchain) || is_native_target
+    (is_cobalt_hermetic_build && is_starboard_toolchain) || is_native_target
