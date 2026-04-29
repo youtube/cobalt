@@ -46,9 +46,11 @@ else
     gclient config --name=src --unmanaged git@github.com:youtube/cobalt.git
 fi
 
-echo "Appending target_os and target_cpu to .gclient..."
-echo "target_os = [ 'linux', 'android' ]" >> .gclient
-echo "target_cpu = ['x64', 'arm', 'arm64']" >> .gclient
+if ! grep -q "target_os" .gclient; then
+    echo "Appending target_os and target_cpu to .gclient..."
+    echo "target_os = [ 'linux', 'android' ]" >> .gclient
+    echo "target_cpu = ['x64', 'arm', 'arm64']" >> .gclient
+fi
 
 # 4. Run gclient sync
 echo ""
@@ -57,10 +59,12 @@ cd src
 gclient sync --no-history -r $(git rev-parse @)
 
 # 5. Disable Build Telemetry
-echo ""
-echo "--- Disabling Build Telemetry ---"
-cd ..
-build_telemetry opt-out
+if [ "$is_internal" == "y" ]; then
+    echo ""
+    echo "--- Disabling Build Telemetry ---"
+    cd ..
+    build_telemetry opt-out
+fi
 
 # 6. Generate Build Files
 echo ""
