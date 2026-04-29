@@ -15,8 +15,10 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_
 
+#include <memory>
 #include <queue>
 
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
@@ -40,14 +42,15 @@ template <>
 class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
                                        private JobQueue::JobOwner {
  public:
-  FfmpegAudioDecoderImpl(JobQueue* job_queue,
+  FfmpegAudioDecoderImpl(starboard::PassKey<FfmpegAudioDecoderImpl<FFMPEG>>,
+                         JobQueue* job_queue,
                          const AudioStreamInfo& audio_stream_info);
   ~FfmpegAudioDecoderImpl() override;
 
   // From: FfmpegAudioDecoder
-  static FfmpegAudioDecoder* Create(JobQueue* job_queue,
-                                    const AudioStreamInfo& audio_stream_info);
-  bool is_valid() const override;
+  static std::unique_ptr<FfmpegAudioDecoder> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info);
 
   // From: AudioDecoder
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -61,7 +64,7 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
   SbMediaAudioSampleType GetSampleType() const;
   SbMediaAudioFrameStorageType GetStorageType() const;
 
-  void InitializeCodec();
+  bool InitializeCodec();
   void TeardownCodec();
 
   // Processes decoded (PCM) audio data received from FFmpeg. The audio data is

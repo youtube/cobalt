@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <queue>
@@ -52,12 +53,11 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
   ~FfmpegVideoDecoderImpl() override;
 
   // From: FfmpegVideoDecoder
-  static FfmpegVideoDecoder* Create(
+  static std::unique_ptr<FfmpegVideoDecoder> Create(
       SbMediaVideoCodec video_codec,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider);
-  bool is_valid() const override;
 
   // From: VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -116,7 +116,7 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
   void DecoderThreadFunc();
 
   bool DecodePacket(AVPacket* packet);
-  void InitializeCodec();
+  bool InitializeCodec();
   void TeardownCodec();
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
