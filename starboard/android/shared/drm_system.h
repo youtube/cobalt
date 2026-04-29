@@ -147,13 +147,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
 
-  // Guaranteed to be non-null for any instance returned by the factory method.
-  // However, it can be null during destruction if the factory method fails
-  // to create the bridge and destroys the instance.
-  const std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
-
-  ThreadChecker thread_checker_;
-
   // Manages the mapping between the EME session ID in the C++ layer and the
   // MediaDrm session ID in the Java layer. Most of the time, we can use the
   // MediaDrm session ID as the EME session ID. However, there are some cases
@@ -164,6 +157,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // session ID to interact with the Cobalt CDM module.
   const std::unique_ptr<DrmSessionIdMapper>
       session_id_mapper_;  //  Guarded by |mutex_|.
+
+  // Guaranteed to be non-null for any instance returned by the factory method.
+  // However, it can be null during destruction if the factory method fails
+  // to create the bridge and destroys the instance.
+  const std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard
