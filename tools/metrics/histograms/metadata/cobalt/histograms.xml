@@ -113,8 +113,8 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.LocalStorage.DatabaseVersionMismatch" enum="LevelDBStatus"
-    expires_after="never">
+<histogram name="Cobalt.LocalStorage.DatabaseVersionMismatch"
+    enum="LevelDBStatus" expires_after="never">
   <owner>colinliang@google.com</owner>
   <summary>
     Records the leveldb status when a version mismatch is detected in Local
@@ -129,11 +129,12 @@ Always run the pretty print utility on this file after editing:
     Records the number of times a platform error was raised due to a navigation
     timeout or other network error. This is logged every time RaisePlatformError
     is called; each logged count is the cumulative number of times the error has
-    been raised. The actual number of sessions with a specific number of platform
-    errors raised can be raised by subtracting the values of counts larger than
-    said number. For example, sessions with 2 calls to RaisePlatformError would be
-    (count for 2 calls) - (count for 3 calls) - ... (count for max calls).
-    This value is reset to 0 on a successful navigation/app load.
+    been raised. The actual number of sessions with a specific number of
+    platform errors raised can be raised by subtracting the values of counts
+    larger than said number. For example, sessions with 2 calls to
+    RaisePlatformError would be (count for 2 calls) - (count for 3 calls) - ...
+    (count for max calls). This value is reset to 0 on a successful
+    navigation/app load.
   </summary>
 </histogram>
 
@@ -191,20 +192,8 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration" units="ms"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes to initiate the flush of local storage during a
-    graceful application exit (e.g., via window.h5vcc.system.exit()). As
-    `Flush()` is an asynchronous operation, this metric captures the time until
-    the commit is scheduled, not the completion of the data write to persistent
-    storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration" units="ms"
-    expires_after="never">
+<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration"
+    units="ms" expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
     Records the time it takes to initiate the flush of local storage during a
@@ -226,6 +215,94 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StorageMigration.CookieInjectionResult"
+    enum="StorageInjectionResult" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to inject a single cookie into the new
+    Chromium-based storage during migration from legacy Starboard storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.CookiesCount" units="cookies"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total number of cookies found in the legacy Starboard storage
+    record during a migration attempt.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Duration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total time taken to migrate data from the legacy Starboard
+    storage record to the new Chromium-based storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.FastPathDuration" units="ms"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the total time taken to check for the migration fast path during
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.LocalStorageCount" units="entries"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total number of localStorage entries found in the legacy
+    Starboard storage record during a migration attempt.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.LocalStorageInjectionResult"
+    enum="StorageInjectionResult" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to inject a single localStorage entry into
+    the new Chromium-based storage during migration from legacy Starboard
+    storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Outcome" enum="MigrationOutcome"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the final outcome of the storage migration process. Tracks whether
+    the migration took the fast path, skipped due to no data, fully succeeded,
+    or failed during read/injection.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.ReadResult" enum="StorageReadResult"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to read and parse the legacy Starboard
+    storage record during migration.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
+    enum="SentinelWriteResult" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the result of writing the migration sentinel file to disk.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -236,8 +313,8 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.WebContentsObserver.FailedNavigationError" enum="NetErrorCodes"
-    expires_after="never">
+<histogram name="Cobalt.WebContentsObserver.FailedNavigationError"
+    enum="NetErrorCodes" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records the net error code for every primary main frame navigation failure.
@@ -265,144 +342,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.StorageMigration.CookieInjectionResult"
-    enum="StorageInjectionResult" expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the outcome of attempting to inject a single cookie into the new
-    Chromium-based storage during migration from legacy Starboard storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.CookiesCount" units="cookies"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the total number of cookies found in the legacy Starboard storage
-    record during a migration attempt.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.FastPathDuration" units="ms"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the total time taken to check for the migration fast path during
-    startup.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.Outcome" enum="MigrationOutcome"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the final outcome of the storage migration process. Tracks whether
-    the migration took the fast path, skipped due to no data, fully succeeded,
-    or failed during read/injection.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.Duration" units="ms"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the total time taken to migrate data from the legacy Starboard
-    storage record to the new Chromium-based storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.LocalStorageCount" units="entries"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the total number of localStorage entries found in the legacy
-    Starboard storage record during a migration attempt.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.LocalStorageInjectionResult"
-    enum="StorageInjectionResult" expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the outcome of attempting to inject a single localStorage entry into
-    the new Chromium-based storage during migration from legacy Starboard
-    storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.ReadResult" enum="StorageReadResult"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the outcome of attempting to read and parse the legacy Starboard
-    storage record during migration.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
-    enum="SentinelWriteResult" expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the result of writing the migration sentinel file to disk.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Media.EstimatedDecodedBuffer" unit="MB"
-    expires_after="never">
-  <owner>tasunny@google.com</owner>
-  <summary>
-    Records total estimated memory allocation used for media output
-    buffer by Android MediaCodec.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Media.AllocatedEncodedBuffer"
-    unit="MB" expires_after="never">
-  <owner>tasunny@google.com</owner>
-  <summary>
-    Records the memory allocated by media decoder buffer for video and audio.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Total.PrivateFootprintSwap" units="MB"
-    expires_after="never">
-  <owner>tasunny@google.com</owner>
-  <summary>
-    A rough estimate of the private memory footprint that has been swapped out
-    to disk for the Cobalt process. Recorded at regular intervals when memory
-    metrics are emitted.
-  </summary>
-</histogram>
-
-<histogram name="Memory.Total.VmSize" units="MB" expires_after="never">
-  <owner>tasunny@google.com</owner>
-  <summary>
-    The virtual memory size of the Cobalt process. Virtual memory size includes
-    all memory the process can access, including shared libraries, stack, heap,
-    and memory-mapped files. Recorded at regular intervals when memory metrics
-    are emitted.
-  </summary>
-</histogram>
-
 <histogram name="Memory.Browser.AndroidRuntimeRss" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
-    The physical memory (RSS) consumed by the Android/Dalvik runtime environment.
-    This tracks ART image files (.art), Optimized Android Template files
-    (.oat), and internal Dalvik allocator regions (e.g., dalvik-main space).
-    Currently restricted to Android.
+    The physical memory (RSS) consumed by the Android/Dalvik runtime
+    environment. This tracks ART image files (.art), Optimized Android Template
+    files (.oat), and internal Dalvik allocator regions (e.g., dalvik-main
+    space). Currently restricted to Android.
   </summary>
 </histogram>
 
-<histogram name="Memory.Browser.AshmemJitRss" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Browser.AshmemJitRss" units="MiB" expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) consumed by anonymous shared memory (Ashmem) and
@@ -411,25 +362,23 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Browser.CodeOtherRss" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Browser.CodeOtherRss" units="MiB" expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) consumed by non-Cobalt executable code and
-    read-only data mappings. This is a catch-all for system libraries (.so),
-    GPU drivers (e.g., libGLES_mali.so), the application package (.apk), and
-    compiled Java bytecode (.dex). Excludes the main libchrobalt.so.
-    Currently restricted to Android.
+    read-only data mappings. This is a catch-all for system libraries (.so), GPU
+    drivers (e.g., libGLES_mali.so), the application package (.apk), and
+    compiled Java bytecode (.dex). Excludes the main libchrobalt.so. Currently
+    restricted to Android.
   </summary>
 </histogram>
 
-<histogram name="Memory.Browser.FontsRss" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Browser.FontsRss" units="MiB" expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) consumed by system and application font mappings,
-    specifically TrueType (.ttf) and TrueType Collection (.ttc) files.
-    Currently restricted to Android.
+    specifically TrueType (.ttf) and TrueType Collection (.ttc) files. Currently
+    restricted to Android.
   </summary>
 </histogram>
 
@@ -453,8 +402,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Browser.MallocRss" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Browser.MallocRss" units="MiB" expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) used by the system allocator. On Android, this
@@ -467,13 +415,12 @@ Always run the pretty print utility on this file after editing:
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) consumed specifically by PartitionAlloc's
-    anonymous mappings, which are used for most of Cobalt's internal
-    object allocations.
+    anonymous mappings, which are used for most of Cobalt's internal object
+    allocations.
   </summary>
 </histogram>
 
-<histogram name="Memory.Browser.StacksRss" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Browser.StacksRss" units="MiB" expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) consumed by all thread stacks and Thread-Local
@@ -525,8 +472,45 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
-    Accurate RSS for the thread stacks pillar. This is used for the
-    cumulative CDF breakdown of the total ResidentSet.
+    Accurate RSS for the thread stacks pillar. This is used for the cumulative
+    CDF breakdown of the total ResidentSet.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records the memory allocated by media decoder buffer for video and audio.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Media.EstimatedDecodedBuffer" units="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records total estimated memory allocation used for media output buffer by
+    Android MediaCodec.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Total.PrivateFootprintSwap" units="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    A rough estimate of the private memory footprint that has been swapped out
+    to disk for the Cobalt process. Recorded at regular intervals when memory
+    metrics are emitted.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Total.VmSize" units="MB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    The virtual memory size of the Cobalt process. Virtual memory size includes
+    all memory the process can access, including shared libraries, stack, heap,
+    and memory-mapped files. Recorded at regular intervals when memory metrics
+    are emitted.
   </summary>
 </histogram>
 
