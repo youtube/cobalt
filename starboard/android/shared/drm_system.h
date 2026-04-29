@@ -32,6 +32,7 @@
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -41,11 +42,19 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
                   private Thread {
  public:
-  DrmSystem(std::string_view key_system,
+  struct Callbacks {
+    SbDrmSessionUpdateRequestFunc update_request;
+    SbDrmSessionUpdatedFunc session_updated;
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
+  };
+  static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
+                                           void* context,
+                                           Callbacks callbacks);
+
+  DrmSystem(PassKey<DrmSystem>,
+            std::string_view key_system,
             void* context,
-            SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback,
-            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+            Callbacks callbacks);
 
   ~DrmSystem() override;
   // SbDrmSystemPrivate override begins
@@ -83,7 +92,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void OnInsufficientOutputProtection();
 
-  bool is_valid() const { return media_drm_bridge_->is_valid(); }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
   }
@@ -128,10 +136,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   const std::string key_system_;
   const bool enable_app_provisioning_;
   void* context_;
-  SbDrmSessionUpdateRequestFunc update_request_callback_;
-  SbDrmSessionUpdatedFunc session_updated_callback_;
   // TODO: Update key statuses to Cobalt.
-  SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const Callbacks callbacks_;
 
   std::mutex mutex_;
 
