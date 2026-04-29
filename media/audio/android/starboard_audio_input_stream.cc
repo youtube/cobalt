@@ -213,7 +213,9 @@ bool StarboardAudioInputStream::CreateRecorder() {
   SLDataLocator_AndroidSimpleBufferQueue buffer_queue = {
       SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
       static_cast<SLuint32>(kMaxNumOfBuffersInQueue)};
-  SLDataSink audio_sink = {&buffer_queue, (void*)&format_};
+  SLDataSink audio_sink = {
+      &buffer_queue,
+      static_cast<void*>(const_cast<SLAndroidDataFormat_PCM_EX*>(&format_))};
 
   const SLInterfaceID interface_id[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
                                         SL_IID_ANDROIDCONFIGURATION};
