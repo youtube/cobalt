@@ -109,12 +109,11 @@ bool HasRemoteAudioOutput() {
 class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
  public:
   explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
-      : Thread("audio_track_out"), sink_(sink) {}
+      : Thread("audio_track_out",
+               ThreadOptions().SetPriority(kSbThreadPriorityRealTime)),
+        sink_(sink) {}
 
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityRealTime);
-    sink_->AudioThreadFunc();
-  }
+  void Run() override { sink_->AudioThreadFunc(); }
 
  private:
   AudioTrackAudioSink* sink_;
