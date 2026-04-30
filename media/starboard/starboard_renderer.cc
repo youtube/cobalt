@@ -830,7 +830,8 @@ void StarboardRenderer::OnDemuxerStreamRead(
         base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
                        weak_factory_.GetWeakPtr(), stream, max_buffers));
   } else if (status == DemuxerStream::kError) {
-    client_->OnError(PIPELINE_ERROR_READ);
+    state_ = STATE_ERROR;
+    NotifyError(PIPELINE_ERROR_READ);
   }
 }
 
@@ -1007,7 +1008,7 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
   switch (error) {
     case kSbPlayerErrorDecode:
       MEDIA_LOG(ERROR, media_log_) << message;
-      client_->OnError(PIPELINE_ERROR_DECODE);
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
     case kSbPlayerErrorCapabilityChanged:
       MEDIA_LOG(ERROR, media_log_)
@@ -1016,11 +1017,26 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
                   : base::StringPrintf("%s: %s",
                                        kSbPlayerCapabilityChangedErrorMessage,
                                        message.c_str()));
-      client_->OnError(PIPELINE_ERROR_DECODE);
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();
       break;
+  }
+}
+
+void StarboardRenderer::NotifyError(PipelineStatus status) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // MojoRenderer in the renderer process delays assigning its `client_` pointer
+  // until the initialization callback resolves. If we encounter an error during
+  // initialization, we must resolve `init_cb_` with the error status instead of
+  // firing an asynchronous `client_->OnError()` event. Firing
+  // `client_->OnError()` before `init_cb_` is resolved will cause a null
+  // pointer dereference in `MojoRenderer::OnError()`.
+  if (init_cb_) {
+    std::move(init_cb_).Run(status);
+  } else {
+    client_->OnError(status);
   }
 }
 
