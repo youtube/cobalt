@@ -23,6 +23,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/thread.h"
@@ -46,7 +47,8 @@ class FfmpegVideoDecoderImpl<FFMPEG>;
 template <>
 class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
  public:
-  FfmpegVideoDecoderImpl(SbMediaVideoCodec video_codec,
+  FfmpegVideoDecoderImpl(starboard::PassKey<FfmpegVideoDecoderImpl<FFMPEG>>,
+                         SbMediaVideoCodec video_codec,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider);
