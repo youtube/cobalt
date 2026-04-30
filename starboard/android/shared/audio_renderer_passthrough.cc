@@ -416,8 +416,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
           audio_stream_info_.codec == kSbMediaAudioCodecAc3
               ? kSbMediaAudioCodingTypeAc3
               : kSbMediaAudioCodingTypeDolbyDigitalPlus,
-          std::optional<SbMediaAudioSampleType>(),  // Not required in
-                                                    // passthrough mode
+          /*sample_type=*/std::nullopt,  // Not required in passthrough mode
           audio_stream_info_.number_of_channels,
           audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
           kTunnelModeAudioSessionId, /*is_web_audio=*/false);

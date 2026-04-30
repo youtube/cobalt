@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
@@ -116,7 +117,7 @@ class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
   void Run() override { sink_->AudioThreadFunc(); }
 
  private:
-  AudioTrackAudioSink* sink_;
+  const raw_ptr<AudioTrackAudioSink> sink_;
 };
 
 std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(

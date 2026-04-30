@@ -124,7 +124,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
       is_test_complete_ = false;
     }
 
-    auto audio_sink = AudioTrackAudioSink::Create(
+    audio_sink_ = AudioTrackAudioSink::Create(
         NULL, task.number_of_channels, task.sample_rate, task.sample_type,
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
@@ -132,7 +132,6 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, false, false, this);
-    audio_sink_ = audio_sink.release();
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(
@@ -148,8 +147,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     // |min_required_frames_| is shared between two threads. Release audio sink
     // to end audio sink thread before access |min_required_frames_| on this
     // thread.
-    delete audio_sink_;
-    audio_sink_ = nullptr;
+    audio_sink_.reset();
 
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
