@@ -144,6 +144,12 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     return AudioOutputManager::GetInstance()->HasPassthroughSupportFor(
         env, encoding);
   }
+  bool GetIsTunnelModeFloatSupported(int num_channels,
+                                     int samples_per_second) override {
+    JNIEnv* env = AttachCurrentThread();
+    return AudioOutputManager::GetInstance()->HasTunnelModeFloatSupportFor(
+        env, num_channels, samples_per_second);
+  }
   bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* configuration) override {
@@ -396,6 +402,17 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
       media_capabilities_provider_->GetIsPassthroughSupported(codec);
   passthrough_supportabilities_[codec] = supported;
   return supported;
+}
+
+bool MediaCapabilitiesCache::IsTunnelModeFloatSupported(
+    int num_channels,
+    int samples_per_second) {
+  if (features::FeatureList::IsEnabled(
+          features::kEnableTunnelModeFloatOutput)) {
+    return media_capabilities_provider_->GetIsTunnelModeFloatSupported(
+        num_channels, samples_per_second);
+  }
+  return false;
 }
 
 bool MediaCapabilitiesCache::IsAv18kCappedAt30() {

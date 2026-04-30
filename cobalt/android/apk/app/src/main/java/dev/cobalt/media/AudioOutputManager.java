@@ -438,6 +438,55 @@ public class AudioOutputManager {
     return true;
   }
 
+  /** Returns whether float 32 sample suppport for the given channel count is supported. */
+  @CalledByNative
+  boolean hasTunnelModeFloatSupportFor(int numberOfChannels, int sampleRate) {
+    int channelMask;
+    switch (numberOfChannels) {
+      case 1:
+        channelMask = AudioFormat.CHANNEL_OUT_MONO;
+        break;
+      case 2:
+        channelMask = AudioFormat.CHANNEL_OUT_STEREO;
+        break;
+      case 6:
+        channelMask = AudioFormat.CHANNEL_OUT_5POINT1;
+        break;
+      default:
+        throw new RuntimeException("Unsupported channel count: " + numberOfChannels);
+    }
+
+    AudioFormat format = new AudioFormat.Builder()
+        .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+        .setSampleRate(sampleRate)
+        .setChannelMask(channelMask)
+        .build();
+
+    AudioAttributes attributes = new AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+        .setFlags(AudioAttributes.FLAG_HW_AV_SYNC)
+        .build();
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      AudioManager audioManager = mContext.getSystemService(AudioManager.class);
+      if (audioManager != null) {
+        int support = audioManager.getDirectPlaybackSupport(format, attributes);
+        Log.i(TAG, String.format("is supported for Tiramisu and over: %b", support != AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED));
+        return support != AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED;
+      }
+      return false;
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      @SuppressWarnings("deprecation")
+      boolean isSupported = AudioTrack.isDirectPlaybackSupported(format, attributes);
+      Log.i(TAG, String.format("is supported for Q and under: %b", isSupported));
+      return isSupported;
+    } else {
+      // Pre-API 29 devices do not have a reliable query method.
+      return false;
+    }
+  }
+
   /** Returns whether passthrough on `encoding` is supported for API 23 and above. */
   private boolean hasPassthroughSupportForV23(final AudioDeviceInfo[] deviceInfos, int encoding) {
     for (AudioDeviceInfo info : deviceInfos) {

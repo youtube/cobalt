@@ -124,7 +124,7 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // By default, tunnel mode has to be enabled explicitly by the web app via the
 // mime attribute "tunnelmode=true". Set the following variable to true to force
 // enabling tunnel mode on all playbacks.
-STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
+STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", true)
 
 // By default, Cobalt pauses AudioTrack without play state from AudioTrack.
 // Set the following variable to true to force it using play state from
@@ -165,6 +165,13 @@ STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
+                  false)
+
+// Cobalt only supports int16 pcm audio output during tunneled playback
+// by default. Set the following variable to true to enable tunneled
+// float output, when available.
+STARBOARD_FEATURE(kEnableTunnelModeFloatOutput,
+                  "EnableTunnelModeFloatOutput",
                   false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END

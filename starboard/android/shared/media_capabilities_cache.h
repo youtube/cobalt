@@ -151,6 +151,8 @@ class MediaCapabilitiesProvider {
   virtual bool GetIsCbcsSchemeSupported() = 0;
   virtual std::set<SbMediaTransferId> GetSupportedHdrTypes() = 0;
   virtual bool GetIsPassthroughSupported(SbMediaAudioCodec codec) = 0;
+  virtual bool GetIsTunnelModeFloatSupported(int num_channels,
+                                             int samples_per_second) = 0;
   virtual bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* configuration) = 0;
@@ -176,6 +178,8 @@ class MediaCapabilitiesCache {
   bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
+
+  bool IsTunnelModeFloatSupported(int num_channels, int samples_per_second);
 
   // Some android devices support av1 up to 8k30 and 4k60. In that case, we
   // cannot ask it to always use max supported width and height, which would
