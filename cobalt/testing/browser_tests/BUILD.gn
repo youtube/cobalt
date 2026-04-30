@@ -219,6 +219,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/cobalt_memory_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
