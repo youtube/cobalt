@@ -86,6 +86,7 @@ Configurator::Configurator(
           update_client::MakeCrxDownloaderFactory(network_fetcher_factory_)),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()),
+      crx_cache_(base::MakeRefCounted<update_client::CrxCache>(std::nullopt)),
       is_forced_update_(0),
       min_free_space_bytes_(48 * 1024 * 1024),  // 48MB
       allow_self_signed_packages_(false),
@@ -419,7 +420,7 @@ update_client::PersistedData* Configurator::GetPersistedData() const {
 }
 
 scoped_refptr<update_client::CrxCache> Configurator::GetCrxCache() const {
-  return nullptr;
+  return crx_cache_;
 }
 
 bool Configurator::IsConnectionMetered() const {

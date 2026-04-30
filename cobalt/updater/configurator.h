@@ -99,6 +99,7 @@ class Configurator : public update_client::Configurator {
   GetProtocolHandlerFactory() const override;
   update_client::UpdaterStateProvider GetUpdaterStateProvider() const override;
   update_client::PersistedData* GetPersistedData() const override;
+  // TODO(b/508346610): investigate support for CRX cache.
   scoped_refptr<update_client::CrxCache> GetCrxCache() const override;
   bool IsConnectionMetered() const override;
 
