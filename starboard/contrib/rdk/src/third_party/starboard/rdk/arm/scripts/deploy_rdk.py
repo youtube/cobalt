@@ -154,11 +154,12 @@ def package_and_deploy(
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
+    tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
     if mode == "plugin":
-        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", deps_file.name, "libloader_app.so"]
-    else:
-        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", deps_file.name]
+        tar_cmd.append("libloader_app.so")
+    tar_cmd.extend(["gen/build_info.json", "."])
 
+    print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
     run_command(["adb", "-s", device_id, "shell", f"mkdir -p {remote_dir}"])
     run_command(["adb", "-s", device_id, "push", archive_name, f"{remote_dir}/"])
