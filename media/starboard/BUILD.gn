@@ -136,5 +136,8 @@ buildflag_header("buildflags") {
 
     # TODO(b/375241265): Re-enable UMA metrics
     "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
+
+    # TODO(b/505744317): Enable AV2 once supported in Chromium
+    "COBALT_MEDIA_ENABLE_AV2_SUPPORT=0",
   ]
 }
