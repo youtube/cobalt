@@ -195,6 +195,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
+  SB_CHECK(bridge_);
 
   SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
 
@@ -204,9 +205,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
-  if (audio_out_thread_) {
-    audio_out_thread_->Join();
-  }
+  audio_out_thread_->Join();
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {

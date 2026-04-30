@@ -183,6 +183,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const bool allow_audio_writing_on_pause_;
   const bool pause_using_audio_track_state_;
 
+  // Guaranteed to be non-null.
   const std::unique_ptr<AudioTrackBridge> bridge_;
 
   volatile bool quit_ = false;
