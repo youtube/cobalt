@@ -51,13 +51,18 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     bool is_web_audio) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
+
+    // TODO: Support query if platform supports float type for tunnel mode.
     if (tunnel_mode_audio_session_id != -1) {
       SB_DCHECK_EQ(sample_type.value(), kSbMediaAudioSampleTypeInt16Deprecated);
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||
               coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus);
+    // TODO: Support passthrough under tunnel mode.
     SB_DCHECK_EQ(tunnel_mode_audio_session_id, -1);
+    // TODO: |sample_type| is not used in passthrough mode, we should make this
+    // explicit.
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -68,6 +73,13 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
           tunnel_mode_audio_session_id, is_web_audio);
 
   if (j_audio_track_bridge.is_null()) {
+    // One of the cases that this may hit is when output happened to be switched
+    // to a device that doesn't support tunnel mode.
+    // TODO: Find a way to exclude the device from tunnel mode playback, to
+    //       avoid infinite loop in creating the audio sink on a device
+    //       claims to support tunnel mode but fails to create the audio sink.
+    // TODO: Currently this will be reported as a general decode error,
+    //       investigate if this can be reported as a capability changed error.
     SB_LOG(WARNING) << "Failed to create |j_audio_track_bridge|.";
     return nullptr;
   }
