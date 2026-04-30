@@ -415,11 +415,9 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interrupt Chromium's IsTypeSupported() from here for better performance.
   MIMETypeRegistry::SupportsType result;
-  if (!base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback) &&
-      IsProgressiveFormat(content_type)) {
-    LOG(INFO) << "Content type \'" << content_type.Raw()
-              << "\' is unsupported as Cobalt progressive playback is disabled "
-                 "via base features.";
+  if (IsProgressiveFormat(content_type)) {
+    LOG(INFO) << "Progressive content type \'" << content_type.Raw()
+              << "\' is unsupported.";
     result = MIMETypeRegistry::kNotSupported;
   } else {
     const SbMediaSupportType support_type =

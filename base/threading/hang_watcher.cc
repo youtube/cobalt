@@ -446,6 +446,10 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: HangWatcher initialized";
+#endif
+
   // Retrieve thread-specific config for hang watching.
   if (process_type == HangWatcher::ProcessType::kBrowserProcess) {
     // Crashes are set to always emit. Override any feature flags.
@@ -786,6 +790,9 @@ HangWatcher* HangWatcher::GetInstance() {
 
 // static
 void HangWatcher::RecordHang() {
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: start reporting";
+#endif
   base::debug::DumpWithoutCrashing();
   NO_CODE_FOLDING();
 }
@@ -1050,6 +1057,10 @@ void HangWatcher::DoDumpWithoutCrashing(
     const WatchStateSnapShot& watch_state_snapshot) {
   TRACE_EVENT("latency", "HangWatcher::DoDumpWithoutCrashing");
 
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: " << watch_state_snapshot.IsActionable();
+#endif
+
   capture_in_progress_.store(true, std::memory_order_relaxed);
   base::AutoLock scope_lock(capture_lock_);
 
@@ -1102,6 +1113,8 @@ void HangWatcher::DoDumpWithoutCrashing(
     if (g_hang_watcher_delegate &&
         g_hang_watcher_delegate->IsHangReportingEnabled()) {
       RecordHang();
+    } else {
+      LOG(INFO) << "Freeze detection: RecordHang() skipped due to reporting disabled.";
     }
 #else
     RecordHang();

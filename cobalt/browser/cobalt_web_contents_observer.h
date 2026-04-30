@@ -48,6 +48,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
 
  private:
+  void OnNavigationTimeout();
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
 #if BUILDFLAG(IS_ANDROIDTV)

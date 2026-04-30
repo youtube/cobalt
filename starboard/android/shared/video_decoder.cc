@@ -14,7 +14,6 @@
 
 #include "starboard/android/shared/video_decoder.h"
 
-#include <android/api-level.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -39,6 +38,7 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -49,7 +49,6 @@ namespace {
 
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -267,6 +266,9 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
                                           const SbDrmKeyId* key_ids,
                                           const SbDrmKeyStatus* key_statuses) {}
 
+const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
+    StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
+    StubDrmSessionKeyStatusesChangedFunc};
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -446,9 +448,16 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SB_DCHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
-    drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
-        "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
-        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
+
+    auto tunnel_mode_drm_system = DrmSystem::Create(
+        "com.widevine.alpha", /*context=*/nullptr, kStubDrmSystemCallbacks);
+    if (!tunnel_mode_drm_system) {
+      *error_message =
+          "Failed to create DrmSystem for tunnel mode enforcement.";
+      return;
+    }
+
+    drm_system_to_enforce_tunnel_mode_ = std::move(tunnel_mode_drm_system);
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 
@@ -561,6 +570,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
+
+  MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
+                    input_buffers.front()->timestamp(), "size",
+                    input_buffers.size());
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
@@ -790,6 +803,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
+      // We manually call AddRef() here because `decode_target_` is stored as a
+      // raw pointer. This ensures Starboard claims its initial ownership of the
+      // target, preventing it from stealing Chromium's reference and deleting
+      // the texture prematurely during TeardownCodec().
+      decode_target_->AddRef();
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();
