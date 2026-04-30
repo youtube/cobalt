@@ -13,6 +13,7 @@
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "content/public/common/buildflags.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom-forward.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom-forward.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom-forward.h"
@@ -168,7 +169,9 @@ class CONTENT_EXPORT StoragePartition {
   virtual ZoomLevelDelegate* GetZoomLevelDelegate() = 0;
   virtual PlatformNotificationContext* GetPlatformNotificationContext() = 0;
   virtual InterestGroupManager* GetInterestGroupManager() = 0;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   virtual BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() = 0;
+#endif
   virtual AttributionDataModel* GetAttributionDataModel() = 0;
   virtual PrivateAggregationDataModel* GetPrivateAggregationDataModel() = 0;
   virtual CookieDeprecationLabelManager* GetCookieDeprecationLabelManager() = 0;

@@ -34,6 +34,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
@@ -371,10 +372,12 @@ class TokenPreloadScanner::StartTagScanner {
       request->SetSharedStorageWritableOptedIn(true);
     }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
     if (browsing_topics_attr_set_) {
       DCHECK(is_img);
       request->SetBrowsingTopicsEligible(true);
     }
+#endif
 
     return request;
   }
@@ -458,8 +461,10 @@ class TokenPreloadScanner::StartTagScanner {
       attributionsrc_attr_set_ = true;
     } else if (Match(attribute_name, html_names::kSharedstoragewritableAttr)) {
       shared_storage_writable_opted_in_ = true;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
     } else if (Match(attribute_name, html_names::kBrowsingtopicsAttr)) {
       browsing_topics_attr_set_ = true;
+#endif
     } else if (use_data_src_attr_match_for_image_ &&
                Match(attribute_name, html_names::kDataSrcAttr) &&
                img_src_url_.IsNull()) {
@@ -827,7 +832,9 @@ class TokenPreloadScanner::StartTagScanner {
   const HashSet<String>* disabled_image_types_;
   bool attributionsrc_attr_set_ = false;
   bool shared_storage_writable_opted_in_ = false;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   bool browsing_topics_attr_set_ = false;
+#endif
   std::optional<float> resource_width_;
   std::optional<float> resource_height_;
   features::LcppPreloadLazyLoadImageType preload_lazy_load_image_type_;

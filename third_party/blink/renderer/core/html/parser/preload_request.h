@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -159,6 +160,7 @@ class CORE_EXPORT PreloadRequest {
     shared_storage_writable_opted_in_ = opted_in;
   }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   // Set whether the preload request is eligible for the Browsing Topics API.
   //
   // See https://github.com/patcg-individual-drafts/topics/blob/main/README.md
@@ -166,6 +168,7 @@ class CORE_EXPORT PreloadRequest {
   void SetBrowsingTopicsEligible(bool flag) {
     browsing_topics_eligible_ = flag;
   }
+#endif
 
   bool IsPotentiallyLCPElement() const { return is_potentially_lcp_element_; }
 
@@ -225,7 +228,9 @@ class CORE_EXPORT PreloadRequest {
   bool is_potentially_lcp_element_ = false;
   bool is_potentially_lcp_influencer_ = false;
   bool shared_storage_writable_opted_in_ = false;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   bool browsing_topics_eligible_ = false;
+#endif
 };
 
 typedef Vector<std::unique_ptr<PreloadRequest>> PreloadRequestStream;

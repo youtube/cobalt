@@ -32,6 +32,7 @@
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/scheme_registry.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/fetch_later.mojom-blink.h"
@@ -1171,7 +1172,9 @@ void FetchLoaderBase::PerformHTTPFetch(ExceptionState& exception_state) {
     request.SetFetchRetryOptions(fetch_request_data_->RetryOptions().value());
   }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   request.SetBrowsingTopics(fetch_request_data_->BrowsingTopics());
+#endif
   request.SetAdAuctionHeaders(fetch_request_data_->AdAuctionHeaders());
   request.SetAttributionReportingEligibility(
       fetch_request_data_->AttributionReportingEligibility());

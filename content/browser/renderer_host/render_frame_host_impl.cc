@@ -38,6 +38,7 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/kill.h"
+#include "content/public/common/buildflags.h"
 #include "base/rand_util.h"
 #include "base/state_transitions.h"
 #include "base/strings/escape.h"
@@ -9264,6 +9265,14 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
     return;
   }
 
+#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
+  if (attributes->browsing_topics) {
+    bad_message::ReceivedBadMessage(
+        GetProcess(),
+        bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
+    return;
+  }
+#else
   if (attributes->browsing_topics &&
       !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
     bad_message::ReceivedBadMessage(
@@ -9271,6 +9280,7 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
         bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
     return;
   }
+#endif
 
   if (attributes->shared_storage_writable_opted_in &&
       (!base::FeatureList::IsEnabled(network::features::kSharedStorageAPI))) {

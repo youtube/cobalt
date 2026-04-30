@@ -11,6 +11,7 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/buildflags.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -88,7 +89,9 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
 
   if (!PrefetchURLLoaderServiceContext::IsPrefetchRequest(
           resource_request_in) &&
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
       !resource_request_in.browsing_topics &&
+#endif
       !resource_request_in.ad_auction_headers) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -98,7 +101,10 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
   }
 
   if (PrefetchURLLoaderServiceContext::IsPrefetchRequest(resource_request_in) &&
-      (resource_request_in.browsing_topics ||
+      (
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
+       resource_request_in.browsing_topics ||
+#endif
        resource_request_in.ad_auction_headers)) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -108,6 +114,15 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
     return;
   }
 
+#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
+  if (resource_request_in.browsing_topics) {
+    loader_factory_receivers_.ReportBadMessage(
+        "Unexpected `resource_request_in` in "
+        "SubresourceProxyingURLLoaderService::CreateLoaderAndStart(): "
+        "browsing_topics is set when Topics API is disabled.");
+    return;
+  }
+#else
   if (resource_request_in.browsing_topics &&
       !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
     loader_factory_receivers_.ReportBadMessage(
@@ -116,6 +131,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
         "browsing_topics is set when Topics API is disabled.");
     return;
   }
+#endif
 
   if (resource_request_in.ad_auction_headers &&
       !base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {

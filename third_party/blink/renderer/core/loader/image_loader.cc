@@ -29,6 +29,7 @@
 #include "services/network/public/mojom/web_client_hints_types.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -510,6 +511,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
           !SecurityOrigin::Create(url)->IsOpaque();
       resource_request.SetSharedStorageWritableOptedIn(
           shared_storage_writable_opted_in);
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
       if (GetElement()->FastHasAttribute(html_names::kBrowsingtopicsAttr) &&
           RuntimeEnabledFeatures::TopicsAPIEnabled(
               GetElement()->GetExecutionContext()) &&
@@ -518,6 +520,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIImg);
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIAll);
       }
+#endif
     }
 
     bool page_is_being_dismissed =

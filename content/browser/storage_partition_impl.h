@@ -12,6 +12,8 @@
 #include <set>
 #include <string>
 
+#include "content/public/common/buildflags.h"
+
 #include "base/containers/flat_map.h"
 #include "base/dcheck_is_on.h"
 #include "base/files/file_path.h"
@@ -213,7 +215,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   ZoomLevelDelegate* GetZoomLevelDelegate() override;
   PlatformNotificationContextImpl* GetPlatformNotificationContext() override;
   InterestGroupManager* GetInterestGroupManager() override;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
+#endif
   leveldb_proto::ProtoDatabaseProvider* GetProtoDatabaseProvider() override;
   // Use outside content.
   AttributionDataModel* GetAttributionDataModel() override;
@@ -804,8 +808,10 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<AttributionManager> attribution_manager_;
   std::unique_ptr<FontAccessManager> font_access_manager_;
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
+#endif
   std::unique_ptr<AggregationService> aggregation_service_;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;

@@ -8,6 +8,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -140,11 +141,13 @@ Resource* PreloadRequest::Start(Document* document) {
     UseCounter::Count(document, WebFeature::kSharedStorageAPI_Image_Attribute);
   }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   bool browsing_topics =
       browsing_topics_eligible_ && RuntimeEnabledFeatures::TopicsAPIEnabled() &&
       document->domWindow()->IsSecureContext() &&
       !document->domWindow()->GetSecurityOrigin()->IsOpaque();
   resource_request.SetBrowsingTopics(browsing_topics);
+#endif
 
   ResourceLoaderOptions options(document->domWindow()->GetCurrentWorld());
   options.initiator_info = initiator_info;

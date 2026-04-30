@@ -14,6 +14,7 @@
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
@@ -167,7 +168,9 @@ FetchRequestData* CreateCopyOfFetchRequestDataForFetch(
   request->SetFetchPriorityHint(original->FetchPriorityHint());
   request->SetPriority(original->Priority());
   request->SetKeepalive(original->Keepalive());
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   request->SetBrowsingTopics(original->BrowsingTopics());
+#endif
   request->SetAdAuctionHeaders(original->AdAuctionHeaders());
   request->SetSharedStorageWritable(original->SharedStorageWritable());
   request->SetIsHistoryNavigation(original->IsHistoryNavigation());
@@ -207,7 +210,10 @@ static bool AreAnyMembersPresent(const RequestInit* init) {
          init->hasReferrer() || init->hasReferrerPolicy() || init->hasMode() ||
          init->hasTargetAddressSpace() || init->hasCredentials() ||
          init->hasCache() || init->hasRedirect() || init->hasIntegrity() ||
-         init->hasKeepalive() || init->hasBrowsingTopics() ||
+         init->hasKeepalive() ||
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
+         init->hasBrowsingTopics() ||
+#endif
          init->hasAdAuctionHeaders() || init->hasSharedStorageWritable() ||
          init->hasPriority() || init->hasSignal() || init->hasDuplex() ||
          init->hasPrivateToken() || init->hasAttributionReporting() ||
@@ -679,6 +685,7 @@ Request* Request::CreateRequestWithRequestOrString(
     request->SetRetryOptions(options);
   }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   if (init->hasBrowsingTopics()) {
     if (!execution_context->IsSecureContext()) {
       exception_state.ThrowTypeError(
@@ -696,6 +703,7 @@ Request* Request::CreateRequestWithRequestOrString(
                         mojom::blink::WebFeature::kTopicsAPIAll);
     }
   }
+#endif
 
   if (init->hasAdAuctionHeaders()) {
     if (!execution_context->IsSecureContext()) {

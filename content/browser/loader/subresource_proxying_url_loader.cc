@@ -4,6 +4,8 @@
 
 #include "content/browser/loader/subresource_proxying_url_loader.h"
 
+#include "content/public/common/buildflags.h"
+
 #include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"
 #include "content/browser/interest_group/ad_auction_url_loader_interceptor.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -26,11 +28,13 @@ SubresourceProxyingURLLoader::SubresourceProxyingURLLoader(
   CHECK(resource_request_.browsing_topics ||
         resource_request_.ad_auction_headers);
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   if (resource_request_.browsing_topics) {
     interceptors_.push_back(
         std::make_unique<BrowsingTopicsURLLoaderInterceptor>(
             document, resource_request_));
   }
+#endif
 
   if (resource_request_.ad_auction_headers) {
     interceptors_.push_back(std::make_unique<AdAuctionURLLoaderInterceptor>(

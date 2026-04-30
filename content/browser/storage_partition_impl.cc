@@ -38,6 +38,7 @@
 #include "base/threading/sequence_local_storage_slot.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
+#include "content/public/common/buildflags.h"
 #include "components/attribution_reporting/features.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
@@ -60,7 +61,9 @@
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browsing_data/clear_site_data_handler.h"
 #include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/browsing_topics/browsing_topics_site_data_manager_impl.h"
+#endif
 #include "content/browser/buckets/bucket_manager.h"
 #include "content/browser/cache_storage/cache_storage_control_wrapper.h"
 #include "content/browser/code_cache/generated_code_cache.h"
@@ -1496,11 +1499,13 @@ void StoragePartitionImpl::Initialize(
   }
 
   // The Topics API is not available in Incognito mode.
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
   if (!is_in_memory() &&
       base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
     browsing_topics_site_data_manager_ =
         std::make_unique<BrowsingTopicsSiteDataManagerImpl>(path);
   }
+#endif
 
   GeneratedCodeCacheSettings settings =
       GetContentClient()->browser()->GetGeneratedCodeCacheSettings(
@@ -1882,11 +1887,13 @@ InterestGroupManager* StoragePartitionImpl::GetInterestGroupManager() {
   return interest_group_manager_.get();
 }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
 BrowsingTopicsSiteDataManager*
 StoragePartitionImpl::GetBrowsingTopicsSiteDataManager() {
   DCHECK(initialized_);
   return browsing_topics_site_data_manager_.get();
 }
+#endif
 
 ContentIndexContextImpl* StoragePartitionImpl::GetContentIndexContext() {
   DCHECK(initialized_);
