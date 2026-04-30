@@ -6,7 +6,9 @@
 
 #include "content/public/common/buildflags.h"
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"
+#endif
 #include "content/browser/interest_group/ad_auction_url_loader_interceptor.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
