@@ -176,7 +176,7 @@ Supportability MimeSupportabilityCache::GetMimeSupportability(
   *mime_info = entry.mime_info;
   mime_info->SetBitrate(bitrate);
 
-  if (!mime_info->is_valid()) {
+  if (!*mime_info) {
     // Return kSupportabilityNotSupported if we can't get a valid
     // ParsedMimeInfo.
     return kSupportabilityNotSupported;
@@ -209,7 +209,7 @@ void MimeSupportabilityCache::CacheMimeSupportability(
   std::lock_guard scoped_lock(mutex_);
   Entry& entry = GetEntry_Locked(mime_without_bitrate);
 
-  if (entry.mime_info.is_valid()) {
+  if (entry.mime_info) {
     UpdateBitrateSupportability_Locked(&entry, bitrate, supportability);
   }
 }
@@ -231,7 +231,7 @@ void MimeSupportabilityCache::DumpCache() {
     ss << "\nMime: " << entry_iter.first;
     ss << "\n  ParsedMimeInfo:";
     ss << "\n    MimeType : " << mime_info.mime_type();
-    if (mime_info.is_valid()) {
+    if (mime_info) {
       if (mime_info.has_audio_info()) {
         const ParsedMimeInfo::AudioCodecInfo& audio_info =
             mime_info.audio_info();

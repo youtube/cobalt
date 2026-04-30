@@ -70,8 +70,6 @@ bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
 }
 
 bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
-  SB_DCHECK(mime_info.is_valid());
-  SB_DCHECK(mime_info.mime_type().is_valid());
   SB_DCHECK(mime_info.has_audio_info());
 
   const MimeType& mime_type = mime_info.mime_type();
@@ -126,8 +124,6 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
 }
 
 bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
-  SB_DCHECK(mime_info.is_valid());
-  SB_DCHECK(mime_info.mime_type().is_valid());
   SB_DCHECK(mime_info.has_video_info());
 
   const MimeType& mime_type = mime_info.mime_type();
@@ -213,7 +209,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   // MimeSupportabilityCache::GetMimeSupportability() returns
   // kSupportabilityNotSupported if ParsedMimeInfo is not valid, so |mime_info|
   // must be valid here.
-  SB_DCHECK(mime_info.is_valid());
+  SB_DCHECK(mime_info);
 
   const MimeType& mime_type = mime_info.mime_type();
   const std::vector<std::string>& codecs = mime_type.GetCodecs();

@@ -162,20 +162,26 @@ MimeType::MimeType(const std::string& content_type) {
        ++iter) {
     Param param;
     if (!ParseParamString(*iter, &param)) {
+      type_.clear();
+      subtype_.clear();
+      codecs_.clear();
+      params_.clear();
       return;
     }
     // There can only be no more than one codecs parameter and it has to be
     // the first parameter if it is present.
     if (param.name == "codecs") {
       if (!params_.empty()) {
+        type_.clear();
+        subtype_.clear();
+        codecs_.clear();
+        params_.clear();
         return;
       }
       codecs_ = SplitAndTrim(param.string_value, ',');
     }
     params_.push_back(param);
   }
-
-  is_valid_ = true;
 }
 
 int MimeType::GetParamCount() const {
@@ -275,10 +281,6 @@ bool MimeType::GetParamBoolValue(const char* name, bool default_value) const {
 }
 
 bool MimeType::ValidateIntParameter(const char* name) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (index == kInvalidParamIndex) {
     return true;
@@ -287,10 +289,6 @@ bool MimeType::ValidateIntParameter(const char* name) const {
 }
 
 bool MimeType::ValidateFloatParameter(const char* name) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (index == kInvalidParamIndex) {
     return true;
@@ -301,10 +299,6 @@ bool MimeType::ValidateFloatParameter(const char* name) const {
 
 bool MimeType::ValidateStringParameter(const char* name,
                                        const std::string& pattern) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (pattern.empty() || index == kInvalidParamIndex) {
     return true;
@@ -334,10 +328,6 @@ bool MimeType::ValidateStringParameter(const char* name,
 }
 
 bool MimeType::ValidateBoolParameter(const char* name) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (index == kInvalidParamIndex) {
     return true;
@@ -347,9 +337,6 @@ bool MimeType::ValidateBoolParameter(const char* name) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
-  if (!mime_type.is_valid()) {
-    return os << "{ InvalidMimeType }; ";
-  }
   os << "{ type: " << mime_type.type();
   os << ", subtype: " << mime_type.subtype();
   os << ", codecs: ";

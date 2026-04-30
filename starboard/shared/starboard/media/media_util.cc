@@ -275,7 +275,7 @@ bool IsSDRVideo(const char* mime) {
   }
 
   MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
+  if (!mime_type) {
     SB_LOG(WARNING) << mime << " is not a valid mime type, assuming sdr video.";
     return true;
   }

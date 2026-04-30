@@ -67,9 +67,10 @@ class MimeType {
   // Expose the function as a helper function to parse a mime attribute.
   static bool ParseParamString(const std::string& param_string, Param* param);
 
+  MimeType() = default;
   explicit MimeType(const std::string& content_type);
 
-  bool is_valid() const { return is_valid_; }
+  explicit operator bool() const { return !type_.empty(); }
 
   const std::string& type() const { return type_; }
   const std::string& subtype() const { return subtype_; }
@@ -112,7 +113,6 @@ class MimeType {
   // to keep the order of components.
   typedef std::vector<Param> Params;
 
-  bool is_valid_ = false;
   std::string type_;
   std::string subtype_;
   std::vector<std::string> codecs_;

@@ -41,7 +41,7 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
   bool enable_audio_passthrough = true;
   if (mime_type) {
-    if (!mime_type->is_valid()) {
+    if (!*mime_type) {
       return false;
     }
 

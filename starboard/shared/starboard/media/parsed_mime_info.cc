@@ -55,28 +55,27 @@ void ParsedMimeInfo::SetBitrate(int bitrate) {
 }
 
 void ParsedMimeInfo::ParseMimeInfo() {
-  if (!mime_type_.is_valid()) {
-    is_valid_ = false;
+  if (!mime_type_) {
     return;
   }
 
   // Read "disablecache".
   if (!mime_type_.ValidateBoolParameter("disablecache")) {
-    is_valid_ = false;
+    mime_type_ = MimeType();
     return;
   }
   disable_cache_ = mime_type_.GetParamBoolValue("disablecache", false);
 
   // We only support audio or video type.
   if (mime_type_.type() != "audio" && mime_type_.type() != "video") {
-    is_valid_ = false;
+    mime_type_ = MimeType();
     return;
   }
 
   auto codecs = mime_type_.GetCodecs();
   // We only support up to one audio codec and one video codec.
   if (codecs.size() > 2) {
-    is_valid_ = false;
+    mime_type_ = MimeType();
     return;
   }
 
@@ -89,13 +88,13 @@ void ParsedMimeInfo::ParseMimeInfo() {
     }
     // It either has an invalid codec or has two codecs of same type.
     ResetCodecInfos();
-    is_valid_ = false;
+    mime_type_ = MimeType();
     return;
   }
 }
 
 bool ParsedMimeInfo::ParseAudioInfo(const std::string& codec) {
-  SB_DCHECK(mime_type_.is_valid());
+  SB_DCHECK(mime_type_);
   SB_DCHECK(!has_audio_info());
 
   SbMediaAudioCodec audio_codec =
@@ -116,7 +115,7 @@ bool ParsedMimeInfo::ParseAudioInfo(const std::string& codec) {
 }
 
 bool ParsedMimeInfo::ParseVideoInfo(const std::string& codec) {
-  SB_DCHECK(mime_type_.is_valid());
+  SB_DCHECK(mime_type_);
   SB_DCHECK(!has_video_info());
 
   if (!ParseVideoCodec(codec.c_str(), &video_info_.codec, &video_info_.profile,

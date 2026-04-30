@@ -50,7 +50,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
   bool must_support_tunnel_mode = false;
   if (mime_type) {
-    if (!mime_type->is_valid()) {
+    if (!*mime_type) {
       return false;
     }
 

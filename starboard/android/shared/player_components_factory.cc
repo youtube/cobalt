@@ -237,7 +237,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid() ||
+      if (!audio_mime_type ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return Failure("Invalid audio mime type.");
       }
@@ -316,7 +316,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             : "";
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
-      if (!audio_mime_type.is_valid()) {
+      if (!audio_mime_type) {
         return Failure("Invalid audio MIME: '" + audio_mime + "'");
       }
     }
@@ -327,7 +327,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             : "";
     MimeType video_mime_type(video_mime);
     if (!video_mime.empty()) {
-      if (!video_mime_type.is_valid() ||
+      if (!video_mime_type ||
           !video_mime_type.ValidateBoolParameter("tunnelmode") ||
           !video_mime_type.ValidateBoolParameter("enableflushduringseek") ||
           !video_mime_type.ValidateBoolParameter("enableresetaudiodecoder")) {
