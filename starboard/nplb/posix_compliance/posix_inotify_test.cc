@@ -14,6 +14,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/inotify.h>
 #include <unistd.h>
@@ -125,7 +126,7 @@ TEST_F(PosixInotifyTest, WatchedFileTriggersNotification) {
   nplb::ScopedRandomFile file;
   ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
 
-  int inotify_fd = inotify_init1(IN_NONBLOCK);
+  int inotify_fd = inotify_init1(0);
   ASSERT_GE(inotify_fd, 0);
 
   int wd = inotify_add_watch(inotify_fd, file.filename().c_str(), IN_MODIFY);
@@ -139,7 +140,8 @@ TEST_F(PosixInotifyTest, WatchedFileTriggersNotification) {
   ssize_t bytes_written = write(file_fd, test_data, strlen(test_data));
   ASSERT_EQ(static_cast<size_t>(bytes_written), strlen(test_data));
 
-  char event_buffer[sizeof(struct inotify_event) + NAME_MAX + 1];
+  alignas(struct inotify_event) char
+      event_buffer[sizeof(struct inotify_event) + NAME_MAX + 1];
   ssize_t len = read(inotify_fd, event_buffer, sizeof(event_buffer));
   ASSERT_GT(len, 0) << "Failed to read inotify event: " << strerror(errno);
 
