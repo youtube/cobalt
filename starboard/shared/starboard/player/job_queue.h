@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
 #include <atomic>
+#include <optional>
 #include <condition_variable>
 #include <functional>
 #include <map>
