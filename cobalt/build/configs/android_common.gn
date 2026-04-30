@@ -14,4 +14,3 @@ use_errorprone_java_compiler = false
 media_use_opensles = true
 
 default_min_sdk_version = 24
-android_ndk_api_level = 26

@@ -1285,7 +1285,7 @@ if (current_os == "linux" || is_android) {
         "src/jni/audio_device/aaudio_wrapper.cc",
         "src/jni/audio_device/aaudio_wrapper.h",
       ]
-      libs = [ "aaudio" ]
+      libs = []
       deps = [
         ":audio_device_module_base",
         ":base_jni",
