@@ -17,15 +17,13 @@
 
 #include "media/audio/android/starboard_audio_input_stream.h"
 
+#include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "base/time/time.h"
-
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/audio_permission_requester.h"
-
+#include "cobalt/media/audio/audio_input_constants.h"
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
-#include "cobalt/media/audio/audio_input_constants.h"
+#include "starboard/android/shared/audio_permission_requester.h"
 
 #define LOG_ON_FAILURE_AND_RETURN(op, ...)      \
   do {                                          \
