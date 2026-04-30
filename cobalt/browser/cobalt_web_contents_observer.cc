@@ -65,7 +65,7 @@ void CobaltWebContentsObserver::DidStartNavigation(
   timeout_timer_->Stop();
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
-      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+      base::BindOnce(&CobaltWebContentsObserver::OnNavigationTimeout,
                      weak_factory_.GetWeakPtr()));
 }
 
@@ -107,6 +107,11 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
   starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(key,
                                                                      value);
 #endif
+}
+
+void CobaltWebContentsObserver::OnNavigationTimeout() {
+  base::UmaHistogramBoolean("Cobalt.Network.NavigationTimeout", true);
+  RaisePlatformError();
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
