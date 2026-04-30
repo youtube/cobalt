@@ -242,7 +242,7 @@ class MEDIA_EXPORT DecoderBuffer
   size_t size() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return size_;
+    return allocator_data_ ? allocator_data_->size : 0u;
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().size() : data_.size();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -278,7 +278,7 @@ class MEDIA_EXPORT DecoderBuffer
 
   bool empty() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return size_ == 0u;
+    return !allocator_data_ || allocator_data_->size == 0u;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().empty() : data_.empty();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -412,19 +412,23 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   struct AllocatorData {
+    AllocatorData(DemuxerStream::Type type, Allocator::Handle handle, size_t size)
+        : stream_type_(type), handle(handle), size(size) {}
+
     DemuxerStream::Type stream_type_ = DemuxerStream::UNKNOWN;
     Allocator::Handle handle = Allocator::kInvalidHandle;
     size_t size = 0;
   };
   // Encoded data, allocated from DecoderBuffer::Allocator.
-  std::optional<AllocatorData> allocator_data_;
-  size_t size_ = 0;
+  const std::optional<AllocatorData> allocator_data_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Encoded data, if it is stored on the heap.
-  base::HeapArray<uint8_t> data_;
+  const base::HeapArray<uint8_t> data_;
 
  private:
+  DecoderBuffer(DemuxerStream::Type type, size_t size);
+
   // ***************************************************************************
   // WARNING: This is a highly allocated object. Care should be taken when
   // adding any fields to make sure they are absolutely necessary. If a field
@@ -451,10 +455,6 @@ class MEDIA_EXPORT DecoderBuffer
 
   // Whether the buffer represent the end of stream.
   const bool is_end_of_stream_ : 1 = false;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void Initialize(DemuxerStream::Type type);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

@@ -18,6 +18,14 @@ Implementations of `DecodeTarget` for YUV planes should ensure they use
 `GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
 rendering issues caused by Chromium's shader expectations.
 
+### Added the following POSIX symbols:
+* `getrandom`
+* `getuid`
+* `statx`
+
+### Added AV2 to SbMediaVideoCodec
+This prepares Cobalt for future AV2 playback support.
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 

@@ -73,9 +73,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
           return std::make_unique<FdkAacAudioDecoder>(job_queue);
         } else {
-          std::unique_ptr<FfmpegAudioDecoder> ffmpeg_audio_decoder(
-              FfmpegAudioDecoder::Create(job_queue, audio_stream_info));
-          if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
+          auto ffmpeg_audio_decoder =
+              FfmpegAudioDecoder::Create(job_queue, audio_stream_info);
+          if (ffmpeg_audio_decoder) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return ffmpeg_audio_decoder;
           } else {
@@ -125,12 +125,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider());
       } else {
-        std::unique_ptr<FfmpegVideoDecoder> ffmpeg_video_decoder(
-            FfmpegVideoDecoder::Create(
-                creation_parameters.video_codec(),
-                creation_parameters.output_mode(),
-                creation_parameters.decode_target_graphics_context_provider()));
-        if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
+        auto ffmpeg_video_decoder = FfmpegVideoDecoder::Create(
+            creation_parameters.video_codec(),
+            creation_parameters.output_mode(),
+            creation_parameters.decode_target_graphics_context_provider());
+        if (ffmpeg_video_decoder) {
           SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
           components.video.decoder = std::move(ffmpeg_video_decoder);
         } else {

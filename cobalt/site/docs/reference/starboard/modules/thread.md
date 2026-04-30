@@ -7,17 +7,9 @@ Defines functionality related to thread creation and cleanup.
 
 ## Macros
 
-### kSbThreadContextInvalid
-
-Well-defined value for an invalid thread context.
-
 ### kSbThreadInvalidId
 
 Well-defined constant value to mean "no thread ID."
-
-### kSbThreadSamplerInvalid
-
-Well-defined value for an invalid thread sampler.
 
 ## Enums
 
@@ -73,16 +65,6 @@ treated less-than-or-equal-to a higher priority.
 
 ## Typedefs
 
-### SbThreadContext
-
-A handle to the context of a frozen thread.
-
-#### Definition
-
-```
-typedef SbThreadContextPrivate* SbThreadContext
-```
-
 ### SbThreadId
 
 An ID type that is unique per thread.
@@ -93,39 +75,7 @@ An ID type that is unique per thread.
 typedef int32_t SbThreadId
 ```
 
-### SbThreadSampler
-
-A handle to a thread sampler.
-
-#### Definition
-
-```
-typedef void* SbThreadSampler
-```
-
 ## Functions
-
-### SbThreadContextGetPointer
-
-Gets the specified pointer-type `property` from the specified `context`. Returns
-`true` if successful and `out_value` has been modified, otherwise returns
-`false` and `out_value` is not modified.
-
-#### Declaration
-
-```
-bool SbThreadContextGetPointer(SbThreadContext context, SbThreadContextProperty property, void **out_value)
-```
-
-### SbThreadContextIsValid
-
-Returns whether the given thread context is valid.
-
-#### Declaration
-
-```
-static bool SbThreadContextIsValid(SbThreadContext context)
-```
 
 ### SbThreadGetId
 
@@ -165,77 +115,6 @@ Returns whether the given thread priority is valid.
 
 ```
 static bool SbThreadIsValidPriority(SbThreadPriority priority)
-```
-
-### SbThreadSamplerCreate
-
-Creates a new thread sampler for the specified `thread`.
-
-If successful, this function returns the newly created handle. If unsuccessful,
-this function returns `kSbThreadSamplerInvalid`
-
-#### Declaration
-
-```
-SbThreadSampler SbThreadSamplerCreate(pthread_t thread)
-```
-
-### SbThreadSamplerDestroy
-
-Destroys the `sampler` and frees whatever resources it was using.
-
-#### Declaration
-
-```
-void SbThreadSamplerDestroy(SbThreadSampler sampler)
-```
-
-### SbThreadSamplerFreeze
-
-Suspends execution of the thread that `sampler` was created for.
-
-If successful, this function returns a `SbThreadContext` for the frozen thread,
-from which properties may be read while the thread remains frozen. If
-unsuccessful, this function returns `kSbThreadContextInvalid`.
-
-#### Declaration
-
-```
-SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler)
-```
-
-### SbThreadSamplerIsSupported
-
-Whether the current platform supports thread sampling. The result of this
-function must not change over the course of the program, which means that the
-results of this function may be cached indefinitely. If this returns false,
-`SbThreadSamplerCreate` will return an invalid sampler.
-
-#### Declaration
-
-```
-bool SbThreadSamplerIsSupported()
-```
-
-### SbThreadSamplerIsValid
-
-Returns whether the given thread sampler is valid.
-
-#### Declaration
-
-```
-static bool SbThreadSamplerIsValid(SbThreadSampler sampler)
-```
-
-### SbThreadSamplerThaw
-
-Resumes execution of the thread that `sampler` was created for. This invalidates
-the context returned from `SbThreadSamplerFreeze`.
-
-#### Declaration
-
-```
-bool SbThreadSamplerThaw(SbThreadSampler sampler)
 ```
 
 ### SbThreadSetPriority
