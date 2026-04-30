@@ -171,7 +171,7 @@ class JobQueue {
   ThreadChecker thread_checker_;
   std::mutex mutex_;
   std::condition_variable condition_;
-  TimeToJobRecordMap time_to_job_record_map_;
+  TimeToJobRecordMap time_to_job_record_map_;  // Guarded by |mutex_|.
   bool stopped_ = false;
 
 #if ENABLE_JOB_QUEUE_PROFILING

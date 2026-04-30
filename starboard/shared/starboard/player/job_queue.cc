@@ -74,15 +74,17 @@ void JobQueue::RemoveJobByToken(JobToken* job_token) {
     return;
   }
 
-  std::lock_guard lock(mutex_);
-  for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
-       iter != time_to_job_record_map_.end(); ++iter) {
-    if (iter->second.job_token == *job_token) {
-      time_to_job_record_map_.erase(iter);
-      job_token->Reset();
-      return;
+  {
+    std::lock_guard lock(mutex_);
+    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+         iter != time_to_job_record_map_.end(); ++iter) {
+      if (iter->second.job_token == *job_token) {
+        time_to_job_record_map_.erase(iter);
+        break;
+      }
     }
   }
+  job_token->Reset();
 }
 
 void JobQueue::StopSoon() {
