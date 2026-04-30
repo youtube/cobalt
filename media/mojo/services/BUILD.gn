@@ -122,7 +122,10 @@ component("services") {
       "starboard/starboard_renderer_wrapper.h",
     ]
     deps += [
-      "//starboard/common",
+      "//starboard/common:common_headers_only",
+      "//starboard/common:check_op",
+      "//starboard/common:log",
+      "//starboard/common:string",
       "//starboard:starboard_headers_only",
       "//cobalt/media/service",
       "//cobalt/media/service/mojom",
@@ -363,7 +366,11 @@ source_set("unit_tests") {
     sources += [ "starboard/starboard_renderer_wrapper_unittest.cc" ]
     deps += [
       "//cobalt/media/service",
-      "//starboard/common",
+      "//starboard/common:common_headers_only",
+      "//starboard/common:check_op",
+      "//starboard/common:log",
+      "//starboard/common:string",
+      "//starboard:starboard_headers_only",
     ]
   }
 }

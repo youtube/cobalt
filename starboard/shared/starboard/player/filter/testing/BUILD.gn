@@ -87,6 +87,27 @@ if (current_toolchain == starboard_toolchain) {
       "//testing/gtest",
     ]
 
+    if (is_android) {
+      public_deps += [
+        "//starboard/android/shared:android_media",
+        "//starboard/android/shared:android_system",
+        "//starboard/android/shared:audio_sink",
+        "//starboard/android/shared:drm",
+        "//starboard/android/shared:gl",
+        "//starboard/android/shared:linux",
+        "//starboard/android/shared:media",
+        "//starboard/android/shared:microphone",
+        "//starboard/android/shared:player_shared",
+        "//starboard/android/shared:posix",
+        "//starboard/android/shared:shared_starboard",
+        "//starboard/android/shared:signal",
+        "//starboard/common:file",
+        "//starboard/common:media",
+        "//starboard/common:ref_counted",
+        "//starboard/common:time",
+      ]
+    }
+
     deps = [
       "//$starboard_path:starboard_platform",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",

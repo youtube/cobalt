@@ -22,7 +22,12 @@ static_library("fake_graphics_context_provider") {
 
   deps = [
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:queue",
+    "//starboard/common:string",
+    "//starboard/common:thread",
     "//starboard/egl_and_gles:buildflags",
   ]
 }

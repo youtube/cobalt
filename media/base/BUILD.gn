@@ -491,7 +491,10 @@ source_set("base") {
 
     deps += [
       "//starboard:starboard_group",
-      "//starboard/common",
+      "//starboard/common:common_headers_only",
+      "//starboard/common:check_op",
+      "//starboard/common:log",
+      "//starboard/common:string",
     ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]

@@ -22,7 +22,11 @@ static_library("features") {
 
   deps = [
     "//base",
-    "//starboard/common:common",
+    "//starboard:starboard_headers_only",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
   ]
 
   if (is_android) {

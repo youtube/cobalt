@@ -64,7 +64,10 @@ template("starboard_platform_target") {
     }
 
     public_deps = [
-      "//starboard/common",
+      "//starboard/common:check_op",
+      "//starboard/common:common_headers_only",
+      "//starboard/common:log",
+      "//starboard/common:string",
       "//starboard/egl_and_gles",
     ]
     if (!sb_is_evergreen) {

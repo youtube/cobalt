@@ -25,6 +25,9 @@ source_set("h5vcc_storage") {
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
   ]
 }

@@ -100,6 +100,7 @@ component("gpu") {
     "//media",
     "//third_party/angle:includes",
     "//ui/gfx/geometry",
+    "//starboard:starboard_headers_only",
   ]
   deps = [
     "//third_party/libyuv",
@@ -207,7 +208,12 @@ component("gpu") {
       "starboard/starboard_gpu_factory_impl.h",
     ]
 
-    deps += [ "//starboard/common" ]
+    deps += [
+      "//starboard/common:common_headers_only",
+      "//starboard/common:check_op",
+      "//starboard/common:log",
+      "//starboard/common:string",
+    ]
   }
 
   if (use_v4l2_codec) {

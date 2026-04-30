@@ -25,7 +25,10 @@ static_library("user_agent") {
   public_deps = [
     "//base",
     "//cobalt:cobalt_build_info",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
     "//v8:v8_version",
   ]
 

@@ -19,7 +19,12 @@ source_set("migrate_storage_record") {
     "//components/url_matcher",
     "//net",
     "//services/network/public/mojom:cookies_mojom",
-    "//starboard/common",
+    "//starboard:starboard_headers_only",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:storage",
+    "//starboard/common:string",
     "//third_party/blink/public/mojom:mojom_platform",
     "//url",
   ]

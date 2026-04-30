@@ -24,6 +24,9 @@ source_set("performance") {
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
   ]
 }

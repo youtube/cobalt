@@ -49,7 +49,12 @@ source_set("posix") {
   deps = [
     ":shared_starboard",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:file",
+    "//starboard/common:log",
+    "//starboard/common:storage",
+    "//starboard/common:string",
   ]
 }
 
@@ -64,7 +69,11 @@ source_set("linux") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
   deps = [
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:file",
+    "//starboard/common:log",
+    "//starboard/common:string",
   ]
 }
 
@@ -75,7 +84,13 @@ source_set("gl") {
     "//starboard/shared/gles/system_gles2.cc",
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
-  deps = [ "//starboard/common" ]
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
+  ]
 }
 
 source_set("opus") {
@@ -87,7 +102,11 @@ source_set("opus") {
   deps = [
     ":player_shared",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:ref_counted",
+    "//starboard/common:string",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     "//third_party/opus",
@@ -105,7 +124,11 @@ source_set("signal") {
   deps = [
     ":shared_starboard",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
+    "//starboard/common:thread",
   ]
 }
 
@@ -137,10 +160,20 @@ source_set("shared_starboard") {
     "//starboard/shared/starboard/window_set_default_options.cc",
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
+  public_deps = [
+    "//starboard/common:check_op",
+    "//starboard/common:command_line",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:file",
+    "//starboard/common:log",
+    "//starboard/common:ref_counted",
+    "//starboard/common:storage",
+    "//starboard/common:string",
+    "//starboard/common:time",
+  ]
   deps = [
     "//base",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
     "//starboard/extension:feature_config_header",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
@@ -161,7 +194,13 @@ source_set("audio_sink") {
     ":player_shared",
     ":shared_starboard",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:command_line",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
+    "//starboard/common:thread_options",
+    "//starboard/common:time",
   ]
 }
 
@@ -180,7 +219,10 @@ source_set("drm") {
   deps = [
     ":player_shared",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
   ]
 }
 
@@ -198,7 +240,10 @@ source_set("media") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
   deps = [
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
     "//starboard/shared/starboard/media:media_util",
   ]
 }
@@ -307,7 +352,21 @@ source_set("android_media") {
     ":player_shared",
     ":shared_starboard",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:media",
+    "//starboard/common:media_buffer_pool",
+    "//starboard/common:pass_key",
+    "//starboard/common:player",
+    "//starboard/common:ref_counted",
+    "//starboard/common:result",
+    "//starboard/common:scoped_timer",
+    "//starboard/common:size",
+    "//starboard/common:string",
+    "//starboard/common:thread",
+    "//starboard/common:thread_options",
+    "//starboard/common:time",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
@@ -379,6 +438,17 @@ source_set("android_system") {
     "time_zone_get_name.cc",
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
+  public_deps = [
+    "//starboard/common:check_op",
+    "//starboard/common:command_line",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:configuration_defaults",
+    "//starboard/common:device_type",
+    "//starboard/common:log",
+    "//starboard/common:size",
+    "//starboard/common:string",
+    "//starboard/common:time",
+  ]
   deps = [
     ":audio_sink",
     ":microphone",
@@ -389,7 +459,6 @@ source_set("android_system") {
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
   ]
 }
 
@@ -404,10 +473,22 @@ source_set("player_shared") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
+  public_deps = [
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:media",
+    "//starboard/common:player",
+    "//starboard/common:ref_counted",
+    "//starboard/common:result",
+    "//starboard/common:string",
+    "//starboard/common:thread",
+    "//starboard/common:thread_options",
+    "//starboard/common:time",
+  ]
   deps = [
     ":shared_starboard",
     "//starboard:starboard_headers_only",
-    "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
   ]
 }
@@ -440,7 +521,10 @@ static_library("starboard_platform") {
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-    "//starboard/common",
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
     "//starboard/extension:feature_config_header",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",

@@ -18,6 +18,7 @@
 source_set("common_headers_only") {
   sources = [
     "log.h",
+    "once.h",
     "string.h",
     "system_property.h",
   ]
@@ -25,89 +26,405 @@ source_set("common_headers_only") {
   deps = [ "//starboard:starboard_headers_only" ]
 }
 
-static_library("common") {
-  check_includes = false
-
-  public_deps = [
-    ":common_headers_only",
-    "//starboard:starboard_headers_only",
-  ]
-
+source_set("playback_state") {
   sources = [
     "//starboard/shared/media_session/playback_state.cc",
     "//starboard/shared/media_session/playback_state.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("allocator") {
+  sources = [
     "allocator.cc",
     "allocator.h",
-    "bidirectional_fit_reuse_allocator.h",
-    "check.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("bidirectional_fit_reuse_allocator") {
+  sources = [ "bidirectional_fit_reuse_allocator.h" ]
+  deps = [
+    ":allocator",
+    ":common_headers_only",
+    ":pointer_arithmetic",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("check") {
+  sources = [ "check.h" ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("check_op") {
+  sources = [
     "check_op.cc",
     "check_op.h",
+  ]
+  deps = [
+    ":check",
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("command_line") {
+  sources = [
     "command_line.cc",
     "command_line.h",
-    "common.cc",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("core") {
+  sources = [ "common.cc" ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("configuration_defaults") {
+  sources = [
     "configuration_defaults.cc",
     "configuration_defaults.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("device_type") {
+  sources = [
     "device_type.cc",
     "device_type.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("drm") {
+  sources = [
     "drm.cc",
     "drm.h",
-    "expected.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("expected") {
+  sources = [ "expected.h" ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("media_buffer_pool") {
+  sources = [
     "experimental/media_buffer_pool.cc",
     "experimental/media_buffer_pool.h",
-    "experimental/media_buffer_pool_bidirectional_reuse_allocator.h",
-    "experimental/media_buffer_pool_memory_allocator.h",
+  ]
+  deps = [
+    ":check_op",
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("media_buffer_pool_bidirectional_reuse_allocator") {
+  sources = [ "experimental/media_buffer_pool_bidirectional_reuse_allocator.h" ]
+  deps = [
+    ":allocator",
+    ":bidirectional_fit_reuse_allocator",
+    ":media_buffer_pool",
+    ":media_buffer_pool_memory_allocator",
+    ":reuse_allocator_base",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("media_buffer_pool_memory_allocator") {
+  sources = [ "experimental/media_buffer_pool_memory_allocator.h" ]
+  deps = [
+    ":allocator",
+    ":common_headers_only",
+    ":media_buffer_pool",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("file") {
+  sources = [
     "file.cc",
     "file.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    ":stats_tracker",
+    ":string",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("fixed_no_free_allocator") {
+  sources = [
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
-    "flat_map.h",
+  ]
+  deps = [
+    ":allocator",
+    ":common_headers_only",
+    ":pointer_arithmetic",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("flat_map") {
+  sources = [ "flat_map.h" ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("in_place_reuse_allocator_base") {
+  sources = [
     "in_place_reuse_allocator_base.cc",
     "in_place_reuse_allocator_base.h",
-    "log.cc",
+  ]
+  deps = [
+    ":allocator",
+    ":check_op",
+    ":common_headers_only",
+    ":pointer_arithmetic",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("log") {
+  sources = [ "log.cc" ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("media") {
+  sources = [
     "media.cc",
     "media.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    ":string",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("stats_tracker") {
+  sources = [
     "metrics/stats_tracker.cc",
     "metrics/stats_tracker.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("murmurhash2") {
+  sources = [
     "murmurhash2.cc",
     "murmurhash2.h",
-    "pass_key.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("pass_key") {
+  sources = [ "pass_key.h" ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("paths") {
+  sources = [
     "paths.cc",
     "paths.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("player") {
+  sources = [
     "player.cc",
     "player.h",
-    "pointer_arithmetic.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("pointer_arithmetic") {
+  sources = [ "pointer_arithmetic.h" ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("process") {
+  sources = [
     "process.cc",
     "process.h",
-    "queue.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("queue") {
+  sources = [ "queue.h" ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("ref_counted") {
+  sources = [
     "ref_counted.cc",
     "ref_counted.h",
-    "result.h",
+  ]
+  deps = [
+    ":check_op",
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("result") {
+  sources = [ "result.h" ]
+  deps = [
+    ":common_headers_only",
+    ":expected",
+    ":source_location",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("reuse_allocator_base") {
+  sources = [
     "reuse_allocator_base.cc",
     "reuse_allocator_base.h",
+  ]
+  deps = [
+    ":allocator",
+    ":check_op",
+    ":common_headers_only",
+    ":pointer_arithmetic",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("scoped_timer") {
+  sources = [
     "scoped_timer.cc",
     "scoped_timer.h",
+  ]
+  deps = [
+    ":check_op",
+    ":common_headers_only",
+    ":source_location",
+    ":string",
+    ":time",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("semaphore") {
+  sources = [
     "semaphore.cc",
     "semaphore.h",
+  ]
+  deps = [
+    ":check_op",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("size") {
+  sources = [
     "size.cc",
     "size.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("source_location") {
+  sources = [
     "source_location.cc",
     "source_location.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("spin_lock") {
+  sources = [
     "spin_lock.cc",
     "spin_lock.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("storage") {
+  sources = [
     "storage.cc",
     "storage.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("string") {
+  sources = [
     "string.cc",
     "string.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("thread") {
+  sources = [
     "thread.cc",
     "thread.h",
-    "thread_options.h",
-    "time.cc",
-    "time.h",
   ]
-
   if (!is_android) {
     sources += [ "thread_platform_base.cc" ]
   }
+  deps = [
+    ":check_op",
+    ":common_headers_only",
+    ":semaphore",
+    ":thread_options",
+    "//starboard:starboard_headers_only",
+  ]
+}
+
+source_set("thread_options") {
+  sources = [ "thread_options.h" ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("time") {
+  sources = [
+    "time.cc",
+    "time.h",
+  ]
+  deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
 }
 
 static_library("file_wrapper") {
@@ -138,9 +455,53 @@ source_set("common_test") {
     "string_test.cc",
   ]
   deps = [
-    ":common",
+    ":allocator",
+    ":bidirectional_fit_reuse_allocator",
+    ":check",
+    ":check_op",
+    ":command_line",
+    ":configuration_defaults",
+    ":core",
+    ":device_type",
+    ":drm",
+    ":expected",
+    ":file",
+    ":fixed_no_free_allocator",
+    ":flat_map",
+    ":in_place_reuse_allocator_base",
+    ":log",
+    ":media",
+    ":media_buffer_pool",
+    ":media_buffer_pool_bidirectional_reuse_allocator",
+    ":media_buffer_pool_memory_allocator",
+    ":murmurhash2",
+    ":pass_key",
+    ":paths",
+    ":playback_state",
+    ":player",
+    ":pointer_arithmetic",
+    ":process",
+    ":queue",
+    ":ref_counted",
+    ":result",
+    ":reuse_allocator_base",
+    ":scoped_timer",
+    ":semaphore",
+    ":size",
+    ":source_location",
+    ":spin_lock",
+    ":stats_tracker",
+    ":storage",
+    ":string",
+    ":thread",
+    ":thread_options",
+    ":time",
     "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
+group("common") {
+  visibility = [ "*" ]
 }

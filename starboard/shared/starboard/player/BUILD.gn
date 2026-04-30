@@ -27,7 +27,12 @@ static_library("video_dmp") {
     "//starboard/shared/starboard/player/video_dmp_writer.h",
   ]
 
-  public_deps = [ "//starboard/common" ]
+  public_deps = [
+    "//starboard/common:check_op",
+    "//starboard/common:common_headers_only",
+    "//starboard/common:log",
+    "//starboard/common:string",
+  ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
