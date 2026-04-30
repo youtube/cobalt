@@ -69,7 +69,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
                                     bool allow_audio_writing_on_pause = false,
-                                    bool pause_using_audio_track_state = false)
+                                    bool pause_using_audio_track_state = false,
+                                    bool supports_tunnel_mode_float = false)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -94,7 +95,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   allow_audio_writing_on_pause, pause_using_audio_track_state,
                   context);
             }),
-        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
+        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+        supports_tunnel_mode_float_(supports_tunnel_mode_float) {}
 
   bool AllowOverflowAudioSamples() const override {
     return tunnel_mode_audio_session_id_ != -1;
@@ -152,8 +154,9 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
     if (tunnel_mode_audio_session_id_ != -1) {
-      // Currently the implementation only supports tunnel mode with int16 audio
-      // samples.
+      if (audio_sample_type == kSbMediaAudioSampleTypeFloat32) {
+        return supports_tunnel_mode_float_;
+      }
       return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
     }
 
@@ -161,6 +164,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   }
 
   const int tunnel_mode_audio_session_id_;
+  const bool supports_tunnel_mode_float_;
 };
 
 class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
@@ -462,7 +466,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
               tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              pause_using_audio_track_state);
+              pause_using_audio_track_state,
+              MediaCapabilitiesCache::GetInstance()->IsTunnelModeFloatSupported(
+                  creation_parameters.audio_stream_info().number_of_channels,
+                  creation_parameters.audio_stream_info().samples_per_second));
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -577,10 +584,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_DCHECK(force_secure_pipeline_under_tunnel_mode);
     *force_secure_pipeline_under_tunnel_mode = false;
 
-    if (!SbAudioSinkIsAudioSampleTypeSupported(
+    if (!MediaCapabilitiesCache::GetInstance()->IsTunnelModeFloatSupported(
+            creation_parameters.audio_stream_info().number_of_channels,
+            creation_parameters.audio_stream_info().samples_per_second) &&
+        !SbAudioSinkIsAudioSampleTypeSupported(
             kSbMediaAudioSampleTypeInt16Deprecated)) {
-      SB_LOG(INFO) << "Disable tunnel mode because int16 sample is required "
-                      "but not supported.";
+      SB_LOG(INFO) << "Disable tunnel mode as it is unsupported.";
       return false;
     }
 

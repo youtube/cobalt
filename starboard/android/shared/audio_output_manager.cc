@@ -226,6 +226,15 @@ bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
              env, j_audio_output_manager_, encoding) == JNI_TRUE;
 }
 
+bool AudioOutputManager::HasTunnelModeFloatSupportFor(JNIEnv* env,
+                                                      int num_channels,
+                                                      int samples_per_second) {
+  SB_DCHECK(env);
+  return Java_AudioOutputManager_hasTunnelModeFloatSupportFor(
+             env, j_audio_output_manager_, num_channels, samples_per_second) ==
+         JNI_TRUE;
+}
+
 bool AudioOutputManager::GetAudioConfiguration(
     JNIEnv* env,
     int index,

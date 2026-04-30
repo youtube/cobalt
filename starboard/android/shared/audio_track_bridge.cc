@@ -21,6 +21,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -54,7 +55,11 @@ AudioTrackBridge::AudioTrackBridge(
 
     // TODO: Support query if platform supports float type for tunnel mode.
     if (tunnel_mode_audio_session_id != -1) {
-      SB_DCHECK_EQ(sample_type.value(), kSbMediaAudioSampleTypeInt16Deprecated);
+      if (!features::FeatureList::IsEnabled(
+              features::kEnableTunnelModeFloatOutput)) {
+        SB_DCHECK_EQ(sample_type.value(),
+                     kSbMediaAudioSampleTypeInt16Deprecated);
+      }
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||

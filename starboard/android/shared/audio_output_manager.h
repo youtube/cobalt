@@ -61,6 +61,10 @@ class AudioOutputManager {
 
   bool HasPassthroughSupportFor(JNIEnv* env, int encoding);
 
+  bool HasTunnelModeFloatSupportFor(JNIEnv* env,
+                                    int num_channels,
+                                    int samples_per_second);
+
   bool GetAudioConfiguration(JNIEnv* env,
                              int index,
                              SbMediaAudioConfiguration* configuration);
