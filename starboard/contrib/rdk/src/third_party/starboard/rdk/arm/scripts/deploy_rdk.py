@@ -155,9 +155,9 @@ def package_and_deploy(
     archive_name = "archive.tar.gz"
 
     if mode == "plugin":
-        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", deps_file.name, "libloader_app.so"]
+        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", str(out_dir), deps_file.name, "libloader_app.so"]
     else:
-        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", deps_file.name]
+        tar_cmd = ["tar", "-czf", archive_name, "-C", str(out_dir), "-T", str(out_dir), deps_file.name]
 
     run_command(tar_cmd)
     run_command(["adb", "-s", device_id, "shell", f"mkdir -p {remote_dir}"])
