@@ -462,8 +462,7 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   seek_to_time_ = seek_to_time;
   paused_ = true;
   if (update_status_and_write_data_token_.is_valid()) {
-    audio_track_thread_->RemoveJobByToken(update_status_and_write_data_token_);
-    update_status_and_write_data_token_.ResetToInvalid();
+    audio_track_thread_->RemoveJobByToken(&update_status_and_write_data_token_);
   }
 }
 

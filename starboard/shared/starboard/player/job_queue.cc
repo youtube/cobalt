@@ -59,18 +59,19 @@ void JobQueue::ScheduleAndWait(Job&& job) {
   condition_.wait(lock, [&] { return job_finished || stopped_; });
 }
 
-void JobQueue::RemoveJobByToken(JobToken job_token) {
+void JobQueue::RemoveJobByToken(JobToken* job_token) {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (!job_token.is_valid()) {
+  if (!job_token->is_valid()) {
     return;
   }
 
   std::lock_guard lock(mutex_);
   for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
        iter != time_to_job_record_map_.end(); ++iter) {
-    if (iter->second.job_token == job_token) {
+    if (iter->second.job_token == *job_token) {
       time_to_job_record_map_.erase(iter);
+      job_token->Reset();
       return;
     }
   }
@@ -124,7 +125,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
-    return JobToken();
+    return JobToken::InvalidToken();
   }
 
   ++current_job_token_;

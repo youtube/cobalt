@@ -170,10 +170,7 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
 
   SB_DLOG(INFO) << "Try to seek to " << seek_to_time << " microseconds.";
 
-  if (write_pending_sample_job_token_.is_valid()) {
-    job_thread_->RemoveJobByToken(write_pending_sample_job_token_);
-    write_pending_sample_job_token_.ResetToInvalid();
-  }
+  job_thread_->RemoveJobByToken(&write_pending_sample_job_token_);
 
   pending_audio_buffers_.clear();
   pending_video_buffers_.clear();
@@ -251,8 +248,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
 void PlayerWorker::DoWritePendingSamples() {
   SB_CHECK(job_thread_->BelongsToCurrentThread());
-  SB_DCHECK(write_pending_sample_job_token_.is_valid());
-  write_pending_sample_job_token_.ResetToInvalid();
+  SB_CHECK(write_pending_sample_job_token_.is_valid());
 
   if (!pending_audio_buffers_.empty()) {
     SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);

@@ -98,7 +98,7 @@ TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
   auto job_token_2 = job_queue_.Schedule([&]() { job_2 = true; });
 
   // Cancel job 1.
-  job_queue_.RemoveJobByToken(job_token_1);
+  job_queue_.RemoveJobByToken(&job_token_1);
 
   job_queue_.RunUntilIdle();
 
@@ -107,7 +107,7 @@ TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
   EXPECT_TRUE(job_2);
 
   // Should be a no-op since job 2 already ran.
-  job_queue_.RemoveJobByToken(job_token_2);
+  job_queue_.RemoveJobByToken(&job_token_2);
 }
 
 TEST_F(JobQueueTest, RunUntilStoppedExecutesAllRemainingJobs) {

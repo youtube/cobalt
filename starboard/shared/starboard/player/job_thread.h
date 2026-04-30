@@ -72,8 +72,8 @@ class JobThread {
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
-  void RemoveJobByToken(JobQueue::JobToken job_token) {
-    return job_queue_->RemoveJobByToken(job_token);
+  void RemoveJobByToken(JobQueue::JobToken* job_token) {
+    job_queue_->RemoveJobByToken(job_token);
   }
 
   JobQueue* job_queue() const { return job_queue_.get(); }
