@@ -114,8 +114,9 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
     base::AutoLock lock(detailed_metrics_delegate_lock_);
     return detailed_metrics_delegate_;
   }
-#endif
+
   base::WeakPtr<MemoryInstrumentation> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
+#endif
 
  private:
   explicit MemoryInstrumentation(
@@ -132,8 +133,8 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 #if BUILDFLAG(IS_COBALT)
   mutable base::Lock detailed_metrics_delegate_lock_;
   base::WeakPtr<DetailedMetricsDelegate> detailed_metrics_delegate_;
-#endif
   base::WeakPtrFactory<MemoryInstrumentation> weak_ptr_factory_{this};
+#endif
 };
 
 }  // namespace memory_instrumentation

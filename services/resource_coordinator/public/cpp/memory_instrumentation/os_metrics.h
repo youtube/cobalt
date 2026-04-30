@@ -53,8 +53,13 @@ class COMPONENT_EXPORT(
   // the current process is used
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
+                               mojom::RawOSMemDump* dump);
+#if BUILDFLAG(IS_COBALT)
+  static bool FillOSMemoryDump(base::ProcessHandle handle,
+                               const MemDumpFlagSet& flags,
                                mojom::RawOSMemDump* dump,
-                               base::WeakPtr<DetailedMetricsDelegate> delegate = nullptr);
+                               base::WeakPtr<DetailedMetricsDelegate> delegate);
+#endif
 #if BUILDFLAG(IS_APPLE)
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,

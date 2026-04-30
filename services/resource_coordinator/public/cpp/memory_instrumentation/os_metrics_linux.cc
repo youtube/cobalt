@@ -535,8 +535,7 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
-                                 mojom::RawOSMemDump* dump,
-                                 base::WeakPtr<DetailedMetricsDelegate> delegate) {
+                                 mojom::RawOSMemDump* dump) {
   auto info = GetMemoryInfo(handle);
   if (!info.has_value()) {
     return false;
@@ -548,11 +547,6 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
       base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
-
-#if BUILDFLAG(IS_COBALT)
-  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS))
-    FillDetailedMetrics(handle, flags, dump, std::move(delegate));
-#endif
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
     dump->mappings_count = CountMappings(handle);
@@ -592,6 +586,23 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 
   return true;
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
+                                 const MemDumpFlagSet& flags,
+                                 mojom::RawOSMemDump* dump,
+                                 base::WeakPtr<DetailedMetricsDelegate> delegate) {
+  if (!FillOSMemoryDump(handle, flags, dump)) {
+    return false;
+  }
+
+  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    FillDetailedMetrics(handle, flags, dump, std::move(delegate));
+  }
+
+  return true;
+}
+#endif
 
 // static
 std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
