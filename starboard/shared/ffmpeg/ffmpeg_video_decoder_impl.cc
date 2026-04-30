@@ -106,18 +106,14 @@ FfmpegVideoDecoderImpl<FFMPEG>::FfmpegVideoDecoderImpl(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider)
-    : video_codec_(video_codec),
-      codec_context_(NULL),
-      av_frame_(NULL),
-      stream_ended_(false),
-      error_occurred_(false),
+    : ffmpeg_(FFMPEGDispatch::GetInstance()),
+      video_codec_(video_codec),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
-  ffmpeg_ = FFMPEGDispatch::GetInstance();
-  SB_DCHECK(ffmpeg_);
+  SB_CHECK(ffmpeg_);
 }
 
 FfmpegVideoDecoderImpl<FFMPEG>::~FfmpegVideoDecoderImpl() {

@@ -74,13 +74,14 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
 
   static const int kMaxDecodedAudiosSize = 64;
 
-  FFMPEGDispatch* ffmpeg_;
+  // Guaranteed to be non-null.
+  FFMPEGDispatch* const ffmpeg_;
   OutputCB output_cb_;
   ErrorCB error_cb_;
-  AVCodecContext* codec_context_;
-  AVFrame* av_frame_;
+  AVCodecContext* codec_context_ = nullptr;
+  AVFrame* av_frame_ = nullptr;
 
-  bool stream_ended_;
+  bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
 };

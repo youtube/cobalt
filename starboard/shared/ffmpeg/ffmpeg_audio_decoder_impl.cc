@@ -90,16 +90,13 @@ FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info)
     : JobOwner(job_queue),
-      codec_context_(NULL),
-      av_frame_(NULL),
-      stream_ended_(false),
+      ffmpeg_(FFMPEGDispatch::GetInstance()),
       audio_stream_info_(audio_stream_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
   SB_DCHECK_NE(GetFfmpegCodecIdByMediaCodec(audio_stream_info_),
                AV_CODEC_ID_NONE)
       << "Unsupported audio codec " << audio_stream_info_.codec;
-  ffmpeg_ = FFMPEGDispatch::GetInstance();
-  SB_DCHECK(ffmpeg_);
+  SB_CHECK(ffmpeg_);
 }
 
 FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {

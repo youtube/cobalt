@@ -130,7 +130,8 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
   // Returns false if the frame contains invalid data.
   bool ProcessDecodedFrame(const AVFrame& av_frame);
 
-  FFMPEGDispatch* ffmpeg_;
+  // Guaranteed to be non-null.
+  FFMPEGDispatch* const ffmpeg_;
 
   // |video_codec_| will be initialized inside ctor and won't be changed during
   // the life time of this class.
@@ -144,11 +145,11 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
 
   // The AV related classes will only be created and accessed on the decoder
   // thread.
-  AVCodecContext* codec_context_;
-  AVFrame* av_frame_;
+  AVCodecContext* codec_context_ = nullptr;
+  AVFrame* av_frame_ = nullptr;
 
-  bool stream_ended_;
-  bool error_occurred_;
+  bool stream_ended_ = false;
+  bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
