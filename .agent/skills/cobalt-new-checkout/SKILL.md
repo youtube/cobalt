@@ -20,7 +20,11 @@ workspace/
   ├── tools/
   │   └── depot_tools/            <- Native chromium build utilities
   └── src/                        <- Repository checkout root
-      └── cobalt_new_checkout.py  <- Setup automation orchestrator
+      └── .agent/
+          └── skills/
+              └── cobalt-new-checkout/
+                  └── scripts/
+                      └── cobalt_new_checkout.py  <- Setup automation orchestrator
 ```
 
 > [!IMPORTANT]
@@ -80,7 +84,7 @@ Confirm stability metrics on completed compilation workspace environments:
 ### Programmatic / Non-Interactive Operation (Recommended)
 
 ```bash
-python3 cobalt_new_checkout.py --non-interactive --internal --github-user "<github_user>"
+python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --internal --github-user "<github_user>"
 ```
 
 Options:
@@ -92,7 +96,7 @@ Options:
 ### Standalone User Interaction
 
 ```bash
-python3 cobalt_new_checkout.py
+python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py
 ```
 
 ---
