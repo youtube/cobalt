@@ -397,9 +397,14 @@ SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
     return 0;
   }
 
-  char platform_buf[IF_NAMESIZE];
-  starboard::strlcpy(platform_buf, ifname, MUSL_IF_NAMESIZE);
-  return if_nametoindex(platform_buf);
+  // ifname might be longer than the platform's max interface name length.
+  if (MUSL_IF_NAMESIZE > IF_NAMESIZE) {
+    char platform_buf[IF_NAMESIZE];
+    starboard::strlcpy(platform_buf, ifname, IF_NAMESIZE);
+    return if_nametoindex(platform_buf);
+  }
+  // No need to copy since ifname is smaller than or equal to IF_NAMESIZE.
+  return if_nametoindex(ifname);
 }
 
 SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
@@ -409,14 +414,21 @@ SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
     return nullptr;
   }
 
+  // ifname buffer is larger than the platform's max interface name length,
+  // so it is fine to pass it directly to the platform's if_indextoname.
+  if (MUSL_IF_NAMESIZE >= IF_NAMESIZE) {
+    return if_indextoname(ifindex, ifname);
+  }
+
+  // ifname buffer is smaller than the platform's max interface name length. If
+  // IF_NAMESIZE > MUSL_IF_NAMESIZE, the copy will truncate the interface name.
+  // At time of writing, that is fine since current uses of this function are in
+  // logging.
   char platform_buf[IF_NAMESIZE];
   char* res = if_indextoname(ifindex, platform_buf);
   if (res == nullptr) {
     return nullptr;
   }
-  // If IF_NAMESIZE > MUSL_IF_NAMESIZE, this will truncate the interface name.
-  // At time of writing, that is fine since current uses of this function are in
-  // logging.
   starboard::strlcpy(ifname, res, MUSL_IF_NAMESIZE);
   return ifname;
 }
