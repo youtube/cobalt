@@ -30,32 +30,6 @@ config("disable_unreachable_warnings") {
 source_set("starboard") {
   visibility = [ "//media" ]
 
-  defines = [
-    # TODO(b/326508279): Revisit background mode
-    "COBALT_MEDIA_ENABLE_BACKGROUND_MODE=0",
-
-    # TODO(b/375069564): Revisit CValStats
-    "COBALT_MEDIA_ENABLE_CVAL=0",
-
-    # TODO(b/375070492): Revisit decode-to-texture
-    "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
-
-    # TODO(b/375218518): Revisit FormatSupportQueryMetrics
-    "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
-
-    # TODO(b/326654546): Revisit max video input size
-    "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
-
-    # TODO(b/375234428): Revisit startup latency tracking
-    "COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING=0",
-
-    # TODO(b/326497953): Revisit suspend/resume support
-    "COBALT_MEDIA_ENABLE_SUSPEND_RESUME=0",
-
-    # TODO(b/375241265): Re-enable UMA metrics
-    "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
-  ]
-
   sources = []
   deps = []
   if (use_starboard_media) {
@@ -138,6 +112,32 @@ source_set("unit_tests") {
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
+  flags = [
+    # TODO(b/326508279): Revisit background mode
+    "COBALT_MEDIA_ENABLE_BACKGROUND_MODE=0",
 
-  flags = [ "COBALT_MEDIA_ENABLE_AV2_SUPPORT=0" ]
+    # TODO(b/375069564): Revisit CValStats
+    "COBALT_MEDIA_ENABLE_CVAL=0",
+
+    # TODO(b/375070492): Revisit decode-to-texture
+    "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
+
+    # TODO(b/375218518): Revisit FormatSupportQueryMetrics
+    "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
+
+    # TODO(b/326654546): Revisit max video input size
+    "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
+
+    # TODO(b/375234428): Revisit startup latency tracking
+    "COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING=0",
+
+    # TODO(b/326497953): Revisit suspend/resume support
+    "COBALT_MEDIA_ENABLE_SUSPEND_RESUME=0",
+
+    # TODO(b/375241265): Re-enable UMA metrics
+    "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
+    
+    # TODO(b/505744317): Enable AV2 once supported in Chromium
+    "COBALT_MEDIA_ENABLE_AV2_SUPPORT=0",
+  ]
 }
