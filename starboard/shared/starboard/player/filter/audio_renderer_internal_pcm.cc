@@ -590,7 +590,7 @@ void AudioRendererPcm::OnDecoderOutput() {
 void AudioRendererPcm::ProcessAudioData() {
   SB_CHECK(BelongsToCurrentThread());
 
-  process_audio_data_job_token_ = JobQueue::JobToken::InvalidToken();
+  process_audio_data_job_token_ = JobQueue::JobToken::kInvalid;
 
   // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
   // false.

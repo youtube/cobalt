@@ -20,6 +20,8 @@
 
 namespace starboard {
 
+const JobQueue::JobToken JobQueue::JobToken::kInvalid = JobQueue::JobToken();
+
 JobQueue::JobQueue() = default;
 
 JobQueue::~JobQueue() {
@@ -62,7 +64,7 @@ void JobQueue::ScheduleAndWait(Job&& job) {
 void JobQueue::RemoveJobByToken(JobToken* job_token) {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (!job_token->is_valid()) {
+  if (!*job_token) {
     return;
   }
 
@@ -125,7 +127,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
-    return JobToken::InvalidToken();
+    return JobToken::kInvalid;
   }
 
   ++current_job_token_;

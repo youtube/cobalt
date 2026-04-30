@@ -239,7 +239,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
       pending_video_buffers_ = std::move(input_buffers);
       SB_DCHECK_EQ(pending_video_buffers_.size(), num_of_pending_buffers);
     }
-    if (!write_pending_sample_job_token_.is_valid()) {
+    if (!write_pending_sample_job_token_) {
       write_pending_sample_job_token_ = job_thread_->Schedule(
           [this] { DoWritePendingSamples(); }, kWritePendingSampleDelayUsec);
     }
@@ -248,7 +248,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
 void PlayerWorker::DoWritePendingSamples() {
   SB_CHECK(job_thread_->BelongsToCurrentThread());
-  SB_CHECK(write_pending_sample_job_token_.is_valid());
+  SB_CHECK(write_pending_sample_job_token_);
 
   if (!pending_audio_buffers_.empty()) {
     SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);

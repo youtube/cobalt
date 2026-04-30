@@ -47,9 +47,9 @@ class JobQueue {
 
   class JobToken {
    public:
-    static JobToken InvalidToken() { return JobToken(); }
+    static const JobToken kInvalid;
 
-    bool is_valid() const { return token_.has_value(); }
+    explicit operator bool() const { return token_.has_value(); }
 
    private:
     friend class JobQueue;

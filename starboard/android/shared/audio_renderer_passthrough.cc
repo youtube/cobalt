@@ -403,7 +403,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   SB_DCHECK(error_cb_);
 
   if (audio_track_bridge_) {
-    SB_DCHECK(!update_status_and_write_data_token_.is_valid());
+    SB_DCHECK(!update_status_and_write_data_token_);
     AudioTrackState initial_state;
     update_status_and_write_data_token_ = audio_track_thread_->Schedule(
         std::bind(&AudioRendererPassthrough::UpdateStatusAndWriteData, this,
@@ -461,7 +461,7 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   }
   seek_to_time_ = seek_to_time;
   paused_ = true;
-  if (update_status_and_write_data_token_.is_valid()) {
+  if (update_status_and_write_data_token_) {
     audio_track_thread_->RemoveJobByToken(&update_status_and_write_data_token_);
   }
 }

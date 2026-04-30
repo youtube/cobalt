@@ -173,7 +173,7 @@ class AudioRendererPcm : public AudioRenderer,
 
   bool can_accept_more_data_ = true;
   JobQueue::JobToken process_audio_data_job_token_ =
-      JobQueue::JobToken::InvalidToken();
+      JobQueue::JobToken::kInvalid;
   std::function<void()> process_audio_data_job_;
 
   // Our owner will attempt to seek to time 0 when playback begins.  In
