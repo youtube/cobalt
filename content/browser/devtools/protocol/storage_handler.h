@@ -66,8 +66,10 @@ class StorageHandler
   // content::protocol::storage::Backend
   Response GetStorageKeyForFrame(const std::string& frame_id,
                                  std::string* serialized_storage_key) override;
+#if BUILDFLAG(IS_COBALT)
   Response GetStorageKey(std::optional<std::string> frame_id,
                          std::string* serialized_storage_key) override;
+#endif
   void ClearDataForOrigin(
       const std::string& origin,
       const std::string& storage_types,
@@ -275,8 +277,10 @@ class StorageHandler
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
 
+#if BUILDFLAG(IS_COBALT)
   Response SerializeStorageKey(RenderFrameHostImpl* rfh,
-                               std::string* serialized_storage_key);
+                               std::string* serialized_storage_key) const;
+#endif
 
   std::unique_ptr<Storage::Frontend> frontend_;
   raw_ptr<StoragePartition> storage_partition_{nullptr};
