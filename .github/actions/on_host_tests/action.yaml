@@ -16,6 +16,10 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Set Up Depot Tools
+      uses: ./.github/actions/depot_tools
+      with:
+        run_sync: 'false'
     - name: Download Artifacts
       uses: actions/download-artifact@v5
       with:
