@@ -25,6 +25,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
@@ -192,7 +193,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   LOG(INFO) << "Initializing StarboardRenderer.";
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   // Note that once this code block is enabled, we should also ensure that the
   // posted callback executes on the right object (i.e. not destroyed, use
   // WeakPtr?) in the right state (not flushed?).
@@ -204,7 +205,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   client_ = client;
   init_cb_ = std::move(init_cb);
@@ -578,7 +579,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   // Note that once this code block is enabled, we should also ensure that the
   // posted callback executes on the right object (i.e. not destroyed, use
   // WeakPtr?) in the right state (not flushed?).
@@ -589,7 +590,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   AudioDecoderConfig invalid_audio_config;
   const AudioDecoderConfig& audio_config =
