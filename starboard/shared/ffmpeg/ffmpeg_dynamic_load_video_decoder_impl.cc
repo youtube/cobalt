@@ -19,6 +19,8 @@
 // This file contains the creation of the specialized VideoDecoderImpl object
 // corresponding to the version of the dynamically loaded ffmpeg library.
 
+#include <memory>
+
 #include "starboard/log.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
@@ -27,53 +29,45 @@
 namespace starboard {
 
 // static
-FfmpegVideoDecoder* FfmpegVideoDecoder::Create(
+std::unique_ptr<FfmpegVideoDecoder> FfmpegVideoDecoder::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
-  if (!ffmpeg || !ffmpeg->is_valid()) {
-    return NULL;
+  if (!ffmpeg) {
+    return nullptr;
   }
 
-  FfmpegVideoDecoder* video_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      video_decoder = FfmpegVideoDecoderImpl<540>::Create(
+      return FfmpegVideoDecoderImpl<540>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 550:
     case 560:
-      video_decoder = FfmpegVideoDecoderImpl<560>::Create(
+      return FfmpegVideoDecoderImpl<560>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 571:
-      video_decoder = FfmpegVideoDecoderImpl<571>::Create(
+      return FfmpegVideoDecoderImpl<571>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 581:
-      video_decoder = FfmpegVideoDecoderImpl<581>::Create(
+      return FfmpegVideoDecoderImpl<581>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 591:
-      video_decoder = FfmpegVideoDecoderImpl<591>::Create(
+      return FfmpegVideoDecoderImpl<591>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 601:
-      video_decoder = FfmpegVideoDecoderImpl<601>::Create(
+      return FfmpegVideoDecoderImpl<601>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 611:
-      video_decoder = FfmpegVideoDecoderImpl<611>::Create(
+      return FfmpegVideoDecoderImpl<611>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG version "
                       << ffmpeg->specialization_version();
       break;
   }
-  return video_decoder;
+  return nullptr;
 }
 
 }  // namespace starboard

@@ -47,9 +47,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             return opus_audio_decoder;
           }
         } else {
-          auto ffmpeg_audio_decoder = std::unique_ptr<FfmpegAudioDecoder>(
-              FfmpegAudioDecoder::Create(job_queue, audio_stream_info));
-          if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
+          auto ffmpeg_audio_decoder =
+              FfmpegAudioDecoder::Create(job_queue, audio_stream_info);
+          if (ffmpeg_audio_decoder) {
             return ffmpeg_audio_decoder;
           }
         }
