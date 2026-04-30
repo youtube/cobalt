@@ -27,25 +27,24 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-
-#if COBALT_MEDIA_ENABLE_CVAL
-#include "cobalt/media/base/cval_stats.h"
-#endif  // COBALT_MEDIA_ENABLE_CVAL
-
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
-#include "cobalt/media/base/decoder_buffer_cache.h"
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
-
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/video_decoder_config.h"
+#include "media/starboard/buildflags.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/gfx/geometry/rect.h"
+
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#include "cobalt/media/base/cval_stats.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
+#include "cobalt/media/base/decoder_buffer_cache.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
 namespace media {
 
@@ -113,10 +112,10 @@ class SbPlayerBridge {
                  ,
                  jobject surface_view
 #endif  // BUILDFLAG(IS_ANDROID)
-#if COBALT_MEDIA_ENABLE_CVAL
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
                  ,
                  std::string pipeline_identifier
-#endif  // COBALT_MEDIA_ENABLE_CVAL
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   );
 
   ~SbPlayerBridge();
@@ -209,10 +208,10 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
                                  int max_buffers_per_write);
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   void WriteBuffersInternal(
       DemuxerStream::Type type,
@@ -286,9 +285,9 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   const bool allow_resume_after_suspend_;
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   // The following variables are only changed or accessed from the
   // |task_runner_|.
@@ -303,9 +302,9 @@ class SbPlayerBridge {
   float volume_ = 1.0f;
   double playback_rate_ = 0.0;
   bool seek_pending_ = false;
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   DecoderBufferCache decoder_buffer_cache_;
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
   std::optional<int> set_bounds_z_index_;
@@ -331,7 +330,7 @@ class SbPlayerBridge {
 
   const ExperimentalFeatures experimental_features_;
 
-#if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 #endif
@@ -362,10 +361,10 @@ class SbPlayerBridge {
   bool pending_audio_eos_buffer_ = false;
   bool pending_video_eos_buffer_ = false;
 
-#if COBALT_MEDIA_ENABLE_CVAL
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
-#endif  // COBALT_MEDIA_ENABLE_CVAL
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
