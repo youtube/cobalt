@@ -43,5 +43,18 @@ TEST(PosixIfNametoindexTest, ValidNameLoopback) {
   EXPECT_NE(index, 0u);
 }
 
+TEST(PosixIfNametoindexTest, MatchesIfIndextoname) {
+  // Loopback is named "lo" on almost all Linux systems and "lo0" on Mac.
+  const char* loopback_name = "lo";
+  unsigned int index = if_nametoindex(loopback_name);
+  if (index == 0) {
+    loopback_name = "lo0";
+    index = if_nametoindex(loopback_name);
+  }
+  ASSERT_NE(index, 0u);
+  char buf[IF_NAMESIZE];
+  EXPECT_STREQ(if_indextoname(index, buf), loopback_name);
+}
+
 }  // namespace
 }  // namespace nplb
