@@ -431,7 +431,7 @@ bool FfmpegVideoDecoderImpl<FFMPEG>::InitializeCodec() {
   av_frame_ = ffmpeg_->avcodec_alloc_frame();
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   if (av_frame_ == NULL) {
-    SB_LOG(ERROR) << "Unable to allocate audio frame";
+    SB_LOG(ERROR) << "Unable to allocate video frame";
     TeardownCodec();
     return false;
   }
