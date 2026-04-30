@@ -412,7 +412,7 @@ def FindLeakLocations(leaked_symbols, config_path, only_grep, use_ripgrep):
 
       # Check for undefined symbols in the lib
       libname = os.path.basename(lib)
-      nm_output = RunCommand(['nm', '-u', lib])
+      nm_output = RunCommand(['nm', '-u', '-C', lib])
       libs_to_symbols[libname] = set()
       for symbol in ProcessNmOutput(nm_output):
         if symbol not in leaked_symbols:
@@ -449,9 +449,22 @@ def FindLeakLocations(leaked_symbols, config_path, only_grep, use_ripgrep):
     else:
       grep_output = RunCommand(
           ['grep', '-r', '-l', '-a', '--exclude=*.ninja', symbol, config_path])
-    leaking_files[_UNKNOWN_LIBRARIES][symbol] = set(
-        '//' + os.path.relpath(filename, paths.REPOSITORY_ROOT)
-        for filename in set(grep_output.splitlines()) - obj_files_in_libs)
+
+    # Filter out object files in the static libraries we already processed.
+    obj_files_to_check = set(grep_output.splitlines()) - obj_files_in_libs
+
+    # Run nm on the object files we found to double check that grep didn't hit a
+    # false positive, e.g. the symbol name is actually in a string or there is a
+    # similarly named symbol. Unfortunately this doesn't work for Rust libs, so
+    # we just assume those are matches.
+    leaking_files[_UNKNOWN_LIBRARIES][symbol] = set()
+    for obj_file in obj_files_to_check:
+      if os.path.splitext(obj_file)[1] == '.rlib' or symbol in ProcessNmOutput(
+          RunCommand(['nm', '-u', '-C', obj_file])):
+        leaking_files[_UNKNOWN_LIBRARIES][symbol].add(
+            '//' + os.path.relpath(obj_file, paths.REPOSITORY_ROOT))
+    if len(leaking_files[_UNKNOWN_LIBRARIES][symbol]) == 0:
+      del leaking_files[_UNKNOWN_LIBRARIES][symbol]
 
   return InversedKeys(leaking_files)
 
@@ -548,6 +561,8 @@ def ParseArgs():
       '--ripgrep',
       help='Use ripgrep (rg) instead of grep.',
       action='store_true')
+  parser.add_argument(
+      '--skip-build', help='Skip building the target.', action='store_true')
   return parser.parse_args()
 
 
@@ -642,9 +657,12 @@ def main():
   print('Loading allowed C99 symbols...', file=sys.stderr)
   allowed_c99_symbols = LoadAllowedC99Symbols()
 
-  print(f'Building {config_dir} if necessary...', file=sys.stderr)
-  RunCommand(['autoninja', '-C', config_path, args.target],
-             cwd=paths.REPOSITORY_ROOT)
+  if not args.skip_build:
+    print(f'Building {config_dir} if necessary...', file=sys.stderr)
+    RunCommand(['autoninja', '-C', config_path, args.target],
+               cwd=paths.REPOSITORY_ROOT)
+  else:
+    print('Skipping build step.', file=sys.stderr)
 
   # Use the library at lib.unstripped if available, as if that's around it
   # means the top-level one has been stripped of symbols.
@@ -668,7 +686,7 @@ def main():
     return symbol.startswith('Sb') or symbol.startswith('kSb')
 
   def IsAllowedPosixSymbol(symbol, sb_api_version: int):
-    if sb_api_version in [16, 17]:
+    if sb_api_version in [16, 17, 18]:
       return symbol in _ALLOWED_SB_GE_16_POSIX_SYMBOLS
     else:
       return False
