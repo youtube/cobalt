@@ -31,7 +31,9 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/third_party/uri_template/uri_template.h"
 #include "url/gurl.h"
-#include "url/scheme_host_port.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/features.h"
+#endif
 
 namespace net {
 
@@ -104,6 +106,12 @@ class DnsClientImpl : public DnsClient {
 
   bool CanUseInsecureDnsTransactions() const override {
     const DnsConfig* config = GetEffectiveConfig();
+#if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(cobalt::features::kEnableAsyncDNSClient)) {
+      return config && config->nameservers.size() > 0 && insecure_enabled_ &&
+           !config->unhandled_options;
+    }
+#endif
     return config && config->nameservers.size() > 0 && insecure_enabled_ &&
            !config->unhandled_options && !config->dns_over_tls_active;
   }

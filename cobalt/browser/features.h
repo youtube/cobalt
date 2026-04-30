@@ -45,6 +45,9 @@ extern const base::FeatureParam<int> kCobaltMetricsIntervalParam;
 // Use IPv4 for system host resolution.
 extern const base::Feature kUseIPv4ForDNS;
 
+// Enables the Chromium build-in Async DNS Client feature.
+extern const base::Feature kEnableAsyncDNSClient;
+
 }  // namespace features
 }  // namespace cobalt
 

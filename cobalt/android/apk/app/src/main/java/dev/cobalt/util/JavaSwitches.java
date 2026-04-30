@@ -31,8 +31,8 @@ public class JavaSwitches {
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
-  /** flag to enable HappyEyeballsV3 feature. */
-  public static final String ENABLE_HAPPY_EYEBALLS_V3 = "EnableHappyEyeballsV3";
+  /** flag to enable Chromium build-in Async DNS Client feature. */
+  public static final String ENABLE_ASYNC_DNS_CLIENT = "EnableAsyncDNSClient";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -41,8 +41,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_HAPPY_EYEBALLS_V3)) {
-      extraCommandLineArgs.add("--enable-features=HappyEyeballsV3");
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ASYNC_DNS_CLIENT)) {
+      extraCommandLineArgs.add("--enable-features=EnableAsyncDNSClient");
     }
 
     return extraCommandLineArgs;
