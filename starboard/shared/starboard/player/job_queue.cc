@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
+#include <atomic>
 #include <chrono>
 
 #include "starboard/system.h"

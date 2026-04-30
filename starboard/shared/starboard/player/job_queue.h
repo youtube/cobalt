@@ -15,12 +15,11 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
-#include <atomic>
-#include <optional>
 #include <condition_variable>
 #include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "starboard/common/check_op.h"
