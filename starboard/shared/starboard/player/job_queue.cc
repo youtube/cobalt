@@ -22,6 +22,11 @@ namespace starboard {
 
 const JobQueue::JobToken JobQueue::JobToken::kInvalid = JobQueue::JobToken();
 
+JobQueue::JobToken JobQueue::JobToken::Generate() {
+  static std::atomic<int64_t> s_current_token{0};
+  return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
+}
+
 JobQueue::JobQueue() = default;
 
 JobQueue::~JobQueue() {
@@ -130,9 +135,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
     return JobToken::kInvalid;
   }
 
-  ++current_job_token_;
-
-  JobToken job_token(current_job_token_);
+  JobToken job_token = JobToken::Generate();
   JobRecord job_record = {job_token, std::move(job), owner};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {

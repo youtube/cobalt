@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -56,6 +57,8 @@ class JobQueue {
 
     JobToken() = default;
     explicit JobToken(int64_t token) : token_(token) {}
+
+    static JobToken Generate();
 
     void Reset() { token_ = std::nullopt; }
 
@@ -168,7 +171,6 @@ class JobQueue {
   ThreadChecker thread_checker_;
   std::mutex mutex_;
   std::condition_variable condition_;
-  int64_t current_job_token_ = 0;
   TimeToJobRecordMap time_to_job_record_map_;
   bool stopped_ = false;
 
