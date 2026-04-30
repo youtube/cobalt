@@ -130,7 +130,6 @@ std::unique_ptr<FfmpegVideoDecoder> FfmpegVideoDecoderImpl<FFMPEG>::Create(
   auto decoder = std::make_unique<FfmpegVideoDecoderImpl<FFMPEG>>(
       starboard::PassKey<FfmpegVideoDecoderImpl<FFMPEG>>(), video_codec,
       output_mode, decode_target_graphics_context_provider);
-  SB_CHECK_EQ(decoder->ffmpeg_->specialization_version(), FFMPEG);
   if (!decoder->InitializeCodec()) {
     return nullptr;
   }

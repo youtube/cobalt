@@ -110,7 +110,6 @@ std::unique_ptr<FfmpegAudioDecoder> FfmpegAudioDecoderImpl<FFMPEG>::Create(
   auto decoder = std::make_unique<FfmpegAudioDecoderImpl<FFMPEG>>(
       starboard::PassKey<FfmpegAudioDecoderImpl<FFMPEG>>(), job_queue,
       audio_stream_info);
-  SB_CHECK_EQ(decoder->ffmpeg_->specialization_version(), FFMPEG);
   if (!decoder->InitializeCodec()) {
     return nullptr;
   }
