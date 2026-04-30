@@ -328,9 +328,65 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
 
 #if BUILDFLAG(IS_COBALT)
 #if !BUILDFLAG(IS_ANDROID)
+struct LibChrobaltMem {
+  uint32_t pss_kb = 0;
+  uint32_t rss_kb = 0;
+};
 
+struct SmapsRollup {
+  uint32_t pss_kb = 0;
+  uint32_t rss_kb = 0;
+};
 
+void GetSmapsRollup(base::ProcessId pid,
+                    const char* needle,
+                    SmapsRollup* rollup) {
+  std::string file_name =
+      "/proc/" +
+      (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
+      "/smaps";
+  base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
+  if (!smaps_file) {
+    return;
+  }
 
+  char line[kMaxLineSize];
+  uint64_t total_pss_kb = 0;
+  uint64_t total_rss_kb = 0;
+  bool is_matching_region = false;
+  while (fgets(line, kMaxLineSize, smaps_file.get())) {
+    if (base::IsHexDigit(static_cast<unsigned char>(line[0])) &&
+        !base::IsAsciiUpper(static_cast<unsigned char>(line[0]))) {
+      const char* found = strstr(line, needle);
+      is_matching_region = (found != nullptr);
+    } else if (is_matching_region) {
+      uint64_t value_kb = 0;
+      if (strncmp(line, "Pss:", 4) == 0) {
+        if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
+          total_pss_kb += value_kb;
+        }
+      } else if (strncmp(line, "Rss:", 4) == 0) {
+        if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
+          total_rss_kb += value_kb;
+        }
+      }
+    }
+  }
+  rollup->pss_kb = base::saturated_cast<uint32_t>(total_pss_kb);
+  rollup->rss_kb = base::saturated_cast<uint32_t>(total_rss_kb);
+}
+
+LibChrobaltMem GetLibChrobaltMem(base::ProcessId pid) {
+  SmapsRollup rollup;
+  GetSmapsRollup(pid, "libchrobalt.so", &rollup);
+  return {rollup.pss_kb, rollup.rss_kb};
+}
+
+uint32_t GetPartitionAllocRss(base::ProcessId pid) {
+  SmapsRollup rollup;
+  GetSmapsRollup(pid, "<anon:partition_alloc>", &rollup);
+  return rollup.rss_kb;
+}
 #else  // BUILDFLAG(IS_ANDROID)
 namespace {
 constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
@@ -547,6 +603,18 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
       base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
+
+#if BUILDFLAG(IS_COBALT)
+  // TODO(cleanup): Remove this legacy code when appropriate.
+#if BUILDFLAG(IS_ANDROID)
+  PopulateCobaltSmapsMetrics(handle, dump);
+#else  // BUILDFLAG(IS_LINUX)
+  LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
+  dump->libchrobalt_pss_kb = lib_mem.pss_kb;
+  dump->libchrobalt_rss_kb = lib_mem.rss_kb;
+  dump->partition_alloc_rss_kb = GetPartitionAllocRss(handle);
+#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
     dump->mappings_count = CountMappings(handle);

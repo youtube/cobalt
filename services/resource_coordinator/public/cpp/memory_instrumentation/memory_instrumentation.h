@@ -7,12 +7,12 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
-#include "base/memory/weak_ptr.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 #if BUILDFLAG(IS_COBALT)
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
 #endif

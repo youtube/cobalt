@@ -1,7 +1,6 @@
 // Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #ifndef SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 #define SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 
@@ -25,7 +24,9 @@ FORWARD_DECLARE_TEST(ProfilingJsonExporterTest, MemoryMaps);
 }
 
 namespace memory_instrumentation {
+#if BUILDFLAG(IS_COBALT)
 class DetailedMetricsDelegate;
+#endif  // BUILDFLAG(IS_COBALT)
 // This class provides synchronous access to memory metrics for a process with a
 // given |pid|. These interfaces have platform-specific restrictions:
 //  * On Android, due to sandboxing restrictions, processes can only access
