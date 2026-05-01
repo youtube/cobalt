@@ -29,10 +29,6 @@ namespace {
 
 const int64_t kDefaultAudioChannels = 2;
 
-// Turns |eotf| into value of SbMediaTransferId.  If |eotf| isn't recognized the
-// function returns kSbMediaTransferIdUnknown.
-// This function supports all eotfs required by YouTube TV HTML5 Technical
-// Requirements.
 SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
   if (transfer_id == "bt709") {
     return kSbMediaTransferIdBt709;
@@ -43,6 +39,82 @@ SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
   }
   return kSbMediaTransferIdUnknown;
 }
+
+bool ParseAudioInfo(const MimeType& mime_type,
+                    const std::string& codec,
+                    ParsedMimeInfo::AudioCodecInfo* audio_info);
+
+bool ParseVideoInfo(const MimeType& mime_type,
+                    const std::string& codec,
+                    ParsedMimeInfo::VideoCodecInfo* video_info);
+
+}  // namespace
+
+// static
+std::optional<ParsedMimeInfo> ParsedMimeInfo::Create(
+    const std::string& mime_string) {
+  auto mime_type = MimeType::Create(mime_string);
+  if (!mime_type) {
+    return std::nullopt;
+  }
+
+  // Read "disablecache".
+  if (!mime_type->ValidateBoolParameter("disablecache")) {
+    return std::nullopt;
+  }
+  bool disable_cache = mime_type->GetParamBoolValue("disablecache", false);
+
+  // We only support audio or video type.
+  if (mime_type->type() != "audio" && mime_type->type() != "video") {
+    return std::nullopt;
+  }
+
+  auto codecs = mime_type->GetCodecs();
+  // We only support up to one audio codec and one video codec.
+  if (codecs.size() > 2) {
+    return std::nullopt;
+  }
+
+  AudioCodecInfo audio_info;
+  VideoCodecInfo video_info;
+
+  for (const auto& codec : codecs) {
+    if (audio_info.codec == kSbMediaAudioCodecNone &&
+        ParseAudioInfo(*mime_type, codec, &audio_info)) {
+      continue;
+    }
+    if (video_info.codec == kSbMediaVideoCodecNone &&
+        ParseVideoInfo(*mime_type, codec, &video_info)) {
+      continue;
+    }
+    // It either has an invalid codec or has two codecs of same type.
+    return std::nullopt;
+  }
+
+  return ParsedMimeInfo(std::move(*mime_type), disable_cache, audio_info,
+                        video_info);
+}
+
+ParsedMimeInfo::ParsedMimeInfo(MimeType mime_type,
+                               bool disable_cache,
+                               AudioCodecInfo audio_info,
+                               VideoCodecInfo video_info)
+    : mime_type_(std::move(mime_type)),
+      disable_cache_(disable_cache),
+      audio_info_(audio_info),
+      video_info_(video_info) {}
+
+ParsedMimeInfo ParsedMimeInfo::WithBitrate(int bitrate) const {
+  AudioCodecInfo audio_info = audio_info_;
+  VideoCodecInfo video_info = video_info_;
+
+  audio_info.bitrate = bitrate;
+  video_info.bitrate = bitrate;
+
+  return ParsedMimeInfo(mime_type_, disable_cache_, audio_info, video_info);
+}
+
+namespace {
 
 bool ParseAudioInfo(const MimeType& mime_type,
                     const std::string& codec,
@@ -124,70 +196,6 @@ bool ParseVideoInfo(const MimeType& mime_type,
 }
 
 }  // namespace
-
-// static
-std::optional<ParsedMimeInfo> ParsedMimeInfo::Create(
-    const std::string& mime_string) {
-  auto mime_type = MimeType::Create(mime_string);
-  if (!mime_type) {
-    return std::nullopt;
-  }
-
-  // Read "disablecache".
-  if (!mime_type->ValidateBoolParameter("disablecache")) {
-    return std::nullopt;
-  }
-  bool disable_cache = mime_type->GetParamBoolValue("disablecache", false);
-
-  // We only support audio or video type.
-  if (mime_type->type() != "audio" && mime_type->type() != "video") {
-    return std::nullopt;
-  }
-
-  auto codecs = mime_type->GetCodecs();
-  // We only support up to one audio codec and one video codec.
-  if (codecs.size() > 2) {
-    return std::nullopt;
-  }
-
-  AudioCodecInfo audio_info;
-  VideoCodecInfo video_info;
-
-  for (const auto& codec : codecs) {
-    if (audio_info.codec == kSbMediaAudioCodecNone &&
-        ParseAudioInfo(*mime_type, codec, &audio_info)) {
-      continue;
-    }
-    if (video_info.codec == kSbMediaVideoCodecNone &&
-        ParseVideoInfo(*mime_type, codec, &video_info)) {
-      continue;
-    }
-    // It either has an invalid codec or has two codecs of same type.
-    return std::nullopt;
-  }
-
-  return ParsedMimeInfo(std::move(*mime_type), disable_cache, audio_info,
-                        video_info);
-}
-
-ParsedMimeInfo::ParsedMimeInfo(MimeType mime_type,
-                               bool disable_cache,
-                               AudioCodecInfo audio_info,
-                               VideoCodecInfo video_info)
-    : mime_type_(std::move(mime_type)),
-      disable_cache_(disable_cache),
-      audio_info_(audio_info),
-      video_info_(video_info) {}
-
-ParsedMimeInfo ParsedMimeInfo::WithBitrate(int bitrate) const {
-  AudioCodecInfo audio_info = audio_info_;
-  VideoCodecInfo video_info = video_info_;
-
-  audio_info.bitrate = bitrate;
-  video_info.bitrate = bitrate;
-
-  return ParsedMimeInfo(mime_type_, disable_cache_, audio_info, video_info);
-}
 
 std::ostream& operator<<(std::ostream& os, const ParsedMimeInfo& mime_info) {
   os << "ParsedMimeInfo={mime_type=" << mime_info.mime_type();
