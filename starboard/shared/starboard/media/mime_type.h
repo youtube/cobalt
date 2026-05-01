@@ -109,7 +109,7 @@ class MimeType {
  private:
   // Use std::vector as the number of components are usually small and we'd like
   // to keep the order of components.
-  typedef std::vector<Param> Params;
+  using Params = std::vector<Param>;
 
   MimeType(std::string type,
            std::string subtype,
