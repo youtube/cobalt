@@ -27,11 +27,12 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 void RunOnContextRunner(void* context) {
   std::function<void()>* closure = static_cast<std::function<void()>*>(context);

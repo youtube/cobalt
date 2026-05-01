@@ -15,9 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_
 #define STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
+#include <jni.h>
+
 #include "base/memory/singleton.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -33,7 +34,7 @@ class CobaltTextToSpeechHelper {
  private:
   friend struct base::DefaultSingletonTraits<CobaltTextToSpeechHelper>;
   // Java CobaltTextToSpeechHelper instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_text_to_speech_helper_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_text_to_speech_helper_;
 
   CobaltTextToSpeechHelper() = default;
   ~CobaltTextToSpeechHelper() = default;

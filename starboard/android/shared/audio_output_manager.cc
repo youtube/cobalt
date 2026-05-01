@@ -29,10 +29,10 @@ namespace starboard {
 
 namespace {
 
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
