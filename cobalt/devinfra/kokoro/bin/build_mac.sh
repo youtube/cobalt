@@ -54,11 +54,14 @@ pipeline () {
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
+  echo "Jetski Debug: CONFIG is ${CONFIG}"
   local rbe_flag="--no-rbe"
-  if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
+  if [[ "${CONFIG}" == "devel" ]] || [[ "${CONFIG}" == "qa" ]]; then
+    echo "Jetski Debug: Enabling RBE"
     rbe_flag=""
   fi
 
+  echo "Jetski Debug: rbe_flag is ${rbe_flag}"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
     --script-executable=/usr/bin/python3 ${rbe_flag}
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
