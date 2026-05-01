@@ -192,6 +192,8 @@ static_library("cobalt_shell_switches") {
 }
 
 static_library("cobalt_shell_lib") {
+  deps = []
+
   public_deps = [
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",
@@ -306,6 +308,10 @@ static_library("cobalt_shell_lib") {
       "common/device_authentication.cc",
       "common/device_authentication.h",
     ]
+  }
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
   }
 }
 
