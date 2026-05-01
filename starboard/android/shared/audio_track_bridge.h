@@ -21,9 +21,8 @@
 #include <cstdint>
 #include <optional>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "starboard/media.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -49,52 +48,50 @@ class AudioTrackBridge {
     return !j_audio_track_bridge_.is_null() && !j_audio_data_.is_null();
   }
 
-  void Play(JNIEnv* env = base::android::AttachCurrentThread());
-  void Pause(JNIEnv* env = base::android::AttachCurrentThread());
-  void Stop(JNIEnv* env = base::android::AttachCurrentThread());
-  void PauseAndFlush(JNIEnv* env = base::android::AttachCurrentThread());
+  void Play(JNIEnv* env = jni_zero::AttachCurrentThread());
+  void Pause(JNIEnv* env = jni_zero::AttachCurrentThread());
+  void Stop(JNIEnv* env = jni_zero::AttachCurrentThread());
+  void PauseAndFlush(JNIEnv* env = jni_zero::AttachCurrentThread());
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const float* samples,
                   int num_of_samples,
-                  JNIEnv* env = base::android::AttachCurrentThread());
+                  JNIEnv* env = jni_zero::AttachCurrentThread());
   int WriteSample(const uint16_t* samples,
                   int num_of_samples,
                   int64_t sync_time,
-                  JNIEnv* env = base::android::AttachCurrentThread());
+                  JNIEnv* env = jni_zero::AttachCurrentThread());
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const uint8_t* buffer,
                   int num_of_samples,
                   int64_t sync_time,
-                  JNIEnv* env = base::android::AttachCurrentThread());
+                  JNIEnv* env = jni_zero::AttachCurrentThread());
 
   void SetPlaybackRate(double playback_rate,
-                       JNIEnv* env = base::android::AttachCurrentThread());
-  void SetVolume(double volume,
-                 JNIEnv* env = base::android::AttachCurrentThread());
+                       JNIEnv* env = jni_zero::AttachCurrentThread());
+  void SetVolume(double volume, JNIEnv* env = jni_zero::AttachCurrentThread());
 
   // |updated_at| contains the timestamp when the audio timestamp is updated on
   // return.  It can be nullptr.
   int64_t GetAudioTimestamp(int64_t* updated_at,
-                            JNIEnv* env = base::android::AttachCurrentThread());
+                            JNIEnv* env = jni_zero::AttachCurrentThread());
   bool GetAndResetHasAudioDeviceChanged(
-      JNIEnv* env = base::android::AttachCurrentThread());
-  int GetUnderrunCount(JNIEnv* env = base::android::AttachCurrentThread());
-  int GetStartThresholdInFrames(
-      JNIEnv* env = base::android::AttachCurrentThread());
-  int GetPlayState(JNIEnv* env = base::android::AttachCurrentThread());
+      JNIEnv* env = jni_zero::AttachCurrentThread());
+  int GetUnderrunCount(JNIEnv* env = jni_zero::AttachCurrentThread());
+  int GetStartThresholdInFrames(JNIEnv* env = jni_zero::AttachCurrentThread());
+  int GetPlayState(JNIEnv* env = jni_zero::AttachCurrentThread());
 
  private:
   int max_samples_per_write_;
 
-  base::android::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
   // The audio data has to be copied into a Java Array before writing into the
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  base::android::ScopedJavaGlobalRef<jobject> j_audio_data_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
 }  // namespace starboard

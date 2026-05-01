@@ -22,6 +22,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
@@ -31,11 +32,10 @@ namespace starboard {
 
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using ::base::android::AttachCurrentThread;
-using ::base::android::JavaParamRef;
-using ::base::android::ScopedJavaGlobalRef;
-using ::base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 const jint kNoOffset = 0;
 

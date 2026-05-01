@@ -69,6 +69,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
              int frames_per_channel,
              RenderCallback* render_callback) override;
   void Stop() override;
+  void Reset() override;
 
   void SetVolume(double volume) override;
   void SetPlaybackRate(double playback_rate) override;

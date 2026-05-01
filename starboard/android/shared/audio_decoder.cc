@@ -14,12 +14,11 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Can be locally set to |1| for verbose audio decoding.  Verbose audio
 // decoding will log the following transitions that take place for each audio
@@ -51,9 +50,7 @@
 namespace starboard {
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -249,7 +246,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
       return;
     }
 
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     int16_t* data = static_cast<int16_t*>(
         IncrementPointerByBytes(address, dequeue_output_result.offset));

@@ -20,6 +20,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
@@ -29,11 +30,11 @@ namespace starboard {
 namespace {
 
 using base::android::ConvertJavaStringToUTF8;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 }  // namespace
 
@@ -402,7 +403,7 @@ void MediaCodecBridge::OnMediaCodecError(
     JNIEnv* env,
     jboolean is_recoverable,
     jboolean is_transient,
-    const base::android::JavaParamRef<jstring>& diagnostic_info) {
+    const JavaParamRef<jstring>& diagnostic_info) {
   std::string diagnostic_info_in_str =
       ConvertJavaStringToUTF8(env, diagnostic_info);
   handler_->OnMediaCodecError(is_recoverable, is_transient,

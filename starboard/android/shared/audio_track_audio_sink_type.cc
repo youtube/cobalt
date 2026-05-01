@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
@@ -32,11 +31,12 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using ::base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -206,7 +206,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   int frames_in_audio_track = 0;
   int audio_track_play_state = PLAYSTATE_STOPPED;
 

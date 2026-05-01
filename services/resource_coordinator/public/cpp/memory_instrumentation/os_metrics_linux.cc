@@ -605,6 +605,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
 #if BUILDFLAG(IS_COBALT)
+  // TODO(cleanup): Remove this legacy code when appropriate.
 #if BUILDFLAG(IS_ANDROID)
   PopulateCobaltSmapsMetrics(handle, dump);
 #else  // BUILDFLAG(IS_LINUX)
@@ -653,6 +654,23 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 
   return true;
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
+                                 const MemDumpFlagSet& flags,
+                                 mojom::RawOSMemDump* dump,
+                                 base::WeakPtr<DetailedMetricsDelegate> delegate) {
+  if (!FillOSMemoryDump(handle, flags, dump)) {
+    return false;
+  }
+
+  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    FillDetailedMetrics(handle, flags, dump, std::move(delegate));
+  }
+
+  return true;
+}
+#endif
 
 // static
 std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
