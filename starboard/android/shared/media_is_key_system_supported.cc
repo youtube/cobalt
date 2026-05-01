@@ -29,7 +29,7 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
                                SbMediaAudioCodec audio_codec,
                                const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
-  // \`com.widevine.alpha; encryptionscheme="cenc"\`. We prepend "key_system/"
+  // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
   auto mime_type = MimeType::Create(std::string("key_system/") + key_system);
   if (!mime_type || !mime_type->ValidateStringParameter("encryptionscheme",

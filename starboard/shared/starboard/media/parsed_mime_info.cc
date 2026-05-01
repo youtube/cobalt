@@ -29,6 +29,10 @@ namespace {
 
 const int64_t kDefaultAudioChannels = 2;
 
+// Turns |eotf| into value of SbMediaTransferId.  If |eotf| isn't recognized the
+// function returns kSbMediaTransferIdUnknown.
+// This function supports all eotfs required by YouTube TV HTML5 Technical
+// Requirements.
 SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
   if (transfer_id == "bt709") {
     return kSbMediaTransferIdBt709;
