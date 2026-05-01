@@ -20,8 +20,10 @@
 #include <iosfwd>
 #include <locale>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -134,55 +136,63 @@ bool MimeType::ParseParamString(const std::string& param_string, Param* param) {
   return true;
 }
 
-MimeType::MimeType(const std::string& content_type) {
+// static
+std::optional<MimeType> MimeType::Create(const std::string& content_type) {
   Strings components = SplitAndTrim(content_type, ';');
 
   if (components.empty()) {
-    return;
+    return std::nullopt;
   }
 
   // 1. Verify if there is a valid type/subtype in the very beginning.
   if (ContainsSpace(components.front())) {
-    return;
+    return std::nullopt;
   }
 
   std::vector<std::string> type_and_container =
       SplitAndTrim(components.front(), '/');
   if (type_and_container.size() != 2 || type_and_container[0].empty() ||
       type_and_container[1].empty()) {
-    return;
+    return std::nullopt;
   }
-  type_ = type_and_container[0];
-  subtype_ = type_and_container[1];
+  std::string type = type_and_container[0];
+  std::string subtype = type_and_container[1];
 
   components.erase(components.begin());
+
+  std::vector<std::string> codecs;
+  Params params;
 
   // 2. Verify the parameters have valid formats, we want to be strict here.
   for (Strings::iterator iter = components.begin(); iter != components.end();
        ++iter) {
     Param param;
     if (!ParseParamString(*iter, &param)) {
-      type_.clear();
-      subtype_.clear();
-      codecs_.clear();
-      params_.clear();
-      return;
+      return std::nullopt;
     }
     // There can only be no more than one codecs parameter and it has to be
     // the first parameter if it is present.
     if (param.name == "codecs") {
-      if (!params_.empty()) {
-        type_.clear();
-        subtype_.clear();
-        codecs_.clear();
-        params_.clear();
-        return;
+      if (!params.empty()) {
+        return std::nullopt;
       }
-      codecs_ = SplitAndTrim(param.string_value, ',');
+      codecs = SplitAndTrim(param.string_value, ',');
     }
-    params_.push_back(param);
+    params.push_back(param);
   }
+
+  return MimeType(std::move(type), std::move(subtype), std::move(codecs),
+                  std::move(params));
 }
+
+MimeType::MimeType(std::string type,
+                   std::string subtype,
+                   std::vector<std::string> codecs,
+                   Params params)
+    : type_(std::move(type)),
+      subtype_(std::move(subtype)),
+      codecs_(std::move(codecs)),
+      params_(std::move(params)) {}
 
 int MimeType::GetParamCount() const {
   return static_cast<int>(params_.size());

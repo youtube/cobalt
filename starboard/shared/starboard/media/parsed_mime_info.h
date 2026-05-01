@@ -51,9 +51,12 @@ class ParsedMimeInfo {
   ParsedMimeInfo() = default;
   explicit ParsedMimeInfo(const std::string& mime_string);
 
-  explicit operator bool() const { return static_cast<bool>(mime_type_); }
+  explicit operator bool() const { return mime_type_.has_value(); }
 
-  const MimeType& mime_type() const { return mime_type_; }
+  const MimeType& mime_type() const {
+    SB_DCHECK(mime_type_);
+    return *mime_type_;
+  }
 
   // A switch in the mime string to disable caches.
   bool disable_cache() const { return disable_cache_; }
@@ -87,7 +90,7 @@ class ParsedMimeInfo {
   bool ParseVideoInfo(const std::string& codec);
   void ResetCodecInfos();
 
-  MimeType mime_type_;
+  std::optional<MimeType> mime_type_;
   bool disable_cache_ = false;
   AudioCodecInfo audio_info_;
   VideoCodecInfo video_info_;
