@@ -52,6 +52,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void SetVideoSurfaceView(void* surface_view) override {}
+  void SetExperimentalFeatures(
+      const ExperimentalFeatures& experimental_features) {}
   void Stop() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override {

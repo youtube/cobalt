@@ -19,12 +19,10 @@ import java.nio.ByteBuffer;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 
-/**
- * Encapsulates a media sample and its metadata.
- */
+/** Encapsulates a media sample and its metadata. */
 @JNINamespace("starboard")
 public final class ExoPlayerMediaSample {
-  private final ByteBuffer mSamples;
+  private final ByteBuffer mSample;
   private final int mSize;
   private final long mTimestampUsec;
   private final int mType;
@@ -32,25 +30,17 @@ public final class ExoPlayerMediaSample {
 
   @CalledByNative
   public ExoPlayerMediaSample(
-      ByteBuffer samples,
-      int size,
-      long timestamp,
-      boolean isKeyFrame,
-      int type) {
-    this.mSamples = samples;
-    this.mSize = size;
-    this.mTimestampUsec = timestamp;
-    this.mType = type;
+      ByteBuffer sample, int size, long timestamp, boolean isKeyFrame, int type) {
+    mSample = sample;
+    mSize = size;
+    mTimestampUsec = timestamp;
+    mType = type;
 
-    int flags = 0;
-    if (isKeyFrame) {
-      flags |= C.BUFFER_FLAG_KEY_FRAME;
-    }
-    this.mFlags = flags;
+    mFlags = isKeyFrame ? C.BUFFER_FLAG_KEY_FRAME : 0;
   }
 
   public ByteBuffer getSamples() {
-    return mSamples;
+    return mSample;
   }
 
   public int getSize() {
