@@ -36,16 +36,10 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 // This is how to build and run this benchmark.
 //
 // On Linux:
-// $ cobalt/build/gn.py -p linux-x64x11 -c qa
-// $ echo "sb_enable_benchmark = true" >> out/linux-x64x11_qa/args.gn
-// $ gn gen out/linux-x64x11_qa
 // $ autoninja -C out/linux-x64x11_qa starboard/benchmark:benchmark
 // $ ./out/linux-x64x11_qa/benchmark --benchmark_filter="BM_*"
 //
 // On Android:
-// $ cobalt/build/gn.py -p android-arm -c qa
-// $ echo "sb_enable_benchmark = true" >> out/android-arm_qa/args.gn
-// $ gn gen out/android-arm_qa
 // $ autoninja -C out/android-arm_qa starboard/benchmark:benchmark
 // $ adb push out/android-arm_qa/benchmark /data/local/tmp/
 // $ adb shell chmod +x /data/local/tmp/benchmark
