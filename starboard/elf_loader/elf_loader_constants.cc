@@ -16,6 +16,8 @@
 
 namespace elf_loader {
 
+const char kLz4CompressionSuffix[] = ".lz4";
+const char kZstdCompressionSuffix[] = ".zst";
 const char kCompressionSuffix[] = ".lz4";
 const char kEvergreenLibrary[] = "evergreen_library";
 const char kEvergreenContent[] = "evergreen_content";

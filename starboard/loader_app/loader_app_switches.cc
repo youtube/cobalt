@@ -25,5 +25,13 @@ const char kUseUncompressedUpdates[] = "use_uncompressed_updates";
 const char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
 const char kLoaderTrackMemory[] = "loader_track_memory";
 const char kResetEvergreenUpdate[] = "reset_evergreen_update";
+const char kStreamingDecompression[] = "streaming_decompression";
+const char kChunkedDecompression[] = "chunked_decompression";
+const char kParallelDecompression[] = "parallel_decompression";
+const char kPipelinedParallelDecompression[] = "pipelined_parallel_decompression";
+const char kSegmentDecompression[] = "segment_decompression";
+const char kFullyDeferredDecompression[] = "fully_deferred_decompression";
+const char kFlushCache[] = "flush_cache";
+const char kContentionDiagnostic[] = "contention_diagnostic";
 
 }  // namespace loader_app
