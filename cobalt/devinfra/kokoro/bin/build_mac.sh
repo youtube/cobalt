@@ -29,7 +29,15 @@ pipeline () {
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
-  gclient config --name=src "${git_url}"
+  # Do not use remote build for release.
+  if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
+    gclient config --name=src \
+      --custom-var="download_remoteexec_cfg=True" \
+      --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
+      "${git_url}"
+  else
+    gclient config --name=src "${git_url}"
+  fi
   echo "target_os=['ios']" >> .gclient
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
@@ -46,8 +54,13 @@ pipeline () {
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
+  local rbe_flag="--no-rbe"
+  if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
+    rbe_flag=""
+  fi
+
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3 --no-rbe
+    --script-executable=/usr/bin/python3 ${rbe_flag}
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done
