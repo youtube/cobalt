@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libnss3 \
     libxcomposite-dev \
+    openbox \
     xcvt \
     xserver-xorg-core \
     xserver-xorg-video-dummy \
