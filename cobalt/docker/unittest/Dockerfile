@@ -5,6 +5,7 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    dbus-x11 \
     ffmpeg \
     git \
     jq \
@@ -21,6 +22,8 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxcomposite-dev \
     xcvt \
+    xserver-xorg-core \
+    xserver-xorg-video-dummy \
     xvfb \
     xz-utils \
     zstd \
