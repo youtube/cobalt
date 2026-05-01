@@ -245,6 +245,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       break;
     }
 
+    // The audio data at the returned position by
+    // |bridge_->GetAudioTimestamp()| may either (1) already have been
+    // presented, or (2) may have not yet been presented but is committed to
+    // be presented. It is possible after |bridge_->Pause()|, the audio data
+    // is still committed to be presented as (2), which causes advancing
+    // media time gap when player resumes and dropping video frames, so
+    // player updates playback head positions when |bridge_| doesn't stop.
     audio_track_play_state = bridge_->GetPlayState();
 
     bool should_update_media_time =

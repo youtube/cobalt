@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "starboard/common/pass_key.h"
@@ -48,8 +49,8 @@ class AudioTrackBridge {
   AudioTrackBridge(
       PassKey<AudioTrackBridge>,
       int max_samples_per_write,
-      const base::android::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
-      const base::android::ScopedJavaGlobalRef<jobject>& j_audio_data);
+      const jni_zero::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
+      const jni_zero::ScopedJavaGlobalRef<jobject>& j_audio_data);
   ~AudioTrackBridge();
 
   void Play(JNIEnv* env = jni_zero::AttachCurrentThread());
@@ -91,19 +92,11 @@ class AudioTrackBridge {
  private:
   const int max_samples_per_write_;
 
-<<<<<<< HEAD
-  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
+  const jni_zero::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
   // The audio data has to be copied into a Java Array before writing into the
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
-=======
-  const base::android::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
-  // The audio data has to be copied into a Java Array before writing into the
-  // audio track. Allocating a large array and saves as a member variable
-  // avoids an array being allocated repeatedly.
-  const base::android::ScopedJavaGlobalRef<jobject> j_audio_data_;
->>>>>>> 80f93847c05 (Apply factories to Android audio track)
+  const jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
 }  // namespace starboard
