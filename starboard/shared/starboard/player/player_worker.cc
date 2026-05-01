@@ -248,7 +248,12 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
 void PlayerWorker::DoWritePendingSamples() {
   SB_CHECK(job_thread_->BelongsToCurrentThread());
-  SB_CHECK(write_pending_sample_job_token_);
+  SB_DCHECK(write_pending_sample_job_token_);
+
+  // We must manually invalidate the token here to signal the pending task has
+  // executed. This needs to happen BEFORE calling DoWriteSamples() so that any
+  // partial writes can correctly reschedule the next pending job.
+  write_pending_sample_job_token_ = JobQueue::JobToken::kInvalid;
 
   if (!pending_audio_buffers_.empty()) {
     SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);
