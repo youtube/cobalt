@@ -4,6 +4,7 @@
 
 import("//build/config/android/rules.gni")
 import("//testing/test.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 generate_jni("jni_sample_header") {
   sources = [
@@ -49,8 +50,7 @@ source_set("jni_sample_native_side") {
 }
 
 generate_jni_registration("jni_registration") {
-  targets = [ ":jni_sample_java" ]
-  manual_jni_registration = true
+  java_targets = [ ":jni_sample_java" ]
 }
 
 shared_library("jni_sample_lib") {

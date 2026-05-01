@@ -25,6 +25,9 @@
 #include "media/mojo/services/mojo_media_client.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string>
+
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/gpu/starboard/starboard_gpu_factory.h"
 
 namespace cobalt::media {
@@ -80,6 +83,7 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features;
   const gfx::Size& viewport_size;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
@@ -101,6 +105,7 @@ struct StarboardRendererTraits {
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
       const gfx::Size& viewport_size,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,

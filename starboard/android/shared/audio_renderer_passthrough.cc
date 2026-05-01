@@ -21,12 +21,12 @@
 #include "starboard/android/shared/audio_decoder_passthrough.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
-
-using base::android::ScopedJavaLocalRef;
 
 // Soft limit to ensure that the user of AudioRendererPassthrough won't keep
 // pushing data when there are enough decoded audio buffers.
@@ -145,8 +145,8 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(can_accept_more_data_.load());
 
   if (!audio_track_thread_) {
-    audio_track_thread_ =
-        JobThread::Create("AudioPassthrough", kSbThreadPriorityHigh);
+    audio_track_thread_ = JobThread::Create(
+        "AudioPassthrough", ThreadOptions().SetPriority(kSbThreadPriorityHigh));
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }

@@ -27,6 +27,10 @@ namespace starboard {
 
 class MockAudioRendererSink : public AudioRendererSink {
  public:
+  MOCK_CONST_METHOD3(GetAudioRendererParams,
+                     void(const AudioStreamInfo& audio_stream_info,
+                          int* max_cached_frames,
+                          int* min_frames_per_append));
   MOCK_CONST_METHOD1(IsAudioSampleTypeSupported,
                      bool(SbMediaAudioSampleType audio_sample_type));
   MOCK_CONST_METHOD1(
@@ -45,6 +49,7 @@ class MockAudioRendererSink : public AudioRendererSink {
                     int frames_per_channel,
                     RenderCallback* render_callback));
   MOCK_METHOD0(Stop, void());
+  MOCK_METHOD0(Reset, void());
   MOCK_METHOD1(SetVolume, void(double volume));
   MOCK_METHOD1(SetPlaybackRate, void(double playback_rate));
 

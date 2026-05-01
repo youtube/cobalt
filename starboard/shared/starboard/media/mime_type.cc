@@ -382,7 +382,7 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
           os << "(string)" << param.string_value;
           break;
         case MimeType::kParamTypeBoolean:
-          os << "(bool)" << to_string(param.bool_value);
+          os << "(bool)" << ToString(param.bool_value);
           break;
       }
     }

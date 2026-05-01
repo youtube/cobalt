@@ -14,8 +14,11 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <variant>
+
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
+#include "base/json/string_escape.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
@@ -29,6 +32,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace cobalt {
 
@@ -86,6 +90,27 @@ PrefService* GlobalFeatures::metrics_local_state() {
 void GlobalFeatures::set_accessor(
     std::unique_ptr<base::FeatureList::Accessor> accessor) {
   accessor_ = std::move(accessor);
+}
+
+const absl::flat_hash_map<std::string, GlobalFeatures::SettingValue>&
+GlobalFeatures::GetSettings() const {
+  base::AutoLock auto_lock(lock_);
+  return settings_;
+}
+
+void GlobalFeatures::SetSettings(const std::string& key,
+                                 const SettingValue& value) {
+  base::AutoLock auto_lock(lock_);
+  settings_[key] = value;
+
+  LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
+    if (const auto* s = std::get_if<std::string>(&value)) {
+      return base::GetQuotedJSONString(*s);
+    } else if (const auto* i = std::get_if<int64_t>(&value)) {
+      return std::to_string(*i);
+    }
+    NOTREACHED();
+  }();
 }
 
 void GlobalFeatures::CreateExperimentConfig() {

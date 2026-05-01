@@ -24,7 +24,15 @@ interface CobaltPerformance {
   [Sync]
   MeasureUsedCpuMemory() => (uint64 bytes);
 
-  // Get the application startup duration in microseconds (us).
+  // Get the amount of virtual memory that has been swapped out to disk in bytes.
   [Sync]
-  GetAppStartupTime() => (int64 bytes);
+  MeasureUsedSwapMemory() => (uint64 bytes);
+
+  // Get the amount of virtual memory currently allocated to the process in bytes.
+  [Sync]
+  MeasureReservedVirtualMemory() => (uint64 bytes);
+
+  // Get the application startup timestamp in microseconds (us).
+  [Sync]
+  GetAppStartupTimeStamp() => (int64 timestamp);
 };

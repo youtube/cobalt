@@ -5,10 +5,6 @@
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 # Generated sources for production
 
 generated_async_iterator_sources_in_modules = [
@@ -3229,6 +3225,8 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_settings.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_settings.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.cc",

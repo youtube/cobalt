@@ -122,8 +122,12 @@ def _get_test_args_and_dimensions(
       f'job_timeout_sec={args.job_timeout_sec}',
       f'test_timeout_sec={args.test_timeout_sec}',
       f'start_timeout_sec={args.start_timeout_sec}',
-      f'retry_level={args.retry_level}',
   ]
+
+  if args.retry_level:
+    test_args.extend([
+        f'retry_level={args.retry_level}',
+    ])
 
   if args.test_attempts:
     test_args.extend([
@@ -209,6 +213,7 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.test_attempts:
     # Must delete existing results when retries are enabled.
     params.append('gcs_delete_before_upload=true')
+
   return params
 
 
@@ -240,6 +245,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
+          '--single-process-tests',
       ])
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
@@ -355,7 +361,6 @@ def main() -> int:
   trigger_args.add_argument(
       '--retry_level',
       type=str,
-      default='ERROR',
       choices=['ERROR', 'FAIL'],
       help='Retry level for failed tests.',
   )

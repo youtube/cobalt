@@ -35,6 +35,15 @@
 
 namespace starboard {
 
+// These must be in sync with AudioTrack.PLAYSTATE_XXX constants in
+// AudioTrack.java.
+// Indicates AudioTrack state is stopped.
+constexpr jint PLAYSTATE_STOPPED = 1;
+// Indicates AudioTrack state is paused.
+constexpr jint PLAYSTATE_PAUSED = 2;
+// Indicates AudioTrack state is playing.
+constexpr jint PLAYSTATE_PLAYING = 3;
+
 class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
   static int GetMinBufferSizeInFrames(int channels,
@@ -67,6 +76,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int64_t start_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      bool allow_audio_writing_on_pause,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -113,6 +123,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      bool allow_audio_writing_on_pause,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -147,6 +158,8 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const int64_t start_time_;  // microseconds
   const int max_frames_per_request_;
   void* const context_;
+
+  const bool allow_audio_writing_on_pause_;
 
   AudioTrackBridge bridge_;
 

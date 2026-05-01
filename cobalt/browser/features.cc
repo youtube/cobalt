@@ -30,5 +30,23 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
+BASE_FEATURE(kHangReporting,
+             "HangReporting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseIPv4ForDNS,
+             "UseIPv4ForDNS",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltMetricsIntervalFeature,
+             "CobaltMetricsInterval",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCpuMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "cpu-metrics-interval", 300};
+
+const base::FeatureParam<int> kMemoryMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
+
 }  // namespace features
 }  // namespace cobalt

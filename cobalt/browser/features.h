@@ -32,6 +32,22 @@ extern const base::Feature kTestFinchFeature;
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 
+// Enables native hang reporting via Crashpad.
+extern const base::Feature kHangReporting;
+
+// Use IPv4 for system host resolution.
+extern const base::Feature kUseIPv4ForDNS;
+
+// Enables overriding the default metrics collection interval with a fixed
+// value.
+extern const base::Feature kCobaltMetricsIntervalFeature;
+
+// Sets CPU metrics collection interval in seconds (default 5 min).
+extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
+
+// Sets memory metrics collection interval in seconds (default 5 min).
+extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
+
 }  // namespace features
 }  // namespace cobalt
 

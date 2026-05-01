@@ -22,12 +22,11 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
-
-using base::android::ScopedJavaLocalRef;
 
 const int kCheckpointFramesInterval = 1024;
 
@@ -48,12 +47,11 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 class MinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(MinRequiredFramesTester* tester)
-      : Thread("min_frames_test"), tester_(tester) {}
+      : Thread("min_frames_test",
+               ThreadOptions().SetPriority(kSbThreadPriorityLowest)),
+        tester_(tester) {}
 
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityLowest);
-    tester_->TesterThreadFunc();
-  }
+  void Run() override { tester_->TesterThreadFunc(); }
 
  private:
   MinRequiredFramesTester* tester_;
@@ -133,7 +131,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
+        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, false, this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(

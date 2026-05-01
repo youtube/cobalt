@@ -2,7 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
+if (is_cobalt && is_partner_toolchain) {
   import("//copied_base/base/allocator/allocator.gni")
 } else {
 import("//base/allocator/partition_allocator/partition_alloc.gni")

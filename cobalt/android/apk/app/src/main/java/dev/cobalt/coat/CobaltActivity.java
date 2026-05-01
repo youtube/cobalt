@@ -45,7 +45,10 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.shell.ShellManagerJni;
+import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,11 +76,20 @@ public abstract class CobaltActivity extends Activity {
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
+  private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
+  private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
+
+  // How many seconds before the app exits if it fails to land YouTube home page.
+  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
+
+  // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
+  // logic will be activated for a given session.
+  private static final double STARTUP_GUARD_PROBABILITY = 0.25;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -102,11 +114,9 @@ public abstract class CobaltActivity extends Activity {
   private Boolean mIsKeepScreenOnEnabled = false;
 
   private boolean mIsCobaltUsingAndroidOverlay;
-  private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
   private boolean mEnableSplashScreen;
-  private static final String URL_TOPIC_NAME = "topic";
-  private String mUrlTopic;
+  private String mStartDeepLink;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -158,6 +168,8 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
+    StartupGuard.getInstance().setStartupMilestone(1);
+
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
@@ -168,6 +180,15 @@ public abstract class CobaltActivity extends Activity {
       }
       commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
+      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
+
+      if (!extraCommandLineArgs.isEmpty()) {
+        if (commandLineArgs != null) {
+          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+        }
+        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
+      }
+
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
@@ -176,32 +197,33 @@ public abstract class CobaltActivity extends Activity {
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
+
+    StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
+    StartupGuard.getInstance().setStartupMilestone(3);
 
     // StarboardBridge initialization must happen right after library loading,
     // before Browser/Content module is started. It currently tracks its own JNI state
     // variables, and needs to set up an early copy.
 
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
-    String startDeepLink = getIntentUrlAsString(getIntent());
-    if (startDeepLink == null) {
+    mStartDeepLink = getIntentUrlAsString(getIntent());
+    if (mStartDeepLink == null) {
       Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
-      startDeepLink = "";
+      mStartDeepLink = "";
     }
-    Uri startDeepLinkUri = Uri.parse(startDeepLink);
-    mUrlTopic = startDeepLinkUri.getQueryParameter(URL_TOPIC_NAME);
-    if (mUrlTopic == null) {
-      mUrlTopic = "";
-    }
+
+    StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
-      getStarboardBridge().handleDeepLink(startDeepLink);
+      getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
+    StartupGuard.getInstance().setStartupMilestone(7);
 
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
@@ -232,6 +254,15 @@ public abstract class CobaltActivity extends Activity {
               .orElse(null);
     }
 
+    // META_DATA_APP_URL is configured to be the same as hardcoded YOUTUBE_URL.
+    // If the app is used to start other web applications e.g google.com, because there will have no Kabuki web application code to call h5vcc.system.HideSplashScreen().
+    // We should disarm Startup Guard now.
+    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
+      StartupGuard.getInstance().disarm();
+    }
+
+    StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
         .startBrowserProcessesAsync(
@@ -253,6 +284,7 @@ public abstract class CobaltActivity extends Activity {
                 initializationFailed();
               }
             });
+
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -269,7 +301,7 @@ public abstract class CobaltActivity extends Activity {
     // that the webContents are correctly created not null.
     mShellManager.launchShell(
         "",
-        mUrlTopic,
+        mStartDeepLink,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -278,6 +310,7 @@ public abstract class CobaltActivity extends Activity {
             getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
+            mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
@@ -394,6 +427,18 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
+
+    // Use a random check to run the StartupGuard logic only a certain percentage of the time.
+    if (Math.random() < STARTUP_GUARD_PROBABILITY) {
+      if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+        Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      } else {
+        StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+      }
+    } else {
+      Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
+    }
+
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -406,6 +451,7 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
+    StartupGuard.getInstance().setStartupMilestone(9);
   }
 
   /**
@@ -456,6 +502,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -475,13 +522,16 @@ public abstract class CobaltActivity extends Activity {
     super.onStart();
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable corresponding resume event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onresume event
       webContents.onResume();
     }
     // visibility:visible event
     updateShellActivityVisible(true);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
+
+    StartupGuard.getInstance().setStartupMilestone(11);
   }
 
   @Override
@@ -498,7 +548,8 @@ public abstract class CobaltActivity extends Activity {
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable freeze event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onfreeze event
       webContents.onFreeze();
     }
@@ -516,12 +567,14 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    StartupGuard.getInstance().setStartupMilestone(12);
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
     CobaltContentBrowserClient.dispatchFocus();
+    StartupGuard.getInstance().setStartupMilestone(13);
   }
 
   @Override

@@ -11,6 +11,14 @@
 #include <string>
 #include <vector>
 
+// These headers cannot be guarded by BUILDFLAG(IS_STARBOARD) because
+// they define BUILDFLAG(IS_STARBOARD)
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -69,11 +77,19 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   Unpacker& operator=(const Unpacker&) = delete;
 
   // Begins the actual unpacking of the files. Calls `callback` with the result.
+#if BUILDFLAG(IS_STARBOARD)
+  static void Unpack(const std::vector<uint8_t>& pk_hash,
+                     const OperationResult& crx_operation_result,
+                     std::unique_ptr<Unzipper> unzipper,
+                     crx_file::VerifierFormat crx_format,
+                     base::OnceCallback<void(const Result& result)> callback);
+#else
   static void Unpack(const std::vector<uint8_t>& pk_hash,
                      const base::FilePath& path,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,
                      base::OnceCallback<void(const Result& result)> callback);
+#endif
 
  private:
   friend class base::RefCountedThreadSafe<Unpacker>;
@@ -82,9 +98,15 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // `pk_hash` is the expected public developer key's SHA256 hash. If empty,
   // the unpacker accepts any developer key. `path` is the current location
   // of the CRX.
+#if BUILDFLAG(IS_STARBOARD)
+  Unpacker(const OperationResult& crx_operation_result,
+           std::unique_ptr<Unzipper> unzipper,
+           base::OnceCallback<void(const Result& result)> callback);
+#else
   Unpacker(const base::FilePath& path,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
+#endif
 
   virtual ~Unpacker();
 
@@ -112,6 +134,9 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // callback provided in `Unpack`.
   void EndUnpacking(UnpackerError error, int extended_error = 0);
 
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult result_;
+#endif
   base::FilePath path_;
   std::unique_ptr<Unzipper> unzipper_;
   base::OnceCallback<void(const Result& result)> callback_;

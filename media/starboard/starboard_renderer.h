@@ -30,6 +30,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -55,6 +56,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+                    const StarboardRendererConfig::ExperimentalFeatures&
+                        experimental_features,
                     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
@@ -121,6 +124,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  using GetDecodeTargetGraphicsContextProviderFunc =
+      base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
+  void set_decode_target_graphics_context_provider(
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func);
 
   SbPlayerInterface* GetSbPlayerInterface();
 
@@ -178,6 +187,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   void OnBufferingStateChange(BufferingState state);
 
+  void NotifyError(PipelineStatus status);
+
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const std::unique_ptr<MediaLog> media_log_;
@@ -186,6 +197,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
+  // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
@@ -262,6 +275,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   SbWindow sb_window_ = kSbWindowInvalid;
 
   raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
+
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
 
   // Message to signal a capability changed error.
   // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be
