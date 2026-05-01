@@ -21,11 +21,9 @@
 #include "cobalt/android/jni_headers/AudioPermissionRequester_jni.h"
 
 namespace starboard {
-using jni_zero::AttachCurrentThread;
-using jni_zero::ScopedJavaLocalRef;
 
 bool RequestRecordAudioPermission(JNIEnv* env) {
-  ScopedJavaLocalRef<jobject> j_audio_permission_requester =
+  jni_zero::ScopedJavaLocalRef<jobject> j_audio_permission_requester =
       StarboardBridge::GetInstance()->GetAudioPermissionRequester(env);
 
   jboolean j_permission =

@@ -42,7 +42,6 @@ const char* g_app_cache_dir = NULL;
 const char* g_app_lib_dir = NULL;
 
 namespace {
-using jni_zero::AttachCurrentThread;
 using jni_zero::ScopedJavaGlobalRef;
 
 // A ScopedJavaGlobalRef<jobject> representing the Android AssetManager
@@ -57,7 +56,7 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
                              const std::string& files_dir,
                              const std::string& cache_dir,
                              const std::string& native_library_dir) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   SB_DCHECK(g_java_asset_manager.is_null());
   SB_DCHECK_EQ(g_asset_manager, nullptr);

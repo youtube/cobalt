@@ -32,8 +32,6 @@
 namespace starboard {
 namespace {
 
-using jni_zero::AttachCurrentThread;
-
 void RunOnContextRunner(void* context) {
   std::function<void()>* closure = static_cast<std::function<void()>*>(context);
   (*closure)();
@@ -78,7 +76,7 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
   surface_texture_ =
       VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, texture);

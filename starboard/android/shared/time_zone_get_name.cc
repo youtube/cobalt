@@ -21,13 +21,10 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "third_party/jni_zero/jni_zero.h"
 
-using jni_zero::AttachCurrentThread;
-using jni_zero::ScopedJavaLocalRef;
-
 const char* SbTimeZoneGetName() {
   static char s_time_zone_id[64];
   // Note tzset() is called in ApplicationAndroid::Initialize()
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::string time_zone_id =
       starboard::StarboardBridge::GetInstance()->GetTimeZoneId(env);
 

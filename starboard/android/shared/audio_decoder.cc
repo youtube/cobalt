@@ -50,7 +50,6 @@
 namespace starboard {
 namespace {
 
-using jni_zero::AttachCurrentThread;
 using jni_zero::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -247,7 +246,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
       return;
     }
 
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     int16_t* data = static_cast<int16_t*>(
         IncrementPointerByBytes(address, dequeue_output_result.offset));

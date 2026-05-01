@@ -21,8 +21,6 @@
 
 namespace starboard {
 
-using jni_zero::AttachCurrentThread;
-
 namespace {
 
 float GetMaximumFrameIntervalInMilliseconds() {
@@ -71,7 +69,7 @@ bool DefaultGetRenderRootTransform(float* m00,
 }
 
 void ReportFullyDrawn() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   StarboardBridge::GetInstance()->ReportFullyDrawn(env);
 }
 

@@ -23,8 +23,6 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "third_party/jni_zero/jni_zero.h"
 
-using jni_zero::AttachCurrentThread;
-
 void SbPlayerSetBounds(SbPlayer player,
                        int z_index,
                        int x,
@@ -36,7 +34,7 @@ void SbPlayerSetBounds(SbPlayer player,
     return;
   }
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   starboard::StarboardBridge::GetInstance()->SetVideoSurfaceBounds(
       env, x, y, width, height);
   player->SetBounds(z_index, x, y, width, height);
