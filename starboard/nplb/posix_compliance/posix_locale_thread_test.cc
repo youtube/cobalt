@@ -172,7 +172,7 @@ TEST_F(PosixLocaleThreadTest, DupLocale) {
   EXPECT_NE(nullptr, duplicated_locale.get());
 
   ScopedLocale locale_reference(
-      duplocale(newlocale(LC_ALL, test_locale, duplicated_locale.get())));
+      newlocale(LC_ALL, test_locale, duplicated_locale.release()));
   EXPECT_NE(locale_reference.get(), original_locale.get());
 
   locale_t previous_locale = uselocale(original_locale.get());

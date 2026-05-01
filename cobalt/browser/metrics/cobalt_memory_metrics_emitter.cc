@@ -26,6 +26,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
+#include "media/base/media_client.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -63,32 +64,44 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kAllocatedObjectsSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
+    {"blink_gc",
+     "BlinkGC.Fragmentation",
+     CobaltMemoryMetricsEmitter::MetricSize::kPercentage,
+     "fragmentation",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"blink_gc/main",
+     "BlinkGC.Main.Heap.Fragmentation",
+     CobaltMemoryMetricsEmitter::MetricSize::kPercentage,
+     "fragmentation",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
     {"blink_objects/Document",
-     "Tiny.NumberOfDocuments",
+     "NumberOfDocuments",
      CobaltMemoryMetricsEmitter::MetricSize::kTiny,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"blink_objects/Frame",
-     "Tiny.NumberOfFrames",
+     "NumberOfFrames",
      CobaltMemoryMetricsEmitter::MetricSize::kTiny,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"blink_objects/LayoutObject",
-     "Tiny.NumberOfLayoutObjects",
+     "NumberOfLayoutObjects",
      CobaltMemoryMetricsEmitter::MetricSize::kTiny,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"blink_objects/Node",
-     "Small.NumberOfNodes",
+     "NumberOfNodes",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"font_caches/shape_caches",
-     "Small.FontCaches",
+     "FontCaches",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      "size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
@@ -100,7 +113,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"leveldatabase",
-     "Small.LevelDatabase",
+     "LevelDatabase",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
@@ -136,19 +149,19 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"skia/sk_glyph_cache",
-     "Skia.Small.SkGlyphCache",
+     "Skia.SkGlyphCache",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      "size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"sqlite",
-     "Small.Sqlite",
+     "Sqlite",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"ui",
-     "Small.UI",
+     "UI",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
@@ -177,8 +190,8 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
 
 constexpr char kExperimentalUmaPrefix[] = "Memory.Experimental.";
 constexpr char kVersionSuffixNormal[] = "2.";
-constexpr char kVersionSuffixSmall[] = "2.";
-constexpr char kVersionSuffixTiny[] = "2.";
+constexpr char kVersionSuffixSmall[] = "2.Small.";
+constexpr char kVersionSuffixTiny[] = "2.Tiny.";
 
 static const char* MetricSizeToVersionSuffix(
     CobaltMemoryMetricsEmitter::MetricSize size) {
@@ -198,7 +211,12 @@ static const char* MetricSizeToVersionSuffix(
 
 }  // namespace
 
-CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() = default;
+CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
+  // The emitter is created on the main thread but will be used
+  // on a background sequence maintained by base::SequenceBound
+  // in CobaltMetricsServiceClient.
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+}
 
 void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -287,6 +305,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   uint64_t private_footprint_total_kb = 0;
   uint64_t shared_footprint_total_kb = 0;
   uint64_t resident_set_total_kb = 0;
+  uint64_t private_footprint_swap_total_kb = 0;
+  uint64_t vm_size_total_kb = 0;
 
   for (const auto& pmd : global_dump_->process_dumps()) {
     HistogramProcessType ptype;
@@ -311,8 +331,59 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+#if !BUILDFLAG(IS_IOS_TVOS)
+    // TODO: b/497706115 - This field does not exist on tvOS.
+    private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
+    vm_size_total_kb += pmd.os_dump().vm_size_kb;
+
+    // Manually calculate fragmentation for individual processes as it may not
+    // be present in the dump.
+    const uint64_t blink_gc_bytes =
+        pmd.GetMetric("blink_gc", kEffectiveSize).value_or(0);
+    const uint64_t blink_gc_allocated_objects_bytes =
+        pmd.GetMetric("blink_gc", kAllocatedObjectsSize).value_or(0);
+    if (blink_gc_bytes > 0) {
+      uint64_t fragmentation =
+          (blink_gc_bytes > blink_gc_allocated_objects_bytes)
+              ? blink_gc_bytes - blink_gc_allocated_objects_bytes
+              : 0;
+      int fragmentation_pct =
+          static_cast<int>(fragmentation * 100 / blink_gc_bytes);
+      static const Metric kBlinkGCFragMetric = {
+          "blink_gc",      "BlinkGC.Fragmentation", MetricSize::kPercentage,
+          "fragmentation", EmitTo::kSizeInUmaOnly,  {}};
+      EmitProcessUma(ptype, kBlinkGCFragMetric, fragmentation_pct);
+    }
+
+    const uint64_t blink_gc_main_bytes =
+        pmd.GetMetric("blink_gc/main", kEffectiveSize).value_or(0);
+    const uint64_t blink_gc_main_allocated_objects_bytes =
+        pmd.GetMetric("blink_gc/main", kAllocatedObjectsSize).value_or(0);
+    if (blink_gc_main_bytes > 0) {
+      uint64_t fragmentation =
+          (blink_gc_main_bytes > blink_gc_main_allocated_objects_bytes)
+              ? blink_gc_main_bytes - blink_gc_main_allocated_objects_bytes
+              : 0;
+      int fragmentation_pct =
+          static_cast<int>(fragmentation * 100 / blink_gc_main_bytes);
+      static const Metric kBlinkGCMainFragMetric = {
+          "blink_gc/main",         "BlinkGC.Main.Heap.Fragmentation",
+          MetricSize::kPercentage, "fragmentation",
+          EmitTo::kSizeInUmaOnly,  {}};
+      EmitProcessUma(ptype, kBlinkGCMainFragMetric, fragmentation_pct);
+    }
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
+      // Skip the standard metrics if we are overriding them with
+      // the more accurate RSS values below.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+      if (std::string_view(item.uma_name) == "PartitionAlloc" ||
+          std::string_view(item.uma_name) == "V8" ||
+          std::string_view(item.uma_name) == "Malloc") {
+        continue;
+      }
+#endif
       std::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
@@ -331,6 +402,43 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
         std::string(kMemoryHistogramPrefix) + process_name +
             ".SharedMemoryFootprint",
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+    std::string prefix =
+        base::StrCat({kMemoryHistogramPrefix, process_name, "."});
+    std::string exp_prefix = base::StrCat(
+        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal});
+
+    auto emit_accurate_rss = [&](const char* name, uint32_t value_kb) {
+      base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, name, "Rss"}),
+                                      static_cast<int>(value_kb / kKiB));
+      base::UmaHistogramMemoryLargeMB(base::StrCat({exp_prefix, name}),
+                                      static_cast<int>(value_kb / kKiB));
+    };
+
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({prefix, "LibChrobaltPss"}),
+        static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({prefix, "LibChrobaltRss"}),
+        static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+
+    emit_accurate_rss("PartitionAlloc", pmd.os_dump().partition_alloc_rss_kb);
+#if BUILDFLAG(IS_ANDROID)
+    emit_accurate_rss("Malloc", pmd.os_dump().malloc_rss_kb);
+    emit_accurate_rss("CodeOther", pmd.os_dump().code_other_rss_kb);
+    emit_accurate_rss("Fonts", pmd.os_dump().fonts_rss_kb);
+    emit_accurate_rss("AshmemJit", pmd.os_dump().ashmem_jit_rss_kb);
+    emit_accurate_rss("AndroidRuntime", pmd.os_dump().android_runtime_rss_kb);
+#endif  // BUILDFLAG(IS_ANDROID)
+    emit_accurate_rss("Stacks", pmd.os_dump().stacks_rss_kb);
+
+    // Override V8 with accurate RSS.
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({exp_prefix, "V8"}),
+        static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
+
+#endif
   }
 
   base::UmaHistogramMemoryLargeMB(
@@ -342,6 +450,19 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryLargeMB(
       "Memory.Total.SharedMemoryFootprint",
       static_cast<int>(shared_footprint_total_kb / kKiB));
+  // VM specific metrics
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Total.PrivateFootprintSwap",
+      static_cast<int>(private_footprint_swap_total_kb / kKiB));
+  base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
+                                  static_cast<int>(vm_size_total_kb / kKiB));
+  // UMA metrics for media buffer memory usage
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  uint64_t encoded_memory_bytes =
+      media::MediaClient::GetMediaSourceTotalAllocatedMemory();
+  base::UmaHistogramMemoryMB("Memory.Media.AllocatedEncodedBuffer",
+                             static_cast<int>(encoded_memory_bytes / kMiB));
+#endif
 
   global_dump_ = nullptr;
 

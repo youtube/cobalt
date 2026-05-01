@@ -31,6 +31,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "starboard/decode_target.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android_overlay_mojo_factory.h"
@@ -119,6 +120,13 @@ class StarboardRendererWrapper
                               RendererClient* client,
                               PipelineStatusCallback init_cb);
   bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider();
+
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
@@ -127,6 +135,12 @@ class StarboardRendererWrapper
   StarboardRenderer renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_ = {};
+
+  bool is_gpu_factory_initialized_ = false;
 
   raw_ptr<StarboardRenderer> test_renderer_;
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;

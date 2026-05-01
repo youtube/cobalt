@@ -33,7 +33,7 @@
 
 namespace {
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !defined(IN_MEMORY_UPDATES)
 // Can't simply use base::DeletePathRecursively() because the empty dirs
 // need to be preserved.
 void CleanupDirectory(base::FilePath& dir) {
@@ -83,7 +83,7 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 UrlFetcherDownloader::~UrlFetcherDownloader() = default;
 
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url, std::string* dst) {
 #else  // defined(IN_MEMORY_UPDATES)
@@ -132,6 +132,8 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
   }
+  config_->SetUpdaterStatus(std::string(
+      GetUpdaterStatusStringMap().find(UpdaterStatus::kSlotLocked)->second));
   // Use 15 sec delay to allow for other updaters/loaders to settle down.
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
@@ -151,7 +153,7 @@ base::OnceClosure UrlFetcherDownloader::DoStartDownload(const GURL& url, std::st
 base::OnceClosure UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 #endif  // defined(IN_MEMORY_UPDATES)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   LOG(INFO) << "UrlFetcherDownloader::DoStartDownload";
   if (is_cancelled_) {
     LOG(ERROR) << "UrlFetcherDownloader::DoStartDownload: Download already cancelled";
@@ -191,11 +193,9 @@ void UrlFetcherDownloader::DoCancelDownload() {
   LOG(INFO) << "UrlFetcherDownloader::DoCancelDownload";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   is_cancelled_ = true;
-  // TODO(b/431862767): enable this in a follow-up PR with the Cobalt network fetcher implementation
-  NOTIMPLEMENTED();
-  // if (network_fetcher_.get()) {
-  //   network_fetcher_->Cancel();
-  // }
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
 }
 #endif
 
@@ -206,7 +206,7 @@ void UrlFetcherDownloader::CreateDownloadDir() {
 }
 #endif
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url,
                                                  CrxDownloaderError error) {
   LOG(INFO) << "UrlFetcherDownloader::ReportDownloadFailure";                                                
@@ -272,6 +272,7 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
       base::BindOnce(&UrlFetcherDownloader::OnNetworkFetcherComplete, this));
 #else
   file_path_ = download_dir_.AppendASCII(url.ExtractFileName());
+  LOG(INFO) << "UrlFetcherDownloader::StartURLFetch, file_path_ =" << file_path_.value().c_str();
   network_fetcher_->DownloadToFile(
       url, file_path_,
       base::BindRepeating(&UrlFetcherDownloader::OnResponseStarted, this),
@@ -368,7 +369,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
 #else
     result.response = file_path_;
 #endif
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
     result.installation_index = cobalt_slot_management_.GetInstallationIndex();
 #endif
   }

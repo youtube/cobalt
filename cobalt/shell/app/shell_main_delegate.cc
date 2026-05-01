@@ -34,7 +34,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
-#include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -96,11 +95,6 @@ enum class LoggingDest {
   kHandle,
 #endif
 };
-
-#if !BUILDFLAG(IS_ANDROIDTV)
-base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;  // NOLINT
-#endif
 
 void InitLogging(const base::CommandLine& command_line) {
   LoggingDest dest = LoggingDest::kFile;
@@ -228,27 +222,6 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
 }
 
 void ShellMainDelegate::PreSandboxStartup() {
-// Disable platform crash handling and initialize the crash reporter, if
-// requested.
-// TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
-#if !BUILDFLAG(IS_ANDROIDTV)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableCrashReporter)) {
-    std::string process_type =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            switches::kProcessType);
-    crash_reporter::SetCrashReporterClient(g_shell_crash_client.Pointer());
-    // Reporting for sub-processes will be initialized in ZygoteForked.
-    if (process_type != switches::kZygoteProcess) {
-      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-#if BUILDFLAG(IS_LINUX)
-      crash_reporter::SetFirstChanceExceptionHandler(
-          v8::TryHandleWebAssemblyTrapPosix);
-#endif
-    }
-  }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
-
 #if !BUILDFLAG(IS_ANDROIDTV)
   crash_reporter::InitializeCrashKeys();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)

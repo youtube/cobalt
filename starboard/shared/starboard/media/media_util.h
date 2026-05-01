@@ -150,6 +150,8 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 int AudioDurationToFrames(int64_t duration, int samples_per_second);
 int64_t AudioFramesToDuration(int frames, int samples_per_second);
 
+int AlignUp(int value, int alignment);
+
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_

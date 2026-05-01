@@ -20,6 +20,9 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
+#include "components/update_client/persisted_data.h"
+#include "starboard/extension/installation_manager.h"
 #else
 namespace base {
 class FilePath;
@@ -33,11 +36,13 @@ class CrxCache;
 
 #if BUILDFLAG(IS_STARBOARD)
 struct OperationResult {
-  base::FilePath response;
 #if defined(IN_MEMORY_UPDATES)
   base::FilePath installation_dir;
+  base::raw_ptr<const std::string> crx_str;
+#else
+  base::FilePath response;
 #endif
-  int installation_index = -1;
+  int installation_index = IM_EXT_INVALID_INDEX;
 };
 
 using Operation = base::OnceCallback<base::OnceClosure(
@@ -78,6 +83,10 @@ void MakePipeline(
     // This function does not take ownership of `crx_str`, which must refer to a
     // valid string that outlives the created pipeline operations.
     std::string* crx_str,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    PersistedData* metadata,
+    const std::string& next_version,
 #endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,

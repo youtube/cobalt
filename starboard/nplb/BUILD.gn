@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 declare_args() {
@@ -115,6 +114,7 @@ test("nplb") {
       "microphone_open_test.cc",
       "microphone_read_test.cc",
       "murmurhash2_test.cc",
+      "posix_compliance/getrandom_test.cc",
       "posix_compliance/madvise_test.cc",
       "posix_compliance/malloc_usable_size_test.cc",
       "posix_compliance/posix_aligned_alloc_test.cc",
@@ -308,7 +308,6 @@ test("nplb") {
       "system_symbolize_test.cc",
       "thread_get_id_test.cc",
       "thread_priority_test.cc",
-      "thread_sampler_test.cc",
       "thread_test.cc",
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",

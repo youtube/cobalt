@@ -16,7 +16,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
@@ -51,9 +51,12 @@ void CobaltWebContentsObserver::SetTimerForTestInternal(
 
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
-  if (!handle->IsInPrimaryMainFrame()) {
-    LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
-              << " not in primary mainframe, returning";
+  // M138 refinement: Ensure we don't restart timers for subframes or
+  // background prerenders that haven't been activated yet.
+  if (!handle->IsInPrimaryMainFrame() ||
+      handle->IsServedFromBackForwardCache()) {
+    LOG(INFO) << "DidStartNavigation: Skipping timer for " << handle->GetURL()
+              << " (Not primary mainframe or served from BFCache)";
     return;
   }
 
@@ -62,7 +65,7 @@ void CobaltWebContentsObserver::DidStartNavigation(
   timeout_timer_->Stop();
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
-      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+      base::BindOnce(&CobaltWebContentsObserver::OnNavigationTimeout,
                      weak_factory_.GetWeakPtr()));
 }
 
@@ -80,16 +83,35 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   timeout_timer_->Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
+    base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
+                              true);
+    base::UmaHistogramSparse("Cobalt.WebContentsObserver.FailedNavigationError",
+                             -net_error_code);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
+    SetStartupDiagnosisInfo("navigation_error",
+                            net::ErrorToString(net_error_code).c_str());
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
+    base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
+                              false);
 #if BUILDFLAG(IS_ANDROIDTV)
     platform_error_raised_count_ = 0;
 #endif
   }
+}
+
+void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
+                                                        const char* value) {
+#if BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(key,
+                                                                     value);
+#endif
+}
+
+void CobaltWebContentsObserver::OnNavigationTimeout() {
+  base::UmaHistogramBoolean("Cobalt.Network.NavigationTimeout", true);
+  RaisePlatformError();
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
@@ -102,8 +124,8 @@ void CobaltWebContentsObserver::RaisePlatformError() {
     return;
   }
   platform_error_raised_count_++;
-  UMA_HISTOGRAM_COUNTS_100("Cobalt.Network.CumulativePlatformErrorRaised",
-                           platform_error_raised_count_);
+  base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
+                              platform_error_raised_count_);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());

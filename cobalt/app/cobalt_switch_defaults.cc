@@ -14,7 +14,12 @@
 
 #include "cobalt/app/cobalt_switch_defaults.h"
 
+#include <algorithm>
+#include <string>
+
 #include "base/base_switches.h"
+#include "base/check.h"
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "cobalt/shell/common/shell_switches.h"
