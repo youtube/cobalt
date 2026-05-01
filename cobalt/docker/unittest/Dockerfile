@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libnss3 \
     libxcomposite-dev \
+    xcvt \
     xvfb \
     xz-utils \
     zstd \
