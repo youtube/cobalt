@@ -162,6 +162,8 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
         return false;
       }
       break;
+    case kSbMediaVideoCodecAv2:
+      return false;
   }
 
   std::string cryptoblockformat =
