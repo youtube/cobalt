@@ -133,7 +133,6 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
     int tunnel_mode_audio_session_id,
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state,
     void* context) {
   std::unique_ptr<AudioTrackBridge> bridge = AudioTrackBridge::Create(
       kSbMediaAudioCodingTypePcm, sample_type, channels, sampling_frequency_hz,
@@ -149,7 +148,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
       sample_type, frame_buffers, frames_per_channel,
       preferred_buffer_size_in_bytes, callbacks, start_time,
       tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-      pause_using_audio_track_state, std::move(bridge), context);
+      std::move(bridge), context);
 }
 
 AudioTrackAudioSink::AudioTrackAudioSink(
@@ -165,7 +164,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     int64_t start_time,
     int tunnel_mode_audio_session_id,
     bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state,
     std::unique_ptr<AudioTrackBridge> bridge,
     void* context)
     : type_(type),
@@ -182,7 +180,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
       allow_audio_writing_on_pause_(allow_audio_writing_on_pause),
-      pause_using_audio_track_state_(pause_using_audio_track_state),
       bridge_(std::move(bridge)),
       audio_out_thread_(std::make_unique<AudioTrackOutThread>(this)) {
   SB_DCHECK(callbacks_.update_source_status);
@@ -244,16 +241,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       break;
     }
 
-    if (pause_using_audio_track_state_) {
-      // The audio data at the returned position by
-      // |bridge_.GetAudioTimestamp()| may either (1) already have been
-      // presented, or (2) may have not yet been presented but is committed to
-      // be presented. It is possible after |bridge_.Pause()|, the audio data
-      // is still committed to be presented as (2), which causes advancing
-      // media time gap when player resumes and dropping video frames, so
-      // player updates playback head positions when |bridge_| doesn't stop.
-      audio_track_play_state = bridge_->GetPlayState();
-    }
+    audio_track_play_state = bridge_->GetPlayState();
 
     bool should_update_media_time =
         (audio_track_play_state == PLAYSTATE_PLAYING ||
@@ -536,8 +524,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes, callbacks,
       start_media_time, tunnel_mode_audio_session_id, is_web_audio,
-      allow_audio_writing_on_pause, false /* pause_using_audio_track_state */,
-      context);
+      allow_audio_writing_on_pause, context);
   if (!audio_sink) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

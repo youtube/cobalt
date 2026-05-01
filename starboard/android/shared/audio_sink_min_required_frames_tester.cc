@@ -130,7 +130,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
         {UpdateSourceStatusFunc, ConsumeFramesFunc, ErrorFunc}, 0, -1, false,
-        false, false, this);
+        false, this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(
