@@ -125,7 +125,10 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   if (audio_codec != kSbMediaAudioCodecNone) {
     auto audio_mime_type = MimeType::Create(audio_mime);
     if (strlen(audio_mime) > 0 && !audio_mime_type) {
-      SB_LOG(WARNING) << "Invalid audio mime type: " << audio_mime;
+      SB_LOG(ERROR) << "Invalid audio mime type: " << audio_mime;
+      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                        "Invalid audio mime type.");
+      return kSbPlayerInvalid;
     }
     if (!MediaIsAudioSupported(audio_codec,
                                audio_mime_type ? &*audio_mime_type : nullptr,
@@ -150,14 +153,13 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   if (video_codec != kSbMediaVideoCodecNone) {
     auto video_mime_type = MimeType::Create(video_mime);
     if (strlen(video_mime) > 0 && !video_mime_type) {
-      SB_LOG(WARNING) << "Invalid video mime type: " << video_mime;
+      SB_LOG(ERROR) << "Invalid video mime type: " << video_mime;
+      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                        "Invalid video mime type.");
+      return kSbPlayerInvalid;
     }
-    MimeType legacy_video_mime =
-        video_mime_type ? *video_mime_type : MimeType();
     if (!MediaIsVideoSupported(
-            video_codec,
-            (strlen(video_mime) > 0 || video_mime_type) ? &legacy_video_mime
-                                                        : nullptr,
+            video_codec, video_mime_type ? &*video_mime_type : nullptr,
             kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
             kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
             kSbMediaMatrixIdUnspecified, kDefaultFrameWidth,
