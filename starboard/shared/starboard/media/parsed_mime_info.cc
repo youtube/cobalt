@@ -15,10 +15,12 @@
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
 #include <cmath>
+#include <ostream>
 #include <string>
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 
 namespace starboard {
@@ -185,6 +187,29 @@ ParsedMimeInfo ParsedMimeInfo::WithBitrate(int bitrate) const {
   video_info.bitrate = bitrate;
 
   return ParsedMimeInfo(mime_type_, disable_cache_, audio_info, video_info);
+}
+
+std::ostream& operator<<(std::ostream& os, const ParsedMimeInfo& mime_info) {
+  os << "ParsedMimeInfo={mime_type=" << mime_info.mime_type();
+  if (mime_info.has_audio_info()) {
+    const auto& audio = mime_info.audio_info();
+    os << ", audio_info={codec=" << GetMediaAudioCodecName(audio.codec)
+       << ", channels=" << audio.channels << "}";
+  }
+  if (mime_info.has_video_info()) {
+    const auto& video = mime_info.video_info();
+    os << ", video_info={codec=" << GetMediaVideoCodecName(video.codec)
+       << ", profile=" << video.profile << ", level=" << video.level
+       << ", bit_depth=" << video.bit_depth
+       << ", primary_id=" << GetMediaPrimaryIdName(video.primary_id)
+       << ", transfer_id=" << GetMediaTransferIdName(video.transfer_id)
+       << ", matrix_id=" << GetMediaMatrixIdName(video.matrix_id)
+       << ", width=" << video.frame_width << ", height=" << video.frame_height
+       << ", fps=" << video.fps << ", decode_to_texture_required="
+       << ToString(video.decode_to_texture_required) << "}";
+  }
+  os << "}";
+  return os;
 }
 
 }  // namespace starboard

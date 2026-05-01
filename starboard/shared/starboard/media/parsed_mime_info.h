@@ -24,7 +24,6 @@
 
 namespace starboard {
 
-// TODO: add unit tests for ParsedMimeInfo
 class ParsedMimeInfo {
  public:
   struct AudioCodecInfo {
@@ -89,6 +88,8 @@ class ParsedMimeInfo {
   const AudioCodecInfo audio_info_;
   const VideoCodecInfo video_info_;
 };
+
+std::ostream& operator<<(std::ostream& os, const ParsedMimeInfo& mime_info);
 
 }  // namespace starboard
 

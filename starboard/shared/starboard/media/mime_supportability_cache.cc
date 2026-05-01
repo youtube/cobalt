@@ -225,33 +225,8 @@ void MimeSupportabilityCache::DumpCache() {
   std::stringstream ss;
   ss << "\n========Dumping MimeSupportabilityCache========";
   for (const auto& entry_iter : entries_) {
-    const ParsedMimeInfo& mime_info = entry_iter.second.mime_info;
     ss << "\nMime: " << entry_iter.first;
-    ss << "\n  ParsedMimeInfo:";
-    ss << "\n    MimeType : " << mime_info.mime_type();
-    if (mime_info.has_audio_info()) {
-      const ParsedMimeInfo::AudioCodecInfo& audio_info = mime_info.audio_info();
-      ss << "\n    Audio Codec : " << GetMediaAudioCodecName(audio_info.codec);
-      ss << "\n    Channels : " << audio_info.channels;
-    }
-    if (mime_info.has_video_info()) {
-      const ParsedMimeInfo::VideoCodecInfo& video_info = mime_info.video_info();
-      ss << "\n    Video Codec : " << GetMediaVideoCodecName(video_info.codec);
-      ss << "\n    Profile : " << video_info.profile;
-      ss << "\n    Level : " << video_info.level;
-      ss << "\n    BitDepth : " << video_info.bit_depth;
-      ss << "\n    PrimaryId : "
-         << GetMediaPrimaryIdName(video_info.primary_id);
-      ss << "\n    TransferId : "
-         << GetMediaTransferIdName(video_info.transfer_id);
-      ss << "\n    MatrixId : " << GetMediaMatrixIdName(video_info.matrix_id);
-      ss << "\n    Width : " << video_info.frame_width;
-      ss << "\n    Height : " << video_info.frame_height;
-      ss << "\n    Fps : " << video_info.fps;
-      ss << "\n    DecodeToTexture : "
-         << ToString(video_info.decode_to_texture_required);
-    }
-
+    ss << "\n  ParsedMimeInfo: " << entry_iter.second.mime_info;
     ss << "\n  MaxSupportedBitrate: "
        << entry_iter.second.max_supported_bitrate;
     ss << "\n  MinUnsupportedBitrate: "
