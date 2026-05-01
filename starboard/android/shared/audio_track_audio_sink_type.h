@@ -156,6 +156,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   class AudioTrackOutThread;
 
   void AudioThreadFunc();
+  void SpawnThread();
 
   int WriteData(JNIEnv* env, const void* buffer, int size, int64_t sync_time);
 
@@ -180,6 +181,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const std::unique_ptr<AudioTrackBridge> bridge_;
 
   volatile bool quit_ = false;
+  // Guaranteed to be non-null.
   const std::unique_ptr<Thread> audio_out_thread_;
 
   std::mutex mutex_;

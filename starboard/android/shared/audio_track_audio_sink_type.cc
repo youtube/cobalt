@@ -142,12 +142,15 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
     return nullptr;
   }
 
-  return std::make_unique<AudioTrackAudioSink>(
+  auto audio_sink = std::make_unique<AudioTrackAudioSink>(
       PassKey<AudioTrackAudioSink>(), type, channels, sampling_frequency_hz,
       sample_type, frame_buffers, frames_per_channel,
       preferred_buffer_size_in_bytes, callbacks, start_time,
       tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
       std::move(bridge), context);
+
+  audio_sink->SpawnThread();
+  return audio_sink;
 }
 
 AudioTrackAudioSink::AudioTrackAudioSink(
@@ -187,7 +190,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_CHECK(bridge_);
 
   SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
+}
 
+void AudioTrackAudioSink::SpawnThread() {
   audio_out_thread_->Start();
 }
 
