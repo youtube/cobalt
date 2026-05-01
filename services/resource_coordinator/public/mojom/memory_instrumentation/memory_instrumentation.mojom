@@ -224,7 +224,7 @@ struct RawOSMemDump {
 
   // Generic map for detailed memory metrics.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  map<string, uint32>? detailed_stats_kb;
+  map<string, uint64>? detailed_stats_kb;
 
   // Timestamp of the last successful detailed memory dump.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
@@ -318,7 +318,7 @@ struct OSMemDump {
 
   // Generic map for detailed memory metrics.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  map<string, uint32>? detailed_stats_kb;
+  map<string, uint64>? detailed_stats_kb;
 
   // Timestamp of the last successful detailed memory dump.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]

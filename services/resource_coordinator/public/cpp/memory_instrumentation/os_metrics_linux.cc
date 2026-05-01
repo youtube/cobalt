@@ -8,7 +8,6 @@
 #endif
 
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
 
 #include <dlfcn.h>
 #include <fcntl.h>
@@ -592,8 +591,7 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
-                                 mojom::RawOSMemDump* dump,
-                                 DetailedMetricsDelegate* /*delegate*/) {
+                                 mojom::RawOSMemDump* dump) {
   auto info = GetMemoryInfo(handle);
   if (!info.has_value()) {
     return false;
