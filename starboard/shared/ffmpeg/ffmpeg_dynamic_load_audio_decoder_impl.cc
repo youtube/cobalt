@@ -19,6 +19,8 @@
 // This file contains the creation of the specialized AudioDecoderImpl object
 // corresponding to the version of the dynamically loaded ffmpeg library.
 
+#include <memory>
+
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl_interface.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
@@ -27,12 +29,12 @@
 namespace starboard {
 
 // static
-FfmpegAudioDecoder* FfmpegAudioDecoder::Create(
+std::unique_ptr<FfmpegAudioDecoder> FfmpegAudioDecoder::Create(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
-  if (!ffmpeg || !ffmpeg->is_valid()) {
-    return NULL;
+  if (!ffmpeg) {
+    return nullptr;
   }
 
   switch (ffmpeg->specialization_version()) {

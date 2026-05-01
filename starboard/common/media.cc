@@ -624,6 +624,8 @@ const char* GetMediaVideoCodecName(SbMediaVideoCodec codec) {
       return "vp8";
     case kSbMediaVideoCodecVp9:
       return "vp9";
+    case kSbMediaVideoCodecAv2:
+      return "av2";
   }
   SB_NOTREACHED();
   return "invalid";

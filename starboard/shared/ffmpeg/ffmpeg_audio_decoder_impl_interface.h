@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_INTERFACE_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_INTERFACE_H_
 
+#include <memory>
+
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/internal_only.h"
@@ -27,8 +29,9 @@ namespace starboard {
 template <int V>
 class FfmpegAudioDecoderImpl : public FfmpegAudioDecoder {
  public:
-  static FfmpegAudioDecoder* Create(JobQueue* job_queue,
-                                    const AudioStreamInfo& audio_stream_info);
+  static std::unique_ptr<FfmpegAudioDecoder> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info);
 };
 
 }  // namespace starboard
