@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <string>
 #include <unordered_map>
@@ -31,6 +32,11 @@ typedef enum Supportability {
   kSupportabilitySupported,
   kSupportabilityNotSupported,
 } Supportability;
+
+struct MimeSupportabilityResult {
+  Supportability supportability;
+  std::optional<ParsedMimeInfo> mime_info;
+};
 
 // MimeSupportabilityCache caches the supportabilities of raw mime strings.
 // To increase cache hit rate, it strips bitrate from the raw mime string, and
@@ -63,12 +69,11 @@ class MimeSupportabilityCache {
   // ParsedMimeInfo, it will parse the mime string and cache the result.
   // If we cannot get a valid ParsedMimeInfo from |mime|,
   // GetMimeSupportability() will return kSupportabilityNotSupported with an
-  // invalid ParsedMimeInfo. Ideally, we should decouple mime parsing and
+  // empty mime_info. Ideally, we should decouple mime parsing and
   // supportability cache, but considering that the cache is only for internal
   // use, to avoid repeated lookups, we do parsing in this function for now.
-  // Note that |mime| and |mime_info| cannot be null.
-  Supportability GetMimeSupportability(const char* mime,
-                                       ParsedMimeInfo* mime_info);
+  // Note that |mime| cannot be null.
+  MimeSupportabilityResult GetMimeSupportability(const char* mime);
 
   // Update cached supportability of the mime string.
   // Note that if |supportability| is kSupportabilityUnknown or we cannot
@@ -91,7 +96,7 @@ class MimeSupportabilityCache {
     int max_supported_bitrate = -1;
     int min_unsupported_bitrate = INT_MAX;
 
-    explicit Entry(const std::string& mime) : mime_info(mime) {}
+    explicit Entry(ParsedMimeInfo info) : mime_info(std::move(info)) {}
   };
 
   // Class can only be instanced via the singleton
@@ -101,7 +106,7 @@ class MimeSupportabilityCache {
   MimeSupportabilityCache(const MimeSupportabilityCache&) = delete;
   MimeSupportabilityCache& operator=(const MimeSupportabilityCache&) = delete;
 
-  Entry& GetEntry_Locked(const std::string& mime_string);
+  Entry* GetEntry_Locked(const std::string& mime_string);
   Supportability IsBitrateSupported_Locked(const Entry& entry,
                                            int bitrate) const;
   void UpdateBitrateSupportability_Locked(Entry* entry,

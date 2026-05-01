@@ -116,10 +116,10 @@ class MimeType {
            std::vector<std::string> codecs,
            Params params);
 
-  std::string type_;
-  std::string subtype_;
-  std::vector<std::string> codecs_;
-  Params params_;
+  const std::string type_;
+  const std::string subtype_;
+  const std::vector<std::string> codecs_;
+  const Params params_;
 };
 
 }  // namespace starboard
