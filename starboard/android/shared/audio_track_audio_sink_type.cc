@@ -138,7 +138,6 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
       kSbMediaAudioCodingTypePcm, sample_type, channels, sampling_frequency_hz,
       preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
       is_web_audio);
-
   if (!bridge) {
     return nullptr;
   }

@@ -87,6 +87,7 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
   int max_samples_per_write = 0;
   ScopedJavaGlobalRef<jobject> j_audio_data;
   if (coding_type != kSbMediaAudioCodingTypePcm) {
+    SB_DCHECK(!sample_type);
     max_samples_per_write = kMaxFramesPerRequest;
     j_audio_data.Reset(env, env->NewByteArray(max_samples_per_write));
   } else if (sample_type == kSbMediaAudioSampleTypeFloat32) {
