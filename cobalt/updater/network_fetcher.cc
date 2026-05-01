@@ -31,7 +31,6 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
-#include "services/network/public/cpp/simple_url_loader_throttle.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
 
@@ -111,9 +110,6 @@ void NetworkFetcher::PostRequest(
   }
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
-  if (network::SimpleURLLoaderThrottle::IsBatchingEnabled(traffic_annotation)) {
-    simple_url_loader_->SetAllowBatching();
-  }
   simple_url_loader_->SetRetryOptions(
       kMaxRetriesOnNetworkChange,
       network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
@@ -134,11 +130,15 @@ void NetworkFetcher::PostRequest(
              PostRequestCompleteCallback post_request_complete_callback,
              std::unique_ptr<std::string> response_body) {
             LOG(INFO) << "post_request_complete_callback, response_body="
-                      << response_body->c_str();
+                      << (response_body ? response_body->c_str() : "null");
+            std::optional<std::string> optional_body =
+                response_body ? std::make_optional(std::move(*response_body))
+                              : std::nullopt;
             std::move(post_request_complete_callback)
-                .Run(std::move(response_body), simple_url_loader->NetError(),
+                .Run(std::move(optional_body), simple_url_loader->NetError(),
                      GetStringHeader(simple_url_loader, kHeaderEtag),
                      GetStringHeader(simple_url_loader, kHeaderXCupServerProof),
+                     GetStringHeader(simple_url_loader, kHeaderCookie),
                      GetInt64Header(simple_url_loader, kHeaderXRetryAfter));
           },
           simple_url_loader_.get(), std::move(post_request_complete_callback)),
@@ -158,7 +158,7 @@ void NetworkFetcher::DownloadToString(
 }
 
 #else
-void NetworkFetcher::DownloadToFile(
+base::OnceClosure NetworkFetcher::DownloadToFile(
     const GURL& url,
     const base::FilePath& file_path,
     ResponseStartedCallback response_started_callback,
@@ -196,6 +196,7 @@ void NetworkFetcher::DownloadToFile(
           simple_url_loader_.get(),
           std::move(download_to_file_complete_callback)),
       file_path);
+  return base::DoNothing();
 }
 #endif
 

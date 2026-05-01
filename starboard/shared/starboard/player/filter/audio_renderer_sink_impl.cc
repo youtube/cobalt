@@ -149,6 +149,13 @@ void AudioRendererSinkImpl::Stop() {
   }
 }
 
+void AudioRendererSinkImpl::Reset() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  // TODO: b/330793785 - Flush AudioSink on ATV
+  Stop();
+}
+
 void AudioRendererSinkImpl::SetVolume(double volume) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 

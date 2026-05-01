@@ -15,6 +15,10 @@
 import("//cobalt/build/configs/hacks.gni")
 import("//testing/test.gni")
 
+if (is_ios && target_platform == "tvos" && is_internal_build) {
+  import("//cobalt/internal/starboard/shared/uikit/uikit.gni")
+}
+
 declare_args() {
   sb_enable_cast_codec_tests = false
 }
@@ -380,5 +384,9 @@ test("nplb") {
       "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
     ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
+  }
+
+  if (is_ios && target_platform == "tvos" && is_internal_build) {
+    sources += internal_uikit_test_sources
   }
 }
