@@ -141,6 +141,7 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::CrxDownloaderFactory> crx_downloader_factory_;
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
+  scoped_refptr<update_client::CrxCache> crx_cache_;
   // TODO(b/449220798): Consider using PostTask and thread checker
   std::string updater_channel_ GUARDED_BY(updater_channel_lock_);
   mutable base::Lock updater_channel_lock_;
