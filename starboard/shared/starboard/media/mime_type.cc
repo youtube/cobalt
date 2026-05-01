@@ -155,8 +155,8 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
       type_and_container[1].empty()) {
     return std::nullopt;
   }
-  std::string type = type_and_container[0];
-  std::string subtype = type_and_container[1];
+  std::string type = std::move(type_and_container[0]);
+  std::string subtype = std::move(type_and_container[1]);
 
   components.erase(components.begin());
 
@@ -164,10 +164,9 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
   Params params;
 
   // 2. Verify the parameters have valid formats, we want to be strict here.
-  for (Strings::iterator iter = components.begin(); iter != components.end();
-       ++iter) {
+  for (const auto& component : components) {
     Param param;
-    if (!ParseParamString(*iter, &param)) {
+    if (!ParseParamString(component, &param)) {
       return std::nullopt;
     }
     // There can only be no more than one codecs parameter and it has to be
@@ -178,7 +177,7 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
       }
       codecs = SplitAndTrim(param.string_value, ',');
     }
-    params.push_back(param);
+    params.push_back(std::move(param));
   }
 
   return MimeType(std::move(type), std::move(subtype), std::move(codecs),
