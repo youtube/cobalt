@@ -39,6 +39,9 @@ void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
   pthread_mutex_lock(&g_codec_mutex);
   if (avcodec_close) {
     avcodec_close(codec_context);
+  } else {
+    SB_LOG(INFO) << "avcodec_close is unavailable (likely due to modern FFMPEG "
+                    "version). Cleanup is handled by avcodec_free_context.";
   }
   pthread_mutex_unlock(&g_codec_mutex);
 }
