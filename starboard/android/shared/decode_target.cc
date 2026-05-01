@@ -27,11 +27,10 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
-
-using base::android::AttachCurrentThread;
 
 void RunOnContextRunner(void* context) {
   std::function<void()>* closure = static_cast<std::function<void()>*>(context);
@@ -77,7 +76,7 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
   surface_texture_ =
       VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, texture);

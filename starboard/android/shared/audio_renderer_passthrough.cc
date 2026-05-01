@@ -23,11 +23,10 @@
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
-
-using base::android::ScopedJavaLocalRef;
 
 // Soft limit to ensure that the user of AudioRendererPassthrough won't keep
 // pushing data when there are enough decoded audio buffers.
