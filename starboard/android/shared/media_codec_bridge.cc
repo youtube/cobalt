@@ -458,7 +458,7 @@ void MediaCodecBridge::OnMediaCodecError(
     JNIEnv* env,
     jboolean is_recoverable,
     jboolean is_transient,
-    const jni_zero::JavaParamRef<jstring>& diagnostic_info) {
+    const JavaParamRef<jstring>& diagnostic_info) {
   std::string diagnostic_info_in_str =
       ConvertJavaStringToUTF8(env, diagnostic_info);
   handler_->OnMediaCodecError(is_recoverable, is_transient,

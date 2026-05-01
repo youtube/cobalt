@@ -39,8 +39,10 @@ namespace starboard {
 
 namespace {
 
+using jni_zero::AttachCurrentThread;
+
 bool Has(const char* name) {
-  JNIEnv* env = jni_zero::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   return starboard::StarboardBridge::GetInstance()->HasCobaltService(env, name);
 }
 
@@ -48,7 +50,7 @@ CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
-  JNIEnv* env = jni_zero::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
 
   if (!Has(name)) {
     SB_LOG(ERROR) << "Can't open Service " << name;
@@ -74,7 +76,7 @@ void Close(CobaltExtensionPlatformService service) {
     return;
   }
 
-  JNIEnv* env = jni_zero::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   Java_CobaltService_onClose(env, service->cobalt_service);
 
   starboard::StarboardBridge::GetInstance()->CloseCobaltService(
@@ -97,7 +99,7 @@ void* Send(CobaltExtensionPlatformService service,
     return nullptr;
   }
 
-  JNIEnv* env = jni_zero::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
   auto j_response = Java_CobaltService_receiveFromClient(

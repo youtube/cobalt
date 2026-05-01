@@ -30,7 +30,6 @@ namespace starboard {
 namespace {
 
 using jni_zero::JavaParamRef;
-using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
 // Constants for output types from

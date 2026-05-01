@@ -28,8 +28,6 @@ namespace starboard {
 
 namespace {
 
-using jni_zero::ScopedJavaLocalRef;
-
 const int kCheckpointFramesInterval = 1024;
 
 // Helper function to compute the size of the two valid starboard audio sample

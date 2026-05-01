@@ -26,8 +26,6 @@
 
 namespace starboard {
 
-using ::jni_zero::ScopedJavaGlobalRef;
-
 bool GetHomeDirectory(char* out_path, int path_size) {
   int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);
   return len < path_size;

@@ -27,7 +27,6 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace {
-using jni_zero::ScopedJavaGlobalRef;
 using starboard::ApplicationAndroid;
 
 typedef std::function<void(SbSystemPlatformErrorResponse error_response)>

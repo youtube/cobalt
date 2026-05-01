@@ -400,7 +400,7 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-jni_zero::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
     JNIEnv* env,
     jlong native_service,
     const char* service_name) {

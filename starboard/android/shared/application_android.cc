@@ -45,6 +45,7 @@ namespace starboard {
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using jni_zero::AttachCurrentThread;
 using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
@@ -76,14 +77,14 @@ ApplicationAndroid::ApplicationAndroid(
   // class.
   RuntimeResourceOverlay::GetInstance();
 
-  JNIEnv* jni_env = jni_zero::AttachCurrentThread();
+  JNIEnv* jni_env = AttachCurrentThread();
   app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp(jni_env);
 
   starboard_bridge_->ApplicationStarted(jni_env);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
-  JNIEnv* env = jni_zero::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
 }
 

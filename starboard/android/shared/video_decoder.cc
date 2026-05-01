@@ -49,7 +49,7 @@ namespace starboard {
 namespace {
 
 using jni_zero::AttachCurrentThread;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -1062,13 +1062,13 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-void updateTexImage(const jni_zero::JavaRef<jobject>& surface_texture) {
+void updateTexImage(const JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
   VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
 }
 
-void getTransformMatrix(const jni_zero::JavaRef<jobject>& surface_texture,
+void getTransformMatrix(const JavaRef<jobject>& surface_texture,
                         float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -1076,7 +1076,8 @@ void getTransformMatrix(const jni_zero::JavaRef<jobject>& surface_texture,
   SB_CHECK(java_array);
 
   VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture, JavaParamRef<jfloatArray>(env, java_array));
+      env, surface_texture,
+      jni_zero::JavaParamRef<jfloatArray>(env, java_array));
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);

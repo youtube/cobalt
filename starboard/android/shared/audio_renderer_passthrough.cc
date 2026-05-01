@@ -28,8 +28,6 @@
 namespace starboard {
 namespace {
 
-using jni_zero::ScopedJavaLocalRef;
-
 // Soft limit to ensure that the user of AudioRendererPassthrough won't keep
 // pushing data when there are enough decoded audio buffers.
 constexpr int kMaxDecodedAudios = 64;

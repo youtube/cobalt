@@ -284,7 +284,7 @@ VideoCodecCapability::VideoCodecCapability(
     bool is_tunnel_sup,
     bool is_software_decoder,
     bool is_hdr_capable,
-    jni_zero::ScopedJavaGlobalRef<jobject> j_video_cap,
+    ScopedJavaGlobalRef<jobject> j_video_cap,
     Range supported_widths,
     Range supported_heights,
     Range supported_bitrates,

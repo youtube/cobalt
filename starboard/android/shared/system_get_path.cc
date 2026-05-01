@@ -27,7 +27,6 @@
 #include "starboard/common/string.h"
 #include "third_party/jni_zero/jni_zero.h"
 
-using ::jni_zero::ScopedJavaGlobalRef;
 using ::starboard::g_app_assets_dir;
 using ::starboard::g_app_cache_dir;
 using ::starboard::g_app_files_dir;
