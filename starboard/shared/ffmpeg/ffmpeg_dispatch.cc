@@ -37,7 +37,9 @@ int FFMPEGDispatch::OpenCodec(AVCodecContext* codec_context,
 
 void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
   pthread_mutex_lock(&g_codec_mutex);
-  avcodec_close(codec_context);
+  if (avcodec_close) {
+    avcodec_close(codec_context);
+  }
   pthread_mutex_unlock(&g_codec_mutex);
 }
 
