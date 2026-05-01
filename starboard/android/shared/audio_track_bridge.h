@@ -36,12 +36,6 @@ class AudioTrackBridge {
   // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
-  AudioTrackBridge(
-      PassKey<AudioTrackBridge>,
-      int max_samples_per_write,
-      const base::android::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
-      const base::android::ScopedJavaGlobalRef<jobject>& j_audio_data);
-
   static std::unique_ptr<AudioTrackBridge> Create(
       SbMediaAudioCodingType coding_type,
       std::optional<SbMediaAudioSampleType> sample_type,
@@ -50,6 +44,12 @@ class AudioTrackBridge {
       int preferred_buffer_size_in_bytes,
       int tunnel_mode_audio_session_id,
       bool is_web_audio);
+
+  AudioTrackBridge(
+      PassKey<AudioTrackBridge>,
+      int max_samples_per_write,
+      const base::android::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
+      const base::android::ScopedJavaGlobalRef<jobject>& j_audio_data);
   ~AudioTrackBridge();
 
   void Play(JNIEnv* env = jni_zero::AttachCurrentThread());

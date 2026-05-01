@@ -114,21 +114,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 
 class AudioTrackAudioSink : public SbAudioSinkImpl {
  public:
-  AudioTrackAudioSink(PassKey<AudioTrackAudioSink>,
-                      Type* type,
-                      int channels,
-                      int sampling_frequency_hz,
-                      SbMediaAudioSampleType sample_type,
-                      SbAudioSinkFrameBuffers frame_buffers,
-                      int frames_per_channel,
-                      int preferred_buffer_size,
-                      AudioTrackAudioSinkType::Callbacks callbacks,
-                      int64_t start_media_time,
-                      int tunnel_mode_audio_session_id,
-                      bool allow_audio_writing_on_pause,
-                      std::unique_ptr<AudioTrackBridge> bridge,
-                      void* context);
-
   static std::unique_ptr<AudioTrackAudioSink> Create(
       Type* type,
       int channels,
@@ -143,6 +128,21 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       bool is_web_audio,
       bool allow_audio_writing_on_pause,
       void* context);
+
+  AudioTrackAudioSink(PassKey<AudioTrackAudioSink>,
+                      Type* type,
+                      int channels,
+                      int sampling_frequency_hz,
+                      SbMediaAudioSampleType sample_type,
+                      SbAudioSinkFrameBuffers frame_buffers,
+                      int frames_per_channel,
+                      int preferred_buffer_size,
+                      AudioTrackAudioSinkType::Callbacks callbacks,
+                      int64_t start_media_time,
+                      int tunnel_mode_audio_session_id,
+                      bool allow_audio_writing_on_pause,
+                      std::unique_ptr<AudioTrackBridge> bridge,
+                      void* context);
   ~AudioTrackAudioSink() override;
 
   bool IsType(Type* type) override { return type_ == type; }
