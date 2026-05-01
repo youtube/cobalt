@@ -17,13 +17,13 @@
 // clang-format on
 
 #include "starboard/android/shared/starboard_bridge.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaLocalRef;
 
 void SbSpeechSynthesisCancel() {
   JNIEnv* env = AttachCurrentThread();
