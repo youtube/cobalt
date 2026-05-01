@@ -29,6 +29,10 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
+import android.os.Build;
+import androidx.annotation.RequiresApi;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
@@ -452,6 +456,10 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
     StartupGuard.getInstance().setStartupMilestone(9);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.register(this, this);
+    }
   }
 
   /**
@@ -817,6 +825,23 @@ public abstract class CobaltActivity extends Activity {
   private void updateShellActivityVisible(boolean isVisible) {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
+    }
+  }
+
+  @RequiresApi(api = 33)
+  private static class OnBackInvokedHelper {
+    static void register(final Activity activity, final CobaltActivity cobaltActivity) {
+      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+          new OnBackInvokedCallback() {
+            @Override
+            public void onBackInvoked() {
+              // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+              cobaltActivity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+              cobaltActivity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+            }
+          }
+      );
     }
   }
 }
