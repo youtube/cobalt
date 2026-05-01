@@ -155,6 +155,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   // Sets the memory limit, in bytes, on the SourceBufferStream.
   void SetStreamMemoryLimit(size_t memory_limit);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Will set the memory limit ceiling, and will update the memory limit if
+  // the memory limit > memory limit ceiling.
+  void ApplyStreamMemoryLimitCeiling(size_t ceiling);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void SetLiveness(StreamLiveness liveness);
 

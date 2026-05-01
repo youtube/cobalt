@@ -393,7 +393,6 @@ TEST_F(SourceBufferStateTest, SetVideoBufferSizeClampMb) {
   AddVideoTrack(tracks, VideoCodec::kVP9, 1);
 
   EXPECT_FOUND_CODEC_NAME(Video, "vp9");
-  EXPECT_MEDIA_LOG("{\"info\":\"Custom video per-track SourceBuffer size limit=10485760\"}");
   EXPECT_CALL(*this, MediaTracksUpdatedMock(_));
   EXPECT_TRUE(AppendDataAndReportTracks(sbs, std::move(tracks)));
   

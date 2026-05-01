@@ -185,6 +185,14 @@ class MEDIA_EXPORT SourceBufferStream {
     memory_limit_overridden_ = true;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Will set |memory_limit_ceiling_| and will also clamp |memory_limit_| if memory_limit_ceiling_ < |memory_limit_|.
+  void ApplyMemoryLimitCeiling(size_t ceiling) {
+    memory_limit_ceiling_ = ceiling;
+    memory_limit_ = std::min(memory_limit_, memory_limit_ceiling_);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // A helper function for detecting video/audio config change, so that we
   // can "peek" the next buffer instead of dequeuing it directly from the source
   // stream buffer queue.
@@ -502,6 +510,11 @@ class MEDIA_EXPORT SourceBufferStream {
   // eviction heuristic can cause the result to vary from the value set in
   // constructor.
   size_t memory_limit_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Clamp value to put a limit on the maximum value |memory_limit_| can be.
+  size_t memory_limit_ceiling_ = std::numeric_limits<size_t>::max();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Set to true in |set_memory_limit()| to signal that the |memory_limit_| has
   // been overridden, and |memory_limit_| shouldn't be updated again in
