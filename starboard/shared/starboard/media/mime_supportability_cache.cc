@@ -151,8 +151,8 @@ void StripAndParseBitrate(const char* mime,
 SB_ONCE_INITIALIZE_FUNCTION(MimeSupportabilityCache,
                             MimeSupportabilityCache::GetInstance)
 
-MimeSupportabilityResult MimeSupportabilityCache::GetMimeSupportability(
-    const char* mime) {
+MimeSupportabilityCache::MimeSupportabilityResult
+MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
   SB_DCHECK(mime);
 
   // Strip the bitrate from mime string and check it separately.
@@ -293,7 +293,7 @@ MimeSupportabilityCache::Entry* MimeSupportabilityCache::GetEntry_Locked(
 Supportability MimeSupportabilityCache::IsBitrateSupported_Locked(
     const Entry& entry,
     int bitrate) const {
-  SB_DCHECK(bitrate >= 0);
+  SB_DCHECK_GT(bitrate, 0);
 
   if (bitrate <= entry.max_supported_bitrate) {
     return kSupportabilitySupported;
@@ -309,8 +309,8 @@ void MimeSupportabilityCache::UpdateBitrateSupportability_Locked(
     int bitrate,
     Supportability supportability) {
   SB_DCHECK(entry);
-  SB_DCHECK(bitrate >= 0);
-  SB_DCHECK(supportability != kSupportabilityUnknown);
+  SB_DCHECK_GE(bitrate, 0);
+  SB_DCHECK_NE(supportability, kSupportabilityUnknown);
 
   if (supportability == kSupportabilitySupported) {
     SB_DCHECK_LT(bitrate, entry->min_unsupported_bitrate);

@@ -45,8 +45,8 @@ SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
 bool ParseAudioInfo(const MimeType& mime_type,
                     const std::string& codec,
                     ParsedMimeInfo::AudioCodecInfo* audio_info) {
-  SB_DCHECK(audio_info);
-  SB_DCHECK(audio_info->codec == kSbMediaAudioCodecNone);
+  SB_CHECK(audio_info);
+  SB_CHECK_EQ(audio_info->codec, kSbMediaAudioCodecNone);
 
   SbMediaAudioCodec audio_codec =
       GetAudioCodecFromString(codec.c_str(), mime_type.subtype().c_str());

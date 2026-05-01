@@ -315,11 +315,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
             ? creation_parameters.audio_mime()
             : "";
-    auto audio_mime_type = MimeType::Create(audio_mime);
-    if (!audio_mime.empty()) {
-      if (!audio_mime_type) {
-        return Failure("Invalid audio MIME: '" + audio_mime + "'");
-      }
+    if (!audio_mime.empty() && !MimeType::Create(audio_mime)) {
+      return Failure("Invalid audio MIME: '" + audio_mime + "'");
     }
 
     const std::string video_mime =
@@ -327,13 +324,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             ? creation_parameters.video_mime()
             : "";
     auto video_mime_type = MimeType::Create(video_mime);
-    if (!video_mime.empty()) {
-      if (!video_mime_type ||
-          !video_mime_type->ValidateBoolParameter("tunnelmode") ||
-          !video_mime_type->ValidateBoolParameter("enableflushduringseek") ||
-          !video_mime_type->ValidateBoolParameter("enableresetaudiodecoder")) {
-        return Failure("Invalid video MIME: '" + video_mime + "'");
-      }
+    if (!video_mime.empty() &&
+        (!video_mime_type ||
+         !video_mime_type->ValidateBoolParameter("tunnelmode") ||
+         !video_mime_type->ValidateBoolParameter("enableflushduringseek") ||
+         !video_mime_type->ValidateBoolParameter("enableresetaudiodecoder"))) {
+      return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
     int tunnel_mode_audio_session_id = -1;

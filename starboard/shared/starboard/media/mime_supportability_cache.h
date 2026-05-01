@@ -33,11 +33,6 @@ typedef enum Supportability {
   kSupportabilityNotSupported,
 } Supportability;
 
-struct MimeSupportabilityResult {
-  Supportability supportability;
-  std::optional<ParsedMimeInfo> mime_info;
-};
-
 // MimeSupportabilityCache caches the supportabilities of raw mime strings.
 // To increase cache hit rate, it strips bitrate from the raw mime string, and
 // stores a supported bitrate range for mime strings with same other attributes.
@@ -73,6 +68,10 @@ class MimeSupportabilityCache {
   // supportability cache, but considering that the cache is only for internal
   // use, to avoid repeated lookups, we do parsing in this function for now.
   // Note that |mime| cannot be null.
+  struct MimeSupportabilityResult {
+    Supportability supportability;
+    std::optional<ParsedMimeInfo> mime_info;
+  };
   MimeSupportabilityResult GetMimeSupportability(const char* mime);
 
   // Update cached supportability of the mime string.
