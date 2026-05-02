@@ -24,10 +24,12 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
@@ -52,6 +54,12 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 
   AudioTrackAudioSinkType();
 
+  struct Callbacks {
+    SbAudioSinkUpdateSourceStatusFunc update_source_status;
+    SbAudioSinkPrivate::ConsumeFramesFunc consume_frames;
+    SbAudioSinkPrivate::ErrorFunc error;
+  };
+
   SbAudioSink Create(
       int channels,
       int sampling_frequency_hz,
@@ -63,21 +71,18 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-  SbAudioSink Create(
-      int channels,
-      int sampling_frequency_hz,
-      SbMediaAudioSampleType audio_sample_type,
-      SbMediaAudioFrameStorageType audio_frame_storage_type,
-      SbAudioSinkFrameBuffers frame_buffers,
-      int frames_per_channel,
-      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-      SbAudioSinkPrivate::ErrorFunc error_func,
-      int64_t start_time,
-      int tunnel_mode_audio_session_id,
-      bool is_web_audio,
-      bool allow_audio_writing_on_pause,
-      void* context);
+  SbAudioSink Create(int channels,
+                     int sampling_frequency_hz,
+                     SbMediaAudioSampleType audio_sample_type,
+                     SbMediaAudioFrameStorageType audio_frame_storage_type,
+                     SbAudioSinkFrameBuffers frame_buffers,
+                     int frames_per_channel,
+                     Callbacks callbacks,
+                     int64_t start_time,
+                     int tunnel_mode_audio_session_id,
+                     bool is_web_audio,
+                     bool allow_audio_writing_on_pause,
+                     void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
@@ -109,7 +114,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 
 class AudioTrackAudioSink : public SbAudioSinkImpl {
  public:
-  AudioTrackAudioSink(
+  static std::unique_ptr<AudioTrackAudioSink> Create(
       Type* type,
       int channels,
       int sampling_frequency_hz,
@@ -117,17 +122,29 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       SbAudioSinkFrameBuffers frame_buffers,
       int frames_per_channel,
       int preferred_buffer_size,
-      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      ConsumeFramesFunc consume_frames_func,
-      SbAudioSinkPrivate::ErrorFunc error_func,
+      AudioTrackAudioSinkType::Callbacks callbacks,
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
       bool allow_audio_writing_on_pause,
       void* context);
+
+  AudioTrackAudioSink(PassKey<AudioTrackAudioSink>,
+                      Type* type,
+                      int channels,
+                      int sampling_frequency_hz,
+                      SbMediaAudioSampleType sample_type,
+                      SbAudioSinkFrameBuffers frame_buffers,
+                      int frames_per_channel,
+                      int preferred_buffer_size,
+                      AudioTrackAudioSinkType::Callbacks callbacks,
+                      int64_t start_media_time,
+                      int tunnel_mode_audio_session_id,
+                      bool allow_audio_writing_on_pause,
+                      std::unique_ptr<AudioTrackBridge> bridge,
+                      void* context);
   ~AudioTrackAudioSink() override;
 
-  bool IsAudioTrackValid() const { return bridge_.is_valid(); }
   bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
 
@@ -139,6 +156,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   class AudioTrackOutThread;
 
   void AudioThreadFunc();
+  void SpawnThread();
 
   int WriteData(JNIEnv* env, const void* buffer, int size, int64_t sync_time);
 
@@ -146,25 +164,25 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   int64_t GetFramesDurationUs(int frames) const;
 
-  Type* const type_;
+  const raw_ptr<Type> type_;
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;
-  void* frame_buffer_;
+  const raw_ptr<void> frame_buffer_;
   const int frames_per_channel_;
-  const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  const ConsumeFramesFunc consume_frames_func_;
-  const SbAudioSinkPrivate::ErrorFunc error_func_;
+  const AudioTrackAudioSinkType::Callbacks callbacks_;
   const int64_t start_time_;  // microseconds
   const int max_frames_per_request_;
-  void* const context_;
+  const raw_ptr<void> context_;
 
   const bool allow_audio_writing_on_pause_;
 
-  AudioTrackBridge bridge_;
+  // Guaranteed to be non-null.
+  const std::unique_ptr<AudioTrackBridge> bridge_;
 
   volatile bool quit_ = false;
-  std::unique_ptr<Thread> audio_out_thread_;
+  // Guaranteed to be non-null.
+  const std::unique_ptr<Thread> audio_out_thread_;
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;

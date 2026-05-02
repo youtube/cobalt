@@ -19,8 +19,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 
+#include "starboard/common/pass_key.h"
 #include "starboard/media.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -35,18 +37,21 @@ class AudioTrackBridge {
   // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
-  AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                   std::optional<SbMediaAudioSampleType> sample_type,
-                   int channels,
-                   int sampling_frequency_hz,
-                   int preferred_buffer_size_in_bytes,
-                   int tunnel_mode_audio_session_id,
-                   bool is_web_audio);
-  ~AudioTrackBridge();
+  static std::unique_ptr<AudioTrackBridge> Create(
+      SbMediaAudioCodingType coding_type,
+      std::optional<SbMediaAudioSampleType> sample_type,
+      int channels,
+      int sampling_frequency_hz,
+      int preferred_buffer_size_in_bytes,
+      int tunnel_mode_audio_session_id,
+      bool is_web_audio);
 
-  bool is_valid() const {
-    return !j_audio_track_bridge_.is_null() && !j_audio_data_.is_null();
-  }
+  AudioTrackBridge(
+      PassKey<AudioTrackBridge>,
+      int max_samples_per_write,
+      const jni_zero::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
+      const jni_zero::ScopedJavaGlobalRef<jobject>& j_audio_data);
+  ~AudioTrackBridge();
 
   void Play(JNIEnv* env = jni_zero::AttachCurrentThread());
   void Pause(JNIEnv* env = jni_zero::AttachCurrentThread());
@@ -85,13 +90,13 @@ class AudioTrackBridge {
   int GetPlayState(JNIEnv* env = jni_zero::AttachCurrentThread());
 
  private:
-  int max_samples_per_write_;
+  const int max_samples_per_write_;
 
-  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
+  const jni_zero::ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
   // The audio data has to be copied into a Java Array before writing into the
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
+  const jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
 }  // namespace starboard
