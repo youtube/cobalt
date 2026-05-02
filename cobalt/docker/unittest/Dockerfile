@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxcomposite-dev \
     openbox \
+    xcompmgr \
     xcvt \
     xserver-xorg-core \
     xserver-xorg-video-dummy \
