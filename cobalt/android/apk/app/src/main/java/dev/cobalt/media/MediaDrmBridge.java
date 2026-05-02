@@ -620,7 +620,7 @@ public class MediaDrmBridge {
    *     following two cases: 1. MediaCrypto is successfully created and notified. 2. Device is not
    *     provisioned and MediaCrypto creation will be tried again after the provisioning process is
    *     completed.
-   *     When false is returned, the caller should call release(), which will notify the native
+   *     <p>When false is returned, the caller should call release(), which will notify the native
    *     code with a null MediaCrypto, if needed.
    */
   private boolean createMediaCrypto() {
