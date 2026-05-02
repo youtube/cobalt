@@ -220,6 +220,7 @@ public class ExoPlayerBridge {
   @CalledByNative
   public void release() {
     mIsReleased = true;
+    mIsProgressing = false;
     if (mPlayer == null) {
       Log.w(TAG, "Attempted to destroy ExoPlayer after it has already been released.");
       return;
@@ -387,6 +388,9 @@ public class ExoPlayerBridge {
    */
   @CalledByNative
   private synchronized long getCurrentPositionUsec() {
+    if (mIsReleased) {
+      return mLastPlaybackPosUsec;
+    }
     long currentPositionUsec = mLastPlaybackPosUsec;
     if (mIsProgressing) {
       currentPositionUsec +=
@@ -396,7 +400,7 @@ public class ExoPlayerBridge {
                   * 1000);
     }
 
-    return mSeekTimeUsec;
+    return currentPositionUsec;
   }
 
   private void reportError(String errorMessage) {

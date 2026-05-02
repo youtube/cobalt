@@ -38,7 +38,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
   private final Format mFormat;
   private final Object mLock = new Object();
 
-  @GuardedBy("mlock")
+  @GuardedBy("mLock")
   private ExoPlayerMediaPeriod mMediaPeriod;
 
   private final MediaItem mMediaItem;
