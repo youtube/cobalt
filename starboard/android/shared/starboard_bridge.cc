@@ -252,7 +252,8 @@ void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          const std::string& url) {
   SB_DCHECK(env);
   Java_StarboardBridge_raisePlatformError(env, j_starboard_bridge_, errorType,
-                                          data, ConvertUTF8ToJavaString(env, url));
+                                          data,
+                                          ConvertUTF8ToJavaString(env, url));
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {

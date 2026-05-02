@@ -19,10 +19,10 @@
 #include "base/test/test_timeouts.h"
 #include "base/timer/mock_timer.h"
 #include "content/public/test/mock_navigation_handle.h"
-#include "url/gurl.h"
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using ::testing::_;
 using ::testing::Return;
