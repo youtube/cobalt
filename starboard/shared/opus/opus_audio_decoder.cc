@@ -70,7 +70,7 @@ OpusAudioDecoder::OpusAudioDecoder(PassKey<OpusAudioDecoder>,
       frames_per_au_(kMaxOpusFramesPerAU) {}
 
 OpusAudioDecoder::~OpusAudioDecoder() {
-  if (decoder_ != nullptr) {
+  if (decoder_) {
     opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
   }
   TeardownCodec();
@@ -237,7 +237,7 @@ OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
 }
 
 void OpusAudioDecoder::TeardownCodec() {
-  if (decoder_ != nullptr) {
+  if (decoder_) {
     opus_multistream_decoder_destroy(decoder_);
     decoder_ = nullptr;
   }
@@ -260,7 +260,7 @@ scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
 void OpusAudioDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (decoder_ != nullptr) {
+  if (decoder_) {
     int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
     if (error != OPUS_OK) {
       SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
