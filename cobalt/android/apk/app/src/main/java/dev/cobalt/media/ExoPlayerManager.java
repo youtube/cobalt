@@ -165,7 +165,7 @@ public class ExoPlayerManager {
             .setSampleMimeType(mime);
 
     if (audioConfigurationData != null) {
-      if (mime.equals(MimeTypes.AUDIO_OPUS)) {
+      if (MimeTypes.AUDIO_OPUS.equals(mime)) {
         byte[][] csds =
             MediaFormatBuilder.starboardParseOpusConfigurationData(
                 sampleRate, audioConfigurationData);

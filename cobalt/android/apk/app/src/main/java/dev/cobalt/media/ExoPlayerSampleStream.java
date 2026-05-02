@@ -39,7 +39,7 @@ public class ExoPlayerSampleStream implements SampleStream {
   // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
   private final Object mLock = new Object();
 
-  @GuardedBy("mlock")
+  @GuardedBy("mLock")
   private final SampleQueue mSampleQueue;
 
   private volatile boolean mEndOfStream = false;
