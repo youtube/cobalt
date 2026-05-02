@@ -607,7 +607,7 @@ public class MediaCodecUtil {
   /**
    * Returns the name of the video decoder if it is found, or "" otherwise.
    *
-   * <p>NOTE: This code path is called repeatedly by the player to determine the decoding
+   * NOTE: This code path is called repeatedly by the player to determine the decoding
    * capabilities of the device. To ensure speedy playback the code below should be kept performant.
    */
   @CalledByNative

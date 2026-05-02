@@ -31,7 +31,7 @@ import javax.annotation.concurrent.GuardedBy;
  * A custom {@link BaseMediaSource} that receives encoded media data from the native Starboard layer
  * and provides it to ExoPlayer.
  *
- * <p>This source is designed for a single-period lifecycle, mapping to a single audio or video
+ * This source is designed for a single-period lifecycle, mapping to a single audio or video
  * stream provided by the native application.
  */
 public final class ExoPlayerMediaSource extends BaseMediaSource {

@@ -54,7 +54,7 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
   /**
    * Initializes the {@link ExoPlayerSampleStream} for the selected track.
    *
-   * <p>Cobalt's implementation assumes a single track per period (either audio or video).
+   * Cobalt's implementation assumes a single track per period (either audio or video).
    */
   @Override
   public long selectTracks(
