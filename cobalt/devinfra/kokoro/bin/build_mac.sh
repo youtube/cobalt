@@ -62,6 +62,7 @@ pipeline () {
   fi
 
   echo "Jetski Debug: rbe_flag is ${rbe_flag}"
+  echo "Jetski Debug: GN target is ${GN_TARGET}"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
     --script-executable=/usr/bin/python3 ${rbe_flag}
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
