@@ -126,7 +126,8 @@ void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
-  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0, url);
+  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
+                                       url);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #else
