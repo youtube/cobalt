@@ -44,7 +44,7 @@ static const VorbisLayout vorbis_mappings[8] = {
 };
 
 constexpr int kMinimumBuffersToDecode = 2;
-constexpr int kMaxOpusFramesPerAU = 9600;
+constexpr int kMaxOpusFramesPerAU = 9'600;
 
 }  // namespace
 
@@ -52,7 +52,7 @@ std::unique_ptr<OpusAudioDecoder> OpusAudioDecoder::Create(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info) {
   OpusMSDecoder* decoder = CreateOpusMultistreamDecoder(audio_stream_info);
-  if (decoder == nullptr) {
+  if (!decoder) {
     return nullptr;
   }
 
