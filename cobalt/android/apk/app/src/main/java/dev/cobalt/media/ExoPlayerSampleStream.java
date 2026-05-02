@@ -32,7 +32,7 @@ import javax.annotation.concurrent.GuardedBy;
 /**
  * Buffers and provides media samples to ExoPlayer's renderers.
  *
- * <p>This stream maintains an internal {@link SampleQueue} and provides a thread-safe bridge for
+ * This stream maintains an internal {@link SampleQueue} and provides a thread-safe bridge for
  * the native layer to write encoded samples.
  */
 public class ExoPlayerSampleStream implements SampleStream {
@@ -81,7 +81,6 @@ public class ExoPlayerSampleStream implements SampleStream {
       boolean isHdr = false;
       if (format.colorInfo != null) {
         int transfer = format.colorInfo.colorTransfer;
-        // 6 = ST2084 (PQ), 7 = HLG
         isHdr = (transfer == C.COLOR_TRANSFER_ST2084 || transfer == C.COLOR_TRANSFER_HLG);
       }
       boolean isOver1080p = (format.width > 1920 || format.height > 1080);
@@ -177,7 +176,7 @@ public class ExoPlayerSampleStream implements SampleStream {
   /**
    * Attempts to seek within the currently queued samples.
    *
-   * <p>If the seek position is not found in the queue, the queue is reset.
+   * If the seek position is not found in the queue, the queue is reset.
    */
   public void seek(long timestampUs, Format format) {
     synchronized (mLock) {
@@ -199,7 +198,7 @@ public class ExoPlayerSampleStream implements SampleStream {
   /**
    * Returns true if the queue has enough capacity to accept more samples.
    *
-   * <p>Capacity is determined by the duration of media currently buffered in the queue. If the
+   * Capacity is determined by the duration of media currently buffered in the queue. If the
    * duration exceeds a threshold, this returns false to signal the native layer to pause sample
    * production.
    */

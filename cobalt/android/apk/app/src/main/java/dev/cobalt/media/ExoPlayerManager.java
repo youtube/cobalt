@@ -38,7 +38,7 @@ import org.jni_zero.JNINamespace;
 /**
  * Entry point for creating ExoPlayer components from the native layer.
  *
- * <p>This manager provides factory methods for creating the {@link ExoPlayerBridge} and various
+ * This manager provides factory methods for creating the {@link ExoPlayerBridge} and various
  * {@link MediaSource} instances tailored for Starboard's playback requirements.
  */
 @JNINamespace("starboard")

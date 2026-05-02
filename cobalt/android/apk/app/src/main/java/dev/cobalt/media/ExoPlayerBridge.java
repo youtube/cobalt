@@ -380,7 +380,7 @@ public class ExoPlayerBridge {
   /**
    * Returns the current playback position in microseconds.
    *
-   * <p>This method provides a high-resolution estimate of the playback position. Since ExoPlayer
+   * This method provides a high-resolution estimate of the playback position. Since ExoPlayer
    * only provides millisecond precision via {@link ExoPlayer#getCurrentPosition()}, this method
    * interpolates the position based on the time elapsed since the last anchor update from the
    * player thread, adjusted by the current playback rate.
