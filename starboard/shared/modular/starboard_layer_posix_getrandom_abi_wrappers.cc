@@ -18,6 +18,10 @@
 #include <sys/random.h>
 
 ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags) {
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 28
+  errno = EINVAL;
+  return -1;
+#else
   unsigned platform_flags = 0;
   if (flags & MUSL_GRND_NONBLOCK) {
     platform_flags |= GRND_NONBLOCK;
@@ -33,4 +37,5 @@ ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags) {
   }
 
   return getrandom(buf, buflen, platform_flags);
+#endif
 }

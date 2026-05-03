@@ -35,6 +35,10 @@
 #include "third_party/boringssl/src/include/openssl/rand.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && defined(__ANDROID_API__) && __ANDROID_API__ >= 28
+#define _ANDROID_HAS_GETRANDOM 1
+#endif
+
 namespace base {
 
 namespace {
@@ -64,8 +68,7 @@ class URandomFd {
   const int fd_;
 };
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-     BUILDFLAG(IS_ANDROID)) &&                        \
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || defined(_ANDROID_HAS_GETRANDOM)) && \
     !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
 // TODO(pasko): Unify reading kernel version numbers in:
 // mojo/core/channel_linux.cc
@@ -119,7 +122,8 @@ bool GetRandomSyscall(void* output, size_t output_length) {
 #endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
 
-#if BUILDFLAG(IS_ANDROID)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || defined(_ANDROID_HAS_GETRANDOM)) && \
+    !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
 std::atomic<bool> g_use_getrandom;
 
 // Note: the BoringSSL feature takes precedence over the getrandom() trial if
@@ -141,7 +145,8 @@ bool UseGetrandom() {
 
 namespace internal {
 
-#if BUILDFLAG(IS_ANDROID)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || defined(_ANDROID_HAS_GETRANDOM)) && \
+    !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
 void ConfigureRandBytesFieldTrial() {
   g_use_getrandom.store(FeatureList::IsEnabled(kUseGetrandomForRandBytes),
                         std::memory_order_relaxed);
@@ -186,8 +191,7 @@ void RandBytes(void* output, size_t output_length, bool avoid_allocation) {
     return;
   }
 #endif
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-     BUILDFLAG(IS_ANDROID)) &&                        \
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || defined(_ANDROID_HAS_GETRANDOM)) && \
     !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
   if (avoid_allocation || UseGetrandom()) {
     // On Android it is mandatory to check that the kernel _version_ has the
