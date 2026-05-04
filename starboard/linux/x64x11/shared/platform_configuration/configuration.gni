@@ -26,6 +26,4 @@ if (current_toolchain == default_toolchain &&
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 }
 
-if (!is_cobalt_hermetic_build) {
-  sb_enable_benchmark = true
-}
+sb_enable_benchmark = true

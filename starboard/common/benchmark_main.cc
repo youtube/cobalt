@@ -36,11 +36,11 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 // This is how to build and run this benchmark.
 //
 // On Linux:
-// $ autoninja -C out/linux-x64x11_qa starboard/benchmark:benchmark
-// $ ./out/linux-x64x11_qa/benchmark --benchmark_filter="BM_*"
+// $ autoninja -C out/linux-x64x11_qa starboard/benchmark
+// $ ./out/linux-x64x11_qa/starboard/benchmark --benchmark_filter="BM_*"
 //
 // On Android:
-// $ autoninja -C out/android-arm_qa starboard/benchmark:benchmark
+// $ autoninja -C out/android-arm_qa starboard/benchmark
 // $ adb push out/android-arm_qa/benchmark /data/local/tmp/
 // $ adb shell chmod +x /data/local/tmp/benchmark
 // $ adb shell /data/local/tmp/benchmark --benchmark_filter="BM_*"
