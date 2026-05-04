@@ -184,9 +184,13 @@ component("gpu") {
       ]
     }
     libs += [
-      "aaudio",
       "mediandk",
     ]
+    # AAudio is removed for Cobalt to prevent UnsatisfiedLinkError on older Android TVs.
+    # See b/508072838
+    if (!is_cobalt) {
+      libs += [ "aaudio" ]
+    }
     deps += [
       # TODO(crbug.com/40552063): This can be removed once CdmManager is removed.
       "//gpu/ipc/common",

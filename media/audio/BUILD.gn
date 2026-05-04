@@ -281,7 +281,11 @@ source_set("audio") {
         "android/opensles_wrapper.cc",
       ]
     }
-    libs += [ "aaudio" ]
+    # AAudio is removed for Cobalt to prevent UnsatisfiedLinkError on older Android TVs.
+    # See b/508072838
+    if (!is_cobalt) {
+      libs += [ "aaudio" ]
+    }
 
     deps += [ "//media/base/android:media_jni_headers" ]
 
