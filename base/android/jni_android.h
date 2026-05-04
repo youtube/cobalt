@@ -90,6 +90,11 @@ inline void DisableJvmForTesting() {
 // Use HasClass if you need to check whether the class exists.
 inline ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env,
                                            const char* class_name) {
+#if BUILDFLAG(IS_COBALT)
+  if (strncmp(class_name, "org/chromium/", 13) == 0) {
+    return jni_zero::GetClass(env, (std::string("cobalt/") + class_name).c_str());
+  }
+#endif
   return jni_zero::GetClass(env, class_name);
 }
 
