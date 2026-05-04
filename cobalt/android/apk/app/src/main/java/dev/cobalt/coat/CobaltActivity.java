@@ -110,6 +110,7 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
+  private InterceptNavigationDelegateClientImpl mInterceptNavigationDelegateClient;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
 
@@ -308,6 +309,10 @@ public abstract class CobaltActivity extends Activity {
             // Inject JavaBridge objects to the WebContents.
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
+
+            mInterceptNavigationDelegateClient =
+                new InterceptNavigationDelegateClientImpl(
+                    getActiveWebContents(), CobaltActivity.this);
 
             // Load the `url` with the same shell we created above.
             mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
@@ -579,6 +584,10 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+    if (mInterceptNavigationDelegateClient != null) {
+      mInterceptNavigationDelegateClient.destroy();
+      mInterceptNavigationDelegateClient = null;
+    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -690,7 +699,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onNewIntent(Intent intent) {
-    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
+    String deepLink = getIntentUrlAsString(intent);
+    getStarboardBridge().handleDeepLink(deepLink);
   }
 
   /**

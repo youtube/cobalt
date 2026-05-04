@@ -81,6 +81,8 @@ android_library("cobalt_main_java") {
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
     "//components/embedder_support/android:view_java",
+    "//components/external_intents/android:java",
+    "//components/navigation_interception/android:navigation_interception_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
@@ -132,6 +134,8 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ExternalNavigationDelegateImpl.java",
+    "apk/app/src/main/java/dev/cobalt/coat/InterceptNavigationDelegateClientImpl.java",
     "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
     "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
@@ -205,6 +209,7 @@ android_assets("coat_assets") {
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
+  add_stubs_for_missing_jni = true
   deps = [
     "//cobalt:common",
     "//cobalt/browser",
@@ -221,6 +226,8 @@ shared_library_with_jni("libchrobalt") {
     "//components/crash/android:crash_android",
     "//components/crash/android:jni_headers",
     "//components/crash/content/browser",
+    "//components/embedder_support/android:util",
+    "//components/external_intents/android",
     "//components/memory_system",
     "//components/minidump_uploader",
     "//components/minidump_uploader:minidump_uploader_jni_headers",

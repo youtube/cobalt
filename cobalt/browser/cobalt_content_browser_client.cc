@@ -77,6 +77,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
+#include "components/navigation_interception/intercept_navigation_delegate.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -232,6 +233,10 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
+#if BUILDFLAG(IS_ANDROID)
+  navigation_interception::InterceptNavigationDelegate::MaybeCreateAndAdd(
+      registry, navigation_interception::SynchronyMode::kSync);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 content::GeneratedCodeCacheSettings
