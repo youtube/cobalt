@@ -231,7 +231,7 @@ OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
                   << opus_strerror(error);
     return nullptr;
   }
-  SB_DCHECK(decoder);
+  SB_CHECK(decoder);
 
   return decoder;
 }
