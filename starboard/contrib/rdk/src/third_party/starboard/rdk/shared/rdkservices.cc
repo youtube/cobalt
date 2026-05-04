@@ -1658,6 +1658,10 @@ std::optional<bool> RDKServicesInterface::RDKAccessibility::caption_settings(SbA
   return GetAccessibility()->GetCaptionSettings(out);
 }
 
+std::optional<Ifa> RDKServicesInterface::RDKAdvertising::advertising_id() {
+  return {};
+}
+
 RDKServicesInterface::RDKServicesInterface() = default;
 
 // static

@@ -206,6 +206,31 @@ void FireboltInterface::FireboltDevice::unsubscribe() {
   }
 }
 
+// FireboltAdvertising
+std::optional<Ifa> FireboltInterface::FireboltAdvertising::advertising_id() {
+  std::unique_lock<std::mutex> lock { mutex_ };
+  if (did_init_) {
+    return cached_ifa_;
+  }
+
+  lock.unlock();
+
+  auto &advertising = Firebolt::IFireboltAccessor::Instance().AdvertisingInterface();
+  auto result = advertising.advertisingId();
+
+  lock.lock();
+
+  did_init_ = true;
+
+  if (!result) {
+    SB_LOG(ERROR) << "advertising.advertisingId() failed, error code = " << result.error();
+    return {};
+  }
+
+  cached_ifa_.emplace(Ifa{result->ifa, result->ifa_type, result->lmt});
+  return cached_ifa_;
+}
+
 // FireboltTextToSpeech
 std::optional<bool> FireboltInterface::FireboltTextToSpeech::cancel() {
   if (!is_available_.value_or(false))
@@ -567,6 +592,11 @@ ITextToSpeech& FireboltInterface::text_to_speech() {
 IAccessibility& FireboltInterface::accessibility() {
   lazy_init();
   return accessibility_;
+}
+
+IAdvertising& FireboltInterface::advertising() {
+  lazy_init();
+  return advertising_;
 }
 
 void FireboltInterface::teardown() {

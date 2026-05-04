@@ -198,6 +198,11 @@ bool GetLimitAdTracking(char* out_value, int value_length) {
   if (std::string prop; AdvertisingId::GetLmtAdTracking(prop)) {
     return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
   }
+
+  if (auto ifa = platform::advertising().advertising_id(); ifa.has_value() && !ifa->lmt.empty()) {
+    return CopyStringAndTestIfSuccess(out_value, value_length, ifa->lmt.c_str());
+  }
+
   return false;
 }
 
@@ -205,6 +210,11 @@ bool GetAdvertisingId(char* out_value, int value_length) {
   if (std::string prop; AdvertisingId::GetIfa(prop)) {
     return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
   }
+
+  if (auto ifa = platform::advertising().advertising_id(); ifa.has_value() && !ifa->ifa.empty()) {
+    return CopyStringAndTestIfSuccess(out_value, value_length, ifa->ifa.c_str());
+  }
+
   return false;
 }
 

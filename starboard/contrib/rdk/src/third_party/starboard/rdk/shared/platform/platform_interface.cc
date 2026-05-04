@@ -70,6 +70,12 @@ std::ostream& operator<<(std::ostream& out, const SbAccessibilityCaptionSettings
              << ",\"supports_set_enabled\":" << s.supports_set_enabled << '}';
 }
 
+std::ostream& operator<<(std::ostream& out, const Ifa& v) {
+  return out << "{\"ifa\":\"" << v.ifa
+             << "\",\"ifa_type\":\"" << v.ifa_type
+             << "\",\"lmt\":\"" << v.lmt << "\"}";
+}
+
 template<typename T>
 std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
   if (v.has_value())
@@ -207,10 +213,23 @@ class TracePlatformInterface final : public PlatformInterface {
     }
   };
 
+  struct TraceAdvertising final : public IAdvertising {
+    IAdvertising& advertising_;
+    TraceAdvertising(IAdvertising& advertising)
+      : advertising_(advertising) {
+    }
+    std::optional<Ifa> advertising_id() override {
+      auto ret = advertising_.advertising_id();
+      TRACE_INFO() << "advertising.advertising_id: " << ret;
+      return ret;
+    }
+  };
+
   std::unique_ptr<PlatformInterface> api_;
   TraceDevice device_{api_->device()};
   TraceTextToSpeech text_to_speech_{api_->text_to_speech()};
   TraceAccessibility accessibility_{api_->accessibility()};
+  TraceAdvertising advertising_{api_->advertising()};
 
  public:
   TracePlatformInterface(std::unique_ptr<PlatformInterface>&& api) : api_(std::move(api)) {}
@@ -222,6 +241,7 @@ class TracePlatformInterface final : public PlatformInterface {
   IDevice& device() override { return device_; }
   ITextToSpeech& text_to_speech() override { return text_to_speech_; }
   IAccessibility& accessibility() override { return accessibility_; }
+  IAdvertising& advertising() override { return advertising_; }
 };
 #undef TRACE_INFO
 
@@ -345,6 +365,19 @@ class CompositeInterface final : public PlatformInterface {
     }
   };
 
+  struct CompositeAdvertising final : public IAdvertising {
+    CompositeInterface& parent_;
+
+    CompositeAdvertising(CompositeInterface &parent)
+        : parent_(parent) {}
+
+    std::optional<Ifa> advertising_id() override {
+      return parent_.forAnyAdvertising<Ifa>([](IAdvertising& advertising) {
+        return advertising.advertising_id();
+      });
+    }
+  };
+
   template<typename T>
   std::optional<T> forAnyDevice(std::function<std::optional<T>(IDevice&)>&& fn) {
     for (auto &i : interfaces_) {
@@ -370,6 +403,15 @@ class CompositeInterface final : public PlatformInterface {
     return { };
   }
 
+  template<typename T>
+  std::optional<T> forAnyAdvertising(std::function<std::optional<T>(IAdvertising&)>&& fn) {
+    for (auto &i : interfaces_) {
+      if (auto ret = fn(i->advertising()); ret.has_value())
+        return ret;
+    }
+    return { };
+  }
+
   void forEachInterface(std::function<void(PlatformInterface&)>&& fn) {
     for (auto &i : interfaces_) {
       fn(*i);
@@ -380,6 +422,7 @@ class CompositeInterface final : public PlatformInterface {
   CompositeDevice device_{ *this };
   CompositeTextToSpeech text_to_speech_{ *this };
   CompositeAccessibility accessibility_{ *this };
+  CompositeAdvertising advertising_{ *this };
 
 public:
   CompositeInterface(std::vector<std::unique_ptr<PlatformInterface>> &&interfaces)
@@ -414,6 +457,10 @@ public:
 
   IAccessibility& accessibility() override {
     return accessibility_;
+  }
+
+  IAdvertising& advertising() override {
+    return advertising_;
   }
 };
 
