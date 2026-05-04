@@ -100,8 +100,8 @@ TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
 
 TEST(JobThreadTest, CanceledJobsAreCanceled) {
   std::atomic_int counter_1 = {0}, counter_2 = {0};
-  JobQueue::JobToken job_token_1 = JobQueue::JobToken::kInvalid;
-  JobQueue::JobToken job_token_2 = JobQueue::JobToken::kInvalid;
+  JobQueue::JobToken job_token_1 = JobQueue::JobToken::kUnscheduled;
+  JobQueue::JobToken job_token_2 = JobQueue::JobToken::kUnscheduled;
 
   auto job_thread = JobThread::Create("JobThreadTests");
   std::function<void()> job_1 = [&]() {

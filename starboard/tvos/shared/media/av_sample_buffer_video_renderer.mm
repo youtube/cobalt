@@ -295,7 +295,7 @@ void AVSBVideoRenderer::Seek(int64_t seek_to_time) {
   }
   sample_buffer_builder_->Reset();
   CancelPendingJobs();
-  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kInvalid;
+  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   prerolled_frames_ = 0;
   pts_of_first_written_buffer_ = 0;
@@ -619,7 +619,7 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
 }
 
 void AVSBVideoRenderer::DelayedEnqueueSampleBuffers() {
-  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kInvalid;
+  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kUnscheduled;
   EnqueueSampleBuffers();
 }
 

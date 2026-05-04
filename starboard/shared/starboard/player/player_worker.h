@@ -219,7 +219,7 @@ class PlayerWorker {
   InputBuffers pending_audio_buffers_;
   InputBuffers pending_video_buffers_;
   JobQueue::JobToken write_pending_sample_job_token_ =
-      JobQueue::JobToken::kInvalid;
+      JobQueue::JobToken::kUnscheduled;
 };
 
 }  // namespace starboard

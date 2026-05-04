@@ -48,17 +48,17 @@ class JobQueue {
 
   class JobToken {
    public:
-    static const JobToken kInvalid;
+    static const JobToken kUnscheduled;
 
     explicit operator bool() const { return token_.has_value(); }
 
    private:
     friend class JobQueue;
 
+    static JobToken Generate();
+
     JobToken() = default;
     explicit JobToken(int64_t token) : token_(token) {}
-
-    static JobToken Generate();
 
     void Reset() { token_ = std::nullopt; }
 

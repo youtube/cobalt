@@ -21,7 +21,8 @@
 
 namespace starboard {
 
-const JobQueue::JobToken JobQueue::JobToken::kInvalid = JobQueue::JobToken();
+const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
+    JobQueue::JobToken();
 
 JobQueue::JobToken JobQueue::JobToken::Generate() {
   static std::atomic<int64_t> s_current_token{0};
@@ -135,7 +136,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
-    return JobToken::kInvalid;
+    return JobToken::kUnscheduled;
   }
 
   JobToken job_token = JobToken::Generate();
