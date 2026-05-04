@@ -26,19 +26,19 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
-import android.os.Build;
-import androidx.annotation.RequiresApi;
-import android.window.OnBackInvokedCallback;
-import android.window.OnBackInvokedDispatcher;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
@@ -458,7 +458,7 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(9);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      OnBackInvokedHelper.register(this, this);
+      OnBackInvokedHelper.register(this);
     }
   }
 
@@ -830,15 +830,15 @@ public abstract class CobaltActivity extends Activity {
 
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
-    static void register(final Activity activity, final CobaltActivity cobaltActivity) {
+    static void register(final CobaltActivity activity) {
       activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
           OnBackInvokedDispatcher.PRIORITY_DEFAULT,
           new OnBackInvokedCallback() {
             @Override
             public void onBackInvoked() {
               // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
-              cobaltActivity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-              cobaltActivity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
             }
           }
       );
