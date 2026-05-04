@@ -465,9 +465,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
       }
     }
   }
-#endif
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#else
   bool has_input_streams = !HasNoAudioInputStreams();
 #endif
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
