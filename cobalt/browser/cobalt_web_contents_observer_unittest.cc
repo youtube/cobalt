@@ -29,12 +29,10 @@ using ::testing::Return;
 
 namespace cobalt {
 
+#if BUILDFLAG(IS_ANDROIDTV)
 namespace {
 const char kTestUrl[] = "https://www.youtube.com/tv";
-const int kJniErrorTypeConnectionError = 0;
 }  // namespace
-
-#if BUILDFLAG(IS_ANDROIDTV)
 class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
  public:
   explicit TestCobaltWebContentsObserver(content::WebContents* web_contents)
