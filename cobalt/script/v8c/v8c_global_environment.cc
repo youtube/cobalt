@@ -529,15 +529,21 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::Compile(
     v8::Local<v8::Script> script;
     if (v8::ScriptCompiler::Compile(context, &script_source,
                                     v8::ScriptCompiler::kConsumeCodeCache)
-            .ToLocal(&script) &&
-        !cached_code->rejected) {
+            .ToLocal(&script)) {
+      if (cached_code->rejected) {
+        cobalt::cache::Cache::GetInstance()->Delete(
+            network::disk_cache::ResourceType::kCompiledScript, javascript_cache_key);
+        LOG(WARNING)
+            << "CompileWithCaching: Failed to reuse the cached script rejected="
+            << cached_code->rejected << ", key=" << javascript_cache_key;
+      }
       return script;
     }
   }
   cobalt::cache::Cache::GetInstance()->Delete(
       network::disk_cache::ResourceType::kCompiledScript, javascript_cache_key);
   LOG(WARNING)
-      << "CompileWithCaching: Failed to reuse the cached script rejected="
+      << "CompileWithCaching: Failed to compile script completely. rejected="
       << cached_code->rejected << ", key=" << javascript_cache_key;
   return {};
 }
