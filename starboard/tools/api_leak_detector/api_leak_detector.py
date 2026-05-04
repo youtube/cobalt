@@ -134,7 +134,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'getuid',
     'gmtime_r',
     'inotify_add_watch',
-    'inotify_init',
     'inotify_init1',
     'inotify_rm_watch',
     'isatty',
