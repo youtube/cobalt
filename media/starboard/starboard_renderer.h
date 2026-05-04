@@ -187,6 +187,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   void OnBufferingStateChange(BufferingState state);
 
+  void NotifyError(PipelineStatus status);
+
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const std::unique_ptr<MediaLog> media_log_;

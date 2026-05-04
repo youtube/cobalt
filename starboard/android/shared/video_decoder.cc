@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/video_decoder.h"
 
+#include <jni.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -23,7 +24,6 @@
 #include <limits>
 #include <list>
 
-#include "base/android/jni_android.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -42,13 +42,14 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
 
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -1061,13 +1062,13 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-void updateTexImage(const base::android::JavaRef<jobject>& surface_texture) {
+void updateTexImage(const JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
   VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
 }
 
-void getTransformMatrix(const base::android::JavaRef<jobject>& surface_texture,
+void getTransformMatrix(const JavaRef<jobject>& surface_texture,
                         float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -1075,7 +1076,8 @@ void getTransformMatrix(const base::android::JavaRef<jobject>& surface_texture,
   SB_CHECK(java_array);
 
   VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture, JavaParamRef<jfloatArray>(env, java_array));
+      env, surface_texture,
+      jni_zero::JavaParamRef<jfloatArray>(env, java_array));
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);

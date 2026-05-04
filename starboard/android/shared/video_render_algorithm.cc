@@ -22,13 +22,15 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/features.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
+
 namespace {
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 
 const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
 const int64_t kBufferReadyThreshold = 50'000;     // 50ms
@@ -157,7 +159,7 @@ int VideoRenderAlgorithmAndroid::GetDroppedFrames() {
 
 VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
 
   j_video_frame_release_time_helper_.Reset(
       Java_VideoFrameReleaseTimeHelper_Constructor(env));

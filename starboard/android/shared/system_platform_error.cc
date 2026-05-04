@@ -24,9 +24,9 @@
 #include "cobalt/android/jni_headers/PlatformError_jni.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace {
-using base::android::ScopedJavaGlobalRef;
 using starboard::ApplicationAndroid;
 
 typedef std::function<void(SbSystemPlatformErrorResponse error_response)>
@@ -52,7 +52,7 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
       return false;
   }
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   auto send_response_callback =
       callback ? new SendResponseCallback(

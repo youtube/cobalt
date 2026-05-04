@@ -25,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
 #if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
@@ -39,15 +40,14 @@ namespace starboard {
 
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::GetClass;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::GetClass;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // Client Hint Header name constants
 constexpr char kAndroidOSExperienceHeader[] =
@@ -400,7 +400,7 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
     JNIEnv* env,
     jlong native_service,
     const char* service_name) {
@@ -434,13 +434,13 @@ void StarboardBridge::HideSplashScreen(JNIEnv* env) const {
 }
 
 void StarboardBridge::SetStartupMilestone(jint milestone) const {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   Java_StarboardBridge_setStartupMilestone(env, j_starboard_bridge_, milestone);
 }
 
 void StarboardBridge::SetStartupDiagnosisInfo(const char* key,
                                               const char* value) const {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   Java_StarboardBridge_setStartupDiagnosisInfo(
       env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, key),
       ConvertUTF8ToJavaString(env, value));

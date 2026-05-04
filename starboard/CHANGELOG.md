@@ -26,6 +26,9 @@ rendering issues caused by Chromium's shader expectations.
 * `inotify_rm_watch`
 * `statx`
 
+### Added AV2 to SbMediaVideoCodec
+This prepares Cobalt for future AV2 playback support.
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
