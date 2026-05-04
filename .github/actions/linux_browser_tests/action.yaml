@@ -27,7 +27,7 @@ runs:
         path: artifacts
 
     - name: Set Up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      uses: google-github-actions/setup-gcloud@v2
 
     - name: Run Browser Tests (Linux)
       shell: bash
@@ -71,8 +71,12 @@ runs:
     - name: Upload Browser Test Results to GCS
       if: always()
       shell: bash
+      env:
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
       run: |
-        gsutil -q cp -r "${GITHUB_WORKSPACE}/results/"* "${{ inputs.gcs_results_path }}/"
+        if [ -d "${GITHUB_WORKSPACE}/results" ] && [ -n "$(ls -A "${GITHUB_WORKSPACE}/results" 2>/dev/null)" ]; then
+          gcloud storage cp -r "${GITHUB_WORKSPACE}/results/"* "${GCS_RESULTS_PATH}/"
+        fi
 
     - name: Archive Browser Test Results
       if: always()
