@@ -60,6 +60,7 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
+import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -441,6 +442,7 @@ public abstract class CobaltActivity extends Activity {
 
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+    MemoryPressureUma.initializeForBrowser();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
