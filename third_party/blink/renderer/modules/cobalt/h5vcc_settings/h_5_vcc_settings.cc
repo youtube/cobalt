@@ -190,6 +190,14 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           return true;
         });
   }
+
+  if (name == "Media.VideoBufferSizeClampMb") {
+    return ProcessSettingAsPositiveInt(
+        script_state, exception_context, name, *value, [](int int_value) {
+          ::media::SourceBufferState::SetVideoBufferSizeClampMb(int_value);
+          return true;
+        });
+  }
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Fall back to Mojo if BUILDFLAG(USE_STARBOARD_MEDIA) isn't defined. The
   // settings will be stored in the browser but won't take effect. This is safe

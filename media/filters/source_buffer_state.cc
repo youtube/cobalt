@@ -831,11 +831,16 @@ void SourceBufferState::SetStreamMemoryLimits() {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
- if (g_video_buffer_size_clamp_mb > 0) {
-   for (const auto& it : video_streams_)
-      it.second->ApplyStreamMemoryLimitCeiling(
-        static_cast<size_t>(g_video_buffer_size_clamp_mb) * 1024 * 1024);
- }
+  if (g_video_buffer_size_clamp_mb > 0) {
+    size_t ceiling_in_bytes =
+        static_cast<size_t>(g_video_buffer_size_clamp_mb) * 1024 * 1024;
+    MEDIA_LOG(INFO, media_log_)
+        << "Custom video per-track SourceBuffer size clamp limit="
+        << ceiling_in_bytes;
+    for (const auto& it : video_streams_) {
+      it.second->ApplyStreamMemoryLimitCeiling(ceiling_in_bytes);
+    }
+  }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 

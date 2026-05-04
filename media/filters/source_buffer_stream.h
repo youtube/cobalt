@@ -186,7 +186,8 @@ class MEDIA_EXPORT SourceBufferStream {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// Will set |memory_limit_ceiling_| and will also clamp |memory_limit_| if memory_limit_ceiling_ < |memory_limit_|.
+  // Will set |memory_limit_ceiling_| and will also clamp |memory_limit_| if
+  // memory_limit_ceiling_ < |memory_limit_|.
   void ApplyMemoryLimitCeiling(size_t ceiling) {
     memory_limit_ceiling_ = ceiling;
     memory_limit_ = std::min(memory_limit_, memory_limit_ceiling_);

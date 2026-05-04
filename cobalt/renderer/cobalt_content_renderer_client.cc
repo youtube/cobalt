@@ -30,7 +30,6 @@
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
-#include "media/filters/source_buffer_state.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
@@ -241,10 +240,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
     parsed.use_dual_threads_for_video = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaVideoBufferSizeClampMb)) {
-    ::media::SourceBufferState::SetVideoBufferSizeClampMb(*val);
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(

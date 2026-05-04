@@ -318,6 +318,10 @@ source_set("unit_tests") {
     "video_renderer_algorithm_unittest.cc",
   ]
 
+  if (use_starboard_media) {
+    sources += [ "starboard/starboard_source_buffer_state_unittest.cc" ]
+  }
+
   deps = [
     "//base/test:test_support",
     "//crypto:crypto",
