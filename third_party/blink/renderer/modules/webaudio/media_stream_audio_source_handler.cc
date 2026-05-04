@@ -12,6 +12,11 @@
 #include "third_party/blink/renderer/modules/webaudio/base_audio_context.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif
+
 namespace blink {
 
 namespace {
@@ -19,6 +24,9 @@ namespace {
 // Default to stereo. This could change depending on the format of the
 // MediaStream's audio track.
 constexpr unsigned kDefaultNumberOfOutputChannels = 2;
+
+// Default to mono for Cobalt/Starboard to avoid latency-inducing upmixing.
+// Standard Chromium defaults to stereo.
 
 }  // namespace
 
@@ -30,7 +38,24 @@ MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
                    node.context()->sampleRate()),
       audio_source_provider_(std::move(audio_source_provider)) {
   SendLogMessage(__func__, "");
+  
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  unsigned default_channels = kDefaultNumberOfOutputChannels;
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    default_channels = 1;
+  }
+  AddOutput(default_channels);
+#else
   AddOutput(kDefaultNumberOfOutputChannels);
+#endif
+
+  // Force Mono mode end-to-end for Starboard to avoid latency-inducing upmixers.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
+    SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
+    channel_count_ = 1;
+  }
+#endif
 
   Initialize();
 }
@@ -50,6 +75,11 @@ MediaStreamAudioSourceHandler::~MediaStreamAudioSourceHandler() {
 void MediaStreamAudioSourceHandler::SetFormat(uint32_t number_of_channels,
                                               float source_sample_rate) {
   DCHECK(IsMainThread());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "MediaStreamAudioSourceHandler::SetFormat: "
+            << "channels=" << number_of_channels
+            << ", rate=" << source_sample_rate;
+#endif
   SendLogMessage(
       __func__,
       String::Format("({number_of_channels=%u}, {source_sample_rate=%0.f})",
