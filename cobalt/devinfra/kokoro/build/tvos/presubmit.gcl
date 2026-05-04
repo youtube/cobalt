@@ -3,17 +3,17 @@
 // proto-message: BuildConfig
 // validation: gcl --message=kokoro.BuildConfig --objtype=config presubmit.gcl appendascii
 
-import 'common.gcl' as common
+import 'arm64/common.gcl' as common
 
 config build = common.build {
   env_vars = super.env_vars + [
     {
-      key = 'CONFIG'
+      key = 'CONFIG',
       value = 'devel'
     },
     {
-      key = 'GN_TARGET'
+      key = 'GN_TARGET',
       value = 'cobalt,cobalt_browsertests'
-    },
+    }
   ]
 }
