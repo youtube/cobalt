@@ -12,3 +12,5 @@ use_errorprone_java_compiler = false
 # on Android TV, avoiding AAudio MMAP conflicts with virtual bridges.
 # See http://b/478022126#comment6
 media_use_opensles = true
+
+default_min_sdk_version = 24

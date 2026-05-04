@@ -184,7 +184,6 @@ component("gpu") {
       ]
     }
     libs += [
-      "aaudio",
       "mediandk",
     ]
     deps += [

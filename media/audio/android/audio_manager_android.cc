@@ -17,8 +17,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/android_buildflags.h"
-#include "media/audio/android/aaudio_input.h"
-#include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_device_id.h"
 #include "media/audio/android/audio_device_type.h"
@@ -72,40 +70,8 @@ bool IsAudioSinkConnected() {
       base::android::AttachCurrentThread());
 }
 
-bool UseAAudioOutput() {
-  if (!__builtin_available(android AAUDIO_MIN_API, *)) {
-    return false;
-  }
-
-  return base::FeatureList::IsEnabled(features::kUseAAudioDriver);
-}
-
-bool UseAAudioInput() {
-  if (!__builtin_available(android AAUDIO_MIN_API, *)) {
-    return false;
-  }
-
-  if (!base::FeatureList::IsEnabled(features::kUseAAudioInput)) {
-    return false;
-  }
-
-  if (auto* info = base::android::BuildInfo::GetInstance()) {
-    // Disable AAudio input on Unisoc devices running Android 11 and below due
-    // to missing/broken echo cancellation. See https://crbug.com/344607452.
-    if (base::StartsWith(info->board(), "ums",
-                         base::CompareCase::INSENSITIVE_ASCII) &&
-        info->sdk_int() < base::android::SDK_VERSION_S) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 bool UseAAudioPerStreamDeviceSelection() {
-  return UseAAudioInput() && UseAAudioOutput() &&
-         base::FeatureList::IsEnabled(
-             features::kAAudioPerStreamDeviceSelection);
+  return false;
 }
 
 }  // namespace
@@ -438,12 +404,6 @@ AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioOutput()) {
-      return new AAudioOutputStream(this, params, AudioDevice::Default(),
-                                    AAUDIO_USAGE_MEDIA);
-    }
-  }
 #if BUILDFLAG(USE_OPENSLES)
   return new OpenSLESOutputStream(this, params, SL_ANDROID_STREAM_MEDIA);
 #else
@@ -456,27 +416,6 @@ AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
     const std::string& device_id,
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
-
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioOutput()) {
-      DLOG_IF(WARNING, !UseAAudioPerStreamDeviceSelection() &&
-                           !AudioDeviceDescription::IsDefaultDevice(device_id))
-          << "Non-default output device requested for output communication "
-             "stream.";
-
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kOutput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-
-      const aaudio_usage_t usage = communication_mode_is_on_
-                                       ? AAUDIO_USAGE_VOICE_COMMUNICATION
-                                       : AAUDIO_USAGE_MEDIA;
-      return new AAudioOutputStream(this, params, std::move(device).value(),
-                                    usage);
-    }
-  }
 
   // Set stream type which matches the current system-wide audio mode used by
   // the Android audio manager.
@@ -505,17 +444,6 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioInput()) {
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-      return new AAudioInputStream(this, params, std::move(device).value());
-    }
-  }
-
 #if BUILDFLAG(USE_OPENSLES)
   return new OpenSLESInputStream(this, params);
 #else
@@ -533,71 +461,17 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
   if (!UseAAudioPerStreamDeviceSelection()) {
-    // Use the device ID to select the correct communication device. If the
-    // default device is requested, a communication device will be chosen based
-    // on an internal selection scheme. Note that a communication device is an
-    // output device that the system associates with an input device, and this
-    // selection switches the device used for all input and output streams with
-    // communication usage set.
     if (!SetCommunicationDevice(device_id)) {
       LOG(ERROR) << "Unable to select communication device!";
       return nullptr;
     }
   }
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioInput()) {
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-      return new AAudioInputStream(this, params, std::move(device).value());
-    }
-  }
-
-  // Create a new audio input stream and enable or disable all audio effects
-  // given |params.effects()|.
 #if BUILDFLAG(USE_OPENSLES)
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
 #endif
-}
-
-void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
-  // Enable Bluetooth SCO for Bluetooth SCO input streams when per-stream device
-  // selection is enabled.
-
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-  bool stream_requires_sco =
-      UseAAudioPerStreamDeviceSelection() &&
-      stream->GetDevice().GetType() == AudioDeviceType::kBluetoothSco;
-  if (!stream_requires_sco) {
-    return;
-  }
-
-  input_streams_requiring_sco_.insert(stream);
-
-  // SCO can safely be re-enabled even if it is already on.
-  MaybeSetBluetoothScoState(true);
-}
-
-void AudioManagerAndroid::OnStopAAudioInputStream(AAudioInputStream* stream) {
-  // Disable Bluetooth SCO when it is no longer needed by any input streams.
-
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-  // Only disable SCO if the last stream requiring it was just stopped
-  if (input_streams_requiring_sco_.erase(stream) == 0) {
-    return;
-  }
-  if (!input_streams_requiring_sco_.empty()) {
-    return;
-  }
-
-  MaybeSetBluetoothScoState(false);
 }
 
 void AudioManagerAndroid::SetMute(JNIEnv* env,

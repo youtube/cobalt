@@ -284,9 +284,11 @@ public class WindowAndroid
         // TODO(boliu): Observe configuration changes to update the value of isScreenWideColorGamut.
         if (!Build.VERSION.RELEASE.equals("8.0.0")
                 && ContextUtils.activityFromContext(context) != null) {
-            Configuration configuration = context.getResources().getConfiguration();
-            boolean isScreenWideColorGamut = configuration.isScreenWideColorGamut();
-            display.updateIsDisplayServerWideColorGamut(isScreenWideColorGamut);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Configuration configuration = context.getResources().getConfiguration();
+                boolean isScreenWideColorGamut = configuration.isScreenWideColorGamut();
+                display.updateIsDisplayServerWideColorGamut(isScreenWideColorGamut);
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S_V2) {

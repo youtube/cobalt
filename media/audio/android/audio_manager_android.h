@@ -12,7 +12,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
-#include "media/audio/android/aaudio_input.h"
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_device_id.h"
 #include "media/audio/audio_manager_base.h"
@@ -92,16 +91,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   base::TimeDelta GetOutputLatency();
 
   static int GetSinkAudioEncodingFormats();
-
-  // Called by an `AAudioInputStream` when it is started, i.e. it begins
-  // providing audio data.
-  void REQUIRES_ANDROID_API(AAUDIO_MIN_API)
-      OnStartAAudioInputStream(AAudioInputStream* stream);
-
-  // Called by an `AAudioInputStream` when it is stopped, i.e. it stops
-  // providing audio data.
-  void REQUIRES_ANDROID_API(AAUDIO_MIN_API)
-      OnStopAAudioInputStream(AAudioInputStream* stream);
 
  protected:
   void ShutdownOnAudioThread() override;
