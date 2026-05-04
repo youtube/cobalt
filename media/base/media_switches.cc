@@ -520,6 +520,9 @@ BASE_FEATURE(kCobaltUsingAndroidOverlay,
              "CobaltUsingAndroidOverlay",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltAudioCaptureFastTrack,
+             "CobaltAudioCaptureFastTrack",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
