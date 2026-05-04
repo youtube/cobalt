@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Starboard configuration for generic Android. Other devices will have
+// The Starboard configuration for generic AOSP devices. Other devices will have
 // specific Starboard implementations, even if they ultimately are running some
-// version of Android -- but they may base their configuration on the generic
-// Android configuration headers.
+// version of AOSP -- but they may base their configuration on the generic
+// AOSP configuration headers.
 
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
