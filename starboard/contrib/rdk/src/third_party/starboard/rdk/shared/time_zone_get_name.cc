@@ -101,7 +101,9 @@ const char* SbTimeZoneGetName() {
         return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
       }
     }
-    SB_NOTREACHED();
+    // FIXME(santo): This is hit due to invalid link for /etc/localtime in RDK7
+    // image, so commented to avoid crash in devel build.
+    //SB_NOTREACHED();
     return "";
   } else {
     return gTimeZoneBufferPtr;

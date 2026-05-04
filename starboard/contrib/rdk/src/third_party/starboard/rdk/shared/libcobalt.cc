@@ -162,6 +162,11 @@ struct APIContext
     return exit_strategy_.c_str();
   }
 
+  bool IsAppRunning() const
+  {
+    return (state_ == kRunning);
+  }
+
 private:
   enum State {
     kUninitialized,
@@ -263,7 +268,7 @@ void SbRdkSetSetting(const char* key, const char* json) {
     return;
 
   if (strcmp(key, "accessibility") == 0) {
-    Accessibility::SetSettings(json);
+    Accessibility::SetSettings(json, GetContext()->IsAppRunning());
   }
   else if (strcmp(key, "systemproperties") == 0) {
     SystemProperties::SetSettings(json);

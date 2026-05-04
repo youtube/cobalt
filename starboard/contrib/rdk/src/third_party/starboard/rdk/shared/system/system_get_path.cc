@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "system_get_path.h"
 #include "starboard/system.h"
 
 #include <linux/limits.h>
@@ -57,6 +58,13 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
   return true;
 }
 #endif
+} // namespace
+
+namespace third_party {
+namespace starboard {
+namespace rdk {
+namespace shared {
+namespace system {
 
 bool GetContentDirectory(char* out_path, int path_size)
 {
@@ -71,7 +79,7 @@ bool GetContentDirectory(char* out_path, int path_size)
       std::string tmp = contentPath + testFilePath;
       struct stat info;
       if(stat(tmp.c_str(), &info) == 0){
-        return (starboard::strlcat<char>(out_path, contentPath.c_str(), path_size) < path_size);
+        return (::starboard::strlcat<char>(out_path, contentPath.c_str(), path_size) < path_size);
       }
     }
 #if !SB_IS(EVERGREEN_COMPATIBLE)
@@ -81,8 +89,16 @@ bool GetContentDirectory(char* out_path, int path_size)
   }
 
   // Default to /usr/share/content/data if COBALT_CONTENT_PATH is not set
-  return (starboard::strlcat<char>(out_path, "/usr/share/content/data", path_size) < path_size);
+  return (::starboard::strlcat<char>(out_path, "/usr/share/content/data", path_size) < path_size);
 }
+
+}  // namespace system
+}  // namespace shared
+}  // namespace rdk
+}  // namespace starboard
+}  // namespace third_party
+
+namespace {
 
 // Gets the path to the cache directory, using the home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
@@ -214,6 +230,8 @@ bool GetTemporaryDirectory(char* out_path, int path_size) {
 }  // namespace
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
+  using third_party::starboard::rdk::shared::system::GetContentDirectory;
+
   if (!out_path || !path_size) {
     return false;
   }
