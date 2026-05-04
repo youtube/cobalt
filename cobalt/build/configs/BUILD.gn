@@ -27,7 +27,8 @@ config("cobalt_config") {
     configs += [ ":no_mallinfo" ]
   }
   if (is_partner_toolchain ||
-      # TODO: Remove this condition when the Linux monolithic build is removed.
+      # TODO(crbug.com/390675141): Remove this condition when the Linux
+      # monolithic build is removed.
       (is_starboard_toolchain && !is_default_toolchain)) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
