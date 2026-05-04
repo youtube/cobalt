@@ -53,6 +53,12 @@ std::unique_ptr<FfmpegAudioDecoder> FfmpegAudioDecoder::Create(
       return FfmpegAudioDecoderImpl<601>::Create(job_queue, audio_stream_info);
     case 611:
       return FfmpegAudioDecoderImpl<611>::Create(job_queue, audio_stream_info);
+    case 621:
+      // We reuse the 611 implementation because FFMPEG 6.2 (621) is
+      // API-compatible with 6.1 (611).
+      // TODO: b/508705038 - Use a dedicated 621 specialization once
+      // third_party/ffmpeg is updated.
+      return FfmpegAudioDecoderImpl<611>::Create(job_queue, audio_stream_info);
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
                       << ffmpeg->specialization_version();
