@@ -58,15 +58,16 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
   const uint8_t* source_data = input_buffer->data();
   size_t data_size = input_buffer->size();
   if (sample_info.is_key_frame) {
-    VideoConfig new_config(input_buffer->video_stream_info(),
-                           input_buffer->data(), input_buffer->size());
-    if (!new_config.is_valid()) {
+    auto new_config =
+        VideoConfig::Create(input_buffer->video_stream_info(),
+                            input_buffer->data(), input_buffer->size());
+    if (!new_config) {
       ReportError("Failed to parse video config.");
       return;
     }
-    const auto& parameter_sets = new_config.avc_parameter_sets();
-    if (!video_config_ || video_config_.value() != new_config) {
-      video_config_ = new_config;
+    const auto& parameter_sets = new_config->avc_parameter_sets();
+    if (!video_config_ || video_config_.value() != *new_config) {
+      video_config_.emplace(*new_config);
       if (!RefreshAVCFormatDescription(parameter_sets)) {
         return;
       }
