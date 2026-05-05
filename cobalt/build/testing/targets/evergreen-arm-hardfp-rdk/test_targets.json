@@ -15,7 +15,6 @@
       "third_party/zlib:zlib_unittests_loader"
     ],
     "TODO(b/486053350): Crashes on missing SbEventHandle": [
-      "compositor:compositor_unittests_loader",
       "gl:gl_unittests_loader",
       "gl:ozone_gl_unittests_loader",
       "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
@@ -97,5 +96,9 @@
   {
     "target": "third_party/boringssl:boringssl_pki_tests_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py"
+  },
+  {
+    "target": "ui/compositor:compositor_unittests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py"
   }
 ]
