@@ -3,25 +3,25 @@
 // proto-message: BuildConfig
 // validation: gcl --message=kokoro.BuildConfig --objtype=config presubmit.gcl appendascii
 
-import 'common.gcl' as common
+import 'arm64/common.gcl' as common
 
 config build = common.build {
   env_vars = super.env_vars + [
     {
-      key = 'CONFIG'
-      value = 'devel'
+      key = 'CONFIG',
+      value = 'devel',
     },
     {
-      key = 'PLATFORM'
-      value = 'darwin-tvos-simulator'
+      key = 'GN_TARGET',
+      value = 'cobalt,cobalt_browsertests',
     },
     {
-      key = 'TARGET_PLATFORM'
-      value = 'tvos-arm64-simulator'
+      key = 'PLATFORM',
+      value = 'darwin-tvos-simulator',
     },
     {
-      key = 'GN_TARGET'
-      value = 'cobalt,cobalt_browsertests'
-    }
+      key = 'TARGET_PLATFORM',
+      value = 'darwin-tvos-simulator',
+    },
   ]
 }

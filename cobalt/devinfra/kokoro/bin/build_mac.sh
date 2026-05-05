@@ -101,12 +101,23 @@ EOF
       "${build_info_path}"
   fi
 
-  if has_simulator_tests; then
-    time python3 "${WORKSPACE_COBALT}/cobalt/tools/buildbot/run_unit_tests.py" \
-      --platform "${PLATFORM}" \
-      --config "${CONFIG}" \
-      --action run
+  if [[ "${GN_TARGET}" == *"cobalt_browsertests"* ]]; then
+    echo "Running Cobalt Browser Tests in Simulator..."
+    time "${out_dir}"/iossim \
+     -x tvos \
+     -d "Apple TV 4K (3rd generation)" \
+     -v \
+     -i \
+     -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
+     "${out_dir}"/cobalt_browsertests.app
   fi
+
+  # if has_simulator_tests; then
+  #   time python3 "${WORKSPACE_COBALT}/cobalt/tools/buildbot/run_unit_tests.py" \
+  #     --platform "${PLATFORM}" \
+  #     --config "${CONFIG}" \
+  #     --action run
+  # fi
 }
 
 
