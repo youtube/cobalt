@@ -241,6 +241,8 @@ AlsaAudioSink::~AlsaAudioSink() {
   audio_out_thread_->Stop();
 
   delete[] static_cast<uint8_t*>(silence_frames_);
+
+  AlsaCloseDevice(playback_handle_);
 }
 
 void AlsaAudioSink::ProcessAudio() {
@@ -252,8 +254,6 @@ void AlsaAudioSink::ProcessAudio() {
       break;
     }
   }
-
-  AlsaCloseDevice(playback_handle_);
 }
 
 bool AlsaAudioSink::IdleLoop() {
