@@ -26,6 +26,10 @@ GetDemuxerStreamVideoMemoryLimit(DemuxerType demuxer_type,
 // The maximum amount of data (in bytes) a demuxer can keep in memory overall.
 MEDIA_EXPORT size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT void SetVideoBufferSizeClamp(int size_in_mb);
+#endif
+
 namespace internal {
 
 // These values should not be used directly, they are selected by functions

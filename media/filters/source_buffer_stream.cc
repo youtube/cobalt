@@ -1865,9 +1865,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     // Dynamically increase |memory_limit_| on video config changes.
     size_t new_memory_limit =
         GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer, &config);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    new_memory_limit = std::min(new_memory_limit, memory_limit_ceiling_);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (new_memory_limit > memory_limit_) {
       DVLOG(2) << __func__ << ": Increase memory limit from " << memory_limit_
                << " to " << new_memory_limit << ".";

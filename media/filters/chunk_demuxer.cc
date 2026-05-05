@@ -411,13 +411,6 @@ void ChunkDemuxerStream::SetStreamMemoryLimit(size_t memory_limit) {
   stream_->set_memory_limit(memory_limit);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void ChunkDemuxerStream::ApplyStreamMemoryLimitCeiling(size_t ceiling) {
-  base::AutoLock auto_lock(lock_);
-  stream_->ApplyMemoryLimitCeiling(ceiling);
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 void ChunkDemuxerStream::SetLiveness(StreamLiveness liveness) {
   base::AutoLock auto_lock(lock_);
   liveness_ = liveness;

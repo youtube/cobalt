@@ -37,7 +37,6 @@ class MEDIA_EXPORT SourceBufferState {
   // Overrides the maximum number of bytes that a single call to Parse() will
   // inspect from the pending buffer.
   static void SetMaxPendingBytesPerParseOverride(int max_bytes);
-  static void SetVideoBufferSizeClampMb(int mb);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
