@@ -87,8 +87,8 @@ TEST(VideoConfigTest, IsValid) {
     ASSERT_FALSE(config.has_value());
   }
   {
-    auto config =
-        VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080}, nullptr, 0);
+    auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080},
+                                      /*data=*/nullptr, /*data_size=*/0);
     ASSERT_TRUE(config.has_value());
   }
 }
@@ -107,7 +107,8 @@ TEST(VideoConfigTest, SelfComparison) {
   }
   {
     auto config =
-        VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, nullptr, 0);
+        VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, /*data=*/nullptr,
+                            /*data_size=*/0);
     ASSERT_TRUE(config.has_value());
     EXPECT_TRUE(*config == *config);
     EXPECT_FALSE(*config != *config);

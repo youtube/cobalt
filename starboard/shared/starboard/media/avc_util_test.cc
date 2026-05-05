@@ -184,7 +184,8 @@ bool HasEqualParameterSets(const std::vector<uint8_t>& nalus_in_annex_b_1,
 }
 
 TEST(AvcParameterSetsTest, Ctor) {
-  auto parameter_sets_1 = AvcParameterSets::Create(kAnnexB, nullptr, 0);
+  auto parameter_sets_1 =
+      AvcParameterSets::Create(kAnnexB, /*data=*/nullptr, /*size=*/0);
   ASSERT_TRUE(parameter_sets_1.has_value());
   auto parameter_sets_2 = AvcParameterSets::Create(kAnnexB, kSpsInAnnexB.data(),
                                                    kSpsInAnnexB.size());
@@ -370,7 +371,8 @@ TEST(AvcParameterSetsTest, SpsAndPpsAfterIdrWithoutSpsAndPps) {
 }
 
 TEST(AvcParameterSetsTest, Nullptr) {
-  auto parameter_sets = AvcParameterSets::Create(kAnnexB, nullptr, 0);
+  auto parameter_sets =
+      AvcParameterSets::Create(kAnnexB, /*data=*/nullptr, /*size=*/0);
 
   ASSERT_TRUE(parameter_sets.has_value());
   ASSERT_EQ(parameter_sets->format(), kAnnexB);

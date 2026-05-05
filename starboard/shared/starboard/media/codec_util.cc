@@ -33,10 +33,12 @@ std::optional<VideoConfig> VideoConfig::Create(SbMediaVideoCodec video_codec,
                                                size_t data_size) {
   if (video_codec == kSbMediaVideoCodecVp9 ||
       video_codec == kSbMediaVideoCodecAv1) {
-    return VideoConfig(video_codec, size, std::nullopt);
+    return VideoConfig(video_codec, size,
+                       /*avc_parameter_sets=*/std::nullopt);
   } else if (video_codec == kSbMediaVideoCodecH264) {
     auto avc_parameter_sets =
-        AvcParameterSets::Create(AvcParameterSets::kAnnexB, data, data_size);
+        AvcParameterSets::Create(/*format=*/AvcParameterSets::kAnnexB,
+                                 /*data=*/data, /*size=*/data_size);
     if (avc_parameter_sets) {
       return VideoConfig(video_codec, size, std::move(avc_parameter_sets));
     }

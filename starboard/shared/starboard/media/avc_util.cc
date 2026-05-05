@@ -94,6 +94,12 @@ std::optional<AvcParameterSets> AvcParameterSets::Create(Format format,
   if (size > 0 && !StartsWithAnnexBHeader(data, size)) {
     return std::nullopt;
   }
+  if (size == 0) {
+    return AvcParameterSets(
+        format, /*parameter_sets=*/{}, /*first_sps_index=*/-1,
+        /*first_pps_index=*/-1, /*combined_size_in_bytes=*/0,
+        /*combined_size_with_optionals_in_bytes=*/0);
+  }
 
   std::vector<std::vector<uint8_t>> parameter_sets;
   int first_sps_index = -1;
@@ -101,27 +107,25 @@ std::optional<AvcParameterSets> AvcParameterSets::Create(Format format,
   size_t combined_size_in_bytes = 0;
   size_t combined_size_with_optionals_in_bytes = 0;
 
-  if (size > 0) {
-    std::vector<uint8_t> nalu;
-    while (size > kAnnexBHeaderSizeInBytes &&
-           ExtractAnnexBNalu(&data, &size, &nalu)) {
-      if (nalu[kAnnexBHeaderSizeInBytes] == kSpsStartCode) {
-        if (first_sps_index == -1) {
-          first_sps_index = static_cast<int>(parameter_sets.size());
-        }
-        parameter_sets.push_back(nalu);
-        combined_size_in_bytes += nalu.size();
-      } else if (nalu[kAnnexBHeaderSizeInBytes] == kPpsStartCode) {
-        if (first_pps_index == -1) {
-          first_pps_index = static_cast<int>(parameter_sets.size());
-        }
-        parameter_sets.push_back(nalu);
-        combined_size_in_bytes += nalu.size();
-      } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
-        break;
-      } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
-        combined_size_with_optionals_in_bytes += nalu.size();
+  std::vector<uint8_t> nalu;
+  while (size > kAnnexBHeaderSizeInBytes &&
+         ExtractAnnexBNalu(&data, &size, &nalu)) {
+    if (nalu[kAnnexBHeaderSizeInBytes] == kSpsStartCode) {
+      if (first_sps_index == -1) {
+        first_sps_index = static_cast<int>(parameter_sets.size());
       }
+      parameter_sets.push_back(nalu);
+      combined_size_in_bytes += nalu.size();
+    } else if (nalu[kAnnexBHeaderSizeInBytes] == kPpsStartCode) {
+      if (first_pps_index == -1) {
+        first_pps_index = static_cast<int>(parameter_sets.size());
+      }
+      parameter_sets.push_back(nalu);
+      combined_size_in_bytes += nalu.size();
+    } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
+      break;
+    } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
+      combined_size_with_optionals_in_bytes += nalu.size();
     }
   }
 
