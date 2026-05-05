@@ -12,21 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(final_executable_type, "benchmark") {
-  testonly = true
+if (is_cobalt_hermetic_build) {
+  import("//cobalt/build/modular_executable.gni")
 
-  sources = [
-    "//starboard/common/benchmark_main.cc",
-    "memory_benchmark.cc",
-    "thread_benchmark.cc",
-    "thread_id_benchmark.cc",
-  ]
+  modular_executable("benchmark") {
+    testonly = true
 
-  public_deps = [
-    "//starboard:starboard_group",
-    "//third_party/google_benchmark",
-  ]
-  deps = cobalt_platform_dependencies
+    sources = [
+      "//starboard/common/benchmark_main.cc",
+      "memory_benchmark.cc",
+      "thread_benchmark.cc",
+      "thread_id_benchmark.cc",
+    ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+    public_deps = [
+      "//starboard:starboard_group",
+      "//third_party/google_benchmark",
+    ]
+    deps = cobalt_platform_dependencies
+
+    configs += [ "//starboard/build/config:starboard_implementation" ]
+  }
+} else {
+  executable("benchmark") {
+    testonly = true
+
+    sources = [
+      "//starboard/common/benchmark_main.cc",
+      "memory_benchmark.cc",
+      "thread_benchmark.cc",
+      "thread_id_benchmark.cc",
+    ]
+
+    public_deps = [
+      "//starboard:starboard_group",
+      "//third_party/google_benchmark",
+    ]
+    deps = cobalt_platform_dependencies
+
+    configs += [ "//starboard/build/config:starboard_implementation" ]
+  }
 }
