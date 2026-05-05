@@ -52,15 +52,6 @@ EOF
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
   # -R, --reset resets any local changes before updating (git only)
-  echo "Jetski Debug: Git status before sync:"
-  git -C "${gclient_root}/src" status
-  echo "Jetski Debug: Git diff before sync:"
-  git -C "${gclient_root}/src" diff
-
-  echo "Jetski Debug: Resetting workspace..."
-  git -C "${gclient_root}/src" reset --hard HEAD
-  git -C "${gclient_root}/src" clean -dfx
-
   gclient sync -v \
     --shallow \
     --no-history \
@@ -72,15 +63,11 @@ EOF
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
-  echo "Jetski Debug: CONFIG is ${CONFIG}"
   local rbe_flag="--no-rbe"
   if [[ "${CONFIG}" == "devel" ]] || [[ "${CONFIG}" == "qa" ]]; then
-    echo "Jetski Debug: Enabling RBE"
     rbe_flag=""
   fi
 
-  echo "Jetski Debug: rbe_flag is ${rbe_flag}"
-  echo "Jetski Debug: GN target is ${GN_TARGET}"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
     --script-executable=/usr/bin/python3 ${rbe_flag}
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
