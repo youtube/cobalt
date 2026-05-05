@@ -5,7 +5,7 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
+export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
@@ -23,6 +23,7 @@ pipeline () {
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/github"
   git config --global --add safe.directory "${gclient_root}/src"
   local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
+  local current_sha="$(git -C "${gclient_root}/src" rev-parse HEAD)"
 
   # Set up gclient and run sync.
   ##############################################################################
@@ -42,13 +43,22 @@ pipeline () {
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
   # -R, --reset resets any local changes before updating (git only)
+  echo "Jetski Debug: Git status before sync:"
+  git -C "${gclient_root}/src" status
+  echo "Jetski Debug: Git diff before sync:"
+  git -C "${gclient_root}/src" diff
+
+  echo "Jetski Debug: Resetting workspace..."
+  git -C "${gclient_root}/src" reset --hard HEAD
+  git -C "${gclient_root}/src" clean -dfx
+
   gclient sync -v \
     --shallow \
     --no-history \
     -D \
     -f \
     -R \
-    -r "${KOKORO_GIT_COMMIT_src:-$KOKORO_GIT_COMMIT}"
+    -r "${current_sha}"
   build_telemetry opt-out
 
   # Run GN and Ninja.
