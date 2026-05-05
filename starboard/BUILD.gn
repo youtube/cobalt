@@ -234,6 +234,15 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 
+  # Keep starboard_with_main semantics stable and provide an explicit opt-in
+  # group for targets that should link against starboard_platform only.
+  group("starboard_with_platform") {
+    public_deps = [ ":starboard_group" ]
+    if (sb_is_modular && !sb_is_evergreen) {
+      public_deps += [ "//$starboard_path:starboard_platform" ]
+    }
+  }
+
   if (is_cobalt_hermetic_build) {
     _starboard_unittests_target_type = "executable"
   } else {

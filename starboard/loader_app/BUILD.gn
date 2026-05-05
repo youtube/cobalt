@@ -61,7 +61,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     sources = _common_loader_app_sources
     deps = [
       ":common_loader_app_dependencies",
-      "//starboard:starboard_with_main",
+      "//starboard:starboard_with_platform",
       "//starboard/content/fonts:copy_font_data",
       "//starboard/elf_loader",
     ]
@@ -240,7 +240,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":installation_manager",
       ":installation_store_proto",
       ":pending_restart",
-      "//starboard:starboard_with_main",
+      "//starboard:starboard_with_platform",
       "//starboard/common",
       "//testing/gmock",
       "//testing/gtest",
@@ -284,7 +284,7 @@ if (current_toolchain == starboard_toolchain) {
       ":installation_store_proto",
       ":read_evergreen_version",
       ":slot_management",
-      "//starboard:starboard_with_main",
+      "//starboard:starboard_with_platform",
       "//starboard/common",
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
@@ -331,7 +331,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     sources = [ "reset_evergreen_update_test.cc" ]
     deps = [
       ":reset_evergreen_update",
-      "//starboard:starboard_with_main",
+      "//starboard:starboard_with_platform",
       "//testing/gmock",
       "//testing/gtest",
     ]
