@@ -21,7 +21,7 @@ runs:
       id: prepare
       shell: bash
       env:
-        REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
       run: |
         # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
         LOWER_DIR="/runner-cache/golden-workspace"
@@ -56,7 +56,7 @@ runs:
           mkdir -p "$LOWER_DIR"
           cd "$LOWER_DIR"
 
-          git clone $REPO_URL src
+          git clone "$REPO_URL" src
           # Clone depot_tools
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
           export PATH="$LOWER_DIR/depot_tools:$PATH"
