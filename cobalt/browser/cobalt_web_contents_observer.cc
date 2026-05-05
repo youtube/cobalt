@@ -65,8 +65,8 @@ void CobaltWebContentsObserver::DidStartNavigation(
   timeout_timer_->Stop();
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
-      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
-                     weak_factory_.GetWeakPtr()));
+      base::BindOnce(&CobaltWebContentsObserver::OnNavigationTimeout,
+                     weak_factory_.GetWeakPtr(), handle->GetURL().spec()));
 }
 
 // Opting for WebContentsObserver::DidFinishNavigation() over
@@ -91,7 +91,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
               << net::ErrorToString(net_error_code);
     SetStartupDiagnosisInfo("navigation_error",
                             net::ErrorToString(net_error_code).c_str());
-    RaisePlatformError();
+    RaisePlatformError(navigation_handle->GetURL().spec());
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
                               false);
@@ -109,7 +109,12 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
 #endif
 }
 
-void CobaltWebContentsObserver::RaisePlatformError() {
+void CobaltWebContentsObserver::OnNavigationTimeout(const std::string& url) {
+  base::UmaHistogramBoolean("Cobalt.Network.NavigationTimeout", true);
+  RaisePlatformError(url);
+}
+
+void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
@@ -121,7 +126,8 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
-  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
+  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
+                                       url);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #else

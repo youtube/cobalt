@@ -17,8 +17,6 @@
 #include <sched.h>
 #include <unistd.h>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
@@ -26,13 +24,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaLocalRef;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;

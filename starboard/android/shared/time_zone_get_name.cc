@@ -19,15 +19,12 @@
 #include <time.h>
 
 #include "starboard/android/shared/starboard_bridge.h"
-
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
+#include "third_party/jni_zero/jni_zero.h"
 
 const char* SbTimeZoneGetName() {
   static char s_time_zone_id[64];
   // Note tzset() is called in ApplicationAndroid::Initialize()
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::string time_zone_id =
       starboard::StarboardBridge::GetInstance()->GetTimeZoneId(env);
 

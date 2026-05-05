@@ -20,8 +20,8 @@ jobs:
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run android_27.lts --ref main -f nightly=true --repo "${GITHUB_REPO}"
-          gh workflow run evergreen_27.lts --ref main -f nightly=true --repo "${GITHUB_REPO}"
-          gh workflow run linux_27.lts --ref main -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run android_27.lts --ref 27.lts -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run evergreen_27.lts --ref 27.lts -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run linux_27.lts --ref 27.lts -f nightly=true --repo "${GITHUB_REPO}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

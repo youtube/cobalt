@@ -2783,6 +2783,11 @@ buildflag_header("cfi_buildflags") {
   }
 }
 
+if (is_cobalt && is_partner_toolchain) {
+  group("debugging_buildflags") {
+    public_deps = [ "//copied_base/base:debugging_buildflags" ]
+  }
+} else {
 buildflag_header("debugging_buildflags") {
   header = "debugging_buildflags.h"
   header_dir = "base/debug"
@@ -2819,6 +2824,7 @@ buildflag_header("debugging_buildflags") {
     "ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING=$build_allocation_trace_recorder_full_reporting",
     "PRINT_UNSYMBOLIZED_STACK_TRACES=$print_unsymbolized_stack_traces",
   ]
+}
 }
 
 buildflag_header("feature_list_buildflags") {

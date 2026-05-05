@@ -16,19 +16,21 @@
 #include "starboard/system.h"
 // clang-format on
 
+#include <jni.h>
+
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "sys/system_properties.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
 
 namespace {
 
-// TODO: b/372559388 - Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 using ::starboard::StarboardBridge;
 
 const char kFriendlyName[] = "Android";
