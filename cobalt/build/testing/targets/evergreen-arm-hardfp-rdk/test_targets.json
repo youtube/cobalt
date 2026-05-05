@@ -19,7 +19,6 @@
       "gl:gl_unittests_loader",
       "gl:ozone_gl_unittests_loader",
       "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
-      "third_party/boringssl:boringssl_pki_tests_loader",
       "third_party/ipcz/src:ipcz_tests_loader",
       "third_party/opus:opus_tests_loader",
       "third_party/opus:test_opus_decode_loader",
@@ -94,5 +93,9 @@
   {
     "target": "ui/views/examples:views_examples_unittests_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py"
+  },
+  {
+    "target": "third_party/boringssl:boringssl_pki_tests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py"
   }
 ]
