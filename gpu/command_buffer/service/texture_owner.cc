@@ -14,11 +14,15 @@
 #include "gpu/command_buffer/service/abstract_texture_android.h"
 #include "gpu/command_buffer/service/decoder_context.h"
 #include "gpu/command_buffer/service/feature_info.h"
-#include "gpu/command_buffer/service/image_reader_gl_owner.h"
 #include "gpu/command_buffer/service/surface_texture_gl_owner.h"
 #include "gpu/command_buffer/service/texture_base.h"
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
+
+#if BUILDFLAG(IS_ANDROID) && \
+    (__ANDROID_MIN_SDK_VERSION__ >= AIMAGEREADER_MIN_API)
+#include "gpu/command_buffer/service/image_reader_gl_owner.h"
+#endif
 
 namespace gpu {
 namespace {
@@ -104,9 +108,12 @@ scoped_refptr<TextureOwner> TextureOwner::Create(
     case Mode::kAImageReaderInsecure:
     case Mode::kAImageReaderInsecureSurfaceControl:
     case Mode::kAImageReaderSecureSurfaceControl:
+#if BUILDFLAG(IS_ANDROID) && \
+    (__ANDROID_MIN_SDK_VERSION__ >= AIMAGEREADER_MIN_API)
       return new ImageReaderGLOwner(std::move(texture), mode,
                                     std::move(context_state),
                                     std::move(drdc_lock), type_for_metrics);
+#endif
     case Mode::kSurfaceTextureInsecure:
       DCHECK(!drdc_lock);
       return new SurfaceTextureGLOwner(std::move(texture),

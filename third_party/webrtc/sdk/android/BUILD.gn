@@ -1286,9 +1286,9 @@ if (current_os == "linux" || is_android) {
         "src/jni/audio_device/aaudio_wrapper.h",
       ]
       libs = []
-      # AAudio is removed for Cobalt to prevent UnsatisfiedLinkError on older Android TVs.
+      # AAudio is removed for Cobalt (or any SDK < 26 build) to prevent UnsatisfiedLinkError on older Android TVs.
       # See b/508072838
-      if (!is_cobalt) {
+      if (default_min_sdk_version >= 26) {
         libs += [ "aaudio" ]
       }
       deps = [

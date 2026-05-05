@@ -13,6 +13,10 @@ import("//testing/test.gni")
 import("//third_party/libgav1/options.gni")
 import("//tools/generate_stubs/rules.gni")
 
+if (is_android) {
+  import("//build/config/android/config.gni")
+}
+
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
@@ -186,9 +190,9 @@ component("gpu") {
     libs += [
       "mediandk",
     ]
-    # AAudio is removed for Cobalt to prevent UnsatisfiedLinkError on older Android TVs.
+    # AAudio is removed for Cobalt (or any SDK < 26 build) to prevent UnsatisfiedLinkError on older Android TVs.
     # See b/508072838
-    if (!is_cobalt) {
+    if (default_min_sdk_version >= 26) {
       libs += [ "aaudio" ]
     }
     deps += [
