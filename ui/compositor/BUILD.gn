@@ -242,6 +242,9 @@ test("compositor_unittests") {
     "transform_animation_curve_adapter_unittest.cc",
   ]
 
+  if (is_starboard) {
+  }
+
   data = [ "//ui/gfx/test/data/compositor/" ]
 
   deps = [

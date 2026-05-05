@@ -14,7 +14,6 @@
     "third_party/zlib:zlib_unittests_loader"
   ],
   "TODO(b/486053350): Crashes on missing SbEventHandle": [
-    "compositor:compositor_unittests_loader",
     "examples:views_examples_unittests_loader",
     "gl:gl_unittests_loader",
     "gl:ozone_gl_unittests_loader",
@@ -36,7 +35,8 @@
     "third_party/blink/renderer/platform/wtf:wtf_unittests_loader",
     "ui/events:events_unittests_loader",
     "ui/ozone:ozone_unittests_loader",
-    "storage:storage_unittests_loader"
+    "storage:storage_unittests_loader",
+    "ui/compositor:compositor_unittests_loader"
   ],
   "executables": [
     "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
@@ -47,6 +47,7 @@
     "out/evergreen-arm-hardfp-rdk_devel/wtf_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py",
-    "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py"
+    "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py"
   ]
 }
