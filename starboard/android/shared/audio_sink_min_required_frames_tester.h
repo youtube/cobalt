@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -106,7 +107,7 @@ class MinRequiredFramesTester {
   ThreadChecker thread_checker_;
 
   std::vector<TestTask> test_tasks_;
-  AudioTrackAudioSink* audio_sink_ = nullptr;
+  std::unique_ptr<AudioTrackAudioSink> audio_sink_;
   int min_required_frames_;
   std::atomic_bool has_error_;
 

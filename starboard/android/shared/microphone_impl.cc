@@ -30,11 +30,11 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 namespace {
 

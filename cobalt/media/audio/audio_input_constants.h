@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
-#include "starboard/system.h"
-// clang-format on
+#ifndef COBALT_MEDIA_AUDIO_AUDIO_INPUT_CONSTANTS_H_
+#define COBALT_MEDIA_AUDIO_AUDIO_INPUT_CONSTANTS_H_
 
-#include "starboard/android/shared/starboard_bridge.h"
-#include "third_party/jni_zero/jni_zero.h"
+namespace cobalt {
+namespace media {
 
-void SbSystemRequestConceal() {
-  JNIEnv* env = jni_zero::AttachCurrentThread();
-  starboard::StarboardBridge::GetInstance()->RequestSuspend(env);
-}
+// Hardcoded constants for the fast-track microphone capture path.
+constexpr int kSampleRate = 16'000;
+constexpr int kSamplesPerBuffer = 128;
+
+}  // namespace media
+}  // namespace cobalt
+
+#endif  // COBALT_MEDIA_AUDIO_AUDIO_INPUT_CONSTANTS_H_

@@ -16,12 +16,13 @@
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/extension/system_info.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
 
-using base::android::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaGlobalRef;
 
 // Definitions of any functions included as components in the extension
 // are added here.
