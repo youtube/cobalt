@@ -92,14 +92,14 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   AlsaAudioSink(PassKey<AlsaAudioSink>,
                 Type* type,
                 int channels,
-                int sampling_frequency_hz,
                 SbMediaAudioSampleType sample_type,
                 SbAudioSinkFrameBuffers frame_buffers,
                 int frames_per_channel,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 ConsumeFramesFunc consume_frames_func,
                 void* context,
-                void* playback_handle);
+                void* playback_handle,
+                int64_t time_to_wait_us);
   ~AlsaAudioSink() override;
 
   bool IsType(Type* type) override { return type_ == type; }
@@ -133,28 +133,28 @@ class AlsaAudioSink : public SbAudioSinkImpl {
                    int frames_in_buffer,
                    int offset_in_frames);
 
-  Type* type_;
-  SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  ConsumeFramesFunc consume_frames_func_;
-  void* context_;
+  Type* const type_;
+  const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
+  const ConsumeFramesFunc consume_frames_func_;
+  void* const context_;
 
   double playback_rate_;
   double volume_;
   std::vector<uint8_t> resample_buffer_;
 
-  int channels_;
-  SbMediaAudioSampleType sample_type_;
+  const int channels_;
+  const SbMediaAudioSampleType sample_type_;
 
   const std::unique_ptr<JobThread> audio_out_thread_;
   std::mutex mutex_;
 
-  int64_t time_to_wait_;
+  const int64_t time_to_wait_us_;
 
   bool destroying_;
 
-  void* frame_buffer_;
-  int frames_per_channel_;
-  void* silence_frames_;
+  void* const frame_buffer_;
+  const int frames_per_channel_;
+  void* const silence_frames_;
 
   void* const playback_handle_;
 };
@@ -179,24 +179,27 @@ std::unique_ptr<AlsaAudioSink> AlsaAudioSink::Create(
     return nullptr;
   }
 
+  int64_t time_to_wait_us =
+      kFramesPerRequest * 1'000'000LL / sampling_frequency_hz / 2;
+
   return std::make_unique<AlsaAudioSink>(
-      PassKey<AlsaAudioSink>(), type, channels, sampling_frequency_hz,
-      sample_type, frame_buffers, frames_per_channel, update_source_status_func,
-      consume_frames_func, context, playback_handle);
+      PassKey<AlsaAudioSink>(), type, channels, sample_type, frame_buffers,
+      frames_per_channel, update_source_status_func, consume_frames_func,
+      context, playback_handle, time_to_wait_us);
 }
 
 AlsaAudioSink::AlsaAudioSink(
     PassKey<AlsaAudioSink>,
     Type* type,
     int channels,
-    int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
     void* context,
-    void* playback_handle)
+    void* playback_handle,
+    int64_t time_to_wait_us)
     : type_(type),
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
@@ -210,8 +213,7 @@ AlsaAudioSink::AlsaAudioSink(
       audio_out_thread_(JobThread::Create(
           "alsa_audio_out",
           ThreadOptions().SetPriority(kSbThreadPriorityRealTime))),
-      time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
-                    2),
+      time_to_wait_us_(time_to_wait_us),
       destroying_(false),
       frame_buffer_(frame_buffers[0]),
       frames_per_channel_(frames_per_channel),
@@ -284,7 +286,7 @@ bool AlsaAudioSink::IdleLoop() {
       AlsaWriteFrames(playback_handle_, silence_frames_, kFramesPerRequest);
       AlsaDrain(playback_handle_);
     }
-    usleep(time_to_wait_);
+    usleep(time_to_wait_us_);
   }
 
   return false;
@@ -322,7 +324,7 @@ bool AlsaAudioSink::PlaybackLoop() {
       WriteFrames(playback_rate, std::min(kFramesPerRequest, frames_in_buffer),
                   frames_in_buffer, offset_in_frames);
     } else {
-      usleep(time_to_wait_);
+      usleep(time_to_wait_us_);
     }
   }
 
