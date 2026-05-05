@@ -82,7 +82,11 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
-          ENTRYPOINT="./$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          if [ -f "$(dirname "${test_binary_path}")/bin/run_${test_binary}" ]; then
+            ENTRYPOINT="./$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          else
+            ENTRYPOINT=./"${test_binary_path}"
+          fi
 
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." >  ${log_path}
