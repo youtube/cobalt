@@ -5,7 +5,7 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
+WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
@@ -20,7 +20,7 @@ pipeline () {
   # Run mac specific setup steps.
   setup_mac
 
-  local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
+  local gclient_root="${KOKORO_ARTIFACTS_DIR}/github"
   git config --global --add safe.directory "${gclient_root}/src"
   local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
 
@@ -48,7 +48,7 @@ pipeline () {
     -D \
     -f \
     -R \
-    -r "${KOKORO_GIT_COMMIT_src}"
+    -r "${KOKORO_GIT_COMMIT_src:-$KOKORO_GIT_COMMIT}"
   build_telemetry opt-out
 
   # Run GN and Ninja.
@@ -108,8 +108,12 @@ pipeline () {
 setup_mac () {
   # Pull signing profiles.
   mkdir -p "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-  cp -f ${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/*.mobileprovision \
-      "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+  if [ -n "${KOKORO_PIPER_DIR:-}" ]; then
+    cp -f ${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/*.mobileprovision \
+        "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+  else
+    echo "WARNING: KOKORO_PIPER_DIR is unset. Skipping provisioning profiles copy."
+  fi
 
   export DEVELOPER_DIR="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
 
