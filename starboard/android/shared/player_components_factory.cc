@@ -432,11 +432,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
                               force_platform_opus_decoder)) {
-          auto audio_decoder_impl =
-              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
-          if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl;
-          }
+          return OpusAudioDecoder::Create(job_queue, audio_stream_info);
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
