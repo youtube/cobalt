@@ -459,8 +459,7 @@ def FindLeakLocations(leaked_symbols, config_path, only_grep, use_ripgrep):
     # we just assume those are matches.
     leaking_files[_UNKNOWN_LIBRARIES][symbol] = set()
     for obj_file in obj_files_to_check:
-      if os.path.splitext(obj_file)[1] == '.rlib' or symbol in ProcessNmOutput(
-          RunCommand(['nm', '-u', '-C', obj_file])):
+      if symbol in ProcessNmOutput(RunCommand(['nm', '-u', '-C', obj_file])):
         leaking_files[_UNKNOWN_LIBRARIES][symbol].add(
             '//' + os.path.relpath(obj_file, paths.REPOSITORY_ROOT))
     if len(leaking_files[_UNKNOWN_LIBRARIES][symbol]) == 0:
