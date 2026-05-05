@@ -119,61 +119,57 @@ TEST(IamfUtilTest, Invalid) {
   EXPECT_FALSE(IamfMimeUtil::Create("ec-3").has_value());
 }
 
-TEST(IamfUtilTest, SubstreamCodec) {
-  {
-    auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecOpus);
-  }
-
-  {
-    auto util = IamfMimeUtil::Create("iamf.000.000.fLaC");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecFlac);
-  }
-
-  {
-    auto util = IamfMimeUtil::Create("iamf.000.000.ipcm");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecIpcm);
-  }
-
-  {
-    auto util = IamfMimeUtil::Create("iamf.000.000.mp4a.40.2");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecMp4a);
-  }
+TEST(IamfUtilTest, SubstreamCodecOpus) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecOpus);
 }
 
-TEST(IamfUtilTest, Profile) {
-  {
-    auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->primary_profile(), kIamfProfileSimple);
-    EXPECT_EQ(util->additional_profile(), kIamfProfileSimple);
-  }
+TEST(IamfUtilTest, SubstreamCodecFlac) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.fLaC");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecFlac);
+}
 
-  {
-    auto util = IamfMimeUtil::Create("iamf.001.000.Opus");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->primary_profile(), kIamfProfileBase);
-    EXPECT_EQ(util->additional_profile(), kIamfProfileSimple);
-  }
+TEST(IamfUtilTest, SubstreamCodecIpcm) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.ipcm");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecIpcm);
+}
 
-  {
-    auto util = IamfMimeUtil::Create("iamf.000.001.Opus");
-    ASSERT_TRUE(util.has_value());
-    EXPECT_EQ(util->primary_profile(), kIamfProfileSimple);
-    EXPECT_EQ(util->additional_profile(), kIamfProfileBase);
-  }
+TEST(IamfUtilTest, SubstreamCodecMp4a) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.mp4a.40.2");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecMp4a);
+}
 
-  {
-    auto util = IamfMimeUtil::Create("iamf.002.000.Opus");
-    ASSERT_TRUE(util.has_value());
-    ASSERT_NE(util->primary_profile(), kIamfProfileSimple);
-    ASSERT_NE(util->primary_profile(), kIamfProfileBase);
-    ASSERT_EQ(util->primary_profile(), 2U);
-  }
+TEST(IamfUtilTest, ProfileSimpleSimple) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->primary_profile(), kIamfProfileSimple);
+  EXPECT_EQ(util->additional_profile(), kIamfProfileSimple);
+}
+
+TEST(IamfUtilTest, ProfileBaseSimple) {
+  auto util = IamfMimeUtil::Create("iamf.001.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->primary_profile(), kIamfProfileBase);
+  EXPECT_EQ(util->additional_profile(), kIamfProfileSimple);
+}
+
+TEST(IamfUtilTest, ProfileSimpleBase) {
+  auto util = IamfMimeUtil::Create("iamf.000.001.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->primary_profile(), kIamfProfileSimple);
+  EXPECT_EQ(util->additional_profile(), kIamfProfileBase);
+}
+
+TEST(IamfUtilTest, ProfileOther) {
+  auto util = IamfMimeUtil::Create("iamf.002.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  ASSERT_NE(util->primary_profile(), kIamfProfileSimple);
+  ASSERT_NE(util->primary_profile(), kIamfProfileBase);
+  ASSERT_EQ(util->primary_profile(), 2U);
 }
 
 TEST(IamfUtilTest, ParsesSequenceHeaderObu) {

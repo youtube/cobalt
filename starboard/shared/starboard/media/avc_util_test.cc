@@ -382,73 +382,47 @@ TEST(AvcParameterSetsTest, Nullptr) {
   ASSERT_EQ(parameter_sets->combined_size_in_bytes(), 0U);
 }
 
-TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
-  {
-    auto parameter_sets =
-        AvcParameterSets::Create(kAnnexB, kNaluHeaderOnlyInAnnexB.data(),
-                                 kNaluHeaderOnlyInAnnexB.size());
-
-    ASSERT_TRUE(parameter_sets.has_value());
-    ASSERT_EQ(parameter_sets->format(), kAnnexB);
-    ASSERT_FALSE(parameter_sets->has_sps_and_pps());
-    ASSERT_TRUE(parameter_sets->GetAddresses().empty());
-    ASSERT_TRUE(parameter_sets->GetSizesInBytes().empty());
-    ASSERT_EQ(parameter_sets->combined_size_in_bytes(), 0U);
-  }
-  for (int i = 0; i < 2; ++i) {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    std::vector<uint8_t> nalus_in_annex_b;
-    if (i == 0) {
-      nalus_in_annex_b = parameter_sets_in_annex_b + kNaluHeaderOnlyInAnnexB;
-    } else {
-      nalus_in_annex_b =
-          parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
-    }
-
-    VerifyAnnexB(nalus_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
-                 parameter_sets_in_annex_b);
-  }
+TEST(AvcParameterSetsTest, NaluHeaderOnlyIsEmpty) {
+  VerifyAllEmpty(kNaluHeaderOnlyInAnnexB);
 }
 
-TEST(AvcParameterSetsTest, InvalidNaluHeader) {
-  {
-    VerifyAllEmpty(kNaluHeaderOnlyInAnnexB);
-  }
-  {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    auto nalus_in_annex_b = parameter_sets_in_annex_b + kNaluHeaderOnlyInAnnexB;
+TEST(AvcParameterSetsTest, TrailingNaluHeaderWithoutTypeIsIgnored) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b = parameter_sets_in_annex_b + kNaluHeaderOnlyInAnnexB;
 
-    VerifyAnnexB(nalus_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
-                 parameter_sets_in_annex_b);
-  }
-  {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    auto nalus_in_annex_b =
-        parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
+  VerifyAnnexB(nalus_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
+               parameter_sets_in_annex_b);
+}
 
-    VerifyAnnexB(nalus_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
-                 parameter_sets_in_annex_b);
-  }
-  {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    auto nalus_in_annex_b =
-        parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
-    nalus_in_annex_b.erase(nalus_in_annex_b.begin());  // One less 0
+TEST(AvcParameterSetsTest, TrailingNaluHeaderWithoutTypeAfterIdrIsIgnored) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b =
+      parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
 
-    auto parameter_sets = AvcParameterSets::Create(
-        kAnnexB, nalus_in_annex_b.data(), nalus_in_annex_b.size());
-    ASSERT_FALSE(parameter_sets.has_value());
-  }
-  {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    auto nalus_in_annex_b =
-        parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
-    nalus_in_annex_b.insert(nalus_in_annex_b.begin(), 0);  // One extra 0
+  VerifyAnnexB(nalus_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
+               parameter_sets_in_annex_b);
+}
 
-    auto parameter_sets = AvcParameterSets::Create(
-        kAnnexB, nalus_in_annex_b.data(), nalus_in_annex_b.size());
-    ASSERT_FALSE(parameter_sets.has_value());
-  }
+TEST(AvcParameterSetsTest, InvalidNaluHeaderOneLessZero) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b =
+      parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
+  nalus_in_annex_b.erase(nalus_in_annex_b.begin());  // One less 0
+
+  auto parameter_sets = AvcParameterSets::Create(
+      kAnnexB, nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  ASSERT_FALSE(parameter_sets.has_value());
+}
+
+TEST(AvcParameterSetsTest, InvalidNaluHeaderOneExtraZero) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b =
+      parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
+  nalus_in_annex_b.insert(nalus_in_annex_b.begin(), 0);  // One extra 0
+
+  auto parameter_sets = AvcParameterSets::Create(
+      kAnnexB, nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  ASSERT_FALSE(parameter_sets.has_value());
 }
 
 TEST(AvcParameterSetsTest, MultiNalusWithoutSpsPps) {
@@ -495,34 +469,33 @@ TEST(AvcParameterSetsTest, CombinedSizeWithOptionalParameter) {
       (kPpsInAnnexB.size() + kSpsInAnnexB.size() + kAudInAnnexB.size()));
 }
 
-TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
-  {
-    std::vector<uint8_t> raw_nalus[] = {kRawSlice, kRawIdr, kRawSps, kRawPps};
-    std::vector<uint8_t> nalus_in_annex_b;
-    std::vector<uint8_t> nalus_in_avcc;
+TEST(AvcParameterSetsTest, ConvertAnnexBToAvccStartingWithSlice) {
+  std::vector<uint8_t> raw_nalus[] = {kRawSlice, kRawIdr, kRawSps, kRawPps};
+  std::vector<uint8_t> nalus_in_annex_b;
+  std::vector<uint8_t> nalus_in_avcc;
 
-    for (int i = 0; i < 20; ++i) {
-      nalus_in_annex_b =
-          nalus_in_annex_b + ToAnnexB(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
-      nalus_in_avcc =
-          nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
+  for (int i = 0; i < 20; ++i) {
+    nalus_in_annex_b =
+        nalus_in_annex_b + ToAnnexB(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
+    nalus_in_avcc =
+        nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
 
-      ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
-    }
+    ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
   }
-  {
-    std::vector<uint8_t> raw_nalus[] = {kRawSps, kRawPps, kRawSlice, kRawIdr};
-    std::vector<uint8_t> nalus_in_annex_b;
-    std::vector<uint8_t> nalus_in_avcc;
+}
 
-    for (int i = 0; i < 20; ++i) {
-      nalus_in_annex_b =
-          nalus_in_annex_b + ToAnnexB(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
-      nalus_in_avcc =
-          nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
+TEST(AvcParameterSetsTest, ConvertAnnexBToAvccStartingWithSps) {
+  std::vector<uint8_t> raw_nalus[] = {kRawSps, kRawPps, kRawSlice, kRawIdr};
+  std::vector<uint8_t> nalus_in_annex_b;
+  std::vector<uint8_t> nalus_in_avcc;
 
-      ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
-    }
+  for (int i = 0; i < 20; ++i) {
+    nalus_in_annex_b =
+        nalus_in_annex_b + ToAnnexB(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
+    nalus_in_avcc =
+        nalus_in_avcc + ToAvcc(raw_nalus[i % SB_ARRAY_SIZE(raw_nalus)]);
+
+    ASSERT_EQ(ConvertAnnexBToAvccFromVector(nalus_in_annex_b), nalus_in_avcc);
   }
 }
 
@@ -548,27 +521,24 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccEmptyNalus) {
       ToAvcc(kRawNalu) + ToAvcc(kEmpty));
 }
 
-TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
-  {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    auto nalus_in_annex_b =
-        parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
-    nalus_in_annex_b.erase(nalus_in_annex_b.begin());  // One less 0
-    auto nalus_in_avcc = nalus_in_annex_b;
-    ASSERT_FALSE(ConvertAnnexBToAvcc(nalus_in_annex_b.data(),
-                                     nalus_in_annex_b.size(),
-                                     nalus_in_avcc.data()));
-  }
-  {
-    auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
-    auto nalus_in_annex_b =
-        parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
-    nalus_in_annex_b.insert(nalus_in_annex_b.begin(), 0);  // One extra 0
-    auto nalus_in_avcc = nalus_in_annex_b;
-    ASSERT_FALSE(ConvertAnnexBToAvcc(nalus_in_annex_b.data(),
-                                     nalus_in_annex_b.size(),
-                                     nalus_in_avcc.data()));
-  }
+TEST(AvcParameterSetsTest, ConvertAnnexBToAvccFailOneLessZero) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b =
+      parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
+  nalus_in_annex_b.erase(nalus_in_annex_b.begin());  // One less 0
+  auto nalus_in_avcc = nalus_in_annex_b;
+  ASSERT_FALSE(ConvertAnnexBToAvcc(
+      nalus_in_annex_b.data(), nalus_in_annex_b.size(), nalus_in_avcc.data()));
+}
+
+TEST(AvcParameterSetsTest, ConvertAnnexBToAvccFailOneExtraZero) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b =
+      parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
+  nalus_in_annex_b.insert(nalus_in_annex_b.begin(), 0);  // One extra 0
+  auto nalus_in_avcc = nalus_in_annex_b;
+  ASSERT_FALSE(ConvertAnnexBToAvcc(
+      nalus_in_annex_b.data(), nalus_in_annex_b.size(), nalus_in_avcc.data()));
 }
 
 }  // namespace
