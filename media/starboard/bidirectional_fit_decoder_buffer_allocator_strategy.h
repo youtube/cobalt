@@ -25,10 +25,9 @@ template <typename ReuseAllocatorBase>
 class BidirectionalFitDecoderBufferAllocatorStrategy
     : public DecoderBufferAllocator::Strategy {
  public:
-  BidirectionalFitDecoderBufferAllocatorStrategy(
-      std::size_t initial_capacity,
-      std::size_t allocation_increment,
-      bool enable_decommit_on_idle)
+  BidirectionalFitDecoderBufferAllocatorStrategy(size_t initial_capacity,
+                                                 size_t allocation_increment,
+                                                 bool enable_decommit_on_idle)
       : fallback_allocator_(enable_decommit_on_idle),
         birectional_fit_allocator_(&fallback_allocator_,
                                    initial_capacity,
