@@ -21,6 +21,9 @@ rendering issues caused by Chromium's shader expectations.
 ### Added the following POSIX symbols:
 * `getrandom`
 * `getuid`
+* `sched_getparam`
+* `sched_getscheduler`
+* `sched_setscheduler`
 * `statx`
 
 ### Added AV2 to SbMediaVideoCodec

@@ -234,6 +234,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'recvmsg',
     'rename',
     'sched_getaffinity',
+    'sched_getparam',
     'sched_get_priority_max',
     'sched_get_priority_min',
     'sched_getscheduler',
