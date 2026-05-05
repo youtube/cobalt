@@ -26,15 +26,19 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
@@ -77,6 +81,7 @@ public abstract class CobaltActivity extends Activity {
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
+  private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -113,7 +118,6 @@ public abstract class CobaltActivity extends Activity {
   private Boolean mIsKeepScreenOnEnabled = false;
 
   private boolean mIsCobaltUsingAndroidOverlay;
-  private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
   private boolean mEnableSplashScreen;
   private String mStartDeepLink;
@@ -179,6 +183,15 @@ public abstract class CobaltActivity extends Activity {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
       commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
+
+      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
+
+      if (!extraCommandLineArgs.isEmpty()) {
+        if (commandLineArgs != null) {
+          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+        }
+        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
+      }
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
@@ -443,6 +456,10 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
     StartupGuard.getInstance().setStartupMilestone(9);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.register(this);
+    }
   }
 
   /**
@@ -513,7 +530,8 @@ public abstract class CobaltActivity extends Activity {
     super.onStart();
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable corresponding resume event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onresume event
       webContents.onResume();
     }
@@ -538,7 +556,8 @@ public abstract class CobaltActivity extends Activity {
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // If ENABLE_FREEZE is not specified, disable freeze event by default.
+    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
       // document.onfreeze event
       webContents.onFreeze();
     }
@@ -806,6 +825,23 @@ public abstract class CobaltActivity extends Activity {
   private void updateShellActivityVisible(boolean isVisible) {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
+    }
+  }
+
+  @RequiresApi(api = 33)
+  private static class OnBackInvokedHelper {
+    static void register(final CobaltActivity activity) {
+      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+          new OnBackInvokedCallback() {
+            @Override
+            public void onBackInvoked() {
+              // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+            }
+          }
+      );
     }
   }
 }

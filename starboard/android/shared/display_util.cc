@@ -14,16 +14,16 @@
 
 #include "starboard/android/shared/display_util.h"
 
-#include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/DisplayUtil_jni.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
-using base::android::ScopedJavaLocalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 DisplayUtil::Dpi DisplayUtil::GetDisplayDpi() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   ScopedJavaLocalRef<jobject> display_dpi_obj =
       Java_DisplayUtil_getDisplayDpi(env);

@@ -22,12 +22,11 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
-
-using base::android::ScopedJavaLocalRef;
 
 const int kCheckpointFramesInterval = 1024;
 
@@ -48,12 +47,11 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 class MinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(MinRequiredFramesTester* tester)
-      : Thread("min_frames_test"), tester_(tester) {}
+      : Thread("min_frames_test",
+               ThreadOptions().SetPriority(kSbThreadPriorityLowest)),
+        tester_(tester) {}
 
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityLowest);
-    tester_->TesterThreadFunc();
-  }
+  void Run() override { tester_->TesterThreadFunc(); }
 
  private:
   MinRequiredFramesTester* tester_;
@@ -126,14 +124,13 @@ void MinRequiredFramesTester::TesterThreadFunc() {
       is_test_complete_ = false;
     }
 
-    audio_sink_ = new AudioTrackAudioSink(
+    audio_sink_ = AudioTrackAudioSink::Create(
         NULL, task.number_of_channels, task.sample_rate, task.sample_type,
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
-        &MinRequiredFramesTester::UpdateSourceStatusFunc,
-        &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, false, this);
+        {UpdateSourceStatusFunc, ConsumeFramesFunc, ErrorFunc}, 0, -1, false,
+        false, this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(
@@ -143,15 +140,13 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     }
 
     // Get start threshold before release the audio sink.
-    int start_threshold = audio_sink_->IsAudioTrackValid()
-                              ? audio_sink_->GetStartThresholdInFrames()
-                              : 0;
+    int start_threshold =
+        audio_sink_ ? audio_sink_->GetStartThresholdInFrames() : 0;
 
     // |min_required_frames_| is shared between two threads. Release audio sink
     // to end audio sink thread before access |min_required_frames_| on this
     // thread.
-    delete audio_sink_;
-    audio_sink_ = nullptr;
+    audio_sink_.reset();
 
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";

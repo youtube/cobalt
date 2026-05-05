@@ -18,9 +18,27 @@
 #include <linux/prctl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <sys/prctl.h>
+#include <unistd.h>
 
 #include "starboard/common/log.h"
+
+// The PR_SET_VMA* symbols are originally from
+// https://android.googlesource.com/platform/bionic/+/lollipop-release/libc/private/bionic_prctl.h
+// and were subsequently added to mainline Linux in Jan 2022.
+//
+// We conditionally define these symbols here to support older
+// GNU/Linux operating systems that may not have these symbols yet.
+#if !defined(PR_SET_VMA)
+#define PR_SET_VMA 0x53564d41
+#endif
+
+#if !defined(PR_SET_VMA_ANON_NAME)
+#define PR_SET_VMA_ANON_NAME 0
+#endif
+
+namespace {
 
 int musl_op_to_platform_op(int musl_op) {
   switch (musl_op) {
@@ -61,6 +79,8 @@ int musl_op_to_platform_op(int musl_op) {
       return PR_TASK_PERF_EVENTS_ENABLE;
     case MUSL_PR_SET_PTRACER:
       return PR_SET_PTRACER;
+    case MUSL_PR_SET_VMA:
+      return PR_SET_VMA;
     default:
       SB_LOG(WARNING) << "Unknown musl prctl operation: " << musl_op;
       errno = EINVAL;
@@ -126,6 +146,9 @@ int platform_tsc_to_musl_tsc(int platform_tsc) {
       return -1;
   }
 }
+}  // namespace
+
+extern "C" {
 
 int __abi_wrap_prctl(int op, ...) {
   int platform_op = musl_op_to_platform_op(op);
@@ -274,8 +297,21 @@ int __abi_wrap_prctl(int op, ...) {
     }
     case PR_SET_PTRACER: {
       long pid = va_arg(args, long);
-      pid = (pid == MUSL_PR_SET_PTRACER_ANY) ? PR_SET_PTRACER_ANY : pid;
+      pid = (pid == (long)MUSL_PR_SET_PTRACER_ANY) ? PR_SET_PTRACER_ANY : pid;
       ret = prctl(platform_op, pid);
+      break;
+    }
+    case PR_SET_VMA: {
+      unsigned long attr = va_arg(args, unsigned long);
+      unsigned long addr = va_arg(args, unsigned long);
+      unsigned long size = va_arg(args, unsigned long);
+      unsigned long val = va_arg(args, unsigned long);
+
+      unsigned long platform_attr = attr;
+      if (attr == MUSL_PR_SET_VMA_ANON_NAME) {
+        platform_attr = PR_SET_VMA_ANON_NAME;
+      }
+      ret = prctl(platform_op, platform_attr, addr, size, val);
       break;
     }
     // This default case shouldn't be reachable; if we weren't able to convert
@@ -292,3 +328,5 @@ int __abi_wrap_prctl(int op, ...) {
   va_end(args);
   return ret;
 }
+
+}  // extern "C"

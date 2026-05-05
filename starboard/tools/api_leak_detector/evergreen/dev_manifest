@@ -9,11 +9,9 @@ __gcov_flush
 dl_iterate_phdr
 dlopen
 dlsym
-getrandom
 if_indextoname
 inotify_add_watch
 inotify_init
 inotify_rm_watch
 ioctl
 sched_setscheduler
-statx

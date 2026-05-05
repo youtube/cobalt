@@ -81,15 +81,17 @@ runs:
           depth_arg+=(--depth "${FETCH_DEPTH}")
         fi
 
-        git clone \
-          --filter=blob:none \
-          --reference-if-able "${CACHE_PATH}" \
-          --dissociate \
-          "${depth_arg[@]}" \
-          "${REPO_URL}" \
-          "${DEST_PATH}"
+        if [ ! -d "${DEST_PATH}/.git" ]; then
+          git clone \
+            --filter=blob:none \
+            "${depth_arg[@]}" \
+            "${REPO_URL}" \
+            "${DEST_PATH}"
+        else
+          echo "Repository already exists at ${DEST_PATH}. Skipping clone."
+        fi
 
         git config --global --add safe.directory "${GITHUB_WORKSPACE}/${DEST_PATH}"
 
-        git -C "${DEST_PATH}" fetch "${deptch_arg[@]}" origin "${REF}"
+        git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}"
         git -C "${DEST_PATH}" checkout "${REF}"

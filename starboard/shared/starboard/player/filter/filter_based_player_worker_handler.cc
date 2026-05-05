@@ -28,6 +28,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -153,6 +154,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   if (audio_renderer_) {
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
 
+    audio_preroll_track_.Begin("Audio Preroll", audio_renderer_);
+
     audio_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
@@ -165,6 +168,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   media_time_provider_->SetPlaybackRate(playback_rate_);
   if (video_renderer_) {
     SB_LOG(INFO) << "Initialize video renderer.";
+
+    video_preroll_track_.Begin("Video Preroll", video_renderer_);
 
     video_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
@@ -434,8 +439,10 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
+    audio_preroll_track_.End();
     SB_LOG(INFO) << "Audio prerolled.";
   } else {
+    video_preroll_track_.End();
     SB_LOG(INFO) << "Video prerolled.";
   }
 
@@ -506,6 +513,9 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "FilterBasedPlayerWorkerHandler stopped.";
+
+  audio_preroll_track_.End();
+  video_preroll_track_.End();
 
   RemoveJobByToken(update_job_token_);
 
