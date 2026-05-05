@@ -72,8 +72,7 @@ class AudioSinkTestEnvironment {
       const AudioSinkTestFrameBuffers& frame_buffers);
 
   AudioSinkTestEnvironment(starboard::PassKey<AudioSinkTestEnvironment>,
-                           const AudioSinkTestFrameBuffers& frame_buffers,
-                           bool* out_success);
+                           const AudioSinkTestFrameBuffers& frame_buffers);
   ~AudioSinkTestEnvironment();
 
   static int sample_rate() {
