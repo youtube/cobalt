@@ -52,6 +52,9 @@
 #include GLOG_BUILD_CONFIG_INCLUDE
 #endif  // GLOG_BUILD_CONFIG_INCLUDE
 
+// Allow pread() to use higher offsets on 32-bit systems.
+#define _FILE_OFFSET_BITS 64
+
 #include "symbolize.h"
 
 #include "utilities.h"
