@@ -114,14 +114,14 @@ std::optional<AvcParameterSets> AvcParameterSets::Create(Format format,
       if (first_sps_index == -1) {
         first_sps_index = static_cast<int>(parameter_sets.size());
       }
-      parameter_sets.push_back(nalu);
       combined_size_in_bytes += nalu.size();
+      parameter_sets.push_back(std::move(nalu));
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kPpsStartCode) {
       if (first_pps_index == -1) {
         first_pps_index = static_cast<int>(parameter_sets.size());
       }
-      parameter_sets.push_back(nalu);
       combined_size_in_bytes += nalu.size();
+      parameter_sets.push_back(std::move(nalu));
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
       break;
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
