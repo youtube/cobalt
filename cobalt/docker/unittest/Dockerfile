@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxcomposite-dev \
     openbox \
+    x11-xserver-utils \
     xcompmgr \
     xcvt \
     xserver-xorg-core \
