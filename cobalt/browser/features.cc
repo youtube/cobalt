@@ -42,6 +42,10 @@ BASE_FEATURE(kCobaltMetricsIntervalFeature,
              "CobaltMetricsInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kEnableAsyncDNSClient,
+             "EnableAsyncDNSClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 const base::FeatureParam<int> kCpuMetricsIntervalParam{
     &kCobaltMetricsIntervalFeature, "cpu-metrics-interval", 300};
 

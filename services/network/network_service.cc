@@ -119,6 +119,10 @@
 #include "services/network/sct_auditing/sct_auditing_cache.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/features.h"
+#endif
+
 namespace net {
 class FirstPartySetEntry;
 }
@@ -469,9 +473,16 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   dns_config_change_manager_ = std::make_unique<DnsConfigChangeManager>();
 
+  net::HostResolver::ManagerOptions options;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnableAsyncDNSClient)) {
+    options.insecure_dns_client_enabled = true;
+  }
+#endif
   host_resolver_manager_ = std::make_unique<net::HostResolverManager>(
-      net::HostResolver::ManagerOptions(),
-      net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(), net_log_);
+      options, net::NetworkChangeNotifier::GetSystemDnsConfigNotifier(),
+      net_log_);
+
   host_resolver_factory_ = std::make_unique<net::HostResolver::Factory>();
 
   http_auth_cache_copier_ = std::make_unique<HttpAuthCacheCopier>();

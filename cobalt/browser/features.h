@@ -48,6 +48,9 @@ extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
 // Sets memory metrics collection interval in seconds (default 5 min).
 extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
 
+// Enables the Chromium build-in Async DNS Client feature.
+extern const base::Feature kEnableAsyncDNSClient;
+
 }  // namespace features
 }  // namespace cobalt
 

@@ -367,6 +367,12 @@ component("network_service") {
     "//url",
   ]
 
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/browser:features",
+    ]
+  }
+
   if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       ":network_sandbox_hook",
