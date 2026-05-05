@@ -21,8 +21,9 @@ void TestForReasonableDriveInfo(const std::optional<DriveInfo>& info) {
   // `has_seek_penalty` may or may not be true but should be ascertainable.
   EXPECT_TRUE(info->has_seek_penalty.has_value());
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+     BUILDFLAG(IS_CHROMEOS)) &&                                        \
+    !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // `is_removable` may or may not be true but should be ascertainable.
   EXPECT_TRUE(info->is_removable.has_value());
 

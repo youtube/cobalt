@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <link.h>
 #include <malloc.h>
 #include <netdb.h>
 #include <poll.h>
@@ -42,7 +43,24 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <semaphore.h>
+#include <sys/time.h>
 #include <unistd.h>
+#include <wchar.h>
+
+// Weak declarations for symbols that may not be present on all platforms.
+extern "C" {
+int __cxa_thread_atexit_impl(void (*)(void*), void*, void*)
+    __attribute__((weak));
+}
+
+namespace {
+// No-op stubs for GCC coverage functions: these are only meaningful in
+// coverage builds. In production builds the module references them weakly;
+// providing no-op implementations suppresses the symbol-lookup errors.
+void gcov_flush_stub() {}
+void gcov_dump_stub() {}
+}  // namespace
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
@@ -290,6 +308,37 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(symlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(write);
+
+  // POSIX APIs not yet listed above
+  REGISTER_SYMBOL(_Exit);
+  REGISTER_SYMBOL(alarm);
+  REGISTER_SYMBOL(chdir);
+  REGISTER_SYMBOL(dl_iterate_phdr);
+  REGISTER_SYMBOL(fork);
+  REGISTER_SYMBOL(fputwc);
+  REGISTER_SYMBOL(memalign);
+  REGISTER_SYMBOL(sched_getcpu);
+  REGISTER_SYMBOL(sched_setscheduler);
+  REGISTER_SYMBOL(sem_getvalue);
+  REGISTER_SYMBOL(sem_trywait);
+  REGISTER_SYMBOL(settimeofday);
+  REGISTER_SYMBOL(sigaltstack);
+  REGISTER_SYMBOL(statx);
+  REGISTER_SYMBOL(valloc);
+
+  // Conditionally register symbols that may not be present on all platforms.
+  map_["__gcov_flush"] = reinterpret_cast<const void*>(&gcov_flush_stub);
+  map_["__gcov_dump"] = reinterpret_cast<const void*>(&gcov_dump_stub);
+  if (&__cxa_thread_atexit_impl) {
+    REGISTER_SYMBOL(__cxa_thread_atexit_impl);
+  }
+#if defined(__arm__)
+  // On 32-bit ARM, __clock_gettime64 is the time64-ABI variant of
+  // clock_gettime. Its struct layout matches musl_timespec, so the existing
+  // ABI wrapper covers it.
+  map_["__clock_gettime64"] =
+      reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+#endif
 
   // Linux APIs
   REGISTER_SYMBOL(recvmmsg);
