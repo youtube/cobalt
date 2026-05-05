@@ -40,14 +40,14 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 // $ ./out/linux-x64x11_qa/benchmark --benchmark_filter="BM_*"
 //
 // On Linux Modular (Non-Evergreen):
-// $ autoninja -C out/linux-x64x11-modular_qa
-// starboard/benchmark:benchmark_loader $
-// ./out/linux-x64x11-modular_qa/benchmark_loader --benchmark_filter="BM_*"
+// $ autoninja -C out/linux-x64x11-modular_qa \
+//   starboard/benchmark:benchmark_loader
+// $ ./out/linux-x64x11-modular_qa/benchmark_loader --benchmark_filter="BM_*"
 //
 // On Linux Evergreen (Modular):
 // $ autoninja -C out/evergreen-x64_qa starboard/benchmark:benchmark_loader
-// $ python3 ./out/evergreen-x64_qa/benchmark_loader.py
-// --benchmark_filter="BM_*"
+// $ python3 ./out/evergreen-x64_qa/benchmark_loader.py \
+//   --benchmark_filter="BM_*"
 //
 // On Android:
 // $ autoninja -C out/android-arm_qa benchmark
