@@ -143,8 +143,9 @@ setup_mac () {
   }
   export GSUTIL="gcloud_storage_shim"
 
-  if is_release_build && is_release_config; then
-    # Configure gsutil to use auth from keystore.
+  # Authenticate gcloud service account if key is available in keystore.
+  if [ -n "${KOKORO_KEYSTORE_DIR:-}" ] && [ -n "${GCLOUD_KEY_FILE_NAME:-}" ] && [ -f "${KOKORO_KEYSTORE_DIR}/${GCLOUD_KEY_FILE_NAME}" ]; then
+    echo "Authenticating Gcloud Service Account..."
     gcloud auth activate-service-account --key-file="${KOKORO_KEYSTORE_DIR}/${GCLOUD_KEY_FILE_NAME}"
   fi
 }
