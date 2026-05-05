@@ -23,23 +23,32 @@ pipeline () {
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/github"
   git config --global --add safe.directory "${gclient_root}/src"
   local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
-  local current_sha="$(git -C "${gclient_root}/src" rev-parse HEAD)"
 
   # Set up gclient and run sync.
   ##############################################################################
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
-  # Do not use remote build for release.
+  # Conditionally enable RBE variables
+  local custom_vars=""
   if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
-    gclient config --name=src \
-      --custom-var="download_remoteexec_cfg=True" \
-      --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
-      "${git_url}"
-  else
-    gclient config --name=src "${git_url}"
+    custom_vars="\"custom_vars\": {'download_remoteexec_cfg': True, 'rbe_instance': 'projects/cobalt-actions-prod/instances/default_instance'},"
   fi
-  echo "target_os=['ios']" >> .gclient
+
+  # Write the .gclient file directly with managed = False
+  cat <<EOF > .gclient
+solutions = [
+  { "name"        : 'src',
+    "url"         : '${git_url}',
+    "deps_file"   : 'DEPS',
+    "managed"     : False,
+    "custom_deps" : {
+    },
+    ${custom_vars}
+  },
+]
+target_os=['ios']
+EOF
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
   # -R, --reset resets any local changes before updating (git only)
@@ -57,8 +66,7 @@ pipeline () {
     --no-history \
     -D \
     -f \
-    -R \
-    -r "${current_sha}"
+    -R
   build_telemetry opt-out
 
   # Run GN and Ninja.
