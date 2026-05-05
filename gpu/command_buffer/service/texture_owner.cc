@@ -19,8 +19,7 @@
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
 
-#if BUILDFLAG(IS_ANDROID) && \
-    (__ANDROID_MIN_SDK_VERSION__ >= 26)
+#if BUILDFLAG(IS_ANDROID) && (__ANDROID_MIN_SDK_VERSION__ >= 26)
 #include "gpu/command_buffer/service/image_reader_gl_owner.h"
 #endif
 
@@ -108,11 +107,12 @@ scoped_refptr<TextureOwner> TextureOwner::Create(
     case Mode::kAImageReaderInsecure:
     case Mode::kAImageReaderInsecureSurfaceControl:
     case Mode::kAImageReaderSecureSurfaceControl:
-#if BUILDFLAG(IS_ANDROID) && \
-    (__ANDROID_MIN_SDK_VERSION__ >= 26)
+#if BUILDFLAG(IS_ANDROID) && (__ANDROID_MIN_SDK_VERSION__ >= 26)
       return new ImageReaderGLOwner(std::move(texture), mode,
                                     std::move(context_state),
                                     std::move(drdc_lock), type_for_metrics);
+#else
+      return nullptr;
 #endif
     case Mode::kSurfaceTextureInsecure:
       DCHECK(!drdc_lock);
