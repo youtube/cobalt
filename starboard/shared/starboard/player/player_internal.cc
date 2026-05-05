@@ -45,9 +45,11 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
+    SbPlayerRenderStatusFunc player_render_status_func,
     void* context,
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
+      player_render_status_func_(player_render_status_func),
       context_(context),
       media_time_updated_at_(CurrentMonotonicTime()),
       worker_(std::make_unique<PlayerWorker>(
@@ -158,15 +160,29 @@ void SbPlayerPrivateImpl::SetVolume(double volume) {
 void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
                                           int dropped_video_frames,
                                           int ticket,
-                                          bool is_progressing) {
-  std::lock_guard lock(mutex_);
-  if (ticket_ != ticket) {
-    return;
+                                          bool is_progressing,
+                                          bool is_audio_playing,
+                                          bool has_video_renderer,
+                                          int number_of_frames,
+                                          bool is_video_eos_received,
+                                          bool has_enough_video_data,
+                                          bool has_audio_renderer) {
+  {
+    std::lock_guard lock(mutex_);
+    if (ticket_ != ticket) {
+      return;
+    }
+    media_time_ = media_time;
+    is_progressing_ = is_progressing;
+    media_time_updated_at_ = CurrentMonotonicTime();
+    dropped_video_frames_ = dropped_video_frames;
   }
-  media_time_ = media_time;
-  is_progressing_ = is_progressing;
-  media_time_updated_at_ = CurrentMonotonicTime();
-  dropped_video_frames_ = dropped_video_frames;
+  if (player_render_status_func_) {
+    player_render_status_func_(this, context_, is_audio_playing,
+                               has_video_renderer, number_of_frames,
+                               is_video_eos_received, has_enough_video_data,
+                               has_audio_renderer, !is_progressing_);
+  }
 }
 
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {

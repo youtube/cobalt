@@ -164,6 +164,13 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                   int max_number_of_buffers_to_write) override;
   void OnPlayerStatus(SbPlayerState state) override;
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
+  void OnRenderStatus(bool is_audio_playing,
+                      bool has_video_renderer,
+                      int number_of_frames,
+                      bool is_video_eos_received,
+                      bool has_enough_video_data,
+                      bool has_audio_renderer,
+                      bool is_audio_underflow) override;
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
@@ -188,7 +195,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              TimeDelta time_ahead_of_playback,
                              bool is_preroll);
 
-  void OnBufferingStateChange(BufferingState state);
+  void OnBufferingStateChange(BufferingState state,
+                              media::BufferingStateChangeReason reason);
+  bool WaitingForEnoughData() const;
+  void UpdateUnderflow(DemuxerStream::Type type,
+                       BufferingState new_buffering_state);
 
   void NotifyError(PipelineStatus status);
 
@@ -197,6 +208,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const std::unique_ptr<MediaLog> media_log_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
+  BufferingState audio_buffering_state_;
+  BufferingState video_buffering_state_;
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
@@ -276,6 +289,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   uint32_t last_video_frames_dropped_ = 0;
 
   SbWindow sb_window_ = kSbWindowInvalid;
+
+  bool has_video_renderer_ = false;
+  bool has_audio_renderer_ = false;
+  bool was_audio_playing_ = false;
+  double playback_rate_before_underflow_ = 0.;
 
   raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 

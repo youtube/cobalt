@@ -118,7 +118,9 @@ void AVSBSynchronizer::Seek(int64_t seek_to_time) {
 int64_t AVSBSynchronizer::GetCurrentMediaTime(bool* is_playing,
                                               bool* is_eos_played,
                                               bool* is_underflow,
-                                              double* playback_rate) {
+                                              double* playback_rate,
+                                              bool* has_renderer,
+                                              bool* is_audio_playing) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);

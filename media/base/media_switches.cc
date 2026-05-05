@@ -515,6 +515,10 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
 #if BUILDFLAG(IS_ANDROID)
+// When enabled, Cobalt pauses playback when audio/video underflow.
+BASE_FEATURE(kCobaltPausePlaybackWhenUnderflow,
+             "CobaltPausePlaybackWhenUnderflow",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,
              "CobaltUsingAndroidOverlay",
