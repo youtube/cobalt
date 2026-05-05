@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/video_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder.h"
 
 #include <jni.h>
 #include <unistd.h>
@@ -27,7 +27,7 @@
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
