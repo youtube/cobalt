@@ -82,10 +82,13 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
-          if [ -f "$(dirname "${test_binary_path}")/bin/run_${test_binary}" ]; then
-            ENTRYPOINT="./$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
+          # If so, use it as the entrypoint to run tests.
+          wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          if [ -f "${wrapper_path}" ]; then
+            ENTRYPOINT="./${wrapper_path}"
           else
-            ENTRYPOINT=./"${test_binary_path}"
+            ENTRYPOINT="./${test_binary_path}"
           fi
 
           if [ "${test_filter}" == "-*" ]; then
