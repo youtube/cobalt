@@ -16,6 +16,7 @@
 #define STARBOARD_COMMON_EXPERIMENTAL_MEDIA_BUFFER_POOL_MEMORY_ALLOCATOR_H_
 
 #include <algorithm>
+#include <cstddef>
 
 #include "starboard/common/allocator.h"
 #include "starboard/common/experimental/media_buffer_pool.h"

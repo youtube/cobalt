@@ -15,6 +15,8 @@
 #ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 #define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 
+#include <cstddef>
+
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"

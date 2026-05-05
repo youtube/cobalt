@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstddef>
 
 #include "base/check.h"
 #include "base/check_op.h"
