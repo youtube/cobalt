@@ -19,14 +19,14 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_audio_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"

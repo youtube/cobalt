@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/media_codec_decoder.h"
 
 #include <sched.h>
 #include <unistd.h>
@@ -203,7 +203,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool enable_output_checker,
     std::string* error_message)
     : JobOwner(job_queue),
-
       media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
