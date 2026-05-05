@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/features.gni")
+import("//chrome/version.gni")
 
 declare_args() {
   # Screen capture is enabled on most platforms. Currently, screen capture
@@ -10,4 +11,11 @@ declare_args() {
   # at some point once the feature is stable. See crbug.com/40418135.
   enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
                           is_win || is_desktop_android || is_fuchsia
+
+  # True if the targeted Chromium milestone is 138 or lower.
+  # This allows Cobalt to conditionally compile custom features, fallbacks,
+  # or modifications on older milestones, while automatically yielding to
+  # upstream's official implementations on newer milestones (M139+) to
+  # prevent rebase and upgrade merge conflicts.
+  chromium_le_138 = is_cobalt && chrome_version_major <= "138"
 }
