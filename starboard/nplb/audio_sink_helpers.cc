@@ -96,14 +96,28 @@ void AudioSinkTestFrameBuffers::Init() {
   }
 }
 
+std::unique_ptr<AudioSinkTestEnvironment> AudioSinkTestEnvironment::Create(
+    const AudioSinkTestFrameBuffers& frame_buffers) {
+  bool success = false;
+  auto environment = std::make_unique<AudioSinkTestEnvironment>(
+      starboard::PassKey<AudioSinkTestEnvironment>(), frame_buffers, &success);
+  if (!success) {
+    return nullptr;
+  }
+  return environment;
+}
+
 AudioSinkTestEnvironment::AudioSinkTestEnvironment(
-    const AudioSinkTestFrameBuffers& frame_buffers)
+    starboard::PassKey<AudioSinkTestEnvironment>,
+    const AudioSinkTestFrameBuffers& frame_buffers,
+    bool* out_success)
     : frame_buffers_(frame_buffers) {
   sink_ = SbAudioSinkCreate(
       frame_buffers_.channels(), sample_rate(), frame_buffers_.sample_type(),
       frame_buffers_.storage_type(), frame_buffers_.frame_buffers(),
       frame_buffers_.frames_per_channel(), UpdateSourceStatusFunc,
       ConsumeFramesFunc, this);
+  *out_success = SbAudioSinkIsValid(sink_);
 }
 
 AudioSinkTestEnvironment::~AudioSinkTestEnvironment() {

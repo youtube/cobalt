@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -26,6 +25,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
@@ -78,7 +78,19 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
 //    silence to ALSA.
 class AlsaAudioSink : public SbAudioSinkImpl {
  public:
-  AlsaAudioSink(Type* type,
+  static std::unique_ptr<AlsaAudioSink> Create(
+      Type* type,
+      int channels,
+      int sampling_frequency_hz,
+      SbMediaAudioSampleType sample_type,
+      SbAudioSinkFrameBuffers frame_buffers,
+      int frames_per_channel,
+      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+      ConsumeFramesFunc consume_frames_func,
+      void* context);
+
+  AlsaAudioSink(PassKey<AlsaAudioSink>,
+                Type* type,
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType sample_type,
@@ -86,7 +98,8 @@ class AlsaAudioSink : public SbAudioSinkImpl {
                 int frames_per_channel,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 ConsumeFramesFunc consume_frames_func,
-                void* context);
+                void* context,
+                void* playback_handle);
   ~AlsaAudioSink() override;
 
   bool IsType(Type* type) override { return type_ == type; }
@@ -100,8 +113,6 @@ class AlsaAudioSink : public SbAudioSinkImpl {
     std::lock_guard lock(mutex_);
     volume_ = volume;
   }
-
-  bool is_valid() { return playback_handle_ != NULL; }
 
  private:
   AlsaAudioSink(const AlsaAudioSink&) = delete;
@@ -132,13 +143,10 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   std::vector<uint8_t> resample_buffer_;
 
   int channels_;
-  int sampling_frequency_hz_;
   SbMediaAudioSampleType sample_type_;
 
   const std::unique_ptr<JobThread> audio_out_thread_;
   std::mutex mutex_;
-  std::condition_variable creation_signal_;
-  bool audio_thread_created_ = false;  // Guarded by |mutex_|.
 
   int64_t time_to_wait_;
 
@@ -148,10 +156,10 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   int frames_per_channel_;
   void* silence_frames_;
 
-  void* playback_handle_;
+  void* const playback_handle_;
 };
 
-AlsaAudioSink::AlsaAudioSink(
+std::unique_ptr<AlsaAudioSink> AlsaAudioSink::Create(
     Type* type,
     int channels,
     int sampling_frequency_hz,
@@ -160,7 +168,35 @@ AlsaAudioSink::AlsaAudioSink(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
-    void* context)
+    void* context) {
+  snd_pcm_format_t alsa_sample_type =
+      sample_type == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
+                                                    : SND_PCM_FORMAT_S16;
+  void* playback_handle =
+      AlsaOpenPlaybackDevice(channels, sampling_frequency_hz, kFramesPerRequest,
+                             kALSABufferSizeInFrames, alsa_sample_type);
+  if (!playback_handle) {
+    return nullptr;
+  }
+
+  return std::make_unique<AlsaAudioSink>(
+      PassKey<AlsaAudioSink>(), type, channels, sampling_frequency_hz,
+      sample_type, frame_buffers, frames_per_channel, update_source_status_func,
+      consume_frames_func, context, playback_handle);
+}
+
+AlsaAudioSink::AlsaAudioSink(
+    PassKey<AlsaAudioSink>,
+    Type* type,
+    int channels,
+    int sampling_frequency_hz,
+    SbMediaAudioSampleType sample_type,
+    SbAudioSinkFrameBuffers frame_buffers,
+    int frames_per_channel,
+    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+    ConsumeFramesFunc consume_frames_func,
+    void* context,
+    void* playback_handle)
     : type_(type),
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
@@ -170,7 +206,6 @@ AlsaAudioSink::AlsaAudioSink(
       resample_buffer_(channels * kFramesPerRequest *
                        GetSampleSize(sample_type)),
       channels_(channels),
-      sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
       audio_out_thread_(JobThread::Create(
           "alsa_audio_out",
@@ -182,19 +217,18 @@ AlsaAudioSink::AlsaAudioSink(
       frames_per_channel_(frames_per_channel),
       silence_frames_(new uint8_t[channels * kFramesPerRequest *
                                   GetSampleSize(sample_type)]),
-      playback_handle_(NULL) {
+      playback_handle_(playback_handle) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
   SB_CHECK(audio_out_thread_);
+  SB_CHECK(playback_handle_);
 
   memset(silence_frames_, 0,
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
-  std::unique_lock lock(mutex_);
   audio_out_thread_->Schedule([this] { ProcessAudio(); });
-  creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }
 
 AlsaAudioSink::~AlsaAudioSink() {
@@ -208,23 +242,6 @@ AlsaAudioSink::~AlsaAudioSink() {
 }
 
 void AlsaAudioSink::ProcessAudio() {
-  snd_pcm_format_t alsa_sample_type =
-      sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
-                                                     : SND_PCM_FORMAT_S16;
-
-  playback_handle_ = AlsaOpenPlaybackDevice(
-      channels_, sampling_frequency_hz_, kFramesPerRequest,
-      kALSABufferSizeInFrames, alsa_sample_type);
-  {
-    std::lock_guard lock(mutex_);
-    audio_thread_created_ = true;
-  }
-  creation_signal_.notify_one();
-
-  if (!playback_handle_) {
-    return;
-  }
-
   for (;;) {
     if (!IdleLoop()) {
       break;
@@ -235,8 +252,6 @@ void AlsaAudioSink::ProcessAudio() {
   }
 
   AlsaCloseDevice(playback_handle_);
-  std::lock_guard lock(mutex_);
-  playback_handle_ = NULL;
 }
 
 bool AlsaAudioSink::IdleLoop() {
@@ -418,16 +433,11 @@ SbAudioSink AlsaAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  AlsaAudioSink* audio_sink = new AlsaAudioSink(
+  std::unique_ptr<AlsaAudioSink> audio_sink = AlsaAudioSink::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
-  if (!audio_sink->is_valid()) {
-    delete audio_sink;
-    return kSbAudioSinkInvalid;
-  }
-
-  return audio_sink;
+  return audio_sink.release();
 }
 
 AlsaAudioSinkType* alsa_audio_sink_type_;
