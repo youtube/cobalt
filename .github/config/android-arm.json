@@ -10,7 +10,7 @@
   "test_e2e": false,
   "test_yts": false,
   "test_yts_playback": true,
-  "test_browser": false,
+  "test_browser": true,
   "test_yts_wpt": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "e2e_test_targets": [
