@@ -23,10 +23,6 @@ overridable_clang_toolchain("starboard") {
     current_os = "linux"
     current_cpu = "x64"
     is_starboard = true
-
-    # Starboard uses native glibc, unlike Cobalt which may use hermetic musl.
-    # Override to false to ignore global args.gn settings.
-    use_custom_libc = false
     enable_base_tracing = false
   }
   propagates_configs = !enable_cobalt_hermetic_hacks

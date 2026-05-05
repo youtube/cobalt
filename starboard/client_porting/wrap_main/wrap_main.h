@@ -24,6 +24,7 @@
 #include "starboard/system.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
+    !BUILDFLAG(IS_STARBOARD_TOOLCHAIN) &&  \
     !defined(STARBOARD_IMPLEMENTATION_TEST)
 #include <init_musl.h>
 #endif
@@ -38,6 +39,7 @@ void SimpleEventHandler(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
+    !BUILDFLAG(IS_STARBOARD_TOOLCHAIN) &&  \
     !defined(STARBOARD_IMPLEMENTATION_TEST)
       init_musl();
 #endif
