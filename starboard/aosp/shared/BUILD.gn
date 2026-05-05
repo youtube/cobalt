@@ -13,9 +13,9 @@
 # limitations under the License.
 
 static_library("starboard_platform") {
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
   sources = [ "run_starboard_main.cc" ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [ "//starboard/android/shared:starboard_platform" ]
 }
