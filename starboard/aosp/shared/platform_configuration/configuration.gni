@@ -12,4 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#import("//starboard/android/shared/platform_configuration/configuration.gni")
+# Shared configuration for AOSP arm and arm64.
+#
+# Don't import starboard/android/shared/platform_configuration/configuration.gni
+# here, since it's transitively imported by each platform via the AndroidTV
+# configuration.
