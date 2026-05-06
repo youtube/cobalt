@@ -1,0 +1,9 @@
+{
+  "TODO(b/489556129)": "Add more tests when they are ready to run on CI.",
+  "test_targets": [
+    "cobalt/testing/browser_tests:cobalt_browsertests"
+  ],
+  "executables": [
+    "out/tvos-arm64-simulator_debug/cobalt_browsertests.app"
+  ]
+}
