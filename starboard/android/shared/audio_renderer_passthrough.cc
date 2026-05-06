@@ -17,8 +17,8 @@
 #include <algorithm>
 #include <utility>
 
-#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_decoder_passthrough.h"
+#include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"

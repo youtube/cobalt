@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/android/shared/video_render_algorithm_android.h"
 
 #include <algorithm>
 #include <list>

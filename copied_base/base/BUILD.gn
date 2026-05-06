@@ -1766,7 +1766,7 @@ component("base") {
       "//starboard/common",
     ]
 
-    # TODO(crbug.com/495203133): Android is the only platform whose starboard
+    # TODO(crbug.com/509811765): Android is the only platform whose starboard
     # library depends on //base. On AOSP, `is_starboard` is true, so this leads
     # to a circular dependency.
     if (is_android) {
