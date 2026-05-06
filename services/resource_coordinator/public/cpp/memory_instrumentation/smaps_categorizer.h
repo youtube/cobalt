@@ -15,6 +15,8 @@
 #ifndef SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_SMAPS_CATEGORIZER_H_
 #define SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_SMAPS_CATEGORIZER_H_
 
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "base/files/file.h"
@@ -26,6 +28,12 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
 
 namespace memory_instrumentation {
+
+struct ParsedSmapsEntry {
+  std::string name;
+  SmapsMetrics metrics;
+};
+using ParsedSmapsResults = std::vector<ParsedSmapsEntry>;
 
 // Manages the lifecycle of /proc/self/smaps parsing.
 //
@@ -53,19 +61,17 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   void RequestDump(base::OnceClosure callback);
 
   // Synchronously scans a smaps file.
-  static bool ScanSmapsFile(const base::FilePath& path,
-                            DetailedMetricsDelegate* delegate);
+  static std::optional<ParsedSmapsResults> ScanSmapsFile(
+      const base::FilePath& path);
 
   // Synchronously scans an already opened smaps file.
-  static bool ScanSmaps(base::File file,
-                        DetailedMetricsDelegate* delegate);
+  static std::optional<ParsedSmapsResults> ScanSmaps(base::File file);
 
  private:
-  void OnScanComplete(bool success);
+  void OnScanComplete(std::optional<ParsedSmapsResults> results);
 
   // Background thread task.
-  static bool PerformScanOnBackgroundThread(
-      DetailedMetricsDelegate* delegate);
+  static std::optional<ParsedSmapsResults> PerformScanOnBackgroundThread();
 
   bool isScanning() const { return !pending_callbacks_.empty(); }
 

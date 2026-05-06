@@ -87,57 +87,65 @@ void SmapsCategorizer::RequestDump(base::OnceClosure callback) {
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-      base::BindOnce(&SmapsCategorizer::PerformScanOnBackgroundThread, delegate_.get()),
+      base::BindOnce(&SmapsCategorizer::PerformScanOnBackgroundThread),
       base::BindOnce(&SmapsCategorizer::OnScanComplete,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void SmapsCategorizer::OnScanComplete(bool success) {
+void SmapsCategorizer::OnScanComplete(std::optional<ParsedSmapsResults> results) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   
+  if (results.has_value() && delegate_) {
+    for (const auto& entry : results.value()) {
+      delegate_->OnSmapsEntry(entry.name, entry.metrics);
+    }
+  }
+
   base::UmaHistogramExactLinear("Memory.SmapsCategorizer.CoalescedRequestsCount",
                                  static_cast<int>(pending_callbacks_.size()), 50);
   
   std::vector<base::OnceClosure> callbacks;
   callbacks.swap(pending_callbacks_);
   
-  for (auto& cb : callbacks) std::move(cb).Run();
+  for (auto& cb : callbacks) {
+    std::move(cb).Run();
+  }
 }
 
 // static
-bool SmapsCategorizer::PerformScanOnBackgroundThread(
-    DetailedMetricsDelegate* delegate) {
+std::optional<ParsedSmapsResults> SmapsCategorizer::PerformScanOnBackgroundThread() {
 #if BUILDFLAG(IS_COBALT)
   base::File file(base::FilePath("/proc/self/smaps"),
                     base::File::FLAG_OPEN | base::File::FLAG_READ);
-  return ScanSmaps(std::move(file), delegate);
+  return ScanSmaps(std::move(file));
 #else
-  return ScanSmapsFile(base::FilePath("/proc/self/smaps"), delegate);
+  return ScanSmapsFile(base::FilePath("/proc/self/smaps"));
 #endif
 }
 
 // static
-bool SmapsCategorizer::ScanSmapsFile(
-    const base::FilePath& path,
-    DetailedMetricsDelegate* delegate) {
+std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmapsFile(
+    const base::FilePath& path) {
   base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
     base::UmaHistogramEnumeration("Memory.SmapsCategorizer.Reliability",
                                   SmapsReliability::kAccessDenied);
-    return false;
+    return std::nullopt;
   }
-  return ScanSmaps(std::move(file), delegate);
+  return ScanSmaps(std::move(file));
 }
 
 // static
-bool SmapsCategorizer::ScanSmaps(
-    base::File file,
-    DetailedMetricsDelegate* delegate) {
+std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
+    base::File file) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
 
-  if (!delegate || !file.IsValid())
-    return false;
+  if (!file.IsValid())
+    return std::nullopt;
+
+  ParsedSmapsResults results;
+  results.reserve(128);
 
   char buffer[4096];
   size_t buffer_offset = 0;
@@ -147,8 +155,8 @@ bool SmapsCategorizer::ScanSmaps(
   bool in_entry = false;
 
   auto flush_entry = [&]() {
-    if (in_entry && delegate) {
-      delegate->OnSmapsEntry(current_name, current_metrics);
+    if (in_entry) {
+      results.push_back({std::string(current_name), current_metrics});
     }
     in_entry = false;
     current_metrics = SmapsMetrics();
@@ -260,7 +268,7 @@ bool SmapsCategorizer::ScanSmaps(
 
   base::UmaHistogramEnumeration("Memory.SmapsCategorizer.Reliability",
                                 SmapsReliability::kSuccess);
-  return true;
+  return results;
 }
 
 }  // namespace memory_instrumentation
