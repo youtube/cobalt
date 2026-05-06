@@ -1,4 +1,8 @@
-import("//cobalt/build/configs/evergreen-arm-softfp/args.gn")
-# starboard_path takes precedence over starboard_target_platform.
-starboard_path = ""
-starboard_target_platform = "aosp-arm"
+import("//cobalt/build/configs/evergreen-x64/args.gn")
+
+target_cpu = "arm"
+arm_float_abi = "softfp"
+
+# TODO: b/453022760 - Investigate if this should be true and fix build failures
+# if so.
+arm_use_neon = false
