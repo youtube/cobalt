@@ -34,6 +34,7 @@
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/color_space.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android_overlay_mojo_factory.h"
@@ -124,12 +125,14 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
+  SbDecodeTarget GetSbDecodeTarget();
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   using GetDecodeTargetGraphicsContextProviderFunc =
       base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
   void set_decode_target_graphics_context_provider(
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func);
+  const gfx::ColorSpace& color_space() const { return color_space_; }
 
   SbPlayerInterface* GetSbPlayerInterface();
 
@@ -186,6 +189,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              bool is_preroll);
 
   void OnBufferingStateChange(BufferingState state);
+
+  void NotifyError(PipelineStatus status);
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
@@ -277,6 +282,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
+
+  // TODO: b/508699637 - Check if HDR is supported.
+  gfx::ColorSpace color_space_ = gfx::ColorSpace::CreateSRGB();
 
   // Message to signal a capability changed error.
   // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be

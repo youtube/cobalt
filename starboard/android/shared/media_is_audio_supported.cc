@@ -41,10 +41,6 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
   bool enable_audio_passthrough = true;
   if (mime_type) {
-    if (!mime_type->is_valid()) {
-      return false;
-    }
-
     // Enables audio passthrough if the codec supports it.
     if (!mime_type->ValidateBoolParameter("audiopassthrough")) {
       return false;

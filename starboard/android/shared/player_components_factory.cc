@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <jni.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_audio_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -44,12 +46,13 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using features::FeatureList;
+using jni_zero::AttachCurrentThread;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -87,10 +90,11 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
                   audio_frame_storage_type, frame_buffers,
-                  frame_buffers_size_in_frames, update_source_status_func,
-                  consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  allow_audio_writing_on_pause, context);
+                  frame_buffers_size_in_frames,
+                  {update_source_status_func, consume_frames_func, error_func},
+                  start_media_time, tunnel_mode_audio_session_id,
+                  /*is_web_audio=*/false, allow_audio_writing_on_pause,
+                  context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -236,12 +240,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (!creation_parameters.audio_mime().empty()) {
-      MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
+      auto audio_mime_type = MimeType::Create(creation_parameters.audio_mime());
+      if (!audio_mime_type ||
+          !audio_mime_type->ValidateBoolParameter("audiopassthrough")) {
         return Failure("Invalid audio mime type.");
       }
-      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
+      if (!audio_mime_type->GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
         return Failure("Passthrough disabled by mime attribute.");
@@ -253,11 +257,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.experimental_features().flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+      auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
+      if (video_mime_type &&
+          video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
             enable_flush_during_seek ||
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+            video_mime_type->GetParamBoolValue("enableflushduringseek", false);
       }
     }
     SB_LOG_IF(INFO, enable_flush_during_seek)
@@ -314,25 +319,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
             ? creation_parameters.audio_mime()
             : "";
-    MimeType audio_mime_type(audio_mime);
-    if (!audio_mime.empty()) {
-      if (!audio_mime_type.is_valid()) {
-        return Failure("Invalid audio MIME: '" + audio_mime + "'");
-      }
+    if (!audio_mime.empty() && !MimeType::Create(audio_mime)) {
+      return Failure("Invalid audio MIME: '" + audio_mime + "'");
     }
 
     const std::string video_mime =
         creation_parameters.video_codec() != kSbMediaVideoCodecNone
             ? creation_parameters.video_mime()
             : "";
-    MimeType video_mime_type(video_mime);
-    if (!video_mime.empty()) {
-      if (!video_mime_type.is_valid() ||
-          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !video_mime_type.ValidateBoolParameter("enableflushduringseek") ||
-          !video_mime_type.ValidateBoolParameter("enableresetaudiodecoder")) {
-        return Failure("Invalid video MIME: '" + video_mime + "'");
-      }
+    auto video_mime_type = MimeType::Create(video_mime);
+    if (!video_mime.empty() &&
+        (!video_mime_type ||
+         !video_mime_type->ValidateBoolParameter("tunnelmode") ||
+         !video_mime_type->ValidateBoolParameter("enableflushduringseek") ||
+         !video_mime_type->ValidateBoolParameter("enableresetaudiodecoder"))) {
+      return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
     int tunnel_mode_audio_session_id = -1;
@@ -343,13 +344,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           FeatureList::IsEnabled(features::kForceTunnelMode);
       enable_tunnel_mode =
           force_tunnel_mode ||
-          video_mime_type.GetParamBoolValue("tunnelmode", false);
+          (video_mime_type &&
+           video_mime_type->GetParamBoolValue("tunnelmode", false));
 
       SB_LOG(INFO) << "Tunnel mode is "
                    << (enable_tunnel_mode ? "enabled. " : "disabled. ")
                    << "Video mime parameter \"tunnelmode\" value: "
-                   << video_mime_type.GetParamStringValue("tunnelmode",
-                                                          "<not provided>")
+                   << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                             "tunnelmode", "<not provided>")
+                                       : "<not provided>")
                    << (force_tunnel_mode ? ", force tunnel mode is on." : ".");
     } else {
       SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
@@ -387,25 +390,29 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_reset_audio_decoder =
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         experimental_features.reset_audio_decoder ||
-        video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
+        (video_mime_type &&
+         video_mime_type->GetParamBoolValue("enableresetaudiodecoder", false));
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
         << " audio decoder during Reset(). Video mime parameter "
         << "\"enableresetaudiodecoder\" value: "
-        << video_mime_type.GetParamStringValue("enableresetaudiodecoder",
-                                               "<not provided>")
+        << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                  "enableresetaudiodecoder", "<not provided>")
+                            : "<not provided>")
         << ".";
 
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.flush_decoder_during_reset ||
-        video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+        (video_mime_type &&
+         video_mime_type->GetParamBoolValue("enableflushduringseek", false));
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
         << " audio decoder during Reset(). Video mime parameter "
         << "\"enableflushduringseek\" value: "
-        << video_mime_type.GetParamStringValue("enableflushduringseek",
-                                               "<not provided>")
+        << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                  "enableflushduringseek", "<not provided>")
+                            : "<not provided>")
         << ".";
 
     MediaComponents components;
@@ -425,11 +432,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
                               force_platform_opus_decoder)) {
-          auto audio_decoder_impl =
-              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
-          if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl;
-          }
+          return OpusAudioDecoder::Create(job_queue, audio_stream_info);
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
@@ -505,22 +508,24 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateStringParameter("hdrinfoendianness",
-                                                  "big|little")) {
+      auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
+      if (video_mime_type && video_mime_type->ValidateStringParameter(
+                                 "hdrinfoendianness", "big|little")) {
         const std::string& hdr_info_endianness =
-            video_mime_type.GetParamStringValue("hdrinfoendianness",
-                                                /*default=*/"little");
+            video_mime_type->GetParamStringValue("hdrinfoendianness",
+                                                 /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
-      if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
+      if (video_mime_type &&
+          video_mime_type->ValidateBoolParameter("forceresetsurface")) {
         force_reset_surface =
-            video_mime_type.GetParamBoolValue("forceresetsurface", true);
+            video_mime_type->GetParamBoolValue("forceresetsurface", true);
       }
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+      if (video_mime_type &&
+          video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
             enable_flush_during_seek ||
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+            video_mime_type->GetParamBoolValue("enableflushduringseek", false);
       }
     }
 

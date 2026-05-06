@@ -1765,6 +1765,14 @@ component("base") {
       "//starboard:starboard_group",
       "//starboard/common",
     ]
+
+    # TODO(crbug.com/509811765): Android is the only platform whose starboard
+    # library depends on //base. On AOSP, `is_starboard` is true, so this leads
+    # to a circular dependency.
+    if (is_android) {
+      deps -= [ "//starboard:starboard_group" ]
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
   }
 
   if (is_cobalt_hermetic_build) {

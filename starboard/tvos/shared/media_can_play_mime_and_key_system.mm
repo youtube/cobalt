@@ -93,10 +93,13 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   // "application/x-mpegURL" is for hls content and will use UrlPlayer. The
   // supported types are different from SbPlayer.
   if (strncmp(kUrlPlayerMimeType, mime, kUrlPlayerMimeTypeLength) == 0) {
-    starboard::MimeType mime_type(mime);
-    auto codecs = mime_type.GetCodecs();
+    auto mime_type = starboard::MimeType::Create(mime);
+    if (!mime_type) {
+      return kSbMediaSupportTypeNotSupported;
+    }
+    auto codecs = mime_type->GetCodecs();
     for (const auto& codec : codecs) {
-      if (!IsAudioCodecSupportedByUrlPlayer(mime_type, codec) &&
+      if (!IsAudioCodecSupportedByUrlPlayer(*mime_type, codec) &&
           !IsVideoCodecSupportedByUrlPlayer(codec)) {
         return kSbMediaSupportTypeNotSupported;
       }
