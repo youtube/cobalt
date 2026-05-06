@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/audio_decoder.h"
+#include "starboard/android/shared/media_codec_audio_decoder.h"
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
