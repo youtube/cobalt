@@ -12,44 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (is_cobalt_hermetic_build) {
-  import("//cobalt/build/modular_executable.gni")
+import("//cobalt/build/modular_executable.gni")
 
-  modular_executable("benchmark") {
-    testonly = true
-
-    sources = [
-      "//starboard/common/benchmark_main.cc",
-      "memory_benchmark.cc",
-      "thread_benchmark.cc",
-      "thread_id_benchmark.cc",
-    ]
-
-    public_deps = [
-      "//starboard:starboard_group",
-      "//third_party/google_benchmark",
-    ]
-    deps = cobalt_platform_dependencies
-
-    configs += [ "//starboard/build/config:starboard_implementation" ]
+template("benchmark_target") {
+  if (is_cobalt_hermetic_build) {
+    modular_executable(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      if (defined(invoker.configs)) {
+        configs += invoker.configs
+      }
+    }
+  } else {
+    executable(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      if (defined(invoker.configs)) {
+        configs += invoker.configs
+      }
+    }
   }
-} else {
-  executable("benchmark") {
-    testonly = true
+}
 
-    sources = [
-      "//starboard/common/benchmark_main.cc",
-      "memory_benchmark.cc",
-      "thread_benchmark.cc",
-      "thread_id_benchmark.cc",
-    ]
+benchmark_target("benchmark") {
+  testonly = true
 
-    public_deps = [
-      "//starboard:starboard_group",
-      "//third_party/google_benchmark",
-    ]
-    deps = cobalt_platform_dependencies
+  sources = [
+    "//starboard/common/benchmark_main.cc",
+    "memory_benchmark.cc",
+    "thread_benchmark.cc",
+    "thread_id_benchmark.cc",
+  ]
 
-    configs += [ "//starboard/build/config:starboard_implementation" ]
-  }
+  public_deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//third_party/google_benchmark",
+  ]
+  deps = cobalt_platform_dependencies
+
+  configs = [ "//starboard/build/config:starboard_implementation" ]
 }
