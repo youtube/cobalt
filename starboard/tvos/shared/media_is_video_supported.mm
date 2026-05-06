@@ -86,9 +86,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
       bool experimental_allowed = false;
       if (mime_type) {
-        if (!mime_type->is_valid()) {
-          return false;
-        }
         // This block checks if the "experimental" attribute is explicitly set
         // to "allowed". If the attribute is not present or has an invalid
         // value, `ValidateStringParameter` will cause an early return of
