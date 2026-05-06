@@ -21,13 +21,11 @@ namespace nplb {
 namespace {
 
 TEST(PosixIfNametoindexTest, InvalidName) {
-  errno = 0;
   unsigned int index = if_nametoindex("nonexistent_interface");
   EXPECT_EQ(index, 0u);
 }
 
 TEST(PosixIfNametoindexTest, EmptyName) {
-  errno = 0;
   unsigned int index = if_nametoindex("");
   EXPECT_EQ(index, 0u);
 }

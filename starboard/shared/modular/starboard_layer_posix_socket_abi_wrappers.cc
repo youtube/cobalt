@@ -401,6 +401,10 @@ SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
   if (MUSL_IF_NAMESIZE > IF_NAMESIZE) {
     char platform_buf[IF_NAMESIZE];
     starboard::strlcpy(platform_buf, ifname, IF_NAMESIZE);
+    if (strcmp(platform_buf, ifname) != 0) {
+      SB_LOG(WARNING) << "Interface name " << ifname << " truncated to "
+                      << platform_buf;
+    }
     return if_nametoindex(platform_buf);
   }
   // No need to copy since ifname is smaller than or equal to IF_NAMESIZE.
@@ -430,6 +434,9 @@ SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
     return nullptr;
   }
   starboard::strlcpy(ifname, res, MUSL_IF_NAMESIZE);
+  if (strcmp(ifname, res) != 0) {
+    SB_LOG(WARNING) << "Interface name " << res << " truncated to " << ifname;
+  }
   return ifname;
 }
 
