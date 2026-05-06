@@ -51,8 +51,6 @@ class GnTest(unittest.TestCase):
     expected_out_dir = f'out/{platform}_{build_type}'
     expected_args_content_part = (
         'use_remoteexec = true # Set by gn.py\n'
-        'use_siso = true # Set by gn.py\n'
-        'reclient_cfg_dir = "//buildtools/reclient_cfgs" # Set by gn.py\n'
         'build_type = "devel" # Set by gn.py\n'
         'symbol_level = 1 # Set by gn.py\n'
         'is_debug = false # Set by gn.py\n'
