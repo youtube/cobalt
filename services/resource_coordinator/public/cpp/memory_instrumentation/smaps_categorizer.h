@@ -28,8 +28,16 @@
 namespace memory_instrumentation {
 
 // Manages the lifecycle of /proc/self/smaps parsing.
-// Use a sequence-affine front-end to handle request coalescing and a background
-// ThreadPool task for I/O and parsing.
+//
+// This class uses a sequence-affine front-end to handle request coalescing and
+// protect internal state (e.g., `pending_callbacks_`), while
+// offloading the heavy I/O and parsing to a background ThreadPool task.
+//
+// Although it may currently be accessed from a single sequence, maintaining
+// sequence affinity for `RequestDump()` ensures that it can safely support
+// requests from different sequences/TaskRunners in the future (especially for
+// upstream compatibility) without introducing race conditions or requiring
+// complex locking.
 class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
     SmapsCategorizer {
  public:
@@ -59,8 +67,9 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   static bool PerformScanOnBackgroundThread(
       DetailedMetricsDelegate* delegate);
 
+  bool isScanning() const { return !pending_callbacks_.empty(); }
+
   base::WeakPtr<DetailedMetricsDelegate> delegate_;
-  bool is_scanning_ = false;
   std::vector<base::OnceClosure> pending_callbacks_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 

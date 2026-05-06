@@ -81,10 +81,10 @@ void SmapsCategorizer::RequestDump(base::OnceClosure callback) {
     return;
   }
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  const bool scanning = isScanning();
   pending_callbacks_.push_back(std::move(callback));
-  if (is_scanning_) return;
+  if (scanning) return;
 
-  is_scanning_ = true;
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
       base::BindOnce(&SmapsCategorizer::PerformScanOnBackgroundThread, delegate_.get()),
@@ -94,13 +94,14 @@ void SmapsCategorizer::RequestDump(base::OnceClosure callback) {
 
 void SmapsCategorizer::OnScanComplete(bool success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  is_scanning_ = false;
   
   base::UmaHistogramExactLinear("Memory.SmapsCategorizer.CoalescedRequestsCount",
                                  static_cast<int>(pending_callbacks_.size()), 50);
   
-  for (auto& cb : pending_callbacks_) std::move(cb).Run();
-  pending_callbacks_.clear();
+  std::vector<base::OnceClosure> callbacks;
+  callbacks.swap(pending_callbacks_);
+  
+  for (auto& cb : callbacks) std::move(cb).Run();
 }
 
 // static
