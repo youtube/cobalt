@@ -37,78 +37,82 @@ int musl_flags_to_platform_flags(int musl_flags) {
   return platform_flags;
 }
 
-bool musl_mask_to_platform_mask(uint32_t musl_mask, uint32_t* platform_mask) {
-  *platform_mask = 0;
+uint32_t musl_mask_to_platform_mask(uint32_t musl_mask) {
+  uint32_t platform_mask = 0;
 
   if (musl_mask & MUSL_IN_ACCESS) {
-    *platform_mask |= IN_ACCESS;
+    platform_mask |= IN_ACCESS;
   }
   if (musl_mask & MUSL_IN_MODIFY) {
-    *platform_mask |= IN_MODIFY;
+    platform_mask |= IN_MODIFY;
   }
   if (musl_mask & MUSL_IN_ATTRIB) {
-    *platform_mask |= IN_ATTRIB;
+    platform_mask |= IN_ATTRIB;
   }
   if (musl_mask & MUSL_IN_CLOSE_WRITE) {
-    *platform_mask |= IN_CLOSE_WRITE;
+    platform_mask |= IN_CLOSE_WRITE;
   }
   if (musl_mask & MUSL_IN_CLOSE_NOWRITE) {
-    *platform_mask |= IN_CLOSE_NOWRITE;
+    platform_mask |= IN_CLOSE_NOWRITE;
   }
   if (musl_mask & MUSL_IN_OPEN) {
-    *platform_mask |= IN_OPEN;
+    platform_mask |= IN_OPEN;
   }
   if (musl_mask & MUSL_IN_MOVED_FROM) {
-    *platform_mask |= IN_MOVED_FROM;
+    platform_mask |= IN_MOVED_FROM;
   }
   if (musl_mask & MUSL_IN_MOVED_TO) {
-    *platform_mask |= IN_MOVED_TO;
+    platform_mask |= IN_MOVED_TO;
   }
   if (musl_mask & MUSL_IN_CREATE) {
-    *platform_mask |= IN_CREATE;
+    platform_mask |= IN_CREATE;
   }
   if (musl_mask & MUSL_IN_DELETE) {
-    *platform_mask |= IN_DELETE;
+    platform_mask |= IN_DELETE;
   }
   if (musl_mask & MUSL_IN_DELETE_SELF) {
-    *platform_mask |= IN_DELETE_SELF;
+    platform_mask |= IN_DELETE_SELF;
   }
   if (musl_mask & MUSL_IN_MOVE_SELF) {
-    *platform_mask |= IN_MOVE_SELF;
+    platform_mask |= IN_MOVE_SELF;
   }
   if (musl_mask & MUSL_IN_UNMOUNT) {
-    *platform_mask |= IN_UNMOUNT;
+    platform_mask |= IN_UNMOUNT;
   }
   if (musl_mask & MUSL_IN_Q_OVERFLOW) {
-    *platform_mask |= IN_Q_OVERFLOW;
+    platform_mask |= IN_Q_OVERFLOW;
   }
   if (musl_mask & MUSL_IN_IGNORED) {
-    *platform_mask |= IN_IGNORED;
+    platform_mask |= IN_IGNORED;
   }
   if (musl_mask & MUSL_IN_ONLYDIR) {
-    *platform_mask |= IN_ONLYDIR;
+    platform_mask |= IN_ONLYDIR;
   }
   if (musl_mask & MUSL_IN_DONT_FOLLOW) {
-    *platform_mask |= IN_DONT_FOLLOW;
+    platform_mask |= IN_DONT_FOLLOW;
   }
   if (musl_mask & MUSL_IN_EXCL_UNLINK) {
-    *platform_mask |= IN_EXCL_UNLINK;
+    platform_mask |= IN_EXCL_UNLINK;
   }
 #ifdef IN_MASK_CREATE
   if (musl_mask & MUSL_IN_MASK_CREATE) {
-    *platform_mask |= IN_MASK_CREATE;
+    platform_mask |= IN_MASK_CREATE;
   }
 #endif
   if (musl_mask & MUSL_IN_MASK_ADD) {
-    *platform_mask |= IN_MASK_ADD;
+    platform_mask |= IN_MASK_ADD;
   }
   if (musl_mask & MUSL_IN_ISDIR) {
-    *platform_mask |= IN_ISDIR;
+    platform_mask |= IN_ISDIR;
   }
   if (musl_mask & MUSL_IN_ONESHOT) {
-    *platform_mask |= IN_ONESHOT;
+    platform_mask |= IN_ONESHOT;
   }
 
+  return platform_mask;
+}
+
+bool is_valid_musl_mask(uint32_t mask) {
   uint32_t all_masks =
       MUSL_IN_ACCESS | MUSL_IN_MODIFY | MUSL_IN_ATTRIB | MUSL_IN_CLOSE_WRITE |
       MUSL_IN_CLOSE_NOWRITE | MUSL_IN_OPEN | MUSL_IN_MOVED_FROM |
@@ -120,8 +124,7 @@ bool musl_mask_to_platform_mask(uint32_t musl_mask, uint32_t* platform_mask) {
 #ifdef IN_MASK_CREATE
   all_masks |= MUSL_IN_MASK_CREATE;
 #endif
-
-  return (musl_mask & ~all_masks) == 0;
+  return (mask & ~all_masks) == 0;
 }
 
 }  // namespace
@@ -141,12 +144,11 @@ SB_EXPORT int __abi_wrap_inotify_init1(int flags) {
 SB_EXPORT int __abi_wrap_inotify_add_watch(int fd,
                                            const char* pathname,
                                            uint32_t mask) {
-  uint32_t platform_mask = 0;
-  if (!musl_mask_to_platform_mask(mask, &platform_mask)) {
+  if (!is_valid_musl_mask(mask)) {
     errno = EINVAL;
     return -1;
   }
-  return inotify_add_watch(fd, pathname, platform_mask);
+  return inotify_add_watch(fd, pathname, musl_mask_to_platform_mask(mask));
 }
 
 SB_EXPORT int __abi_wrap_inotify_rm_watch(int fd, int wd) {

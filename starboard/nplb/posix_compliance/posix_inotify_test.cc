@@ -24,105 +24,218 @@
 
 namespace {
 
-class PosixInotifyTest : public ::testing::Test {
- protected:
-  // The spec requires that all watches are freed when the inotify file
-  // descriptor is closed, so we only need to track the fds to close.
-  std::vector<int> fds_to_close_;
-  PosixInotifyTest() { errno = 0; }
-  ~PosixInotifyTest() {
-    for (int fd : fds_to_close_) {
-      if (fd >= 0) {
-        close(fd);
-      }
-    }
-  }
-};
-
-TEST_F(PosixInotifyTest, InotifyInit) {
+TEST(PosixInotifyTest, InotifyInit) {
   int fd = inotify_init();
-  fds_to_close_.push_back(fd);
   EXPECT_EQ(errno, 0);
   EXPECT_GE(fd, 0);
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyInit1ValidFlags) {
+TEST(PosixInotifyTest, InotifyInit1ValidFlags) {
   int fd = inotify_init1(IN_NONBLOCK);
-  fds_to_close_.push_back(fd);
   EXPECT_EQ(errno, 0);
   EXPECT_GE(fd, 0);
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyInit1InvalidFlags) {
-  int fd = inotify_init1(0xFFFF);
-  fds_to_close_.push_back(fd);
+TEST(PosixInotifyTest, InotifyInit1InvalidFlags) {
+  // Set all flag bits except the valid ones.
+  int fd = inotify_init1(~(IN_NONBLOCK | IN_CLOEXEC));
   EXPECT_EQ(fd, -1);
   EXPECT_EQ(errno, EINVAL);
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyAddWatchValidMask) {
+TEST(PosixInotifyTest, InotifyAddWatchValidMask) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
   int fd = inotify_init();
-  fds_to_close_.push_back(fd);
   ASSERT_GE(fd, 0);
 
-  int wd = inotify_add_watch(fd, "/dev/null", IN_MODIFY);
+  // errno may have been set to EEXIST indirectly by the constructor of
+  // ScopedRandomFile.
+  errno = 0;
+  int wd = inotify_add_watch(fd, file.filename().c_str(), IN_MODIFY);
   EXPECT_EQ(errno, 0);
   EXPECT_GE(wd, 0);
+
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyAddWatchInvalidMask) {
+TEST(PosixInotifyTest, InotifyAddWatchInvalidMask) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
   int fd = inotify_init();
-  fds_to_close_.push_back(fd);
   ASSERT_GE(fd, 0);
 
-  int wd = inotify_add_watch(fd, "/dev/null", 0);
+  errno = 0;
+  int wd = inotify_add_watch(fd, file.filename().c_str(), 0);
   EXPECT_EQ(wd, -1);
   EXPECT_EQ(errno, EINVAL);
+
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyAddWatchInvalidPath) {
+TEST(PosixInotifyTest, InotifyAddWatchInvalidPath) {
   int fd = inotify_init();
-  fds_to_close_.push_back(fd);
   ASSERT_GE(fd, 0);
 
   int wd = inotify_add_watch(fd, "invalid_path", IN_MODIFY);
   EXPECT_EQ(wd, -1);
   EXPECT_EQ(errno, ENOENT);
+
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyAddWatchBadFd) {
-  int wd = inotify_add_watch(-1, "/dev/null", IN_MODIFY);
+TEST(PosixInotifyTest, InotifyAddWatchBadFd) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  errno = 0;
+  int wd = inotify_add_watch(-1, file.filename().c_str(), IN_MODIFY);
   EXPECT_EQ(wd, -1);
   EXPECT_EQ(errno, EBADF);
 }
 
-TEST_F(PosixInotifyTest, InotifyRmWatch) {
-  int fd = inotify_init();
-  fds_to_close_.push_back(fd);
+TEST(PosixInotifyTest, InotifyAddWatchEinvalNotAnInotifyFd) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  int fd = open(file.filename().c_str(), O_RDONLY);
   ASSERT_GE(fd, 0);
 
-  int wd = inotify_add_watch(fd, "/dev/null", IN_MODIFY);
-  ASSERT_GE(wd, 0);
+  errno = 0;
+  int wd = inotify_add_watch(fd, file.filename().c_str(), IN_MODIFY);
+  EXPECT_EQ(wd, -1);
+  EXPECT_EQ(errno, EINVAL);
 
-  EXPECT_EQ(inotify_rm_watch(fd, wd), 0);
-  EXPECT_EQ(errno, 0);
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, InotifyRmWatchBadFd) {
+TEST(PosixInotifyTest, InotifyAddWatchEexist) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  int fd = inotify_init();
+  ASSERT_GE(fd, 0);
+
+  int wd1 = inotify_add_watch(fd, file.filename().c_str(), IN_MODIFY);
+  ASSERT_GE(wd1, 0);
+
+  errno = 0;
+  int wd2 = inotify_add_watch(fd, file.filename().c_str(),
+                              IN_MODIFY | IN_MASK_CREATE);
+  EXPECT_EQ(wd2, -1);
+  EXPECT_EQ(errno, EEXIST);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, InotifyAddWatchEnoentEmptyPath) {
+  int fd = inotify_init();
+  ASSERT_GE(fd, 0);
+
+  errno = 0;
+  int wd = inotify_add_watch(fd, "", IN_MODIFY);
+  EXPECT_EQ(wd, -1);
+  EXPECT_EQ(errno, ENOENT);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, InotifyAddWatchEnoentMissingDirectory) {
+  int fd = inotify_init();
+  ASSERT_GE(fd, 0);
+
+  errno = 0;
+  int wd = inotify_add_watch(fd, "/nonexistent_directory/file", IN_MODIFY);
+  EXPECT_EQ(wd, -1);
+  EXPECT_EQ(errno, ENOENT);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, InotifyAddWatchEnotdir) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  int fd = inotify_init();
+  ASSERT_GE(fd, 0);
+
+  errno = 0;
+  int wd =
+      inotify_add_watch(fd, file.filename().c_str(), IN_MODIFY | IN_ONLYDIR);
+  EXPECT_EQ(wd, -1);
+  EXPECT_EQ(errno, ENOTDIR);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, InotifyAddWatchEinvalAddAndCreateFlags) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  int fd = inotify_init();
+  ASSERT_GE(fd, 0);
+
+  errno = 0;
+  int wd = inotify_add_watch(fd, file.filename().c_str(),
+                             IN_MODIFY | IN_MASK_ADD | IN_MASK_CREATE);
+  EXPECT_EQ(wd, -1);
+  EXPECT_EQ(errno, EINVAL);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, InotifyRmWatch) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  int fd = inotify_init();
+  ASSERT_GE(fd, 0);
+
+  int wd = inotify_add_watch(fd, file.filename().c_str(), IN_MODIFY);
+  ASSERT_GE(wd, 0);
+
+  errno = 0;
+  EXPECT_EQ(inotify_rm_watch(fd, wd), 0);
+  EXPECT_EQ(errno, 0);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, InotifyRmWatchBadFd) {
   EXPECT_EQ(inotify_rm_watch(-1, 0), -1);
   EXPECT_EQ(errno, EBADF);
 }
 
-TEST_F(PosixInotifyTest, InotifyRmWatchBadWatchDescriptor) {
+TEST(PosixInotifyTest, InotifyRmWatchBadWatchDescriptor) {
   int fd = inotify_init();
-  fds_to_close_.push_back(fd);
   ASSERT_GE(fd, 0);
 
   EXPECT_EQ(inotify_rm_watch(fd, -1), -1);
   EXPECT_EQ(errno, EINVAL);
+
+  close(fd);
 }
 
-TEST_F(PosixInotifyTest, WatchedFileTriggersNotification) {
+TEST(PosixInotifyTest, InotifyRmWatchEinvalNotAnInotifyFd) {
+  nplb::ScopedRandomFile file;
+  ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
+
+  int fd = open(file.filename().c_str(), O_RDONLY);
+  ASSERT_GE(fd, 0);
+
+  errno = 0;
+  EXPECT_EQ(inotify_rm_watch(fd, 1), -1);
+  EXPECT_EQ(errno, EINVAL);
+
+  close(fd);
+}
+
+TEST(PosixInotifyTest, WatchedFileTriggersNotification) {
   nplb::ScopedRandomFile file;
   ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
 
@@ -134,7 +247,6 @@ TEST_F(PosixInotifyTest, WatchedFileTriggersNotification) {
 
   const char* test_data = "test data";
   int file_fd = open(file.filename().c_str(), O_WRONLY);
-  fds_to_close_.push_back(file_fd);
   ASSERT_GE(file_fd, 0);
 
   ssize_t bytes_written = write(file_fd, test_data, strlen(test_data));
@@ -149,6 +261,9 @@ TEST_F(PosixInotifyTest, WatchedFileTriggersNotification) {
       reinterpret_cast<struct inotify_event*>(event_buffer);
   EXPECT_EQ(event->wd, wd);
   EXPECT_TRUE(event->mask & IN_MODIFY);
+
+  close(file_fd);
+  close(inotify_fd);
 }
 
 }  // namespace
