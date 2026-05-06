@@ -29,17 +29,16 @@
 #include "base/containers/contains.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
 
+namespace base {
+
 #if BUILDFLAG(IS_STARBOARD)
 using starboard::GetSystemPropertyString;
 
-namespace base {
 std::string SysInfo::HardwareModelName() {
   return GetSystemPropertyString(kSbSystemPropertyModelName);
 }
-}
 #endif  // BUILDFLAG(IS_STARBOARD)
 
-namespace base {
 namespace starboard {
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -153,7 +152,7 @@ std::string SbSysInfo::Brand() {
   return "Apple";
 }
 
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace starboard
 }  // namespace base
