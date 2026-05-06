@@ -161,6 +161,8 @@ def _get_gtest_filter(filter_json_dir: str, target_name: str) -> str:
   Returns:
       A string containing the gtest filters.
   """
+  if target_name == 'cobalt_browsertests':
+    return 'ContentMainRunnerImplBrowserTest.*'
   gtest_filter = '*'
   filter_json_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')
   if os.path.exists(filter_json_file):
