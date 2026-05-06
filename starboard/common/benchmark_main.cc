@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -35,12 +34,22 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 
 // This is how to build and run this benchmark.
 //
-// On Linux:
-// $ autoninja -C out/linux-x64x11_qa starboard/benchmark
-// $ ./out/linux-x64x11_qa/starboard/benchmark --benchmark_filter="BM_*"
+// On Linux (Classic / Non-modular):
+// $ autoninja -C out/linux-x64x11_qa benchmark
+// $ ./out/linux-x64x11_qa/benchmark --benchmark_filter="BM_*"
+//
+// On Linux Modular (Non-Evergreen):
+// $ autoninja -C out/linux-x64x11-modular_qa \
+//   starboard/benchmark:benchmark_loader
+// $ ./out/linux-x64x11-modular_qa/benchmark_loader --benchmark_filter="BM_*"
+//
+// On Linux Evergreen (Modular):
+// $ autoninja -C out/evergreen-x64_qa starboard/benchmark:benchmark_loader
+// $ python3 ./out/evergreen-x64_qa/benchmark_loader.py \
+//   --benchmark_filter="BM_*"
 //
 // On Android:
-// $ autoninja -C out/android-arm_qa starboard/benchmark
+// $ autoninja -C out/android-arm_qa benchmark
 // $ adb push out/android-arm_qa/benchmark /data/local/tmp/
 // $ adb shell chmod +x /data/local/tmp/benchmark
 // $ adb shell /data/local/tmp/benchmark --benchmark_filter="BM_*"
@@ -48,10 +57,6 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 
 #if !SB_IS(EVERGREEN)
 int main(int argc, char** argv) {
-#if BUILDFLAG(IS_STARBOARD)
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
-#else
   return RunAllBenchmarks(argc, argv);
-#endif  // BUILDFLAG(IS_STARBOARD)
 }
 #endif  // !SB_IS(EVERGREEN)

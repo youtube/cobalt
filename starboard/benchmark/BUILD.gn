@@ -12,7 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-executable("benchmark") {
+import("//cobalt/build/modular_executable.gni")
+
+template("benchmark_target") {
+  if (is_cobalt_hermetic_build) {
+    modular_executable(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      if (defined(invoker.configs)) {
+        configs += invoker.configs
+      }
+    }
+  } else {
+    executable(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      if (defined(invoker.configs)) {
+        configs += invoker.configs
+      }
+    }
+  }
+}
+
+benchmark_target("benchmark") {
   testonly = true
 
   sources = [
@@ -29,5 +49,5 @@ executable("benchmark") {
   ]
   deps = cobalt_platform_dependencies
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs = [ "//starboard/build/config:starboard_implementation" ]
 }

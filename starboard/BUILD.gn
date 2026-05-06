@@ -54,7 +54,7 @@ if (!is_cobalt) {
     }
 
     if (sb_enable_benchmark) {
-      deps += [ "//starboard/benchmark($starboard_toolchain)" ]
+      deps += [ "//starboard/benchmark" ]
     }
 
     if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
