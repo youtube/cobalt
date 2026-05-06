@@ -439,6 +439,9 @@ SbAudioSink AlsaAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
+  if (!audio_sink) {
+    return kSbAudioSinkInvalid;
+  }
   return audio_sink.release();
 }
 
