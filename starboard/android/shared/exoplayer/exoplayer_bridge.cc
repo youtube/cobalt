@@ -123,8 +123,8 @@ std::unique_ptr<ExoPlayerBridge> ExoPlayerBridge::Create(
           env, j_exoplayer_manager, reinterpret_cast<jlong>(bridge.get()),
           j_audio_media_source, j_video_media_source, j_output_surface,
           (video_stream_info.codec != kSbMediaVideoCodecNone &&
-           (audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
-            audio_stream_info.codec == kSbMediaAudioCodecEac3) &&
+           audio_stream_info.codec != kSbMediaAudioCodecAc3 &&
+           audio_stream_info.codec != kSbMediaAudioCodecEac3 &&
            ShouldEnableTunneledPlayback(video_stream_info)) ||
               kForceTunneledPlayback);
   if (!j_exoplayer_bridge) {
@@ -402,6 +402,9 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
             env, sample_byte_buffer, size, input_buffer->timestamp(),
             is_key_frame, type));
 
+    // The ExoPlayer SampleStream makes a copy of the sample data before
+    // |writeSample| returns, so it's safe to refer directly to the sample
+    // buffer here.
     Java_ExoPlayerBridge_writeSample(env, j_exoplayer_bridge_, j_sample);
   }
 }
