@@ -29,7 +29,8 @@
 namespace starboard {
 namespace {
 
-const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
+constexpr int64_t kUpdateIntervalUsec = 200'000;  // 200ms
+
 }  // namespace
 
 ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
@@ -63,17 +64,15 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 
   Attach(job_queue);
 
-  bridge_ = std::make_unique<ExoPlayerBridge>(
-      creation_param_.audio_stream_info, creation_param_.video_stream_info);
+  bridge_ = ExoPlayerBridge::Create(
+      creation_param_.audio_stream_info, creation_param_.video_stream_info,
+      [this](SbPlayerError error, const std::string& error_message) {
+        OnError(error, error_message);
+      },
+      [this]() { OnPrerolled(); }, [this]() { OnEnded(); });
 
-  if (!bridge_->is_valid() ||
-      !bridge_->Init(
-          [this](SbPlayerError error, const std::string& error_message) {
-            OnError(error, error_message);
-          },
-          [this]() { OnPrerolled(); }, [this]() { OnEnded(); })) {
-    return Failure("Failed to initialize the ExoPlayer: " +
-                   bridge_->GetInitErrorMessage());
+  if (!bridge_) {
+    return Failure("Failed to initialize the ExoPlayer");
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
@@ -101,8 +100,6 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
   SB_CHECK(!input_buffers.empty());
   SB_CHECK(bridge_->is_valid());
   SB_CHECK(samples_written);
-  SB_DCHECK_EQ(input_buffers.size(), 1U)
-      << "ExoPlayer accepts only one sample per write";
 
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -110,7 +107,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
 
   SbMediaType sample_type = input_buffers.front()->sample_type();
   *samples_written = 0;
-  if (IsEOSWritten(sample_type)) {
+  if (IsEosWritten(sample_type)) {
     SB_LOG(WARNING) << "Tried to write "
                     << (sample_type == kSbMediaTypeAudio ? "audio" : "video")
                     << " sample after EOS is written.";
@@ -129,14 +126,14 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteEndOfStream(
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(bridge_->is_valid());
 
-  if (IsEOSWritten(sample_type)) {
+  if (IsEosWritten(sample_type)) {
     SB_LOG(WARNING) << "Tried to write "
                     << (sample_type == kSbMediaTypeAudio ? "audio" : "video")
                     << " EOS sample after EOS is written.";
     return Success();
   }
 
-  bridge_->WriteEOS(sample_type);
+  bridge_->WriteEos(sample_type);
 
   if (sample_type == kSbMediaTypeAudio) {
     audio_eos_written_ = true;
@@ -205,14 +202,14 @@ void ExoPlayerPlayerWorkerHandler::Update() {
 
 void ExoPlayerPlayerWorkerHandler::OnError(SbPlayerError error,
                                            const std::string& error_message) {
-  SB_CHECK(update_player_error_cb_);
-  if (!reported_error_.exchange(true)) {
-    RunOnWorker([this, error, error_message]() {
+  RunOnWorker([this, error, error_message]() {
+    SB_CHECK(update_player_error_cb_);
+    if (!reported_error_.exchange(true)) {
       update_player_error_cb_(error, error_message.empty()
                                          ? "ExoPlayerPlayerWorkerHandler error"
                                          : error_message);
-    });
-  }
+    }
+  });
 }
 
 void ExoPlayerPlayerWorkerHandler::OnPrerolled() {
@@ -232,7 +229,7 @@ void ExoPlayerPlayerWorkerHandler::OnEnded() {
   RunOnWorker([this]() { update_player_state_cb_(kSbPlayerStateEndOfStream); });
 }
 
-bool ExoPlayerPlayerWorkerHandler::IsEOSWritten(SbMediaType type) const {
+bool ExoPlayerPlayerWorkerHandler::IsEosWritten(SbMediaType type) const {
   return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
 }
 
