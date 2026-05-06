@@ -10,7 +10,10 @@ namespace base {
 namespace android {
 
 bool EnableAndroidImageReader() {
-#if !BUILDFLAG(IS_COBALT)
+  // COBALT: Disable AImageReader for Cobalt builds to avoid compatibility issues.
+  // Cobalt lowers default_min_sdk_version to 24, so we must guard this.
+  // See b/508072838
+#if __ANDROID_MIN_SDK_VERSION__ >= 26
   // Currently we want to enable AImageReader only for android P+ devices.
   if (__builtin_available(android 28, *)) {
     return true;

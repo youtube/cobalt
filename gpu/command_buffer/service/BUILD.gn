@@ -594,8 +594,10 @@ target(link_target_type, "gles2_sources") {
       "texture_owner.h",
     ]
 
-    # These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
+    # COBALT: These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
     # available past Android API 26 (a.k.a. Android 8 a.k.a. Oreo).
+    # Cobalt lowers default_min_sdk_version to 24, so we must guard this.
+    # See b/508072838
     if (default_min_sdk_version >= 26) {
       sources += [
         "image_reader_gl_owner.cc",
@@ -694,8 +696,10 @@ if (is_android) {
       "surface_texture_transform_unittest.cc",
     ]
 
-    # These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
+    # COBALT: These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
     # available past Android API 26 (a.k.a. Android 8 a.k.a. Oreo).
+    # Cobalt lowers default_min_sdk_version to 24, so we must guard this.
+    # See b/508072838
     if (default_min_sdk_version >= 26) {
       sources += [ "image_reader_gl_owner_unittest.cc" ]
     }

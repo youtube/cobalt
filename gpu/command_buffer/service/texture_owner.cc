@@ -19,6 +19,8 @@
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
 
+// COBALT: Guarded to support Android 7.x (API 24) where ImageReaderGLOwner is not available.
+// See b/508072838
 #if BUILDFLAG(IS_ANDROID) && (__ANDROID_MIN_SDK_VERSION__ >= 26)
 #include "gpu/command_buffer/service/image_reader_gl_owner.h"
 #endif
@@ -107,6 +109,8 @@ scoped_refptr<TextureOwner> TextureOwner::Create(
     case Mode::kAImageReaderInsecure:
     case Mode::kAImageReaderInsecureSurfaceControl:
     case Mode::kAImageReaderSecureSurfaceControl:
+// COBALT: Guarded to support Android 7.x (API 24) where ImageReaderGLOwner is not available.
+// See b/508072838
 #if BUILDFLAG(IS_ANDROID) && (__ANDROID_MIN_SDK_VERSION__ >= 26)
       return new ImageReaderGLOwner(std::move(texture), mode,
                                     std::move(context_state),
