@@ -7,7 +7,6 @@ __cxa_thread_atexit_impl
 dl_iterate_phdr
 dlopen
 dlsym
-if_indextoname
 inotify_add_watch
 inotify_init
 inotify_rm_watch
