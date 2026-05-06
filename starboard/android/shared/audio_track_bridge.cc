@@ -106,6 +106,8 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
 
   if (j_audio_data.is_null()) {
     SB_LOG(WARNING) << "Failed to allocate |j_audio_data_|";
+    AudioOutputManager::GetInstance()->DestroyAudioTrackBridge(
+        env, j_audio_track_bridge);
     return nullptr;
   }
 
