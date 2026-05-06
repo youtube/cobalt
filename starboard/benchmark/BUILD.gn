@@ -14,25 +14,13 @@
 
 import("//cobalt/build/modular_executable.gni")
 
-template("benchmark_target") {
-  if (is_cobalt_hermetic_build) {
-    modular_executable(target_name) {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      if (defined(invoker.configs)) {
-        configs += invoker.configs
-      }
-    }
-  } else {
-    executable(target_name) {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      if (defined(invoker.configs)) {
-        configs += invoker.configs
-      }
-    }
-  }
+if (is_cobalt_hermetic_build) {
+  _benchmark_type = "modular_executable"
+} else {
+  _benchmark_type = "executable"
 }
 
-benchmark_target("benchmark") {
+target(_benchmark_type, "benchmark") {
   testonly = true
 
   sources = [
@@ -49,5 +37,5 @@ benchmark_target("benchmark") {
   ]
   deps = cobalt_platform_dependencies
 
-  configs = [ "//starboard/build/config:starboard_implementation" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
