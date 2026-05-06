@@ -53,7 +53,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void SetVideoSurfaceView(void* surface_view) override {}
   void SetExperimentalFeatures(
-      const ExperimentalFeatures& experimental_features) {}
+      const ExperimentalFeatures& experimental_features) override {}
   void Stop() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override {
@@ -68,7 +68,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   void OnPrerolled();
   void OnEnded();
 
-  bool IsEOSWritten(SbMediaType type) const;
+  bool IsEosWritten(SbMediaType type) const;
 
   void RunOnWorker(std::function<void()> task);
 

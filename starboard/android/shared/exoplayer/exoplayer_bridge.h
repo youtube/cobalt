@@ -15,19 +15,20 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
-#include <jni.h>
-
 #include <atomic>
+#include <memory>
 #include <mutex>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -40,6 +41,13 @@ enum ExoPlayerRendererType {
   EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
 };
 
+static_assert(static_cast<int>(EXOPLAYER_RENDERER_TYPE_AUDIO) ==
+                  static_cast<int>(kSbMediaTypeAudio),
+              "EXOPLAYER_RENDERER_TYPE_AUDIO must match kSbMediaTypeAudio");
+static_assert(static_cast<int>(EXOPLAYER_RENDERER_TYPE_VIDEO) ==
+                  static_cast<int>(kSbMediaTypeVideo),
+              "EXOPLAYER_RENDERER_TYPE_VIDEO must match kSbMediaTypeVideo");
+
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
   struct MediaInfo {
@@ -48,19 +56,23 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
     bool is_playing;
   };
 
-  ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
-                  const SbMediaVideoStreamInfo& video_stream_info);
+  static std::unique_ptr<ExoPlayerBridge> Create(
+      const SbMediaAudioStreamInfo& audio_stream_info,
+      const SbMediaVideoStreamInfo& video_stream_info,
+      ErrorCB error_cb,
+      PrerolledCB prerolled_cb,
+      EndedCB ended_cb);
+
+  explicit ExoPlayerBridge(PassKey<ExoPlayerBridge>);
 
   ~ExoPlayerBridge();
 
   // VideoSurfaceHolder method.
   void OnSurfaceDestroyed() override;
 
-  bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
-
-  void Seek(int64_t timestamp);
+  void Seek(int64_t timestamp_us);
   void WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
-  void WriteEOS(SbMediaType type);
+  void WriteEos(SbMediaType type);
   void SetPause(bool pause) const;
   void SetPlaybackRate(const double playback_rate) const;
   void SetVolume(const double volume) const;
@@ -79,18 +91,15 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   bool is_valid() const { return !j_exoplayer_bridge_.is_null(); }
 
-  std::string GetInitErrorMessage() const { return init_error_msg_; }
-
  private:
-  bool ShouldAbortOperation() const;
-  void ReportError(const std::string& msg) const;
+  void ReportError(const std::string& msg);
 
   void WriteSamplesInternal(JNIEnv* env,
                             const InputBuffers& input_buffers,
                             SbMediaType type);
-  void WriteEOSInternal(JNIEnv* env, SbMediaType type) const;
+  void WriteEosInternal(JNIEnv* env, SbMediaType type) const;
 
-  base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
 
   std::atomic_bool player_is_releasing_ = false;
 
@@ -116,7 +125,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::mutex mutex_;
 
   bool owns_surface_ = false;
-  std::string init_error_msg_;
 
   ThreadChecker thread_checker_;
 };

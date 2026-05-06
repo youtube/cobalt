@@ -14,14 +14,12 @@
 
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 
-#include <jni.h>
-
-#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -30,10 +28,11 @@
 
 namespace starboard {
 namespace {
-using base::android::AttachCurrentThread;
+
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using jni_zero::AttachCurrentThread;
 
 ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
     const SbMediaColorMetadata& metadata) {
@@ -80,11 +79,8 @@ bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
 
 ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     const SbMediaAudioStreamInfo& stream_info) {
-  if (stream_info.codec == kSbMediaAudioCodecNone) {
-    SB_LOG(ERROR)
-        << "Cannot create an audio MediaSource for kSbMediaAudioCodecNone";
-    return ScopedJavaLocalRef<jobject>();
-  }
+  SB_CHECK_NE(stream_info.codec, kSbMediaAudioCodecNone)
+      << "Cannot create an audio MediaSource for kSbMediaAudioCodecNone";
 
   if (!MimeType(stream_info.mime).is_valid()) {
     SB_LOG(ERROR) << "Invalid audio MIME: '" << stream_info.mime << "'";
@@ -123,11 +119,8 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
 
 ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
     const SbMediaVideoStreamInfo& stream_info) {
-  if (stream_info.codec == kSbMediaVideoCodecNone) {
-    SB_LOG(ERROR)
-        << "Cannot create a video MediaSource for kSbMediaVideoCodecNone";
-    return ScopedJavaLocalRef<jobject>();
-  }
+  SB_CHECK_NE(stream_info.codec, kSbMediaVideoCodecNone)
+      << "Cannot create a video MediaSource for kSbMediaVideoCodecNone";
 
   starboard::MimeType mime_type(stream_info.mime);
   if (!mime_type.is_valid()) {

@@ -14,13 +14,11 @@
 
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 
-#include <jni.h>
-
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <string>
 
-#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
@@ -34,6 +32,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -43,11 +42,11 @@
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
@@ -55,8 +54,12 @@ constexpr int kADTSHeaderSize = 7;
 
 constexpr bool kForceTunneledPlayback = false;
 
-int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
-  if (type == kSbMediaTypeAudio &&
+// Arbitrary limits for pending samples before initialization.
+constexpr int kMaxPendingAudioSamples = 256;
+constexpr int kMaxPendingVideoSamples = 8;
+
+int GetSampleOffset(scoped_refptr<InputBuffer> input_buffer) {
+  if (input_buffer->sample_type() == kSbMediaTypeAudio &&
       input_buffer->audio_stream_info().codec == kSbMediaAudioCodecAac) {
     return kADTSHeaderSize;
   }
@@ -65,52 +68,59 @@ int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
 
 }  // namespace
 
-ExoPlayerBridge::ExoPlayerBridge(
+// static
+std::unique_ptr<ExoPlayerBridge> ExoPlayerBridge::Create(
     const SbMediaAudioStreamInfo& audio_stream_info,
-    const SbMediaVideoStreamInfo& video_stream_info) {
-  ON_INSTANCE_CREATED(ExoPlayerBridge);
-
+    const SbMediaVideoStreamInfo& video_stream_info,
+    ErrorCB error_cb,
+    PrerolledCB prerolled_cb,
+    EndedCB ended_cb) {
   JNIEnv* env = AttachCurrentThread();
+
   ScopedJavaLocalRef<jobject> j_audio_media_source;
   if (audio_stream_info.codec != kSbMediaAudioCodecNone) {
     j_audio_media_source = CreateAudioMediaSource(audio_stream_info);
     if (!j_audio_media_source) {
-      init_error_msg_ = "Could not create ExoPlayer audio MediaSource";
-      SB_LOG(ERROR) << init_error_msg_;
-      return;
+      SB_LOG(ERROR) << "Could not create ExoPlayer audio MediaSource";
+      return nullptr;
     }
   }
 
   ScopedJavaLocalRef<jobject> j_video_media_source;
-  ScopedJavaGlobalRef<jobject> j_output_surface;
   if (video_stream_info.codec != kSbMediaVideoCodecNone) {
     j_video_media_source = CreateVideoMediaSource(video_stream_info);
     if (!j_video_media_source) {
-      init_error_msg_ = "Could not create ExoPlayer video MediaSource";
-      SB_LOG(ERROR) << init_error_msg_;
-      return;
+      SB_LOG(ERROR) << "Could not create ExoPlayer video MediaSource";
+      return nullptr;
     }
-
-    j_output_surface.Reset(env, AcquireVideoSurface());
-    if (!j_output_surface) {
-      init_error_msg_ = "Could not acquire video surface for ExoPlayer";
-      SB_LOG(ERROR) << init_error_msg_;
-      return;
-    }
-    owns_surface_ = true;
   }
 
   ScopedJavaLocalRef<jobject> j_exoplayer_manager(
       StarboardBridge::GetInstance()->GetExoPlayerManager(env));
   if (!j_exoplayer_manager) {
-    init_error_msg_ = "Failed to fetch ExoPlayerManager";
-    SB_LOG(ERROR) << init_error_msg_;
-    return;
+    SB_LOG(ERROR) << "Failed to fetch ExoPlayerManager";
+    return nullptr;
+  }
+
+  auto bridge = std::make_unique<ExoPlayerBridge>(PassKey<ExoPlayerBridge>());
+
+  bridge->error_cb_ = std::move(error_cb);
+  bridge->prerolled_cb_ = std::move(prerolled_cb);
+  bridge->ended_cb_ = std::move(ended_cb);
+
+  ScopedJavaGlobalRef<jobject> j_output_surface;
+  if (j_video_media_source) {
+    j_output_surface.Reset(env, bridge->AcquireVideoSurface());
+    if (!j_output_surface) {
+      SB_LOG(ERROR) << "Could not acquire video surface for ExoPlayer";
+      return nullptr;
+    }
+    bridge->owns_surface_ = true;
   }
 
   ScopedJavaLocalRef<jobject> j_exoplayer_bridge =
       Java_ExoPlayerManager_createExoPlayerBridge(
-          env, j_exoplayer_manager, reinterpret_cast<jlong>(this),
+          env, j_exoplayer_manager, reinterpret_cast<jlong>(bridge.get()),
           j_audio_media_source, j_video_media_source, j_output_surface,
           (video_stream_info.codec != kSbMediaVideoCodecNone &&
            (audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
@@ -118,12 +128,17 @@ ExoPlayerBridge::ExoPlayerBridge(
            ShouldEnableTunneledPlayback(video_stream_info)) ||
               kForceTunneledPlayback);
   if (!j_exoplayer_bridge) {
-    init_error_msg_ = "Could not create Java ExoPlayerBridge";
-    SB_LOG(ERROR) << init_error_msg_;
-    return;
+    SB_LOG(ERROR) << "Could not create Java ExoPlayerBridge";
+    return nullptr;
   }
 
-  j_exoplayer_bridge_.Reset(j_exoplayer_bridge);
+  bridge->j_exoplayer_bridge_.Reset(j_exoplayer_bridge);
+
+  return bridge;
+}
+
+ExoPlayerBridge::ExoPlayerBridge(PassKey<ExoPlayerBridge>) {
+  ON_INSTANCE_CREATED(ExoPlayerBridge);
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
@@ -151,33 +166,16 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
   }
 }
 
-bool ExoPlayerBridge::Init(ErrorCB error_cb,
-                           PrerolledCB prerolled_cb,
-                           EndedCB ended_cb) {
+void ExoPlayerBridge::Seek(int64_t timestamp_us) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_CHECK(error_cb);
-  SB_CHECK(prerolled_cb);
-  SB_CHECK(ended_cb);
-  SB_CHECK(!error_cb_);
-  SB_CHECK(!prerolled_cb_);
-  SB_CHECK(!ended_cb_);
-
-  error_cb_ = std::move(error_cb);
-  prerolled_cb_ = std::move(prerolled_cb);
-  ended_cb_ = std::move(ended_cb);
-
-  return true;
-}
-
-void ExoPlayerBridge::Seek(int64_t timestamp) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR) << "Cannot seek because a playback error has occurred.";
     return;
   }
 
   seeking_.store(true);
   Java_ExoPlayerBridge_seek(AttachCurrentThread(), j_exoplayer_bridge_,
-                            timestamp);
+                            timestamp_us);
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
@@ -186,7 +184,9 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
   // TODO: It's possible that a video sample may contain valid
   // SbMediaColorMetadata after codec creation. When that happens,
   // we should recreate the video decoder to use the new metadata.
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR)
+        << "Cannot write samples because a playback error has occurred.";
     return;
   }
 
@@ -206,9 +206,10 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
   WriteSamplesInternal(AttachCurrentThread(), input_buffers, type);
 }
 
-void ExoPlayerBridge::WriteEOS(SbMediaType type) {
+void ExoPlayerBridge::WriteEos(SbMediaType type) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR) << "Cannot write EOS because a playback error has occurred.";
     return;
   }
 
@@ -224,12 +225,13 @@ void ExoPlayerBridge::WriteEOS(SbMediaType type) {
     }
   }
 
-  WriteEOSInternal(AttachCurrentThread(), type);
+  WriteEosInternal(AttachCurrentThread(), type);
 }
 
 void ExoPlayerBridge::SetPause(bool pause) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR) << "Cannot set pause because a playback error has occurred.";
     return;
   }
 
@@ -244,7 +246,9 @@ void ExoPlayerBridge::SetPause(bool pause) const {
 
 void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR)
+        << "Cannot set playback rate because a playback error has occurred.";
     return;
   }
 
@@ -255,7 +259,8 @@ void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
 
 void ExoPlayerBridge::SetVolume(const double volume) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR) << "Cannot set volume because a playback error has occurred.";
     return;
   }
 
@@ -265,7 +270,8 @@ void ExoPlayerBridge::SetVolume(const double volume) const {
 
 void ExoPlayerBridge::Stop() const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR) << "Cannot stop because a playback error has occurred.";
     return;
   }
 
@@ -273,7 +279,9 @@ void ExoPlayerBridge::Stop() const {
 }
 
 ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR)
+        << "Cannot get media info because a playback error has occurred.";
     return MediaInfo();
   }
 
@@ -285,18 +293,20 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
 
 bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (playback_error_occurred_.load()) {
+    SB_LOG(ERROR) << "Cannot check if more data can be accepted because a "
+                     "playback error has occurred.";
     return false;
   }
 
   if (!initialized_.load()) {
     std::lock_guard lock(mutex_);
     if (!initialized_.load()) {
-      // Arbitrary limits of 8 frames for video and 256 frames for audio.
+      // Arbitrary limits for pending samples before initialization.
       if (type == kSbMediaTypeAudio) {
-        return pending_audio_samples_.size() < 256;
+        return pending_audio_samples_.size() < kMaxPendingAudioSamples;
       }
-      return pending_video_samples_.size() < 8;
+      return pending_video_samples_.size() < kMaxPendingVideoSamples;
     }
   }
 
@@ -305,34 +315,33 @@ bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
 }
 
 void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
-  {
-    std::lock_guard lock(mutex_);
-    if (initialized_.exchange(true)) {
-      SB_LOG(WARNING)
-          << "ExoPlayer called OnInitialized again after initialization.";
-      return;
-    }
-
-    if (!pending_audio_samples_.empty()) {
-      WriteSamplesInternal(env, pending_audio_samples_, kSbMediaTypeAudio);
-      pending_audio_samples_.clear();
-      pending_audio_samples_.shrink_to_fit();
-    }
-    if (audio_eos_pending_) {
-      WriteEOSInternal(env, kSbMediaTypeAudio);
-      audio_eos_pending_ = false;
-    }
-
-    if (!pending_video_samples_.empty()) {
-      WriteSamplesInternal(env, pending_video_samples_, kSbMediaTypeVideo);
-      pending_video_samples_.clear();
-      pending_video_samples_.shrink_to_fit();
-    }
-    if (video_eos_pending_) {
-      WriteEOSInternal(env, kSbMediaTypeVideo);
-      video_eos_pending_ = false;
-    }
+  std::lock_guard lock(mutex_);
+  if (initialized_.load()) {
+    SB_LOG(WARNING)
+        << "ExoPlayer called OnInitialized again after initialization.";
+    return;
   }
+
+  if (!pending_audio_samples_.empty()) {
+    WriteSamplesInternal(env, pending_audio_samples_, kSbMediaTypeAudio);
+    pending_audio_samples_.clear();
+    pending_audio_samples_.shrink_to_fit();
+  }
+  if (audio_eos_pending_) {
+    WriteEosInternal(env, kSbMediaTypeAudio);
+    audio_eos_pending_ = false;
+  }
+
+  if (!pending_video_samples_.empty()) {
+    WriteSamplesInternal(env, pending_video_samples_, kSbMediaTypeVideo);
+    pending_video_samples_.clear();
+    pending_video_samples_.shrink_to_fit();
+  }
+  if (video_eos_pending_) {
+    WriteEosInternal(env, kSbMediaTypeVideo);
+    video_eos_pending_ = false;
+  }
+  initialized_.store(true);
 }
 
 void ExoPlayerBridge::OnReady(JNIEnv*) {
@@ -343,7 +352,6 @@ void ExoPlayerBridge::OnReady(JNIEnv*) {
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
-  playback_error_occurred_.store(true);
   std::string error_msg = ConvertJavaStringToUTF8(env, msg);
   SB_LOG(ERROR) << "Reporting playback error: " << error_msg;
   ReportError(error_msg);
@@ -362,17 +370,9 @@ void ExoPlayerBridge::OnIsPlayingChanged(JNIEnv*, jboolean is_playing) {
   is_playing_.store(is_playing);
 }
 
-bool ExoPlayerBridge::ShouldAbortOperation() const {
-  if (playback_error_occurred_.load()) {
-    SB_LOG(ERROR)
-        << "Aborting ExoPlayer operation after a playback error occurred.";
-    return true;
-  }
-  return false;
-}
-
-void ExoPlayerBridge::ReportError(const std::string& msg) const {
+void ExoPlayerBridge::ReportError(const std::string& msg) {
   SB_CHECK(error_cb_);
+  playback_error_occurred_.store(true);
   error_cb_(kSbPlayerErrorDecode, msg);
 }
 
@@ -380,13 +380,15 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
                                            const InputBuffers& input_buffers,
                                            SbMediaType type) {
   for (auto& input_buffer : input_buffers) {
-    int offset = GetSampleOffset(type, input_buffer);
+    int offset = GetSampleOffset(input_buffer);
     if (input_buffer->size() < offset) {
       ReportError("Input buffer size is smaller than the required offset.");
       return;
     }
     int size = input_buffer->size() - offset;
 
+    // NewDirectByteBuffer takes a non-const void*, but the Java side treats
+    // this buffer as read-only.
     ScopedJavaLocalRef<jobject> sample_byte_buffer(
         env, env->NewDirectByteBuffer(
                  const_cast<uint8_t*>(input_buffer->data() + offset), size));
@@ -404,9 +406,10 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
   }
 }
 
-void ExoPlayerBridge::WriteEOSInternal(JNIEnv* env, SbMediaType type) const {
+void ExoPlayerBridge::WriteEosInternal(JNIEnv* env, SbMediaType type) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   Java_ExoPlayerBridge_writeEndOfStream(env, j_exoplayer_bridge_,
                                         static_cast<jint>(type));
 }
+
 }  // namespace starboard

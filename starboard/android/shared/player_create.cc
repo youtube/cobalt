@@ -215,7 +215,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   if (use_exoplayer &&
       (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
        creation_param->drm_system != kSbDrmSystemInvalid)) {
-    SB_LOG(WARNING)
+    SB_LOG(INFO)
         << "ExoPlayer does not support decode-to-texture mode or DRM playback, "
            "defaulting to FilterBasedPlayerWorkerHandler.";
     use_exoplayer = false;
