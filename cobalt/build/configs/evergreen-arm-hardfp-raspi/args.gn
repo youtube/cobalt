@@ -1,2 +1,3 @@
-import("//cobalt/build/configs/evergreen-x64/args.gn")
 import("//cobalt/build/configs/raspi-2-modular/args.gn")
+
+use_evergreen = true
