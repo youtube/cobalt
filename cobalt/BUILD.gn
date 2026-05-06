@@ -107,6 +107,7 @@ if (is_ios && target_platform == "tvos") {
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
+      "//components/crash/core/app",
       "//content/public/app",
       "//starboard:starboard_group",
     ]
@@ -161,12 +162,6 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
-      "//cobalt/browser/h5vcc_accessibility:manager",
-      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-      "//cobalt/shell:cobalt_shell_app",
-      "//cobalt/shell:cobalt_shell_lib",
-      "//content/public/app",
-      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -201,9 +196,11 @@ if (is_ios && target_platform == "tvos") {
 }
 
 source_set("common") {
-  testonly = true
-
   sources = [
+    "app/app_event_delegate.cc",
+    "app/app_event_delegate.h",
+    "app/app_event_runner.cc",
+    "app/app_event_runner.h",
     "app/cobalt_crash_reporter_client.cc",
     "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
@@ -230,6 +227,8 @@ source_set("common") {
   deps = [
     "//base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/h5vcc_accessibility:manager",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/shell:cobalt_shell_app",
@@ -241,6 +240,7 @@ source_set("common") {
     "//gpu/command_buffer/service",
     "//media",
     "//sandbox/policy",
+    "//services/device/time_zone_monitor",
     "//starboard:starboard_headers_only",
     "//third_party/blink/public/common",
     "//ui/gl",
@@ -278,6 +278,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/cobalt_crash_annotations_unittest.cc",
     "//cobalt/browser/cobalt_secure_navigation_throttle_unittest.cc",
     "//cobalt/browser/cobalt_web_contents_observer_unittest.cc",
     "//cobalt/browser/command_line_logger_unittest.cc",
@@ -295,6 +296,8 @@ test("cobalt_unittests") {
 
   if (is_starboard) {
     sources += [
+      "//cobalt/app/app_event_delegate_unittest.cc",
+      "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
@@ -312,14 +315,16 @@ test("cobalt_unittests") {
 
   deps = [
     ":common",
-    "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//cobalt/browser",
+    "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser:command_line_logger",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
@@ -330,7 +335,10 @@ test("cobalt_unittests") {
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//content/test:test_support",
+    "//media:test_support",
     "//mojo/core/embedder",
+    "//mojo/core/test:run_all_unittests",
     "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
     "//testing/gmock",
@@ -353,6 +361,10 @@ test("cobalt_unittests") {
     "//sandbox/policy:policy",
     "//ui/events/devices",
   ]
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
 
   if (is_android) {
     deps += [

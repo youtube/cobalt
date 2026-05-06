@@ -43,6 +43,8 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultJsFlagOverridesList() {
         String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
         assertThat(overrides.contains("--optimize-for-size")).isTrue();
+        assertThat(overrides.contains("--initial-old-space-size=64")).isTrue();
+        assertThat(overrides.contains("--max-old-space-size=512")).isTrue();
     }
 
     @Test
@@ -57,6 +59,7 @@ public class CommandLineOverrideHelperTest {
         String overrides =
             CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
         assertThat(overrides.contains("AImageReader")).isTrue();
+        assertThat(overrides.contains("UseAAudioInput")).isTrue();
     }
 
     @Test

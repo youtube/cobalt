@@ -19,8 +19,9 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/time/time.h"
 #include "base/version.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/updater/network_fetcher.h"
 #include "cobalt/updater/patcher.h"
 #include "cobalt/updater/prefs.h"
@@ -28,6 +29,8 @@
 #include "cobalt/updater/util.h"
 #include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
+#include "components/update_client/activity_data_service.h"
+#include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/network.h"
 #include "components/update_client/patcher.h"
@@ -48,6 +51,14 @@ const char kUpdaterJSONDefaultUrlQA[] =
 const char kUpdaterJSONDefaultUrl[] =
     "https://tools.google.com/service/update2/json";
 
+// Whether to request, download, and install uncompressed (rather than
+// compressed) Evergreen binaries.
+constexpr char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+
+// Uses the QA update server to test the changes to the configuration of the
+// PROD update server.
+constexpr char kUseQAUpdateServer[] = "use_qa_update_server";
+
 std::string GetDeviceProperty(SbSystemPropertyId id) {
   char value[kSystemPropertyMaxLength];
   if (SbSystemGetProperty(id, value, kSystemPropertyMaxLength)) {
@@ -64,9 +75,10 @@ namespace updater {
 Configurator::Configurator(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : pref_service_(CreatePrefService()),
-      persisted_data_(
-          std::make_unique<update_client::PersistedData>(pref_service_.get(),
-                                                         nullptr)),
+      persisted_data_(update_client::CreatePersistedData(
+          base::BindRepeating([](PrefService* p) { return p; },
+                              pref_service_.get()),
+          nullptr)),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(
               url_loader_factory)),
@@ -74,6 +86,7 @@ Configurator::Configurator(
           update_client::MakeCrxDownloaderFactory(network_fetcher_factory_)),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()),
+      crx_cache_(base::MakeRefCounted<update_client::CrxCache>(std::nullopt)),
       is_forced_update_(0),
       min_free_space_bytes_(48 * 1024 * 1024),  // 48MB
       allow_self_signed_packages_(false),
@@ -87,7 +100,7 @@ Configurator::Configurator(
     SetChannel(persisted_channel);
   }
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kUseUncompressedUpdates)) {
+          kUseUncompressedUpdates)) {
     use_compressed_updates_.store(false);
   } else {
     use_compressed_updates_.store(true);
@@ -114,13 +127,13 @@ base::TimeDelta Configurator::UpdateDelay() const {
 }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  base::AutoLock auto_lock(update_server_url_lock_);
   if (allow_self_signed_packages_ && !update_server_url_.empty()) {
     return std::vector<GURL>{GURL(update_server_url_)};
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kUseQAUpdateServer)) {
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(kUseQAUpdateServer)) {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
   } else {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrl)};
@@ -238,10 +251,6 @@ scoped_refptr<update_client::PatcherFactory> Configurator::GetPatcherFactory() {
   return patch_factory_;
 }
 
-bool Configurator::EnabledDeltas() const {
-  return false;
-}
-
 bool Configurator::EnabledBackgroundDownloader() const {
   return false;
 }
@@ -254,16 +263,11 @@ PrefService* Configurator::GetPrefService() const {
   return pref_service_.get();
 }
 
-update_client::ActivityDataService* Configurator::GetActivityDataService()
-    const {
-  return nullptr;
-}
-
 bool Configurator::IsPerUserInstall() const {
   return true;
 }
 
-absl::optional<bool> Configurator::IsMachineExternallyManaged() const {
+std::optional<bool> Configurator::IsMachineExternallyManaged() const {
   return false;
 }
 
@@ -300,12 +304,12 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
             << "combination is undefined with the new Omaha configs.";
 
   // All undefined channel requests go to prod configs except for static
-  // channel requestsf for C24 and older.
+  // channel requests for C24 and older.
   // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
   if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
       sb_version >= 14 && sb_version <= 16) {
-    const auto it = kChannelAndSbVersionToOmahaIdMap.find(
-        "prod" + std::to_string(sb_version));
+    it = kChannelAndSbVersionToOmahaIdMap.find("prod" +
+                                               std::to_string(sb_version));
     if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
       return it->second;
     }
@@ -315,6 +319,7 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
 }
 
 std::string Configurator::GetAppGuid() const {
+  base::AutoLock auto_lock(updater_channel_lock_);
   const std::string version(COBALT_VERSION);
   return GetAppGuidHelper(updater_channel_, version, SB_API_VERSION);
 }
@@ -332,7 +337,7 @@ void Configurator::CompareAndSwapForcedUpdate(int old_value, int new_value) {
 // client thread. The getter and set use a lock to prevent synchronization
 // issue.
 std::string Configurator::GetChannel() const {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(updater_channel_lock_));
+  base::AutoLock auto_lock(updater_channel_lock_);
   return updater_channel_;
 }
 
@@ -345,7 +350,7 @@ void Configurator::SetChannel(const std::string& updater_channel) {
 // The updater status is get by main web module thread and set by the updater
 // thread. The getter and set use a lock to prevent synchronization issue.
 std::string Configurator::GetUpdaterStatus() const {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(updater_status_lock_));
+  base::AutoLock auto_lock(updater_status_lock_);
   return updater_status_;
 }
 
@@ -355,18 +360,17 @@ void Configurator::SetUpdaterStatus(const std::string& status) {
 }
 
 void Configurator::SetMinFreeSpaceBytes(uint64_t bytes) {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(min_free_space_bytes_lock_));
+  base::AutoLock auto_lock(min_free_space_bytes_lock_);
   min_free_space_bytes_ = bytes;
 }
 
 uint64_t Configurator::GetMinFreeSpaceBytes() {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(min_free_space_bytes_lock_));
+  base::AutoLock auto_lock(min_free_space_bytes_lock_);
   return min_free_space_bytes_;
 }
 
 std::string Configurator::GetPreviousUpdaterStatus() const {
-  base::AutoLock auto_lock(
-      const_cast<base::Lock&>(previous_updater_status_lock_));
+  base::AutoLock auto_lock(previous_updater_status_lock_);
   return previous_updater_status_;
 }
 
@@ -392,7 +396,7 @@ void Configurator::SetAllowSelfSignedPackages(bool allow_self_signed_packages) {
 }
 
 std::string Configurator::GetUpdateServerUrl() const {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(update_server_url_lock_));
+  base::AutoLock auto_lock(update_server_url_lock_);
   return update_server_url_;
 }
 
@@ -409,6 +413,18 @@ bool Configurator::GetRequireNetworkEncryption() const {
 void Configurator::SetRequireNetworkEncryption(
     bool require_network_encryption) {
   require_network_encryption_.store(require_network_encryption);
+}
+
+update_client::PersistedData* Configurator::GetPersistedData() const {
+  return persisted_data_.get();
+}
+
+scoped_refptr<update_client::CrxCache> Configurator::GetCrxCache() const {
+  return crx_cache_;
+}
+
+bool Configurator::IsConnectionMetered() const {
+  return false;
 }
 
 }  // namespace updater

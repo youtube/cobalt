@@ -12,6 +12,7 @@
 // implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
+#include <cstdlib>
 #include <string>
 
 #include "base/at_exit.h"
@@ -33,7 +34,7 @@
 namespace {
 // This delegate is the bridge between the content::LaunchTests function
 // and the Google Test framework.
-class StarboardTestLauncherDelegate : public content::TestLauncherDelegate {
+class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
  public:
   // This method is called by content::LaunchTests to
   // execute the entire suite of discovered Google Tests.
@@ -49,38 +50,71 @@ class StarboardTestLauncherDelegate : public content::TestLauncherDelegate {
 // The C-style callback for the Starboard event loop. This must be in
 // the global namespace to have the correct linkage for
 // SbRunStarboardMain.
-void SbEventHandle(const SbEvent* event) {
-  if (event->type == kSbEventTypeStart) {
-    // The Starboard platform is initialized and ready. It is now safe
-    // to initialize and run the Chromium/gtest framework on this
-    // thread.
-    SbEventStartData* start_data = static_cast<SbEventStartData*>(event->data);
 
-    StarboardTestLauncherDelegate delegate;
-    TestTimeouts::Initialize();
+SB_EXPORT void SbEventHandle(const SbEvent* event) {
+  static int s_test_result_code = 0;
+  static base::AtExitManager* s_at_exit_manager = nullptr;
+  static CobaltBrowserTestLauncherDelegate* s_delegate = nullptr;
 
-    base::InitStarboardTestMessageLoop();
+  switch (event->type) {
+    case kSbEventTypeStart: {
+      // The Starboard platform is initialized and ready. It is now safe
+      // to initialize and run the Chromium/gtest framework on this
+      // thread.
+      SbEventStartData* start_data =
+          static_cast<SbEventStartData*>(event->data);
 
-    int test_result_code =
-        content::LaunchTests(&delegate, 1, start_data->argument_count,
-                             const_cast<char**>(start_data->argument_values));
+      int argc = start_data->argument_count;
+      char** argv = const_cast<char**>(start_data->argument_values);
 
-    // Terminate the process immediately to avoid a hang in
-    // ShellDevToolsManagerDelegate::StopHttpHandler() and a crash in
-    // AtExitManager (due to leaked BrowserMainRunner).
-    base::Process::TerminateCurrentProcessImmediately(test_result_code);
+      base::CommandLine::Init(argc, argv);
+      testing::InitGoogleTest(&argc, argv);
+
+      // A manager for singleton destruction.
+      if (!s_at_exit_manager) {
+        s_at_exit_manager = new base::AtExitManager();
+      }
+
+      // TODO(b/433354983): Support more platforms.
+      ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
+
+      if (!s_delegate) {
+        s_delegate = new CobaltBrowserTestLauncherDelegate();
+      }
+      TestTimeouts::Initialize();
+      base::InitStarboardTestMessageLoop();
+      s_test_result_code = content::LaunchTests(s_delegate, 1, argc, argv);
+      SbSystemRequestStop(s_test_result_code);
+      break;
+    }
+    case kSbEventTypeStop: {
+      // We must use std::_Exit() from <cstdlib> to immediately terminate the
+      // process without executing any C++ destructors or Starboard's teardown
+      // callbacks.
+      //
+      // 1. Returning naturally: Chromium browser tests intentionally leak state
+      //    in single-process mode. Starboard's teardown sequence triggers
+      //    Chromium's Dangling Pointer Detector and causes a SIGABRT/SIGSEGV.
+      //    ASAN_OPTIONS cannot suppress this because Starboard uninstalls
+      //    ASAN's signal handlers during teardown.
+      // 2. TerminateCurrentProcessImmediately(): Chromium's base::Process
+      //    implementation calls the standard library's `_exit()`. However,
+      //    the Evergreen ELF loader sandbox explicitly does not export `_Exit`
+      //    or `_exit`, causing the loader to abort when it attempts to resolve
+      //    the symbol.
+      //
+      // std::_Exit() (uppercase) bypasses the C library entirely and invokes
+      // the raw SYS_exit_group syscall, escaping the sandbox and terminating
+      // cleanly.
+      std::_Exit(s_test_result_code);
+    }
+    default:
+      break;
   }
 }
 
+#if !SB_IS(EVERGREEN)
 int main(int argc, char** argv) {
-  base::CommandLine::Init(argc, argv);
-  testing::InitGoogleTest(&argc, argv);
-
-  // A manager for singleton destruction.
-  base::AtExitManager at_exit;
-
-  // TODO(b/433354983): Support more platforms.
-  ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
-
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
+#endif

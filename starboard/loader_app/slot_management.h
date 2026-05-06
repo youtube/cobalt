@@ -29,15 +29,6 @@ namespace loader_app {
 int CompareEvergreenVersion(const std::vector<char>& v1,
                             const std::vector<char>& v2);
 
-// Reads the Evergreen version from the manifest file at the
-// |manifest_file_path|, and stores in |version|.
-// TODO: b/489518648 - The visiblity of this formerly private helper has been
-// increased so that it can be exposed to unit tests. The tests should be
-// rewritten to test the behavior via public APIs.
-bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
-                          char* version,
-                          int version_length);
-
 // Interface for loading a library.
 class LibraryLoader {
  public:

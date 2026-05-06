@@ -25,7 +25,7 @@ class TestCollectTestArtifacts(unittest.TestCase):
       self.assertEqual(result, expected_path)
 
   def test_get_test_runner_android(self):
-    result = collect_test_artifacts.get_test_runner('out/dir', is_android=True)
+    result = collect_test_artifacts.get_test_runner()
     self.assertEqual(result, os.path.join('bin', 'run_cobalt_browsertests'))
 
   @mock.patch('subprocess.run')

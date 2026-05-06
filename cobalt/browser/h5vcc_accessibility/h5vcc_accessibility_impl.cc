@@ -35,7 +35,7 @@ namespace h5vcc_accessibility {
 #if BUILDFLAG(IS_ANDROIDTV)
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-using ::starboard::CobaltTextToSpeechHelper;
+using ::starboard::TextToSpeechHelper;
 #endif
 
 H5vccAccessibilityImpl::H5vccAccessibilityImpl(
@@ -82,9 +82,8 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
                           settings.is_text_to_speech_enabled);
 #elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = AttachCurrentThread();
-  CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
-  bool enabled =
-      CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
+  TextToSpeechHelper::GetInstance()->Initialize(env);
+  bool enabled = TextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
   std::move(callback).Run(enabled);
 #else
 #error "Unsupported platform."

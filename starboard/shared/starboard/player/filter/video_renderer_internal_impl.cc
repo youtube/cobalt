@@ -19,6 +19,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "starboard/common/check_op.h"
@@ -41,12 +42,14 @@ VideoRendererImpl::VideoRendererImpl(
     std::unique_ptr<VideoDecoder> decoder,
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-    scoped_refptr<VideoRendererSink> sink)
+    scoped_refptr<VideoRendererSink> sink,
+    const ExperimentalFeatures& experimental_features)
     : JobOwner(job_queue),
       media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
-      decoder_(std::move(decoder)) {
+      decoder_(std::move(decoder)),
+      experimental_features_(experimental_features) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -63,6 +66,17 @@ VideoRendererImpl::VideoRendererImpl(
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  if (experimental_features_.video_renderer_min_input_buffers &&
+      experimental_features_.video_renderer_min_decoded_frames) {
+    SB_LOG(INFO) << "VideoRendererImpl is created: preroll_params="
+                 << "{min_input_buffers="
+                 << *experimental_features_.video_renderer_min_input_buffers
+                 << ", min_decoded_frames="
+                 << *experimental_features_.video_renderer_min_decoded_frames
+                 << "}";
+  } else {
+    SB_LOG(INFO) << "VideoRendererImpl is created: using default preroll logic";
+  }
 }
 
 VideoRendererImpl::~VideoRendererImpl() {
@@ -73,7 +87,7 @@ VideoRendererImpl::~VideoRendererImpl() {
   // Be sure to release anything created by the decoder_ before releasing the
   // decoder_ itself.
   if (first_input_written_) {
-    decoder_->Reset();
+    decoder_->ResetForTeardown();
   }
 
   // Now both the decoder thread and the sink thread should have been shutdown.
@@ -132,6 +146,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
 
+  input_buffers_sent_.fetch_add(static_cast<int32_t>(input_buffers.size()));
   decoder_->WriteInputBuffers(input_buffers);
 }
 
@@ -163,6 +178,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   // WriteSample().  So it is safe to modify |seeking_to_time_| here.
   seeking_to_time_ = std::max<int64_t>(seek_to_time, 0);
   seeking_.store(true);
+  input_buffers_sent_.store(0);
   end_of_stream_written_.store(false);
   end_of_stream_decoded_.store(false);
   ended_cb_called_.store(false);
@@ -187,6 +203,15 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
 
   // This is also guarded by |sink_frames_mutex_|.
   algorithm_->Seek(seek_to_time);
+}
+
+void VideoRendererImpl::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK_GE(playback_rate, 0);
+
+  if (sink_) {
+    sink_->SetPlaybackRate(playback_rate);
+  }
 }
 
 bool VideoRendererImpl::CanAcceptMoreData() const {
@@ -283,14 +308,28 @@ void VideoRendererImpl::OnDecoderStatus(
       }
     }
 
-    if (number_of_frames_.load() >=
-            static_cast<int32_t>(decoder_->GetPrerollFrameCount()) &&
-        seeking_.exchange(false)) {
+    bool preroll_completed = false;
+    if (experimental_features_.video_renderer_min_input_buffers &&
+        experimental_features_.video_renderer_min_decoded_frames) {
+      preroll_completed =
+          input_buffers_sent_.load() >=
+              *experimental_features_.video_renderer_min_input_buffers &&
+          number_of_frames_.load() >=
+              *experimental_features_.video_renderer_min_decoded_frames;
+    } else {
+      preroll_completed =
+          number_of_frames_.load() >=
+          static_cast<int32_t>(decoder_->GetPrerollFrameCount());
+    }
+
+    if (preroll_completed && seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      SB_LOG(INFO) << "Video preroll takes "
-                   << FormatWithDigitSeparators(CurrentMonotonicTime() -
-                                                first_input_written_at_)
-                   << " microseconds.";
+      SB_LOG(INFO) << "Video preroll complete: elapsed(msec)="
+                   << FormatWithDigitSeparators(
+                          (CurrentMonotonicTime() - first_input_written_at_) /
+                          1'000)
+                   << ", input_buffers_sent=" << input_buffers_sent_.load()
+                   << ", decoded_frames=" << number_of_frames_.load();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
@@ -357,6 +396,11 @@ void VideoRendererImpl::OnSeekTimeout() {
   SB_CHECK(BelongsToCurrentThread());
   if (number_of_frames_.load() > 0) {
     if (seeking_.exchange(false)) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      SB_LOG(INFO) << "Video preroll timeout:"
+                   << " input_buffers_sent=" << input_buffers_sent_.load()
+                   << ", decoded_frames=" << number_of_frames_.load();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
   } else if (seeking_.load()) {

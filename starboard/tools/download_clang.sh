@@ -20,7 +20,7 @@ readonly CLANG_VERSION="${1:-17-init-8029-g27f27d15-3}"
 readonly CLANG_DIR="${HOME}/starboard-toolchains/x86_64-linux-gnu-clang-chromium-${CLANG_VERSION}"
 readonly BASE_URL="https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64"
 
-if [[ -d "${CLANG_DIR}" ]]; then
+if [ -d "${CLANG_DIR}" ]; then
   echo "already have Clang ${CLANG_VERSION}; not downloading"
   exit 0
 fi

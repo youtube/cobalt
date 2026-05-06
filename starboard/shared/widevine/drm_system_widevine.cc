@@ -49,7 +49,7 @@ const char kWidevineStorageFileName[] = "wvcdm.dat";
 // get HDCP authentication complete. We set a timeout of 6 seconds for retries.
 const int64_t kUnblockKeyRetryTimeoutUsec = 6'000'000;
 
-DECLARE_INSTANCE_COUNTER(DrmSystemWidevine);
+DECLARE_INSTANCE_COUNTER(DrmSystemWidevine)
 
 class WidevineClock : public wv3cdm::IClock {
  public:
@@ -269,18 +269,19 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`.  We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  starboard::MimeType mime_type(std::string("key_system/") + key_system);
+  auto mime_type =
+      starboard::MimeType::Create(std::string("key_system/") + key_system);
 
-  if (!mime_type.is_valid()) {
+  if (!mime_type) {
     return false;
   }
-  SB_DCHECK_EQ(mime_type.type(), "key_system");
+  SB_DCHECK_EQ(mime_type->type(), "key_system");
 
   for (auto wv_key_system : kWidevineKeySystems) {
-    if (mime_type.subtype() == wv_key_system) {
-      for (int i = 0; i < mime_type.GetParamCount(); ++i) {
-        if (mime_type.GetParamName(i) == "encryptionscheme") {
-          auto value = mime_type.GetParamStringValue(i);
+    if (mime_type->subtype() == wv_key_system) {
+      for (int i = 0; i < mime_type->GetParamCount(); ++i) {
+        if (mime_type->GetParamName(i) == "encryptionscheme") {
+          auto value = mime_type->GetParamStringValue(i);
           if (value != "cenc" && value != "cbcs" && value != "cbcs-1-9") {
             return false;
           }
@@ -449,12 +450,13 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   size_t block_counter = 0;
   size_t encrypted_offset = 0;
 
-  for (size_t i = 0; i < buffer->drm_info()->subsample_count; i++) {
+  const int32_t subsample_count = buffer->drm_info()->subsample_count;
+  for (int32_t i = 0; i < subsample_count; i++) {
     const SbDrmSubSampleMapping& subsample =
         buffer->drm_info()->subsample_mapping[i];
     if (subsample.clear_byte_count) {
-      input.last_subsample = i + 1 == buffer->drm_info()->subsample_count &&
-                             subsample.encrypted_byte_count == 0;
+      input.last_subsample =
+          i + 1 == subsample_count && subsample.encrypted_byte_count == 0;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kClear;
       input.data_length = subsample.clear_byte_count;
 
@@ -479,7 +481,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     }
 
     if (subsample.encrypted_byte_count) {
-      input.last_subsample = i + 1 == buffer->drm_info()->subsample_count;
+      input.last_subsample = i + 1 == subsample_count;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCtr;
       if (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
         input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCbc;

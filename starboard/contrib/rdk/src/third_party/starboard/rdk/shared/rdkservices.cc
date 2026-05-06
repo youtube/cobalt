@@ -1151,6 +1151,10 @@ private:
   }
 
 public:
+  void Initialize() {
+    Refresh();
+  }
+
   bool IsDisconnected() {
     Refresh();
     return !is_connected_.load();
@@ -1651,6 +1655,10 @@ std::string DeviceIdentification::GetChipset() {
 
 std::string DeviceIdentification::GetFirmwareVersion() {
   return GetDeviceIdImpl()->firmware_version;
+}
+
+void NetworkInfo::Initialize() {
+  GetNetworkInfo()->Initialize();
 }
 
 bool NetworkInfo::IsConnectionTypeWireless() {

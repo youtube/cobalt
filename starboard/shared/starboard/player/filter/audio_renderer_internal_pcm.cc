@@ -70,10 +70,12 @@ AudioRendererPcm::AudioRendererPcm(
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
-    int min_frames_per_append)
+    int min_frames_per_append,
+    const ExperimentalFeatures& experimental_features)
     : JobOwner(job_queue),
       max_cached_frames_(max_cached_frames),
       min_frames_per_append_(min_frames_per_append),
+      experimental_features_(experimental_features),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
@@ -235,7 +237,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
-  audio_renderer_sink_->Stop();
+  audio_renderer_sink_->Reset();
 
   {
     // Set the following states under a lock first to ensure that from now on
@@ -395,7 +397,7 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
   *is_eos_reached = is_eos_reached_on_sink_thread_;
   *is_playing = is_playing_on_sink_thread_;
 
-  if (*is_playing) {
+  if (*is_playing || experimental_features_.allow_audio_writing_on_pause) {
     *frames_in_buffer =
         frames_in_buffer_on_sink_thread_ - frames_consumed_on_sink_thread_;
     *offset_in_frames =

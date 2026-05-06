@@ -16,6 +16,11 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif
+
 namespace blink {
 
 // Size of the buffer that WebAudio processes each time, it is the same value
@@ -32,9 +37,19 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       track_stopped_(false),
       platform_buffer_duration_(platform_buffer_duration),
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                   base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)
+                       ? media::ChannelLayoutConfig::Mono()
+                       : media::ChannelLayoutConfig::Stereo(),
+#else
                    media::ChannelLayoutConfig::Stereo(),
+#endif
                    context_sample_rate,
-                   kWebAudioRenderBufferSize) {
+                   kWebAudioRenderBufferSize)
+{
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "WebAudioMediaStreamAudioSink: sink_params=" << sink_params_.AsHumanReadableString();
+#endif
   CHECK(sink_params_.IsValid());
   CHECK_GT(platform_buffer_duration_, base::TimeDelta());
 
@@ -44,8 +59,13 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
 }
 
 WebAudioMediaStreamAudioSink::~WebAudioMediaStreamAudioSink() {
-  if (audio_converter_.get())
-    audio_converter_->RemoveInput(this);
+  // Use the lock to protect access to audio_converter_.
+  {
+    base::AutoLock auto_lock(lock_);
+    if (audio_converter_.get()) {
+      audio_converter_->RemoveInput(this);
+    }
+  }
 
   // If the track is still active, it is necessary to notify the track before
   // the source provider goes away.

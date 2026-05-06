@@ -22,12 +22,11 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/common/check_op.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
-
-using base::android::ScopedJavaLocalRef;
 
 const int kCheckpointFramesInterval = 1024;
 
@@ -45,29 +44,29 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 }
 }  // namespace
 
-class MinRequiredFramesTester::TesterThread : public Thread {
+class AudioSinkMinRequiredFramesTester::TesterThread : public Thread {
  public:
-  explicit TesterThread(MinRequiredFramesTester* tester)
-      : Thread("min_frames_test"), tester_(tester) {}
+  explicit TesterThread(AudioSinkMinRequiredFramesTester* tester)
+      : Thread("min_frames_test",
+               ThreadOptions().SetPriority(kSbThreadPriorityLowest)),
+        tester_(tester) {}
 
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityLowest);
-    tester_->TesterThreadFunc();
-  }
+  void Run() override { tester_->TesterThreadFunc(); }
 
  private:
-  MinRequiredFramesTester* tester_;
+  AudioSinkMinRequiredFramesTester* tester_;
 };
 
-MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
-                                                 int required_frames_increment,
-                                                 int min_stable_played_frames)
+AudioSinkMinRequiredFramesTester::AudioSinkMinRequiredFramesTester(
+    int max_required_frames,
+    int required_frames_increment,
+    int min_stable_played_frames)
     : max_required_frames_(max_required_frames),
       required_frames_increment_(required_frames_increment),
       min_stable_played_frames_(min_stable_played_frames),
       destroying_(false) {}
 
-MinRequiredFramesTester::~MinRequiredFramesTester() {
+AudioSinkMinRequiredFramesTester::~AudioSinkMinRequiredFramesTester() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
   if (tester_thread_) {
@@ -77,34 +76,36 @@ MinRequiredFramesTester::~MinRequiredFramesTester() {
   }
 }
 
-void MinRequiredFramesTester::AddTest(
+void AudioSinkMinRequiredFramesTester::AddTest(
     int number_of_channels,
     SbMediaAudioSampleType sample_type,
     int sample_rate,
     const OnMinRequiredFramesReceivedCallback& received_cb,
     int default_required_frames) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  // MinRequiredFramesTester doesn't support to add test after starts.
+  // AudioSinkMinRequiredFramesTester doesn't support adding tests after it has
+  // started.
   SB_DCHECK(!tester_thread_);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
 }
 
-void MinRequiredFramesTester::Start() {
+void AudioSinkMinRequiredFramesTester::Start() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  // MinRequiredFramesTester only supports to start once.
+  // AudioSinkMinRequiredFramesTester only supports starting once.
   SB_DCHECK(!tester_thread_);
 
   tester_thread_ = std::make_unique<TesterThread>(this);
   tester_thread_->Start();
 }
 
-void MinRequiredFramesTester::TesterThreadFunc() {
+void AudioSinkMinRequiredFramesTester::TesterThreadFunc() {
   bool wait_timeout = false;
   for (const TestTask& task : test_tasks_) {
-    // Need to check |destroying_| before start, as MinRequiredFramesTester may
-    // be destroyed immediately after tester thread started.
+    // Need to check |destroying_| before starting, as
+    // AudioSinkMinRequiredFramesTester may be destroyed immediately after
+    // tester thread started.
     if (destroying_.load()) {
       break;
     }
@@ -126,14 +127,13 @@ void MinRequiredFramesTester::TesterThreadFunc() {
       is_test_complete_ = false;
     }
 
-    audio_sink_ = new AudioTrackAudioSink(
+    audio_sink_ = AudioTrackAudioSink::Create(
         NULL, task.number_of_channels, task.sample_rate, task.sample_type,
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
-        &MinRequiredFramesTester::UpdateSourceStatusFunc,
-        &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, false, this);
+        {UpdateSourceStatusFunc, ConsumeFramesFunc, ErrorFunc}, 0, -1, false,
+        false, this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(
@@ -143,15 +143,13 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     }
 
     // Get start threshold before release the audio sink.
-    int start_threshold = audio_sink_->IsAudioTrackValid()
-                              ? audio_sink_->GetStartThresholdInFrames()
-                              : 0;
+    int start_threshold =
+        audio_sink_ ? audio_sink_->GetStartThresholdInFrames() : 0;
 
     // |min_required_frames_| is shared between two threads. Release audio sink
     // to end audio sink thread before access |min_required_frames_| on this
     // thread.
-    delete audio_sink_;
-    audio_sink_ = nullptr;
+    audio_sink_.reset();
 
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
@@ -182,13 +180,14 @@ void MinRequiredFramesTester::TesterThreadFunc() {
 }
 
 // static
-void MinRequiredFramesTester::UpdateSourceStatusFunc(int* frames_in_buffer,
-                                                     int* offset_in_frames,
-                                                     bool* is_playing,
-                                                     bool* is_eos_reached,
-                                                     void* context) {
-  MinRequiredFramesTester* tester =
-      static_cast<MinRequiredFramesTester*>(context);
+void AudioSinkMinRequiredFramesTester::UpdateSourceStatusFunc(
+    int* frames_in_buffer,
+    int* offset_in_frames,
+    bool* is_playing,
+    bool* is_eos_reached,
+    void* context) {
+  AudioSinkMinRequiredFramesTester* tester =
+      static_cast<AudioSinkMinRequiredFramesTester*>(context);
   SB_DCHECK(tester);
   SB_DCHECK(frames_in_buffer);
   SB_DCHECK(offset_in_frames);
@@ -200,38 +199,41 @@ void MinRequiredFramesTester::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
-                                                int64_t frames_consumed_at,
-                                                void* context) {
-  MinRequiredFramesTester* tester =
-      static_cast<MinRequiredFramesTester*>(context);
+void AudioSinkMinRequiredFramesTester::ConsumeFramesFunc(
+    int frames_consumed,
+    int64_t frames_consumed_at,
+    void* context) {
+  AudioSinkMinRequiredFramesTester* tester =
+      static_cast<AudioSinkMinRequiredFramesTester*>(context);
   SB_DCHECK(tester);
 
   tester->ConsumeFrames(frames_consumed);
 }
 
 // static
-void MinRequiredFramesTester::ErrorFunc(bool capability_changed,
-                                        const std::string& error_message,
-                                        void* context) {
+void AudioSinkMinRequiredFramesTester::ErrorFunc(
+    bool capability_changed,
+    const std::string& error_message,
+    void* context) {
   SB_LOG(ERROR) << "Error occurred while writing frames: " << error_message;
 
-  MinRequiredFramesTester* tester =
-      static_cast<MinRequiredFramesTester*>(context);
+  AudioSinkMinRequiredFramesTester* tester =
+      static_cast<AudioSinkMinRequiredFramesTester*>(context);
   tester->has_error_ = true;
 }
 
-void MinRequiredFramesTester::UpdateSourceStatus(int* frames_in_buffer,
-                                                 int* offset_in_frames,
-                                                 bool* is_playing,
-                                                 bool* is_eos_reached) {
+void AudioSinkMinRequiredFramesTester::UpdateSourceStatus(
+    int* frames_in_buffer,
+    int* offset_in_frames,
+    bool* is_playing,
+    bool* is_eos_reached) {
   *frames_in_buffer = min_required_frames_;
   *offset_in_frames = 0;
   *is_playing = true;
   *is_eos_reached = false;
 }
 
-void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
+void AudioSinkMinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
   total_consumed_frames_ += frames_consumed;
   // Wait until played enough frames.
   if (total_consumed_frames_ - kCheckpointFramesInterval <

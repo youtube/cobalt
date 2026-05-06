@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "base/base_switches.h"
-#include "base/files/file_path.h"
+#include "build/buildflag.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
-#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/switches.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_OZONE)
-#include "ui/ozone/public/ozone_switches.h"
 #endif
 
 namespace cobalt {
@@ -72,6 +73,8 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
       ::switches::kDisableAcceleratedVideoDecode,
       ::switches::kDisableAcceleratedVideoEncode,
+      // Force to use dark mode.
+      ::switches::kForceDarkMode,
   };
   return kCobaltToggleSwitches;
 }
