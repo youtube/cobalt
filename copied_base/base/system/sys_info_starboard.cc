@@ -32,7 +32,7 @@
 namespace base {
 
 #if BUILDFLAG(IS_STARBOARD)
-using starboard::GetSystemPropertyString;
+using ::starboard::GetSystemPropertyString;
 
 std::string SysInfo::HardwareModelName() {
   return GetSystemPropertyString(kSbSystemPropertyModelName);
