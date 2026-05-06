@@ -411,17 +411,17 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
     return;
   }
 
-  std::unique_ptr<AudioTrackBridge> audio_track_bridge(new AudioTrackBridge(
-      audio_stream_info_.codec == kSbMediaAudioCodecAc3
-          ? kSbMediaAudioCodingTypeAc3
-          : kSbMediaAudioCodingTypeDolbyDigitalPlus,
-      std::optional<SbMediaAudioSampleType>(),  // Not required in passthrough
-                                                // mode
-      audio_stream_info_.number_of_channels,
-      audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      kTunnelModeAudioSessionId, false /* is_web_audio */));
+  std::unique_ptr<AudioTrackBridge> audio_track_bridge =
+      AudioTrackBridge::Create(
+          audio_stream_info_.codec == kSbMediaAudioCodecAc3
+              ? kSbMediaAudioCodingTypeAc3
+              : kSbMediaAudioCodingTypeDolbyDigitalPlus,
+          /*sample_type=*/std::nullopt,  // Not required in passthrough mode
+          audio_stream_info_.number_of_channels,
+          audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
+          kTunnelModeAudioSessionId, /*is_web_audio=*/false);
 
-  if (!audio_track_bridge->is_valid()) {
+  if (!audio_track_bridge) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
     return;
   }
@@ -455,7 +455,7 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   // silence can be observed after seeking on some audio receivers.
   // TODO: Consider reusing audio sink for non-passthrough playbacks, to see if
   //       it reduces latency after seeking.
-  if (audio_track_bridge_ && audio_track_bridge_->is_valid()) {
+  if (audio_track_bridge_) {
     audio_track_bridge_->PauseAndFlush();
   }
   seek_to_time_ = seek_to_time;

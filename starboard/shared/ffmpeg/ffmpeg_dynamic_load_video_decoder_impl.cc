@@ -62,6 +62,13 @@ std::unique_ptr<FfmpegVideoDecoder> FfmpegVideoDecoder::Create(
     case 611:
       return FfmpegVideoDecoderImpl<611>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
+    case 621:
+      // We reuse the 611 implementation because FFMPEG 6.2 (621) is
+      // API-compatible with 6.1 (611).
+      // TODO: b/508705038 - Use a dedicated 621 specialization once
+      // third_party/ffmpeg is updated.
+      return FfmpegVideoDecoderImpl<611>::Create(
+          video_codec, output_mode, decode_target_graphics_context_provider);
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG version "
                       << ffmpeg->specialization_version();
