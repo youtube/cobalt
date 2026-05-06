@@ -19,6 +19,10 @@
 #include "base/debug/stack_trace.h"
 #include "third_party/jni_zero/jni_zero.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/jni_zero/cobalt_for_google3_buildflags.h"
+#endif
+
 namespace base {
 namespace android {
 
