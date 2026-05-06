@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/arm.gni")
+import("//cobalt/build/configs/cobalt_for_google.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
 import("//starboard/build/config/toolchain_variables.gni")
@@ -84,6 +85,10 @@ config("buildflag_defines") {
   # Starboard.
   if (is_cobalt) {
     defines += [ "ENABLE_BUILDFLAG_IS_COBALT" ]
+  }
+
+  if (is_cobalt && is_cobalt_on_google3) {
+    defines += [ "ENABLE_BUILDFLAG_IS_COBALT_ON_GOOGLE3" ]
   }
 
   # is_starboard and BUILDFLAG(IS_STARBOARD) should be used for platforms that
