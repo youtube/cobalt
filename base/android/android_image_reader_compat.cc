@@ -10,10 +10,8 @@ namespace base {
 namespace android {
 
 bool EnableAndroidImageReader() {
-  // COBALT: Cobalt does not use AImageReader. We disable it to maintain compatibility
-  // with Android 7.0 (API 24), as AImageReader NDK APIs require API 26+ (and are
-  // only enabled by Chromium at runtime for API 28+).
-  // See b/508072838
+  // Cobalt does not use AImageReader, which breaks SDK 24 compatibility.
+  // See b/508072838.
 #if !BUILDFLAG(IS_COBALT)
   // Currently we want to enable AImageReader only for android P+ devices.
   if (__builtin_available(android 28, *)) {

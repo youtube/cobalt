@@ -9,9 +9,6 @@ import("//third_party/dawn/scripts/dawn_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
-if (is_android) {
-  import("//build/config/android/config.gni")
-}
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
@@ -594,11 +591,9 @@ target(link_target_type, "gles2_sources") {
       "texture_owner.h",
     ]
 
-    # COBALT: These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
-    # available past Android API 26 (a.k.a. Android 8 a.k.a. Oreo).
-    # Cobalt lowers default_min_sdk_version to 24, so we must guard this.
-    # See b/508072838
-    if (default_min_sdk_version >= 26) {
+    # ImageReader is disabled because it is not used and breaks SDK 24 compatibility.
+    # See b/508072838.
+    if (!is_cobalt) {
       sources += [
         "image_reader_gl_owner.cc",
         "image_reader_gl_owner.h",
@@ -696,11 +691,9 @@ if (is_android) {
       "surface_texture_transform_unittest.cc",
     ]
 
-    # COBALT: These files rely on NDK functions (e.g. getHardwareBuffer()) that are only
-    # available past Android API 26 (a.k.a. Android 8 a.k.a. Oreo).
-    # Cobalt lowers default_min_sdk_version to 24, so we must guard this.
-    # See b/508072838
-    if (default_min_sdk_version >= 26) {
+    # ImageReader is disabled because it is not used and breaks SDK 24 compatibility.
+    # See b/508072838.
+    if (!is_cobalt) {
       sources += [ "image_reader_gl_owner_unittest.cc" ]
     }
 
