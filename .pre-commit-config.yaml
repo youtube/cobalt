@@ -24,6 +24,10 @@ exclude: |
     )
 
 repos:
+-   repo: https://github.com/google/keep-sorted
+    rev: v0.8.0
+    hooks:
+    -   id: keep-sorted
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
     rev: v5.0.0
     hooks:
