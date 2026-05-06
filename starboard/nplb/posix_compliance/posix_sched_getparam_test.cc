@@ -16,6 +16,8 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include <limits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -30,10 +32,10 @@ TEST(PosixSchedGetParamTest, SchedGetParamSuccess) {
 
 TEST(PosixSchedGetParamTest, SchedGetParamFailsWithInvalidPid) {
   struct sched_param param;
-  int result = sched_getparam(-1, &param);
+  int result = sched_getparam(std::numeric_limits<pid_t>::max(), &param);
 
   EXPECT_EQ(result, -1);
-  EXPECT_TRUE(errno == EINVAL || errno == ESRCH) << "errno was " << errno;
+  EXPECT_TRUE(errno == ESRCH) << "errno was " << errno;
 }
 
 TEST(PosixSchedGetParamTest, SchedGetParamFailsWithNullParam) {

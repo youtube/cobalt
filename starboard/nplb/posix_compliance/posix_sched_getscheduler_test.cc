@@ -16,6 +16,8 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include <limits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -27,9 +29,9 @@ TEST(PosixSchedGetSchedulerTest, SchedGetSchedulerSuccess) {
 }
 
 TEST(PosixSchedGetSchedulerTest, SchedGetSchedulerFailsWithInvalidPid) {
-  int result = sched_getscheduler(-1);
+  int result = sched_getscheduler(std::numeric_limits<pid_t>::max());
   EXPECT_EQ(result, -1);
-  EXPECT_EQ(errno, EINVAL);
+  EXPECT_EQ(errno, ESRCH);
 }
 
 }  // namespace

@@ -16,6 +16,8 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include <limits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -140,10 +142,11 @@ TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForIdle) {
 TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPid) {
   struct sched_param param;
   param.sched_priority = 0;
-  int result = sched_setscheduler(-1, SCHED_OTHER, &param);
+  int result = sched_setscheduler(std::numeric_limits<pid_t>::max(),
+                                  SCHED_OTHER, &param);
 
   EXPECT_EQ(result, -1);
-  EXPECT_EQ(errno, EINVAL);
+  EXPECT_EQ(errno, ESRCH);
 }
 
 TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPolicy) {
