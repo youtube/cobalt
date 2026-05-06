@@ -70,6 +70,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
+        // Set default raster threads to 2 for smoother performance.
+        paramOverrides.add("--num-raster-threads=2");
 
         return paramOverrides;
     }
