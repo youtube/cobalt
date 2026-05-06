@@ -1,4 +1,5 @@
-/chromium-browser-clang/
+/chromium-browser-clang/*
+!/chromium-browser-clang/rewrapper_mac.cfg
 /python/
 /win-cross/
 reproxy.cfg
