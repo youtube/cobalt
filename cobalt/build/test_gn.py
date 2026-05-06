@@ -50,7 +50,9 @@ class GnTest(unittest.TestCase):
     build_type = 'devel'
     expected_out_dir = f'out/{platform}_{build_type}'
     expected_args_content_part = (
+        'use_siso = false # Set by gn.py\n'
         'use_remoteexec = true # Set by gn.py\n'
+        'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") # Set by gn.py\n'
         'build_type = "devel" # Set by gn.py\n'
         'symbol_level = 1 # Set by gn.py\n'
         'is_debug = false # Set by gn.py\n'
