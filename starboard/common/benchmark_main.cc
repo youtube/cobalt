@@ -53,7 +53,6 @@ STARBOARD_WRAP_SIMPLE_MAIN(RunAllBenchmarks)
 // $ adb push out/android-arm_qa/benchmark /data/local/tmp/
 // $ adb shell chmod +x /data/local/tmp/benchmark
 // $ adb shell /data/local/tmp/benchmark --benchmark_filter="BM_*"
-//
 
 #if !SB_IS(EVERGREEN)
 int main(int argc, char** argv) {
