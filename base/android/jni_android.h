@@ -19,10 +19,6 @@
 #include "base/debug/stack_trace.h"
 #include "third_party/jni_zero/jni_zero.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/jni_zero/cobalt_for_google3_buildflags.h"
-#endif
-
 namespace base {
 namespace android {
 
@@ -94,7 +90,7 @@ inline void DisableJvmForTesting() {
 // Use HasClass if you need to check whether the class exists.
 inline ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env,
                                            const char* class_name) {
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+#if BUILDFLAG(IS_COBALT)
   if (strncmp(class_name, "org/chromium/", 13) == 0) {
     return jni_zero::GetClass(env, (std::string("cobalt/") + class_name).c_str());
   }
