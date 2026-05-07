@@ -58,7 +58,7 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   // Requests a memory dump. If a scan is already in progress, the callback
   // will be queued and called when the current scan completes.
   // Must be called on the same sequence the categorizer was created on.
-  void RequestDump(base::OnceClosure callback);
+  void RequestDump(base::OnceClosure done);
 
   // Synchronously scans a smaps file.
   static std::optional<ParsedSmapsResults> ScanSmapsFile(

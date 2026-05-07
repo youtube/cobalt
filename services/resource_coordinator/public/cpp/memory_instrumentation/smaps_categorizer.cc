@@ -72,17 +72,17 @@ SmapsCategorizer::~SmapsCategorizer() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-void SmapsCategorizer::RequestDump(base::OnceClosure callback) {
+void SmapsCategorizer::RequestDump(base::OnceClosure done) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&SmapsCategorizer::RequestDump,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+                       weak_ptr_factory_.GetWeakPtr(), std::move(done)));
     return;
   }
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const bool scanning = isScanning();
-  pending_callbacks_.push_back(std::move(callback));
+  pending_callbacks_.push_back(std::move(done));
   if (scanning) return;
 
   base::ThreadPool::PostTaskAndReplyWithResult(
