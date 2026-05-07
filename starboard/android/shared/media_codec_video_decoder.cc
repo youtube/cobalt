@@ -578,6 +578,20 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
+  SbMediaVideoCodec new_codec =
+      input_buffers.front()->video_stream_info().codec;
+  if (input_buffer_written_ > 0 && new_codec != video_codec_) {
+    SB_LOG(INFO) << "Mid-stream Codec Change Detected interntally: "
+                 << GetMediaVideoCodecName(video_codec_) << " -> "
+                 << GetMediaVideoCodecName(new_codec);
+    TeardownCodec();
+
+    video_codec_ = new_codec;
+
+    input_buffer_written_ = 0;
+    video_fps_ = 0;
+    pending_input_buffers_.clear();
+  }
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
