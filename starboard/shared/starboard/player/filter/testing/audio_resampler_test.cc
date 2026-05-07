@@ -139,7 +139,7 @@ TEST_P(AudioResamplerTest, SunnyDay) {
   // they should have same timestamp.
   EXPECT_EQ(inputs_.size(), outputs.size());
   int total_output_frames = 0;
-  for (int i = 0; i < outputs.size(); i++) {
+  for (size_t i = 0; i < outputs.size(); i++) {
     EXPECT_EQ(inputs_[i]->timestamp(), outputs[i]->timestamp());
     total_output_frames += outputs[i]->frames();
     EXPECT_NEAR(
@@ -171,16 +171,16 @@ std::string GetTestConfigName(
   return name;
 }
 
-INSTANTIATE_TEST_CASE_P(AudioResamplerTests,
-                        AudioResamplerTest,
-                        Combine(ValuesIn(kSampleTypesToTest),
-                                ValuesIn(kStorageTypesToTest),
-                                ValuesIn(kSampleRatesToTest),
-                                ValuesIn(kSampleTypesToTest),
-                                ValuesIn(kStorageTypesToTest),
-                                ValuesIn(kSampleRatesToTest),
-                                ValuesIn(kChannelsToTest)),
-                        GetTestConfigName);
+INSTANTIATE_TEST_SUITE_P(AudioResamplerTests,
+                         AudioResamplerTest,
+                         Combine(ValuesIn(kSampleTypesToTest),
+                                 ValuesIn(kStorageTypesToTest),
+                                 ValuesIn(kSampleRatesToTest),
+                                 ValuesIn(kSampleTypesToTest),
+                                 ValuesIn(kStorageTypesToTest),
+                                 ValuesIn(kSampleRatesToTest),
+                                 ValuesIn(kChannelsToTest)),
+                         GetTestConfigName);
 
 }  // namespace
 
