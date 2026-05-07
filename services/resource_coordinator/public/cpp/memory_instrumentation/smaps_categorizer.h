@@ -29,7 +29,8 @@
 
 namespace memory_instrumentation {
 
-struct ParsedSmapsEntry {
+class ParsedSmapsEntry {
+ public:
   std::string name;
   SmapsMetrics metrics;
 };
@@ -65,19 +66,18 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
       const base::FilePath& path);
 
   // Synchronously scans an already opened smaps file.
+  // TODO(b/494004530): Keep this public static as it will be used by OSMetrics
+  // in a subsequent change (re-evaluate making it file-static once OSMetrics
+  // integration is complete/decoupled).
   static std::optional<ParsedSmapsResults> ScanSmaps(base::File file);
 
  private:
   void OnScanComplete(std::optional<ParsedSmapsResults> results);
 
-  // Background thread task.
-  static std::optional<ParsedSmapsResults> PerformScanOnBackgroundThread();
-
   bool isScanning() const { return !pending_callbacks_.empty(); }
 
   base::WeakPtr<DetailedMetricsDelegate> delegate_;
   std::vector<base::OnceClosure> pending_callbacks_;
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<SmapsCategorizer> weak_ptr_factory_{this};

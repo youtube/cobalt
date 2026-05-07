@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+// TODO(b/375241103): Add unit tests.
+
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer.h"
 
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -47,25 +52,17 @@ bool ParseSmapsLine(absl::string_view line, uint64_t* value_kb) {
   if (colon_pos == absl::string_view::npos) return false;
 
   absl::string_view value_part = line.substr(colon_pos + 1);
-  // Trim leading spaces
-  while (!value_part.empty() && absl::ascii_isspace(value_part.front())) {
-    value_part.remove_prefix(1);
-  }
-  
-  // Find the end of the numeric part
-  size_t space_pos = value_part.find(' ');
-  if (space_pos != absl::string_view::npos) {
-    value_part = value_part.substr(0, space_pos);
-  }
+  std::vector<absl::string_view> tokens = base::SplitStringPiece(
+      value_part, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (tokens.empty()) return false;
 
-  return absl::SimpleAtoi(value_part, value_kb);
+  return absl::SimpleAtoi(tokens[0], value_kb);
 }
 
 }  // namespace
 
 SmapsCategorizer::SmapsCategorizer(base::WeakPtr<DetailedMetricsDelegate> delegate)
-    : delegate_(std::move(delegate)),
-      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+    : delegate_(std::move(delegate)) {
 }
 
 SmapsCategorizer::~SmapsCategorizer() {
@@ -73,13 +70,8 @@ SmapsCategorizer::~SmapsCategorizer() {
 }
 
 void SmapsCategorizer::RequestDump(base::OnceClosure done) {
-  if (!task_runner_->RunsTasksInCurrentSequence()) {
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&SmapsCategorizer::RequestDump,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(done)));
-    return;
-  }
+  // Enforce strict sequence affinity. Calling this from other sequences is
+  // not supported and will trigger a DCHECK (YAGNI).
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const bool scanning = isScanning();
   pending_callbacks_.push_back(std::move(done));
@@ -87,7 +79,8 @@ void SmapsCategorizer::RequestDump(base::OnceClosure done) {
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-      base::BindOnce(&SmapsCategorizer::PerformScanOnBackgroundThread),
+      base::BindOnce(&SmapsCategorizer::ScanSmapsFile,
+                     base::FilePath("/proc/self/smaps")),
       base::BindOnce(&SmapsCategorizer::OnScanComplete,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -112,16 +105,6 @@ void SmapsCategorizer::OnScanComplete(std::optional<ParsedSmapsResults> results)
   }
 }
 
-// static
-std::optional<ParsedSmapsResults> SmapsCategorizer::PerformScanOnBackgroundThread() {
-#if BUILDFLAG(IS_COBALT)
-  base::File file(base::FilePath("/proc/self/smaps"),
-                    base::File::FLAG_OPEN | base::File::FLAG_READ);
-  return ScanSmaps(std::move(file));
-#else
-  return ScanSmapsFile(base::FilePath("/proc/self/smaps"));
-#endif
-}
 
 // static
 std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmapsFile(
@@ -150,22 +133,22 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
   char buffer[4096];
   size_t buffer_offset = 0;
 
-  absl::string_view current_name;
+  std::string current_name;
   SmapsMetrics current_metrics;
   bool in_entry = false;
 
   auto flush_entry = [&]() {
     if (in_entry) {
-      results.push_back({std::string(current_name), current_metrics});
+      results.push_back({current_name, current_metrics});
     }
     in_entry = false;
     current_metrics = SmapsMetrics();
-    current_name = absl::string_view();
+    current_name.clear();
   };
 
   while (true) {
-    int bytes_read = file.ReadAtCurrentPos(buffer + buffer_offset,
-                                           sizeof(buffer) - buffer_offset);
+    int bytes_read = UNSAFE_BUFFERS(file.ReadAtCurrentPos(
+        buffer + buffer_offset, sizeof(buffer) - buffer_offset));
     if (bytes_read <= 0)
       break;
 
@@ -193,7 +176,7 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
       if (line.empty())
         continue;
 
-      if (absl::ascii_isxdigit(line[0])) {
+      if (absl::ascii_isxdigit(line[0]) && line.find('-') != absl::string_view::npos) {
         // Header line: "00400000-00452000 r-xp 00000000 08:02 173521
         // /usr/bin/dbus-daemon"
         flush_entry();
@@ -215,16 +198,17 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
           }
         }
         if (name_start != absl::string_view::npos && name_start < line.size()) {
-          current_name = line.substr(name_start);
+          absl::string_view name_sv = line.substr(name_start);
           // Trim leading/trailing spaces from name
-          while (!current_name.empty() &&
-                 absl::ascii_isspace(current_name.front())) {
-            current_name.remove_prefix(1);
+          while (!name_sv.empty() &&
+                 absl::ascii_isspace(name_sv.front())) {
+            name_sv.remove_prefix(1);
           }
-          while (!current_name.empty() &&
-                 absl::ascii_isspace(current_name.back())) {
-            current_name.remove_suffix(1);
+          while (!name_sv.empty() &&
+                 absl::ascii_isspace(name_sv.back())) {
+            name_sv.remove_suffix(1);
           }
+          current_name = std::string(name_sv);
         }
       } else if (in_entry) {
         uint64_t val = 0;
@@ -259,7 +243,7 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
     // Move remainder to the beginning
     size_t remaining = total_buffered - (last_newline + 1);
     if (remaining > 0) {
-      memmove(buffer, buffer + last_newline + 1, remaining);
+      UNSAFE_BUFFERS(memmove(buffer, buffer + last_newline + 1, remaining));
     }
     buffer_offset = remaining;
   }
