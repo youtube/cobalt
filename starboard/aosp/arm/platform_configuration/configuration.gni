@@ -17,6 +17,5 @@ if (current_toolchain == default_toolchain) {
       "//starboard/evergreen/arm/softfp/platform_configuration/configuration.gni")
 } else {
   import("//starboard/android/arm/platform_configuration/configuration.gni")
-  import("//starboard/aosp/shared/platform_configuration/configuration.gni")
   sb_evergreen_compatible_use_libunwind = true
 }
