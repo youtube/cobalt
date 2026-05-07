@@ -33,6 +33,28 @@
 
 namespace starboard {
 
+int SbPriorityToNice(SbThreadPriority priority) {
+  // Nice value settings are shared between Android and Linux.
+  // They are selected from looking at:
+  //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      return 19;
+    case kSbThreadPriorityLow:
+      return 10;
+    case kSbThreadNoPriority:
+    case kSbThreadPriorityNormal:
+      return 0;
+    case kSbThreadPriorityHigh:
+      return -8;
+    case kSbThreadPriorityHighest:
+      return -16;
+    case kSbThreadPriorityRealTime:
+      return -19;
+  }
+  return 0;
+}
+
 struct Thread::Data {
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
@@ -88,24 +110,6 @@ std::atomic_bool* Thread::joined_bool() {
   return &d_->join_called_;
 }
 
-int SbPriorityToNice(SbThreadPriority priority) {
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-      return 19;
-    case kSbThreadPriorityLow:
-      return 10;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      return 0;
-    case kSbThreadPriorityHigh:
-      return -8;
-    case kSbThreadPriorityHighest:
-      return -16;
-    case kSbThreadPriorityRealTime:
-      return -19;
-  }
-  return 0;
-}
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);

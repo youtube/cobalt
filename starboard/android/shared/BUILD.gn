@@ -55,6 +55,7 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/system_get_error_string.cc",
     "//starboard/shared/posix/system_get_last_error.cc",
     "//starboard/shared/posix/system_get_number_of_processors.cc",
+
     "//starboard/shared/signal/crash_signals.h",
     "//starboard/shared/signal/crash_signals_sigaction.cc",
     "//starboard/shared/signal/suspend_signals.cc",
