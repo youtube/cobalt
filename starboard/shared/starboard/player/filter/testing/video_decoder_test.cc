@@ -105,9 +105,7 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
   SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
-      kSbMediaVideoCodecAv2,
-  };
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
       PlayerComponents::Factory::OutputModeSupported(output_mode, video_codec,
@@ -134,9 +132,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
-      kSbMediaVideoCodecAv2,
-  };
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
   int kMaxVideoInputSizes[] = {0, 777000, 3110500};
 
   for (auto output_mode : kOutputModes) {

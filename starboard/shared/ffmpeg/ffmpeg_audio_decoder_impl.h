@@ -15,10 +15,8 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_
 
-#include <memory>
 #include <queue>
 
-#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
@@ -42,15 +40,14 @@ template <>
 class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
                                        private JobQueue::JobOwner {
  public:
-  FfmpegAudioDecoderImpl(starboard::PassKey<FfmpegAudioDecoderImpl<FFMPEG>>,
-                         JobQueue* job_queue,
+  FfmpegAudioDecoderImpl(JobQueue* job_queue,
                          const AudioStreamInfo& audio_stream_info);
   ~FfmpegAudioDecoderImpl() override;
 
   // From: FfmpegAudioDecoder
-  static std::unique_ptr<FfmpegAudioDecoder> Create(
-      JobQueue* job_queue,
-      const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(JobQueue* job_queue,
+                                    const AudioStreamInfo& audio_stream_info);
+  bool is_valid() const override;
 
   // From: AudioDecoder
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -64,7 +61,7 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
   SbMediaAudioSampleType GetSampleType() const;
   SbMediaAudioFrameStorageType GetStorageType() const;
 
-  bool InitializeCodec();
+  void InitializeCodec();
   void TeardownCodec();
 
   // Processes decoded (PCM) audio data received from FFmpeg. The audio data is
@@ -74,14 +71,13 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
 
   static const int kMaxDecodedAudiosSize = 64;
 
-  // Guaranteed to be non-null.
-  FFMPEGDispatch* const ffmpeg_;
+  FFMPEGDispatch* ffmpeg_;
   OutputCB output_cb_;
   ErrorCB error_cb_;
-  AVCodecContext* codec_context_ = nullptr;
-  AVFrame* av_frame_ = nullptr;
+  AVCodecContext* codec_context_;
+  AVFrame* av_frame_;
 
-  bool stream_ended_ = false;
+  bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
 };

@@ -35,6 +35,7 @@ VideoDecoder* VideoDecoder::Create(
         decode_target_graphics_context_provider) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg);
+  SB_DCHECK(ffmpeg->is_valid());
   SB_DCHECK_EQ(FFMPEG, ffmpeg->specialization_version());
 
   return VideoDecoderImpl<FFMPEG>::Create(

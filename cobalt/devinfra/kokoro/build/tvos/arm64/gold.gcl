@@ -12,7 +12,7 @@ config build = common.build {
       value = 'gold'
     },
     {
-      key = 'GN_TARGET'
+      key = 'TARGET'
       value = 'default'
     },
   ]

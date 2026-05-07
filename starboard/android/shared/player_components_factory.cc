@@ -68,7 +68,8 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
-                                    bool allow_audio_writing_on_pause = false)
+                                    bool allow_audio_writing_on_pause = false,
+                                    bool pause_using_audio_track_state = false)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -90,7 +91,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
                   tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  allow_audio_writing_on_pause, context);
+                  allow_audio_writing_on_pause, pause_using_audio_track_state,
+                  context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -412,6 +414,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      // TODO: b/349854301 - Connect to experimental flag.
+      const bool pause_using_audio_track_state =
+          FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
+      SB_LOG_IF(INFO, pause_using_audio_track_state)
+          << "kPauseUsingAudioTrackState is set to true, force using "
+          << "AudioTrackState while pausing playback.";
+
       // TODO: b/500811542 - Connect to H5VCC.
       const bool allow_audio_writing_on_pause =
           experimental_features.allow_audio_writing_on_pause;
@@ -452,7 +461,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause);
+              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
+              pause_using_audio_track_state);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {

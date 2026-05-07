@@ -76,6 +76,8 @@ class FFMPEGDispatch {
                                      int avformat,
                                      int avutil);
 
+  bool is_valid() const;
+
   unsigned (*avutil_version)(void);
   void* (*av_malloc)(size_t size);
   void (*av_freep)(void* ptr);
