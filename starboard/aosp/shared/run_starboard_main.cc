@@ -18,6 +18,8 @@ namespace starboard::aosp::shared {
 
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
-                                  SbEventHandleCallback callback) {}
+                                  SbEventHandleCallback callback) {
+  // TODO(crbug.com/495203133): to be implemented.
+}
 
 }  // namespace starboard::aosp::shared
