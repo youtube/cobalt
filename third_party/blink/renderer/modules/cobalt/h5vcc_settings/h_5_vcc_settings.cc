@@ -143,9 +143,9 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     const WTF::String& name,
     const V8UnionLongOrString* value,
     ExceptionState& exception_state) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   const ExceptionContext& exception_context = exception_state.GetContext();
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (name == "DecoderBuffer.EnableDecommitableAllocatorStrategy") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
