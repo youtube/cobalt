@@ -58,7 +58,7 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultDisableFeatureOverridesList() {
         String overrides =
             CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
-        assertThat(overrides.contains("AImageReader")).isTrue();
+        assertThat(overrides.contains("PartitionAllocBackupRefPtr")).isTrue();
         assertThat(overrides.contains("UseAAudioInput")).isTrue();
     }
 
