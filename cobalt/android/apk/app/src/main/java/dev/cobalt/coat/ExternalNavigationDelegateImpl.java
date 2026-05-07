@@ -73,16 +73,11 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
 
             // Try to launch the intent as-is (with package if specified).
             if (context.getPackageManager().resolveActivity(intent, 0) != null) {
-                context.startActivity(intent);
-                return true; // Handled
-            }
-
-            // If that failed, try again without the package.
-            if (intent.getPackage() != null) {
-                intent.setPackage(null);
-                if (context.getPackageManager().resolveActivity(intent, 0) != null) {
+                try {
                     context.startActivity(intent);
                     return true; // Handled
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to launch intent: " + intent, e);
                 }
             }
 
