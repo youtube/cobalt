@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/resource.h>
 #include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,15 +26,15 @@ TEST(SbThreadPriorityTest, SunnyDay) {
   if (kSbHasThreadPrioritySupport) {
     // The test only lower the priority as raising the priority
     // requires permissions.
-    EXPECT_TRUE(SbThreadSetPriority(kSbThreadPriorityNormal));
+    EXPECT_EQ(setpriority(PRIO_PROCESS, 0, starboard::SbPriorityToNice(kSbThreadPriorityNormal)), 0);
     EXPECT_TRUE(SbThreadGetPriority(&priority));
     EXPECT_EQ(priority, kSbThreadPriorityNormal);
 
-    EXPECT_TRUE(SbThreadSetPriority(kSbThreadPriorityLow));
+    EXPECT_EQ(setpriority(PRIO_PROCESS, 0, starboard::SbPriorityToNice(kSbThreadPriorityLow)), 0);
     EXPECT_TRUE(SbThreadGetPriority(&priority));
     EXPECT_EQ(priority, kSbThreadPriorityLow);
 
-    EXPECT_TRUE(SbThreadSetPriority(kSbThreadPriorityLowest));
+    EXPECT_EQ(setpriority(PRIO_PROCESS, 0, starboard::SbPriorityToNice(kSbThreadPriorityLowest)), 0);
     EXPECT_TRUE(SbThreadGetPriority(&priority));
     EXPECT_EQ(priority, kSbThreadPriorityLowest);
   }

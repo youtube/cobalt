@@ -53,41 +53,27 @@ void SetNiceValue(int nice) {
     SB_NOTREACHED();
   }
 }
-
-}  // namespace
-
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport) {
-    return false;
-  }
-
+int SbPriorityToNice(SbThreadPriority priority) {
   // Nice value settings are selected from looking at:
   //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
   switch (priority) {
     case kSbThreadPriorityLowest:
-      SetNiceValue(19);
-      break;
+      return 19;
     case kSbThreadPriorityLow:
-      SetNiceValue(10);
-      break;
+      return 10;
     case kSbThreadNoPriority:
     case kSbThreadPriorityNormal:
-      SetNiceValue(0);
-      break;
+      return 0;
     case kSbThreadPriorityHigh:
-      SetNiceValue(-8);
-      break;
+      return -8;
     case kSbThreadPriorityHighest:
-      SetNiceValue(-16);
-      break;
+      return -16;
     case kSbThreadPriorityRealTime:
-      SetNiceValue(-19);
-      break;
+      return -19;
     default:
       SB_NOTREACHED();
-      break;
+      return 0;
   }
-  return true;
 }
 
 bool SbThreadGetPriority(SbThreadPriority* priority) {

@@ -43,6 +43,8 @@
 #include <mutex>
 
 #include "starboard/common/once.h"
+#include <sys/resource.h>
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/drm.h"
@@ -1789,7 +1791,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
 
 // static
 void* PlayerImpl::ThreadEntryPoint(void* context) {
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
+  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityRealTime));
   SB_DCHECK(context);
   GST_TRACE("%d", SbThreadGetId());
 
