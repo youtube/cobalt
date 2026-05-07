@@ -19,7 +19,7 @@
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
 
-// ImageReaderGLOwner is disabled because it is not used and breaks SDK 24 compatibility.
+// Cobalt does not use ImageReaderGLOwner, which requires API 26+, breaking SDK 24 compatibility.
 // See b/508072838.
 #if !BUILDFLAG(IS_COBALT)
 #include "gpu/command_buffer/service/image_reader_gl_owner.h"
@@ -109,7 +109,7 @@ scoped_refptr<TextureOwner> TextureOwner::Create(
     case Mode::kAImageReaderInsecure:
     case Mode::kAImageReaderInsecureSurfaceControl:
     case Mode::kAImageReaderSecureSurfaceControl:
-// ImageReaderGLOwner is disabled because it is not used and breaks SDK 24 compatibility.
+// Cobalt does not use ImageReaderGLOwner, which requires API 26+, breaking SDK 24 compatibility.
 // See b/508072838.
 #if !BUILDFLAG(IS_COBALT)
       return new ImageReaderGLOwner(std::move(texture), mode,
