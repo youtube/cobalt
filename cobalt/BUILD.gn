@@ -48,6 +48,9 @@ group("gn_all") {
 
   # TODO(b/371589344): Fix android build configs.
   deps = [ "//starboard:starboard_group" ]
+  if (sb_enable_benchmark) {
+    deps += [ "//starboard/benchmark" ]
+  }
   if (!cobalt_is_release_build) {
     deps += [ "//starboard/nplb" ]
   }

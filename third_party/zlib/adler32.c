@@ -100,7 +100,7 @@ uLong ZEXPORT adler32_z(uLong adler, const Bytef *buf, z_size_t len) {
  * zlib and results in an undefined symbol.
  */
 #if defined(ADLER32_SIMD_SSSE3) \
-    || (!defined(PARTNER_DEFINED_TOOLCHAIN) && defined(ADLER32_SIMD_NEON)) \
+    || (!defined(IS_PARTNER_TOOLCHAIN) && defined(ADLER32_SIMD_NEON)) \
     || defined(RISCV_RVV)
     /*
      * Use SIMD to compute the adler32. Since this function can be

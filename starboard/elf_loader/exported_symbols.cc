@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <malloc.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <poll.h>
 #include <sched.h>
@@ -333,6 +334,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);
   REGISTER_WRAPPER(getrlimit);
+  REGISTER_WRAPPER(if_indextoname);
+  REGISTER_WRAPPER(if_nametoindex);
   REGISTER_WRAPPER(inotify_init1);
   REGISTER_WRAPPER(inotify_add_watch);
   REGISTER_WRAPPER(inotify_rm_watch);

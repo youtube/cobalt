@@ -32,16 +32,18 @@ extern "C" {
 typedef struct StarboardExtensionExperimentalFeatures {
   // If a field is NULL, it means the value is not set.
   // The fields should be in alphabetical order.
+  // keep-sorted start
   bool disable_low_performance_sw_decoder;
   bool enable_av1_startup_optimization;
   bool enable_codec_output_checker;
   bool flush_decoder_during_reset;
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;
+  const bool* use_dual_threads_for_video;
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;
   const int* video_renderer_min_input_buffers;
-  const bool* use_dual_threads_for_video;
+  // keep-sorted end
 } StarboardExtensionExperimentalFeatures;
 
 typedef struct StarboardExtensionExperimentalFeaturesConfigurationApi {

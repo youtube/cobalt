@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 
+#include <net/if.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -388,6 +389,55 @@ SB_EXPORT void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai) {
 SB_EXPORT int __abi_wrap_getifaddrs(struct ifaddrs** ifap) {
   int result = getifaddrs(ifap);
   return result;
+}
+
+SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
+  if (ifname == nullptr) {
+    // No errors defined by the POSIX spec.
+    return 0;
+  }
+
+  // ifname might be longer than the platform's max interface name length.
+  if (MUSL_IF_NAMESIZE > IF_NAMESIZE) {
+    char platform_buf[IF_NAMESIZE];
+    starboard::strlcpy(platform_buf, ifname, IF_NAMESIZE);
+    if (strcmp(platform_buf, ifname) != 0) {
+      SB_LOG(WARNING) << "Interface name " << ifname << " truncated to "
+                      << platform_buf;
+    }
+    return if_nametoindex(platform_buf);
+  }
+  // No need to copy since ifname is smaller than or equal to IF_NAMESIZE.
+  return if_nametoindex(ifname);
+}
+
+SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
+  if (ifname == nullptr) {
+    // It feels like this should also set errno, but the spec doesn't require
+    // it.
+    return nullptr;
+  }
+
+  // ifname buffer is larger than the platform's max interface name length,
+  // so it is fine to pass it directly to the platform's if_indextoname.
+  if (MUSL_IF_NAMESIZE >= IF_NAMESIZE) {
+    return if_indextoname(ifindex, ifname);
+  }
+
+  // ifname buffer is smaller than the platform's max interface name length. If
+  // IF_NAMESIZE > MUSL_IF_NAMESIZE, the copy will truncate the interface name.
+  // At time of writing, that is fine since current uses of this function are in
+  // logging.
+  char platform_buf[IF_NAMESIZE];
+  char* res = if_indextoname(ifindex, platform_buf);
+  if (res == nullptr) {
+    return nullptr;
+  }
+  starboard::strlcpy(ifname, res, MUSL_IF_NAMESIZE);
+  if (strcmp(ifname, res) != 0) {
+    SB_LOG(WARNING) << "Interface name " << res << " truncated to " << ifname;
+  }
+  return ifname;
 }
 
 SB_EXPORT int __abi_wrap_setsockopt(int socket,

@@ -21,6 +21,8 @@ rendering issues caused by Chromium's shader expectations.
 ### Added the following POSIX symbols:
 * `getrandom`
 * `getuid`
+* `if_indextoname`
+* `if_nametoindex`
 * `inotify_init1`
 * `inotify_add_watch`
 * `inotify_rm_watch`

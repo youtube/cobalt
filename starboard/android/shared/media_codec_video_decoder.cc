@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/video_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder.h"
 
 #include <jni.h>
 #include <unistd.h>
@@ -27,7 +27,7 @@
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -63,15 +63,16 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   // `max_video_capabilities` is in the form of mime type attributes, like
   // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
   // so it can be parsed by MimeType.
-  MimeType mime_type("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
-  if (!mime_type.is_valid()) {
+  auto mime_type =
+      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+  if (!mime_type) {
     SB_LOG(INFO) << "Use hardware decoder as `max_video_capabilities` ("
                  << max_video_capabilities << ") is invalid.";
     return false;
   }
 
   std::string software_decoder_expectation =
-      mime_type.GetParamStringValue("softwaredecoder", "");
+      mime_type->GetParamStringValue("softwaredecoder", "");
   if (software_decoder_expectation == "required" ||
       software_decoder_expectation == "preferred") {
     SB_LOG(INFO) << "Use software decoder as `softwaredecoder` is set to \""
@@ -84,9 +85,9 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
     return false;
   }
 
-  bool is_low_resolution = mime_type.GetParamIntValue("width", 1920) <= 432 &&
-                           mime_type.GetParamIntValue("height", 1080) <= 240;
-  bool is_low_fps = mime_type.GetParamIntValue("framerate", 30) <= 15;
+  bool is_low_resolution = mime_type->GetParamIntValue("width", 1920) <= 432 &&
+                           mime_type->GetParamIntValue("height", 1080) <= 240;
+  bool is_low_fps = mime_type->GetParamIntValue("framerate", 30) <= 15;
 
   if (is_low_resolution && is_low_fps) {
     // Workaround to be compatible with existing backend implementation.
@@ -120,15 +121,16 @@ std::optional<Size> ParseMaxResolution(
   // `max_video_capabilities` is in the form of mime type attributes, like
   // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
   // so it can be parsed by MimeType.
-  MimeType mime_type("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
-  if (!mime_type.is_valid()) {
+  auto mime_type =
+      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+  if (!mime_type) {
     SB_LOG(WARNING) << "Failed to parse max resolutions as "
                        "`max_video_capabilities` is invalid.";
     return std::nullopt;
   }
 
-  int width = mime_type.GetParamIntValue("width", -1);
-  int height = mime_type.GetParamIntValue("height", -1);
+  int width = mime_type->GetParamIntValue("width", -1);
+  int height = mime_type->GetParamIntValue("height", -1);
   if (width <= 0 && height <= 0) {
     SB_LOG(WARNING) << "Failed to parse max resolutions as either width or "
                        "height isn't set.";
