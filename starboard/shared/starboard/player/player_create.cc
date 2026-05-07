@@ -216,7 +216,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, std::move(handler));
+      player_status_func, player_error_func, nullptr, context,
+      std::move(handler));
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   starboard::VideoDmpWriter::OnPlayerCreate(

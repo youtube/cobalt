@@ -57,6 +57,13 @@ class SbPlayerBridge {
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
     virtual void OnPlayerError(SbPlayerError error,
                                const std::string& message) = 0;
+    virtual void OnRenderStatus(bool is_audio_playing,
+                                bool has_video_renderer,
+                                int number_of_frames,
+                                bool is_video_eos_received,
+                                bool has_enough_video_data,
+                                bool has_audio_renderer,
+                                bool is_audio_underflow) = 0;
 
    protected:
     ~Host() {}
@@ -232,6 +239,14 @@ class SbPlayerBridge {
                      SbPlayerError error,
                      const std::string& message);
   void OnDeallocateSample(const void* sample_buffer);
+  void OnRenderStatus(SbPlayer player,
+                      bool is_audio_playing,
+                      bool has_video_renderer,
+                      int number_of_frames,
+                      bool is_video_eos_received,
+                      bool has_enough_video_data,
+                      bool has_audio_renderer,
+                      bool is_audio_underflow);
 
   // Helper methods are used because base::Bind requires complete types for its
   // arguments, and SbPlayer (an internal type) is an incomplete definition.
@@ -244,6 +259,14 @@ class SbPlayerBridge {
                          SbPlayerError error,
                          const std::string& message);
   void OnDeallocateSampleTask(const void* sample_buffer);
+  void OnRenderStatusTask(void* player,
+                          bool is_audio_playing,
+                          bool has_video_renderer,
+                          int number_of_frames,
+                          bool is_video_eos_received,
+                          bool has_enough_video_data,
+                          bool has_audio_renderer,
+                          bool is_audio_underflow);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -261,6 +284,15 @@ class SbPlayerBridge {
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer);
+  static void RenderStatusCB(SbPlayer player,
+                             void* context,
+                             bool is_audio_playing,
+                             bool has_video_renderer,
+                             int number_of_frames,
+                             bool is_video_eos_received,
+                             bool has_enough_video_data,
+                             bool has_audio_renderer,
+                             bool is_audio_underflow);
 
 #if SB_HAS(PLAYER_WITH_URL)
   SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(

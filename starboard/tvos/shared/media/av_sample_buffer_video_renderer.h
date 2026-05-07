@@ -55,6 +55,7 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
     SB_DCHECK(BelongsToCurrentThread());
     return total_dropped_frames_;
   }
+  int GetNumberOfFrames() const override { return 0; }
 
   void WriteSamples(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;

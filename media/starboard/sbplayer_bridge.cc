@@ -26,6 +26,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -34,6 +35,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/experimental_features.h"
+#include "starboard/extension/player_get_render_status.h"
 #include "starboard/extension/player_set_video_surface_view.h"
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -689,6 +691,22 @@ void SbPlayerBridge::CreatePlayer() {
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 
 #if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltPausePlaybackWhenUnderflow)) {
+    LOG(INFO) << "Enable Pausing Playback When Underflow.";
+    const StarboardExtensionPlayerGetRenderStatusApi*
+        player_get_render_status_extension =
+            static_cast<const StarboardExtensionPlayerGetRenderStatusApi*>(
+                SbSystemGetExtension(
+                    kStarboardExtensionPlayerGetRenderStatusName));
+    if (player_get_render_status_extension &&
+        strcmp(player_get_render_status_extension->name,
+               kStarboardExtensionPlayerGetRenderStatusName) == 0 &&
+        player_get_render_status_extension->version >= 1) {
+      player_get_render_status_extension->SetRenderStatusCBForCurrentThread(
+          &SbPlayerBridge::RenderStatusCB);
+    }
+  }
+
   const StarboardExtensionPlayerSetVideoSurfaceViewApi*
       player_set_video_surface_view_extension =
           static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
@@ -1133,6 +1151,24 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
+void SbPlayerBridge::OnRenderStatus(SbPlayer player,
+                                    bool is_audio_playing,
+                                    bool has_video_renderer,
+                                    int number_of_frames,
+                                    bool is_video_eos_received,
+                                    bool has_enough_video_data,
+                                    bool has_audio_renderer,
+                                    bool is_audio_underflow) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (player_ != player) {
+    return;
+  }
+  host_->OnRenderStatus(is_audio_playing, has_video_renderer, number_of_frames,
+                        is_video_eos_received, has_enough_video_data,
+                        has_audio_renderer, is_audio_underflow);
+}
+
 bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
     const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -1241,6 +1277,43 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
           // `decoding_buffers_`, a member of SbPlayerBridge. Its validity is
           // guaranteed by the WeakPtr check for SbPlayerBridge's lifetime.
           sample_buffer));
+}
+
+void SbPlayerBridge::OnRenderStatusTask(void* player,
+                                        bool is_audio_playing,
+                                        bool has_video_renderer,
+                                        int number_of_frames,
+                                        bool is_video_eos_received,
+                                        bool has_enough_video_data,
+                                        bool has_audio_renderer,
+                                        bool is_audio_underflow) {
+  OnRenderStatus(static_cast<SbPlayer>(player), is_audio_playing,
+                 has_video_renderer, number_of_frames, is_video_eos_received,
+                 has_enough_video_data, has_audio_renderer, is_audio_underflow);
+}
+
+// static
+void SbPlayerBridge::RenderStatusCB(SbPlayer player,
+                                    void* context,
+                                    bool is_audio_playing,
+                                    bool has_video_renderer,
+                                    int number_of_frames,
+                                    bool is_video_eos_received,
+                                    bool has_enough_video_data,
+                                    bool has_audio_renderer,
+                                    bool is_audio_underflow) {
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnRenderStatusTask,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
+                     static_cast<void*>(player), is_audio_playing,
+                     has_video_renderer, number_of_frames,
+                     is_video_eos_received, has_enough_video_data,
+                     has_audio_renderer, is_audio_underflow));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
