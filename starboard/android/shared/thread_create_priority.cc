@@ -86,3 +86,4 @@ bool SbThreadGetPriority(SbThreadPriority* priority) {
 
   return true;
 }
+}  // namespace
