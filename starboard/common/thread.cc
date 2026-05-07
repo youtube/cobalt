@@ -121,6 +121,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 #endif
   bool priority_set = false;
   if (this_ptr->priority_) {
+    // setpriority returns 0 on success and -1 on failure. See https://pubs.opengroup.org/onlinepubs/9699919799/functions/getpriority.html
     priority_set = (setpriority(PRIO_PROCESS, 0, SbPriorityToNice(*this_ptr->priority_)) == 0);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "

@@ -23,8 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-
-
 namespace {
 
 // This is the maximum priority that will be passed to SetRoundRobinScheduler().
