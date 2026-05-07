@@ -24,12 +24,14 @@ namespace media_session {
 ScopedJavaLocalRef<jobjectArray> MediaImage::ToJavaArray(
     JNIEnv* env,
     const std::vector<MediaImage>& images) {
-  ScopedJavaLocalRef<jclass> string_clazz = base::android::GetClass(
-      env, "org/chromium/services/media_session/MediaImage");
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT_ON_GOOGLE3)
-    string_clazz = base::android::GetClass(
-      env, "cobalt/org/chromium/services/media_session/MediaImage");
+    std::string class_name = "org/chromium/services/media_session/MediaImage";
+#if BUILDFLAG(IS_COBALT) 
+#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+    class_name = "cobalt/org/chromium/services/media_session/MediaImage";
 #endif
+#endif
+  ScopedJavaLocalRef<jclass> string_clazz = base::android::GetClass(
+      env, class_name.c_str());
   jobjectArray joa =
       env->NewObjectArray(images.size(), string_clazz.obj(), NULL);
   base::android::CheckException(env);
