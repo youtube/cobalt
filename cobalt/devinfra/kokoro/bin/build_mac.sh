@@ -47,13 +47,13 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3
+    --script-executable=/usr/bin/python3 --no-rbe
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done
   # Build Cobalt.
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
-  autoninja -C "${out_dir}" ${TARGET}  # TARGET may expand to multiple args
+  autoninja -C "${out_dir}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Package and upload nightly release archive.
   if is_release_build && is_release_config; then

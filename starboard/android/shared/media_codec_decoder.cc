@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/media_codec_decoder.h"
 
 #include <sched.h>
 #include <unistd.h>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
@@ -26,13 +24,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaLocalRef;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -82,20 +80,17 @@ class MediaCodecDecoder::DecoderThread : public Thread {
   DecoderThread(std::string_view name,
                 std::function<void()> runnable,
                 std::optional<SbThreadPriority> priority = std::nullopt)
-      : Thread(name), runnable_(std::move(runnable)), priority_(priority) {
+      : Thread(name,
+               priority ? ThreadOptions().SetPriority(priority.value())
+                        : ThreadOptions()),
+        runnable_(std::move(runnable)) {
     SB_CHECK(runnable_);
   }
 
-  void Run() override {
-    if (priority_) {
-      SbThreadSetPriority(priority_.value());
-    }
-    runnable_();
-  }
+  void Run() override { runnable_(); }
 
  private:
   const std::function<void()> runnable_;
-  const std::optional<SbThreadPriority> priority_;
 };
 
 // static
@@ -208,7 +203,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool enable_output_checker,
     std::string* error_message)
     : JobOwner(job_queue),
-
       media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),

@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
+#include <sys/random.h>
 
-bool SbThreadSamplerIsSupported() {
-  return true;
+extern "C" {
+
+ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags);
+
+ssize_t getrandom(void* buf, size_t buflen, unsigned flags) {
+  return __abi_wrap_getrandom(buf, buflen, flags);
 }
+
+}  // extern "C"

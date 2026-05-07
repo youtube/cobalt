@@ -18,14 +18,14 @@
 
 #include <string>
 
-#include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+
 namespace {
 
 // A singleton class to hold a locale string
@@ -35,9 +35,9 @@ class LocaleInfo {
   std::string locale_id;
 
   LocaleInfo() {
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
 
-    base::android::ScopedJavaLocalRef<jstring> result =
+    jni_zero::ScopedJavaLocalRef<jstring> result =
         StarboardBridge::GetInstance()->GetSystemLocaleId(env);
     locale_id = base::android::ConvertJavaStringToUTF8(env, result.obj());
   }

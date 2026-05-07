@@ -15,7 +15,7 @@
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 if (is_internal_build) {
-  import("//cobalt/internal/starboard/shared/uikit/uikit.gni")
+  import("//cobalt/internal/starboard/shared/tvos/tvos.gni")
 }
 
 static_library("test_support") {
@@ -80,6 +80,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/storage_write_record.cc",
     "//starboard/shared/stub/system_symbolize.cc",
     "accessibility_extension.cc",
@@ -217,7 +218,7 @@ static_library("starboard_platform") {
       "media/oemcrypto_engine_device_properties_uikit.mm",
     ]
 
-    sources += internal_uikit_sources
+    sources += internal_tvos_sources
 
     deps += [
       "//starboard/shared/widevine:oemcrypto",

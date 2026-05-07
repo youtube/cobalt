@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_
-#define STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_ANDROID_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_ANDROID_H_
 
 #include <list>
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/video_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -44,8 +44,7 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
                             double playback_rate);
 
    private:
-    base::android::ScopedJavaGlobalRef<jobject>
-        j_video_frame_release_time_helper_;
+    jni_zero::ScopedJavaGlobalRef<jobject> j_video_frame_release_time_helper_;
   };
 
   MediaCodecVideoDecoder* video_decoder_ = nullptr;
@@ -61,4 +60,4 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_ANDROID_H_
