@@ -14,10 +14,10 @@
 
 #include "starboard/event.h"
 
-namespace starboard::android::shared {
+namespace starboard::aosp::shared {
 
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
                                   SbEventHandleCallback callback) {}
 
-}  // namespace starboard::android::shared
+}  // namespace starboard::aosp::shared
