@@ -61,10 +61,6 @@ std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name,
       new JobThread(std::move(thread), std::move(job_queue)));
 }
 
-JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
-                     std::unique_ptr<JobQueue> job_queue)
-    : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
-
 JobThread::~JobThread() {
   std::lock_guard lock(stop_mutex_);
   SB_CHECK(stopped_)
@@ -91,5 +87,9 @@ void JobThread::Stop() {
   job_queue_->StopSoon();
   thread_->Join();
 }
+
+JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
+                     std::unique_ptr<JobQueue> job_queue)
+    : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
 
 }  // namespace starboard
