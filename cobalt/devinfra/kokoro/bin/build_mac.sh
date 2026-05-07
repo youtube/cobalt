@@ -147,7 +147,7 @@ setup_mac () {
   if [ -n "${KOKORO_KEYSTORE_DIR:-}" ] && [ -n "${GCLOUD_KEY_FILE_NAME:-}" ] && [ -f "${KOKORO_KEYSTORE_DIR}/${GCLOUD_KEY_FILE_NAME}" ]; then
     echo "Authenticating Gcloud Service Account..."
     gcloud auth activate-service-account --key-file="${KOKORO_KEYSTORE_DIR}/${GCLOUD_KEY_FILE_NAME}"
-    export SISO_CREDENTIAL_HELPER="google-application-default"
+    export SISO_CREDENTIAL_HELPER="gcloud"
   fi
 }
 
