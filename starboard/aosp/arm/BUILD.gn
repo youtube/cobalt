@@ -18,7 +18,7 @@ static_library("starboard_platform") {
   public_deps = [ "//starboard/aosp/shared:starboard_platform" ]
 }
 
-if (sb_is_modular && !sb_is_evergreen) {
+if (!sb_is_evergreen) {
   static_library("starboard_platform_with_main") {
     configs += [ "//starboard/build/config:starboard_implementation" ]
     public_deps = [ ":starboard_platform" ]
