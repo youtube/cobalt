@@ -1,6 +1,4 @@
-import("//cobalt/build/configs/linux-x64x11-modular/args.gn")
+import("//cobalt/build/configs/evergreen-x64/args.gn")
 
-target_os = "linux"
 target_cpu = "arm64"
 starboard_path = "starboard/no_platform"
-use_evergreen = true
