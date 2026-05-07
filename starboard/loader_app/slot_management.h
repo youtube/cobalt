@@ -42,7 +42,14 @@ class LibraryLoader {
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
                     bool use_compression,
-                    bool use_memory_mapped_file) = 0;
+                    bool use_memory_mapped_file,
+                    bool use_streaming,
+                    bool use_chunked,
+                    bool use_parallel,
+                    bool use_pipelined_parallel,
+                    bool use_segment_decompression,
+                    bool use_fully_deferred,
+                    bool use_contention_diagnostic) = 0;
 
   // Resolve a symbol by name.
   virtual void* Resolve(const std::string& symbol) = 0;
@@ -56,11 +63,31 @@ class LibraryLoader {
 // If |use_memory_mapped_file| is true the library would be loaded as a memory
 // mapped file. It should not be enabled if the library selected may be
 // compressed since compression and memory mapping are incompatible.
+// If |use_streaming| is true the library would be loaded using streaming
+// decompression.
+// If |use_chunked| is true the library would be loaded using chunked
+// decompression.
+// If |use_parallel| is true the library would be loaded using parallel
+// decompression.
+// If |use_pipelined_parallel| is true the library would be loaded using
+// pipelined parallel decompression.
+// If |flush_cache| is true the library would be flushed from disk cache before
+// loading.
+// If |use_contention_diagnostic| is true the memory bus contention diagnostic
+// will be run instead of loading the library.
 // Returns a pointer to the |SbEventHandle| symbol in the library.
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
                              LibraryLoader* library_loader,
-                             bool use_memory_mapped_file);
+                             bool use_memory_mapped_file,
+                             bool use_streaming,
+                             bool use_chunked,
+                             bool use_parallel,
+                             bool use_pipelined_parallel,
+                             bool use_segment_decompression,
+                             bool use_fully_deferred,
+                             bool flush_cache,
+                             bool use_contention_diagnostic);
 
 }  // namespace loader_app
 

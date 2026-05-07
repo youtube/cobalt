@@ -34,7 +34,14 @@ class ElfLoaderImpl {
   ElfLoaderImpl();
   bool Load(const char* file_name,
             bool use_compression,
-            bool use_memory_mapped_file);
+            bool use_memory_mapped_file,
+            bool use_streaming = false,
+            bool use_chunked = false,
+            bool use_parallel = false,
+            bool use_pipelined_parallel = false,
+            bool use_segment_decompression = false,
+            bool use_fully_deferred = false,
+            bool use_contention_diagnostic = false);
   void* LookupSymbol(const char* symbol);
   ~ElfLoaderImpl();
 

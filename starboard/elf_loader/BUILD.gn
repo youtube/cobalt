@@ -31,6 +31,22 @@ _elf_loader_sources = [
   "gnu_hash_table.h",
   "lz4_file_impl.cc",
   "lz4_file_impl.h",
+  "zstd_file_impl.cc",
+  "zstd_file_impl.h",
+  "chunked_zstd_file_impl.cc",
+  "chunked_zstd_file_impl.h",
+  "contention_diagnostic_file_impl.cc",
+  "contention_diagnostic_file_impl.h",
+  "fully_deferred_parallel_zstd_file_impl.cc",
+  "fully_deferred_parallel_zstd_file_impl.h",
+  "parallel_zstd_file_impl.cc",
+  "parallel_zstd_file_impl.h",
+  "segment_parallel_zstd_file_impl.cc",
+  "segment_parallel_zstd_file_impl.h",
+  "pipelined_parallel_zstd_file_impl.cc",
+  "pipelined_parallel_zstd_file_impl.h",
+  "streaming_zstd_file_impl.cc",
+  "streaming_zstd_file_impl.h",
   "program_table.cc",
   "program_table.h",
   "relocations.cc",
@@ -59,6 +75,7 @@ static_library("elf_loader") {
     "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/lz4_lib:lz4",
+    "//third_party/zstd:decompress",
   ]
 
   if (current_toolchain == starboard_toolchain) {
@@ -85,6 +102,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
       "//starboard/common",
       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
+      "//third_party/zstd:decompress",
     ]
   }
 }

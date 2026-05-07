@@ -19,6 +19,12 @@
 
 namespace elf_loader {
 
+// File path suffix for LZ4 compressed binaries.
+extern const char kLz4CompressionSuffix[];
+
+// File path suffix for Zstd compressed binaries.
+extern const char kZstdCompressionSuffix[];
+
 // File path suffix for compressed binaries.
 extern const char kCompressionSuffix[];
 
