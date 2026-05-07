@@ -42,7 +42,12 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
-      extraCommandLineArgs.add("--enable-quic");
+      String value = javaSwitches.get(JavaSwitches.ENABLE_QUIC);
+      if ("false".equalsIgnoreCase(value)) {
+        extraCommandLineArgs.add("--disable-quic");
+      } else {
+        extraCommandLineArgs.add("--enable-quic");
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
