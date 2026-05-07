@@ -118,6 +118,94 @@ void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 }
 
+void OpusAudioDecoder::WriteEndOfStream() {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(output_cb_);
+
+  // Opus has no dependent frames so we needn't flush the decoder.  Set the
+  // flag to ensure that Decode() is not called when the stream is ended.
+  stream_ended_ = true;
+  if (!pending_audio_buffers_.empty()) {
+    return;
+  }
+
+  // Put EOS into the queue.
+  decoded_audios_.push(new DecodedAudio);
+
+  Schedule(output_cb_);
+}
+
+scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(output_cb_);
+  SB_DCHECK(!decoded_audios_.empty());
+
+  scoped_refptr<DecodedAudio> result;
+  if (!decoded_audios_.empty()) {
+    result = decoded_audios_.front();
+    decoded_audios_.pop();
+  }
+  *samples_per_second = audio_stream_info_.samples_per_second;
+  return result;
+}
+
+void OpusAudioDecoder::Reset() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (decoder_) {
+    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
+    if (error != OPUS_OK) {
+      SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
+                    << opus_strerror(error);
+
+      // If fail to reset opus decoder, re-create it.
+      TeardownCodec();
+      decoder_ = CreateOpusMultistreamDecoder(audio_stream_info_);
+    }
+  }
+
+  frames_per_au_ = kMaxOpusFramesPerAU;
+  stream_ended_ = false;
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_audio_buffers_.clear();
+  consumed_cb_ = nullptr;
+
+  CancelPendingJobs();
+}
+
+OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
+    const AudioStreamInfo& audio_stream_info) {
+  int error;
+  int channels = audio_stream_info.number_of_channels;
+  if (channels > 8 || channels < 1) {
+    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
+    return nullptr;
+  }
+
+  OpusMSDecoder* decoder = opus_multistream_decoder_create(
+      audio_stream_info.samples_per_second, channels,
+      vorbis_mappings[channels - 1].nb_streams,
+      vorbis_mappings[channels - 1].nb_coupled_streams,
+      vorbis_mappings[channels - 1].mapping, &error);
+  if (error != OPUS_OK) {
+    SB_LOG(ERROR) << "Failed to create decoder with error: "
+                  << opus_strerror(error);
+    return nullptr;
+  }
+  SB_CHECK(decoder);
+
+  return decoder;
+}
+
+void OpusAudioDecoder::TeardownCodec() {
+  if (decoder_) {
+    opus_multistream_decoder_destroy(decoder_);
+    decoder_ = nullptr;
+  }
+}
+
 void OpusAudioDecoder::DecodePendingBuffers() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!pending_audio_buffers_.empty());
@@ -193,94 +281,6 @@ bool OpusAudioDecoder::DecodeInternal(
   decoded_audios_.push(decoded_audio);
   output_cb_();
   return true;
-}
-
-void OpusAudioDecoder::WriteEndOfStream() {
-  SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
-
-  // Opus has no dependent frames so we needn't flush the decoder.  Set the
-  // flag to ensure that Decode() is not called when the stream is ended.
-  stream_ended_ = true;
-  if (!pending_audio_buffers_.empty()) {
-    return;
-  }
-
-  // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
-
-  Schedule(output_cb_);
-}
-
-OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
-    const AudioStreamInfo& audio_stream_info) {
-  int error;
-  int channels = audio_stream_info.number_of_channels;
-  if (channels > 8 || channels < 1) {
-    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
-    return nullptr;
-  }
-
-  OpusMSDecoder* decoder = opus_multistream_decoder_create(
-      audio_stream_info.samples_per_second, channels,
-      vorbis_mappings[channels - 1].nb_streams,
-      vorbis_mappings[channels - 1].nb_coupled_streams,
-      vorbis_mappings[channels - 1].mapping, &error);
-  if (error != OPUS_OK) {
-    SB_LOG(ERROR) << "Failed to create decoder with error: "
-                  << opus_strerror(error);
-    return nullptr;
-  }
-  SB_CHECK(decoder);
-
-  return decoder;
-}
-
-void OpusAudioDecoder::TeardownCodec() {
-  if (decoder_) {
-    opus_multistream_decoder_destroy(decoder_);
-    decoder_ = nullptr;
-  }
-}
-
-scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
-  SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
-  SB_DCHECK(!decoded_audios_.empty());
-
-  scoped_refptr<DecodedAudio> result;
-  if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
-    decoded_audios_.pop();
-  }
-  *samples_per_second = audio_stream_info_.samples_per_second;
-  return result;
-}
-
-void OpusAudioDecoder::Reset() {
-  SB_CHECK(BelongsToCurrentThread());
-
-  if (decoder_) {
-    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
-    if (error != OPUS_OK) {
-      SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
-                    << opus_strerror(error);
-
-      // If fail to reset opus decoder, re-create it.
-      TeardownCodec();
-      decoder_ = CreateOpusMultistreamDecoder(audio_stream_info_);
-    }
-  }
-
-  frames_per_au_ = kMaxOpusFramesPerAU;
-  stream_ended_ = false;
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_audio_buffers_.clear();
-  consumed_cb_ = nullptr;
-
-  CancelPendingJobs();
 }
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {

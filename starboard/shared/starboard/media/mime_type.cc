@@ -184,15 +184,6 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
                   std::move(params));
 }
 
-MimeType::MimeType(std::string type,
-                   std::string subtype,
-                   std::vector<std::string> codecs,
-                   Params params)
-    : type_(std::move(type)),
-      subtype_(std::move(subtype)),
-      codecs_(std::move(codecs)),
-      params_(std::move(params)) {}
-
 int MimeType::GetParamCount() const {
   return static_cast<int>(params_.size());
 }
@@ -344,6 +335,15 @@ bool MimeType::ValidateBoolParameter(const char* name) const {
   ParamType type = GetParamType(index);
   return type == kParamTypeBoolean;
 }
+
+MimeType::MimeType(std::string type,
+                   std::string subtype,
+                   std::vector<std::string> codecs,
+                   Params params)
+    : type_(std::move(type)),
+      subtype_(std::move(subtype)),
+      codecs_(std::move(codecs)),
+      params_(std::move(params)) {}
 
 std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
   os << "{ type: " << mime_type.type();
