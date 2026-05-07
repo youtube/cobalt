@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstddef>
 
 #include "base/check.h"
 #include "base/check_op.h"
@@ -47,16 +48,15 @@ class StarboardMemoryAllocator : public starboard::Allocator {
               << (enable_decommit_ ? "enabled" : "disabled") << ".";
   }
 
-  void* Allocate(std::size_t size) override {
+  void* Allocate(size_t size) override {
     return AllocateForAlignment(&size, 1);
   }
 
-  void* Allocate(std::size_t size, std::size_t alignment) override {
+  void* Allocate(size_t size, size_t alignment) override {
     return AllocateForAlignment(&size, alignment);
   }
 
-  void* AllocateForAlignment(std::size_t* size,
-                             std::size_t alignment) override {
+  void* AllocateForAlignment(size_t* size, size_t alignment) override {
     if (enable_decommit_) {
       alignment = std::max(alignment, page_size_);
       *size = AlignUp(*size, page_size_);
@@ -67,7 +67,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   }
   void Free(void* memory) override { free(memory); }
 
-  void Decommit(void* memory, std::size_t size) override {
+  void Decommit(void* memory, size_t size) override {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     uintptr_t start = reinterpret_cast<uintptr_t>(memory);
     CHECK(enable_decommit_);
@@ -84,11 +84,11 @@ class StarboardMemoryAllocator : public starboard::Allocator {
     }
   }
 
-  std::size_t GetCapacity() const override {
+  size_t GetCapacity() const override {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;
   }
-  std::size_t GetAllocated() const override {
+  size_t GetAllocated() const override {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;
   }
