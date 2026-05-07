@@ -17,6 +17,8 @@
 #include <errno.h>
 #include <sys/inotify.h>
 
+#include "starboard/common/log.h"
+
 namespace {
 
 int musl_flags_to_platform_flags(int musl_flags) {
@@ -145,6 +147,7 @@ SB_EXPORT int __abi_wrap_inotify_add_watch(int fd,
                                            const char* pathname,
                                            uint32_t mask) {
   if (!is_valid_musl_mask(mask)) {
+    SB_LOG(WARNING) << "Invalid musl inotify mask: " << mask;
     errno = EINVAL;
     return -1;
   }
