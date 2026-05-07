@@ -41,13 +41,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
-      String value = javaSwitches.get(JavaSwitches.ENABLE_QUIC);
-      if ("false".equalsIgnoreCase(value)) {
-        extraCommandLineArgs.add("--disable-quic");
-      } else {
-        extraCommandLineArgs.add("--enable-quic");
-      }
+    if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
+      extraCommandLineArgs.add("--disable-quic");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
