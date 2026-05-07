@@ -17,6 +17,7 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -87,6 +88,25 @@ std::atomic_bool* Thread::joined_bool() {
   return &d_->join_called_;
 }
 
+int SbPriorityToNice(SbThreadPriority priority) {
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      return 19;
+    case kSbThreadPriorityLow:
+      return 10;
+    case kSbThreadNoPriority:
+    case kSbThreadPriorityNormal:
+      return 0;
+    case kSbThreadPriorityHigh:
+      return -8;
+    case kSbThreadPriorityHighest:
+      return -16;
+    case kSbThreadPriorityRealTime:
+      return -19;
+  }
+  return 0;
+}
+
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
 
@@ -97,7 +117,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 #endif
   bool priority_set = false;
   if (this_ptr->priority_) {
-    priority_set = SbThreadSetPriority(*this_ptr->priority_);
+    priority_set = (setpriority(PRIO_PROCESS, 0, SbPriorityToNice(*this_ptr->priority_)) == 0);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="
