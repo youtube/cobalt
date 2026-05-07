@@ -1,5 +1,7 @@
 package dev.cobalt.util;
 
+import dev.cobalt.shell.StartupGuard;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
