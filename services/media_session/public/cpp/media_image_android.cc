@@ -9,6 +9,9 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "url/android/gurl_android.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/jni_zero/cobalt_for_google3_buildflags.h" // nogncheck
+#endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "services/media_session/public/cpp/android/media_session_jni_headers/MediaImage_jni.h"
@@ -23,6 +26,10 @@ ScopedJavaLocalRef<jobjectArray> MediaImage::ToJavaArray(
     const std::vector<MediaImage>& images) {
   ScopedJavaLocalRef<jclass> string_clazz = base::android::GetClass(
       env, "org/chromium/services/media_session/MediaImage");
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+    string_clazz = base::android::GetClass(
+      env, "cobalt/org/chromium/services/media_session/MediaImage");
+#endif
   jobjectArray joa =
       env->NewObjectArray(images.size(), string_clazz.obj(), NULL);
   base::android::CheckException(env);
