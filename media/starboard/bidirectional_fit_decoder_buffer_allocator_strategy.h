@@ -15,6 +15,8 @@
 #ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 #define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 
+#include <cstddef>
+
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"
@@ -25,10 +27,9 @@ template <typename ReuseAllocatorBase>
 class BidirectionalFitDecoderBufferAllocatorStrategy
     : public DecoderBufferAllocator::Strategy {
  public:
-  BidirectionalFitDecoderBufferAllocatorStrategy(
-      std::size_t initial_capacity,
-      std::size_t allocation_increment,
-      bool enable_decommit_on_idle)
+  BidirectionalFitDecoderBufferAllocatorStrategy(size_t initial_capacity,
+                                                 size_t allocation_increment,
+                                                 bool enable_decommit_on_idle)
       : fallback_allocator_(enable_decommit_on_idle),
         birectional_fit_allocator_(&fallback_allocator_,
                                    initial_capacity,
