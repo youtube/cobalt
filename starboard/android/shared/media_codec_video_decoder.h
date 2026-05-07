@@ -153,7 +153,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
-  const SbMediaVideoCodec video_codec_;
+  SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
   DrmSystem* drm_system_;
