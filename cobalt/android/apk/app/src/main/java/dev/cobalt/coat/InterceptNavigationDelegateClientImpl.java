@@ -33,7 +33,7 @@ import org.chromium.content_public.browser.WebContentsObserver;
 public class InterceptNavigationDelegateClientImpl implements InterceptNavigationDelegateClient {
     private WebContents mWebContents;
     private RedirectHandler mRedirectHandler;
-    private WebContentsObserver mWebContentsObserver;
+
     private InterceptNavigationDelegateImpl mInterceptNavigationDelegate;
     private Activity mActivity;
 
@@ -47,9 +47,7 @@ public class InterceptNavigationDelegateClientImpl implements InterceptNavigatio
     }
 
     public void destroy() {
-        if (mWebContentsObserver != null) {
-            mWebContentsObserver.observe(null);
-        }
+
         mInterceptNavigationDelegate.associateWithWebContents(null);
         mInterceptNavigationDelegate = null;
     }
