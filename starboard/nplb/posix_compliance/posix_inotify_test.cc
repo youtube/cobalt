@@ -25,6 +25,7 @@
 namespace {
 
 TEST(PosixInotifyTest, InotifyInit) {
+  errno = 0;
   int fd = inotify_init();
   EXPECT_EQ(errno, 0);
   EXPECT_GE(fd, 0);
@@ -32,6 +33,7 @@ TEST(PosixInotifyTest, InotifyInit) {
 }
 
 TEST(PosixInotifyTest, InotifyInit1ValidFlags) {
+  errno = 0;
   int fd = inotify_init1(IN_NONBLOCK);
   EXPECT_EQ(errno, 0);
   EXPECT_GE(fd, 0);
@@ -39,6 +41,7 @@ TEST(PosixInotifyTest, InotifyInit1ValidFlags) {
 }
 
 TEST(PosixInotifyTest, InotifyInit1InvalidFlags) {
+  errno = 0;
   // Set all flag bits except the valid ones.
   int fd = inotify_init1(~(IN_NONBLOCK | IN_CLOEXEC));
   EXPECT_EQ(fd, -1);
