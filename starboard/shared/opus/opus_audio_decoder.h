@@ -16,9 +16,11 @@
 #define STARBOARD_SHARED_OPUS_OPUS_AUDIO_DECODER_H_
 
 #include <deque>
+#include <memory>
 #include <queue>
 #include <vector>
 
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -32,11 +34,15 @@ namespace starboard {
 
 class OpusAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  OpusAudioDecoder(JobQueue* job_queue,
-                   const AudioStreamInfo& audio_stream_info);
-  ~OpusAudioDecoder() override;
+  static std::unique_ptr<OpusAudioDecoder> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info);
 
-  bool is_valid() const;
+  OpusAudioDecoder(PassKey<OpusAudioDecoder>,
+                   JobQueue* job_queue,
+                   const AudioStreamInfo& audio_stream_info,
+                   OpusMSDecoder* decoder);
+  ~OpusAudioDecoder() override;
 
   // AudioDecoder functions
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -47,24 +53,22 @@ class OpusAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  static constexpr int kMinimumBuffersToDecode = 2;
+  static OpusMSDecoder* CreateOpusMultistreamDecoder(
+      const AudioStreamInfo& audio_stream_info);
 
-  void InitializeCodec();
   void TeardownCodec();
   void DecodePendingBuffers();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
-  static const int kMaxOpusFramesPerAU = 9600;
-
   SbMediaAudioSampleType GetSampleType() const;
 
   OutputCB output_cb_;
   ErrorCB error_cb_;
 
-  OpusMSDecoder* decoder_ = NULL;
+  OpusMSDecoder* decoder_ = nullptr;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
-  AudioStreamInfo audio_stream_info_;
-  int frames_per_au_ = kMaxOpusFramesPerAU;
+  const AudioStreamInfo audio_stream_info_;
+  int frames_per_au_;
 
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
   ConsumedCB consumed_cb_;

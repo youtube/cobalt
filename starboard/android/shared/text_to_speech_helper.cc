@@ -14,19 +14,23 @@
 
 #include "starboard/android/shared/text_to_speech_helper.h"
 
-#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "starboard/android/shared/starboard_bridge.h"
+
+// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+#endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
 namespace starboard {
 
-CobaltTextToSpeechHelper* CobaltTextToSpeechHelper::GetInstance() {
-  return base::Singleton<CobaltTextToSpeechHelper>::get();
+TextToSpeechHelper* TextToSpeechHelper::GetInstance() {
+  return base::Singleton<TextToSpeechHelper>::get();
 }
 
-void CobaltTextToSpeechHelper::Initialize(JNIEnv* env) {
+void TextToSpeechHelper::Initialize(JNIEnv* env) {
   if (j_text_to_speech_helper_.obj()) {
     return;
   }
@@ -34,22 +38,24 @@ void CobaltTextToSpeechHelper::Initialize(JNIEnv* env) {
       StarboardBridge::GetInstance()->GetTextToSpeechHelper(env);
 }
 
-bool CobaltTextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
+bool TextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
   bool enabled = Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(
       env, j_text_to_speech_helper_);
   return enabled;
 }
 
-void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
+void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
+  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
-  CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
-  bool enabled =
-      CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
-  CobaltTextToSpeechHelper::GetInstance()->SendTextToSpeechChangeEvent(enabled);
+  TextToSpeechHelper::GetInstance()->Initialize(env);
+  bool enabled = TextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
+  TextToSpeechHelper::GetInstance()->SendTextToSpeechChangeEvent(enabled);
 }
 
 }  // namespace starboard

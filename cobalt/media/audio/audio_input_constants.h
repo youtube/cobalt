@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/pthread/thread_sampler_internal.h"
+#ifndef COBALT_MEDIA_AUDIO_AUDIO_INPUT_CONSTANTS_H_
+#define COBALT_MEDIA_AUDIO_AUDIO_INPUT_CONSTANTS_H_
 
-SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler) {
-  if (!SbThreadSamplerIsValid(sampler)) {
-    return kSbThreadContextInvalid;
-  }
-  return static_cast<SbThreadSamplerPrivate*>(sampler)->Freeze();
-}
+namespace cobalt {
+namespace media {
+
+// Hardcoded constants for the fast-track microphone capture path.
+constexpr int kSampleRate = 16'000;
+constexpr int kSamplesPerBuffer = 128;
+
+}  // namespace media
+}  // namespace cobalt
+
+#endif  // COBALT_MEDIA_AUDIO_AUDIO_INPUT_CONSTANTS_H_

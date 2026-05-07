@@ -20,6 +20,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -41,7 +42,7 @@ const char* g_app_cache_dir = NULL;
 const char* g_app_lib_dir = NULL;
 
 namespace {
-using ::base::android::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaGlobalRef;
 
 // A ScopedJavaGlobalRef<jobject> representing the Android AssetManager
 // instance. This global reference ensures the AssetManager Java object
@@ -55,7 +56,7 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
                              const std::string& files_dir,
                              const std::string& cache_dir,
                              const std::string& native_library_dir) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   SB_DCHECK(g_java_asset_manager.is_null());
   SB_DCHECK_EQ(g_asset_manager, nullptr);

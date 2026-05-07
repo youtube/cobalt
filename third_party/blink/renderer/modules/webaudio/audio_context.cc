@@ -55,6 +55,12 @@
 #include <stdio.h>
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#include "cobalt/media/audio/audio_input_constants.h"
+#endif
+
 namespace blink {
 
 namespace {
@@ -196,9 +202,27 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     sample_rate = context_options->sampleRate();
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Force 16kHz default for Cobalt if no rate is specified.
+  // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
+  // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
+  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) &&
+      !sample_rate.has_value()) {
+    sample_rate = cobalt::media::kSampleRate;
+    LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
-  WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
+  WebAudioSinkDescriptor sink_descriptor =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)
+          ? WebAudioSinkDescriptor(frame_token)
+          : WebAudioSinkDescriptor(g_empty_string, frame_token);
+#else
+      WebAudioSinkDescriptor(g_empty_string, frame_token);
+#endif
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.

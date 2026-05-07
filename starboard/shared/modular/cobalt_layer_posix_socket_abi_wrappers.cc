@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <net/if.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 
@@ -61,6 +62,16 @@ void freeaddrinfo(struct addrinfo* ai) {
 int __abi_wrap_getifaddrs(struct ifaddrs** ifap);
 int getifaddrs(struct ifaddrs** ifap) {
   return __abi_wrap_getifaddrs(ifap);
+}
+
+unsigned int __abi_wrap_if_nametoindex(const char* ifname);
+unsigned int if_nametoindex(const char* ifname) {
+  return __abi_wrap_if_nametoindex(ifname);
+}
+
+char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname);
+char* if_indextoname(unsigned int ifindex, char* ifname) {
+  return __abi_wrap_if_indextoname(ifindex, ifname);
 }
 
 int __abi_wrap_setsockopt(int socket,

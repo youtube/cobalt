@@ -237,7 +237,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
-  audio_renderer_sink_->Stop();
+  audio_renderer_sink_->Reset();
 
   {
     // Set the following states under a lock first to ensure that from now on

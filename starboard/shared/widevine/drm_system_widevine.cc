@@ -269,18 +269,19 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`.  We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  starboard::MimeType mime_type(std::string("key_system/") + key_system);
+  auto mime_type =
+      starboard::MimeType::Create(std::string("key_system/") + key_system);
 
-  if (!mime_type.is_valid()) {
+  if (!mime_type) {
     return false;
   }
-  SB_DCHECK_EQ(mime_type.type(), "key_system");
+  SB_DCHECK_EQ(mime_type->type(), "key_system");
 
   for (auto wv_key_system : kWidevineKeySystems) {
-    if (mime_type.subtype() == wv_key_system) {
-      for (int i = 0; i < mime_type.GetParamCount(); ++i) {
-        if (mime_type.GetParamName(i) == "encryptionscheme") {
-          auto value = mime_type.GetParamStringValue(i);
+    if (mime_type->subtype() == wv_key_system) {
+      for (int i = 0; i < mime_type->GetParamCount(); ++i) {
+        if (mime_type->GetParamName(i) == "encryptionscheme") {
+          auto value = mime_type->GetParamStringValue(i);
           if (value != "cenc" && value != "cbcs" && value != "cbcs-1-9") {
             return false;
           }

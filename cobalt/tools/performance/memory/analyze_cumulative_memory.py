@@ -17,16 +17,32 @@ import os
 import re
 import statistics
 
-metrics_to_track = [
-    'Memory.Experimental.Browser2.Malloc', 'Memory.Browser.LibChrobaltRss',
-    'Memory.GPU.PeakMemoryUsage2.PageLoad',
+# Top-level pillars that are mutually exclusive and contribute to ResidentSet.
+PILLARS = [
+    'Memory.Experimental.Browser2.Malloc',
+    'Memory.Browser.LibChrobaltRss',
     'Memory.Experimental.Browser2.PartitionAlloc',
-    'Memory.Experimental.Browser2.V8', 'Memory.Experimental.Browser2.JavaHeap',
+    'Memory.Experimental.Browser2.V8',
+    'Memory.Experimental.Browser2.CodeOther',
+    'Memory.Experimental.Browser2.Fonts',
+    'Memory.Experimental.Browser2.AshmemJit',
+    'Memory.Experimental.Browser2.AndroidRuntime',
+    'Memory.Experimental.Browser2.Stacks',
+    'Memory.GPU.PeakMemoryUsage2.PageLoad',
+]
+
+# Sub-allocators that typically live inside one of the pillars above.
+# Tracked for visibility but not added to the TOTAL ACCOUNTED to avoid
+# double-counting.
+SUB_ALLOCATORS = [
+    'Memory.Experimental.Browser2.JavaHeap',
     'Memory.Experimental.Browser2.BlinkGC', 'Memory.Experimental.Browser2.Skia'
 ]
 
+METRICS_TO_TRACK = PILLARS + SUB_ALLOCATORS
 
-def analyze_reports():
+
+def analyze_reports() -> None:
   """Analyzes memory reports in the histogram_reports directory."""
   report_dir = 'histogram_reports'
   if not os.path.exists(report_dir):
@@ -36,7 +52,7 @@ def analyze_reports():
   files = sorted([f for f in os.listdir(report_dir) if f.startswith('report_')])
 
   # Dictionary to store percentage lists for each metric
-  metric_percentages = {m: [] for m in metrics_to_track}
+  metric_percentages = {m: [] for m in METRICS_TO_TRACK}
   total_accounted_percentages = []
 
   for filename in files:
@@ -51,38 +67,44 @@ def analyze_reports():
       rss = float(rss_match.group(1))
 
       # Find specific metrics and calculate % of RSS
-      current_snapshot_total_pct = 0
-      for m in metrics_to_track:
+      current_snapshot_pillar_pct = 0
+      for m in METRICS_TO_TRACK:
         match = re.search(re.escape(m) + r'\s+\|\s+([\d.]+)', content)
         if match:
           val = float(match.group(1))
           pct = (val / rss) * 100
           metric_percentages[m].append(pct)
-          current_snapshot_total_pct += pct
+          if m in PILLARS:
+            current_snapshot_pillar_pct += pct
         else:
           metric_percentages[m].append(0.0)
 
-      total_accounted_percentages.append(current_snapshot_total_pct)
+      total_accounted_percentages.append(current_snapshot_pillar_pct)
 
   if not total_accounted_percentages:
     print('No reports found to analyze.')
     return
 
   print(f'Analysis of {len(files)} snapshots:')
-  print('-' * 65)
-  header_name = 'Histogram Name'
-  header_avg = 'Avg % of RSS'
-  print(f'{header_name:<45} | {header_avg:>15}')
+  print('=' * 65)
+  print(f"{'Memory Pillars (Mutually Exclusive)':<45} | {'Avg % of RSS'}")
   print('-' * 65)
 
-  for m in metrics_to_track:
+  for m in PILLARS:
     avg_pct = statistics.mean(metric_percentages[m])
     print(f'{m:<45} | {avg_pct:>14.2f}%')
 
   print('-' * 65)
   avg_total = statistics.mean(total_accounted_percentages)
-  footer_label = 'TOTAL ACCOUNTED (AVERAGE)'
-  print(f'{footer_label:<45} | {avg_total:>14.2f}%')
+  print(f"{'TOTAL ACCOUNTED (PILLARS)':<45} | {avg_total:>14.2f}%")
+  print('=' * 65)
+
+  print(f"\n{'Sub-Allocators (Informational)':<45} | {'Avg % of RSS'}")
+  print('-' * 65)
+  for m in SUB_ALLOCATORS:
+    avg_pct = statistics.mean(metric_percentages[m])
+    print(f'{m:<45} | {avg_pct:>14.2f}%')
+  print('-' * 65)
 
 
 if __name__ == '__main__':
