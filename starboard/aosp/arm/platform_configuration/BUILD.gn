@@ -13,27 +13,9 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  cflags = [
-    "-Wno-return-type",
-    "-Wno-switch",
-    "-Wno-vla-cxx-extension",
-  ]
   configs = [ "//starboard/android/shared/platform_configuration" ]
 
   if (current_toolchain == starboard_toolchain) {
-    cflags += [
-      "-Wno-deprecated",
-      "-Wno-missing-braces",
-      "-Wno-unguarded-availability",
-      "-Wno-unused-const-variable",
-      "-Wno-unused-function",
-      "-Wno-user-defined-warnings",
-    ]
     configs += [ "//starboard/build/config:starboard" ]
-  } else if (current_toolchain == native_target) {
-    cflags += [
-      "-Wno-implicit-fallthrough",
-      "-Wno-sometimes-uninitialized",
-    ]
   }
 }
