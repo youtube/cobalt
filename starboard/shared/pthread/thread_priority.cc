@@ -19,8 +19,6 @@
 #include "starboard/common/thread.h"
 #include "starboard/thread.h"
 
-
-
 namespace {
 
 SbThreadPriority NiceToSbPriority(int nice) {
