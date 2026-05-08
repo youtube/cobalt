@@ -51,8 +51,10 @@ class CobaltMemoryThresholdBrowserTest
     // ScopedClosureRunner guarantees quit.Run() is called when this function
     // ends, no matter how it exits (failure, etc.)
     base::ScopedClosureRunner quit_runner(std::move(quit));
-    ASSERT_TRUE(success);
-    ASSERT_TRUE(dump);
+    if (!success || !dump) {
+      ADD_FAILURE() << "Failed to receive memory dump.";
+      return;
+    }
 
     uint64_t private_footprint_kb = 0;
     uint64_t peak_resident_set_kb = 0;
