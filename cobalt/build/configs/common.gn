@@ -1,6 +1,6 @@
 is_cobalt = true
 
-# Disable Chrome Remote Desktop
+# Disable Chrome Remote Desktop.
 enable_remoting = false
 
 # Build flag declared originally in build/config/features.gni
