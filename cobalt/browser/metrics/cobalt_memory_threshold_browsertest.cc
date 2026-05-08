@@ -19,8 +19,10 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -54,59 +56,61 @@ class CobaltMemoryThresholdBrowserTest
 
     uint64_t private_footprint_kb = 0;
     uint64_t peak_resident_set_kb = 0;
-    uint64_t v8_heap_size_kb = 0;
 
     for (const auto& process_dump : dump->process_dumps()) {
-      // OS memory dump
       private_footprint_kb += process_dump.os_dump().private_footprint_kb;
       peak_resident_set_kb += process_dump.os_dump().peak_resident_set_kb;
-
-      // Allocator dump
-      std::optional<uint64_t> v8_size = process_dump.GetMetric("v8", "size");
-      if (v8_size.has_value()) {
-        v8_heap_size_kb += v8_size.value() / 1024;
-      }
     }
 
     testing::Test::RecordProperty("private_footprint_kb", private_footprint_kb);
     testing::Test::RecordProperty("peak_resident_set_kb", peak_resident_set_kb);
-    testing::Test::RecordProperty("v8_heap_size_kb", v8_heap_size_kb);
-    // print to stdout
+    // still print to stdout
     perf_test::PrintResult("PrivateFootprint", "", scenario_name,
                            static_cast<size_t>(private_footprint_kb), "kb",
                            true);
     perf_test::PrintResult("PeakResidentSet", "", scenario_name,
                            static_cast<size_t>(peak_resident_set_kb), "kb",
                            true);
-    perf_test::PrintResult("V8HeapSize", "", scenario_name, 
-                           static_cast<size_t>(v8_heap_size_kb), "kb", true);
- 
+  }
+
+  void WaitForHistogram(base::HistogramTester& histogram_tester,
+                        const std::string& histogram_name) {
+    base::RunLoop run_loop;
+    // Listen using a histogram observer to avoid flakiness in test
+    auto histogram_observer = std::make_unique<
+        base::StatisticsRecorder::ScopedHistogramSampleObserver>(
+        histogram_name,
+        base::BindLambdaForTesting(
+            [&](std::string_view histogram_name, uint64_t name_hash,
+                base::HistogramBase::Sample32 sample) { run_loop.Quit(); }));
+    // Only block if histogram has not yet been recorded.
+    if (histogram_tester.GetAllSamples(histogram_name).empty()) {
+      run_loop.Run();
+    }
   }
 
   void CollectMemoryMetrics(base::HistogramTester& histogram_tester,
                             const std::string& scenario_name) {
     base::RunLoop run_loop;
 
-    // Gather metrics from memory dump.
     memory_instrumentation::MemoryInstrumentation::GetInstance()
         ->RequestGlobalDump(
-            {"v8"},
+            {},
             base::BindOnce(
                 &CobaltMemoryThresholdBrowserTest::OnMemoryDumpReceived,
                 base::Unretained(this), run_loop.QuitClosure(), scenario_name));
     run_loop.Run();
 
     // Verify and log GPU Peak Memory from UMA.
+    WaitForHistogram(histogram_tester, "Memory.GPU.PeakMemoryUsage2.PageLoad");
     std::vector<base::Bucket> buckets =
         histogram_tester.GetAllSamples("Memory.GPU.PeakMemoryUsage2.PageLoad");
-    if (!buckets.empty()) {
-      uint64_t gpu_peak_memory_page_load = buckets[0].min;
-      testing::Test::RecordProperty("gpu_peak_memory_on_page_load_mb",
-                                    gpu_peak_memory_page_load);
-      perf_test::PrintResult("GpuPeakMemoryOnPageLoad", "", scenario_name,
-                             static_cast<size_t>(gpu_peak_memory_page_load),
-                             "mb", true);
-    }
+    uint64_t gpu_peak_memory_page_load = buckets[0].min;
+    testing::Test::RecordProperty("gpu_peak_memory_on_page_load_mb",
+                                  gpu_peak_memory_page_load);
+    perf_test::PrintResult("GpuPeakMemoryOnPageLoad", "", scenario_name,
+                           static_cast<size_t>(gpu_peak_memory_page_load), "mb",
+                           true);
   }
 };
 
@@ -118,17 +122,11 @@ IN_PROC_BROWSER_TEST_P(CobaltMemoryThresholdBrowserTest,
   EXPECT_TRUE(
       content::NavigateToURL(shell()->web_contents(), GURL("about:blank")));
 
-  // Wait for a few seconds for metrics to be recorded.
-  base::RunLoop run_loop_delay;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, run_loop_delay.QuitClosure(), base::Seconds(5));
-  run_loop_delay.Run();
-
   CollectMemoryMetrics(histogram_tester, "BlankPage");
 }
 
 IN_PROC_BROWSER_TEST_P(CobaltMemoryThresholdBrowserTest,
-                       YouTubeHomepageMemoryFootprint) {
+                       MockYouTubeHomepageMemoryFootprint) {
   base::HistogramTester histogram_tester;
 
   // Start the embedded test server.
@@ -143,16 +141,10 @@ IN_PROC_BROWSER_TEST_P(CobaltMemoryThresholdBrowserTest,
   EXPECT_TRUE(
       content::NavigateToURL(shell()->web_contents(), mock_homepage_url));
 
-  // Wait for a few seconds for the page to load and stabilize.
-  base::RunLoop run_loop_delay;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, run_loop_delay.QuitClosure(), base::Seconds(5));
-  run_loop_delay.Run();
-
   CollectMemoryMetrics(histogram_tester, "YouTubeHomepage");
 }
 
-// Instantiate suite to repeat test run for five times.
+// Repeat five times to denoise metrics and reduce variation
 INSTANTIATE_TEST_SUITE_P(All,
                          CobaltMemoryThresholdBrowserTest,
                          testing::Values(1, 2, 3, 4, 5));
