@@ -21,10 +21,10 @@
 namespace nplb {
 namespace {
 
-class PosixIfIndextonameTest : public ::testing::Test {
+class PosixNetIfTest : public ::testing::Test {
  public:
-  PosixIfIndextonameTest() { errno = 0; }
-  ~PosixIfIndextonameTest() override {
+  PosixNetIfTest() { errno = 0; }
+  ~PosixNetIfTest() override {
     if (ifs != nullptr) {
       freeifaddrs(ifs);
     }
@@ -35,29 +35,41 @@ class PosixIfIndextonameTest : public ::testing::Test {
   struct ifaddrs* ifs = nullptr;
 };
 
-TEST_F(PosixIfIndextonameTest, InvalidIndex) {
+TEST_F(PosixNetIfTest, InvalidName) {
+  unsigned int index = if_nametoindex("nonexistent_interface");
+  EXPECT_EQ(index, 0u);
+}
+
+TEST_F(PosixNetIfTest, EmptyName) {
+  unsigned int index = if_nametoindex("");
+  EXPECT_EQ(index, 0u);
+}
+
+TEST_F(PosixNetIfTest, InvalidIndex) {
   char* name = if_indextoname(0, buf);
   EXPECT_EQ(name, nullptr);
   EXPECT_EQ(errno, ENXIO);
 }
 
-TEST_F(PosixIfIndextonameTest, LargeInvalidIndex) {
+TEST_F(PosixNetIfTest, LargeInvalidIndex) {
   // Use a very large index that is unlikely to exist.
   char* name = if_indextoname(0xFFFFFFFF, buf);
   EXPECT_EQ(name, nullptr);
   EXPECT_EQ(errno, ENXIO);
 }
 
-TEST_F(PosixIfIndextonameTest, AllValidIndices) {
+TEST_F(PosixNetIfTest, AllValidIndices) {
   ASSERT_GE(getifaddrs(&ifs), 0);
   ASSERT_NE(ifs, nullptr);
   ASSERT_EQ(errno, 0);
 
   for (struct ifaddrs* ifa = ifs; ifa != nullptr; ifa = ifa->ifa_next) {
+    errno = 0;
     unsigned int index = if_nametoindex(ifa->ifa_name);
     EXPECT_NE(index, 0u);
     EXPECT_EQ(errno, 0);
 
+    errno = 0;
     char* name = if_indextoname(index, buf);
     EXPECT_EQ(name, buf);
     EXPECT_EQ(errno, 0);
