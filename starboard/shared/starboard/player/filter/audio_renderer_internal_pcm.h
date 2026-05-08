@@ -95,6 +95,8 @@ class AudioRendererPcm : public AudioRenderer,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
+  int64_t GetAudioWriteHead() override;
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override;
 
  private:
   enum EOSState {

@@ -52,6 +52,8 @@ std::ostream& operator<<(
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+            << ", force_decode_to_texture="
+            << ToString(features.force_decode_to_texture)
             << ", skip_flush_on_decoder_teardown="
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", use_dual_threads_for_video="

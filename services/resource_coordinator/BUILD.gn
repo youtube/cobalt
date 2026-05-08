@@ -38,6 +38,21 @@ source_set("lib") {
     "//services/resource_coordinator/public/cpp:resource_coordinator_cpp",
     "//third_party/perfetto:libperfetto",
   ]
+
+  deps = []
+
+  if (is_cobalt) {
+    public_deps += [ "//services/resource_coordinator/public/mojom" ]
+    deps += [
+      "//services/resource_coordinator/public/cpp/memory_instrumentation",
+      "//services/tracing/public/cpp",
+    ]
+    public_deps -= [
+      "//services/metrics/public/cpp:metrics_cpp",
+      "//services/metrics/public/cpp:ukm_builders",
+      "//services/metrics/public/mojom",
+    ]
+  }
 }
 
 source_set("tests") {
