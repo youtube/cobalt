@@ -137,7 +137,8 @@ class AudioRendererPassthrough : public AudioRenderer,
   // after |audio_track_thread_| is destroyed (in Seek()).
   scoped_refptr<DecodedAudio> decoded_audio_writing_in_progress_;
   int decoded_audio_writing_offset_ = 0;
-  JobQueue::JobToken update_status_and_write_data_token_;
+  JobQueue::JobToken update_status_and_write_data_token_ =
+      JobQueue::JobToken::kUnscheduled;
   int64_t total_frames_written_on_audio_track_thread_ = 0;
 
   std::atomic_bool audio_track_paused_{true};

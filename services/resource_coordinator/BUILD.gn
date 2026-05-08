@@ -83,3 +83,27 @@ source_set("tests") {
     "//testing/gtest",
   ]
 }
+
+if (is_cobalt) {
+  import("//testing/test.gni")
+
+  test("cobalt_memory_instrumentation_unittests") {
+    testonly = true
+    sources = [
+      "public/cpp/memory_instrumentation/detailed_metrics_delegate_unittest.cc",
+      "public/cpp/memory_instrumentation/smaps_categorizer_unittest.cc",
+      "public/cpp/memory_instrumentation/tracing_observer_proto_unittest.cc",
+    ]
+    deps = [
+      ":lib",
+      "//base",
+      "//base/test:test_support",
+      "//mojo/core/test:run_all_unittests",
+      "//services/resource_coordinator/public/cpp:resource_coordinator_cpp",
+      "//services/resource_coordinator/public/cpp/memory_instrumentation:memory_instrumentation",
+      "//services/tracing:test_utils",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
