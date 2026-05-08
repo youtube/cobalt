@@ -44,13 +44,10 @@ import re
 import subprocess
 import sys
 
-from starboard.build import clang
-from starboard.tools import build
+from starboard.tools import paths
 
-_SYMBOLIZER = os.path.join(build.GetToolchainsDir(),
-                           (f'x86_64-linux-gnu-clang-chromium-'
-                            f'{clang.GetClangSpecification().revision}'), 'bin',
-                           'llvm-symbolizer')
+_SYMBOLIZER = os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'llvm-build',
+                           'Release+Asserts', 'bin', 'llvm-symbolizer')
 
 _RE_ASAN = re.compile(
     r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*\(<unknown\smodule>\)')
