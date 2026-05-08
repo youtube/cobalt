@@ -112,7 +112,6 @@ std::atomic_bool* Thread::joined_bool() {
   return &d_->join_called_;
 }
 
-
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
 
@@ -123,8 +122,10 @@ void* Thread::ThreadEntryPoint(void* context) {
 #endif
   bool priority_set = false;
   if (this_ptr->priority_) {
-    // setpriority returns 0 on success and -1 on failure. The default nice value is 0. See https://linux.die.net/man/2/setpriority
-    priority_set = (setpriority(PRIO_PROCESS, 0, SbPriorityToNice(*this_ptr->priority_)) == 0);
+    // setpriority returns 0 on success and -1 on failure. The default nice
+    // value is 0. See https://linux.die.net/man/2/setpriority
+    priority_set = (setpriority(PRIO_PROCESS, 0,
+                                SbPriorityToNice(*this_ptr->priority_)) == 0);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="

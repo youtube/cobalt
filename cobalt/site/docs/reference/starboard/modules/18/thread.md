@@ -116,5 +116,3 @@ Returns whether the given thread priority is valid.
 ```
 static bool SbThreadIsValidPriority(SbThreadPriority priority)
 ```
-
-

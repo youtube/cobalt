@@ -45,8 +45,6 @@ SbThreadPriority NiceToSbPriority(int nice) {
 
 }  // namespace
 
-
-
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   errno = 0;
   int ret = getpriority(PRIO_PROCESS, 0);

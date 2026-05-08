@@ -14,9 +14,9 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
+#include <sys/resource.h>
 #include <unistd.h>
 
-#include <sys/resource.h>
 #include "starboard/common/check_op.h"
 #include "starboard/common/thread.h"
 #include "starboard/thread.h"

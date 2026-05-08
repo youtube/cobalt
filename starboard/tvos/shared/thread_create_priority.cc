@@ -62,8 +62,6 @@ bool PthreadToSbThreadPriority(int priority,
 
 }  // namespace
 
-
-
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   struct sched_param param;
   int policy;

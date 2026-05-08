@@ -20,8 +20,8 @@
 #include <sys/resource.h>
 
 #include "starboard/common/log.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/common/thread.h"
+#include "starboard/configuration_constants.h"
 
 namespace {
 

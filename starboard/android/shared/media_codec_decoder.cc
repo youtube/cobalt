@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_decoder.h"
 
 #include <sched.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include "starboard/android/shared/media_common.h"
@@ -23,7 +24,6 @@
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include <sys/resource.h>
 #include "starboard/common/thread.h"
 #include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
