@@ -24,42 +24,27 @@ namespace starboard {
 // while maintaining a small footprint (8 bytes).
 class MediaTimeDelta {
  public:
-  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
-  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
-  static constexpr int64_t kMillisecondsPerSecond = 1000;
-
-  static constexpr int64_t kNanosecondsPerMillisecond =
-      kNanosecondsPerMicrosecond * kMicrosecondsPerMillisecond;
-  static constexpr int64_t kNanosecondsPerSecond =
-      kNanosecondsPerMillisecond * kMillisecondsPerSecond;
-  static constexpr int64_t kMicrosecondsPerSecond =
-      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
-
   constexpr MediaTimeDelta() : time_ns_(0) {}
 
   static constexpr MediaTimeDelta FromNanoseconds(int64_t nsecs) {
     return MediaTimeDelta(nsecs);
   }
   static constexpr MediaTimeDelta FromMicroseconds(int64_t usecs) {
-    return MediaTimeDelta(usecs * kNanosecondsPerMicrosecond);
+    return MediaTimeDelta(usecs * 1'000);
   }
   static constexpr MediaTimeDelta FromMilliseconds(int64_t msecs) {
-    return MediaTimeDelta(msecs * kNanosecondsPerMillisecond);
+    return MediaTimeDelta(msecs * 1'000'000);
   }
   static constexpr MediaTimeDelta FromSeconds(double secs) {
-    return MediaTimeDelta(Round(secs * kNanosecondsPerSecond));
+    return MediaTimeDelta(Round(secs * 1'000'000'000));
   }
 
   // Getters.
   constexpr int64_t InNanoseconds() const { return time_ns_; }
-  constexpr int64_t InMicroseconds() const {
-    return time_ns_ / kNanosecondsPerMicrosecond;
-  }
-  constexpr int64_t InMilliseconds() const {
-    return time_ns_ / kNanosecondsPerMillisecond;
-  }
+  constexpr int64_t InMicroseconds() const { return time_ns_ / 1'000; }
+  constexpr int64_t InMilliseconds() const { return time_ns_ / 1'000'000; }
   constexpr double InSeconds() const {
-    return static_cast<double>(time_ns_) / kNanosecondsPerSecond;
+    return static_cast<double>(time_ns_) / 1'000'000'000.0;
   }
 
   // Basic arithmetic operators.
