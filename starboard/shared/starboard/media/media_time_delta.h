@@ -47,9 +47,10 @@ class MediaTimeDelta {
     return MediaTimeDelta(msecs * kNanosecondsPerMillisecond);
   }
   static constexpr MediaTimeDelta FromSeconds(double secs) {
-    return MediaTimeDelta(static_cast<int64_t>(secs * kNanosecondsPerSecond));
+    return MediaTimeDelta(Round(secs * kNanosecondsPerSecond));
   }
 
+  // Getters.
   constexpr int64_t InNanoseconds() const { return time_ns_; }
   constexpr int64_t InMicroseconds() const {
     return time_ns_ / kNanosecondsPerMicrosecond;
@@ -68,7 +69,6 @@ class MediaTimeDelta {
   constexpr MediaTimeDelta operator-(MediaTimeDelta other) const {
     return MediaTimeDelta(time_ns_ - other.time_ns_);
   }
-
   constexpr MediaTimeDelta& operator+=(MediaTimeDelta other) {
     time_ns_ += other.time_ns_;
     return *this;
@@ -76,6 +76,32 @@ class MediaTimeDelta {
   constexpr MediaTimeDelta& operator-=(MediaTimeDelta other) {
     time_ns_ -= other.time_ns_;
     return *this;
+  }
+
+  // Unary negation.
+  constexpr MediaTimeDelta operator-() const {
+    return MediaTimeDelta(-time_ns_);
+  }
+
+  // Scalar multiplication and division.
+  constexpr MediaTimeDelta operator*(int64_t scalar) const {
+    return MediaTimeDelta(time_ns_ * scalar);
+  }
+  constexpr MediaTimeDelta operator/(int64_t scalar) const {
+    return MediaTimeDelta(time_ns_ / scalar);
+  }
+  constexpr MediaTimeDelta& operator*=(int64_t scalar) {
+    time_ns_ *= scalar;
+    return *this;
+  }
+  constexpr MediaTimeDelta& operator/=(int64_t scalar) {
+    time_ns_ /= scalar;
+    return *this;
+  }
+
+  // Ratio between two deltas.
+  constexpr double operator/(MediaTimeDelta other) const {
+    return static_cast<double>(time_ns_) / other.time_ns_;
   }
 
   // Comparison operators.
@@ -99,6 +125,10 @@ class MediaTimeDelta {
   }
 
  private:
+  static constexpr int64_t Round(double d) {
+    return static_cast<int64_t>(d >= 0 ? d + 0.5 : d - 0.5);
+  }
+
   // Private constructor to force use of factory methods.
   constexpr explicit MediaTimeDelta(int64_t time_ns) : time_ns_(time_ns) {}
 

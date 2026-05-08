@@ -98,6 +98,39 @@ TEST(MediaTimeDeltaTest, PrecisionLoss) {
 
   MediaTimeDelta t2 = MediaTimeDelta::FromSeconds(1.1);
   EXPECT_NEAR(t2.InSeconds(), 1.1, 0.000001);
+
+  // Test that 1 microsecond is correctly rounded/preserved from floating point.
+  MediaTimeDelta t3 = MediaTimeDelta::FromSeconds(0.000001);
+  EXPECT_EQ(t3.InMicroseconds(), 1);
+}
+
+TEST(MediaTimeDeltaTest, UnaryNegation) {
+  MediaTimeDelta t1 = MediaTimeDelta::FromMicroseconds(1000);
+  MediaTimeDelta t2 = -t1;
+  EXPECT_EQ(t2.InMicroseconds(), -1000);
+}
+
+TEST(MediaTimeDeltaTest, ScalarOperations) {
+  MediaTimeDelta t1 = MediaTimeDelta::FromMicroseconds(1000);
+
+  MediaTimeDelta t2 = t1 * 2;
+  EXPECT_EQ(t2.InMicroseconds(), 2000);
+
+  MediaTimeDelta t3 = t1 / 2;
+  EXPECT_EQ(t3.InMicroseconds(), 500);
+
+  t1 *= 3;
+  EXPECT_EQ(t1.InMicroseconds(), 3000);
+
+  t1 /= 3;
+  EXPECT_EQ(t1.InMicroseconds(), 1000);
+}
+
+TEST(MediaTimeDeltaTest, Ratio) {
+  MediaTimeDelta t1 = MediaTimeDelta::FromMicroseconds(2000);
+  MediaTimeDelta t2 = MediaTimeDelta::FromMicroseconds(1000);
+
+  EXPECT_DOUBLE_EQ(t1 / t2, 2.0);
 }
 
 }  // namespace
