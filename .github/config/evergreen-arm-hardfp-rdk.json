@@ -18,7 +18,8 @@
     "loader_app",
     "crash_sandbox_loaded_content",
     "noop_sandbox_loaded_content",
-    "one_app_only_sandbox_loaded_content"
+    "one_app_only_sandbox_loaded_content",
+    "loader_app_rdk_plugin"
   ],
   "includes": [
     {
