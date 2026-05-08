@@ -70,8 +70,10 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
-                                    bool allow_audio_writing_on_pause = false)
+  explicit AudioRendererSinkAndroid(
+      int tunnel_mode_audio_session_id = -1,
+      bool allow_audio_writing_on_pause = false,
+      bool enable_video_renderer_vsp_adjustment = false)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -96,14 +98,17 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,
                   context);
             }),
-        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
+        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+        enable_video_renderer_vsp_adjustment_(
+            enable_video_renderer_vsp_adjustment) {}
 
   bool AllowOverflowAudioSamples() const override {
     return tunnel_mode_audio_session_id_ != -1;
   }
 
   bool AllowDirectPlaybackRateSetting() const override {
-    return tunnel_mode_audio_session_id_ != -1;
+    return tunnel_mode_audio_session_id_ != -1 &&
+           !enable_video_renderer_vsp_adjustment_;
   }
 
   void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
@@ -163,6 +168,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   }
 
   const int tunnel_mode_audio_session_id_;
+  const bool enable_video_renderer_vsp_adjustment_;
 };
 
 class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
@@ -425,6 +431,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, allow_audio_writing_on_pause)
           << "allow_audio_writing_on_pause is set to true.";
 
+      const bool enable_video_renderer_vsp_adjustment =
+          experimental_features.enable_video_renderer_vsp_adjustment;
+      SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
+          << "enable_video_renderer_vsp_adjustment is set to true.";
+
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
           [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
@@ -455,7 +466,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause);
+              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
+              enable_video_renderer_vsp_adjustment);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -465,6 +477,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, max_video_input_size > 0)
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
+
+      if (experimental_features.enable_video_renderer_vsp_adjustment &&
+          !experimental_features.allow_audio_writing_on_pause) {
+        return Failure(
+            "Video renderer vsp adjustment needs to be enabled with audio "
+            "writing on pause.");
+      }
 
       if (tunnel_mode_audio_session_id == -1) {
         force_secure_pipeline_under_tunnel_mode = false;
