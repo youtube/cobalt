@@ -27,15 +27,21 @@ TEST(SbThreadPriorityTest, SunnyDay) {
   if (kSbHasThreadPrioritySupport) {
     // The test only lower the priority as raising the priority
     // requires permissions.
-    EXPECT_EQ(setpriority(PRIO_PROCESS, 0, starboard::SbPriorityToNice(kSbThreadPriorityNormal)), 0);
+    EXPECT_EQ(setpriority(PRIO_PROCESS, 0,
+                          starboard::SbPriorityToNice(kSbThreadPriorityNormal)),
+              0);
     EXPECT_TRUE(SbThreadGetPriority(&priority));
     EXPECT_EQ(priority, kSbThreadPriorityNormal);
 
-    EXPECT_EQ(setpriority(PRIO_PROCESS, 0, starboard::SbPriorityToNice(kSbThreadPriorityLow)), 0);
+    EXPECT_EQ(setpriority(PRIO_PROCESS, 0,
+                          starboard::SbPriorityToNice(kSbThreadPriorityLow)),
+              0);
     EXPECT_TRUE(SbThreadGetPriority(&priority));
     EXPECT_EQ(priority, kSbThreadPriorityLow);
 
-    EXPECT_EQ(setpriority(PRIO_PROCESS, 0, starboard::SbPriorityToNice(kSbThreadPriorityLowest)), 0);
+    EXPECT_EQ(setpriority(PRIO_PROCESS, 0,
+                          starboard::SbPriorityToNice(kSbThreadPriorityLowest)),
+              0);
     EXPECT_TRUE(SbThreadGetPriority(&priority));
     EXPECT_EQ(priority, kSbThreadPriorityLowest);
   }
