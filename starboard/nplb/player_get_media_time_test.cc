@@ -14,6 +14,7 @@
 
 #include "starboard/common/time.h"
 #include "starboard/nplb/player_test_fixture.h"
+#include "starboard/shared/starboard/media/media_time_delta.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -34,7 +35,8 @@ class SbPlayerGetMediaTimeTest
 };
 
 TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
-  const int64_t kDurationToPlay = 1'000'000;  // 1 second
+  const starboard::MediaTimeDelta kDurationToPlay =
+      starboard::MediaTimeDelta::FromSeconds(1);
 
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
@@ -47,13 +49,13 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamples(
-        0, player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+    samples.AddAudioSamples(0, player_fixture.ConvertDurationToAudioBufferCount(
+                                   kDurationToPlay.InMicroseconds()));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamples(
-        0, player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+    samples.AddVideoSamples(0, player_fixture.ConvertDurationToVideoBufferCount(
+                                   kDurationToPlay.InMicroseconds()));
     samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
@@ -67,21 +69,27 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
-  EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
+  const starboard::MediaTimeDelta kDurationDifferenceAllowance =
+      starboard::MediaTimeDelta::FromMilliseconds(500);
+  EXPECT_NEAR(end_media_time, kDurationToPlay.InMicroseconds(),
+              kDurationDifferenceAllowance.InMicroseconds());
   EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
-              kDurationToPlay, kDurationDifferenceAllowance);
+              kDurationToPlay.InMicroseconds(),
+              kDurationDifferenceAllowance.InMicroseconds());
 
-  SB_DLOG(INFO) << "The expected media time should be " << kDurationToPlay
+  SB_DLOG(INFO) << "The expected media time should be "
+                << kDurationToPlay.InMicroseconds()
                 << ", the actual media time is " << end_media_time
                 << ", with difference "
-                << std::abs(end_media_time - kDurationToPlay) << ".";
+                << std::abs(end_media_time - kDurationToPlay.InMicroseconds())
+                << ".";
   SB_DLOG(INFO) << "The expected total playing time should be "
-                << kDurationToPlay << ", the actual playing time is "
+                << kDurationToPlay.InMicroseconds()
+                << ", the actual playing time is "
                 << end_system_time - start_system_time + start_media_time
                 << ", with difference "
                 << std::abs(end_system_time - start_system_time +
-                            start_media_time - kDurationToPlay)
+                            start_media_time - kDurationToPlay.InMicroseconds())
                 << ".";
 }
 
@@ -106,23 +114,27 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  const int64_t seek_to_time = 1'000'000;  // 1 second
-  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time));
+  const starboard::MediaTimeDelta seek_to_time =
+      starboard::MediaTimeDelta::FromSeconds(1);
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time.InMicroseconds()));
 
-  const int64_t kDurationToPlay = 1'000'000;  // 1 second
+  const starboard::MediaTimeDelta kDurationToPlay =
+      starboard::MediaTimeDelta::FromSeconds(1);
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
-        0,
-        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time) +
-            player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+        0, player_fixture.ConvertDurationToAudioBufferCount(
+               seek_to_time.InMicroseconds()) +
+               player_fixture.ConvertDurationToAudioBufferCount(
+                   kDurationToPlay.InMicroseconds()));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
     samples.AddVideoSamples(
-        0,
-        player_fixture.ConvertDurationToVideoBufferCount(seek_to_time) +
-            player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+        0, player_fixture.ConvertDurationToVideoBufferCount(
+               seek_to_time.InMicroseconds()) +
+               player_fixture.ConvertDurationToVideoBufferCount(
+                   kDurationToPlay.InMicroseconds()));
     samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
@@ -136,26 +148,31 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
-  EXPECT_NEAR(end_media_time, kDurationToPlay + seek_to_time,
-              kDurationDifferenceAllowance);
-  EXPECT_NEAR(
-      end_system_time - start_system_time + start_media_time - seek_to_time,
-      kDurationToPlay, kDurationDifferenceAllowance);
+  const starboard::MediaTimeDelta kDurationDifferenceAllowance =
+      starboard::MediaTimeDelta::FromMilliseconds(500);
+  EXPECT_NEAR(end_media_time, (kDurationToPlay + seek_to_time).InMicroseconds(),
+              kDurationDifferenceAllowance.InMicroseconds());
+  EXPECT_NEAR(end_system_time - start_system_time + start_media_time -
+                  seek_to_time.InMicroseconds(),
+              kDurationToPlay.InMicroseconds(),
+              kDurationDifferenceAllowance.InMicroseconds());
 
   SB_DLOG(INFO) << "The expected media time should be "
-                << kDurationToPlay + seek_to_time
+                << (kDurationToPlay + seek_to_time).InMicroseconds()
                 << ", the actual media time is " << end_media_time
                 << ", with difference "
-                << std::abs(end_media_time - kDurationToPlay - seek_to_time)
+                << std::abs(end_media_time -
+                            (kDurationToPlay + seek_to_time).InMicroseconds())
                 << ".";
   SB_DLOG(INFO) << "The expected total playing time should be "
-                << kDurationToPlay << ", the actual playing time is "
+                << kDurationToPlay.InMicroseconds()
+                << ", the actual playing time is "
                 << end_system_time - start_system_time + start_media_time -
-                       seek_to_time
+                       seek_to_time.InMicroseconds()
                 << ", with difference "
                 << std::abs(end_system_time - start_system_time +
-                            start_media_time - seek_to_time - kDurationToPlay)
+                            start_media_time - seek_to_time.InMicroseconds() -
+                            kDurationToPlay.InMicroseconds())
                 << ".";
 }
 
