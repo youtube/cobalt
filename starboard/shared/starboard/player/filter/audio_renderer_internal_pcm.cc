@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 
 #include <algorithm>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -237,7 +238,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
-  audio_renderer_sink_->Stop();
+  audio_renderer_sink_->Reset();
 
   {
     // Set the following states under a lock first to ensure that from now on
@@ -340,9 +341,6 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
     if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
-      // A simple workaround to handle silence frames for tunnel mode player.
-      // |playback_rate| is ignored as tunnel mode doesn't support
-      // vsp.
       frames_played += audio_frame_tracker_.GetOverflowedFrames();
     }
     media_time =
@@ -380,6 +378,48 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
   return media_time;
+}
+
+int64_t AudioRendererPcm::GetAudioWriteHead() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (!audio_renderer_sink_->HasStarted()) {
+    return 0;
+  }
+
+  if (eos_state_ == kEOSSentToSink) {
+    return std::numeric_limits<int64_t>::max();
+  }
+
+  SB_CHECK(decoder_sample_rate_);
+  return seeking_to_time_ + audio_frame_tracker_.GetTotalOriginalFrames() *
+                                1'000'000LL / *decoder_sample_rate_;
+}
+
+int64_t AudioRendererPcm::AdjustTimestampToAudioClock(int64_t timestamp) {
+  SB_CHECK(BelongsToCurrentThread());
+
+  // No need to adjust inputs before seeking to time.
+  if (timestamp <= seeking_to_time_) {
+    return timestamp;
+  }
+
+  if (!audio_renderer_sink_->HasStarted()) {
+    return -1;
+  }
+  SB_CHECK(decoder_sample_rate_);
+
+  int64_t frame_position =
+      (timestamp - seeking_to_time_) * *decoder_sample_rate_ / 1'000'000LL;
+  int64_t adjusted_frame_position =
+      audio_frame_tracker_.ConvertOriginalFramePositionToAdjustedFrames(
+          frame_position);
+  if (adjusted_frame_position < 0) {
+    // Returning a negative value as an error code.
+    return adjusted_frame_position;
+  }
+  return seeking_to_time_ +
+         adjusted_frame_position * 1'000'000LL / *decoder_sample_rate_;
 }
 
 void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,

@@ -90,7 +90,6 @@ public final class MediaCodecFrameRateEstimator {
     private static final int MINIMUM_REQUIRED_TUNNEL_FRAMES = 8;
     private static final long INVALID_FRAME_TIMESTAMP = -1;
     private final long[] mSortedTimestampsUs = new long[WINDOW_SIZE];
-    private long mMinDeltaUs = INVALID_FRAME_TIMESTAMP;
     private int mCount = 0;
 
     @Override
@@ -99,25 +98,16 @@ public final class MediaCodecFrameRateEstimator {
         return INVALID_FRAME_RATE;
       }
 
-      if (mMinDeltaUs == INVALID_FRAME_TIMESTAMP) {
-        for (int i = 1; i < mCount; i++) {
-          long delta = mSortedTimestampsUs[i] - mSortedTimestampsUs[i - 1];
-          if (mMinDeltaUs == INVALID_FRAME_TIMESTAMP || delta < mMinDeltaUs) {
-            mMinDeltaUs = delta;
-          }
-        }
-      }
-
       int validTimestamps = 1;
+      long previousDelta = mSortedTimestampsUs[1] - mSortedTimestampsUs[0];
       for (; validTimestamps < mCount; validTimestamps++) {
         long delta =
             mSortedTimestampsUs[validTimestamps] - mSortedTimestampsUs[validTimestamps - 1];
-        if (delta < mMinDeltaUs) {
-          mMinDeltaUs = delta;
-        } else if (delta > 2 * mMinDeltaUs) {
+        if (delta > 1.5 * previousDelta) {
           // The delta is too large.
           break;
         }
+        previousDelta = delta;
       }
 
       if (validTimestamps < MINIMUM_REQUIRED_TUNNEL_FRAMES) {
@@ -134,7 +124,6 @@ public final class MediaCodecFrameRateEstimator {
     @Override
     public void reset() {
       mCount = 0;
-      mMinDeltaUs = INVALID_FRAME_TIMESTAMP;
       Arrays.fill(mSortedTimestampsUs, 0);
     }
 

@@ -16,6 +16,7 @@
 #define STARBOARD_COMMON_EXPERIMENTAL_MEDIA_BUFFER_POOL_MEMORY_ALLOCATOR_H_
 
 #include <algorithm>
+#include <cstddef>
 
 #include "starboard/common/allocator.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
@@ -37,9 +38,9 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
 
   ~MediaBufferPoolMemoryAllocator() { pool_->ShrinkToZero(); }
 
-  void* Allocate(std::size_t size) override { return Allocate(size, 1); }
+  void* Allocate(size_t size) override { return Allocate(size, 1); }
 
-  void* Allocate(std::size_t size, std::size_t alignment) override {
+  void* Allocate(size_t size, size_t alignment) override {
     SB_DCHECK(pool_);
 
     if (size == 0) {
@@ -47,7 +48,7 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
     }
 
     // Align the current offset.
-    std::size_t padding = 0;
+    size_t padding = 0;
     if (alignment > 1) {
       uintptr_t current_address = offset_;
       uintptr_t aligned_address =
@@ -55,7 +56,7 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
       padding = aligned_address - current_address;
     }
 
-    std::size_t new_offset = offset_ + padding + size;
+    size_t new_offset = offset_ + padding + size;
     if (!pool_->ExpandTo(new_offset)) {
       SB_LOG(WARNING) << "Failed to expand MediaBufferPool to " << new_offset;
       return nullptr;
@@ -69,8 +70,7 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
     return ptr;
   }
 
-  void* AllocateForAlignment(std::size_t* size,
-                             std::size_t alignment) override {
+  void* AllocateForAlignment(size_t* size, size_t alignment) override {
     return Allocate(*size, alignment);
   }
 
@@ -78,13 +78,13 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
     // Free is a no-op.
   }
 
-  std::size_t GetCapacity() const override {
+  size_t GetCapacity() const override {
     // Returns 0 here to avoid tracking the allocated memory twice if used
     // with another allocator that tracks capacity.
     return 0;
   }
 
-  std::size_t GetAllocated() const override { return offset_; }
+  size_t GetAllocated() const override { return offset_; }
 
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override {}
@@ -92,7 +92,7 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
  private:
   starboard::experimental::MediaBufferPool* pool_;
   // Not start from 0, so it won't return `nullptr` as a valid pointer.
-  std::size_t offset_ = sizeof(void*);
+  size_t offset_ = sizeof(void*);
 };
 
 }  // namespace experimental

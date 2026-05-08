@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_
-#define STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_
+#ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_DECODER_H_
+#define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_DECODER_H_
 
 #include <atomic>
 #include <deque>
@@ -271,4 +271,4 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_MEDIA_DECODER_H_
+#endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_DECODER_H_

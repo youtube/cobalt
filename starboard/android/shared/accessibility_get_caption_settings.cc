@@ -16,7 +16,6 @@
 #include <cstdlib>
 #include <string>
 
-#include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/CaptionSettings_jni.h"
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -24,6 +23,7 @@
 #include "starboard/common/memory.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -78,7 +78,7 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
     return false;
   }
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   auto j_caption_settings =
       StarboardBridge::GetInstance()->GetCaptionSettings(env);

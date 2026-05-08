@@ -31,6 +31,20 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
+    enum="Android.MemoryPressureNotification" expires_after="never">
+  <owner>sideboard@google.com</owner>
+  <summary>
+    Memory pressure notifications sent by Android through ComponentCallbacks2.
+    This metric is copied from android/histograms where it expired in 2021.
+  </summary>
+  <token key="AndroidProcessType">
+    <variant name=".Browser" summary="Browser process"/>
+    <variant name=".ChildService"
+        summary="Child service process (renderer, GPU, etc.)"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -135,6 +149,16 @@ Always run the pretty print utility on this file after editing:
     RaisePlatformError would be (count for 2 calls) - (count for 3 calls) - ...
     (count for max calls). This value is reset to 0 on a successful
     navigation/app load.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether a primary main frame navigation timed out before completion
+    or failure. This is logged when the navigation timer fires.
   </summary>
 </histogram>
 

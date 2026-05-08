@@ -20,6 +20,8 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/time/time.h"
+#include "components/services/unzip/in_process_unzipper.h"
+#include "components/services/unzip/public/cpp/unzip.h"
 #include "third_party/zlib/google/zip.h"
 
 namespace cobalt {
@@ -56,6 +58,13 @@ class UnzipperImpl : public update_client::Unzipper {
     LOG(INFO) << "Unzip took " << time_unzip_took_usec << " milliseconds.";
   }
 #endif
+
+  base::OnceClosure DecodeXz(const base::FilePath& xz_file,
+                             const base::FilePath& destination,
+                             UnzipCompleteCallback callback) override {
+    return unzip::DecodeXz(unzip::LaunchInProcessUnzipper(), xz_file,
+                           destination, std::move(callback));
+  }
 };
 
 }  // namespace

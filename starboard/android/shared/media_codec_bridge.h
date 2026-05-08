@@ -19,12 +19,12 @@
 #include <optional>
 #include <string>
 
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -140,7 +140,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  base::android::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
+  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -155,7 +155,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  base::android::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
+  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
@@ -169,7 +169,7 @@ class MediaCodecBridge {
       JNIEnv* env,
       jboolean is_recoverable,
       jboolean is_transient,
-      const base::android::JavaParamRef<jstring>& diagnostic_info);
+      const jni_zero::JavaParamRef<jstring>& diagnostic_info);
   void OnMediaCodecInputBufferAvailable(JNIEnv* env, jint buffer_index);
   void OnMediaCodecOutputBufferAvailable(JNIEnv* env,
                                          jint buffer_index,
@@ -191,7 +191,7 @@ class MediaCodecBridge {
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* const handler_;
-  base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

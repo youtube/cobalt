@@ -29,6 +29,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
@@ -135,8 +136,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   const std::string key_system_;
   const bool enable_app_provisioning_;
-  void* context_;
-  // TODO: Update key statuses to Cobalt.
+  const raw_ptr<void> context_;
   const Callbacks callbacks_;
 
   std::mutex mutex_;
@@ -148,10 +148,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
 
-  std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
-
-  ThreadChecker thread_checker_;
-
   // Manages the mapping between the EME session ID in the C++ layer and the
   // MediaDrm session ID in the Java layer. Most of the time, we can use the
   // MediaDrm session ID as the EME session ID. However, there are some cases
@@ -162,6 +158,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // session ID to interact with the Cobalt CDM module.
   const std::unique_ptr<DrmSessionIdMapper>
       session_id_mapper_;  //  Guarded by |mutex_|.
+
+  // Guaranteed to be non-null for any instance returned by the factory method.
+  // However, it can be null during destruction if the factory method fails
+  // to create the bridge and destroys the instance.
+  const std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard

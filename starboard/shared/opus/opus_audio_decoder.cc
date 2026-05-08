@@ -43,16 +43,34 @@ static const VorbisLayout vorbis_mappings[8] = {
     {5, 3, {0, 6, 1, 2, 3, 4, 5, 7}}, /* 8: 7.1 surround */
 };
 
+constexpr int kMinimumBuffersToDecode = 2;
+constexpr int kMaxOpusFramesPerAU = 9'600;
+
 }  // namespace
 
-OpusAudioDecoder::OpusAudioDecoder(JobQueue* job_queue,
-                                   const AudioStreamInfo& audio_stream_info)
-    : JobOwner(job_queue), audio_stream_info_(audio_stream_info) {
-  InitializeCodec();
+std::unique_ptr<OpusAudioDecoder> OpusAudioDecoder::Create(
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info) {
+  OpusMSDecoder* decoder = CreateOpusMultistreamDecoder(audio_stream_info);
+  if (!decoder) {
+    return nullptr;
+  }
+
+  return std::make_unique<OpusAudioDecoder>(
+      PassKey<OpusAudioDecoder>(), job_queue, audio_stream_info, decoder);
 }
 
+OpusAudioDecoder::OpusAudioDecoder(PassKey<OpusAudioDecoder>,
+                                   JobQueue* job_queue,
+                                   const AudioStreamInfo& audio_stream_info,
+                                   OpusMSDecoder* decoder)
+    : JobOwner(job_queue),
+      decoder_(decoder),
+      audio_stream_info_(audio_stream_info),
+      frames_per_au_(kMaxOpusFramesPerAU) {}
+
 OpusAudioDecoder::~OpusAudioDecoder() {
-  if (is_valid()) {
+  if (decoder_) {
     opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
   }
   TeardownCodec();
@@ -194,32 +212,34 @@ void OpusAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-void OpusAudioDecoder::InitializeCodec() {
+OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
+    const AudioStreamInfo& audio_stream_info) {
   int error;
-  int channels = audio_stream_info_.number_of_channels;
+  int channels = audio_stream_info.number_of_channels;
   if (channels > 8 || channels < 1) {
     SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
-    return;
+    return nullptr;
   }
 
-  decoder_ = opus_multistream_decoder_create(
-      audio_stream_info_.samples_per_second, channels,
+  OpusMSDecoder* decoder = opus_multistream_decoder_create(
+      audio_stream_info.samples_per_second, channels,
       vorbis_mappings[channels - 1].nb_streams,
       vorbis_mappings[channels - 1].nb_coupled_streams,
       vorbis_mappings[channels - 1].mapping, &error);
   if (error != OPUS_OK) {
     SB_LOG(ERROR) << "Failed to create decoder with error: "
                   << opus_strerror(error);
-    decoder_ = NULL;
-    return;
+    return nullptr;
   }
-  SB_DCHECK(decoder_);
+  SB_CHECK(decoder);
+
+  return decoder;
 }
 
 void OpusAudioDecoder::TeardownCodec() {
-  if (is_valid()) {
+  if (decoder_) {
     opus_multistream_decoder_destroy(decoder_);
-    decoder_ = NULL;
+    decoder_ = nullptr;
   }
 }
 
@@ -240,7 +260,7 @@ scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
 void OpusAudioDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (is_valid()) {
+  if (decoder_) {
     int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
     if (error != OPUS_OK) {
       SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
@@ -248,7 +268,7 @@ void OpusAudioDecoder::Reset() {
 
       // If fail to reset opus decoder, re-create it.
       TeardownCodec();
-      InitializeCodec();
+      decoder_ = CreateOpusMultistreamDecoder(audio_stream_info_);
     }
   }
 
@@ -261,10 +281,6 @@ void OpusAudioDecoder::Reset() {
   consumed_cb_ = nullptr;
 
   CancelPendingJobs();
-}
-
-bool OpusAudioDecoder::is_valid() const {
-  return decoder_ != NULL;
 }
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {

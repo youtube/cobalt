@@ -126,13 +126,6 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
-// By default, Cobalt pauses AudioTrack without play state from AudioTrack.
-// Set the following variable to true to force it using play state from
-// AudioTrack while pausing the playback.
-STARBOARD_FEATURE(kPauseUsingAudioTrackState,
-                  "PauseUsingAudioTrackState",
-                  false)
-
 // Cobalt VideoRenderAlgorithm used to release video frames immediately after
 // playback starts. Set the following variable to true to make it release video
 // frames until the underlying audio sink actually starts.

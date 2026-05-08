@@ -52,18 +52,20 @@ std::ostream& operator<<(
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+            << ", force_decode_to_texture="
+            << ToString(features.force_decode_to_texture)
             << ", skip_flush_on_decoder_teardown="
             << ToString(features.skip_flush_on_decoder_teardown)
+            << ", use_dual_threads_for_video="
+            << ToString(features.use_dual_threads_for_video)
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="
             << ToString(features.video_decoder_initial_preroll_count)
-            << ", video_renderer_min_input_buffers="
-            << ToString(features.video_renderer_min_input_buffers)
             << ", video_renderer_min_decoded_frames="
             << ToString(features.video_renderer_min_decoded_frames)
-            << ", use_dual_threads_for_video="
-            << ToString(features.use_dual_threads_for_video) << "}";
+            << ", video_renderer_min_input_buffers="
+            << ToString(features.video_renderer_min_input_buffers) << "}";
 }
 
 }  // namespace media

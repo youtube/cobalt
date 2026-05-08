@@ -29,6 +29,8 @@
 #include "cobalt/updater/util.h"
 #include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
+#include "components/update_client/activity_data_service.h"
+#include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/network.h"
 #include "components/update_client/patcher.h"
@@ -84,6 +86,7 @@ Configurator::Configurator(
           update_client::MakeCrxDownloaderFactory(network_fetcher_factory_)),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()),
+      crx_cache_(base::MakeRefCounted<update_client::CrxCache>(std::nullopt)),
       is_forced_update_(0),
       min_free_space_bytes_(48 * 1024 * 1024),  // 48MB
       allow_self_signed_packages_(false),
@@ -248,10 +251,6 @@ scoped_refptr<update_client::PatcherFactory> Configurator::GetPatcherFactory() {
   return patch_factory_;
 }
 
-bool Configurator::EnabledDeltas() const {
-  return false;
-}
-
 bool Configurator::EnabledBackgroundDownloader() const {
   return false;
 }
@@ -264,16 +263,11 @@ PrefService* Configurator::GetPrefService() const {
   return pref_service_.get();
 }
 
-update_client::ActivityDataService* Configurator::GetActivityDataService()
-    const {
-  return nullptr;
-}
-
 bool Configurator::IsPerUserInstall() const {
   return true;
 }
 
-absl::optional<bool> Configurator::IsMachineExternallyManaged() const {
+std::optional<bool> Configurator::IsMachineExternallyManaged() const {
   return false;
 }
 
@@ -370,7 +364,7 @@ void Configurator::SetMinFreeSpaceBytes(uint64_t bytes) {
   min_free_space_bytes_ = bytes;
 }
 
-uint64_t Configurator::GetMinFreeSpaceBytes() const {
+uint64_t Configurator::GetMinFreeSpaceBytes() {
   base::AutoLock auto_lock(min_free_space_bytes_lock_);
   return min_free_space_bytes_;
 }
@@ -419,6 +413,18 @@ bool Configurator::GetRequireNetworkEncryption() const {
 void Configurator::SetRequireNetworkEncryption(
     bool require_network_encryption) {
   require_network_encryption_.store(require_network_encryption);
+}
+
+update_client::PersistedData* Configurator::GetPersistedData() const {
+  return persisted_data_.get();
+}
+
+scoped_refptr<update_client::CrxCache> Configurator::GetCrxCache() const {
+  return crx_cache_;
+}
+
+bool Configurator::IsConnectionMetered() const {
+  return false;
 }
 
 }  // namespace updater

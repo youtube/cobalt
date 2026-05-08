@@ -24,6 +24,7 @@
 #include "base/memory/raw_ref.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
@@ -31,13 +32,13 @@
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaByteArrayToString;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 using DrmOperationResult = MediaDrmBridge::OperationResult;
 
@@ -98,7 +99,7 @@ SbDrmKeyStatus ToSbDrmKeyStatus(jint status_code) {
 
 std::string JavaByteArrayToString(
     JNIEnv* env,
-    const base::android::JavaRef<jbyteArray>& j_byte_array) {
+    const jni_zero::JavaRef<jbyteArray>& j_byte_array) {
   std::string out;
   JavaByteArrayToString(env, j_byte_array, &out);
   return out;

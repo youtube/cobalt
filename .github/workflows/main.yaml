@@ -680,6 +680,7 @@ jobs:
           test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
     outputs:
       # Browser tests are fixed to a single target.
       test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'

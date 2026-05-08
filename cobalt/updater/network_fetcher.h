@@ -91,12 +91,13 @@ class NetworkFetcher : public update_client::NetworkFetcher {
                         DownloadToStringCompleteCallback
                             download_to_string_complete_callback) override;
 #else
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      ResponseStartedCallback response_started_callback,
-                      ProgressCallback progress_callback,
-                      DownloadToFileCompleteCallback
-                          download_to_file_complete_callback) override;
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override;
 #endif
   void Cancel() override;
 

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_
-#define STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_
+#ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_AUDIO_DECODER_H_
+#define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_AUDIO_DECODER_H_
 
 #include <jni.h>
 
@@ -24,7 +24,7 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -104,4 +104,4 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_
+#endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_AUDIO_DECODER_H_

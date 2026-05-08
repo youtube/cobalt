@@ -21,7 +21,12 @@ rendering issues caused by Chromium's shader expectations.
 ### Added the following POSIX symbols:
 * `getrandom`
 * `getuid`
+* `if_indextoname`
+* `if_nametoindex`
 * `statx`
+
+### Added AV2 to SbMediaVideoCodec
+This prepares Cobalt for future AV2 playback support.
 
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.

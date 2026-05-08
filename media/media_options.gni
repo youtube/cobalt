@@ -13,6 +13,8 @@ import("//third_party/libaom/options.gni")
 
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
+} else {
+  use_starboard_media = false
 }
 
 # This flag sets defaults for the current generation of cast devices.

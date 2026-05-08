@@ -16,11 +16,14 @@ _SKIP_LIST = {
         # Skia import commits, already applied in #9625 (#9624).
         'b77e86a96022541455c239778a4a62462d790c73',
         '8ed51696a04da8b51b82d6540b3b314347c43794',
-        # Change to deleted workflow file (#9670, #9934, #10080, #9593).
+        # Change to deleted workflow file
+        # (#9670, #9934, #10080, #9593, #10235, #10213).
         'f69b1d1e21f3340d9c963846ed4e1cbef8fa2fb9',
         '478e5c52cf4872407ed855a100165e93b02d9eee',
         '00531389e019a835f49fb3bf56364b244a0d3acd',
         '9b2c106aa54a05640705a3603ebc6821e1adebf8',
+        'bdaf3a31f53759ca21c82bb5ede628ab71194db5',
+        'ec31efdbdb0c173bb11bb9747808d7c50cd9db81',
     ],
 }
 

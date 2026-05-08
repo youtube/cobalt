@@ -49,6 +49,7 @@ class MockAudioRendererSink : public AudioRendererSink {
                     int frames_per_channel,
                     RenderCallback* render_callback));
   MOCK_METHOD0(Stop, void());
+  MOCK_METHOD0(Reset, void());
   MOCK_METHOD1(SetVolume, void(double volume));
   MOCK_METHOD1(SetPlaybackRate, void(double playback_rate));
 

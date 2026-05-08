@@ -29,10 +29,8 @@ namespace starboard {
 
 namespace {
 
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
@@ -142,7 +140,7 @@ SbMediaAudioConnector GetConnectorFromAndroidOutputType(
 }  // namespace
 
 AudioOutputManager::AudioOutputManager() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   SB_DCHECK(env);
   j_audio_output_manager_ =
       StarboardBridge::GetInstance()->GetAudioOutputManager(env);

@@ -19,10 +19,8 @@
 #include <mutex>
 #include <utility>
 
-#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "base/android/scoped_java_ref.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
@@ -35,17 +33,18 @@
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 using features::FeatureList;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
 const jint HDR_TYPE_DOLBY_VISION = 1;
@@ -71,7 +70,7 @@ Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
 
 template <typename GetRangeFunc>
 Range GetRange(JNIEnv* env,
-               const base::android::JavaRef<jobject>& j_capabilities,
+               const jni_zero::JavaRef<jobject>& j_capabilities,
                GetRangeFunc get_range_func) {
   SB_CHECK(env);
   SB_CHECK(j_capabilities);
@@ -285,7 +284,7 @@ VideoCodecCapability::VideoCodecCapability(
     bool is_tunnel_sup,
     bool is_software_decoder,
     bool is_hdr_capable,
-    base::android::ScopedJavaGlobalRef<jobject> j_video_cap,
+    ScopedJavaGlobalRef<jobject> j_video_cap,
     Range supported_widths,
     Range supported_heights,
     Range supported_bitrates,

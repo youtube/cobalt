@@ -21,7 +21,7 @@
 #import "starboard/tvos/shared/media/vp9_sw_av_video_sample_buffer_builder.h"  // nogncheck
 
 #if defined(INTERNAL_BUILD)
-#import "cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h"
+#import "cobalt/internal/starboard/shared/tvos/vp9_hw_av_video_sample_buffer_builder.h"
 #endif
 
 namespace starboard {

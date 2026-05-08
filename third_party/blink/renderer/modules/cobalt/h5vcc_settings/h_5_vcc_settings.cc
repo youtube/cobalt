@@ -143,29 +143,22 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     const WTF::String& name,
     const V8UnionLongOrString* value,
     ExceptionState& exception_state) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   const ExceptionContext& exception_context = exception_state.GetContext();
 
   if (name == "DecoderBuffer.EnableDecommitableAllocatorStrategy") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
           ::media::DecoderBufferAllocator::
               EnableDecommitableAllocatorStrategy();
           return true;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-          return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
   if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
           ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
           return true;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-          return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
   // "DecoderBuffer." settings must be handled before this catch-all block.
@@ -185,26 +178,23 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
     return ProcessSettingAsPositiveInt(
         script_state, exception_context, name, *value, [](int int_value) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
           ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
               int_value);
           return true;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-          return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
   if (name == "Media.IncrementalParseLookAhead") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
           ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
           return true;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-          return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Fall back to Mojo if BUILDFLAG(USE_STARBOARD_MEDIA) isn't defined. The
+  // settings will be stored in the browser but won't take effect. This is safe
+  // as USE_STARBOARD_MEDIA is always enabled in production releases.
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   EnsureReceiverIsBound();
 
