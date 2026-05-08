@@ -9,11 +9,11 @@
 #include <string>
 #include <variant>
 
-#include "build/buildflag.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/optional_ref.h"
+#include "build/buildflag.h"
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
@@ -68,7 +68,7 @@ class StorageHandler
   // content::protocol::storage::Backend
   Response GetStorageKeyForFrame(const std::string& frame_id,
                                  std::string* serialized_storage_key) override;
-#if BUILDFLAG(IS_COBALT) && defined(CHROMIUM_MILESTONE_LE_138)
+#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
   Response GetStorageKey(std::optional<std::string> frame_id,
                          std::string* serialized_storage_key) override;
 #endif
@@ -279,7 +279,7 @@ class StorageHandler
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
 
-#if BUILDFLAG(IS_COBALT) && defined(CHROMIUM_MILESTONE_LE_138)
+#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
   Response SerializeStorageKey(RenderFrameHostImpl* rfh,
                                std::string* serialized_storage_key) const;
 #endif
