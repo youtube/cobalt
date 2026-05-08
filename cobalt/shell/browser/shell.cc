@@ -71,8 +71,7 @@
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"
-#include "content/public/browser/storage_partition.h"
+#include "cobalt/updater/updater_module.h"  //nogncheck
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -352,18 +351,6 @@ void Shell::FinishShellInitialization(Shell* shell) {
   GetPlatform()->SetSkipForTesting(shell->skip_for_testing());
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if BUILDFLAG(USE_EVERGREEN)
-  // Create the updater module singleton.
-  auto* storage_partition =
-      raw_web_contents->GetPrimaryMainFrame()->GetStoragePartition();
-  if (storage_partition) {
-    LOG(INFO) << "Creating UpdaterModule singleton for Shell.";
-    cobalt::updater::UpdaterModule::CreateInstance(
-        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        cobalt::updater::kDefaultUpdateCheckDelay);
-  }
-#endif
 }
 
 Shell* Shell::CreateShell(

@@ -74,6 +74,11 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#include "content/public/browser/storage_partition.h"
+#endif  // BUILDFLAG(USE_EVERGREEN)
+
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
@@ -376,6 +381,17 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+#if BUILDFLAG(USE_EVERGREEN)
+  // Create the updater module singleton if not already created.
+  auto* storage_partition =
+      web_contents->GetPrimaryMainFrame()->GetStoragePartition();
+  if (storage_partition) {
+    LOG(INFO) << "Creating UpdaterModule singleton.";
+    updater::UpdaterModule::CreateInstance(
+        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+        updater::kDefaultUpdateCheckDelay);
+  }
+#endif
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
