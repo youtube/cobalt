@@ -22,6 +22,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
+using ::starboard::MediaTimeDelta;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -35,8 +36,7 @@ class SbPlayerGetMediaTimeTest
 };
 
 TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
-  const starboard::MediaTimeDelta kDurationToPlay =
-      starboard::MediaTimeDelta::FromSeconds(1);
+  const MediaTimeDelta kDurationToPlay = MediaTimeDelta::FromSeconds(1);
 
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
@@ -69,8 +69,8 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const starboard::MediaTimeDelta kDurationDifferenceAllowance =
-      starboard::MediaTimeDelta::FromMilliseconds(500);
+  const MediaTimeDelta kDurationDifferenceAllowance =
+      MediaTimeDelta::FromMilliseconds(500);
   EXPECT_NEAR(end_media_time, kDurationToPlay.InMicroseconds(),
               kDurationDifferenceAllowance.InMicroseconds());
   EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
@@ -114,12 +114,10 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  const starboard::MediaTimeDelta seek_to_time =
-      starboard::MediaTimeDelta::FromSeconds(1);
+  const MediaTimeDelta seek_to_time = MediaTimeDelta::FromSeconds(1);
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time.InMicroseconds()));
 
-  const starboard::MediaTimeDelta kDurationToPlay =
-      starboard::MediaTimeDelta::FromSeconds(1);
+  const MediaTimeDelta kDurationToPlay = MediaTimeDelta::FromSeconds(1);
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
@@ -148,8 +146,8 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const starboard::MediaTimeDelta kDurationDifferenceAllowance =
-      starboard::MediaTimeDelta::FromMilliseconds(500);
+  const MediaTimeDelta kDurationDifferenceAllowance =
+      MediaTimeDelta::FromMilliseconds(500);
   EXPECT_NEAR(end_media_time, (kDurationToPlay + seek_to_time).InMicroseconds(),
               kDurationDifferenceAllowance.InMicroseconds());
   EXPECT_NEAR(end_system_time - start_system_time + start_media_time -
