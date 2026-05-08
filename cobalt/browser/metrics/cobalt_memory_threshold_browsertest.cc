@@ -105,6 +105,7 @@ class CobaltMemoryThresholdBrowserTest
     WaitForHistogram(histogram_tester, "Memory.GPU.PeakMemoryUsage2.PageLoad");
     std::vector<base::Bucket> buckets =
         histogram_tester.GetAllSamples("Memory.GPU.PeakMemoryUsage2.PageLoad");
+    ASSERT_TRUE(!buckets.empty());
     uint64_t gpu_peak_memory_page_load = buckets[0].min;
     testing::Test::RecordProperty("gpu_peak_memory_on_page_load_mb",
                                   gpu_peak_memory_page_load);
