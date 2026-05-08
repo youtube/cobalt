@@ -1074,17 +1074,15 @@ void getTransformMatrix(const JavaRef<jobject>& surface_texture,
                         float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
-  jfloatArray java_array = env->NewFloatArray(16);
+  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
+                                                       env->NewFloatArray(16));
   SB_CHECK(java_array);
 
   VideoSurfaceTextureBridge::GetTransformMatrix(
       env, surface_texture,
-      jni_zero::JavaParamRef<jfloatArray>(env, java_array));
+      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
 
-  jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
-  memcpy(matrix4x4, array_values, sizeof(float) * 16);
-
-  env->DeleteLocalRef(java_array);
+  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4);
 }
 
 // Converts a 4x4 matrix representing the texture coordinate transform into
