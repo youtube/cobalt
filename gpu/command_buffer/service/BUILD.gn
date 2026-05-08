@@ -566,6 +566,8 @@ target(link_target_type, "gles2_sources") {
     sources += [
       "ahardwarebuffer_utils.cc",
       "ahardwarebuffer_utils.h",
+      "image_reader_gl_owner.cc",
+      "image_reader_gl_owner.h",
       "ref_counted_lock.cc",
       "ref_counted_lock.h",
       "shared_image/ahardwarebuffer_image_backing_factory.cc",
@@ -590,15 +592,6 @@ target(link_target_type, "gles2_sources") {
       "texture_owner.cc",
       "texture_owner.h",
     ]
-
-    # Cobalt does not use ImageReaderGLOwner, which requires API 26+, breaking SDK 24 compatibility.
-    # See b/508072838.
-    if (!is_cobalt) {
-      sources += [
-        "image_reader_gl_owner.cc",
-        "image_reader_gl_owner.h",
-      ]
-    }
 
     # For AImageReader.
     libs = [ "mediandk" ]
@@ -687,15 +680,10 @@ if (is_android) {
   source_set("android_texture_owner_unittests") {
     testonly = true
     sources = [
+      "image_reader_gl_owner_unittest.cc",
       "surface_texture_gl_owner_unittest.cc",
       "surface_texture_transform_unittest.cc",
     ]
-
-    # Cobalt does not use ImageReaderGLOwner, which requires API 26+, breaking SDK 24 compatibility.
-    # See b/508072838.
-    if (!is_cobalt) {
-      sources += [ "image_reader_gl_owner_unittest.cc" ]
-    }
 
     # For AImageReader_getFormat()
     libs = [ "mediandk" ]
