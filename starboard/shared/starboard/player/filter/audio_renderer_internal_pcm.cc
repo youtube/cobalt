@@ -225,10 +225,7 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
   audio_renderer_sink_->SetPlaybackRate(adjusted_playback_rate);
   if (audio_renderer_sink_->HasStarted()) {
     if (playback_rate_ > 0.0) {
-      if (process_audio_data_job_token_.is_valid()) {
-        RemoveJobByToken(process_audio_data_job_token_);
-        process_audio_data_job_token_.ResetToInvalid();
-      }
+      RemoveJobByToken(&process_audio_data_job_token_);
       process_audio_data_job_token_ = Schedule(process_audio_data_job_);
     }
   }
@@ -265,7 +262,6 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
   audio_frame_tracker_.Reset();
   frames_consumed_set_at_ = CurrentMonotonicTime();
   can_accept_more_data_ = true;
-  process_audio_data_job_token_.ResetToInvalid();
 
   is_eos_reached_on_sink_thread_ = false;
   is_playing_on_sink_thread_ = false;
@@ -626,10 +622,7 @@ void AudioRendererPcm::OnDecoderOutput() {
 
   ++pending_decoder_outputs_;
 
-  if (process_audio_data_job_token_.is_valid()) {
-    RemoveJobByToken(process_audio_data_job_token_);
-    process_audio_data_job_token_.ResetToInvalid();
-  }
+  RemoveJobByToken(&process_audio_data_job_token_);
 
   ProcessAudioData();
 }
@@ -637,7 +630,7 @@ void AudioRendererPcm::OnDecoderOutput() {
 void AudioRendererPcm::ProcessAudioData() {
   SB_CHECK(BelongsToCurrentThread());
 
-  process_audio_data_job_token_.ResetToInvalid();
+  process_audio_data_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
   // false.
