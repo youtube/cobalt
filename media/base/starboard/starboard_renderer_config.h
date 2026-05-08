@@ -35,6 +35,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     bool enable_codec_output_checker = false;
     bool enable_flush_during_seek = false;
     bool enable_reset_audio_decoder = false;
+    bool force_decode_to_texture = false;
     bool skip_flush_on_decoder_teardown = false;
     std::optional<bool> use_dual_threads_for_video;
     std::optional<int> max_samples_per_write;
