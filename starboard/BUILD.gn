@@ -200,6 +200,10 @@ source_set("starboard_test_main") {
       "//starboard/tvos/shared:test_support",
     ]
   }
+
+  if (is_android) {
+    deps += [ "//starboard/android/shared:test_support" ]
+  }
 }
 
 if (current_toolchain == starboard_toolchain) {

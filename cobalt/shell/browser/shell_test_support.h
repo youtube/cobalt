@@ -52,14 +52,11 @@ namespace content {
 
 class MockShellPlatformDelegate : public ShellPlatformDelegate {
  public:
-  void Initialize(const gfx::Size& default_window_size,
-                  bool is_visible) override {
-    set_is_visible(is_visible);
-  }
   MOCK_METHOD(void,
               CreatePlatformWindow,
               (Shell * shell, const gfx::Size& initial_size),
               (override));
+  MOCK_METHOD(void, Initialize, (const gfx::Size&, bool), (override));
   MOCK_METHOD(void, SetContents, (Shell * shell), (override));
   MOCK_METHOD(void, LoadSplashScreenContents, (Shell * shell), (override));
   MOCK_METHOD(void, UpdateContents, (Shell * shell), (override));
@@ -92,12 +89,25 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(void, OnUnfreeze, (), (override));
   MOCK_METHOD(void, OnStop, (), (override));
 
-  void SetIsVisible(bool is_visible) { set_is_visible(is_visible); }
+  void SetIsVisible(bool is_visible) { is_visible_ = is_visible; }
 };
 
 class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
  public:
   TestBrowserAccessibilityState() = default;
+};
+
+class MojoInitializer {
+ public:
+  MojoInitializer() {
+    if (!aura::Env::HasInstance()) {
+      aura_env_ = aura::Env::CreateInstance();
+    }
+    mojo::core::Init();
+  }
+
+ private:
+  std::unique_ptr<aura::Env> aura_env_;
 };
 
 class ShellTestBase : public ::testing::Test {
@@ -188,6 +198,8 @@ class ShellTestBase : public ::testing::Test {
       Shell::Shutdown();
     });
 
+    platform->is_visible_ = is_visible;
+
     Shell::Initialize(std::move(platform), is_visible);
   }
 
@@ -205,7 +217,7 @@ class ShellTestBase : public ::testing::Test {
 #endif
   std::unique_ptr<TestBrowserAccessibilityState> browser_accessibility_state_;
   std::unique_ptr<RenderViewHostTestEnabler> rvh_enabler_;
-  raw_ptr<::testing::NiceMock<MockShellPlatformDelegate>> platform_ = nullptr;
+  raw_ptr<MockShellPlatformDelegate> platform_ = nullptr;
   std::unique_ptr<TestBrowserContext> browser_context_;
 };
 

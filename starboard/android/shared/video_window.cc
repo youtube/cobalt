@@ -31,9 +31,8 @@
 
 namespace starboard {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
 
 namespace {
 

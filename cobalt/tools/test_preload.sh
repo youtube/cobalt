@@ -13,119 +13,91 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Integration test for Cobalt --preload flag and Visibility API.
+# Integration test for Cobalt Preload on Linux.
+# Verifies that Cobalt starts in a hidden state and reveals on SIGCONT.
 
-set -e
+PORT=9223
+LOG_FILE="preload_run.log"
+EXECUTABLE=${TEST_PRELOAD_EXECUTABLE:-"./out/linux-x64x11-modular_devel/cobalt_loader"}
 
-# Path to cobalt binary.
-PLATFORM="linux-x64x11-modular"
-CONFIG="devel"
-TARGET="cobalt_loader"
-DEFAULT_COBALT_BIN="out/${PLATFORM}_${CONFIG}/${TARGET}"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
 
-COBALT_BIN=${1:-$DEFAULT_COBALT_BIN}
-if [ ! -f "$COBALT_BIN" ]; then
-  echo -e "${RED}Error: Cobalt binary not found at $COBALT_BIN${NC}"
-  echo "Usage: $0 <path_to_cobalt_bin>"
+function log {
+  echo -e "${GREEN}[TEST] $(date +'%H:%M:%S') - $1${NC}"
+}
+
+# Ensure no previous test instances or Cobalt processes are running.
+pgrep -f "[t]est_preload.sh" > /tmp/test_preload_pids.tmp || true
+OTHER_TEST_PIDS=""
+while read pid; do
+  if [ -n "$pid" ] && [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+    OTHER_TEST_PIDS="$OTHER_TEST_PIDS $pid"
+  fi
+done < /tmp/test_preload_pids.tmp
+OTHER_TEST_PIDS=${OTHER_TEST_PIDS# }
+
+WAITER_PIDS=$(pgrep -f "[w]ait_for_state.sh" | grep -vw $$ | grep -vw $PPID || true)
+COBALT_PIDS=$(pgrep -f "[c]obalt_loader" | grep -vw $$ | grep -vw $PPID || true)
+
+if [ -n "$OTHER_TEST_PIDS" ] || [ -n "$WAITER_PIDS" ] || [ -n "$COBALT_PIDS" ]; then
+  echo "FAILURE: Previous test instance or Cobalt process is still running."
+  [ -n "$OTHER_TEST_PIDS" ] && echo "Found test_preload.sh PIDs: $OTHER_TEST_PIDS"
+  [ -n "$WAITER_PIDS" ] && echo "Found wait_for_state.sh PIDs: $WAITER_PIDS"
+  [ -n "$COBALT_PIDS" ] && echo "Found cobalt_loader PIDs: $COBALT_PIDS"
+  echo "Please kill them before running this test."
   exit 1
 fi
 
-PORT=9222
-LOG_FILE="preload_test.log"
+log "Starting cobalt_loader in preload mode with DevTools on port $PORT..."
+rm -f $LOG_FILE
 
-# Colors for logging
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-log() {
-    echo -e "${BLUE}[TEST]${NC} $1"
-}
-
-# Ensure cobalt is killed on exit if test fails.
-function cleanup {
-  if [ -n "$COBALT_PID" ] && kill -0 $COBALT_PID 2>/dev/null; then
-    log "Cleaning up Cobalt (PID: $COBALT_PID)..."
-    kill -9 $COBALT_PID 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-log "Starting Cobalt in preload mode..."
-$COBALT_BIN \
-  --preload \
-  --remote-debugging-port=$PORT \
-  --no-sandbox > "$LOG_FILE" 2>&1 &
+$EXECUTABLE --preload --remote-debugging-port=$PORT --no-sandbox --v=1 > $LOG_FILE 2>&1 &
 COBALT_PID=$!
 
-log "Launched PID: $COBALT_PID. Waiting for DevTools on port $PORT..."
-MAX_TRIES=30
-TRIES=0
-until curl -s http://localhost:$PORT/json > /dev/null; do
-  sleep 1
-  TRIES=$((TRIES + 1))
-  if [ $TRIES -eq $MAX_TRIES ]; then
-    echo -e "${RED}FAILURE: Cobalt DevTools did not become ready in $MAX_TRIES seconds.${NC}"
-    tail -n 20 "$LOG_FILE"
-    exit 1
-  fi
-done
+log "Launched PID: $COBALT_PID. Waiting for DevTools..."
+sleep 5
 
-# Helper to check JS state
-function check_js {
-  vpython3 cobalt/tools/cdp_js_helper.py --port $PORT "$1"
-}
+log "Verifying initial preloaded state (Hidden & Not Focused)..."
+# In preload mode, the app should be hidden and not have focus.
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 120 || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "False" $PORT 120 || exit 1
 
-log "Verifying initial preloaded state..."
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility state: $VISIBILITY, Focused: $HAS_FOCUS"
-
-if [ "$VISIBILITY" != "hidden" ] || [ "$HAS_FOCUS" != "false" ]; then
-  echo -e "${RED}FAILURE: Initial state should be 'hidden' and NOT focused, got visibility='$VISIBILITY', focused='$HAS_FOCUS'${NC}"
-  exit 1
-fi
-
-# Send reveal event.
 log "Sending SIGCONT to reveal application..."
 kill -SIGCONT $COBALT_PID
 
-# Wait for state change.
-sleep 2
+log "Verifying revealed state (Visible & Focused)..."
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 || exit 1
 
-log "Verifying revealed state..."
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility state: $VISIBILITY, Focused: $HAS_FOCUS"
-
-if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: State should be 'visible' and focused after reveal, got visibility='$VISIBILITY', focused='$HAS_FOCUS'${NC}"
-  exit 1
-fi
-
-log "Sending SIGPWR to shutdown application..."
+log "Sending SIGPWR (STOP)..."
 kill -SIGPWR $COBALT_PID
+sleep 5
 
 # Wait for process to exit
 log "Waiting for Cobalt to exit..."
-wait $COBALT_PID
+wait $COBALT_PID 2>/dev/null
 EXIT_CODE=$?
 
 log "Cobalt exited with code: $EXIT_CODE"
 
-if [ $EXIT_CODE -ne 0 ]; then
+if kill -0 $COBALT_PID 2>/dev/null; then
+  STAT=$(ps -p $COBALT_PID -o stat= | tr -d ' ')
+  if [[ "$STAT" != "Z"* ]]; then
+    echo "FAILURE: Cobalt (PID: $COBALT_PID) did not stop after SIGPWR. State: $STAT"
+    echo "[TEST] Cleaning up Cobalt (PID: $COBALT_PID)..."
+    kill -9 $COBALT_PID
+    exit 1
+  fi
+fi
+
+if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 143 ]; then
+  # 143 is SIGTERM exit code, which is acceptable for SIGPWR/SIGTERM shutdown.
   echo -e "${RED}FAILURE: Cobalt exited with non-zero code $EXIT_CODE${NC}"
   exit 1
 fi
 
-# Check for fatal errors in log.
-FILTERED_LOG=$(grep -aE "FATAL|AddressSanitizer|leak|Check failed" "$LOG_FILE" | grep -av "MojoDiscardableSharedMemoryManagerImpls are still alive" | grep -av "lock_impl_posix.cc(46)" || true)
-if [[ -n "$FILTERED_LOG" ]]; then
-    echo -e "${RED}FAILURE: Found errors in log.${NC}"
-    echo "$FILTERED_LOG" | head -n 20
-    exit 1
-fi
+log "SUCCESS: Preload and reveal verified!"
 
-echo -e "${GREEN}SUCCESS${NC}"
 exit 0

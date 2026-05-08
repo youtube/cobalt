@@ -97,12 +97,8 @@ StarboardRendererTraits::StarboardRendererTraits(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size,
-    const bool enable_flush_during_seek,
-    const bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -116,12 +112,8 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
+      experimental_features(experimental_features),
       viewport_size(viewport_size),
-      enable_flush_during_seek(enable_flush_during_seek),
-      enable_reset_audio_decoder(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder(initial_max_frames_in_decoder),
-      max_pending_input_frames(max_pending_input_frames),
-      video_decoder_poll_interval_ms(video_decoder_poll_interval_ms),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
@@ -311,13 +303,11 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
       video_geometry_setter_service_, config.overlay_plane_id,
       config.audio_write_duration_local, config.audio_write_duration_remote,
-      config.max_video_capabilities, config.viewport_size,
-      config.enable_flush_during_seek, config.enable_reset_audio_decoder,
-      config.initial_max_frames_in_decoder, config.max_pending_input_frames,
-      config.video_decoder_poll_interval_ms,
-      std::move(renderer_extension_receiver),
-      std::move(client_extension_remote), base::BindRepeating(
-        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
+      config.max_video_capabilities, config.experimental_features,
+      config.viewport_size, std::move(renderer_extension_receiver),
+      std::move(client_extension_remote),
+      base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
+                          media_gpu_channel_manager_));
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

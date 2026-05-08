@@ -5,8 +5,7 @@
 import '../../common.gcl' as common
 
 build = common.build {
-  // TODO: b/495549526 - Import build_mac.sh.
-  // build_file = 'cobalt/devinfra/kokoro/bin/build_mac.sh'
+  build_file = 'src/cobalt/devinfra/kokoro/bin/build_mac.sh'
   timeout_mins = 300
   before_action = [
     {
@@ -30,7 +29,7 @@ build = common.build {
   env_vars = super.env_vars + [
     {
       key = 'EXTRA_GN_ARGUMENTS'
-      value = 'use_asan=false target_cpu=\"arm64\" is_internal_build=true'
+      value = 'use_asan=false target_cpu=\"arm64\" swift_whole_module_optimization=false'
     },
     {
       key = 'GCLOUD_KEY_FILE_NAME'
@@ -54,7 +53,7 @@ build = common.build {
     },
     {
       key = 'TARGET_PLATFORM'
-      value = 'tvos-arm64'
+      value = 'tvos-arm64-device'
     },
     {
       key = 'XCODE_VERSION'

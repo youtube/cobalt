@@ -23,9 +23,13 @@ namespace media {
 namespace {
 
 DecoderBuffer::Allocator* s_allocator = nullptr;
-bool s_use_allocator = false;
 
 }  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::Get() {
+  return s_allocator;
+}
 
 // static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
@@ -34,19 +38,6 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   // allocator is in place will fail.
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
-  s_use_allocator = true;
-}
-
-// static
-void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
-  CHECK(s_allocator);
-  s_allocator->SetAllocateOnDemand(enabled);
-}
-
-// static
-void DecoderBuffer::EnableMediaBufferPoolStrategy() {
-  CHECK(s_allocator);
-  s_allocator->EnableMediaBufferPoolStrategy();
 }
 
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -72,45 +63,30 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // --- Starboard-specific Constructor Implementations ---
-DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
-  if (size_ > 0) {
-    if (s_allocator) {
-      Initialize(DemuxerStream::UNKNOWN);
-    } else {
-      Initialize();
-    }
-  }
-}
+DecoderBuffer::DecoderBuffer(size_t size)
+    : DecoderBuffer(DemuxerStream::UNKNOWN, size) {}
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
                              size_t size)
-    : size_(size) {
+    : DecoderBuffer(type, size) {
   if (!data) {
-    CHECK_EQ(size_, 0u);
+    CHECK_EQ(size, 0u);
     return;
   }
 
-  if (s_use_allocator) {
-    Initialize(type);
-    s_allocator->Write(allocator_data_->handle, data, size_);
-  } else {
-    Initialize();
-    memcpy(writable_data(), data, size_);
+  if (size > 0) {
+    s_allocator->Write(allocator_data_->handle, data, size);
   }
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              base::span<const uint8_t> data)
-    : size_(data.size()) {
+    : DecoderBuffer(type, data.size()) {
   if (data.empty()) {
     return;
   }
-  if (s_allocator) {
-    Initialize(type);
-  } else {
-    Initialize();
-  }
+
   memcpy(writable_data(), data.data(), data.size());
 }
 
@@ -118,17 +94,29 @@ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : DecoderBuffer(DemuxerStream::UNKNOWN, data) {}
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
-    : size_(data.size()) {
-  if (s_allocator) {
-    Initialize(DemuxerStream::UNKNOWN);
-    memcpy(writable_data(), data.data(), data.size());
-  } else {
-    data_ = std::move(data);
+    : DecoderBuffer(DemuxerStream::UNKNOWN, data.size()) {
+  if (data.empty()) {
+    return;
   }
+
+  memcpy(writable_data(), data.data(), data.size());
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : DecoderBuffer(DemuxerStream::UNKNOWN, external_memory->Span()) {}
+
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
+    : allocator_data_([&]() -> std::optional<AllocatorData> {
+        if (size == 0) {
+          return std::nullopt;
+        }
+        CHECK(s_allocator);
+        DCHECK_EQ(s_allocator->GetBufferPadding(), 0);
+        return AllocatorData(type,
+                             s_allocator->Allocate(
+                                 type, size, s_allocator->GetBufferAlignment()),
+                             size);
+      }()) {}
 
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -186,29 +174,6 @@ DecoderBuffer::~DecoderBuffer() {
 }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() = default;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void DecoderBuffer::Initialize() {
-  if (s_use_allocator) {
-    // This is used by Mojo.
-    Initialize(DemuxerStream::UNKNOWN);
-    return;
-  }
-  data_ = base::HeapArray<uint8_t>::Uninit(size_);
-}
-
-void DecoderBuffer::Initialize(DemuxerStream::Type type) {
-  DCHECK(s_allocator);
-  DCHECK(data_.empty());
-  DCHECK(!allocator_data_);
-  DCHECK_EQ(s_allocator->GetBufferPadding(), 0);
-
-  int alignment = s_allocator->GetBufferAlignment();
-  allocator_data_.emplace(type,
-                          s_allocator->Allocate(type, size_, alignment),
-                          size_);
-}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static

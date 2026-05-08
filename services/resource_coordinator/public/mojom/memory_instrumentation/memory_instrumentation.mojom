@@ -183,18 +183,16 @@ struct RawOSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
 
+  // Cobalt-specific memory metrics start
   // PSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_pss_kb = 0;
-
   // RSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_rss_kb = 0;
-
   // RSS for partition_alloc anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 partition_alloc_rss_kb = 0;
-
   // RSS for V8 anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 v8_rss_kb = 0;
@@ -202,13 +200,11 @@ struct RawOSMemDump {
   // RSS for system malloc (e.g. scudo) anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 malloc_rss_kb = 0;
-
   // RSS for other code binaries (.so, .apk, .dex). This includes system
   // libraries, GPU drivers, and the Android application package, but
   // excludes the main libchrobalt.so.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 code_other_rss_kb = 0;
-
   // RSS for fonts (.ttf, .ttc).
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 fonts_rss_kb = 0;
@@ -224,6 +220,7 @@ struct RawOSMemDump {
   // RSS for thread stacks.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 stacks_rss_kb = 0;
+  // Cobalt-specific memory metrics end
 
   // Generic map for detailed memory metrics.
   map<string, uint32>? detailed_stats_kb;
@@ -278,18 +275,16 @@ struct OSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
 
+  // Cobalt-specific memory metrics start
   // PSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_pss_kb = 0;
-
   // RSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_rss_kb = 0;
-
   // RSS for partition_alloc anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 partition_alloc_rss_kb = 0;
-
   // RSS for V8 anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 v8_rss_kb = 0;
@@ -297,13 +292,11 @@ struct OSMemDump {
   // RSS for system malloc (e.g. scudo) anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 malloc_rss_kb = 0;
-
   // RSS for other code binaries (.so, .apk, .dex). This includes system
   // libraries, GPU drivers, and the Android application package, but
   // excludes the main libchrobalt.so.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 code_other_rss_kb = 0;
-
   // RSS for fonts (.ttf, .ttc).
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 fonts_rss_kb = 0;
@@ -319,6 +312,7 @@ struct OSMemDump {
   // RSS for thread stacks.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 stacks_rss_kb = 0;
+  // Cobalt-specific memory metrics end
 
   // Generic map for detailed memory metrics.
   map<string, uint32>? detailed_stats_kb;

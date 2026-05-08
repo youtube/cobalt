@@ -29,13 +29,15 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
     : media_buffer_pool_(media_buffer_pool),
       video_buffer_initial_capacity_(video_buffer_initial_capacity),
       video_buffer_allocation_increment_(video_buffer_allocation_increment),
+      audio_fallback_allocator_(/*enable_decommit_on_idle=*/false),
       audio_allocator_(
           &audio_fallback_allocator_,
           // Pre-allocate sufficient capacity for audio buffers to
           // avoid expansions in most scenarios.
           SbMediaGetAudioBufferBudget() + kAudioAllocationIncrement,
           kSmallAllocationThreshold,
-          kAudioAllocationIncrement),
+          kAudioAllocationIncrement,
+          /*enable_decommit_on_idle=*/false),
       video_allocator_(new MediaBufferPoolBidirectionalReuseAllocator(
           media_buffer_pool_,
           video_buffer_initial_capacity,

@@ -75,6 +75,7 @@ public class Shell {
     private NavigationController mNavigationController;
 
     private long mNativeShell;
+    private @Nullable StartupGuardNavigationObserver mStartupGuardNavigationObserver;
     private @Nullable ContentViewRenderView mContentViewRenderView;
     private @Nullable WindowAndroid mWindow;
     private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
@@ -241,6 +242,7 @@ public class Shell {
             mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
         }
         assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
+        mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }

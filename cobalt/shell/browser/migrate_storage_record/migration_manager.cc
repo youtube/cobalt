@@ -446,6 +446,11 @@ std::string MigrationManager::GetMigrationStatusUrlParameter() {
 }
 
 // static
+void MigrationManager::ResetMigrationStatusForTesting() {
+  g_migration_status_param.clear();
+}
+
+// static
 // Groups multiple sequential asynchronous tasks into a single chain of
 // callbacks. When the returned Task is invoked, it will execute the first task,
 // which in turn will trigger the second, and so on, until all tasks are run.
@@ -600,6 +605,19 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
 // static
 // Returns an asynchronous task that injects all legacy cookies into the new
 // Chromium Network Service.
+
+// Timeout Behavior Summary:
+// If a 2-second timeout fires during CookieTask, this state guarantees the
+// application startup callback is executed immediately to prevent blocking.
+// The Mojo IPC connections are kept alive by the pending callbacks.
+// - If the background thread eventually succeeds: the data is successfully
+//   written to disk, UMA metrics are recorded, but this state swallows the
+//   late callback (a no-op) to prevent running the startup callback twice.
+//   The MigrationState ignores the late success, remaining as 'kTimeout'.
+// - If the background thread hangs indefinitely: the thread remains blocked,
+//   consuming resources or preventing further storage operations. The closures
+//   and Mojo pipes are leaked for the lifetime of the application, but the
+//   main thread remains unblocked and the application continues running.
 Task MigrationManager::CookieTask(
     content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,

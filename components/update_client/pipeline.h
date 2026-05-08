@@ -21,6 +21,7 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "components/update_client/persisted_data.h"
 #include "starboard/extension/installation_manager.h"
 #else
 namespace base {
@@ -82,6 +83,10 @@ void MakePipeline(
     // This function does not take ownership of `crx_str`, which must refer to a
     // valid string that outlives the created pipeline operations.
     std::string* crx_str,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    PersistedData* metadata,
+    const std::string& next_version,
 #endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,

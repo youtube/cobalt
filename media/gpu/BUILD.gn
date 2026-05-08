@@ -206,6 +206,8 @@ component("gpu") {
       "starboard/starboard_gpu_factory_impl.cc",
       "starboard/starboard_gpu_factory_impl.h",
     ]
+
+    deps += [ "//starboard/common" ]
   }
 
   if (use_v4l2_codec) {

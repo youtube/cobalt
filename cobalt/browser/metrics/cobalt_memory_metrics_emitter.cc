@@ -211,7 +211,12 @@ static const char* MetricSizeToVersionSuffix(
 
 }  // namespace
 
-CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() = default;
+CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
+  // The emitter is created on the main thread but will be used
+  // on a background sequence maintained by base::SequenceBound
+  // in CobaltMetricsServiceClient.
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+}
 
 void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -370,6 +375,15 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     }
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
+      // Skip the standard metrics if we are overriding them with
+      // the more accurate RSS values below.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+      if (std::string_view(item.uma_name) == "PartitionAlloc" ||
+          std::string_view(item.uma_name) == "V8" ||
+          std::string_view(item.uma_name) == "Malloc") {
+        continue;
+      }
+#endif
       std::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
@@ -390,12 +404,40 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+    std::string prefix =
+        base::StrCat({kMemoryHistogramPrefix, process_name, "."});
+    std::string exp_prefix = base::StrCat(
+        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal});
+
+    auto emit_accurate_rss = [&](const char* name, uint32_t value_kb) {
+      base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, name, "Rss"}),
+                                      static_cast<int>(value_kb / kKiB));
+      base::UmaHistogramMemoryLargeMB(base::StrCat({exp_prefix, name}),
+                                      static_cast<int>(value_kb / kKiB));
+    };
+
     base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltPss",
+        base::StrCat({prefix, "LibChrobaltPss"}),
         static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
     base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltRss",
+        base::StrCat({prefix, "LibChrobaltRss"}),
         static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+
+    emit_accurate_rss("PartitionAlloc", pmd.os_dump().partition_alloc_rss_kb);
+#if BUILDFLAG(IS_ANDROID)
+    emit_accurate_rss("Malloc", pmd.os_dump().malloc_rss_kb);
+    emit_accurate_rss("CodeOther", pmd.os_dump().code_other_rss_kb);
+    emit_accurate_rss("Fonts", pmd.os_dump().fonts_rss_kb);
+    emit_accurate_rss("AshmemJit", pmd.os_dump().ashmem_jit_rss_kb);
+    emit_accurate_rss("AndroidRuntime", pmd.os_dump().android_runtime_rss_kb);
+#endif  // BUILDFLAG(IS_ANDROID)
+    emit_accurate_rss("Stacks", pmd.os_dump().stacks_rss_kb);
+
+    // Override V8 with accurate RSS.
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({exp_prefix, "V8"}),
+        static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
+
 #endif
   }
 
@@ -414,7 +456,6 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
-
   // UMA metrics for media buffer memory usage
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t encoded_memory_bytes =

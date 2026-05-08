@@ -65,7 +65,10 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const SbDrmSampleInfo* drm_info() const {
     return has_drm_info_ ? &drm_info_ : NULL;
   }
+
+  // DO NOT use the set functions below except from drm system and renderers.
   void SetDecryptedContent(std::vector<uint8_t> decrypted_content);
+  void SetTimestamp(int64_t timestamp) { timestamp_ = timestamp; }
 
   friend std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer);
 

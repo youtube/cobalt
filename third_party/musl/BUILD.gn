@@ -542,6 +542,7 @@ static_library("c_internal") {
     "src/internal/syscall_ret.c",
     "src/legacy/futimes.c",
     "src/legacy/getpagesize.c",
+    "src/linux/statx.c",
     "src/linux/utimes.c",
     "src/locale/strcoll.c",
     "src/locale/strxfrm.c",

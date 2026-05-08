@@ -45,16 +45,19 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
       FreeBlockReverseiterator;
 
   BidirectionalFitReuseAllocator(starboard::Allocator* fallback_allocator,
-                                 std::size_t initial_capacity,
-                                 std::size_t small_allocation_threshold,
-                                 std::size_t allocation_increment)
+                                 size_t initial_capacity,
+                                 size_t small_allocation_threshold,
+                                 size_t allocation_increment,
+                                 bool enable_decommit_on_idle)
       : ReuseAllocatorBase(fallback_allocator,
                            initial_capacity,
-                           allocation_increment),
+                           allocation_increment,
+                           /*max_capacity=*/0,
+                           enable_decommit_on_idle),
         small_allocation_threshold_(small_allocation_threshold) {}
 
-  FreeBlockIterator FindFreeBlock(std::size_t size,
-                                  std::size_t alignment,
+  FreeBlockIterator FindFreeBlock(size_t size,
+                                  size_t alignment,
                                   FreeBlockIterator begin,
                                   FreeBlockIterator end,
                                   bool* allocate_from_front) override {
@@ -83,7 +86,7 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   }
 
  private:
-  std::size_t small_allocation_threshold_;
+  size_t small_allocation_threshold_;
 };
 
 }  // namespace starboard

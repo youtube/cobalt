@@ -29,7 +29,9 @@
 #include "components/browsing_topics/common/common_types.h"
 #include "components/download/public/common/quarantine_connection.h"
 #include "components/file_access/scoped_file_access.h"
-#include "components/language_detection/content/common/language_detection.mojom-forward.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/language_detection/content/common/language_detection.mojom-forward.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/common/content_export.h"
 #include "content/public/browser/allow_service_worker_result.h"
 #include "content/public/browser/auction_result.h"
@@ -3209,6 +3211,7 @@ class CONTENT_EXPORT ContentBrowserClient {
       const url::Origin& origin,
       mojo::PendingReceiver<blink::mojom::TranslationManager> receiver);
 
+#if !BUILDFLAG(IS_COBALT)
   // Binds to a singleton new instance of
   // `language_detection::ContentLanguageDetectionDriver` which receives the
   // model from a local file specified by a flag param..
@@ -3217,6 +3220,7 @@ class CONTENT_EXPORT ContentBrowserClient {
       base::SupportsUserData* context_user_data,
       mojo::PendingReceiver<
           language_detection::mojom::ContentLanguageDetectionDriver> receiver);
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
   // Given the last committed URL of the RenderFrameHost, |frame_url|, and the

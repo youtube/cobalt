@@ -26,6 +26,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/alsa/alsa_util.h"
@@ -171,8 +172,9 @@ AlsaAudioSink::AlsaAudioSink(
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
-      audio_out_thread_(
-          JobThread::Create("alsa_audio_out", kSbThreadPriorityRealTime)),
+      audio_out_thread_(JobThread::Create(
+          "alsa_audio_out",
+          ThreadOptions().SetPriority(kSbThreadPriorityRealTime))),
       time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
                     2),
       destroying_(false),

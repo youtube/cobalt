@@ -33,6 +33,7 @@ import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -202,6 +203,7 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       closeAllServices();
+      mAdvertisingId.shutdown();
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -283,16 +285,23 @@ public class StarboardBridge {
     }
   }
 
-  // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
-  public void requestStop(int errorLevel) {}
+  /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  public void requestStop(int errorLevel) {
+    applicationStopping();
+    Activity activity = mActivityHolder.get();
+    if (activity != null) {
+      activity.finishAndRemoveTask();
+    }
+  }
 
   public boolean onSearchRequested() {
     return false;
   }
 
   @CalledByNative
-  void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data);
+  void raisePlatformError(@PlatformError.ErrorType int errorType, long data, String url) {
+    StartupGuard.getInstance().setStartupMilestone(37);
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
     mPlatformError.raise();
   }
 
@@ -612,7 +621,10 @@ public class StarboardBridge {
 
   @CalledByNative
   public void closeCobaltService(String serviceName) {
-    mCobaltServices.remove(serviceName);
+    CobaltService service = mCobaltServices.remove(serviceName);
+    if (service != null) {
+      service.onClose();
+    }
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
 
@@ -749,5 +761,20 @@ public class StarboardBridge {
     public int getHeight() {
       return mHeight;
     }
+  }
+
+  @CalledByNative
+  protected void hideSplashScreen() {
+    StartupGuard.getInstance().disarm();
+  }
+
+  @CalledByNative
+  protected void setStartupMilestone(int milestone) {
+    StartupGuard.getInstance().setStartupMilestone(milestone);
+  }
+
+  @CalledByNative
+  protected void setStartupDiagnosisInfo(String key, String value) {
+    StartupGuard.getInstance().setDiagnosisInfo(key, value);
   }
 }

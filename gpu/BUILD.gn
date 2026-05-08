@@ -12,6 +12,10 @@ import("//third_party/angle/gni/angle.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 if (is_android) {
   # Pull in enable_chrome_android_internal.
   import("//build/config/android/config.gni")
@@ -533,6 +537,11 @@ test("gpu_unittests") {
     "ipc/service/gpu_channel_test_common.h",
     "ipc/service/gpu_watchdog_thread_unittest.cc",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing_unittest.cc" ]
+  }
+
   if (is_cobalt_hermetic_build) {
     sources += [ "command_buffer/common/starboard/unittest_main.cc" ]
     sources -= [ "command_buffer/common/unittest_main.cc" ]
@@ -667,6 +676,10 @@ test("gpu_unittests") {
     "//ui/gl:test_support",
     "//url",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
 
   deps += [ "//third_party/angle:translator" ]
 

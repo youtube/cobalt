@@ -36,7 +36,8 @@ static_assert(O_SYNC == 04010000,
               "The Starboard layer wrapper expects this value from musl");
 static_assert(O_ASYNC == 020000,
               "The Starboard layer wrapper expects this value from musl");
-#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
+// FNONBLOCK, FASYNC, and FNDELAY are defined in musl but not in Bionic.
+#if (defined(_GNU_SOURCE) || defined(_BSD_SOURCE)) && !defined(__BIONIC__)
 static_assert(FASYNC == O_ASYNC,
               "The Starboard layer wrapper expects this value from musl");
 static_assert(FNONBLOCK == O_NONBLOCK,

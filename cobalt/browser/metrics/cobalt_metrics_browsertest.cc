@@ -15,11 +15,12 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -30,19 +31,20 @@ namespace cobalt {
 
 class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
  public:
-  CobaltMetricsBrowserTest() = default;
+  CobaltMetricsBrowserTest() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kCobaltMetricsIntervalFeature,
+        {{"memory-metrics-interval", "1"}, {"cpu-metrics-interval", "1"}});
+  }
   ~CobaltMetricsBrowserTest() override = default;
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    content::ContentBrowserTest::SetUpCommandLine(command_line);
-    // Set a short interval for memory metrics to verify periodic recording.
-    command_line->AppendSwitchASCII(switches::kMetricsInterval, "1");
-  }
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // TODO: b/489836051 - Investigate memory metrics recording failures on
 // Starboard.
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
 #define MAYBE_RecordsMemoryMetrics DISABLED_RecordsMemoryMetrics
 #else
 #define MAYBE_RecordsMemoryMetrics RecordsMemoryMetrics
@@ -62,8 +64,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
 
   // Trigger a memory dump manually for testing and wait for it.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
-      run_loop.QuitClosure());
+  static_cast<CobaltMetricsServiceClient*>(client)
+      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
@@ -120,15 +122,17 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+#if BUILDFLAG(IS_ANDROID)
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
 // TODO: b/489836051 - Investigate periodic memory metrics recording failures on
 // Starboard.
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
 #define MAYBE_PeriodicRecordsMemoryMetrics DISABLED_PeriodicRecordsMemoryMetrics
 #else
 #define MAYBE_PeriodicRecordsMemoryMetrics PeriodicRecordsMemoryMetrics
@@ -150,8 +154,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   // Trigger a memory dump manually for testing and wait for it.
   // This replaces the fixed delay and is more robust.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
-      run_loop.QuitClosure());
+  static_cast<CobaltMetricsServiceClient*>(client)
+      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
@@ -199,10 +203,48 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+#if BUILDFLAG(IS_ANDROID)
+  check_histogram("Memory.Browser.MallocRss");
 #endif
+}
+
+// TODO: b/489836051 - Investigate periodic memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_RecordsCpuMetrics DISABLED_RecordsCpuMetrics
+#else
+#define MAYBE_RecordsCpuMetrics RecordsCpuMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = static_cast<CobaltMetricsServiceClient*>(
+      manager_client->metrics_service_client());
+  ASSERT_TRUE(client);
+
+  // Trigger CPU metrics dump manually for testing and wait for it.
+  // This replaces the fixed delay and is more robust.
+  base::RunLoop run_loop;
+  client->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
+  // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0
+  // on the first call
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
+            1);
 }
 
 }  // namespace cobalt

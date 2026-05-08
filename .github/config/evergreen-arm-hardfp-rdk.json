@@ -15,7 +15,8 @@
   },
   "targets": [
     "cobalt:gn_all",
-    "loader_app"
+    "loader_app",
+    "loader_app_rdk_plugin"
   ],
   "includes": [
     {

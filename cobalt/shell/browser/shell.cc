@@ -193,9 +193,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
       skip_for_testing_(skip_for_testing),
-      is_video_splash_screen_(
-          !base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kForceImageSplashScreen)) {
+      is_video_splash_screen_(base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceVideoSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -273,25 +272,33 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 // static
 void Shell::OnBlur() {
   CHECK(g_platform);
-  g_platform->OnBlur();
+  if (g_platform->IsVisible()) {
+    g_platform->OnBlur();
+  }
 }
 
 // static
 void Shell::OnFocus() {
   CHECK(g_platform);
-  g_platform->OnFocus();
+  if (g_platform->IsVisible()) {
+    g_platform->OnFocus();
+  }
 }
 
 // static
 void Shell::OnConceal() {
   CHECK(g_platform);
-  g_platform->OnConceal();
+  if (g_platform->IsVisible()) {
+    g_platform->OnConceal();
+  }
 }
 
 // static
 void Shell::OnReveal() {
   CHECK(g_platform);
-  g_platform->OnReveal();
+  if (!g_platform->IsVisible()) {
+    g_platform->OnReveal();
+  }
 }
 
 // static
@@ -444,6 +451,13 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents,
                               const std::string& deep_link) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (create_splash_screen_web_contents) {
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(19);
+  } else {
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(18);
+  }
+#endif
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
   create_params.initially_hidden = !is_visible;
@@ -491,14 +505,57 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
+#if BUILDFLAG(IS_ANDROIDTV)
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(20);
+#endif
     g_platform->MainFrameCreated(this);
   }
 }
 
-void Shell::PrimaryMainDocumentElementAvailable() {}
+void Shell::PrimaryMainDocumentElementAvailable() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
+#endif
+}
+
+void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
+                          const GURL& validated_url) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(31);
+#endif
+}
+
+void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(22);
+    } else {
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(29);
+    }
+  }
+#endif
+}
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(26);
+    } else {
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(30);
+    }
+  }
+#endif
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
+}
+
+void Shell::DidStartLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(21);
+#endif
 }
 
 void Shell::DidStopLoading() {
@@ -583,10 +640,9 @@ void Shell::LoadURL(const GURL& url) {
       url, std::string(),
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS)
-  // Load splash screen on linux/3p platforms. On ATV, it is called by
-  // JNI_Shell_LoadSplashScreenWebContents(). On tvOS, it is called by
-  // -viewDidLoad.
+#if !BUILDFLAG(IS_ANDROID)
+  // Load splash screen on linux/3p/tvOS platforms. On ATV, it is called by
+  // JNI_Shell_LoadSplashScreenWebContents().
   LoadSplashScreenWebContents();
 #endif
 }
@@ -1034,6 +1090,25 @@ gfx::Size Shell::GetShellDefaultSize() {
   }
 
   return default_shell_size;
+}
+
+void Shell::Focus() {
+  // Aura silently ignores focus requests for hidden windows. If the shell is
+  // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
+  // the focus until the WebContents signals it has become visible.
+  if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
+    web_contents_->Focus();
+    pending_focus_ = false;
+  } else {
+    pending_focus_ = true;
+  }
+}
+
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  if (visibility == Visibility::VISIBLE && pending_focus_) {
+    // Retry the pending focus now that the window is visible in Aura.
+    Focus();
+  }
 }
 
 void Shell::LoadProgressChanged(double progress) {

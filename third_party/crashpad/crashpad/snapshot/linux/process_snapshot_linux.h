@@ -42,10 +42,10 @@
 #include "util/process/process_id.h"
 #include "util/process/process_memory_range.h"
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
 #include "snapshot/module_snapshot_evergreen.h"
 #include "starboard/elf_loader/evergreen_info.h"
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 
 namespace crashpad {
 
@@ -68,7 +68,7 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //!     an appropriate message logged.
   bool Initialize(PtraceConnection* connection);
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   //! \brief Initializes the object with Evergreen information.
   //!
   //! \param[in] connection A connection to the process to snapshot.
@@ -79,7 +79,7 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //!     an appropriate message logged.
   bool Initialize(PtraceConnection* connnection,
                   VMAddress evergreen_information_address);
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 
   //! \brief Finds the thread whose stack contains \a stack_address.
   //!
@@ -156,9 +156,9 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
  private:
   void InitializeThreads();
   void InitializeModules();
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   void InitializeModules(VMAddress evergreen_information_address);
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif
   void InitializeAnnotations();
 
   // Initializes options_ on behalf of Initialize().
@@ -170,9 +170,9 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   UUID client_id_;
   std::vector<std::unique_ptr<internal::ThreadSnapshotLinux>> threads_;
   std::vector<std::unique_ptr<internal::ModuleSnapshotElf>> modules_;
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   std::unique_ptr<internal::ModuleSnapshotEvergreen> evergreen_module_;
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif
   std::unique_ptr<internal::ExceptionSnapshotLinux> exception_;
   internal::SystemSnapshotLinux system_;
   ProcessReaderLinux process_reader_;

@@ -59,4 +59,7 @@ interface H5vccSystem : EventTarget {
   //   - "minimize" maps to 1.
   //   - "no-exit" maps to 2.
   readonly attribute unsigned long userOnExitStrategy;
+
+  // Requests that the system splash screen be hidden on systems that support a splash screen.
+  void hideSplashScreen();
 };

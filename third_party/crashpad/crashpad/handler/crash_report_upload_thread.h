@@ -27,7 +27,7 @@
 #include "util/thread/stoppable.h"
 #include "util/thread/worker_thread.h"
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
 #include "base/files/file_path.h"
 #endif
 
@@ -83,7 +83,7 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   //!
   //! \param[in] database The database to upload crash reports from.
   //! \param[in] url The URL of the server to upload crash reports to.
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   //! \param[in] ca_certificates_path The absolute path to a directory
   //!   containing CA root certificates.
 #endif
@@ -94,7 +94,7 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   //!     If this callback is empty, it is not invoked.
   CrashReportUploadThread(CrashReportDatabase* database,
                           const std::string& url,
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
                           const base::FilePath& ca_certificates_path,
 #endif
                           const Options& options,
@@ -237,7 +237,7 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   const Options options_;
   const ProcessPendingReportsObservationCallback callback_;
   const std::string url_;
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   const base::FilePath  ca_certificates_path_;
 #endif
   WorkerThread thread_;

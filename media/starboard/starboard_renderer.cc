@@ -25,6 +25,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
@@ -128,12 +129,8 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-    const gfx::Size& viewport_size,
-    bool enable_flush_during_seek,
-    bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
+    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -147,14 +144,11 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      // TODO: b/375674101 - Connect this to the starboard::feature.
-      max_samples_per_write_(kDefaultMaxSamplePerWrite),
-      viewport_size_(viewport_size),
-      enable_flush_during_seek_(enable_flush_during_seek),
-      enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
+      experimental_features_(experimental_features),
+      max_samples_per_write_(
+          experimental_features.max_samples_per_write.value_or(
+              kDefaultMaxSamplePerWrite)),
+      viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
@@ -170,12 +164,7 @@ StarboardRenderer::StarboardRenderer(
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", max_samples_per_write=" << max_samples_per_write_
             << ", view_port_size=" << viewport_size_.ToString()
-            << ", initial_max_frames_in_decoder="
-            << starboard::ToString(initial_max_frames_in_decoder_)
-            << ", max_pending_input_frames="
-            << starboard::ToString(max_pending_input_frames_)
-            << ", video_decoder_poll_interval_ms="
-            << starboard::ToString(video_decoder_poll_interval_ms_);
+            << ", experimental_features=" << experimental_features_;
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -204,7 +193,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   LOG(INFO) << "Initializing StarboardRenderer.";
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   // Note that once this code block is enabled, we should also ensure that the
   // posted callback executes on the right object (i.e. not destroyed, use
   // WeakPtr?) in the right state (not flushed?).
@@ -216,7 +205,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   client_ = client;
   init_cb_ = std::move(init_cb);
@@ -336,13 +325,10 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
-    if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
-      task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
-    }
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_));
   }
 
   // The function can be called when there are in-flight Demuxer::Read() calls
@@ -593,7 +579,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   // Note that once this code block is enabled, we should also ensure that the
   // posted callback executes on the right object (i.e. not destroyed, use
   // WeakPtr?) in the right state (not flushed?).
@@ -604,7 +590,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   AudioDecoderConfig invalid_audio_config;
   const AudioDecoderConfig& audio_config =
@@ -633,9 +619,8 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
-      // TODO(b/375070492): Implement decode-to-texture support
-      SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-      audio_config, audio_mime_type, video_config, video_mime_type,
+      get_decode_target_graphics_context_provider_func_, audio_config,
+      audio_mime_type, video_config, video_mime_type,
       // TODO(b/326497953): Support suspend/resume.
       // TODO(b/326508279): Support background mode.
       sb_window_, drm_system_, this,
@@ -644,9 +629,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
-      initial_max_frames_in_decoder_, max_pending_input_frames_,
-      video_decoder_poll_interval_ms_
+      /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.
@@ -756,6 +739,7 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
+    color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
     paint_video_hole_frame_cb_.Run(
         stream->video_decoder_config().visible_rect().size());
   }
@@ -847,7 +831,8 @@ void StarboardRenderer::OnDemuxerStreamRead(
         base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
                        weak_factory_.GetWeakPtr(), stream, max_buffers));
   } else if (status == DemuxerStream::kError) {
-    client_->OnError(PIPELINE_ERROR_READ);
+    state_ = STATE_ERROR;
+    NotifyError(PIPELINE_ERROR_READ);
   }
 }
 
@@ -1024,7 +1009,7 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
   switch (error) {
     case kSbPlayerErrorDecode:
       MEDIA_LOG(ERROR, media_log_) << message;
-      client_->OnError(PIPELINE_ERROR_DECODE);
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
     case kSbPlayerErrorCapabilityChanged:
       MEDIA_LOG(ERROR, media_log_)
@@ -1033,11 +1018,26 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
                   : base::StringPrintf("%s: %s",
                                        kSbPlayerCapabilityChangedErrorMessage,
                                        message.c_str()));
-      client_->OnError(PIPELINE_ERROR_DECODE);
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();
       break;
+  }
+}
+
+void StarboardRenderer::NotifyError(PipelineStatus status) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // MojoRenderer in the renderer process delays assigning its `client_` pointer
+  // until the initialization callback resolves. If we encounter an error during
+  // initialization, we must resolve `init_cb_` with the error status instead of
+  // firing an asynchronous `client_->OnError()` event. Firing
+  // `client_->OnError()` before `init_cb_` is resolved will cause a null
+  // pointer dereference in `MojoRenderer::OnError()`.
+  if (init_cb_) {
+    std::move(init_cb_).Run(status);
+  } else {
+    client_->OnError(status);
   }
 }
 
@@ -1140,6 +1140,24 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+SbDecodeTarget StarboardRenderer::GetSbDecodeTarget() {
+  // This function might be called from a different thread (e.g. GPU thread)
+  // to get the decode target for rendering.
+  if (player_bridge_ && player_bridge_->IsValid()) {
+    CHECK(player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModeDecodeToTexture);
+    return player_bridge_->GetCurrentSbDecodeTarget();
+  }
+  return kSbDecodeTargetInvalid;
+}
+
+void StarboardRenderer::set_decode_target_graphics_context_provider(
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func) {
+  get_decode_target_graphics_context_provider_func_ =
+      get_decode_target_graphics_context_provider_func;
 }
 
 }  // namespace media

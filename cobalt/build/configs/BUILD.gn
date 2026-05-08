@@ -15,6 +15,7 @@
 import("//build/config/arm.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 
 config("cobalt_config") {
   configs = [
@@ -25,9 +26,10 @@ config("cobalt_config") {
   if (enable_cobalt_hermetic_hacks) {
     configs += [ ":no_mallinfo" ]
   }
-  if ((current_toolchain == starboard_toolchain &&
-       starboard_toolchain != default_toolchain) ||
-      current_toolchain == native_target) {
+  if (is_partner_toolchain ||
+      # TODO(crbug.com/390675141): Remove this condition when the Linux
+      # monolithic build is removed.
+      (is_starboard_toolchain && !is_default_toolchain)) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
@@ -148,15 +150,12 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
   }
 
-  # Use is_native_target_build and BUILDFLAG(IS_NATIVE_TARGET_BUILD) for code
+  # Use is_native_target and BUILDFLAG(IS_NATIVE_TARGET) for code
   # that should only be built using the platform's "native_target" toolchain.
   # This is for binaries that should run natively on the system, without
   # Starboard.
-  # TODO: b/406511608 - consider removing the is_native_target_build variable
-  # since it's true iff current_toolchain == native_target. We may want to
-  # rename the build variable if we do.
-  if (is_native_target_build) {
-    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
+  if (is_native_target) {
+    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET" ]
   }
 
   # Use build_base_with_cpp17 and BUILDFLAG(BUILD_BASE_WITH_CPP17) to guard
@@ -170,6 +169,13 @@ config("buildflag_defines") {
   # thing as BUILDFLAG(IS_STARBOARD).
   if (current_toolchain == starboard_toolchain) {
     defines += [ "ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN" ]
+  }
+
+  # Use BUILDFLAG(IS_PARTNER_TOOLCHAIN) to guard customizations that should
+  # only be built for the partner toolchains, as defined at
+  # starboard/build/config/toolchain_variables.gni.
+  if (is_partner_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_PARTNER_TOOLCHAIN" ]
   }
 }
 

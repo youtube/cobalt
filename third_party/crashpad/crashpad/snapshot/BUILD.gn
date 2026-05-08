@@ -19,6 +19,10 @@ if (crashpad_is_in_chromium) {
   import("//build/config/compiler/compiler.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 crashpad_static_library("snapshot") {
   sources = [
     "annotation_snapshot.cc",
@@ -65,7 +69,7 @@ crashpad_static_library("snapshot") {
     "unloaded_module_snapshot.h",
   ]
 
-  if (is_cobalt && is_native_target_build) {
+  if (is_cobalt && is_native_target) {
     sources += [
       "module_snapshot_evergreen.cc",
       "module_snapshot_evergreen.h",

@@ -28,6 +28,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -126,9 +127,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, surface_view_, flush_decoder_during_reset_,
-      reset_audio_decoder_, video_initial_max_frames_in_decoder_,
-      video_max_pending_input_frames_, video_decoder_poll_interval_ms_,
+      max_video_input_size_, experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, job_queue, drm_system_);
 
   {
@@ -155,6 +154,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   if (audio_renderer_) {
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
 
+    audio_preroll_track_.Begin("Audio Preroll", audio_renderer_);
+
     audio_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
@@ -167,6 +168,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   media_time_provider_->SetPlaybackRate(playback_rate_);
   if (video_renderer_) {
     SB_LOG(INFO) << "Initialize video renderer.";
+
+    video_preroll_track_.Begin("Video Preroll", video_renderer_);
 
     video_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
@@ -365,6 +368,9 @@ Result<void> FilterBasedPlayerWorkerHandler::SetPlaybackRate(
   }
 
   media_time_provider_->SetPlaybackRate(playback_rate_);
+  if (video_renderer_) {
+    video_renderer_->SetPlaybackRate(playback_rate_);
+  }
   Update();
   return Success();
 }
@@ -433,8 +439,10 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
+    audio_preroll_track_.End();
     SB_LOG(INFO) << "Audio prerolled.";
   } else {
+    video_preroll_track_.End();
     SB_LOG(INFO) << "Video prerolled.";
   }
 
@@ -506,6 +514,9 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 
   SB_LOG(INFO) << "FilterBasedPlayerWorkerHandler stopped.";
 
+  audio_preroll_track_.End();
+  video_preroll_track_.End();
+
   RemoveJobByToken(update_job_token_);
 
   std::unique_ptr<PlayerComponents> player_components;
@@ -545,49 +556,16 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
+void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
+    const ExperimentalFeatures& experimental_features) {
+  SB_LOG(INFO) << __func__;
+  experimental_features_ = experimental_features;
+}
+
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   SB_LOG(INFO) << "Set surface_view from " << surface_view_ << " to "
                << surface_view;
   surface_view_ = surface_view;
-}
-
-void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
-    bool flush_decoder_during_reset) {
-  SB_LOG(INFO) << "Set flush_decoder_during_reset from "
-               << flush_decoder_during_reset_ << " to "
-               << flush_decoder_during_reset;
-  flush_decoder_during_reset_ = flush_decoder_during_reset;
-}
-
-void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
-    bool reset_audio_decoder) {
-  SB_LOG(INFO) << "Set reset_audio_decoder from " << reset_audio_decoder_
-               << " to " << reset_audio_decoder;
-  reset_audio_decoder_ = reset_audio_decoder;
-}
-
-void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
-    int video_initial_max_frames_in_decoder) {
-  SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
-               << video_initial_max_frames_in_decoder_ << " to "
-               << video_initial_max_frames_in_decoder;
-  video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
-}
-
-void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
-    int video_max_pending_input_frames) {
-  SB_LOG(INFO) << "Set video_max_pending_input_frames from "
-               << video_max_pending_input_frames_ << " to "
-               << video_max_pending_input_frames;
-  video_max_pending_input_frames_ = video_max_pending_input_frames;
-}
-
-void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
-    int video_decoder_poll_interval_ms) {
-  SB_LOG(INFO) << "Set video_decoder_poll_interval_ms from "
-               << video_decoder_poll_interval_ms_ << " to "
-               << video_decoder_poll_interval_ms;
-  video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
 }
 
 }  // namespace starboard

@@ -31,26 +31,26 @@ namespace experimental {
 // bidirectional fit reuse strategy.
 class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
  public:
-  MediaBufferPoolBidirectionalReuseAllocator(
-      MediaBufferPool* pool,
-      std::size_t initial_capacity,
-      std::size_t small_allocation_threshold,
-      std::size_t allocation_increment)
-      : fallback_allocator_(pool),
+  MediaBufferPoolBidirectionalReuseAllocator(MediaBufferPool* media_buffer_pool,
+                                             size_t initial_capacity,
+                                             size_t small_allocation_threshold,
+                                             size_t allocation_increment)
+      : fallback_allocator_(media_buffer_pool),
         bidirectional_fit_reuse_allocator_(&fallback_allocator_,
                                            initial_capacity,
                                            small_allocation_threshold,
-                                           allocation_increment) {}
+                                           allocation_increment,
+                                           /*enable_decommit_on_idle=*/false) {}
 
   ~MediaBufferPoolBidirectionalReuseAllocator() {
     SB_DCHECK_EQ(GetAllocated(), 0u);
   }
 
-  void* Allocate(std::size_t size) override {
+  void* Allocate(size_t size) override {
     return AnnotatePointer(bidirectional_fit_reuse_allocator_.Allocate(size));
   }
 
-  void* Allocate(std::size_t size, std::size_t alignment) override {
+  void* Allocate(size_t size, size_t alignment) override {
     return AnnotatePointer(
         bidirectional_fit_reuse_allocator_.Allocate(size, alignment));
   }

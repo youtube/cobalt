@@ -26,7 +26,7 @@ class LifecycleTest : public ShellTestBase {
  public:
   LifecycleTest() = default;
 
-  Shell* CreateTestShell(bool is_visible) {
+  void CreateTestShell(bool is_visible) {
     InitializeShell(is_visible);
     WebContents::CreateParams create_params(browser_context());
     create_params.desired_renderer_state =
@@ -40,104 +40,112 @@ class LifecycleTest : public ShellTestBase {
     }
     EXPECT_CALL(*platform_, SetContents(_));
 
-    Shell* shell =
-        new Shell(std::move(web_contents), nullptr /* splash_contents */,
-                  /*should_set_delegate=*/true, /*topic=*/"",
-                  /*skip_for_testing=*/true);
+    shell_ = new Shell(std::move(web_contents), nullptr /* splash_contents */,
+                       /*should_set_delegate=*/true, /*topic=*/"",
+                       /*skip_for_testing=*/true);
 
     if (is_visible) {
-      platform_->CreatePlatformWindow(shell, gfx::Size(1920, 1080));
+      platform_->CreatePlatformWindow(shell_, gfx::Size(1920, 1080));
     }
 
-    Shell::FinishShellInitialization(shell);
-
-    return shell;
+    Shell::FinishShellInitialization(shell_);
   }
+
+  void TearDown() override {
+    if (shell_) {
+      EXPECT_CALL(*platform_, DestroyShell(shell_));
+      EXPECT_CALL(*platform_, CleanUp(shell_));
+      shell_->Close();
+      task_environment()->RunUntilIdle();
+      shell_ = nullptr;
+    }
+    ShellTestBase::TearDown();
+  }
+
+  Shell* shell_ = nullptr;
 };
 
 TEST_F(LifecycleTest, StartupVisible) {
-  Shell* shell = CreateTestShell(true /* is_visible */);
+  CreateTestShell(true /* is_visible */);
   EXPECT_TRUE(platform_->IsVisible());
-  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
-
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
 }
 
 TEST_F(LifecycleTest, StartupHidden) {
-  Shell* shell = CreateTestShell(false /* is_visible */);
+  CreateTestShell(false /* is_visible */);
   EXPECT_FALSE(platform_->IsVisible());
-  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
-
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
 }
 
 TEST_F(LifecycleTest, Reveal) {
-  Shell* shell = CreateTestShell(false /* is_visible */);
+  CreateTestShell(false /* is_visible */);
   EXPECT_FALSE(platform_->IsVisible());
-  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
   // Trigger reveal.
-  EXPECT_CALL(*platform_, OnReveal());
-  EXPECT_CALL(*platform_, RevealShell(shell));
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
   Shell::OnReveal();
 
   EXPECT_TRUE(platform_->IsVisible());
-  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
+}
 
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
+TEST_F(LifecycleTest, RedundantReveal) {
+  CreateTestShell(false /* is_visible */);
+
+  // First reveal.
+  EXPECT_CALL(*platform_, OnReveal()).Times(1).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  Shell::OnReveal();
+
+  // Second reveal (should be ignored by idempotent Shell logic).
+  EXPECT_CALL(*platform_, OnReveal()).Times(0);
+  Shell::OnReveal();
 }
 
 TEST_F(LifecycleTest, Conceal) {
-  Shell* shell = CreateTestShell(true /* is_visible */);
+  CreateTestShell(true /* is_visible */);
   EXPECT_TRUE(platform_->IsVisible());
-  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
 
   // Trigger conceal.
-  EXPECT_CALL(*platform_, OnConceal());
-  EXPECT_CALL(*platform_, ConcealShell(shell));
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  EXPECT_CALL(*platform_, ConcealShell(shell_));
   Shell::OnConceal();
 
   EXPECT_FALSE(platform_->IsVisible());
-  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
-
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
 }
 
 TEST_F(LifecycleTest, FreezeUnfreeze) {
-  Shell* shell = CreateTestShell(false /* is_visible */);
+  CreateTestShell(false /* is_visible */);
   TestWebContents* test_web_contents =
-      static_cast<TestWebContents*>(shell->web_contents());
+      static_cast<TestWebContents*>(shell_->web_contents());
 
   // Trigger freeze.
-  EXPECT_CALL(*platform_, OnFreeze());
+  EXPECT_CALL(*platform_, OnFreeze()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnFreeze();
+  });
   Shell::OnFreeze();
   EXPECT_TRUE(test_web_contents->IsPageFrozen());
 
   // Trigger unfreeze.
-  EXPECT_CALL(*platform_, OnUnfreeze());
+  EXPECT_CALL(*platform_, OnUnfreeze()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnUnfreeze();
+  });
   Shell::OnUnfreeze();
   EXPECT_FALSE(test_web_contents->IsPageFrozen());
-
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
 }
 
 TEST_F(LifecycleTest, BlurFocus) {
-  Shell* shell = CreateTestShell(true /* is_visible */);
+  CreateTestShell(true /* is_visible */);
 
   // Trigger blur.
   EXPECT_CALL(*platform_, OnBlur());
@@ -146,11 +154,6 @@ TEST_F(LifecycleTest, BlurFocus) {
   // Trigger focus.
   EXPECT_CALL(*platform_, OnFocus());
   Shell::OnFocus();
-
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
 }
 
 }  // namespace content

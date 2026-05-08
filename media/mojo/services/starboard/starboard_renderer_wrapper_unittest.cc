@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
@@ -30,6 +31,7 @@
 #include "media/base/test_helpers.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "starboard/decode_target.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -53,6 +55,8 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      const StarboardRendererConfig::ExperimentalFeatures&
+          experimental_features,
       const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -65,12 +69,8 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
-                          viewport_size,
-                          /*enable_flush_during_seek=*/false,
-                          /*enable_reset_audio_decoder=*/false,
-                          /*initial_max_frames_in_decoder=*/std::nullopt,
-                          /*max_pending_input_frames=*/std::nullopt,
-                          /*video_decoder_poll_interval_ms=*/std::nullopt
+                          experimental_features,
+                          viewport_size
 #if BUILDFLAG(IS_ANDROID)
                           ,
                           android_overlay_factory_cb
@@ -138,6 +138,34 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
     std::move(callback).Run();
   }
 
+  void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void PostCallbackToGpu(base::OnceCallback<void()> callback) override {}
+
+  void CreateImageOnGpu(const gfx::Size& coded_size,
+                        const gfx::ColorSpace& color_space,
+                        viz::SharedImageFormat format,
+                        scoped_refptr<gpu::ClientSharedImage>& shared_image,
+                        const std::vector<uint32_t>& texture_service_ids,
+                        const std::vector<uint32_t>& texture_targets,
+                        uint64_t decode_target,
+#if BUILDFLAG(IS_ANDROID)
+                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
  private:
   void OnWillDestroyStub(bool have_context) override {}
 };
@@ -155,13 +183,14 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
+            StarboardRendererConfig::ExperimentalFeatures{},
             gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
                 ,
             AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
                 )),
-        mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
+        mock_gpu_factory_(dedicated_task_runner) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
     // via SetGpuFactoryForTesting().
@@ -177,16 +206,16 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
-        std::string(), gfx::Size(),
-        /*enable_flush_during_seek=*/false,
-        /*enable_reset_audio_decoder=*/false,
-        /*initial_max_frames_in_decoder=*/std::nullopt,
-        /*max_pending_input_frames=*/std::nullopt,
-        /*video_decoder_poll_interval_ms=*/std::nullopt,
-        std::move(renderer_extension_receiver),
+        std::string(), StarboardRendererConfig::ExperimentalFeatures{},
+        gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
-        std::make_unique<StarboardRendererWrapper>(std::move(traits));
+        std::make_unique<StarboardRendererWrapper>(std::move(traits)
+#if BUILDFLAG(IS_ANDROID)
+                                                       ,
+                                                   /*ref_counted_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+        );
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);
 
@@ -213,6 +242,10 @@ class StarboardRendererWrapperTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  scoped_refptr<base::SequencedTaskRunner> dedicated_task_runner =
+      base::ThreadPool::CreateSingleThreadTaskRunner(
+          /*traits=*/{},
+          base::SingleThreadTaskRunnerThreadMode::DEDICATED);
   cobalt::media::VideoGeometrySetterService video_geometry_setter_service_;
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;

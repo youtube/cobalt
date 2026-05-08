@@ -21,10 +21,10 @@ namespace crashpad {
 ExceptionHandlerProtocol::ClientInformation::ClientInformation()
     : exception_information_address(0),
       sanitization_information_address(0)
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
       ,
       evergreen_information_address(0)
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
       ,
       crash_loop_before_time(0)

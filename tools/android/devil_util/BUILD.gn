@@ -5,20 +5,21 @@
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/symlink.gni")
+  import("//starboard/build/config/android_toolchain.gni")
 
   group("devil_util") {
     data_deps = [
-      ":devil_util_dist($default_toolchain)",
-      ":devil_util_host($default_toolchain)",
+      ":devil_util_dist($android_toolchain)",
+      ":devil_util_host($android_toolchain)",
     ]
   }
 
-  if (current_toolchain == default_toolchain) {
+  if (current_toolchain == android_toolchain) {
     import("//build/config/android/rules.gni")
 
     create_native_executable_dist("devil_util_dist") {
       dist_dir = "$root_build_dir/devil_util_dist"
-      binary = "$root_build_dir/devil_util_bin"
+      binary = "$root_out_dir/devil_util_bin"
       deps = [ ":devil_util_bin" ]
     }
 
