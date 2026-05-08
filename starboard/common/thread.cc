@@ -55,7 +55,6 @@ int SbPriorityToNice(SbThreadPriority priority) {
       SB_NOTREACHED();
       return 0;
   }
-  return 0;
 }
 
 struct Thread::Data {
