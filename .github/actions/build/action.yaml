@@ -133,6 +133,7 @@ runs:
         run: |
           set -ex
           cd cobalt/src
+          export SISO_CREDENTIAL_HELPER="gcloud"
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
           if [[ $USE_SCCACHE == "true" ]]; then
