@@ -65,8 +65,6 @@ const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
-const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
-    "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
     "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
@@ -138,10 +136,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
 
   // TODO(b/375232937) Add IAMF
   return codecs;
-}
-
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
 std::map<std::string, H5vccSettingValue> ParseH5vccSettings(
