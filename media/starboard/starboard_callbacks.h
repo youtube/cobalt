@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_BIND_HOST_RECEIVER_CALLBACK_H_
-#define MEDIA_STARBOARD_BIND_HOST_RECEIVER_CALLBACK_H_
+#ifndef MEDIA_STARBOARD_STARBOARD_CALLBACKS_H_
+#define MEDIA_STARBOARD_STARBOARD_CALLBACKS_H_
+
+#include <cstdint>
 
 #include "base/functional/callback.h"
-#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 
 namespace media {
 
 // Handy callback type to get sb window handle from CobaltContentRendererClient.
 using GetSbWindowHandleCallback = base::RepeatingCallback<uint64_t()>;
 
-// Handy callback type to bind host receiver to
-// VideoGeometryChangeSubscriber on browser thread.
-using BindHostReceiverCallback =
-    base::RepeatingCallback<void(mojo::GenericPendingReceiver)>;
-
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_BIND_HOST_RECEIVER_CALLBACK_H_
+#endif  // MEDIA_STARBOARD_STARBOARD_CALLBACKS_H_

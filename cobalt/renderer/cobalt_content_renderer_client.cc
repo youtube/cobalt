@@ -152,10 +152,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
-}
-
 // TODO: b/460292554 - This code is a tentative solution, and will be replaced
 // once base::Feature is fully supported.
 //
@@ -330,12 +326,6 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
           base::SequencedTaskRunner::GetCurrentDefault())};
   content::RenderThread::Get()->BindHostReceiver(
       h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
-}
-
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
-  BindHostReceiverWithValuation(std::move(receiver));
 }
 
 CobaltContentRendererClient::CobaltContentRendererClient()
@@ -513,12 +503,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ProcessH5vccSettings(h5vcc_settings);
   }
   renderer_factory_traits->experimental_features = experimental_features;
-
-  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
