@@ -13,8 +13,11 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
+
+if (is_ios && target_platform == "tvos" && is_internal_build) {
+  import("//cobalt/internal/starboard/shared/tvos/tvos.gni")
+}
 
 declare_args() {
   sb_enable_cast_codec_tests = false
@@ -115,6 +118,7 @@ test("nplb") {
       "microphone_open_test.cc",
       "microphone_read_test.cc",
       "murmurhash2_test.cc",
+      "posix_compliance/getrandom_test.cc",
       "posix_compliance/madvise_test.cc",
       "posix_compliance/malloc_usable_size_test.cc",
       "posix_compliance/posix_aligned_alloc_test.cc",
@@ -181,6 +185,7 @@ test("nplb") {
       "posix_compliance/posix_mutex_create_test.cc",
       "posix_compliance/posix_mutex_destroy_test.cc",
       "posix_compliance/posix_nanosleep_test.cc",
+      "posix_compliance/posix_net_if_test.cc",
       "posix_compliance/posix_once_test.cc",
       "posix_compliance/posix_pipe_test.cc",
       "posix_compliance/posix_poll_test.cc",
@@ -308,7 +313,6 @@ test("nplb") {
       "system_symbolize_test.cc",
       "thread_get_id_test.cc",
       "thread_priority_test.cc",
-      "thread_sampler_test.cc",
       "thread_test.cc",
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",
@@ -381,5 +385,9 @@ test("nplb") {
       "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
     ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
+  }
+
+  if (is_ios && target_platform == "tvos" && is_internal_build) {
+    sources += internal_tvos_test_sources
   }
 }

@@ -7,6 +7,27 @@ since the version previous to it.
 
 **NOTE: Starboard versions 16 and older are no longer supported.**
 
+## Version 18
+
+### Removed SbThreadSampler and SbThreadContext
+The SbThreadSampler and SbThreadContext APIs are no longer used. Instead,
+POSIX APIs are used directly.
+
+### Support decode-to-texture mode
+Implementations of `DecodeTarget` for YUV planes should ensure they use
+`GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
+rendering issues caused by Chromium's shader expectations.
+
+### Added the following POSIX symbols:
+* `getrandom`
+* `getuid`
+* `if_indextoname`
+* `if_nametoindex`
+* `statx`
+
+### Added AV2 to SbMediaVideoCodec
+This prepares Cobalt for future AV2 playback support.
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
@@ -197,7 +218,7 @@ Now the data field of this SbEvent type is a boolean indicating if text-to-speec
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to
-[migration guide](/starboard/doc/starboard_16_posix.md).
+[migration guide](/starboard/doc/starboard_17_posix.md).
 
 #### Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.

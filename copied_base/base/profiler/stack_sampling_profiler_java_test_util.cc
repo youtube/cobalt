@@ -4,8 +4,11 @@
 
 #include "base/profiler/stack_sampling_profiler_java_test_util.h"
 
-#include "base/base_profiler_test_support_jni_headers/TestSupport_jni.h"
+#include "base/android/jni_android.h"
 #include "base/location.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_profiler_test_support_jni_headers/TestSupport_jni.h"
 
 namespace base {
 

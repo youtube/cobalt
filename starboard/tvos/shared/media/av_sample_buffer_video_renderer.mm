@@ -132,6 +132,11 @@ const int kRequiredBuffersInDisplayLayer = 16;
 UIWindow* GetPlatformWindow() {
   NSSet<UIScene*>* connected_scenes =
       UIApplication.sharedApplication.connectedScenes;
+  if (connected_scenes.count == 0) {
+    return nil;
+  }
+  // We don't expect multiple scenes on tvOS. This will assert if that
+  // assumption is violated.
   SB_CHECK_EQ(connected_scenes.count, 1U);
   UIWindowScene* scene =
       base::apple::ObjCCastStrict<UIWindowScene>(connected_scenes.anyObject);

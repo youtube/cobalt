@@ -35,9 +35,6 @@
 
 // TODO(b/454962891): Investigate the upstream method to cancel a download 
 
-// TODO(b/455004672): Investigate the legacy classes and functions from m114. 
-// These classes and functions are ported from m114 because Cobalt customizations
-// depend on them.
 
 namespace update_client {
 
@@ -330,33 +327,6 @@ class Component {
     void DoHandle() override;
   };
 
-#if defined(USE_M114_FUNCTIONS)
-  class StateDownloading : public State {
-   public:
-    explicit StateDownloading(Component* component);
-    StateDownloading(const StateDownloading&) = delete;
-    StateDownloading& operator=(const StateDownloading&) = delete;
-    ~StateDownloading() override;
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override;
-#endif
-
-   private:
-    // State overrides.
-    void DoHandle() override;
-
-    // Called when progress is being made downloading a CRX. Can be called
-    // multiple times due to how the CRX downloader switches between
-    // different downloaders and fallback urls.
-    void DownloadProgress(int64_t downloaded_bytes, int64_t total_bytes);
-
-    void DownloadComplete(const CrxDownloader::Result& download_result);
-
-    // Downloads updates for one CRX id only.
-    scoped_refptr<CrxDownloader> crx_downloader_;
-  };
-#endif // defined(USE_M114_FUNCTIONS)
-
   class StateUpdating : public State {
    public:
     explicit StateUpdating(Component* component);
@@ -367,14 +337,7 @@ class Component {
    private:
     // State overrides.
     void DoHandle() override;
-#if defined(USE_M114_FUNCTIONS)
-    void InstallProgress(int install_progress);
-    void InstallComplete(ErrorCategory error_category,
-                         int error_code,
-                         int extra_code1);
-#else
     void PipelineComplete(const CategorizedError& result);
-#endif // defined(USE_M114_FUNCTIONS)
   };
 
   class StateUpdated : public State {

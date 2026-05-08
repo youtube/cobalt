@@ -32,13 +32,13 @@ static_library("updater") {
 
   deps = [
     "//base",
-    "//cobalt/browser:switches",
     "//components/crx_file",
     "//components/prefs",
+    "//components/services/unzip:in_process",
+    "//components/services/unzip/public/cpp",
     "//components/update_client",
-    "//components/update_client:buildflags",
-    "//courgette:bsdiff",
-    "//courgette:courgette_lib",
+    "//components/zucchini:zucchini_io",
+    "//components/zucchini:zucchini_lib",
     "//crypto",
     "//net",
     "//net/third_party/quiche",
@@ -48,8 +48,10 @@ static_library("updater") {
     "//starboard/common",
     "//starboard/loader_app:app_key_files",
     "//starboard/loader_app:drain_file",
+    "//third_party/puffin:libpuffpatch",
     "//third_party/zlib/google:zip",
     "//url",
   ]
+  include_dirs = [ "//third_party/puffin/src/include" ]
 }
 # TODO(b/446745795): add unit tests

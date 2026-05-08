@@ -45,6 +45,13 @@ struct SharedMemoryLimits {
   uint32_t mapped_memory_reclaim_limit = kNoLimit;
   uint32_t mapped_memory_chunk_size = 2 * 1024 * 1024;
   uint32_t max_mapped_memory_for_texture_upload = 0;
+#if BUILDFLAG(IS_STARBOARD)
+  // The threshold for in-flight mapped memory that triggers backpressure.
+  // When total allocated mapped memory exceeds this, the client will wait
+  // for the GPU to finish work before allocating more. This is a tunable
+  // trade-off between memory usage and performance.
+  uint32_t mapped_memory_allocated_bytes_cleanup_threshold = 24 * 1024 * 1024;
+#endif
 
   // These are limits for contexts only used for creating textures, mailboxing
   // them and dealing with synchronization.

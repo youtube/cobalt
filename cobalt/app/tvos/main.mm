@@ -21,14 +21,19 @@
 #include <vector>
 
 #include "base/at_exit.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/task/thread_pool.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "net/base/apple/url_conversions.h"
 #include "starboard/common/command_line.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
@@ -45,6 +50,27 @@ static const char** g_argv = nullptr;
   return content::Shell::windows()[0]->web_contents();
 }
 
+- (void)handleDeepLink:(NSSet<UIOpenURLContext*>*)URLContexts {
+  // URLContexts can contain multiple items, but since DeepLinkManager
+  // handles one link at a time, only a single context is used.
+  UIOpenURLContext* context = URLContexts.anyObject;
+  if (!context) {
+    return;
+  }
+  NSURL* url = context.URL;
+  if (!url) {
+    return;
+  }
+
+  GURL parsedURL = net::GURLWithNSURL(url);
+
+  if (!parsedURL.is_valid() || parsedURL.scheme().length() == 0) {
+    return;
+  }
+
+  cobalt::browser::DeepLinkManager::GetInstance()->OnDeepLink(parsedURL.spec());
+}
+
 - (void)scene:(UIScene*)scene
     willConnectToSession:(UISceneSession*)session
                  options:(UISceneConnectionOptions*)connectionOptions {
@@ -59,6 +85,17 @@ static const char** g_argv = nullptr;
   window.windowScene = (UIWindowScene*)scene;
   window.rootViewController = controller;
   [window makeKeyAndVisible];
+
+  // Handle deep link when the app is launched (cold start). The URL is
+  // delivered via connectionOptions.
+  [self handleDeepLink:connectionOptions.URLContexts];
+}
+
+- (void)scene:(UIScene*)scene
+    openURLContexts:(NSSet<UIOpenURLContext*>*)URLContexts {
+  // Handle deep link when the app is already running. (Cold start links are
+  // handled in willConnectToSession.)
+  [self handleDeepLink:URLContexts];
 }
 
 - (void)sceneWillEnterForeground:(UIScene*)scene {
@@ -77,6 +114,19 @@ static const char** g_argv = nullptr;
 }
 
 - (void)sceneDidBecomeActive:(UIScene*)scene {
+  // Triggering the processing of Crashpad intermediate dumps and the uploading
+  // of fully processed dumps only needs to happen once. Do it from another
+  // thread because processing the intermediate dumps is a blocking operation.
+  static dispatch_once_t once_token;
+  dispatch_once(&once_token, ^{
+    base::ThreadPool::PostTask(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+        base::BindOnce([]() {
+          ::crash_reporter::ProcessIntermediateDumps();
+          ::crash_reporter::StartProcessingPendingReports();
+        }));
+  });
+
   content::WebContents* web_contents = [self getWebContents];
   web_contents->GetRenderViewHost()->GetWidget()->Focus();
 }
@@ -152,28 +202,16 @@ static const char** g_argv = nullptr;
   return YES;
 }
 
-- (void)applicationWillResignActive:(UIApplication*)application {
-}
-
-- (void)applicationDidEnterBackground:(UIApplication*)application {
-}
-
-- (void)applicationWillEnterForeground:(UIApplication*)application {
-}
-
-- (void)applicationDidBecomeActive:(UIApplication*)application {
-}
-
 - (void)applicationWillTerminate:(UIApplication*)application {
 }
 
 - (BOOL)application:(UIApplication*)application
-    shouldSaveApplicationState:(NSCoder*)coder {
+    shouldSaveSecureApplicationState:(NSCoder*)coder {
   return YES;
 }
 
 - (BOOL)application:(UIApplication*)application
-    shouldRestoreApplicationState:(NSCoder*)coder {
+    shouldRestoreSecureApplicationState:(NSCoder*)coder {
   // TODO(crbug.com/710329): Make this value configurable in the settings.
   return YES;
 }

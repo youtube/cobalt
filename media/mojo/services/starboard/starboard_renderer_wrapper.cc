@@ -16,18 +16,28 @@
 
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gl/gl_bindings.h"
 
 namespace media {
 
 StarboardRendererWrapper::StarboardRendererWrapper(
-    StarboardRendererTraits traits)
-    : renderer_extension_receiver_(
+    StarboardRendererTraits traits
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    scoped_refptr<gpu::RefCountedLock> drdc_lock)
+    : gpu::RefCountedLockHelperDrDc(std::move(drdc_lock)),
+#else   // BUILDFLAG(IS_ANDROID)
+    )
+    :
+#endif  // BUILDFLAG(IS_ANDROID)
+      renderer_extension_receiver_(
           this,
           std::move(traits.renderer_extension_receiver)),
       client_extension_remote_(std::move(traits.client_extension_remote),
@@ -42,12 +52,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
-          traits.viewport_size,
-          traits.enable_flush_during_seek,
-          traits.enable_reset_audio_decoder,
-          traits.initial_max_frames_in_decoder,
-          traits.max_pending_input_frames,
-          traits.video_decoder_poll_interval_ms
+          traits.experimental_features,
+          traits.viewport_size
 #if BUILDFLAG(IS_ANDROID)
           ,
           std::move(traits.android_overlay_factory_cb)
@@ -58,6 +64,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
       traits.gpu_task_runner,
       std::move(traits.get_starboard_command_buffer_stub_cb));
   gpu_factory_ = std::move(gpu_factory_impl);
+  gpu_task_runner_ = std::move(traits.gpu_task_runner);
 }
 
 StarboardRendererWrapper::~StarboardRendererWrapper() = default;
@@ -172,9 +179,146 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
 void StarboardRendererWrapper::GetCurrentVideoFrame(
     GetCurrentVideoFrameCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO(b/375070492): get SbDecodeTarget from
-  // SbPlayerBridge::GetCurrentSbDecodeTarget().
-  std::move(callback).Run(nullptr);
+  {
+    // Post GetRenderer()->GetSbDecodeTarget() on the gpu thread.
+    base::OnceCallback<void()> get_current_decode_target_cb =
+        base::BindOnce(&StarboardRendererWrapper::GetCurrentDecodeTarget,
+                       base::Unretained(this));
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    GetGpuFactory()
+        ->AsyncCall(&StarboardGpuFactory::RunCallbackOnGpu)
+        .WithArgs(std::move(get_current_decode_target_cb), &done_event);
+    // This call blocks because the underlying Starboard API
+    // (SbPlayerGetCurrentFrame) is synchronous and needs to be executed on the
+    // GPU thread.
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+    done_event.Wait();
+  }
+  if (SbDecodeTargetIsValid(decode_target_)) {
+    auto info = std::make_unique<SbDecodeTargetInfo>();
+    *info = {};
+    if (!SbDecodeTargetGetInfo(decode_target_, info.get())) {
+      LOG(ERROR) << "SbDecodeTargetGetInfo failed";
+      GetGpuFactory()
+          ->AsyncCall(&StarboardGpuFactory::PostCallbackToGpu)
+          .WithArgs(base::BindOnce(
+              [](void* target) {
+                SbDecodeTarget decode_target =
+                    reinterpret_cast<SbDecodeTarget>(target);
+                if (SbDecodeTargetIsValid(decode_target)) {
+                  SbDecodeTargetRelease(decode_target);
+                }
+              },
+              reinterpret_cast<void*>(decode_target_)));
+      decode_target_ = kSbDecodeTargetInvalid;
+      std::move(callback).Run(nullptr);
+      return;
+    }
+
+    VideoPixelFormat format;
+    viz::SharedImageFormat viz_format;
+    std::vector<uint32_t> texture_service_ids;
+    std::vector<uint32_t> texture_targets;
+    scoped_refptr<gpu::ClientSharedImage> shared_image;
+    int plane_count = SbDecodeTargetNumberOfPlanesForFormat(info.get()->format);
+    DCHECK_GE(plane_count, 1);
+    const SbDecodeTargetInfoPlane& plane = info.get()->planes[0];
+    auto coded_size = gfx::Size(info.get()->width, info.get()->height);
+    auto visible_rect = gfx::Rect(
+        gfx::Point(
+            static_cast<int>(std::round(std::min(plane.content_region.left,
+                                                 plane.content_region.right))),
+            static_cast<int>(std::round(std::min(
+                plane.content_region.top, plane.content_region.bottom)))),
+        gfx::Size(
+            static_cast<int>(std::round(std::abs(plane.content_region.right -
+                                                 plane.content_region.left))),
+            static_cast<int>(std::round(std::abs(
+                plane.content_region.top - plane.content_region.bottom)))));
+    auto natural_size = visible_rect.size();
+
+    if (info.get()->format == kSbDecodeTargetFormat1PlaneRGBA) {
+      DCHECK_EQ(static_cast<size_t>(plane_count), 1u);
+      format = PIXEL_FORMAT_ABGR;
+      viz_format = viz::SinglePlaneFormat::kRGBA_8888;
+    } else if (info.get()->format == kSbDecodeTargetFormat3PlaneYUVI420) {
+      DCHECK_EQ(static_cast<size_t>(plane_count), 3u);
+      format = PIXEL_FORMAT_I420;
+      viz_format = viz::MultiPlaneFormat::kI420;
+    } else {
+      LOG(ERROR) << "Unsupported SbDecodeTargetFormat: "
+                 << static_cast<int>(info.get()->format);
+      GetGpuFactory()
+          ->AsyncCall(&StarboardGpuFactory::PostCallbackToGpu)
+          .WithArgs(base::BindOnce(
+              [](void* target) {
+                SbDecodeTarget decode_target =
+                    reinterpret_cast<SbDecodeTarget>(target);
+                if (SbDecodeTargetIsValid(decode_target)) {
+                  SbDecodeTargetRelease(decode_target);
+                }
+              },
+              reinterpret_cast<void*>(decode_target_)));
+      decode_target_ = kSbDecodeTargetInvalid;
+      std::move(callback).Run(nullptr);
+      return;
+    }
+
+    for (int plane_index = 0; plane_index < plane_count; plane_index++) {
+      texture_service_ids.push_back(info.get()->planes[plane_index].texture);
+      texture_targets.push_back(
+          info.get()->planes[plane_index].gl_texture_target);
+    }
+    DCHECK_EQ(texture_service_ids.size(), static_cast<size_t>(plane_count));
+    DCHECK_EQ(texture_targets.size(), static_cast<size_t>(plane_count));
+
+    if (current_shared_image_ &&
+        texture_service_ids == last_texture_service_ids_) {
+      shared_image = current_shared_image_;
+      GetGpuFactory()
+          ->AsyncCall(&StarboardGpuFactory::PostCallbackToGpu)
+          .WithArgs(base::BindOnce(
+              [](void* target) {
+                SbDecodeTarget decode_target =
+                    reinterpret_cast<SbDecodeTarget>(target);
+                if (SbDecodeTargetIsValid(decode_target)) {
+                  SbDecodeTargetRelease(decode_target);
+                }
+              },
+              reinterpret_cast<void*>(decode_target_)));
+      decode_target_ = kSbDecodeTargetInvalid;
+    } else {
+      base::WaitableEvent done_event(
+          base::WaitableEvent::ResetPolicy::MANUAL,
+          base::WaitableEvent::InitialState::NOT_SIGNALED);
+      GetGpuFactory()
+          ->AsyncCall(&StarboardGpuFactory::CreateImageOnGpu)
+          .WithArgs(coded_size, GetRenderer()->color_space(), viz_format,
+                    std::ref(shared_image), std::ref(texture_service_ids),
+                    std::ref(texture_targets),
+                    reinterpret_cast<uint64_t>(decode_target_),
+#if BUILDFLAG(IS_ANDROID)
+                    GetDrDcLock(),
+#endif  // BUILDFLAG(IS_ANDROID)
+                    &done_event);
+      // Blocking is okay here to create image from textures on gpu thread.
+      base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+      done_event.Wait();
+      if (shared_image) {
+        current_shared_image_ = shared_image;
+        last_texture_service_ids_ = texture_service_ids;
+        decode_target_ = kSbDecodeTargetInvalid;
+      }
+    }
+
+    if (shared_image) {
+      CreateVideoFrame_OnImageReady(format, coded_size, visible_rect,
+                                    natural_size, std::move(shared_image));
+    }
+  }
+  std::move(callback).Run(current_frame_);
 }
 
 void StarboardRendererWrapper::OnSbWindowHandleReady(
@@ -222,7 +366,14 @@ void StarboardRendererWrapper::ContinueInitialization(
     PipelineStatusCallback init_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(init_cb);
-  // TODO(b/375070492): add |decode_target_graphics_context_provider_|.
+  is_gpu_factory_initialized_ = true;
+  decode_target_graphics_context_provider_.gles_context_runner_context = this;
+  decode_target_graphics_context_provider_.gles_context_runner =
+      &StarboardRendererWrapper::GraphicsContextRunner;
+  GetRenderer()->set_decode_target_graphics_context_provider(
+      base::BindRepeating(
+          &StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider,
+          base::Unretained(this)));
 
   GetRenderer()->Initialize(media_resource, client, std::move(init_cb));
 }
@@ -257,5 +408,74 @@ void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard(
   client_extension_remote_->RequestOverlayInfo(restart_for_transitions);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+SbDecodeTargetGraphicsContextProvider*
+StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider() {
+  return &decode_target_graphics_context_provider_;
+}
+
+// static
+// Disable CFI checks for this method because it executes function pointers
+// provided by the Starboard library, which cannot be verified across the
+// DSO boundary.
+NO_SANITIZE("cfi-icall")
+void StarboardRendererWrapper::GraphicsContextRunner(
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context) {
+  auto provider = reinterpret_cast<StarboardRendererWrapper*>(
+      graphics_context_provider->gles_context_runner_context);
+  if (!provider || !provider->is_gpu_factory_initialized_) {
+    return;
+  }
+  if (provider->gpu_task_runner_->RunsTasksInCurrentSequence()) {
+    // If it is on the gpu thread, post target_function() directly on it.
+    target_function(target_function_context);
+  } else if (provider->gpu_factory_) {
+    // If it is not on the gpu thread, post target_function() with
+    // |gpu_factory_|.
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    provider->gpu_factory_
+        .AsyncCall(&StarboardGpuFactory::RunSbDecodeTargetFunctionOnGpu)
+        .WithArgs(target_function, target_function_context, &done_event);
+    // Blocking is okay here to allow SbPlayer to post |target_function|
+    // on gpu thread, and StarboardRenderer waits for the execution.
+    base::ScopedAllowBaseSyncPrimitives allow_wait;
+    done_event.Wait();
+  }
+}
+
+void StarboardRendererWrapper::GetCurrentDecodeTarget() {
+  decode_target_ = GetRenderer()->GetSbDecodeTarget();
+}
+
+void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
+    VideoPixelFormat format,
+    const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size,
+    scoped_refptr<gpu::ClientSharedImage> shared_image) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  auto release_cb = base::BindOnce(
+      [](scoped_refptr<gpu::ClientSharedImage> shared_image,
+         const gpu::SyncToken& sync_token) {
+        if (sync_token.HasData()) {
+          shared_image->BackingWasExternallyUpdated(sync_token);
+        }
+      },
+      shared_image);
+
+  auto frame = VideoFrame::WrapSharedImage(
+      format, std::move(shared_image), gpu::SyncToken(), std::move(release_cb),
+      coded_size, visible_rect, natural_size, base::TimeDelta());
+  if (!frame) {
+    LOG(ERROR) << __func__ << " failed to create video frame";
+    return;
+  }
+  current_frame_ = std::move(frame);
+}
 
 }  // namespace media

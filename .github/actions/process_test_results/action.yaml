@@ -10,6 +10,9 @@ inputs:
   results_glob:
     description: "Path (or glob) to test result xml files."
     required: true
+  log_glob:
+    description: "Path (or glob) to test result log files."
+    required: true
   num_gtest_shards:
     description: Number of gtest shards run.
     required: true
@@ -37,6 +40,7 @@ runs:
         TESTS_SKIPPED: ${{ steps.test-summary.outputs.skipped }}
         TESTS_TOTAL: ${{ steps.test-summary.outputs.total }}
         RESULTS_GLOB: ${{ inputs.results_glob }}
+        LOG_GLOB: ${{ inputs.log_glob }}
         TARGET_NAME: ${{ inputs.target_name }}
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
@@ -48,8 +52,17 @@ runs:
         shopt -s globstar nullglob
 
         result_xmls=(${RESULTS_GLOB})
+        result_logs=(${LOG_GLOB})
+
         if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
-          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${GTEST_SHARDS}). Did a test shard crash?"
+          if [ ${#result_logs[@]} -gt ${#result_xmls[@]} ]; then
+            # If there are more log files than test results, test shards probably crashed.
+            msg="Some targets likely crashed."
+          else
+            # If both the logs and the results are missing the tests probably failed to run.
+            msg="Some targets may have failed to run."
+          fi
+          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
           exit_code=1
         fi
 

@@ -22,7 +22,6 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/values.h"
-#include "cobalt/updater/util.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -126,7 +125,7 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
       continue;
     }
 
-    SB_DLOG(INFO) << "CobaltSlotManagement::SelectSlot: installation_path = "
+    SB_LOG(INFO) << "CobaltSlotManagement::SelectSlot: installation_path = "
                   << installation_path.data();
 
     base::FilePath installation_dir(
@@ -138,8 +137,7 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
     // Cleanup all drain files from the current app.
     DrainFileClearForApp(installation_dir.value().c_str(), app_key_.c_str());
 
-    base::Version version =
-        cobalt::updater::ReadEvergreenVersion(installation_dir);
+    base::Version version = ReadEvergreenVersion(installation_dir);
     if (!version.IsValid()) {
       LOG(INFO) << "CobaltSlotManagement::SelectSlot installed version invalid";
       if (!DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
@@ -189,7 +187,7 @@ bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
   if (!initialized_) {
     return false;
   }
-  LOG(INFO) << "CobaltSlotManagement::ConfirmSlot ";
+  LOG(INFO) << "CobaltSlotManagement::ConfirmSlot, dir = " << dir.value().c_str();
   if (!DrainFileRankAndCheck(dir.value().c_str(), app_key_.c_str())) {
     LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to lock slot ";
     return false;
@@ -315,14 +313,14 @@ bool CobaltQuickUpdate(
       continue;
     }
 
-    SB_DLOG(INFO) << "CobaltQuickInstallation: installation_path = "
+    SB_LOG(INFO) << "CobaltQuickInstallation: installation_path = "
                   << installation_path.data();
 
     base::FilePath installation_dir = base::FilePath(
         std::string(installation_path.begin(), installation_path.end()));
 
     base::Version installed_version =
-        cobalt::updater::ReadEvergreenVersion(installation_dir);
+        ReadEvergreenVersion(installation_dir);
 
     std::string good_app_key_file_path =
         loader_app::GetGoodAppKeyFilePath(

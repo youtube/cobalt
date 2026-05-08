@@ -52,6 +52,12 @@ uid_t geteuid() {
   return __abi_wrap_geteuid();
 }
 
+uid_t __abi_wrap_getuid();
+
+uid_t getuid() {
+  return __abi_wrap_getuid();
+}
+
 int __abi_wrap_access(const char* path, int amode);
 
 int access(const char* path, int amode) {

@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MIME_TYPE_H_
 
 #include <iosfwd>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -67,9 +68,7 @@ class MimeType {
   // Expose the function as a helper function to parse a mime attribute.
   static bool ParseParamString(const std::string& param_string, Param* param);
 
-  explicit MimeType(const std::string& content_type);
-
-  bool is_valid() const { return is_valid_; }
+  static std::optional<MimeType> Create(const std::string& content_type);
 
   const std::string& type() const { return type_; }
   const std::string& subtype() const { return subtype_; }
@@ -110,13 +109,17 @@ class MimeType {
  private:
   // Use std::vector as the number of components are usually small and we'd like
   // to keep the order of components.
-  typedef std::vector<Param> Params;
+  using Params = std::vector<Param>;
 
-  bool is_valid_ = false;
-  std::string type_;
-  std::string subtype_;
-  std::vector<std::string> codecs_;
-  Params params_;
+  MimeType(std::string type,
+           std::string subtype,
+           std::vector<std::string> codecs,
+           Params params);
+
+  const std::string type_;
+  const std::string subtype_;
+  const std::vector<std::string> codecs_;
+  const Params params_;
 };
 
 }  // namespace starboard

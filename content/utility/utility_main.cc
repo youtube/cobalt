@@ -34,7 +34,9 @@
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
-#include "services/on_device_model/on_device_model_service.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/on_device_model/on_device_model_service.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "services/tracing/public/cpp/trace_startup.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 
@@ -251,9 +253,11 @@ int UtilityMain(MainFunctionParams parameters) {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
     CHECK(on_device_model::OnDeviceModelService::PreSandboxInit());
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   // Thread type delegate of the process should be registered before first
@@ -287,11 +291,13 @@ int UtilityMain(MainFunctionParams parameters) {
     case sandbox::mojom::Sandbox::kAudio:
       pre_sandbox_hook = base::BindOnce(&audio::AudioPreSandboxHook);
       break;
+#if !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
       on_device_model::OnDeviceModelService::AddSandboxLinuxOptions(
           sandbox_options);
       pre_sandbox_hook = base::BindOnce(&GpuPreSandboxHook);
       break;
+#endif  // !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kSpeechRecognition:
       pre_sandbox_hook =
           base::BindOnce(&speech::SpeechRecognitionPreSandboxHook);
@@ -464,9 +470,11 @@ int UtilityMain(MainFunctionParams parameters) {
 
   run_loop.Run();
 
+#if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
     CHECK(on_device_model::OnDeviceModelService::Shutdown());
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if defined(LEAK_SANITIZER)
   // Invoke LeakSanitizer before shutting down the utility thread, to avoid

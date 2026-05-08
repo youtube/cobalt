@@ -74,7 +74,6 @@ rdk_gcc_toolchain("native_target") {
   }
   toolchain_args = {
     is_starboard = false
-    is_native_target_build = true
     sysroot = "$rdk_sysroot"
     build_base_with_cpp17 = true
     enable_base_tracing = false

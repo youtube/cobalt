@@ -16,6 +16,7 @@
 #define MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 
 #include <optional>
+#include <ostream>
 #include <string>
 
 #include "base/time/time.h"
@@ -27,17 +28,30 @@ namespace media {
 
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
+  struct ExperimentalFeatures {
+    // keep-sorted start
+    bool disable_low_performance_sw_decoder = false;
+    bool enable_av1_startup_optimization = false;
+    bool enable_codec_output_checker = false;
+    bool enable_flush_during_seek = false;
+    bool enable_reset_audio_decoder = false;
+    bool force_decode_to_texture = false;
+    bool skip_flush_on_decoder_teardown = false;
+    std::optional<bool> use_dual_threads_for_video;
+    std::optional<int> max_samples_per_write;
+    std::optional<int> video_decoder_initial_preroll_count;
+    std::optional<int> video_renderer_min_decoded_frames;
+    std::optional<int> video_renderer_min_input_buffers;
+    // keep-sorted end
+  };
+
   StarboardRendererConfig();
   StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,
                           base::TimeDelta audio_write_duration_local,
                           base::TimeDelta audio_write_duration_remote,
                           const std::string& max_video_capabilities,
-                          const gfx::Size& viewport_size,
-                          const bool enable_flush_during_seek,
-                          const bool enable_reset_audio_decoder,
-                          std::optional<int> initial_max_frames_in_decoder,
-                          std::optional<int> max_pending_input_frames,
-                          std::optional<int> video_decoder_poll_interval_ms);
+                          const ExperimentalFeatures& experimental_features,
+                          const gfx::Size& viewport_size);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -45,13 +59,13 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
+  ExperimentalFeatures experimental_features;
   gfx::Size viewport_size;
-  bool enable_flush_during_seek;
-  bool enable_reset_audio_decoder;
-  std::optional<int> initial_max_frames_in_decoder;
-  std::optional<int> max_pending_input_frames;
-  std::optional<int> video_decoder_poll_interval_ms;
 };
+
+MEDIA_EXPORT std::ostream& operator<<(
+    std::ostream& os,
+    const StarboardRendererConfig::ExperimentalFeatures& features);
 
 }  // namespace media
 

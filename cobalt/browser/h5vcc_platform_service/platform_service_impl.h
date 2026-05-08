@@ -53,7 +53,7 @@ class PlatformServiceImpl
   ~PlatformServiceImpl() override;
 
   // mojom::PlatformService implementation:
-  void Send(const std::vector<uint8_t>& data, SendCallback callback) override;
+  void Send(base::span<const uint8_t> data, SendCallback callback) override;
 
  private:
   PlatformServiceImpl(

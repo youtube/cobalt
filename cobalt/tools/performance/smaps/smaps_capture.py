@@ -112,9 +112,11 @@ class SmapsCapturer:
       return []
 
   def get_pids_android(self):
-    """Executes 'adb shell pidof' and returns a list containing the PID."""
+    """Executes 'adb shell run-as <process_name> pidof'
+       and returns a list containing the PID."""
     try:
-      command = self.build_adb_command('shell', 'pidof', self.process_name)
+      command = self.build_adb_command('shell', 'run-as', self.process_name,
+                                       'pidof', self.process_name)
       result = self.subprocess.run(
           command,
           capture_output=True,
@@ -164,7 +166,7 @@ class SmapsCapturer:
 
   def capture_smaps_android(self, pid):
     """Efficiently streams /proc/pid/smaps content
-       from Android to a local file."""
+       from Android to a local file using run-as."""
     timestamp = self.datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     output_filename = self.os.path.join(self.output_dir,
                                         f'smaps_{timestamp}_{pid}.txt')
@@ -172,7 +174,8 @@ class SmapsCapturer:
     print(f'[{timestamp}] Capturing /proc/{pid}/smaps from Android...')
 
     try:
-      command = self.build_adb_command('shell', 'cat', f'/proc/{pid}/smaps')
+      command = self.build_adb_command('shell', 'run-as', self.process_name,
+                                       'cat', f'/proc/{pid}/smaps')
 
       with self.open(output_filename, 'w', encoding='utf-8') as f:
         process = self.subprocess.run(

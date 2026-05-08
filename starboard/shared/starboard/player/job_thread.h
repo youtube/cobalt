@@ -22,6 +22,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
@@ -41,9 +42,10 @@ namespace starboard {
 // caller level.
 class JobThread {
  public:
-  static std::unique_ptr<JobThread> Create(std::string_view thread_name);
-  static std::unique_ptr<JobThread> Create(std::string_view thread_name,
-                                           SbThreadPriority priority);
+  static std::unique_ptr<JobThread> Create(
+      std::string_view thread_name,
+      const ThreadOptions& options =
+          ThreadOptions().SetPriority(kSbThreadPriorityNormal));
   ~JobThread();
 
   bool BelongsToCurrentThread() const {

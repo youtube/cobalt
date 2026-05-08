@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -25,6 +26,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
@@ -59,15 +61,9 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetVolume(double volume) override;
   Result<void> SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
+  void SetExperimentalFeatures(
+      const ExperimentalFeatures& experimental_features) override;
   void SetVideoSurfaceView(void* surface_view) override;
-  void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
-  void SetResetAudioDecoder(bool reset_audio_decoder) override;
-  void SetVideoInitialMaxFramesInDecoder(
-      int video_initial_max_frames_in_decoder) override;
-  void SetVideoMaxPendingInputFrames(
-      int video_max_pending_input_frames) override;
-  void SetVideoDecoderPollIntervalMs(
-      int video_decoder_poll_interval_ms) override;
   void Stop() override;
 
   void Update();
@@ -117,14 +113,14 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool audio_ended_ = false;
   bool video_ended_ = false;
 
+  // For preroll event tracing.
+  MediaEventTracer audio_preroll_track_;
+  MediaEventTracer video_preroll_track_;
+
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
+  ExperimentalFeatures experimental_features_;
   void* surface_view_ = nullptr;
-  bool flush_decoder_during_reset_ = false;
-  bool reset_audio_decoder_ = false;
-  std::optional<int> video_initial_max_frames_in_decoder_;
-  std::optional<int> video_max_pending_input_frames_;
-  std::optional<int> video_decoder_poll_interval_ms_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const VideoStreamInfo video_stream_info_;

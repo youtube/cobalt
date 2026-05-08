@@ -47,7 +47,7 @@ base::OnceClosure DownloadOperation(
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
 #if defined(IN_MEMORY_UPDATES)
-    std::string* crx_str,
+    const std::string* crx_str,
 #endif
     CrxDownloader::ProgressCallback progress_callback,
 #if BUILDFLAG(IS_STARBOARD)

@@ -14,34 +14,56 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include <memory>
+#include <optional>
+#include <utility>
+#include <variant>
+
+#include "base/check_op.h"
+#include "base/command_line.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
-#include "base/trace_event/trace_log.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/common/cobalt_thread_checker.h"
+#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/utility/cobalt_content_utility_client.h"
+#include "content/public/browser/browser_main_runner.h"
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/common/main_function_params.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
+#include "cobalt/app/cobalt_crash_reporter_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
-#include "content/common/content_constants_internal.h"
 #include "content/public/app/initialize_mojo_core.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
-
 #if BUILDFLAG(IS_ANDROIDTV)
-#include "cobalt/app/cobalt_crash_reporter_client.h"
-#include "components/crash/core/app/crashpad.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #endif
 
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#include "base/base_switches.h"
+#include "v8/include/v8-wasm-trap-handler-posix.h"
+#endif
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link,
-                                       bool is_content_browsertests,
-                                       bool is_visible)
+CobaltMainDelegate::CobaltMainDelegate(
+    absl::optional<int64_t> startup_timestamp,
+    const char* initial_deep_link,
+    bool is_content_browsertests,
+    bool is_visible)
     : content::ShellMainDelegate(),
+      startup_timestamp_(startup_timestamp),
       is_visible_(is_visible),
       deep_link_(initial_deep_link ? initial_deep_link : "") {
   is_content_browsertests_ = is_content_browsertests;
@@ -54,6 +76,9 @@ CobaltMainDelegate::~CobaltMainDelegate() {
 
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(14);
+#endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -62,9 +87,8 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  browser_client_ =
-      std::make_unique<CobaltContentBrowserClient>(deep_link_, is_visible_);
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(
+      startup_timestamp_, deep_link_, is_visible_);
   return browser_client_.get();
 }
 
@@ -91,6 +115,9 @@ CobaltMainDelegate::CreateContentUtilityClient() {
 std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(15);
+#endif
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -137,6 +164,9 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(16);
+#endif
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);
@@ -161,18 +191,32 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   return 0;
 }
 
-#if BUILDFLAG(IS_ANDROIDTV)
 void CobaltMainDelegate::PreSandboxStartup() {
-  std::string process_type =
-      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kProcessType);
-  CobaltCrashReporterClient::Create();
-  crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-  crash_reporter::SetUploadConsent(true);
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
+  const bool initialize_crashpad = true;
+#else
+  const bool initialize_crashpad =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter);
+#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 
-  content::ShellMainDelegate::PreSandboxStartup();
+  if (initialize_crashpad) {
+    const std::string process_type =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kProcessType);
+    CobaltCrashReporterClient::Create();
+    if (process_type != switches::kZygoteProcess) {
+      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+      crash_reporter::SetUploadConsent(true);
+#if BUILDFLAG(IS_LINUX)
+      crash_reporter::SetFirstChanceExceptionHandler(
+          v8::TryHandleWebAssemblyTrapPosix);
+#endif
+    }
+  }
+
+  ShellMainDelegate::PreSandboxStartup();
 }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);

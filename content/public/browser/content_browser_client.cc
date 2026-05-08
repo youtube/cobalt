@@ -21,9 +21,11 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "components/language_detection/content/browser/content_language_detection_driver.h"
-#include "components/language_detection/content/common/language_detection.mojom.h"
-#include "components/language_detection/core/browser/language_detection_model_provider.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/language_detection/content/browser/content_language_detection_driver.h"  // nogncheck
+#include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
+#include "components/language_detection/core/browser/language_detection_model_provider.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/ai/echo_ai_manager_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/anchor_element_preconnect_delegate.h"
@@ -1895,6 +1897,7 @@ void ContentBrowserClient::BindTranslationManager(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::TranslationManager> receiver) {}
 
+#if !BUILDFLAG(IS_COBALT)
 namespace {
 // TODO(https://crbug.com/383035345): Use BASE_FEATURE_PARAM.
 const base::FeatureParam<std::string> kLanguageDetectionLocalFileModelPath{
@@ -1941,6 +1944,7 @@ void ContentBrowserClient::BindLanguageDetectionDriver(
     GetContentLanguageDetectionDriver().AddReceiver(std::move(receiver));
   }
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
 void ContentBrowserClient::QueryInstalledWebAppsByManifestId(

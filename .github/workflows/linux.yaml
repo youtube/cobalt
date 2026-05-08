@@ -20,6 +20,8 @@ on:
         type: boolean
         default: false
 
+permissions: read-all
+
 jobs:
   # This is default Chromium build config
   chromium_linux-x64:

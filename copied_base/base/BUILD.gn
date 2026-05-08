@@ -37,7 +37,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/sysroot.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
-import("//build/timestamp.gni")
 import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
@@ -96,11 +95,20 @@ assert(!is_win || is_clang,
 
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
+
+  # JNI headers for copied_base are generated under jni_headers/copied_base/base.
+  # Add it to the include dirs so the regular '#include "base/..."' includes work.
+  config("copied_base_jni_include_dir") {
+    include_dirs = [ "$jni_headers_dir/copied_base" ]
+  }
 }
 
 if (is_fuchsia) {
   import("//third_party/fuchsia-sdk/sdk/build/fidl_library.gni")
 }
+
+_build_date_header = "$target_gen_dir/generated_build_date.h"
 
 if (is_cobalt) {
   use_perfetto_client_library = true
@@ -942,6 +950,7 @@ component("base") {
     "version.h",
     "vlog.cc",
     "vlog.h",
+    _build_date_header,
   ]
 
 
@@ -1293,8 +1302,8 @@ component("base") {
     ]
 
     deps += [
-      "//third_party/android_ndk:cpu_features",
       "//third_party/ashmem",
+      "//third_party/cpu_features:ndk_compat",
     ]
 
     # Needs to be a public config so that dependent targets link against it as
@@ -1376,7 +1385,13 @@ component("base") {
       "android/trace_event_binding.cc",
       "android/trace_event_binding.h",
     ]
-    deps += [":base_jni_headers"]
+
+    public_configs += [ ":copied_base_jni_include_dir" ]
+    
+    deps += [
+      ":base_jni",
+      ":process_launcher_jni",
+    ]
   }  # is_android || is_robolectric
 
   # Chromeos.
@@ -1750,18 +1765,29 @@ component("base") {
       "//starboard:starboard_group",
       "//starboard/common",
     ]
+
+    # TODO(crbug.com/509811765): Android is the only platform whose starboard
+    # library depends on //base. On AOSP, `is_starboard` is true, so this leads
+    # to a circular dependency.
+    if (is_android) {
+      deps -= [ "//starboard:starboard_group" ]
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
   }
 
   if (is_cobalt_hermetic_build) {
     sources -= [
       "debug/debugger_posix.cc",
       "process/process_posix.cc",
-      "process/process_linux.cc",
     ]
     sources += [
       "process/process_stubs.cc",
       "starboard/debugger_starboard.cc",
     ]
+
+    if (is_linux) {
+      sources -= [ "process/process_linux.cc" ]
+    }
   }
 
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
@@ -1771,7 +1797,6 @@ component("base") {
       # #include <linux/magic.h>
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
-      "files/dir_reader_linux.h",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
@@ -1796,6 +1821,12 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+
+    if (is_linux) {
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      sources -= [ "files/dir_reader_linux.h" ]
+    }
   }
 
   # Windows.
@@ -2981,7 +3012,7 @@ source_set("base_stack_sampling_profiler_test_util") {
       "profiler/stack_sampling_profiler_java_test_util.h",
     ]
     deps += [
-      ":base_profiler_test_support_jni_headers",
+      ":base_profiler_test_support_jni",
       ":native_unwinder_android",
     ]
   }
@@ -3655,7 +3686,6 @@ test("base_unittests") {
 
   if (is_starboard) {
     sources -= [
-      "debug/proc_maps_linux_unittest.cc",
       "debug/stack_trace_unittest.cc",
       "files/file_path_watcher_unittest.cc",
       "files/file_util_unittest.cc",
@@ -3664,18 +3694,24 @@ test("base_unittests") {
       "metrics/field_trial_unittest.cc",
       "native_library_unittest.cc",
       "process/process_metrics_unittest.cc",
-      "process/process_util_unittest.cc",
-      "process/process_unittest.cc",
       "profiler/module_cache_unittest.cc",
       "profiler/stack_sampling_profiler_unittest.cc",
       "profiler/stack_sampler_unittest.cc",
       "sync_socket_unittest.cc",
       "system/sys_info_unittest.cc",
-      "test/launcher/test_launcher_unittest.cc",
-      "test/launcher/test_results_tracker_unittest.cc",
       "test/task_environment_unittest.cc",
       "task/thread_pool/thread_pool_impl_unittest.cc",
     ]
+
+    if (is_linux) {
+      sources -= [
+        "debug/proc_maps_linux_unittest.cc",
+        "process/process_unittest.cc",
+        "process/process_util_unittest.cc",
+        "test/launcher/test_launcher_unittest.cc",
+        "test/launcher/test_results_tracker_unittest.cc",
+      ]
+    }
   }
 
   # TODO: b/402471389 - Cobalt: try to enable these tests.
@@ -3780,7 +3816,7 @@ test("base_unittests") {
       deps += [
         ":base_profiler_reparsing_test_support_library",
         ":base_profiler_test_support_java",
-        ":base_profiler_test_support_jni_headers",
+        ":base_profiler_test_support_jni",
         ":base_profiler_test_support_library",
         ":native_unwinder_android",
       ]
@@ -4167,19 +4203,15 @@ if (is_win && toolchain_has_rust) {
   }
 }
 
-action("build_date") {
-  script = "write_build_date_header.py"
-
-  outputs = [ "$target_gen_dir/generated_build_date.h" ]
-
-  args = [
-    rebase_path("$target_gen_dir/generated_build_date.h", root_build_dir),
-    build_timestamp,
-  ]
+copy("build_date") {
+  # Reuse the file generated by //base:build_date_internal.
+  sources = [ "$root_build_dir/gen/base/generated_build_date_internal.h" ]
+  outputs = [ _build_date_header ]
+  deps = [ "//base:build_date_internal($default_toolchain)" ]
 }
 
 if (is_android || is_robolectric) {
-  generate_jni("base_jni_headers") {
+  generate_jni("base_jni") {
     sources = [
       "android/java/src/org/chromium/base/ApkAssets.java",
       "android/java/src/org/chromium/base/ApplicationStatus.java",
@@ -4219,7 +4251,6 @@ if (is_android || is_robolectric) {
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/metrics/NativeUmaRecorder.java",
       "android/java/src/org/chromium/base/metrics/StatisticsRecorderAndroid.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
       "android/java/src/org/chromium/base/task/PostTask.java",
       "android/java/src/org/chromium/base/task/TaskRunnerImpl.java",
     ]
@@ -4237,6 +4268,12 @@ if (is_android || is_robolectric) {
   generate_jar_jni("android_runtime_unchecked_jni_headers") {
     classes = [ "java/lang/Runnable.class" ]
     unchecked_exceptions = true
+  }
+
+  generate_jni("process_launcher_jni") {
+    sources = [
+      "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
+    ]
   }
 }  # is_android || is_robolectric
 
@@ -4281,7 +4318,10 @@ if (is_android) {
   }
 
   android_library("process_launcher_java") {
-    srcjar_deps = [ ":process_launcher_aidl" ]
+    srcjar_deps = [
+      ":process_launcher_aidl",
+      ":process_launcher_jni",
+    ]
     deps = [
       ":base_java",
       ":jni_java",
@@ -4306,13 +4346,12 @@ if (is_android) {
       "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionImpl.java",
       "android/java/src/org/chromium/base/process_launcher/FileDescriptorInfo.java",
     ]
-
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java") {
     srcjar_deps = [
       ":base_android_java_enums_srcjar",
+      ":base_jni",
       ":java_features_srcjar",
       ":java_switches_srcjar",
     ]
@@ -4451,8 +4490,6 @@ if (is_android) {
       sources += [ "android/java/src/org/chromium/base/IntentUtils.java" ]
     }
 
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
-
     resources_package = "org.chromium.base"
 
     proguard_configs = [
@@ -4517,19 +4554,19 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/util/GarbageCollectionTestUtilsTest.java",
     ]
 
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
+    srcjar_deps = [ ":base_javatests_jni" ]
   }
 
   source_set("base_javatests_lib") {
     testonly = true
     deps = [
       ":base",
-      ":base_javatests_jni_headers",
+      ":base_javatests_jni",
     ]
     sources = [ "test/library_loader/early_native_test_helper.cc" ]
   }
 
-  generate_jni("base_javatests_jni_headers") {
+  generate_jni("base_javatests_jni") {
     testonly = true
     sources = [ "android/javatests/src/org/chromium/base/library_loader/EarlyNativeTest.java" ]
   }
@@ -4547,7 +4584,6 @@ if (is_android) {
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/junit:junit",
     ]
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java_test_support") {
@@ -4557,10 +4593,9 @@ if (is_android) {
       ":base_java",
       "//copied_base/base:jni_java",
       "//build/android:build_java",
-      "//third_party/accessibility_test_framework:accessibility_test_framework_java",
+      "//third_party/accessibility_test_framework:accessibility_core_java",
       "//third_party/android_deps:espresso_java",
       "//third_party/android_deps:guava_android_java",
-      "//third_party/android_sdk:android_test_base_java",
       "//third_party/android_sdk:android_test_mock_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_core_core_java",
@@ -4649,7 +4684,14 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/TimeoutTimer.java",
       "test/android/javatests/src/org/chromium/base/test/util/UserActionTester.java",
     ]
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
+  }
+
+  generate_jni("base_java_test_support_uncommon_jni") {
+    testonly = true
+    sources = [
+      "test/android/javatests/src/org/chromium/base/test/ReachedCodeProfiler.java",
+      "test/android/javatests/src/org/chromium/base/test/task/ThreadPoolTestHelpers.java",
+    ]
   }
 
   android_library("base_java_test_support_uncommon") {
@@ -4664,6 +4706,7 @@ if (is_android) {
       "//third_party/junit:junit",
     ]
 
+    srcjar_deps = [ ":base_java_test_support_uncommon_jni" ]
     sources = [
       "test/android/javatests/src/org/chromium/base/FakeTimeTestRule.java",
       "test/android/javatests/src/org/chromium/base/test/BundleTestRule.java",
@@ -4676,8 +4719,6 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/InstrumentationUtils.java",
       "test/android/javatests/src/org/chromium/base/test/util/Matchers.java",
     ]
-
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
   }
 
   android_library("base_java_process_launcher_test_support") {
@@ -4796,7 +4837,7 @@ if (is_android) {
     }
   }
 
-  generate_jni("base_profiler_test_support_jni_headers") {
+  generate_jni("base_profiler_test_support_jni") {
     testonly = true
     sources =
         [ "android/javatests/src/org/chromium/base/profiler/TestSupport.java" ]
@@ -4807,7 +4848,7 @@ if (is_android) {
     sources =
         [ "android/javatests/src/org/chromium/base/profiler/TestSupport.java" ]
 
-    annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
+    srcjar_deps = [ ":base_profiler_test_support_jni" ]
 
     deps = [
       "//copied_base/base:jni_java",

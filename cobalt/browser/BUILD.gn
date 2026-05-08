@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 if (is_ios) {
@@ -101,7 +100,10 @@ source_set("browser") {
   }
 
   if (is_ios && target_platform == "tvos") {
-    deps += [ "//cobalt/browser/tvos:network_error_handler" ]
+    deps += [
+      "//cobalt/browser:cobalt_crash_annotations",
+      "//cobalt/browser/tvos:network_error_handler",
+    ]
   }
 
   if (is_starboard) {
@@ -164,6 +166,8 @@ if (is_androidtv) {
 
 source_set("metrics") {
   sources = [
+    "metrics/cobalt_cpu_metrics_emitter.cc",
+    "metrics/cobalt_cpu_metrics_emitter.h",
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
     "metrics/cobalt_memory_metrics_emitter.cc",
@@ -176,7 +180,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
-    ":switches",
+    ":features",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",

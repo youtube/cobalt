@@ -82,6 +82,12 @@ class AudioRendererTest : public ::testing::Test {
         }));  // NOLINT
     EXPECT_CALL(*audio_renderer_sink_, Stop()).Times(AnyNumber());
 
+    ON_CALL(*audio_renderer_sink_, Reset())
+        .WillByDefault(InvokeWithoutArgs([this]() {
+          audio_renderer_sink_->SetHasStarted(false);
+        }));  // NOLINT
+    EXPECT_CALL(*audio_renderer_sink_, Reset()).Times(AnyNumber());
+
     ON_CALL(*audio_renderer_sink_, HasStarted())
         .WillByDefault(::testing::ReturnPointee(
             audio_renderer_sink_->HasStartedPointer()));
@@ -112,7 +118,8 @@ class AudioRendererTest : public ::testing::Test {
     audio_renderer_.reset(new AudioRendererPcm(
         &job_queue_, std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
-        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
+        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend,
+        ExperimentalFeatures()));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
         std::bind(&AudioRendererTest::OnPrerolled, this),
@@ -808,7 +815,7 @@ TEST_F(AudioRendererTest, Seek) {
         *audio_renderer_sink_,
         Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
               kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
-    EXPECT_CALL(*audio_renderer_sink_, Stop());
+    EXPECT_CALL(*audio_renderer_sink_, Reset());
     EXPECT_CALL(*audio_decoder_, Reset());
     EXPECT_CALL(
         *audio_renderer_sink_,

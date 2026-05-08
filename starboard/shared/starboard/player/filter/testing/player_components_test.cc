@@ -26,6 +26,7 @@
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -87,12 +88,7 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_, dummy_surface_view_,
-          /*flush_decoder_during_reset=*/false,
-          /*reset_audio_decoder=*/false,
-          /*video_initial_max_frames_in_decoder=*/std::nullopt,
-          /*video_max_pending_input_frames=*/std::nullopt,
-          /*video_decoder_poll_interval_ms=*/std::nullopt,
+          max_video_input_size_, ExperimentalFeatures{}, dummy_surface_view_,
           fake_graphics_context_provider_.decoder_target_provider(),
           &job_queue_);
       ASSERT_EQ(creation_parameters.max_video_input_size(),
@@ -110,12 +106,7 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_, dummy_surface_view_,
-          /*flush_decoder_during_reset=*/false,
-          /*reset_audio_decoder=*/false,
-          /*video_initial_max_frames_in_decoder=*/std::nullopt,
-          /*video_max_pending_input_frames=*/std::nullopt,
-          /*video_decoder_poll_interval_ms=*/std::nullopt,
+          max_video_input_size_, ExperimentalFeatures{}, dummy_surface_view_,
           fake_graphics_context_provider_.decoder_target_provider(),
           &job_queue_);
       ASSERT_EQ(creation_parameters.max_video_input_size(),

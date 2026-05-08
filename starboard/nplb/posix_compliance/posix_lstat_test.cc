@@ -54,34 +54,31 @@ TEST(PosixLstatTest, LstatOnExistingFile) {
 }
 
 TEST(PosixLstatTest, LstatOnExistingDirectory) {
-  const char* dir_path = "test_dir.tmp";
-  ASSERT_EQ(mkdir(dir_path, 0755), 0);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
   struct stat sb;
-  EXPECT_EQ(lstat(dir_path, &sb), 0);
+  EXPECT_EQ(lstat(temp_dir.path().c_str(), &sb), 0);
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
   // Modern filesystems might have just one link.
   EXPECT_GE(sb.st_nlink, 1u);
-  rmdir(dir_path);
 }
 
 TEST(PosixLstatTest, DirectoryWithSubdirectory) {
-  char template_name[] = "/tmp/lstat_test_XXXXXX";
-  char* parent_dir_path = mkdtemp(template_name);
-  std::string child_dir_path_str = std::string(parent_dir_path) + "/child";
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+  std::string child_dir_path_str = temp_dir.path() + "/child";
 
   ASSERT_EQ(mkdir(child_dir_path_str.c_str(), 0755), 0);
 
   struct stat sb;
-  EXPECT_EQ(lstat(parent_dir_path, &sb), 0);
+  EXPECT_EQ(lstat(temp_dir.path().c_str(), &sb), 0);
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
   // A directory with one subdirectory has 3 links:
   // 1. Its own entry in the parent directory.
   // 2. The "." entry within itself.
   // 3. The ".." entry within the subdirectory pointing back to it.
   EXPECT_EQ(sb.st_nlink, 3u);
-  rmdir(child_dir_path_str.c_str());
-  rmdir(parent_dir_path);
 }
 
 TEST(PosixLstatTest, LstatOnSymbolicLinkToFile) {

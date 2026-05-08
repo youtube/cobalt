@@ -274,12 +274,12 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
+  auto mime_type = MimeType::Create(mime);
+  if (!mime_type) {
     SB_LOG(WARNING) << mime << " is not a valid mime type, assuming sdr video.";
     return true;
   }
-  const std::vector<std::string> codecs = mime_type.GetCodecs();
+  const std::vector<std::string> codecs = mime_type->GetCodecs();
   if (codecs.empty()) {
     SB_LOG(WARNING) << mime << " contains no codecs, assuming sdr video.";
     return true;
@@ -384,6 +384,10 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
+}
+
+int AlignUp(int value, int alignment) {
+  return (value + alignment - 1) / alignment * alignment;
 }
 
 }  // namespace starboard

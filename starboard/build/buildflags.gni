@@ -23,6 +23,3 @@ declare_args() {
       is_cobalt && current_toolchain != host_toolchain &&
       (!is_starboard || current_toolchain != v8_snapshot_toolchain)
 }
-
-# Differentiates our 1P ATV platform from 3P AOSP.
-is_androidtv = is_android && !use_evergreen

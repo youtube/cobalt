@@ -23,6 +23,7 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/shared/internal_only.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 struct SbFilePrivate {
   // Note: Only one of these two fields will be valid for any given file.
@@ -44,7 +45,7 @@ extern const char* g_app_cache_dir;
 extern const char* g_app_lib_dir;
 
 void SbFileAndroidInitialize(
-    base::android::ScopedJavaGlobalRef<jobject> asset_manager,
+    jni_zero::ScopedJavaGlobalRef<jobject> asset_manager,
     const std::string& files_dir,
     const std::string& cache_dir,
     const std::string& native_library_dir);

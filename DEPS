@@ -304,15 +304,15 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
-  'skia_revision': '1676032e80246cdaa04f7e2187cb4e038c0fdd05',
+  'skia_revision': '9d9ac365fe4916c31b31935a062b869d097324c4',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': 'b40c5631f5d789a9370067e0f492795c0b05bbef',
+  'v8_revision': 'c6ef3038bf3c5c4d7cbfd17424e078606225e985',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': '2d08a9518d40ae1f84a7ab670a4c2703dd7efc08',
+  'angle_revision': '4664989d810d3614c0af32933ba28e10a949b420',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -320,7 +320,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling PDFium
   # and whatever else without interference from each other.
-  'pdfium_revision': 'cf433ae5520d061db56391155b59b34e67484f39',
+  'pdfium_revision': '6b490ca2247fd99fffaf9da344d88a26016cda0e',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling BoringSSL
   # and whatever else without interference from each other.
@@ -364,7 +364,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling HarfBuzz
   # and whatever else without interference from each other.
-  'harfbuzz_revision': '9f83bbbe64654b45ba5bb06927ff36c2e7588495',
+  'harfbuzz_revision': '15fdcf0395ff49d36069b808828fa5f06d7ec4d9',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Emoji Segmenter
   # and whatever else without interference from each other.
@@ -2952,7 +2952,7 @@ deps = {
 
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + 'e4445e46a910eb407571ec0b0b8b7043562678cf',
+#    Var('webrtc_git') + '/src.git' + '@' + '7ad61a0a06fac695468b843e17b81a6ab19d0feb',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

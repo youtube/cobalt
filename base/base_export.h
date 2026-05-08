@@ -7,7 +7,7 @@
 
 // Note that we don't use buildflags to check this before any #includes.
 #if !defined(SB_IS_DEFAULT_TC) && defined(STARBOARD) || \
-    defined(ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD)
+    defined(ENABLE_BUILDFLAG_IS_NATIVE_TARGET)
 #error Starboard and native target builds should only include copied_base.
 #endif
 

@@ -283,16 +283,28 @@ bool ReuseAllocatorBase::TryFree(void* memory) {
   total_allocated_ -= block.size();
 
   allocated_blocks_.erase(it);
+
+  if (enable_decommit_on_idle_ && total_allocated_ == 0) {
+    SB_LOG(INFO) << "Allocator reached idle state, decommitting "
+                 << fallback_allocations_.size() << " fallback allocations.";
+    for (const auto& fallback_allocation : fallback_allocations_) {
+      fallback_allocator_->Decommit(fallback_allocation.address,
+                                    fallback_allocation.size);
+    }
+  }
+
   return true;
 }
 
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
                                        size_t initial_capacity,
                                        size_t allocation_increment,
-                                       size_t max_capacity)
+                                       size_t max_capacity,
+                                       bool enable_decommit_on_idle)
     : fallback_allocator_(fallback_allocator),
       allocation_increment_(allocation_increment),
       max_capacity_(max_capacity),
+      enable_decommit_on_idle_(enable_decommit_on_idle),
       capacity_(0),
       total_allocated_(0) {
   if (initial_capacity > 0) {
@@ -312,8 +324,8 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
   SB_LOG_IF(ERROR, allocated_blocks_.size() != 0)
       << allocated_blocks_.size() << " blocks still allocated.";
 
-  for (auto fallback_allocation : fallback_allocations_) {
-    fallback_allocator_->Free(fallback_allocation);
+  for (const auto& fallback_allocation : fallback_allocations_) {
+    fallback_allocator_->Free(fallback_allocation.address);
   }
 }
 
@@ -354,7 +366,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     }
   }
   if (ptr != NULL) {
-    fallback_allocations_.push_back(ptr);
+    fallback_allocations_.push_back({ptr, size_to_try});
     capacity_ += size_to_try;
     auto free_block_iter = AddFreeBlock(MemoryBlock(
         static_cast<int>(fallback_allocations_.size() - 1), ptr, size_to_try));
@@ -425,7 +437,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     return free_blocks_.end();
   }
 
-  fallback_allocations_.push_back(ptr);
+  fallback_allocations_.push_back({ptr, size_to_allocate});
   capacity_ += size_to_allocate;
   AddFreeBlock(MemoryBlock(static_cast<int>(fallback_allocations_.size() - 1),
                            ptr, size_to_allocate));

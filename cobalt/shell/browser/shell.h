@@ -40,8 +40,9 @@
 class GURL;
 
 namespace cobalt {
-class AppLifecycleDelegateTest;
-}
+class AppEventDelegateTest;
+class AppEventRunnerTest;
+}  // namespace cobalt
 
 namespace content {
 class BrowserContext;
@@ -96,7 +97,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static ShellPlatformDelegate* GetPlatform();
 
+  static void OnBlur();
+  static void OnFocus();
+  static void OnConceal();
   static void OnReveal();
+  static void OnFreeze();
+  static void OnUnfreeze();
+  static void OnStop();
 
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
@@ -127,6 +134,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static bool ShouldHideToolbar();
 
   WebContents* web_contents() const { return web_contents_.get(); }
+
+  void Focus();
 
   WebContents* splash_screen_web_contents() const {
     return splash_screen_web_contents_.get();
@@ -211,7 +220,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   friend class TestShell;
   friend class SplashScreenTest;
   friend class LifecycleTest;
-  friend class cobalt::AppLifecycleDelegateTest;
+  friend class cobalt::AppEventDelegateTest;
+  friend class cobalt::AppEventRunnerTest;
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -252,17 +262,23 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static void FinishShellInitialization(Shell* shell);
 
   // WebContentsObserver
+  void OnVisibilityChanged(Visibility visibility) override;
   void LoadProgressChanged(double progress) override;
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
   void PrimaryMainDocumentElementAvailable() override;
+  void DidFinishLoad(RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+  void DidStartNavigation(NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void DidStartLoading() override;
   void DidStopLoading() override;
 
   void RegisterInjectedJavaScript();
   void SwitchToMainWebContents();
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
+  void OnSplashScreenLoadComplete();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -280,6 +296,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   bool is_fullscreen_ = false;
   gfx::Size content_size_;
+
+  // Set to true if Focus() is requested while the WebContents is not yet
+  // visible. This handles a race condition in the Cobalt Reveal -> Focus
+  // sequence where Aura ignores focus requests for hidden windows. The focus
+  // will be applied as soon as the visibility changes to VISIBLE.
+  bool pending_focus_ = false;
 
   bool delay_popup_contents_delegate_for_testing_ = false;
 

@@ -531,7 +531,9 @@ public class MediaCodecUtil {
   /** Return true if and only if info belongs to a software decoder. */
   public static boolean isSoftwareDecoder(MediaCodecInfo codecInfo) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      return !codecInfo.isHardwareAccelerated();
+      if (!codecInfo.isHardwareAccelerated() || codecInfo.isSoftwareOnly()) {
+        return true;
+      }
     }
     String name = codecInfo.getName().toLowerCase(Locale.ROOT);
     // This is taken from libstagefright/OMXCodec.cpp for pre codec2.

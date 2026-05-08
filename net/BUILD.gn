@@ -1319,21 +1319,12 @@ component("net") {
 
   if (is_linux) {
     sources += [
-      "base/network_change_notifier_linux.cc",
-      "base/network_change_notifier_linux.h",
       "proxy_resolution/proxy_config_service_linux.cc",
       "proxy_resolution/proxy_config_service_linux.h",
     ]
     if (use_glib) {
       deps += [ "//ui/base/glib" ]
     }
-  }
-
-  if (is_cobalt_hermetic_build) {
-    sources -= [
-      "base/network_change_notifier_linux.cc",
-      "base/network_change_notifier_linux.h",
-    ]
   }
 
   if ((is_linux || is_chromeos || is_android) && !is_cobalt_hermetic_build) {
@@ -1352,6 +1343,8 @@ component("net") {
     sources += [
       "base/address_map_cache_linux.cc",
       "base/address_map_cache_linux.h",
+      "base/network_change_notifier_linux.cc",
+      "base/network_change_notifier_linux.h",
     ]
   }
 

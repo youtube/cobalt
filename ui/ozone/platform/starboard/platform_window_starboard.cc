@@ -17,7 +17,9 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "starboard/event.h"
 #include "ui/events/event.h"
 #include "ui/events/event_utils.h"
@@ -26,12 +28,20 @@
 #include "ui/gfx/native_widget_types.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
+#if BUILDFLAG(IS_COBALT)
+
 namespace ui {
 
 namespace {
 std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
-    g_created_callback;
-}
+    g_created_callback =
+        std::make_unique<PlatformWindowStarboard::WindowCreatedCallback>(
+            base::DoNothing());
+std::unique_ptr<PlatformWindowStarboard::WindowDestroyedCallback>
+    g_destroyed_callback =
+        std::make_unique<PlatformWindowStarboard::WindowDestroyedCallback>(
+            base::DoNothing());
+}  // namespace
 
 // static
 void PlatformWindowStarboard::SetWindowCreatedCallback(
@@ -39,43 +49,52 @@ void PlatformWindowStarboard::SetWindowCreatedCallback(
   g_created_callback = std::make_unique<WindowCreatedCallback>(std::move(cb));
 }
 
+// static
+void PlatformWindowStarboard::ClearWindowCreatedCallback() {
+  g_created_callback =
+      std::make_unique<WindowCreatedCallback>(base::DoNothing());
+}
+
+// static
+void PlatformWindowStarboard::SetWindowDestroyedCallback(
+    WindowDestroyedCallback cb) {
+  g_destroyed_callback =
+      std::make_unique<WindowDestroyedCallback>(std::move(cb));
+}
+
+// static
+void PlatformWindowStarboard::ClearWindowDestroyedCallback() {
+  g_destroyed_callback =
+      std::make_unique<WindowDestroyedCallback>(base::DoNothing());
+}
+
 PlatformWindowStarboard::PlatformWindowStarboard(
     PlatformWindowDelegate* delegate,
     const gfx::Rect& bounds)
     : bounds_(bounds), delegate_(delegate) {
   DCHECK(delegate);
-  SbWindowOptions options{};
-  SbWindowSetDefaultOptions(&options);
-  options.size.width = bounds.width();
-  options.size.height = bounds.height();
-  sb_window_ = SbWindowCreate(&options);
-  CHECK(SbWindowIsValid(sb_window_));
-
-  if (g_created_callback) {
-    (*g_created_callback).Run(sb_window_);
-  }
-
-  delegate->OnAcceleratedWidgetAvailable(
-      reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
-
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
     static_cast<PlatformEventSourceStarboard*>(
         PlatformEventSource::GetInstance())
         ->AddPlatformEventObserverStarboard(this);
   }
+
+  Show(false /* inactive */);
 }
 
 PlatformWindowStarboard::~PlatformWindowStarboard() {
-  if (sb_window_) {
-    SbWindowDestroy(sb_window_);
-  }
-
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->RemovePlatformEventDispatcher(this);
     static_cast<PlatformEventSourceStarboard*>(
         PlatformEventSource::GetInstance())
         ->RemovePlatformEventObserverStarboard(this);
+  }
+
+  if (SbWindowIsValid(sb_window_)) {
+    (*g_destroyed_callback).Run(sb_window_);
+    SbWindowDestroy(sb_window_);
+    sb_window_ = kSbWindowInvalid;
   }
 }
 
@@ -136,11 +155,37 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  NOTIMPLEMENTED_LOG_ONCE();
+  if (SbWindowIsValid(sb_window_)) {
+    return;
+  }
+
+  SbWindowOptions options{};
+  SbWindowSetDefaultOptions(&options);
+  options.size.width = bounds_.width();
+  options.size.height = bounds_.height();
+  sb_window_ = SbWindowCreate(&options);
+  CHECK(SbWindowIsValid(sb_window_));
+
+  (*g_created_callback).Run(sb_window_);
+
+  CHECK(!widget_available_);
+  widget_available_ = true;
+  delegate_->OnAcceleratedWidgetAvailable(
+      reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
 }
 
 void PlatformWindowStarboard::Hide() {
-  NOTIMPLEMENTED_LOG_ONCE();
+  CHECK(widget_available_);
+  if (widget_available_) {
+    widget_available_ = false;
+    delegate_->OnAcceleratedWidgetDestroyed();
+  }
+
+  CHECK(SbWindowIsValid(sb_window_));
+  (*g_destroyed_callback).Run(sb_window_);
+
+  SbWindowDestroy(sb_window_);
+  sb_window_ = kSbWindowInvalid;
 }
 
 void PlatformWindowStarboard::Close() {
@@ -148,8 +193,7 @@ void PlatformWindowStarboard::Close() {
 }
 
 bool PlatformWindowStarboard::IsVisible() const {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return true;
+  return SbWindowIsValid(sb_window_);
 }
 
 void PlatformWindowStarboard::PrepareForShutdown() {
@@ -239,3 +283,4 @@ void PlatformWindowStarboard::SizeConstraintsChanged() {
 }
 
 }  // namespace ui
+#endif  // BUILDFLAG(IS_COBALT)

@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "base/base_switches.h"
-#include "base/files/file_path.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
@@ -27,7 +27,6 @@
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_switches.h"
-#include "ui/ozone/public/ozone_switches.h"
 
 namespace cobalt {
 namespace {

@@ -381,6 +381,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbMediaVideoCodecAv1,
       kSbMediaVideoCodecVp8,
       kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecAv2,
   };
   // clang-format on
 
@@ -399,6 +400,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kVideoCodecs[6]:
     case kVideoCodecs[7]:
     case kVideoCodecs[8]:
+    case kVideoCodecs[9]:
       break;
   }
 

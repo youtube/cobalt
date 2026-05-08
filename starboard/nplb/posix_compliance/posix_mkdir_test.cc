@@ -41,19 +41,13 @@ namespace {
 class PosixMkdirTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    char template_name[] = "/tmp/mkdir_test_XXXXXX";
-    char* dir_name = mkdtemp(template_name);
-    ASSERT_NE(dir_name, nullptr) << "mkdtemp failed: " << strerror(errno);
-    test_dir_ = dir_name;
+    ASSERT_TRUE(temp_dir_.IsValid())
+        << "ScopedTempDir failed to create directory";
   }
 
-  void TearDown() override {
-    if (!test_dir_.empty()) {
-      RemoveFileOrDirectoryRecursively(test_dir_.c_str());
-    }
-  }
+  void TearDown() override {}
 
-  std::string test_dir_;
+  ScopedTempDir temp_dir_;
 };
 
 TEST_F(PosixMkdirTest, FailsWithEmptyPath) {
@@ -63,7 +57,7 @@ TEST_F(PosixMkdirTest, FailsWithEmptyPath) {
 }
 
 TEST_F(PosixMkdirTest, SuccessfulCreation) {
-  std::string dir_path = test_dir_ + "/new_dir";
+  std::string dir_path = temp_dir_.path() + "/new_dir";
   const mode_t mode = kUserRwx;
 
   ASSERT_EQ(mkdir(dir_path.c_str(), mode), 0);
@@ -100,7 +94,7 @@ TEST_F(PosixMkdirTest, FailsOnEmptyPath) {
 }
 
 TEST_F(PosixMkdirTest, HandlesTrailingSeparators) {
-  std::string dir_base = test_dir_ + "/new_dir";
+  std::string dir_base = temp_dir_.path() + "/new_dir";
   std::string path_with_separators = dir_base + "//";
 
   errno = 0;
@@ -114,7 +108,7 @@ TEST_F(PosixMkdirTest, HandlesTrailingSeparators) {
 }
 
 TEST_F(PosixMkdirTest, FailsIfPathExistsAsFile) {
-  std::string file_path = test_dir_ + "/a_file";
+  std::string file_path = temp_dir_.path() + "/a_file";
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0600);
   ASSERT_NE(fd, -1);
   close(fd);
@@ -124,7 +118,7 @@ TEST_F(PosixMkdirTest, FailsIfPathExistsAsFile) {
 }
 
 TEST_F(PosixMkdirTest, FailsIfPathExistsAsDirectory) {
-  std::string dir_path = test_dir_ + "/existing_dir";
+  std::string dir_path = temp_dir_.path() + "/existing_dir";
   ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
 
   EXPECT_EQ(mkdir(dir_path.c_str(), kUserRwx), -1);
@@ -132,8 +126,8 @@ TEST_F(PosixMkdirTest, FailsIfPathExistsAsDirectory) {
 }
 
 TEST_F(PosixMkdirTest, FailsIfPathIsSymbolicLink) {
-  std::string target_path = test_dir_ + "/target";
-  std::string link_path = test_dir_ + "/the_link";
+  std::string target_path = temp_dir_.path() + "/target";
+  std::string link_path = temp_dir_.path() + "/the_link";
   ASSERT_EQ(mkdir(target_path.c_str(), kUserRwx), 0);
   ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
 
@@ -143,13 +137,13 @@ TEST_F(PosixMkdirTest, FailsIfPathIsSymbolicLink) {
 }
 
 TEST_F(PosixMkdirTest, FailsIfParentDoesNotExist) {
-  std::string path = test_dir_ + "/non_existent_parent/new_dir";
+  std::string path = temp_dir_.path() + "/non_existent_parent/new_dir";
   EXPECT_EQ(mkdir(path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
 TEST_F(PosixMkdirTest, FailsIfPathComponentIsNotDirectory) {
-  std::string file_path = test_dir_ + "/a_file";
+  std::string file_path = temp_dir_.path() + "/a_file";
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0600);
   ASSERT_NE(fd, -1);
   close(fd);
@@ -161,13 +155,13 @@ TEST_F(PosixMkdirTest, FailsIfPathComponentIsNotDirectory) {
 }
 
 TEST_F(PosixMkdirTest, FailsWithSymbolicLinkLoop) {
-  std::string link_a_path = test_dir_ + "/link_a";
-  std::string link_b_path = test_dir_ + "/link_b";
+  std::string link_a_path = temp_dir_.path() + "/link_a";
+  std::string link_b_path = temp_dir_.path() + "/link_b";
 
   ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0);
   ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0);
 
-  std::string path_in_loop = test_dir_ + "/link_a/new_dir";
+  std::string path_in_loop = temp_dir_.path() + "/link_a/new_dir";
   errno = 0;
   EXPECT_EQ(mkdir(path_in_loop.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ELOOP);
@@ -175,7 +169,7 @@ TEST_F(PosixMkdirTest, FailsWithSymbolicLinkLoop) {
 
 TEST_F(PosixMkdirTest, FailsOnPathTooLong) {
   std::string long_name(kSbFileMaxPath + 1, 'b');
-  std::string long_path = test_dir_ + "/" + long_name;
+  std::string long_path = temp_dir_.path() + "/" + long_name;
   errno = 0;
   EXPECT_EQ(mkdir(long_path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ENAMETOOLONG);

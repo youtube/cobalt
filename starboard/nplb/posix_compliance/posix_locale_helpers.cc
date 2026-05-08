@@ -17,6 +17,7 @@
 #include <locale.h>
 
 #include <cstring>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -139,6 +140,12 @@ const char* GetNonDefaultLocale() {
     return GetCommaDecimalSeparatorLocale();
   }();
   return locale;
+}
+
+bool ShouldSkipLocale(const char* locale_name) {
+  static const std::set<std::string> disabled_locales = {"as_IN", "be_BY",
+                                                         "bs_BA", "or_IN"};
+  return disabled_locales.count(locale_name);
 }
 
 }  // namespace nplb

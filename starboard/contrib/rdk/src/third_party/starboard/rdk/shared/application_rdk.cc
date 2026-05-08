@@ -149,6 +149,7 @@ void Application::Initialize() {
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 
   ScheduleMemoryUsageCheck(kSbTimeSecond);
+  NetworkInfo::Initialize();
 }
 
 void Application::Teardown() {

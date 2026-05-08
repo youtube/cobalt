@@ -29,19 +29,21 @@ constexpr int64_t kBitrate = 44100;
 TEST(MimeUtilTest, ChecksSupportedMp3Containers) {
   const std::string valid_mp3_mime_str_1 =
       "audio/mpeg; codecs=\"mp3\"; bitrate=44100";
-  const MimeType valid_mp3_mime_1(valid_mp3_mime_str_1);
+  auto valid_mp3_mime_1 = MimeType::Create(valid_mp3_mime_str_1);
+  ASSERT_TRUE(valid_mp3_mime_1);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_mp3_mime_str_1.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_mp3_mime_1, kBitrate)
+      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &*valid_mp3_mime_1, kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 
   const std::string valid_mp3_mime_str_2 =
       "audio/mp3; codecs=\"mp3\"; bitrate=44100";
-  const MimeType valid_mp3_mime_2(valid_mp3_mime_str_2);
+  auto valid_mp3_mime_2 = MimeType::Create(valid_mp3_mime_str_2);
+  ASSERT_TRUE(valid_mp3_mime_2);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_mp3_mime_str_2.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_mp3_mime_2, kBitrate)
+      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &*valid_mp3_mime_2, kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 }
@@ -50,7 +52,8 @@ TEST(MimeUtilTest, ChecksUnsupportedMp3Containers) {
   // Invalid container for MP3 codec.
   const std::string invalid_mp3_mime_str =
       "audio/mp4; codecs=\"mp3\"; bitrate=44100";
-  const MimeType invalid_mp3_mime(invalid_mp3_mime_str);
+  auto invalid_mp3_mime = MimeType::Create(invalid_mp3_mime_str);
+  ASSERT_TRUE(invalid_mp3_mime);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(invalid_mp3_mime_str.c_str(), kEmptyKeySystem),
       kSbMediaSupportTypeNotSupported);
@@ -59,19 +62,23 @@ TEST(MimeUtilTest, ChecksUnsupportedMp3Containers) {
 TEST(MimeUtilTest, ChecksSupportedFlacContainers) {
   const std::string valid_flac_mime_str_1 =
       "audio/ogg; codecs=\"flac\"; bitrate=44100";
-  const MimeType valid_flac_mime_1(valid_flac_mime_str_1);
+  auto valid_flac_mime_1 = MimeType::Create(valid_flac_mime_str_1);
+  ASSERT_TRUE(valid_flac_mime_1);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_flac_mime_str_1.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_flac_mime_1, kBitrate)
+      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &*valid_flac_mime_1,
+                            kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 
   const std::string valid_flac_mime_str_2 =
       "audio/flac; codecs=\"flac\"; bitrate=44100";
-  const MimeType valid_flac_mime_2(valid_flac_mime_str_2);
+  auto valid_flac_mime_2 = MimeType::Create(valid_flac_mime_str_2);
+  ASSERT_TRUE(valid_flac_mime_2);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_flac_mime_str_2.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_flac_mime_2, kBitrate)
+      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &*valid_flac_mime_2,
+                            kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 }
@@ -80,7 +87,8 @@ TEST(MimeUtilTest, ChecksUnsupportedFlacContainers) {
   // Invalid container for FLAC codec.
   const std::string invalid_flac_mime_str =
       "audio/mp4; codecs=\"flac\"; bitrate=44100";
-  const MimeType invalid_flac_mime(invalid_flac_mime_str);
+  auto invalid_flac_mime = MimeType::Create(invalid_flac_mime_str);
+  ASSERT_TRUE(invalid_flac_mime);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(invalid_flac_mime_str.c_str(), kEmptyKeySystem),
       kSbMediaSupportTypeNotSupported);
@@ -89,10 +97,11 @@ TEST(MimeUtilTest, ChecksUnsupportedFlacContainers) {
 TEST(MimeUtilTest, ChecksSupportedPcmContainers) {
   const std::string valid_pcm_mime_str =
       "audio/wav; codecs=\"1\"; bitrate=44100";
-  const MimeType valid_pcm_mime(valid_pcm_mime_str);
+  auto valid_pcm_mime = MimeType::Create(valid_pcm_mime_str);
+  ASSERT_TRUE(valid_pcm_mime);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_pcm_mime_str.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecPcm, &valid_pcm_mime, kBitrate)
+      MediaIsAudioSupported(kSbMediaAudioCodecPcm, &*valid_pcm_mime, kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 }
@@ -100,7 +109,8 @@ TEST(MimeUtilTest, ChecksSupportedPcmContainers) {
 TEST(MimeUtilTest, ChecksUnsupportedWavCodecs) {
   const std::string invalid_wav_mime_str =
       "audio/wav; codecs=\"aac\"; bitrate=44100";
-  const MimeType invalid_wav_mime(invalid_wav_mime_str);
+  auto invalid_wav_mime = MimeType::Create(invalid_wav_mime_str);
+  ASSERT_TRUE(invalid_wav_mime);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(invalid_wav_mime_str.c_str(), kEmptyKeySystem),
       kSbMediaSupportTypeNotSupported);

@@ -85,7 +85,11 @@ class NetworkFetcher {
       ProgressCallback progress_callback,
       DownloadToFileCompleteCallback download_to_file_complete_callback) = 0;
 
- protected:
+#if BUILDFLAG(IS_STARBOARD)
+  virtual void Cancel() = 0;
+#endif
+
+protected:
   NetworkFetcher() = default;
 };
 

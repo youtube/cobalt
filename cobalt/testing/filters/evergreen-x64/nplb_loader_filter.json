@@ -1,26 +1,7 @@
 {
   "failing_tests": [
-    "Posix/*LocaleconvTest.AllItems/as_IN",
-    "Posix/*LocaleconvTest.AllItems/be_BY",
-    "Posix/*LocaleconvTest.AllItems/bs_BA",
-    "Posix/*LocaleconvTest.AllItems/or_IN",
-    "Posix/NlLanginfo*Test.AllItems/as_IN",
-    "Posix/NlLanginfo*Test.AllItems/be_BY",
-    "Posix/NlLanginfo*Test.AllItems/bs_BA",
-    "Posix/NlLanginfo*Test.AllItems/or_IN",
     "PosixSocketSendTest.RainyDaySendToClosedSocket",
     "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
     "PosixTimeClockTests.ClockIncreasesOverTime"
-  ],
-
-  "_filtered_b/467701409": [
-    "Posix/NlLanginfo*Test.AllItems/as_IN",
-    "Posix/NlLanginfo*Test.AllItems/be_BY",
-    "Posix/NlLanginfo*Test.AllItems/bs_BA",
-    "Posix/NlLanginfo*Test.AllItems/or_IN",
-    "Posix/*LocaleconvTest.AllItems/as_IN",
-    "Posix/*LocaleconvTest.AllItems/be_BY",
-    "Posix/*LocaleconvTest.AllItems/bs_BA",
-    "Posix/*LocaleconvTest.AllItems/or_IN"
   ]
 }

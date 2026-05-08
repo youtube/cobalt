@@ -308,6 +308,10 @@ std::queue<Operation> MakeOperations(
 #if defined(IN_MEMORY_UPDATES)
     std::string* crx_str,
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+    PersistedData* metadata,
+    const std::string& next_version,
+#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,
@@ -384,6 +388,9 @@ std::queue<Operation> MakeOperations(
               ? nullptr
               : std::make_unique<CrxInstaller::InstallParams>(
                     operation.path, operation.arguments, install_data),
+#if BUILDFLAG(IS_STARBOARD)
+          metadata, next_version,
+#endif
           event_adder, state_tracker, install_progress_callback,
           install_complete_callback));
     } else if (operation.type == "run") {
@@ -425,6 +432,10 @@ void MakePipeline(
     scoped_refptr<CrxInstaller> installer,
 #if defined(IN_MEMORY_UPDATES)
     std::string* crx_str,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    PersistedData* metadata,
+    const std::string& next_version,
 #endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
@@ -497,6 +508,10 @@ void MakePipeline(
             crx_format, id, pk_hash, install_data_index, installer,
 #if defined(IN_MEMORY_UPDATES)
             crx_str,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+            metadata,
+            next_version,
 #endif
             state_tracker,
             base::BindRepeating(
