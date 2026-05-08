@@ -533,6 +533,15 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
 #endif
+#if BUILDFLAG(USE_EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    LOG(INFO) << "Mark the current installation as successful after the "
+                 "PrimaryMainDocumentElement is available.";
+    updater_module->MarkSuccessful();
+  }
+#endif
 }
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
@@ -862,16 +871,6 @@ WebContents* Shell::OpenURLFromTab(
   if (navigation_handle_callback && navigation_handle) {
     std::move(navigation_handle_callback).Run(*navigation_handle);
   }
-
-#if BUILDFLAG(USE_EVERGREEN)
-  cobalt::updater::UpdaterModule* updater_module =
-      cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    // Mark the current installation as successful.
-    // TODO(b/458770751): investigate moving this to after load is finished
-    updater_module->MarkSuccessful();
-  }
-#endif
 
   return target;
 }
