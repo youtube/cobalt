@@ -14,11 +14,11 @@
 
 cobalt_test_bundle_data_files = [
   "//cobalt/testing/browser_tests/data/mock_homepage_tv.html",
-  "//cobalt/testing/browser_tests/data/mock_thumbnail.png",
-  "//cobalt/testing/browser_tests/data/mock_thumbnail_2.png",
-  "//cobalt/testing/browser_tests/data/mock_thumbnail_3.png",
-  "//cobalt/testing/browser_tests/data/mock_thumbnail_4.png",
-  "//cobalt/testing/browser_tests/data/mock_thumbnail_5.png",
+  "//cobalt/testing/browser_tests/data/mock_thumbnail.jpeg",
+  "//cobalt/testing/browser_tests/data/mock_thumbnail_2.jpeg",
+  "//cobalt/testing/browser_tests/data/mock_thumbnail_3.jpeg",
+  "//cobalt/testing/browser_tests/data/mock_thumbnail_4.jpeg",
+  "//cobalt/testing/browser_tests/data/mock_thumbnail_5.jpeg",
   "//content/test/data/accessibility/html/frame/empty.html",
   "//content/test/data/accessibility/html/sfx.mp3",
   "//content/test/data/allowed_frames.html",
