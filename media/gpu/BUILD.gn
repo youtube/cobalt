@@ -186,7 +186,7 @@ component("gpu") {
     libs += [
       "mediandk",
     ]
-    # Cobalt does not use AAudio, which breaks SDK 24 compatibility. See b/508072838.
+    # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
     if (!is_cobalt) {
       libs += [ "aaudio" ]
     }

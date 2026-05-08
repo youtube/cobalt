@@ -108,9 +108,6 @@ public final class CommandLineOverrideHelper {
         // For details, see http://b/478022126#comment6.
         paramOverrides.add("UseAAudioInput");
 
-        // Disable AAudio, which breaks SDK 24 compatibility. See b/508072838.
-        paramOverrides.add("UseAAudioDriver");
-
         return paramOverrides;
     }
 
