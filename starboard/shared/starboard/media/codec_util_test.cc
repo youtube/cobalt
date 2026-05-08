@@ -55,62 +55,102 @@ TEST(VideoConfigTest, CtorWithVideoStreamInfo) {
   auto config_2 = VideoConfig::Create(
       video_stream_info, nalus_in_annex_b.data(), nalus_in_annex_b.size());
   ASSERT_TRUE(config_2.has_value());
-  ASSERT_EQ(*config_1, *config_2);
+  EXPECT_EQ(*config_1, *config_2);
 }
 
-TEST(VideoConfigTest, IsValid) {
+TEST(VideoConfigTest, IsValidH264PpsOnly) {
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+                                    kPpsInAnnexB.data(), kPpsInAnnexB.size());
+  ASSERT_TRUE(config.has_value());
+}
+
+TEST(VideoConfigTest, IsValidH264IdrOnly) {
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+                                    kIdrInAnnexB.data(), kIdrInAnnexB.size());
+  ASSERT_TRUE(config.has_value());
+}
+
+TEST(VideoConfigTest, IsValidH264FullAnnexB) {
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  auto config =
+      VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  ASSERT_TRUE(config.has_value());
+}
+
+TEST(VideoConfigTest, IsValidH264InvalidHeader) {
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  // The implementation only fails when the format is avc and the input isn't
+  // empty and doesn't start with a nalu header.
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+                                    nalus_in_annex_b.data() + 1,
+                                    nalus_in_annex_b.size() - 1);
+  ASSERT_FALSE(config.has_value());
+}
+
+TEST(VideoConfigTest, IsValidVp9) {
+  auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080},
+                                    /*data=*/nullptr, /*data_size=*/0);
+  ASSERT_TRUE(config.has_value());
+}
+
+TEST(VideoConfigTest, EqualityOperatorsH264) {
   std::vector<uint8_t> nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
-  {
-    auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
-                                      kPpsInAnnexB.data(), kPpsInAnnexB.size());
-    ASSERT_TRUE(config.has_value());
-  }
-  {
-    auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
-                                      kIdrInAnnexB.data(), kIdrInAnnexB.size());
-    ASSERT_TRUE(config.has_value());
-  }
-  {
-    auto config =
-        VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
-                            nalus_in_annex_b.data(), nalus_in_annex_b.size());
-    ASSERT_TRUE(config.has_value());
-  }
-  {
-    // The implementation only fails when the format is avc and the input isn't
-    // empty and doesn't start with a nalu header.
-    auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
-                                      nalus_in_annex_b.data() + 1,
-                                      nalus_in_annex_b.size() - 1);
-    ASSERT_FALSE(config.has_value());
-  }
-  {
-    auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080},
-                                      /*data=*/nullptr, /*data_size=*/0);
-    ASSERT_TRUE(config.has_value());
-  }
+  auto config1 =
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
+                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  ASSERT_TRUE(config1.has_value());
+
+  // Self comparison
+  EXPECT_TRUE(*config1 == *config1);
+  EXPECT_FALSE(*config1 != *config1);
+
+  // Different instances, same values
+  auto config2 =
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
+                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  ASSERT_TRUE(config2.has_value());
+  EXPECT_TRUE(*config1 == *config2);
+  EXPECT_FALSE(*config1 != *config2);
+
+  // Different values (resolution)
+  auto config3 =
+      VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  ASSERT_TRUE(config3.has_value());
+  EXPECT_FALSE(*config1 == *config3);
+  EXPECT_TRUE(*config1 != *config3);
 }
 
-TEST(VideoConfigTest, SelfComparison) {
-  {
-    std::vector<uint8_t> nalus_in_annex_b =
-        kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+TEST(VideoConfigTest, EqualityOperatorsVp9) {
+  auto config1 =
+      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, /*data=*/nullptr,
+                          /*data_size=*/0);
+  ASSERT_TRUE(config1.has_value());
 
-    auto config =
-        VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                            nalus_in_annex_b.data(), nalus_in_annex_b.size());
-    ASSERT_TRUE(config.has_value());
-    EXPECT_EQ(*config, *config);
-  }
-  {
-    auto config =
-        VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, /*data=*/nullptr,
-                            /*data_size=*/0);
-    ASSERT_TRUE(config.has_value());
-    EXPECT_EQ(*config, *config);
-  }
+  // Self comparison
+  EXPECT_TRUE(*config1 == *config1);
+  EXPECT_FALSE(*config1 != *config1);
+
+  // Different instances, same values
+  auto config2 =
+      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, /*data=*/nullptr,
+                          /*data_size=*/0);
+  ASSERT_TRUE(config2.has_value());
+  EXPECT_TRUE(*config1 == *config2);
+  EXPECT_FALSE(*config1 != *config2);
+
+  // Different values (resolution)
+  auto config3 =
+      VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080}, /*data=*/nullptr,
+                          /*data_size=*/0);
+  ASSERT_TRUE(config3.has_value());
+  EXPECT_FALSE(*config1 == *config3);
+  EXPECT_TRUE(*config1 != *config3);
 }
 
 TEST(VideoConfigTest, H264) {
