@@ -19,6 +19,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "starboard/common/check_op.h"
@@ -43,22 +44,29 @@ namespace starboard {
 // A thread can only have one job queue.
 class JobQueue {
  public:
-  typedef std::function<void()> Job;
+  using Job = std::function<void()>;
 
   class JobToken {
    public:
-    static const int64_t kInvalidToken = -1;
+    static const JobToken kUnscheduled;
 
-    explicit JobToken(int64_t token = kInvalidToken) : token_(token) {}
+    explicit operator bool() const { return token_.has_value(); }
 
-    void ResetToInvalid() { token_ = kInvalidToken; }
-    bool is_valid() const { return token_ != kInvalidToken; }
+   private:
+    friend class JobQueue;
+
+    static JobToken Generate();
+
+    JobToken() = default;
+    explicit JobToken(int64_t token) : token_(token) {}
+
+    void Reset() { token_ = std::nullopt; }
+
     bool operator==(const JobToken& that) const {
       return token_ == that.token_;
     }
 
-   private:
-    int64_t token_;
+    std::optional<int64_t> token_;
   };
 
   class JobOwner {
@@ -80,9 +88,10 @@ class JobQueue {
       return job_queue_->Schedule(std::move(job), this, delay_usec);
     }
 
-    void RemoveJobByToken(JobToken job_token) {
-      return job_queue_->RemoveJobByToken(job_token);
+    void RemoveJobByToken(JobToken* job_token) {
+      job_queue_->RemoveJobByToken(job_token);
     }
+
     void CancelPendingJobs() {
       if (job_queue_) {
         job_queue_->RemoveJobsByOwner(this);
@@ -119,7 +128,7 @@ class JobQueue {
   JobToken Schedule(Job&& job, int64_t delay_usec = 0);
   void ScheduleAndWait(const Job& job);
   void ScheduleAndWait(Job&& job);
-  void RemoveJobByToken(JobToken job_token);
+  void RemoveJobByToken(JobToken* job_token);
 
   // The processing of jobs may not be stopped when this function returns, but
   // it is guaranteed that the processing will be stopped very soon.  So it is
@@ -162,8 +171,7 @@ class JobQueue {
   ThreadChecker thread_checker_;
   std::mutex mutex_;
   std::condition_variable condition_;
-  int64_t current_job_token_ = JobToken::kInvalidToken + 1;
-  TimeToJobRecordMap time_to_job_record_map_;
+  TimeToJobRecordMap time_to_job_record_map_;  // Guarded by |mutex_|.
   bool stopped_ = false;
 
 #if ENABLE_JOB_QUEUE_PROFILING
