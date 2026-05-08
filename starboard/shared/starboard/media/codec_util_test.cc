@@ -23,10 +23,10 @@
 namespace starboard {
 namespace {
 
-const uint8_t kIdrStartCode = 0x65;
-const auto kSpsStartCode = AvcParameterSets::kSpsStartCode;
-const auto kPpsStartCode = AvcParameterSets::kPpsStartCode;
-const auto kAnnexB = AvcParameterSets::kAnnexB;
+constexpr uint8_t kIdrStartCode = 0x65;
+constexpr uint8_t kSpsStartCode = 0x67;
+constexpr uint8_t kPpsStartCode = 0x68;
+constexpr auto kAnnexB = AvcParameterSets::kAnnexB;
 
 const std::vector<uint8_t> kSpsInAnnexB = {0, 0, 0, 1, kSpsStartCode, 10, 11};
 const std::vector<uint8_t> kPpsInAnnexB = {0, 0, 0, 1, kPpsStartCode, 20};
@@ -210,8 +210,8 @@ TEST(VideoConfigTest, H264MultiSpsPps) {
   ASSERT_TRUE(config_dual_sps_pps.has_value());
   EXPECT_NE(*config_single_sps_pps, *config_dual_sps_pps);
   EXPECT_EQ(config_dual_sps_pps->avc_parameter_sets(),
-            *AvcParameterSets::Create(kAnnexB, nalus_in_annex_b.data(),
-                                      nalus_in_annex_b.size()));
+            *AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b.data(),
+                                                nalus_in_annex_b.size()));
 
   // Same resolution, different parameter sets.
   nalus_in_annex_b =

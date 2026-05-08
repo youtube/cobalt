@@ -43,16 +43,8 @@ class AvcParameterSets {
     kHeadless,
   };
 
-  static const size_t kAnnexBHeaderSizeInBytes = 4;
-  static const uint8_t kIdrStartCode = 0x65;
-  static const uint8_t kSpsStartCode = 0x67;
-  static const uint8_t kPpsStartCode = 0x68;
-  // optional nalu types
-  static const uint8_t kAudStartCode = 0x09;
-
-  static std::optional<AvcParameterSets> Create(Format format,
-                                                const uint8_t* data,
-                                                size_t size);
+  static std::optional<AvcParameterSets> CreateFromAnnexB(const uint8_t* data,
+                                                          size_t size);
 
   Format format() const { return format_; }
   bool has_sps_and_pps() const {

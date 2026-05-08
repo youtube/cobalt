@@ -24,15 +24,17 @@ namespace starboard {
 
 namespace {
 
-const uint8_t kAnnexBHeader[] = {0, 0, 0, 1};
-const auto kAnnexBHeaderSizeInBytes =
-    AvcParameterSets::kAnnexBHeaderSizeInBytes;
+constexpr uint8_t kAnnexBHeader[] = {0, 0, 0, 1};
+constexpr size_t kAnnexBHeaderSizeInBytes = 4;
+constexpr uint8_t kIdrStartCode = 0x65;
+constexpr uint8_t kSpsStartCode = 0x67;
+constexpr uint8_t kPpsStartCode = 0x68;
+constexpr uint8_t kAudStartCode = 0x09;
 
 bool StartsWithAnnexBHeader(const uint8_t* annex_b_data,
                             size_t annex_b_data_size) {
-  static_assert(
-      sizeof(kAnnexBHeader) == AvcParameterSets::kAnnexBHeaderSizeInBytes,
-      "sizeof(kAnnexBHeader) doesn't match kAnnexBHeaderSizeInBytes");
+  static_assert(sizeof(kAnnexBHeader) == kAnnexBHeaderSizeInBytes,
+                "sizeof(kAnnexBHeader) doesn't match kAnnexBHeaderSizeInBytes");
 
   if (annex_b_data_size < sizeof(kAnnexBHeader)) {
     return false;
@@ -84,19 +86,16 @@ bool ExtractAnnexBNalu(const uint8_t** annex_b_data,
 }  // namespace
 
 // static
-std::optional<AvcParameterSets> AvcParameterSets::Create(Format format,
-                                                         const uint8_t* data,
-                                                         size_t size) {
-  if (format != kAnnexB) {
-    return std::nullopt;
-  }
-
+// static
+std::optional<AvcParameterSets> AvcParameterSets::CreateFromAnnexB(
+    const uint8_t* data,
+    size_t size) {
   if (size > 0 && !StartsWithAnnexBHeader(data, size)) {
     return std::nullopt;
   }
   if (size == 0) {
     return AvcParameterSets(
-        format, /*parameter_sets=*/{}, /*first_sps_index=*/-1,
+        kAnnexB, /*parameter_sets=*/{}, /*first_sps_index=*/-1,
         /*first_pps_index=*/-1, /*combined_size_in_bytes=*/0,
         /*combined_size_with_optionals_in_bytes=*/0);
   }
@@ -132,7 +131,7 @@ std::optional<AvcParameterSets> AvcParameterSets::Create(Format format,
   SB_LOG_IF(ERROR, first_sps_index == -1 || first_pps_index == -1)
       << "AVC parameter set NALUs not found.";
 
-  return AvcParameterSets(format, std::move(parameter_sets), first_sps_index,
+  return AvcParameterSets(kAnnexB, std::move(parameter_sets), first_sps_index,
                           first_pps_index, combined_size_in_bytes,
                           combined_size_with_optionals_in_bytes);
 }
