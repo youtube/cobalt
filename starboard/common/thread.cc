@@ -51,6 +51,9 @@ int SbPriorityToNice(SbThreadPriority priority) {
       return -16;
     case kSbThreadPriorityRealTime:
       return -19;
+    default:
+      SB_NOTREACHED();
+      return 0;
   }
   return 0;
 }
