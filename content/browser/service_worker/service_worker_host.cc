@@ -289,6 +289,7 @@ RenderProcessHost* ServiceWorkerHost::GetProcessHost() const {
   return RenderProcessHost::FromID(version_->embedded_worker()->process_id());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void ServiceWorkerHost::BindAIManager(
     mojo::PendingReceiver<blink::mojom::AIManager> receiver) {
   auto* process = GetProcessHost();
@@ -298,5 +299,6 @@ void ServiceWorkerHost::BindAIManager(
                                                  std::move(receiver));
   }
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace content
