@@ -105,7 +105,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   double playback_rate_ = 1.0;
   double volume_ = 1.0;
   PlayerWorker::Bounds bounds_ = {};
-  JobQueue::JobToken update_job_token_;
+  JobQueue::JobToken update_job_token_ = JobQueue::JobToken::kUnscheduled;
   std::function<void()> update_job_;
 
   bool audio_prerolled_ = false;

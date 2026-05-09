@@ -148,10 +148,15 @@ void OpenH264VideoDecoder::DecodeOneBuffer(
   SB_DCHECK(input_buffer);
 
   if (input_buffer->video_sample_info().is_key_frame) {
-    VideoConfig new_config(input_buffer->video_stream_info(),
-                           input_buffer->data(), input_buffer->size());
-    if (!video_config_ || video_config_.value() != new_config) {
-      video_config_ = new_config;
+    auto new_config =
+        VideoConfig::Create(input_buffer->video_stream_info(),
+                            input_buffer->data(), input_buffer->size());
+    if (!new_config) {
+      ReportError("Failed to parse video config.");
+      return;
+    }
+    if (!video_config_ || video_config_.value() != *new_config) {
+      video_config_.emplace(*new_config);
       if (decoder_) {
         FlushFrames();
       }

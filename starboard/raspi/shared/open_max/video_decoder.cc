@@ -50,7 +50,7 @@ OpenMaxVideoDecoder::~OpenMaxVideoDecoder() {
     }
     pthread_join(*thread_, nullptr);
   }
-  RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(&update_job_token_);
 }
 
 void OpenMaxVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,

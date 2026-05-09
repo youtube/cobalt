@@ -505,7 +505,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     update_media_info_cb_(media_time, dropped_frames, !is_underflow);
   }
 
-  RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(&update_job_token_);
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
 
@@ -517,7 +517,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   audio_preroll_track_.End();
   video_preroll_track_.End();
 
-  RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(&update_job_token_);
 
   std::unique_ptr<PlayerComponents> player_components;
   {

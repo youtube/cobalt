@@ -284,7 +284,7 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
     const float* const ch_opt_frame =
         reinterpret_cast<const float*>(optimal_block_->data()) + k;
     float* ch_output = reinterpret_cast<float*>(wsola_output_->data()) + k +
-                       num_complete_frames_ * sizeof(float);
+                       num_complete_frames_ * channels_;
     for (int n = 0; n < ola_hop_size_; ++n) {
       ch_output[n * channels_] =
           ch_output[n * channels_] * ola_window_[ola_hop_size_ + n] +
@@ -295,7 +295,7 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   const float* const ch_opt_frame =
       reinterpret_cast<const float*>(optimal_block_->data());
   float* ch_output = reinterpret_cast<float*>(wsola_output_->data()) +
-                     num_complete_frames_ * sizeof(float);
+                     num_complete_frames_ * channels_;
   memcpy(&ch_output[ola_hop_size_ * channels_],
          &ch_opt_frame[ola_hop_size_ * channels_],
          sizeof(*ch_opt_frame) * ola_hop_size_ * channels_);
