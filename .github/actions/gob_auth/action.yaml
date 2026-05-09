@@ -17,6 +17,7 @@ runs:
 
         SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
         ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
+        gcloud config set account "${SERVICE_ACCOUNT}"
 
         if [[ -z "${SERVICE_ACCOUNT}" || -z "${ACCESS_TOKEN}" ]]; then
           echo "::error::Failed to retrieve service account or access token from metadata server."
