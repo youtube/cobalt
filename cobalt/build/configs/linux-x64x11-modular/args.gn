@@ -20,3 +20,12 @@ use_thin_lto = false
 
 # We don't currently use sandboxes in Cobalt Evergreen.
 v8_enable_sandbox = false
+
+# Disable PDF support.
+enable_pdf = false
+
+# Disable plugin support.
+enable_plugins = false
+
+# Disable printing support.
+enable_printing = false
