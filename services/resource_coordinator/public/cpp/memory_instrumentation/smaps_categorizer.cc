@@ -64,7 +64,12 @@ bool ParseSmapsLine(std::string_view line, uint64_t* value_kb) {
 }  // namespace
 
 SmapsCategorizer::SmapsCategorizer(base::WeakPtr<DetailedMetricsDelegate> delegate)
-    : delegate_(std::move(delegate)) {
+    : delegate_(delegate) {
+  // Detach from the creation sequence (which is typically the main UI thread).
+  // This ensures that the sequence checker will bind to the background sequenced
+  // task runner (e.g., MemoryInfra or ThreadPool polling runner) when RequestDump()
+  // is first called, verifying sequence affinity on the background runner.
+  DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
 SmapsCategorizer::~SmapsCategorizer() {
@@ -188,9 +193,9 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
           field_count++;
           if (field_count == 5) {
             const char* token_end_ptr = &*field_t.token_end();
-            std::string_view remainder(
-                token_end_ptr,
-                (line.data() + line.size()) - token_end_ptr);
+            size_t offset = std::distance(line.data(), token_end_ptr);
+            size_t remaining = line.size() - offset;
+            std::string_view remainder(token_end_ptr, remaining);
             std::string_view name_sv =
                 base::TrimWhitespaceASCII(remainder, base::TRIM_ALL);
             current_name = std::string(name_sv);
