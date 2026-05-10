@@ -16,6 +16,11 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/tracing_observer_proto.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#endif
 
 namespace memory_instrumentation {
 

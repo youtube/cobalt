@@ -73,6 +73,9 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   struct OSMemoryDumpArgs;
   void PerformOSMemoryDump(OSMemoryDumpArgs args);
+#if BUILDFLAG(IS_COBALT)
+  void ContinuePerformOSMemoryDump(OSMemoryDumpArgs args);
+#endif
 
   // Map containing pending chrome memory callbacks indexed by dump guid.
   // This must be destroyed after |binding_|.
@@ -93,6 +96,9 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   // Only browser process is allowed to request memory dumps.
   const bool is_browser_process_;
+#if BUILDFLAG(IS_COBALT)
+  base::WeakPtrFactory<ClientProcessImpl> weak_ptr_factory_{this};
+#endif
 };
 
 }  // namespace memory_instrumentation
