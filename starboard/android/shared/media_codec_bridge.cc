@@ -496,6 +496,12 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
+// static
+jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
+}
+
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
   SB_CHECK(handler_);
 }
@@ -505,12 +511,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JNIEnv* env = AttachCurrentThread();
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
-}
-
-// static
-jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
 }  // namespace starboard
