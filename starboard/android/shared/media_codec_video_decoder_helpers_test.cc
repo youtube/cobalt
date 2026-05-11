@@ -83,5 +83,99 @@ TEST(MediaCodecVideoDecoderHelpersTest, GetDecodeTargetGeometryFromMatrix) {
   EXPECT_EQ(geom.content_region.bottom, 0);
 }
 
+TEST(MediaCodecVideoDecoderHelpersTest, EqualAndIsIdentity) {
+  // Identity color metadata
+  SbMediaColorMetadata identity = {};
+  identity.primaries = kSbMediaPrimaryIdBt709;
+  identity.transfer = kSbMediaTransferIdBt709;
+  identity.matrix = kSbMediaMatrixIdBt709;
+  identity.range = kSbMediaRangeIdLimited;
+  EXPECT_TRUE(IsIdentity(identity));
+
+  // Non-identity primaries
+  SbMediaColorMetadata non_identity_primaries = identity;
+  non_identity_primaries.primaries = kSbMediaPrimaryIdBt2020;
+  EXPECT_FALSE(IsIdentity(non_identity_primaries));
+
+  // Non-identity transfer
+  SbMediaColorMetadata non_identity_transfer = identity;
+  non_identity_transfer.transfer = kSbMediaTransferIdSmpteSt2084;
+  EXPECT_FALSE(IsIdentity(non_identity_transfer));
+
+  // Non-empty mastering metadata
+  SbMediaColorMetadata non_empty_mastering = identity;
+  non_empty_mastering.mastering_metadata.luminance_max = 1000.0f;
+  EXPECT_FALSE(IsIdentity(non_empty_mastering));
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest,
+     GetDecodeTargetGeometryFromMatrix_HorizontalFlip) {
+  // Matrix representing vertical flip AND horizontal flip (raw_sx = -1.0f,
+  // raw_sy = 1.0f) Standard GL texture coordinates for horizontal/vertical flip
+  // would have tx=1.0f, ty=0.0f.
+  std::array<float, 16> flipped = {-1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                                   0.0f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                   1.0f,  0.0f, 0.0f, 1.0f};
+  Size display_size = {1920, 1080};
+
+  auto geom = GetDecodeTargetGeometryFromMatrix(flipped, display_size);
+  EXPECT_EQ(geom.coded_size.width, 1920);
+  EXPECT_EQ(geom.coded_size.height, 1080);
+
+  // raw_sx < 0 -> horizontally flipped -> left and right are swapped.
+  // raw_sy > 0 -> vertically flipped -> top and bottom are swapped.
+  EXPECT_EQ(geom.content_region.left, 1920);
+  EXPECT_EQ(geom.content_region.right, 0);
+  EXPECT_EQ(geom.content_region.top, 1080);
+  EXPECT_EQ(geom.content_region.bottom, 0);
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest,
+     GetDecodeTargetGeometryFromMatrix_Scaling) {
+  // Matrix representing 2x scale (upscale texture coordinates, meaning
+  // downscale of display) sx = 0.5f, sy = 0.5f. Coded size should become 2x
+  // display size.
+  std::array<float, 16> scaled = {0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f,
+                                  0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                  0.0f, 0.0f, 0.0f, 1.0f};
+  Size display_size = {1920, 1080};
+
+  auto geom = GetDecodeTargetGeometryFromMatrix(scaled, display_size);
+  // 2x scaling means coded_size resolves to 3840x2160.
+  EXPECT_EQ(geom.coded_size.width, 3840);
+  EXPECT_EQ(geom.coded_size.height, 2160);
+
+  // raw_sy > 0 -> top/bottom swapped
+  EXPECT_EQ(geom.content_region.left, 0);
+  EXPECT_EQ(geom.content_region.right, 1920);
+  EXPECT_EQ(geom.content_region.top, 1080);
+  EXPECT_EQ(geom.content_region.bottom, 0);
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest,
+     GetDecodeTargetGeometryFromMatrix_Translation) {
+  // Matrix representing translation / offset (tx = 0.2f, ty = 0.1f)
+  // Identity scale (sx = 1.0f, sy = 1.0f).
+  std::array<float, 16> translated = {0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.8f,
+                                      0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                      0.1f, 0.1f, 0.0f, 1.0f};
+  Size display_size = {1920, 1080};
+
+  auto geom = GetDecodeTargetGeometryFromMatrix(translated, display_size);
+  EXPECT_EQ(geom.coded_size.width, 2398);
+  EXPECT_EQ(geom.coded_size.height, 1348);
+
+  // Scaling sx = 0.8f, sy = 0.8f, tx = 0.1f, ty = 0.1f.
+  // The algorithm evaluates shrink_amount = 1.0f first, which yields
+  // visible_x/y >= 0 and exits: coded_size.width = round((1920 - 2) / 0.8) =
+  // 2398 visible_x = round(0.1 * 2398 - 1.0) = 239 coded_size.height =
+  // round((1080 - 2) / 0.8) = 1348 visible_y = round(0.1 * 1348 - 1.0) = 134
+  // raw_sy > 0 -> top/bottom swapped.
+  EXPECT_EQ(geom.content_region.left, 239);
+  EXPECT_EQ(geom.content_region.right, 239 + 1920);
+  EXPECT_EQ(geom.content_region.top, 134 + 1080);
+  EXPECT_EQ(geom.content_region.bottom, 134);
+}
+
 }  // namespace
 }  // namespace starboard
