@@ -222,6 +222,40 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
     rendered_ = true;
+
+    if (frame && !frame->is_end_of_stream()) {
+      int64_t pts_us = frame->timestamp();
+      int64_t pts_ms = pts_us / 1000;
+      int64_t release_time_ms = release_time_in_nanoseconds / 1000000;
+      int64_t system_time_us = CurrentMonotonicTime();
+      int64_t system_time_ms = system_time_us / 1000;
+
+      int64_t pts_gap_ms = 0;
+      int64_t render_gap_ms = 0;
+      int64_t system_gap_ms = 0;
+
+      if (last_pts_us_ != -1) {
+        pts_gap_ms = (pts_us - last_pts_us_) / 1000;
+        render_gap_ms =
+            (release_time_in_nanoseconds - last_release_time_ns_) / 1000000;
+        system_gap_ms = (system_time_us - last_system_time_us_) / 1000;
+      }
+
+      SB_LOG(INFO) << "[VideoFrameDraw] "
+                   << "PTS: " << FormatWithDigitSeparators(pts_ms) << " msec, "
+                   << "render time: "
+                   << FormatWithDigitSeparators(release_time_ms) << " msec, "
+                   << "system time: "
+                   << FormatWithDigitSeparators(system_time_ms) << " msec, "
+                   << "PTS gap(pts): " << pts_gap_ms << " msec, "
+                   << "Render gap: " << render_gap_ms << " msec, "
+                   << "system time gap: " << system_gap_ms << " msec";
+
+      last_pts_us_ = pts_us;
+      last_release_time_ns_ = release_time_in_nanoseconds;
+      last_system_time_us_ = system_time_us;
+    }
+
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
@@ -231,6 +265,11 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   PlaybackRateChangedCB playback_rate_changed_cb_;
   RenderCB render_cb_;
   bool rendered_;
+
+  // Track last values for frame pacing metrics
+  int64_t last_pts_us_ = -1;
+  int64_t last_release_time_ns_ = -1;
+  int64_t last_system_time_us_ = -1;
 };
 
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
