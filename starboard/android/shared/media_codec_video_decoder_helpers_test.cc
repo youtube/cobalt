@@ -64,25 +64,6 @@ TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
   EXPECT_EQ(res->height, 720);
 }
 
-TEST(MediaCodecVideoDecoderHelpersTest, GetDecodeTargetGeometryFromMatrix) {
-  // Identity 4x4 matrix
-  std::array<float, 16> identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-                                    0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-                                    0.0f, 0.0f, 0.0f, 1.0f};
-  Size display_size = {1920, 1080};
-
-  auto geom = GetDecodeTargetGeometryFromMatrix(identity, display_size);
-  EXPECT_EQ(geom.coded_size.width, 1920);
-  EXPECT_EQ(geom.coded_size.height, 1080);
-
-  // Identity matrix has raw_sy = 1.0f (> 0), which means it includes vertical
-  // flip. Therefore left/right remain, but top/bottom are swapped.
-  EXPECT_EQ(geom.content_region.left, 0);
-  EXPECT_EQ(geom.content_region.right, 1920);
-  EXPECT_EQ(geom.content_region.top, 1080);
-  EXPECT_EQ(geom.content_region.bottom, 0);
-}
-
 TEST(MediaCodecVideoDecoderHelpersTest, EqualAndIsIdentity) {
   // Identity color metadata
   SbMediaColorMetadata identity = {};
@@ -106,6 +87,25 @@ TEST(MediaCodecVideoDecoderHelpersTest, EqualAndIsIdentity) {
   SbMediaColorMetadata non_empty_mastering = identity;
   non_empty_mastering.mastering_metadata.luminance_max = 1000.0f;
   EXPECT_FALSE(IsIdentity(non_empty_mastering));
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest, GetDecodeTargetGeometryFromMatrix) {
+  // Identity 4x4 matrix
+  std::array<float, 16> identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 1.0f};
+  Size display_size = {1920, 1080};
+
+  auto geom = GetDecodeTargetGeometryFromMatrix(identity, display_size);
+  EXPECT_EQ(geom.coded_size.width, 1920);
+  EXPECT_EQ(geom.coded_size.height, 1080);
+
+  // Identity matrix has raw_sy = 1.0f (> 0), which means it includes vertical
+  // flip. Therefore left/right remain, but top/bottom are swapped.
+  EXPECT_EQ(geom.content_region.left, 0);
+  EXPECT_EQ(geom.content_region.right, 1920);
+  EXPECT_EQ(geom.content_region.top, 1080);
+  EXPECT_EQ(geom.content_region.bottom, 0);
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest,
