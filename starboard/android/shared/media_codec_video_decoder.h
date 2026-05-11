@@ -264,7 +264,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
-  const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;
+  const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
 };
 
 }  // namespace starboard
