@@ -388,7 +388,7 @@ static_library("media_codec_video_decoder_helpers") {
     "media_codec_video_decoder_helpers.h",
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
-  public_deps = [
+  deps = [
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
   ]
