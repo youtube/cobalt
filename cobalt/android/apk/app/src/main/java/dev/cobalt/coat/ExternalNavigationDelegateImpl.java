@@ -184,7 +184,7 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
 
     @Override
     public boolean canCloseTabOnIncognitoIntentLaunch() {
-        return true;
+        return false;
     }
 
     @Override
