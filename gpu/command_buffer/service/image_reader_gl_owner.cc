@@ -30,6 +30,13 @@
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
 
+#include "base/android/requires_api.h"
+
+// AImageReader and AHardwareBuffer APIs were introduced in Android 8.0 (API 26).
+// Since Cobalt's default_min_sdk_version is 24, we must declare that this entire
+// file requires API 26 to silence -Wunguarded-availability compile-time warnings.
+#pragma clang attribute push DEFAULT_REQUIRES_ANDROID_API(26)
+
 namespace gpu {
 
 namespace {
@@ -629,5 +636,7 @@ base::ScopedFD ImageReaderGLOwner::ScopedCurrentImageRef::GetReadyFence()
     const {
   return base::ScopedFD(HANDLE_EINTR(dup(ready_fence_.get())));
 }
+
+#pragma clang attribute pop
 
 }  // namespace gpu

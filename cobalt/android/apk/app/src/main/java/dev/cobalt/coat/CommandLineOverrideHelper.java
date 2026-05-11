@@ -113,6 +113,10 @@ public final class CommandLineOverrideHelper {
         // For details, see http://b/478022126#comment6.
         paramOverrides.add("UseAAudioInput");
 
+        // Disable AAudio output to prevent UnsatisfiedLinkError crashes on older Android TVs (like Android 7.1).
+        // See b/508072838
+        paramOverrides.add("UseAAudioDriver");
+
         return paramOverrides;
     }
 
