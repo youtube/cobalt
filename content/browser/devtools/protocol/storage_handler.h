@@ -68,7 +68,7 @@ class StorageHandler
   // content::protocol::storage::Backend
   Response GetStorageKeyForFrame(const std::string& frame_id,
                                  std::string* serialized_storage_key) override;
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if CHROMIUM_MILESTONE_LE_138
   Response GetStorageKey(std::optional<std::string> frame_id,
                          std::string* serialized_storage_key) override;
 #endif
