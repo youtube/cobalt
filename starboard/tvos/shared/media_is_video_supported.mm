@@ -67,7 +67,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
     if (video_codec == kSbMediaVideoCodecVp9) {
-#if defined(INTERNAL_BUILD)
+#if defined(COBALT_INTERNAL_BUILD)
       if (is_hdr) {
         if (transfer_id == kSbMediaTransferIdSmpteSt2084 ||
             transfer_id == kSbMediaTransferIdAribStdB67) {
@@ -127,7 +127,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #else
       SB_LOG(INFO) << "Non-internal build, accepting all VP9";
       return true;
-#endif  // defined(INTERNAL_BUILD)
+#endif  // defined(COBALT_INTERNAL_BUILD)
     }
   }  // @autoreleasepool
 
