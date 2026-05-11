@@ -135,6 +135,10 @@ static_library("starboard_platform") {
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "asset_manager.cc",
     # "asset_manager.h",
+    "aaudio_audio_sink.cc",
+    "aaudio_audio_sink.h",
+    "aaudio_loader.cc",
+    "aaudio_loader.h",
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",

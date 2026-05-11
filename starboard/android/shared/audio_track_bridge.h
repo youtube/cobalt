@@ -97,6 +97,11 @@ class AudioTrackBridge {
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
   const jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
+
+  // Performance instrumentation stats
+  int write_count_ = 0;
+  int64_t total_duration_ = 0;
+  int total_samples_ = 0;
 };
 
 }  // namespace starboard

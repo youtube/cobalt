@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
+#include <sys/system_properties.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -22,6 +23,8 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "starboard/android/shared/aaudio_audio_sink.h"
+#include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
@@ -103,6 +106,63 @@ bool HasRemoteAudioOutput() {
     index++;
   }
   return false;
+}
+
+bool ShouldUseAAudio(int tunnel_mode_audio_session_id,
+                     SbMediaAudioSampleType audio_sample_type,
+                     bool* has_property_override) {
+  *has_property_override = false;
+
+  char prop_val[PROP_VALUE_MAX] = "";
+  __system_property_get("debug.cobalt.use_ndk_aaudio", prop_val);
+
+  // Case 1: No property set -> Use default detection logic
+  if (strlen(prop_val) == 0) {
+    return android::AAudioLoader::GetInstance()->IsSupported() &&
+           tunnel_mode_audio_session_id == -1 &&
+           (audio_sample_type == kSbMediaAudioSampleTypeFloat32 ||
+            audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
+  }
+
+  // Case 2: Force AAudio OFF via property
+  if (strcmp(prop_val, "0") == 0) {
+    *has_property_override = true;
+    SB_LOG(INFO) << "[AudioSink] debug.cobalt.use_ndk_aaudio=0: Forcing NATIVE "
+                    "AAUDIO OFF.";
+    return false;
+  }
+
+  // Case 3: Force AAudio ON via property
+  if (strcmp(prop_val, "1") == 0) {
+    if (!android::AAudioLoader::GetInstance()->IsSupported()) {
+      SB_LOG(WARNING) << "[AudioSink] debug.cobalt.use_ndk_aaudio=1 but AAudio "
+                         "is not supported by the system (Loader FAILED).";
+      return false;
+    }
+
+    if (tunnel_mode_audio_session_id != -1 ||
+        (audio_sample_type != kSbMediaAudioSampleTypeFloat32 &&
+         audio_sample_type != kSbMediaAudioSampleTypeInt16Deprecated)) {
+      SB_LOG(WARNING)
+          << "[AudioSink] debug.cobalt.use_ndk_aaudio=1 but format is not PCM "
+             "or Tunnel Mode is active. Cannot force AAudio.";
+      return false;
+    }
+
+    *has_property_override = true;
+    SB_LOG(INFO) << "[AudioSink] debug.cobalt.use_ndk_aaudio=1: Forcing NATIVE "
+                    "AAUDIO ON.";
+    return true;
+  }
+
+  // Case 4: Invalid property value -> fallback to default logic
+  SB_LOG(WARNING)
+      << "[AudioSink] debug.cobalt.use_ndk_aaudio has invalid value: '"
+      << prop_val << "'. Ignoring property.";
+  return android::AAudioLoader::GetInstance()->IsSupported() &&
+         tunnel_mode_audio_session_id == -1 &&
+         (audio_sample_type == kSbMediaAudioSampleTypeFloat32 ||
+          audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
 }
 
 }  // namespace
@@ -525,6 +585,32 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
+  bool has_property_override = false;
+  bool use_aaudio = ShouldUseAAudio(tunnel_mode_audio_session_id,
+                                    audio_sample_type, &has_property_override);
+
+  if (use_aaudio) {
+    SB_LOG(INFO) << "[AudioSink] Attempting to use NATIVE AAUDIO backend.";
+    auto native_sink = android::AAudioAudioSink::Create(
+        this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+        frames_per_channel, callbacks, context);
+    if (native_sink) {
+      SB_LOG(INFO)
+          << "[AudioSink] Selected Backend: NATIVE AAUDIO (Dynamic Loader OK)";
+      return native_sink.release();
+    }
+    SB_LOG(WARNING) << "[AudioSink] Failed to create AAudio stream. Falling "
+                       "back to Java AudioTrack.";
+  }
+
+  SB_LOG(INFO) << "[AudioSink] Selected Backend: JAVA AUDIOTRACK (Reason: "
+               << (tunnel_mode_audio_session_id != -1
+                       ? "Tunnel Mode"
+                       : (has_property_override
+                              ? "Forced OFF by Property"
+                              : "AAudio Not Supported/Not PCM"))
+               << ")";
+
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
   SB_DCHECK_GE(frames_per_channel, min_required_frames);

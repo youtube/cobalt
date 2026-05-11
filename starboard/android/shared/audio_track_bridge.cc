@@ -21,6 +21,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -178,6 +179,8 @@ int AudioTrackBridge::WriteSample(const float* samples,
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
+  int64_t start = CurrentMonotonicTime();
+
   SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[F")));
   env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_.obj()),
                            kNoOffset, num_of_samples, samples);
@@ -185,10 +188,28 @@ int AudioTrackBridge::WriteSample(const float* samples,
   ScopedJavaLocalRef<jfloatArray> audio_data_local_ref(
       env, static_cast<jfloatArray>(env->NewLocalRef(j_audio_data_.obj())));
 
-  return Java_AudioTrackBridge_write(env, j_audio_track_bridge_,
-                                     // JavaParamRef<jfloatArray>'s raw pointer
-                                     // constructor expects a local reference.
-                                     audio_data_local_ref, num_of_samples);
+  int result =
+      Java_AudioTrackBridge_write(env, j_audio_track_bridge_,
+                                  // JavaParamRef<jfloatArray>'s raw pointer
+                                  // constructor expects a local reference.
+                                  audio_data_local_ref, num_of_samples);
+  int64_t duration = CurrentMonotonicTime() - start;
+
+  write_count_++;
+  total_duration_ += duration;
+  total_samples_ += num_of_samples;
+
+  if (write_count_ >= 500) {
+    SB_LOG(INFO) << "[AudioSinkPerf] Write Type: JNI_FLOAT, Writes: "
+                 << write_count_
+                 << ", Avg Samples: " << (total_samples_ / write_count_)
+                 << ", Avg Time: " << (total_duration_ / write_count_) << "us";
+    write_count_ = 0;
+    total_duration_ = 0;
+    total_samples_ = 0;
+  }
+
+  return result;
 }
 
 int AudioTrackBridge::WriteSample(const uint16_t* samples,
@@ -200,6 +221,8 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
   SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
+
+  int64_t start = CurrentMonotonicTime();
 
   SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[B")));
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
@@ -214,6 +237,23 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
       // JavaParamRef<jbyteArray>'s raw pointer constructor expects a local
       // reference.
       audio_data_local_ref, num_of_samples * sizeof(uint16_t), sync_time);
+
+  int64_t duration = CurrentMonotonicTime() - start;
+
+  write_count_++;
+  total_duration_ += duration;
+  total_samples_ += num_of_samples;
+
+  if (write_count_ >= 500) {
+    SB_LOG(INFO) << "[AudioSinkPerf] Write Type: JNI_INT16, Writes: "
+                 << write_count_
+                 << ", Avg Samples: " << (total_samples_ / write_count_)
+                 << ", Avg Time: " << (total_duration_ / write_count_) << "us";
+    write_count_ = 0;
+    total_duration_ = 0;
+    total_samples_ = 0;
+  }
+
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
     return bytes_written;
