@@ -114,19 +114,6 @@ void VpxVideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void VpxVideoDecoder::UpdateDecodeTarget_Locked(
-    const scoped_refptr<CpuVideoFrame>& frame) {
-  SbDecodeTarget decode_target = DecodeTargetCreate(
-      decode_target_graphics_context_provider_, frame, decode_target_);
-
-  // Lock only after the post to the renderer thread, to prevent deadlock.
-  decode_target_ = decode_target;
-
-  if (!SbDecodeTargetIsValid(decode_target)) {
-    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
-  }
-}
-
 void VpxVideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
@@ -289,6 +276,19 @@ SbDecodeTarget VpxVideoDecoder::GetCurrentDecodeTarget() {
     return DecodeTargetCopy(decode_target_);
   } else {
     return kSbDecodeTargetInvalid;
+  }
+}
+
+void VpxVideoDecoder::UpdateDecodeTarget_Locked(
+    const scoped_refptr<CpuVideoFrame>& frame) {
+  SbDecodeTarget decode_target = DecodeTargetCreate(
+      decode_target_graphics_context_provider_, frame, decode_target_);
+
+  // Lock only after the post to the renderer thread, to prevent deadlock.
+  decode_target_ = decode_target;
+
+  if (!SbDecodeTargetIsValid(decode_target)) {
+    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
   }
 }
 
