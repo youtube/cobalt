@@ -615,7 +615,7 @@ def ProcessNmOutput(nm_output, collect_files=False):
       print(f'Invalid line in nm output: {line}', file=sys.stderr)
 
 
-def RunCommand(args, cwd=None, env=None):
+def RunCommand(args, cwd=None):
   """Runs a command, returning its stdout and printing stderr on failure."""
   arg_string = ' '.join(args)
   logging.info('Running: %s', arg_string)
@@ -626,8 +626,7 @@ def RunCommand(args, cwd=None, env=None):
         capture_output=True,
         text=True,
         encoding='utf-8',
-        cwd=cwd,
-        env=env)
+        cwd=cwd)
     return result.stdout
   except subprocess.CalledProcessError as e:
     print(f'ERROR: Failed to run `${arg_string}`', file=sys.stderr)
