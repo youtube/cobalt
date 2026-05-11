@@ -92,7 +92,7 @@ namespace updater {
 const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
 // static
-base::NoDestructor<UpdaterModule>* UpdaterModule::updater_module_ = nullptr;
+UpdaterModule* UpdaterModule::updater_module_ = nullptr;
 
 void UpdaterModule::CreateInstance(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -103,14 +103,14 @@ void UpdaterModule::CreateInstance(
            "to get the instance.";
     return;
   }
-  updater_module_ = new base::NoDestructor<UpdaterModule>(
-      std::move(url_loader_factory), update_check_delay);
+  updater_module_ =
+      new UpdaterModule(std::move(url_loader_factory), update_check_delay);
 }
 
 UpdaterModule* UpdaterModule::GetInstance() {
   DCHECK(updater_module_) << "UpdaterModule is not created yet, and cannot be "
                              "retrieved by UpdaterModule::GetInstance().";
-  return updater_module_->get();
+  return updater_module_;
 }
 
 void Observer::OnEvent(const update_client::CrxUpdateItem& item) {
