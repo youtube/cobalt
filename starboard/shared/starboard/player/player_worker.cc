@@ -43,24 +43,6 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
 }  // namespace
 
-PlayerWorker::~PlayerWorker() {
-  ON_INSTANCE_RELEASED(PlayerWorker);
-
-  job_thread_->ScheduleAndWait([this] {
-    handler_->Stop();
-    handler_.reset();
-
-    if (!error_occurred_) {
-      UpdatePlayerState(kSbPlayerStateDestroyed);
-    }
-  });
-  job_thread_->Stop();
-
-  // Now the whole pipeline has been torn down and no callback will be called.
-  // The caller can ensure that upon the return of SbPlayerDestroy() all side
-  // effects are gone.
-}
-
 PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec,
                            std::unique_ptr<Handler> handler,
@@ -91,6 +73,24 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   ON_INSTANCE_CREATED(PlayerWorker);
 
   job_thread_->Schedule([this] { DoInit(); });
+}
+
+PlayerWorker::~PlayerWorker() {
+  ON_INSTANCE_RELEASED(PlayerWorker);
+
+  job_thread_->ScheduleAndWait([this] {
+    handler_->Stop();
+    handler_.reset();
+
+    if (!error_occurred_) {
+      UpdatePlayerState(kSbPlayerStateDestroyed);
+    }
+  });
+  job_thread_->Stop();
+
+  // Now the whole pipeline has been torn down and no callback will be called.
+  // The caller can ensure that upon the return of SbPlayerDestroy() all side
+  // effects are gone.
 }
 
 void PlayerWorker::UpdateMediaInfo(int64_t time,
