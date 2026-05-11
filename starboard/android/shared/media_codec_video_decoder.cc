@@ -441,9 +441,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           experimental_features.video_decoder_initial_preroll_count.value_or(
               kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
-      bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
-                  ? std::make_unique<VideoSurfaceTextureBridge>(this)
-                  : nullptr) {
+      surface_texture_bridge_(
+          output_mode_ == kSbPlayerOutputModeDecodeToTexture
+              ? std::make_unique<VideoSurfaceTextureBridge>(this)
+              : nullptr) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -801,8 +802,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       j_output_surface = decode_target->surface().obj();
 
       JNIEnv* env = AttachCurrentThread();
-      bridge_->SetOnFrameAvailableListener(env,
-                                           decode_target->surface_texture());
+      surface_texture_bridge_->SetOnFrameAvailableListener(
+          env, decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -881,7 +882,7 @@ void MediaCodecVideoDecoder::TeardownCodec() {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JNIEnv* env = AttachCurrentThread();
-      bridge_->RemoveOnFrameAvailableListener(
+      surface_texture_bridge_->RemoveOnFrameAvailableListener(
           env, decode_target_->surface_texture());
 
       decode_target_to_release = decode_target_;
@@ -1049,7 +1050,11 @@ bool MediaCodecVideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
 }
 
 void MediaCodecVideoDecoder::OnFlushing() {
-  decoder_status_cb_(kReleaseAllFrames, NULL);
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (decoder_status_cb_) {
+    decoder_status_cb_(kReleaseAllFrames, NULL);
+  }
 }
 
 bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
@@ -1064,13 +1069,13 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-void updateTexImage(const JavaRef<jobject>& surface_texture) {
+void UpdateTexImage(const JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
   VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
 }
 
-void getTransformMatrix(const JavaRef<jobject>& surface_texture,
+void GetTransformMatrix(const JavaRef<jobject>& surface_texture,
                         float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -1195,7 +1200,7 @@ SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
-      updateTexImage(decode_target_->surface_texture());
+      UpdateTexImage(decode_target_->surface_texture());
       UpdateDecodeTargetSizeAndContentRegion_Locked();
 
       if (!first_texture_received_) {
@@ -1218,7 +1223,7 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values) {
       float matrix4x4[16];
-      getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
+      GetTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
       Size coded_size;
       auto content_region = GetDecodeTargetContentRegionFromMatrix(
@@ -1281,7 +1286,7 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
   float matrix4x4[16];
-  getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
+  GetTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
   Size coded_size;
   auto content_region = GetDecodeTargetContentRegionFromMatrix(
