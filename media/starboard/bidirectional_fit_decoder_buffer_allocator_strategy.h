@@ -45,6 +45,10 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   void Free(DemuxerStream::Type type, void* p) override {
     bidirectional_fit_allocator_.Free(p);
   }
+  void BatchFree(const std::vector<void*>& audio_pointers,
+                 const std::vector<void*>& video_pointers) override {
+    bidirectional_fit_allocator_.BatchFree(audio_pointers, video_pointers);
+  }
   void Write(void* p, const void* data, size_t size) override {
     memcpy(p, data, size);
   }

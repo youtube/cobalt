@@ -1525,6 +1525,32 @@ void ChunkDemuxer::ChangeState_Locked(State new_state) {
 
 ChunkDemuxer::~ChunkDemuxer() {
   DCHECK_NE(state_, INITIALIZED);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    auto* allocator = DecoderBuffer::Allocator::Get();
+    if (allocator->IsBatchFreeEnabled()) {
+      DecoderBuffer::Allocator::BatchScope batch_scope;
+    // Design choices for manual clearing in BatchScope:
+    // 1. Cleared in exact reverse declaration order to minimize logic changes
+    //    when the feature is disabled (where the compiler destroys members in
+    //    reverse declaration order anyway).
+    // 2. Explicitly includes member variables that don't strictly need clearing
+    //    (because they don't hold DecoderBuffers) but appear between the ones
+    //    we DO need to clear in reverse declaration order. This ensures that
+    //    destruction of everything in this range happens within the BatchScope.
+
+    id_to_mime_map_.clear();
+    // supports_change_type_ does not need clearing
+    track_id_to_demux_stream_map_.clear();
+    removed_streams_.clear();
+    id_to_streams_map_.clear();
+    source_state_map_.clear();
+    // liveness_, timeline_offset_, user_specified_duration_, duration_ do not
+    // need clearing
+    pending_source_init_ids_.clear();
+    video_streams_.clear();
+    audio_streams_.clear();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {

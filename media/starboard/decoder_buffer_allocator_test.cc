@@ -255,6 +255,36 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
   }
 }
 
+TEST(DecoderBufferAllocatorSimpleTest, BatchFree) {
+  DecoderBufferAllocator* allocator = DecoderBufferAllocator::Get();
+  DecoderBufferAllocator::EnableBatchFree();
+
+  size_t allocated_initially = allocator->GetAllocatedMemory();
+
+  std::vector<Handle> handles;
+  size_t allocation_size = 1024;
+  for (int i = 0; i < 10; ++i) {
+    handles.push_back(
+        allocator->Allocate(DemuxerStream::AUDIO, allocation_size, 8));
+  }
+
+  size_t allocated_before_free = allocator->GetAllocatedMemory();
+  EXPECT_GT(allocated_before_free, allocated_initially);
+
+  {
+    DecoderBufferAllocator::BatchScope batch_scope;
+    for (int i = 0; i < 10; ++i) {
+      allocator->Free(DemuxerStream::AUDIO, handles[i], allocation_size);
+    }
+
+    // Memory should still be allocated because frees are deferred.
+    EXPECT_EQ(allocator->GetAllocatedMemory(), allocated_before_free);
+  }
+
+  // After BatchScope exits, memory should be freed.
+  EXPECT_EQ(allocator->GetAllocatedMemory(), allocated_initially);
+}
+
 INSTANTIATE_TEST_SUITE_P(DecoderBufferAllocatorTests,
                          DecoderBufferAllocatorTest,
                          Values("starboard/allocations_1La4QzGeaaQ.txt",

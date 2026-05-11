@@ -17,7 +17,9 @@
 
 #include <memory>
 #include <sstream>
+#include <vector>
 
+#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/synchronization/lock.h"
@@ -45,6 +47,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                            size_t size,
                            size_t alignment) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
+    virtual void BatchFree(const std::vector<void*>& audio_pointers,
+                           const std::vector<void*>& video_pointers) = 0;
     virtual void Write(void* p, const void* data, size_t size) = 0;
 
     virtual size_t GetCapacity() const = 0;
@@ -60,6 +64,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                          int initial_capacity,
                          int allocation_unit);
   ~DecoderBufferAllocator() override;
+
+  DecoderBufferAllocator(const DecoderBufferAllocator&) = delete;
+  DecoderBufferAllocator& operator=(const DecoderBufferAllocator&) = delete;
 
   static DecoderBufferAllocator* Get();
 
@@ -77,6 +84,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
+  bool IsBatchFreeEnabled() const override;
+  void StartBatching() override;
+  void StopBatching() override;
+
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
   size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
@@ -89,6 +100,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void SetAllocateOnDemand(bool enabled);
   static void EnableDecommitableAllocatorStrategy();
   static void EnableMediaBufferPoolStrategy();
+
+  static void EnableBatchFree();
 
  private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -105,6 +118,11 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
   bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
+
+  bool is_batch_free_enabled_ = false;
+
+  static thread_local std::vector<void*>* pending_audio_frees_;
+  static thread_local std::vector<void*>* pending_video_frees_;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation

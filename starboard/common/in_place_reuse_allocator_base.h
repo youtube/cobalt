@@ -43,6 +43,8 @@ class InPlaceReuseAllocatorBase : public Allocator {
 
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
+  void BatchFree(const std::vector<void*>& memories1,
+                 const std::vector<void*>& memories2);
 
   size_t GetCapacity() const override { return capacity_in_bytes_; }
   size_t GetAllocated() const override { return total_allocated_in_bytes_; }
@@ -166,6 +168,8 @@ class InPlaceReuseAllocatorBase : public Allocator {
   void AddAllocatedBlock(const MemoryBlock& block);
   FreeBlockSet::iterator AddFreeBlock(MemoryBlock block_to_add);
   void RemoveFreeBlock(FreeBlockSet::iterator it);
+  void CheckAndProcessPendingFrees();
+  void ResetAllocatorPool();
 
   BlockMetadata* allocated_block_head_ = nullptr;
   FreeBlockSet free_blocks_;

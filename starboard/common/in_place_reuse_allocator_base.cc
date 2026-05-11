@@ -199,39 +199,72 @@ void InPlaceReuseAllocatorBase::Free(void* memory) {
   }
 
   pending_frees_.push_back(memory);
+  CheckAndProcessPendingFrees();
+}
 
+void InPlaceReuseAllocatorBase::BatchFree(const std::vector<void*>& memories1,
+                                          const std::vector<void*>& memories2) {
+  size_t total_to_free = memories1.size() + memories2.size();
+  if (total_to_free == 0) {
+    return;
+  }
+
+  // Optimization: If we are freeing all blocks, we can skip inserting them
+  // and directly clear the allocator state.
+  if (pending_frees_.size() + total_to_free == total_allocated_blocks_) {
+    if (total_allocated_blocks_ > 32) {
+      ResetAllocatorPool();
+      return;
+    }
+  }
+
+  // Fallback: Insert and process as usual.
+  if (!memories1.empty()) {
+    pending_frees_.insert(pending_frees_.end(), memories1.begin(),
+                          memories1.end());
+  }
+  if (!memories2.empty()) {
+    pending_frees_.insert(pending_frees_.end(), memories2.begin(),
+                          memories2.end());
+  }
+  CheckAndProcessPendingFrees();
+}
+
+void InPlaceReuseAllocatorBase::CheckAndProcessPendingFrees() {
   if (pending_frees_.size() == total_allocated_blocks_) {
     if (total_allocated_blocks_ > 32) {
-      SB_LOG_IF(INFO, total_allocated_blocks_ > 2048)
-          << "Batched free triggered for " << total_allocated_blocks_
-          << " blocks.";
-      allocated_block_head_ = nullptr;
-      free_blocks_.clear();
-      pending_frees_.clear();
-
-      total_allocated_in_bytes_ = 0;
-      total_allocated_blocks_ = 0;
-
-      for (int i = 0; i < static_cast<int>(fallback_allocations_.size()); ++i) {
-        AddFreeBlock(MemoryBlock(i, fallback_allocations_[i].address,
-                                 fallback_allocations_[i].size));
-      }
-
-      if (enable_decommit_on_idle_) {
-        SB_LOG(INFO) << "Batched free triggered idle state, decommitting "
-                     << fallback_allocations_.size()
-                     << " fallback allocations.";
-        for (const auto& fallback_allocation : fallback_allocations_) {
-          fallback_allocator_->Decommit(fallback_allocation.address,
-                                        fallback_allocation.size);
-        }
-      }
+      ResetAllocatorPool();
     } else {
       for (auto address_to_free : pending_frees_) {
         bool freed = TryFree(address_to_free);
         SB_DCHECK(freed);
       }
       pending_frees_.clear();
+    }
+  }
+}
+
+void InPlaceReuseAllocatorBase::ResetAllocatorPool() {
+  SB_LOG_IF(INFO, total_allocated_blocks_ > 2048)
+      << "Batched free triggered for " << total_allocated_blocks_ << " blocks.";
+  allocated_block_head_ = nullptr;
+  free_blocks_.clear();
+  pending_frees_.clear();
+
+  total_allocated_in_bytes_ = 0;
+  total_allocated_blocks_ = 0;
+
+  for (int i = 0; i < static_cast<int>(fallback_allocations_.size()); ++i) {
+    AddFreeBlock(MemoryBlock(i, fallback_allocations_[i].address,
+                             fallback_allocations_[i].size));
+  }
+
+  if (enable_decommit_on_idle_) {
+    SB_LOG(INFO) << "Batched free triggered idle state, decommitting "
+                 << fallback_allocations_.size() << " fallback allocations.";
+    for (const auto& fallback_allocation : fallback_allocations_) {
+      fallback_allocator_->Decommit(fallback_allocation.address,
+                                    fallback_allocation.size);
     }
   }
 }

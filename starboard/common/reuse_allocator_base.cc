@@ -177,6 +177,18 @@ void ReuseAllocatorBase::Free(void* memory) {
   SB_DCHECK(result);
 }
 
+void ReuseAllocatorBase::BatchFree(const std::vector<void*>& memories1,
+                                   const std::vector<void*>& memories2) {
+  for (auto memory : memories1) {
+    bool result = TryFree(memory);
+    SB_DCHECK(result);
+  }
+  for (auto memory : memories2) {
+    bool result = TryFree(memory);
+    SB_DCHECK(result);
+  }
+}
+
 void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
                                           int max_allocations_to_print) const {
   struct HistogramEntry {
