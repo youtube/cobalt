@@ -1,6 +1,11 @@
 name: GoB Authentication
 description: Sets up GoB authentication using GCE metadata.
 
+inputs:
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
+
 runs:
   using: "composite"
   steps:
@@ -17,7 +22,10 @@ runs:
 
         SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
         ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
-        gcloud config set account "${SERVICE_ACCOUNT}"
+
+        if [[ "${{ inputs.use_gcloud }}" == "true" ]]; then
+          gcloud config set account "${SERVICE_ACCOUNT}"
+        fi
 
         if [[ -z "${SERVICE_ACCOUNT}" || -z "${ACCESS_TOKEN}" ]]; then
           echo "::error::Failed to retrieve service account or access token from metadata server."

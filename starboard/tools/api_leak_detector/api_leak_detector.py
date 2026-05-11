@@ -661,11 +661,8 @@ def main():
 
   if not args.skip_build:
     print(f'Building {config_dir} if necessary...', file=sys.stderr)
-    env = os.environ.copy()
-    env['SISO_CREDENTIAL_HELPER'] = 'gcloud'
     RunCommand(['autoninja', '-C', config_path, args.target],
-               cwd=paths.REPOSITORY_ROOT,
-               env=env)
+               cwd=paths.REPOSITORY_ROOT)
   else:
     print('Skipping build step.', file=sys.stderr)
 
