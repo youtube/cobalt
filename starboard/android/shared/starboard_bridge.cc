@@ -339,12 +339,6 @@ void StarboardBridge::SetCrashContext(JNIEnv* env,
                                        ConvertUTF8ToJavaString(env, value));
 }
 
-ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
-}
-
 bool StarboardBridge::IsMicrophoneDisconnected(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_isMicrophoneDisconnected(env,
@@ -376,6 +370,12 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
   SB_DCHECK(env);
   return Java_StarboardBridge_setVideoSurfaceBounds(env, j_starboard_bridge_, x,
                                                     y, width, height);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
+    JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
 }
 
 std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {
