@@ -336,18 +336,6 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
                             MediaCapabilitiesCache::GetInstance)
 
-MediaCapabilitiesCache::MediaCapabilitiesCache()
-    : MediaCapabilitiesCache(
-          std::make_unique<MediaCapabilitiesProviderImpl>()) {}
-
-MediaCapabilitiesCache::MediaCapabilitiesCache(
-    std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider)
-    : media_capabilities_provider_(std::move(media_capabilities_provider)) {
-  // Enable mime and key system caches.
-  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
-  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
-}
-
 bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
     return media_capabilities_provider_->GetIsWidevineSupported();
@@ -555,6 +543,18 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   }
 
   return "";
+}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache()
+    : MediaCapabilitiesCache(
+          std::make_unique<MediaCapabilitiesProviderImpl>()) {}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache(
+    std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider)
+    : media_capabilities_provider_(std::move(media_capabilities_provider)) {
+  // Enable mime and key system caches.
+  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
