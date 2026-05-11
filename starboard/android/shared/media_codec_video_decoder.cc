@@ -441,9 +441,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           experimental_features.video_decoder_initial_preroll_count.value_or(
               kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
-      bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
-                  ? std::make_unique<VideoSurfaceTextureBridge>(this)
-                  : nullptr) {
+      surface_texture_bridge_(
+          output_mode_ == kSbPlayerOutputModeDecodeToTexture
+              ? std::make_unique<VideoSurfaceTextureBridge>(this)
+              : nullptr) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -801,8 +802,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       j_output_surface = decode_target->surface().obj();
 
       JNIEnv* env = AttachCurrentThread();
-      bridge_->SetOnFrameAvailableListener(env,
-                                           decode_target->surface_texture());
+      surface_texture_bridge_->SetOnFrameAvailableListener(
+          env, decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -881,7 +882,7 @@ void MediaCodecVideoDecoder::TeardownCodec() {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JNIEnv* env = AttachCurrentThread();
-      bridge_->RemoveOnFrameAvailableListener(
+      surface_texture_bridge_->RemoveOnFrameAvailableListener(
           env, decode_target_->surface_texture());
 
       decode_target_to_release = decode_target_;
@@ -1049,7 +1050,11 @@ bool MediaCodecVideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
 }
 
 void MediaCodecVideoDecoder::OnFlushing() {
-  decoder_status_cb_(kReleaseAllFrames, NULL);
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (decoder_status_cb_) {
+    decoder_status_cb_(kReleaseAllFrames, NULL);
+  }
 }
 
 bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
@@ -1064,13 +1069,13 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-void updateTexImage(const JavaRef<jobject>& surface_texture) {
+void UpdateTexImage(const JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
   VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
 }
 
-void getTransformMatrix(const JavaRef<jobject>& surface_texture,
+void GetTransformMatrix(const JavaRef<jobject>& surface_texture,
                         float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -1089,56 +1094,97 @@ void getTransformMatrix(const JavaRef<jobject>& surface_texture,
 // an equivalent rectangle representing the region within the texture where
 // the pixel data is valid.  Note that the width and height of this region may
 // be negative to indicate that that axis should be flipped.
+// This function also infers the coded size of the texture from the matrix
+// and the display size.
 SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
-    const Size& size,
-    const float* matrix4x4) {
+    const float* matrix4x4,
+    const Size& display_size,
+    Size* out_coded_size) {
   // Ensure that this matrix contains no rotations or shears.  In other words,
   // make sure that we can convert it to a decode target content region without
   // losing any information.
-  SB_DCHECK_EQ(matrix4x4[1], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[2], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[3], 0.0f);
+  const float kEpsilon = 1e-6f;
+  SB_DCHECK_LT(std::abs(matrix4x4[1]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[2]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[3]), kEpsilon);
 
-  SB_DCHECK_EQ(matrix4x4[4], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[6], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[7], 0.0f);
+  SB_DCHECK_LT(std::abs(matrix4x4[4]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[6]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[7]), kEpsilon);
 
-  SB_DCHECK_EQ(matrix4x4[8], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[9], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[10], 1.0f);
-  SB_DCHECK_EQ(matrix4x4[11], 0.0f);
+  SB_DCHECK_LT(std::abs(matrix4x4[8]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[9]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[10] - 1.0f), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[11]), kEpsilon);
 
-  SB_DCHECK_EQ(matrix4x4[14], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[15], 1.0f);
+  SB_DCHECK_LT(std::abs(matrix4x4[14]), kEpsilon);
+  SB_DCHECK_LT(std::abs(matrix4x4[15] - 1.0f), kEpsilon);
 
-  float origin_x = matrix4x4[12];
-  float origin_y = matrix4x4[13];
+  float raw_sx = matrix4x4[0];
+  float raw_sy = matrix4x4[5];
 
-  float extent_x = matrix4x4[0] + matrix4x4[12];
-  float extent_y = matrix4x4[5] + matrix4x4[13];
+  float tx = raw_sx > 0 ? matrix4x4[12] : (raw_sx + matrix4x4[12]);
+  float ty = raw_sy > 0 ? matrix4x4[13] : (raw_sy + matrix4x4[13]);
 
-  SB_DCHECK_GE(origin_y, 0.0f);
-  SB_DCHECK_LE(origin_y, 1.0f);
-  SB_DCHECK_GE(origin_x, 0.0f);
-  SB_DCHECK_LE(origin_x, 1.0f);
-  SB_DCHECK_GE(extent_x, 0.0f);
-  SB_DCHECK_LE(extent_x, 1.0f);
-  SB_DCHECK_GE(extent_y, 0.0f);
-  SB_DCHECK_LE(extent_y, 1.0f);
+  float sx = std::abs(raw_sx);
+  float sy = std::abs(raw_sy);
 
-  // Flip the y-axis to match ContentRegion's coordinate system.
-  origin_y = 1.0f - origin_y;
-  extent_y = 1.0f - extent_y;
+  Size coded_size = display_size;
+  int visible_x = 0;
+  int visible_y = 0;
+
+  if (sx > kEpsilon && sy > kEpsilon) {
+    const float possible_shrinks_amounts[] = {1.0f, 0.5f, 0.0f};
+    for (const float& shrink_amount : possible_shrinks_amounts) {
+      if (sx < 1.0f) {
+        coded_size.width =
+            std::round((display_size.width - 2.0f * shrink_amount) / sx);
+        visible_x = std::round(tx * coded_size.width - shrink_amount);
+      }
+      if (sy < 1.0f) {
+        coded_size.height =
+            std::round((display_size.height - 2.0f * shrink_amount) / sy);
+        visible_y = std::round(ty * coded_size.height - shrink_amount);
+      }
+
+      if (visible_x >= 0 && visible_y >= 0) {
+        break;
+      }
+    }
+  }
+
+  if (out_coded_size) {
+    *out_coded_size = coded_size;
+  }
 
   SbDecodeTargetInfoContentRegion content_region;
 
-  content_region.left = origin_x * size.width;
-  content_region.right = extent_x * size.width;
+  // Create a base content region using the derived visible_x/y and
+  // display_size. The matrix produced by SurfaceTexture already maps to a
+  // top-down coordinate system (relative to the upper-left corner of the
+  // image), so visible_x/y are the top-left pixel offsets.
+  float left = visible_x;
+  float right = visible_x + display_size.width;
+  float top = visible_y;
+  float bottom = visible_y + display_size.height;
 
-  // Note that in GL coordinates, the origin is the bottom and the extent
-  // is the top.
-  content_region.top = extent_y * size.height;
-  content_region.bottom = origin_y * size.height;
+  // The Android matrix usually includes a vertical flip because GL's origin
+  // is bottom-left. In our derived top-down pixel space:
+  // - If raw_sx < 0, the image is horizontally flipped.
+  // - If raw_sy > 0, the image is vertically flipped (standard for
+  // SurfaceTexture). We swap the coordinates to signal these flips to the
+  // Starboard renderer.
+  if (raw_sx < 0) {
+    std::swap(left, right);
+  }
+  if (raw_sy > 0) {
+    std::swap(top, bottom);
+  }
+
+  content_region.left = left;
+  content_region.right = right;
+  content_region.top = top;
+  content_region.bottom = bottom;
 
   return content_region;
 }
@@ -1154,7 +1200,7 @@ SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
-      updateTexImage(decode_target_->surface_texture());
+      UpdateTexImage(decode_target_->surface_texture());
       UpdateDecodeTargetSizeAndContentRegion_Locked();
 
       if (!first_texture_received_) {
@@ -1176,13 +1222,14 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values) {
-      decode_target_->set_dimension(frame_size.display_size);
-
       float matrix4x4[16];
-      getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
+      GetTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
+      Size coded_size;
       auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          frame_size.display_size, matrix4x4);
+          matrix4x4, frame_size.display_size, &coded_size);
+
+      decode_target_->set_dimension(coded_size);
       decode_target_->set_content_region(content_region);
 
       // Now we have two crop rectangles, one from the MediaFormat, one from the
@@ -1190,9 +1237,9 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // Note that we cannot compare individual corners directly, as the values
       // retrieving from the surface texture can be flipped.
       int content_region_width =
-          std::abs(content_region.left - content_region.right) + 1;
+          std::abs(content_region.left - content_region.right);
       int content_region_height =
-          std::abs(content_region.bottom - content_region.top) + 1;
+          std::abs(content_region.bottom - content_region.top);
       // Using 2 as epsilon, as the texture may get clipped by one pixel from
       // each side.
       const auto display_size = frame_size.display_size;
@@ -1238,13 +1285,14 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  decode_target_->set_dimension(frame_sizes_.back().display_size);
-
   float matrix4x4[16];
-  getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
+  GetTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
-  decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
-      frame_sizes_.back().display_size, matrix4x4));
+  Size coded_size;
+  auto content_region = GetDecodeTargetContentRegionFromMatrix(
+      matrix4x4, frame_sizes_.back().display_size, &coded_size);
+  decode_target_->set_dimension(coded_size);
+  decode_target_->set_content_region(content_region);
 }
 
 void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {

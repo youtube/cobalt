@@ -295,7 +295,7 @@ void AVSBVideoRenderer::Seek(int64_t seek_to_time) {
   }
   sample_buffer_builder_->Reset();
   CancelPendingJobs();
-  enqueue_sample_buffers_job_token_.ResetToInvalid();
+  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   prerolled_frames_ = 0;
   pts_of_first_written_buffer_ = 0;
@@ -601,8 +601,7 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
 
     UpdateCachedFramesWatermark();
 
-    if (!video_sample_buffers_.empty() &&
-        !enqueue_sample_buffers_job_token_.is_valid()) {
+    if (!video_sample_buffers_.empty() && !enqueue_sample_buffers_job_token_) {
       enqueue_sample_buffers_job_token_ = Schedule(
           std::bind(&AVSBVideoRenderer::DelayedEnqueueSampleBuffers, this),
           16000);
@@ -620,7 +619,7 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
 }
 
 void AVSBVideoRenderer::DelayedEnqueueSampleBuffers() {
-  enqueue_sample_buffers_job_token_.ResetToInvalid();
+  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kUnscheduled;
   EnqueueSampleBuffers();
 }
 
