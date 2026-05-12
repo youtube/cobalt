@@ -72,6 +72,7 @@ class AAudioAudioSink : public SbAudioSinkImpl {
   aaudio_data_callback_result_t OnAudioCallback(void* audioData,
                                                 int32_t numFrames);
   void PollProgress();
+  void TrackAndConsumePlayhead();
 
   void ApplyVolume(void* buffer, int frames, double volume);
 

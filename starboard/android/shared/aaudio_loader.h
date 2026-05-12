@@ -67,6 +67,7 @@ class AAudioLoader {
                                int64_t timeoutNanoseconds);
   int32_t stream_getBufferSizeInFrames(AAudioStream* stream);
   int32_t stream_getFramesPerBurst(AAudioStream* stream);
+  int64_t stream_getFramesRead(AAudioStream* stream);
 
  private:
   AAudioLoader();
@@ -130,6 +131,7 @@ class AAudioLoader {
   typedef int32_t (*PFN_AAudioStream_getBufferSizeInFrames)(
       AAudioStream* stream);
   typedef int32_t (*PFN_AAudioStream_getFramesPerBurst)(AAudioStream* stream);
+  typedef int64_t (*PFN_AAudioStream_getFramesRead)(AAudioStream* stream);
 
   // Function pointers
   PFN_AAudio_convertResultToText pfn_AAudio_convertResultToText = nullptr;
@@ -163,6 +165,7 @@ class AAudioLoader {
       pfn_AAudioStream_getBufferSizeInFrames = nullptr;
   PFN_AAudioStream_getFramesPerBurst pfn_AAudioStream_getFramesPerBurst =
       nullptr;
+  PFN_AAudioStream_getFramesRead pfn_AAudioStream_getFramesRead = nullptr;
 };
 
 }  // namespace android

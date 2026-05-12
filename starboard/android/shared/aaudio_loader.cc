@@ -66,6 +66,7 @@ AAudioLoader::AAudioLoader() {
   RESOLVE_SYMBOL(AAudioStream_write);
   RESOLVE_SYMBOL(AAudioStream_getBufferSizeInFrames);
   RESOLVE_SYMBOL(AAudioStream_getFramesPerBurst);
+  RESOLVE_SYMBOL(AAudioStream_getFramesRead);
 
 #undef RESOLVE_SYMBOL
 
@@ -204,6 +205,11 @@ int32_t AAudioLoader::stream_getBufferSizeInFrames(AAudioStream* stream) {
 int32_t AAudioLoader::stream_getFramesPerBurst(AAudioStream* stream) {
   SB_DCHECK(initialized_);
   return pfn_AAudioStream_getFramesPerBurst(stream);
+}
+
+int64_t AAudioLoader::stream_getFramesRead(AAudioStream* stream) {
+  SB_DCHECK(initialized_);
+  return pfn_AAudioStream_getFramesRead(stream);
 }
 
 }  // namespace android

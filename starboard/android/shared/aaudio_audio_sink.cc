@@ -162,11 +162,10 @@ AAudioAudioSink::AAudioAudioSink(PassKey<AAudioAudioSink>,
 AAudioAudioSink::~AAudioAudioSink() {
   // Clean up the job thread first to prevent any pending tasks from running
   // during object destruction.
-  if (job_thread_) {
-    job_thread_->Stop();
-  }
+  job_thread_->Stop();
 
   if (stream_) {
+    aaudio_->stream_requestStop(stream_);
     aaudio_->stream_close(stream_);
   }
   SB_LOG(INFO) << "AAudioAudioSink destroyed.";
@@ -318,34 +317,10 @@ void AAudioAudioSink::PollProgress() {
     SB_LOG(INFO) << "[AudioSink] stream_requestStart returned: " << result;
   }
 
-  // Progress reporting
+  // Progress reporting (using super-smooth getFramesRead pipeline compensation)
   if (is_currently_playing || state == AAUDIO_STREAM_STATE_PAUSED ||
       state == AAUDIO_STREAM_STATE_PAUSING) {
-    int64_t frame_position = 0;
-    int64_t time_nanoseconds = 0;
-
-    aaudio_result_t result = aaudio_->stream_getTimestamp(
-        stream_, CLOCK_MONOTONIC, &frame_position, &time_nanoseconds);
-
-    if (result == AAUDIO_OK) {
-      if (frame_position >= last_playback_head_position_) {
-        int frames_consumed = frame_position - last_playback_head_position_;
-        if (frames_consumed > 0) {
-          int64_t frames_consumed_at_us = time_nanoseconds / 1'000;
-          callbacks_.consume_frames(frames_consumed, frames_consumed_at_us,
-                                    context_);
-          SB_LOG(INFO) << "[AudioSinkProgress] Consumed: " << frames_consumed
-                       << ", Playhead: " << frame_position
-                       << ", Time: " << frames_consumed_at_us;
-          last_playback_head_position_ = frame_position;
-        }
-      } else {
-        SB_LOG(WARNING) << "[AudioSink] Hardware playback head reset! "
-                        << "Previous: " << last_playback_head_position_
-                        << ", Current: " << frame_position;
-        last_playback_head_position_ = frame_position;
-      }
-    }
+    TrackAndConsumePlayhead();
   }
 
   // Performance stats logging (thread-safe)
@@ -392,9 +367,42 @@ void AAudioAudioSink::PollProgress() {
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
-  if (job_thread_) {
-    progress_job_token_ =
-        job_thread_->Schedule([this]() { PollProgress(); }, delay_us);
+  progress_job_token_ =
+      job_thread_->Schedule([this]() { PollProgress(); }, delay_us);
+}
+
+void AAudioAudioSink::TrackAndConsumePlayhead() {
+  int64_t frames_read = aaudio_->stream_getFramesRead(stream_);
+  int32_t buffer_size = aaudio_->stream_getBufferSizeInFrames(stream_);
+
+  // Compensate for pipeline latency (buffer size) to maintain perfect A/V sync
+  int64_t frame_position = std::max(0LL, frames_read - buffer_size);
+  int64_t time_nanoseconds = CurrentMonotonicTime() * 1000;
+
+  if (frame_position >= last_playback_head_position_) {
+    int frames_consumed = frame_position - last_playback_head_position_;
+    if (frames_consumed > 0) {
+      // Cap clock progress to 16ms (768 frames) per tick to prevent visual
+      // jumpiness during stream startup or resume, while smoothly catching up.
+      constexpr int kMaxFramesConsumedPerTick = 768;
+      int frames_to_report =
+          std::min(frames_consumed, kMaxFramesConsumedPerTick);
+
+      int64_t frames_consumed_at_us = time_nanoseconds / 1000;
+      callbacks_.consume_frames(frames_to_report, frames_consumed_at_us,
+                                context_);
+
+      last_playback_head_position_ += frames_to_report;
+
+      SB_LOG(INFO) << "[AudioSinkProgress] Consumed: " << frames_to_report
+                   << ", Playhead: " << last_playback_head_position_
+                   << ", True Playhead: " << frame_position;
+    }
+  } else {
+    SB_LOG(WARNING) << "[AudioSink] Hardware playhead went backward! "
+                    << "Previous: " << last_playback_head_position_
+                    << ", Current: " << frame_position;
+    last_playback_head_position_ = frame_position;
   }
 }
 
