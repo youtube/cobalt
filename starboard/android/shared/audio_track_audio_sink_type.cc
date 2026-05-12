@@ -24,6 +24,7 @@
 #include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/scoped_timer.h"
 #include "starboard/common/string.h"
@@ -130,7 +131,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
     int preferred_buffer_size_in_bytes,
     AudioTrackAudioSinkType::Callbacks callbacks,
     int64_t start_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
@@ -164,7 +165,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     int preferred_buffer_size_in_bytes,
     AudioTrackAudioSinkType::Callbacks callbacks,
     int64_t start_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool allow_audio_writing_on_pause,
     std::unique_ptr<AudioTrackBridge> bridge,
     void* context)
@@ -177,7 +178,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       callbacks_(callbacks),
       start_time_(start_time),
       max_frames_per_request_(
-          tunnel_mode_audio_session_id == -1
+          !tunnel_mode_audio_session_id
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
@@ -526,7 +527,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     void* context) {
   const int64_t kStartTime = 0;
   // Disable tunnel mode.
-  const int kTunnelModeAudioSessionId = -1;
+  const std::optional<int> kTunnelModeAudioSessionId = std::nullopt;
   const bool kIsWebAudio = true;
   const bool kAllowAudioWritingOnPause = false;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
@@ -545,7 +546,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int frames_per_channel,
     Callbacks callbacks,
     int64_t start_media_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {

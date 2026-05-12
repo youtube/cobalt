@@ -131,7 +131,7 @@ class MediaCodecBridge {
       const SbMediaColorMetadata* color_metadata,
       bool require_secured_decoder,
       bool require_software_codec,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       bool enable_output_checker,
