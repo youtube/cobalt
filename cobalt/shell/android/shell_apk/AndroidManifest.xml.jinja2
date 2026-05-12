@@ -50,6 +50,7 @@
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
             {# Cobalt/CoAT app is for the development only #}
             android:debuggable="{{ debuggable }}"
+            android:enableOnBackInvokedCallback="true"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
         {% if build_type in ['debug'] %}
         <profileable android:shell="true" android:enabled="true" />
