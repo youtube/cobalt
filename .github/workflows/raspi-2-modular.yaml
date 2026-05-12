@@ -1,9 +1,8 @@
 name: raspi-2-modular
-permissions: read-all
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize]
     branches:
       - main
       - experimental/*
@@ -20,6 +19,13 @@ on:
         required: true
         type: boolean
         default: false
+      label_name:
+        description: 'Label that triggered this run.'
+        required: false
+        type: string
+        default: ''
+
+permissions: read-all
 
 jobs:
   # This is the raspi build config
@@ -31,5 +37,6 @@ jobs:
     with:
       platform: raspi-2-modular
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}

@@ -1,7 +1,17 @@
 name: tvos
-permissions: read-all
 
 on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  push:
+    branches:
+      - main
+      - experimental/*
+      - feature/*
   workflow_dispatch:
     inputs:
       nightly:
@@ -9,12 +19,13 @@ on:
         required: true
         type: boolean
         default: false
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+      label_name:
+        description: 'Label that triggered this run.'
+        required: false
+        type: string
+        default: ''
+
+permissions: read-all
 
 jobs:
   # This is default Chromium build config
@@ -26,6 +37,7 @@ jobs:
     with:
       platform: tvos-arm64-simulator
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
       sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}

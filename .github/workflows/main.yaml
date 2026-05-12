@@ -18,6 +18,11 @@ on:
         required: false
         type: boolean
         default: false
+      label_name:
+        description: 'Label name'
+        required: false
+        type: string
+        default: ''
     secrets:
       datadog_api_key:
         required: false
@@ -25,8 +30,8 @@ on:
         required: false
 
 concurrency:
-  # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
-  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}-${{ github.ref }}
+  # Cancel existing jobs on the same workflow, platform, and branch.
+  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -55,9 +60,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
-    if: |
-      github.event.action != 'labeled' ||
-      (github.event.pull_request.merged == false && (github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test'))
     timeout-minutes: 10
     steps:
       - name: Restore CI Essentials
@@ -513,8 +515,9 @@ jobs:
       needs.initialize.outputs.test_on_device == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
@@ -559,8 +562,9 @@ jobs:
       needs.initialize.outputs.test_e2e == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_e2e_tests
@@ -594,8 +598,9 @@ jobs:
       needs.initialize.outputs.test_yts == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_tests
@@ -625,7 +630,8 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts_playback == 'true' &&
         (
-          github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test')
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'yts_playback_test')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_playback_tests
@@ -656,7 +662,7 @@ jobs:
       needs.initialize.outputs.test_on_host == 'true' &&
       (
         (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+        (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
         (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
       )
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -692,8 +698,7 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
-          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
-          (github.event_name == 'push')
+          inputs.nightly == 'true' || github.event_name == 'push'
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_wpt_tests
