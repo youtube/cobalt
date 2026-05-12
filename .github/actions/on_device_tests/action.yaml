@@ -43,7 +43,7 @@ runs:
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
       shell: bash
-    - name: Run Tests on ${{ matrix.platform }} Platform
+    - name: Run and Download Tests on ${{ matrix.platform }} Platform
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
@@ -66,84 +66,124 @@ runs:
         TEST_TYPE: unit_test
       run: |
         set -x
-
-        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
-        python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${GITHUB_TOKEN} \
-          trigger \
-          --test_type ${TEST_TYPE} \
-          --device_family '${{ inputs.test_device_family }}' \
-          --targets '${{ inputs.test_targets_json }}' \
-          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
-          --label chrobalt_on_device_test \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${{ matrix.platform }} \
-          --label builder_url-${GITHUB_RUN_URL} \
-          --label ${TEST_TYPE} \
-          --label github \
-          --label ${GITHUB_EVENT_NAME} \
-          --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
-          --label branch:${GITHUB_REF_NAME} \
-          --dimensions '${{ inputs.test_dimensions }}' \
-          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
-          --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${{ inputs.gcs_results_path }}" || {
-            echo "Finished running tests..."
-            echo "The test session failed. See logs for details."
-            # Fail the job so it's easy to retrigger.
-            exit 1
-          }
-        echo "Finished running tests..."
-      shell: bash
-    - name: Download ${{ matrix.platform }} Test Results from GCS
-      if: always()
-      env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
-      run: |
-        set -uxe
         shopt -s globstar nullglob
 
+        max_runs="${TEST_ATTEMPTS}"
+        max_runs="${max_runs:-1}"
+        if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
+          max_runs=3
+        fi
+
         test_output="${GITHUB_WORKSPACE}/results"
+        summary_output="${test_output}/summary"
+        datadog_output="${test_output}/datadog"
+
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
-        # Test results (xml and logs) must be in a subfolder in results_dir.
-        # to be picked up by the test result processor.
-        mkdir -p "${test_output}/${{ matrix.platform }}"
-        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+        mkdir -p "${summary_output}/${{ matrix.platform }}"
+        mkdir -p "${datadog_output}/${{ matrix.platform }}"
 
-        # Check for missing result xml files.
-        exit_code=0
-        readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
-        for test_target_with_path in "${test_targets[@]}"; do
-          # Trim path prefix (before :).
-          test_target=${test_target_with_path#*:}
-          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"*.xml)
+        suite_failed="false"
+        previous_results_args=()
+
+        for run in $(seq 1 $max_runs); do
+          echo "::group::Run ${run} of ${max_runs}"
+          
+          current_gcs_results_path="${{ inputs.gcs_results_path }}_run${run}"
+
+          # Trigger tests
+          python3 -u cobalt/tools/on_device_tests_gateway_client.py \
+            --token ${GITHUB_TOKEN} \
+            trigger \
+            --test_type ${TEST_TYPE} \
+            --device_family '${{ inputs.test_device_family }}' \
+            --targets '${{ inputs.test_targets_json }}' \
+            --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
+            --label chrobalt_on_device_test \
+            --label github_${GITHUB_PR_NUMBER:-postsubmit} \
+            --label builder-${{ matrix.platform }} \
+            --label builder_url-${GITHUB_RUN_URL} \
+            --label ${TEST_TYPE} \
+            --label github \
+            --label ${GITHUB_EVENT_NAME} \
+            --label ${GITHUB_WORKFLOW} \
+            --label actor-${GITHUB_ACTOR} \
+            --label actor_id-${GITHUB_ACTOR_ID} \
+            --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+            --label sha-${GITHUB_SHA} \
+            --label repository-${GITHUB_REPO} \
+            --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+            --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+            --label branch:${GITHUB_REF_NAME} \
+            --dimensions '${{ inputs.test_dimensions }}' \
+            --test_attempts 1 \
+            --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
+            --gcs_result_path "${current_gcs_results_path}" "${previous_results_args[@]}"
+            
+          run_status=$?
+          
+          # Download results
+          download_dir="${GITHUB_WORKSPACE}/tmp_results_run${run}"
+          mkdir -p "${download_dir}"
+          gsutil -q cp -r "${current_gcs_results_path}/*" "${download_dir}/" || true
+          
+          # Check results and maintain summary
+          current_failing="false"
+          xml_files=("${download_dir}"/**/*.xml)
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            # No matching XML results found. Check if the test target is filtered.
-            test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
-            if [ ! -f "${test_filter_file}" ] || [ "$(jq -cr '.failing_tests[0]' "${test_filter_file}")" != '*' ]; then
-              echo "Test result xml is missing for ${test_target}."
-
-              # Try to find the crashed test in the log and create a fake junit xml for it.
-              log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
-              xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-              exit_code=1
-            fi
-          elif grep -e '<failure' -e '<error' ${xml_files}; then
-            # Double-check the result XML for failures. ODT service has been known to report incorrect status.
-            echo "::error::Found failures in the test xml."
-            exit_code=1
+            current_failing="true"
+          elif ! python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py "${xml_files[@]}"; then
+            current_failing="true"
           fi
+          
+          # Scrub passing tests for runs 2 and 3 in postsubmit
+          if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]] && [[ $run -gt 1 ]]; then
+            for f in "${download_dir}"/**/*.xml; do
+              python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py --scrub-passing "$f"
+            done
+          fi
+
+          # Move to datadog and summary dirs with run suffix to avoid overwrite (Bug 4)
+          for f in "${download_dir}"/**/*; do
+            if [[ -f "$f" ]]; then
+              base=$(basename "$f")
+              name="${base%.*}"
+              ext="${base##*.}"
+              
+              # Copy to datadog
+              cp "$f" "${datadog_output}/${{ matrix.platform }}/${name}_run${run}.${ext}"
+              
+              # Copy to summary if it's run 1 or it passed in this run
+              if [[ $run -eq 1 ]] || [[ "${current_failing}" == "false" ]]; then
+                cp "$f" "${summary_output}/${{ matrix.platform }}/${name}_run${run}.${ext}"
+              fi
+            fi
+          done
+          
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            if [[ "${current_failing}" == "false" ]]; then
+              echo "Passed on attempt ${run}."
+              suite_failed="false"
+              break
+            else
+              suite_failed="true"
+              # Prepare previous results args for next run
+              previous_results_args=("--previous_results" "${xml_files[@]}")
+            fi
+          else
+            # Postsubmit: Always run 3 times
+            if [[ "${current_failing}" == "true" ]]; then
+              suite_failed="true"
+            fi
+          fi
+          
+          echo "::endgroup::"
         done
-        exit ${exit_code}
+        
+        # Final exit code
+        if [[ "${suite_failed}" == "true" ]]; then
+          exit 1
+        fi
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4

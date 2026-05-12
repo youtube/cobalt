@@ -15,11 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import unittest
 from unittest.mock import mock_open, patch
-import logging
+import xml.etree.ElementTree
 
-from cobalt.tools.junit_mini_parser import find_failing_tests, main
+from cobalt.tools.junit_mini_parser import find_failing_tests, main, generate_filter_string, scrub_passing_tests
 
 
 class TestFindFailingTests(unittest.TestCase):
@@ -151,6 +152,64 @@ class TestMain(unittest.TestCase):
 
   def test_main_no_files(self):
     self.assertEqual(main([]), 0)
+
+
+class TestGenerateFilterString(unittest.TestCase):
+
+  def test_empty_failures(self):
+    self.assertEqual(generate_filter_string({}), "-*")
+
+  def test_single_failure(self):
+    failing_tests = {'report.xml': [('SuiteA.test1', 'msg')]}
+    self.assertEqual(generate_filter_string(failing_tests), "SuiteA.test1")
+
+  def test_multiple_failures(self):
+    failing_tests = {
+        'report1.xml': [('SuiteA.test1', 'msg'), ('SuiteA.test2', 'msg')],
+        'report2.xml': [('SuiteB.test1', 'msg')]
+    }
+    result = generate_filter_string(failing_tests)
+    self.assertIn("SuiteA.test1", result)
+    self.assertIn("SuiteA.test2", result)
+    self.assertIn("SuiteB.test1", result)
+    parts = result.split(':')
+    self.assertEqual(len(parts), 3)
+
+
+class TestScrubPassingTests(unittest.TestCase):
+
+  @patch('cobalt.tools.junit_mini_parser._parse_xml')
+  def test_scrub_passing(self, mock_parse):
+    xml_content = """
+    <testsuites>
+      <testsuite name="Suite1" tests="2" failures="1" errors="0">
+        <testcase name="Pass"/>
+        <testcase name="Fail"><failure/></testcase>
+      </testsuite>
+      <testsuite name="Suite2" tests="1" failures="0" errors="0">
+        <testcase name="Pass2"/>
+      </testsuite>
+    </testsuites>
+    """
+    tree = xml.etree.ElementTree.ElementTree(xml.etree.ElementTree.fromstring(xml_content))
+    mock_parse.return_value = tree
+    
+    with patch.object(tree, 'write') as mock_write:
+      scrub_passing_tests('dummy.xml')
+      
+      root = tree.getroot()
+      suites = root.findall('testsuite')
+      self.assertEqual(len(suites), 1)
+      self.assertEqual(suites[0].get('name'), 'Suite1')
+      
+      cases = suites[0].findall('testcase')
+      self.assertEqual(len(cases), 1)
+      self.assertEqual(cases[0].get('name'), 'Fail')
+      
+      self.assertEqual(suites[0].get('tests'), '1')
+      self.assertEqual(suites[0].get('failures'), '1')
+      
+      mock_write.assert_called_once()
 
 
 if __name__ == '__main__':

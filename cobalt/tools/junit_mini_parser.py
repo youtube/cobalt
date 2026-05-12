@@ -16,6 +16,7 @@ standard library."""
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import collections
 import logging
 import os
@@ -23,50 +24,130 @@ import sys
 import xml.etree.ElementTree
 
 
-def find_failing_tests(
-    junit_xml_files: list[str]) -> dict[str, list[tuple[str, str]]]:
-  """Parses a list of JUnit XML files to find failing test cases.
+def _parse_xml(filename: str) -> xml.etree.ElementTree.ElementTree | None:
+  """Parses a JUnit XML file safely."""
+  try:
+    return xml.etree.ElementTree.parse(filename)
+  except (xml.etree.ElementTree.ParseError, FileNotFoundError) as e:
+    logging.error('Failed to parse %s: %s', filename, e)
+    return None
 
-  Args:
-    junit_xml_files (list): A list of paths to JUnit XML files.
 
-  Returns:
-    A map of test target -> list of (failing test name, failure message) tuples.
-  """
+def find_failing_tests(xml_files: list[str]) -> tuple[dict[str, list[tuple[str, str]]], list[str]]:
+  """Parses JUnit XML files to find failing tests."""
   failing_tests = collections.defaultdict(list)
-  for filename in junit_xml_files:
+  unparseable_files = []
+  for filename in xml_files:
     try:
-      tree = xml.etree.ElementTree.parse(filename)
-    except (xml.etree.ElementTree.ParseError, FileNotFoundError) as e:
-      logging.error('Failed to parse %s: %s', filename, e)
-      continue
+      tree = _parse_xml(filename)
+      if tree is None:
+        unparseable_files.append(filename)
+        continue
 
-    root = tree.getroot()
-    for testsuite in root.findall('testsuite'):
-      suite_name = testsuite.get('name', os.path.basename(filename))
-      for testcase in testsuite.findall('testcase'):
-        test_name = testcase.get('name')
-        failures = testcase.findall('failure')
-        errors = testcase.findall('error')
-        if failures or errors:
-          message = '\n'.join(
-              case.attrib.get('message', '').strip() + '\n' +
-              (case.text or '').strip() for case in failures + errors)
-          rel_path = os.path.relpath(filename)
-          failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
-  return failing_tests
+      root = tree.getroot()
+      for testsuite in root.findall('testsuite'):
+        suite_name = testsuite.attrib.get('name', '')
+        for case in testsuite.findall('testcase'):
+          test_name = case.attrib.get('name', '')
+          failures = case.findall('failure')
+          errors = case.findall('error')
+          if failures or errors:
+            message = '\n'.join(
+                case.attrib.get('message', '').strip() + '\n' +
+                (case.text or '').strip() for case in failures + errors)
+            rel_path = os.path.relpath(filename)
+            failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
+    except Exception as e:  # pylint: disable=broad-except
+      logging.error('Error parsing %s: %s', filename, e)
+      unparseable_files.append(filename)
+  return failing_tests, unparseable_files
 
 
-def main(xml_files: list[str]) -> int:
-  """Main entry point.
+def generate_filter_string(failing_tests: dict[str, list[tuple[str, str]]]) -> str:
+  """Generates a positive GTest filter string from failing tests."""
+  all_failed = [test for tests in failing_tests.values() for test, _ in tests]
+  return ':'.join(all_failed) or "-*"
 
-  Args:
-    xml_files (list): A list of paths to JUnit XML files.
 
-  Returns:
-    1 if failing tests are found, 0 otherwise.
-  """
-  failing_tests = find_failing_tests(xml_files)
+def scrub_passing_tests(xml_file: str):
+  """Removes passing tests from a JUnit XML file."""
+  tree = _parse_xml(xml_file)
+  if tree is None:
+    return
+
+  root = tree.getroot()
+  for testsuite in root.findall('testsuite'):
+    testcases = testsuite.findall('testcase')
+    remaining_count = 0
+    failures_count = 0
+    errors_count = 0
+
+    for testcase in testcases:
+      has_failure = testcase.find('failure') is not None
+      has_error = testcase.find('error') is not None
+
+      if has_failure or has_error:
+        remaining_count += 1
+        if has_failure:
+          failures_count += 1
+        if has_error:
+          errors_count += 1
+      else:
+        testsuite.remove(testcase)
+
+    if remaining_count == 0:
+      root.remove(testsuite)
+    else:
+      testsuite.set('tests', str(remaining_count))
+      testsuite.set('failures', str(failures_count))
+      testsuite.set('errors', str(errors_count))
+
+  # Update root attributes
+  total_tests = sum(int(ts.get('tests', 0)) for ts in root.findall('testsuite'))
+  total_failures = sum(int(ts.get('failures', 0)) for ts in root.findall('testsuite'))
+  total_errors = sum(int(ts.get('errors', 0)) for ts in root.findall('testsuite'))
+  
+  root.set('tests', str(total_tests))
+  root.set('failures', str(total_failures))
+  root.set('errors', str(total_errors))
+
+  tree.write(xml_file, encoding='utf-8', xml_declaration=True)
+
+
+def main(args: list[str] | None = None) -> int:
+  """Main entry point."""
+  parser = argparse.ArgumentParser(
+      description='Parses JUnit XML files and handles test results.')
+  parser.add_argument(
+      'xml_files',
+      nargs='+',
+      help='List of JUnit XML files to process.')
+  parser.add_argument(
+      '--generate-filter',
+      action='store_true',
+      help='Output a positive GTest filter string for failing tests.')
+  parser.add_argument(
+      '--scrub-passing',
+      action='store_true',
+      help='Scrub passing tests from the provided XML files in place.')
+
+  args = parser.parse_args(args)
+
+  if args.scrub_passing:
+    for xml_file in args.xml_files:
+      scrub_passing_tests(xml_file)
+    return 0
+
+  failing_tests, unparseable_files = find_failing_tests(args.xml_files)
+
+  if unparseable_files:
+    logging.error('Failed to parse some XML files: %s', unparseable_files)
+    return 1
+
+  if args.generate_filter:
+    filter_str = generate_filter_string(failing_tests)
+    print(filter_str)
+    return 0
 
   if failing_tests:
     logging.info('Failing Tests:')
@@ -79,17 +160,11 @@ def main(xml_files: list[str]) -> int:
       logging.info('')  # Blank line between targets
     return 1
 
-  if xml_files:
+  if args.xml_files:
     logging.info('No failing tests found in the test results.')
   return 0
 
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO, format='%(message)s')
-  if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
-  sys.exit(main(sys.argv[1:]))
+  sys.exit(main())
