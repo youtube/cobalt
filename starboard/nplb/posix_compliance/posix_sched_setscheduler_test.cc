@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -33,7 +34,10 @@ class PosixSchedSetSchedulerTest : public ::testing::Test {
         << "sched_getparam failed: " << strerror(errno);
   }
   void TearDown() override {
-    sched_setscheduler(0, original_policy, &original_param);
+    if ((sched_setscheduler(0, original_policy, &original_param)) != 0) {
+      SB_LOG(ERROR) << "Failed to restore original scheduling policy: "
+                    << strerror(errno);
+    }
   }
 
   int original_policy;
@@ -103,7 +107,6 @@ TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForRr) {
 }
 
 TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForBatch) {
-#if defined(SCHED_BATCH)
   int min_priority = sched_get_priority_min(SCHED_BATCH);
   int max_priority = sched_get_priority_max(SCHED_BATCH);
 
@@ -119,13 +122,9 @@ TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForBatch) {
   }
 
   EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
-#else
-  GTEST_SKIP() << "SCHED_BATCH is not supported on this system.";
-#endif  // defined(SCHED_BATCH)
 }
 
 TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForIdle) {
-#if defined(SCHED_IDLE)
   struct sched_param param;
   param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_IDLE, &param);
@@ -134,9 +133,6 @@ TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForIdle) {
   }
 
   EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
-#else
-  GTEST_SKIP() << "SCHED_IDLE is not supported on this system.";
-#endif  // defined(SCHED_IDLE)
 }
 
 TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPid) {

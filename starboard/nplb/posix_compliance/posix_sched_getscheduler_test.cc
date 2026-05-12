@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -25,7 +26,9 @@ namespace {
 
 TEST(PosixSchedGetSchedulerTest, SchedGetSchedulerSuccess) {
   int policy = sched_getscheduler(0);
-  EXPECT_GE(policy, 0) << "sched_getscheduler failed: " << strerror(errno);
+  EXPECT_GE(policy, 0);
+  EXPECT_TRUE(policy == MUSL_SCHED_OTHER || policy == MUSL_SCHED_FIFO ||
+              policy == MUSL_SCHED_RR);
 }
 
 TEST(PosixSchedGetSchedulerTest, SchedGetSchedulerFailsWithInvalidPid) {

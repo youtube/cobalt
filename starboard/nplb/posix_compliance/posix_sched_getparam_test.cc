@@ -27,7 +27,9 @@ TEST(PosixSchedGetParamTest, SchedGetParamSuccess) {
   struct sched_param param;
   int result = sched_getparam(0, &param);
 
-  EXPECT_EQ(result, 0) << "sched_getparam failed: " << strerror(errno);
+  EXPECT_EQ(result, 0);
+  EXPECT_GE(param.sched_priority, sched_get_priority_min(param.sched_priority));
+  EXPECT_LE(param.sched_priority, sched_get_priority_max(param.sched_priority));
 }
 
 TEST(PosixSchedGetParamTest, SchedGetParamFailsWithInvalidPid) {
@@ -35,7 +37,7 @@ TEST(PosixSchedGetParamTest, SchedGetParamFailsWithInvalidPid) {
   int result = sched_getparam(std::numeric_limits<pid_t>::max(), &param);
 
   EXPECT_EQ(result, -1);
-  EXPECT_TRUE(errno == ESRCH) << "errno was " << errno;
+  EXPECT_EQ(errno, ESRCH);
 }
 
 TEST(PosixSchedGetParamTest, SchedGetParamFailsWithNullParam) {
