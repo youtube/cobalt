@@ -47,9 +47,6 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
                         const std::vector<uint32_t>& texture_service_ids,
                         const std::vector<uint32_t>& texture_targets,
                         uint64_t decode_target,
-#if BUILDFLAG(IS_ANDROID)
-                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
-#endif  // BUILDFLAG(IS_ANDROID)
                         base::WaitableEvent* done_event) override;
 
  private:

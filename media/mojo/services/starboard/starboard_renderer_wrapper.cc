@@ -28,16 +28,8 @@
 namespace media {
 
 StarboardRendererWrapper::StarboardRendererWrapper(
-    StarboardRendererTraits traits
-#if BUILDFLAG(IS_ANDROID)
-    ,
-    scoped_refptr<gpu::RefCountedLock> drdc_lock)
-    : gpu::RefCountedLockHelperDrDc(std::move(drdc_lock)),
-#else   // BUILDFLAG(IS_ANDROID)
-    )
-    :
-#endif  // BUILDFLAG(IS_ANDROID)
-      renderer_extension_receiver_(
+    StarboardRendererTraits traits)
+    : renderer_extension_receiver_(
           this,
           std::move(traits.renderer_extension_receiver)),
       client_extension_remote_(std::move(traits.client_extension_remote),
@@ -298,11 +290,7 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
           .WithArgs(coded_size, GetRenderer()->color_space(), viz_format,
                     std::ref(shared_image), std::ref(texture_service_ids),
                     std::ref(texture_targets),
-                    reinterpret_cast<uint64_t>(decode_target_),
-#if BUILDFLAG(IS_ANDROID)
-                    GetDrDcLock(),
-#endif  // BUILDFLAG(IS_ANDROID)
-                    &done_event);
+                    reinterpret_cast<uint64_t>(decode_target_), &done_event);
       // Blocking is okay here to create image from textures on gpu thread.
       base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
       done_event.Wait();
