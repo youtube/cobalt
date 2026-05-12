@@ -107,7 +107,7 @@ runs:
 
           for run in $(seq 1 $max_runs); do
             echo "Attempt ${run} of ${max_runs} for ${test_binary}"
-            
+
             xml_path="${datadog_output}/${test_binary}_result_run${run}.xml"
             log_path="${datadog_output}/${test_binary}_log_run${run}.txt"
 
@@ -118,7 +118,7 @@ runs:
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${current_filter}" 2>&1 | tee ${log_path}
-            
+
             run_status=${PIPESTATUS[0]}
 
             if [[ ! -f ${xml_path} ]]; then
