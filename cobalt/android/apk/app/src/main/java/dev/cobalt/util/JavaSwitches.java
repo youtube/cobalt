@@ -95,6 +95,9 @@ public class JavaSwitches {
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
+  /** flag to force use IPv4 for system host resolution. */
+  public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -215,6 +218,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
       extraCommandLineArgs.add("--avoid-cc-reuse-resource");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
+      extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
     }
 
     return extraCommandLineArgs;

@@ -34,6 +34,8 @@ extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 // Enables the asynchronous DNS client and DNS-over-HTTPS (DoH).
 extern const base::Feature kAsyncDnsAndDoH;
 
+// Use IPv4 for system host resolution.
+extern const base::Feature kUseIPv4ForDNS;
 }  // namespace features
 }  // namespace cobalt
 

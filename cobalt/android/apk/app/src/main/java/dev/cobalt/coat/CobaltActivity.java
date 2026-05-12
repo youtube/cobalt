@@ -26,15 +26,19 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -119,6 +123,8 @@ public abstract class CobaltActivity extends Activity {
 
   private boolean mEnableSplashScreen;
   private String mStartDeepLink;
+
+  private Object mBackInvokedCallback;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -443,6 +449,10 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
     StartupGuard.getInstance().setStartupMilestone(9);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
+    }
   }
 
   /**
@@ -575,6 +585,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -815,6 +829,33 @@ public abstract class CobaltActivity extends Activity {
   private void updateShellActivityVisible(boolean isVisible) {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
+    }
+  }
+
+  @RequiresApi(api = 33)
+  private static class OnBackInvokedHelper {
+    static OnBackInvokedCallback register(final CobaltActivity activity) {
+      OnBackInvokedCallback callback = new OnBackInvokedCallback() {
+        @Override
+        public void onBackInvoked() {
+          // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+        }
+      };
+      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+          callback
+      );
+      return callback;
+    }
+
+    static void unregister(CobaltActivity activity, Object callback) {
+      if (callback instanceof OnBackInvokedCallback) {
+        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+            (OnBackInvokedCallback) callback
+        );
+      }
     }
   }
 
