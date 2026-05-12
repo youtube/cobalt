@@ -23,6 +23,7 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <optional>
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -46,6 +47,8 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+std::optional<int64_t> g_baseline_us_;
+
 namespace {
 
 using jni_zero::AttachCurrentThread;
@@ -222,6 +225,22 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
     rendered_ = true;
+    frame_count_++;
+    if (frame_count_ == 1) {
+      SB_CHECK(g_baseline_us_);
+      const int64_t baseline_us = *g_baseline_us_;
+      const auto release_us = release_time_in_nanoseconds / 1'000;
+      const int64_t now_us = CurrentMonotonicTime();
+
+      // Convert to durations for easier math
+      auto elapsed_ms = (now_us - baseline_us) / 1'000;
+      auto release_ms = (release_us - baseline_us) / 1'000;
+
+      SB_LOG(INFO) << "TTFF Performance: "
+                   << "called(msec)=" << FormatWithDigitSeparators(elapsed_ms)
+                   << ", released(msec)="
+                   << FormatWithDigitSeparators(release_ms);
+    }
 
     if (frame && !frame->is_end_of_stream()) {
       int64_t pts_us = frame->timestamp();
@@ -270,6 +289,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   int64_t last_pts_us_ = -1;
   int64_t last_release_time_ns_ = -1;
   int64_t last_system_time_us_ = -1;
+  int frame_count_ = 0;
 };
 
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
@@ -1205,6 +1225,11 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void ResetBaselineTime() {
+  g_baseline_us_ = CurrentMonotonicTime();
 }
 
 }  // namespace starboard
