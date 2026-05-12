@@ -1785,6 +1785,10 @@ component("base") {
       "starboard/debugger_starboard.cc",
     ]
 
+    if (is_android) {
+      sources -= [ "process/process_android.cc" ]
+    }
+
     if (is_linux) {
       sources -= [ "process/process_linux.cc" ]
     }

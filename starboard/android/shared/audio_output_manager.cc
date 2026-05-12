@@ -139,13 +139,6 @@ SbMediaAudioConnector GetConnectorFromAndroidOutputType(
 }
 }  // namespace
 
-AudioOutputManager::AudioOutputManager() {
-  JNIEnv* env = jni_zero::AttachCurrentThread();
-  SB_DCHECK(env);
-  j_audio_output_manager_ =
-      StarboardBridge::GetInstance()->GetAudioOutputManager(env);
-}
-
 SB_EXPORT_ANDROID AudioOutputManager* AudioOutputManager::GetInstance() {
   return base::Singleton<AudioOutputManager>::get();
 }
@@ -253,6 +246,13 @@ bool AudioOutputManager::GetAudioConfiguration(
   }
 
   return true;
+}
+
+AudioOutputManager::AudioOutputManager() {
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  SB_DCHECK(env);
+  j_audio_output_manager_ =
+      StarboardBridge::GetInstance()->GetAudioOutputManager(env);
 }
 
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {

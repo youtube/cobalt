@@ -1,4 +1,4 @@
-# Cobalt projet code review style guide
+# Cobalt project code review style guide
 
 All code submitted to this repository must adhere to the established upstream Chromium style guides.
 

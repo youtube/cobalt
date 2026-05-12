@@ -14,11 +14,20 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
+#include <atomic>
 #include <chrono>
 
 #include "starboard/system.h"
 
 namespace starboard {
+
+const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
+    JobQueue::JobToken();
+
+JobQueue::JobToken JobQueue::JobToken::Generate() {
+  static std::atomic<int64_t> s_current_token{0};
+  return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
+}
 
 JobQueue::JobQueue() = default;
 
@@ -59,21 +68,24 @@ void JobQueue::ScheduleAndWait(Job&& job) {
   condition_.wait(lock, [&] { return job_finished || stopped_; });
 }
 
-void JobQueue::RemoveJobByToken(JobToken job_token) {
+void JobQueue::RemoveJobByToken(JobToken* job_token) {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (!job_token.is_valid()) {
+  if (!*job_token) {
     return;
   }
 
-  std::lock_guard lock(mutex_);
-  for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
-       iter != time_to_job_record_map_.end(); ++iter) {
-    if (iter->second.job_token == job_token) {
-      time_to_job_record_map_.erase(iter);
-      return;
+  {
+    std::lock_guard lock(mutex_);
+    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+         iter != time_to_job_record_map_.end(); ++iter) {
+      if (iter->second.job_token == *job_token) {
+        time_to_job_record_map_.erase(iter);
+        break;
+      }
     }
   }
+  job_token->Reset();
 }
 
 void JobQueue::StopSoon() {
@@ -124,12 +136,10 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
-    return JobToken();
+    return JobToken::kUnscheduled;
   }
 
-  ++current_job_token_;
-
-  JobToken job_token(current_job_token_);
+  JobToken job_token = JobToken::Generate();
   JobRecord job_record = {job_token, std::move(job), owner};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {

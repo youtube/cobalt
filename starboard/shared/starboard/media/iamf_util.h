@@ -50,7 +50,7 @@ class IamfMimeUtil {
     uint8_t additional_profile;
   };
 
-  explicit IamfMimeUtil(const std::string& mime_type);
+  static std::optional<IamfMimeUtil> Create(const std::string& mime_type);
 
   // Parses IAMF Config OBUs for the primary and additional profiles,
   // based on IAMF specification v1.0.0-errata.
@@ -58,28 +58,18 @@ class IamfMimeUtil {
   static Result<IamfProfileInfo> ParseIamfSequenceHeaderObu(
       const std::vector<uint8_t>& data);
 
-  bool is_valid() const {
-    return primary_profile_ <= kIamfProfileMax &&
-           additional_profile_ <= kIamfProfileMax &&
-           substream_codec_ != kIamfSubstreamCodecUnknown;
-  }
-  uint32_t primary_profile() const {
-    SB_DCHECK(is_valid());
-    return primary_profile_;
-  }
-  uint32_t additional_profile() const {
-    SB_DCHECK(is_valid());
-    return additional_profile_;
-  }
-  IamfSubstreamCodec substream_codec() const {
-    SB_DCHECK(is_valid());
-    return substream_codec_;
-  }
+  uint32_t primary_profile() const { return primary_profile_; }
+  uint32_t additional_profile() const { return additional_profile_; }
+  IamfSubstreamCodec substream_codec() const { return substream_codec_; }
 
  private:
-  uint32_t primary_profile_ = std::numeric_limits<uint32_t>::max();
-  uint32_t additional_profile_ = std::numeric_limits<uint32_t>::max();
-  IamfSubstreamCodec substream_codec_ = kIamfSubstreamCodecUnknown;
+  IamfMimeUtil(uint32_t primary_profile,
+               uint32_t additional_profile,
+               IamfSubstreamCodec substream_codec);
+
+  const uint32_t primary_profile_;
+  const uint32_t additional_profile_;
+  const IamfSubstreamCodec substream_codec_;
 };
 
 }  // namespace starboard
