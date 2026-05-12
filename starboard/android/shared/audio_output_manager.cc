@@ -154,7 +154,8 @@ ScopedJavaLocalRef<jobject> AudioOutputManager::CreateAudioTrackBridge(
   SB_DCHECK(env);
   return Java_AudioOutputManager_createAudioTrackBridge(
       env, j_audio_output_manager_, sample_type, sample_rate, channel_count,
-      preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id.value_or(-1),
+      preferred_buffer_size_in_bytes,
+      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       is_web_audio);
 }
 
@@ -210,7 +211,7 @@ std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
   SB_DCHECK(env);
   int session_id = Java_AudioOutputManager_generateTunnelModeAudioSessionId(
       env, j_audio_output_manager_, numberOfChannels);
-  if (session_id == -1) {
+  if (session_id == TUNNEL_MODE_AUDIO_SESSION_ID_NONE) {
     return std::nullopt;
   }
   return session_id;

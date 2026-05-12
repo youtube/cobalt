@@ -287,9 +287,9 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       max_frame_size ? max_frame_size->width : -1,
       max_frame_size ? max_frame_size->height : -1, j_surface_local,
       j_media_crypto_local, j_color_info,
-      tunnel_mode_audio_session_id.value_or(-1), max_video_input_size,
-      enable_output_checker, skip_video_frames_over_60_fps,
-      j_create_media_codec_bridge_result);
+      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
+      max_video_input_size, enable_output_checker,
+      skip_video_frames_over_60_fps, j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
