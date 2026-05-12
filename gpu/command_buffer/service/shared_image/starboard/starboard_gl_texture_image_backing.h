@@ -39,9 +39,7 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
                             SharedImageUsageSet usage,
                             std::vector<GLuint> texture_ids,
                             std::vector<uint32_t> texture_targets,
-                            uint64_t decode_target
-
-  );
+                            uint64_t decode_target);
 
   ~StarboardGLTextureBacking() override;
 

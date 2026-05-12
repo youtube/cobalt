@@ -47,7 +47,6 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
                         const std::vector<uint32_t>& texture_service_ids,
                         const std::vector<uint32_t>& texture_targets,
                         uint64_t decode_target,
-
                         base::WaitableEvent* done_event) override;
 
  private:

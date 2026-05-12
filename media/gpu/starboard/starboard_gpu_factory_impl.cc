@@ -94,7 +94,6 @@ void StarboardGpuFactoryImpl::CreateImageOnGpu(
     const std::vector<uint32_t>& texture_service_ids,
     const std::vector<uint32_t>& texture_targets,
     uint64_t decode_target,
-
     base::WaitableEvent* done_event) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (MakeContextCurrent(stub_)) {

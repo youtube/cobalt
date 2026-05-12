@@ -59,7 +59,6 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
       const std::vector<uint32_t>& texture_service_ids,
       const std::vector<uint32_t>& texture_targets,
       uint64_t decode_target,
-
       base::WaitableEvent* done_event) = 0;
 };
 
