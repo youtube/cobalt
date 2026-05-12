@@ -28,12 +28,13 @@ def _parse_xml(filename: str) -> xml.etree.ElementTree.ElementTree | None:
   """Parses a JUnit XML file safely."""
   try:
     return xml.etree.ElementTree.parse(filename)
-  except (xml.etree.ElementTree.ParseError, FileNotFoundError) as e:
-    logging.error('Failed to parse %s: %s', filename, e)
+  except (xml.etree.ElementTree.ParseError, FileNotFoundError) as error:
+    logging.error('Failed to parse %s: %s', filename, error)
     return None
 
 
-def find_failing_tests(xml_files: list[str]) -> tuple[dict[str, list[tuple[str, str]]], list[str]]:
+def find_failing_tests(
+    xml_files: list[str]) -> tuple[dict[str, list[tuple[str, str]]], list[str]]:
   """Parses JUnit XML files to find failing tests."""
   failing_tests = collections.defaultdict(list)
   unparseable_files = []
@@ -47,6 +48,8 @@ def find_failing_tests(xml_files: list[str]) -> tuple[dict[str, list[tuple[str, 
       root = tree.getroot()
       for testsuite in root.findall('testsuite'):
         suite_name = testsuite.attrib.get('name', '')
+        if not suite_name:
+          suite_name = os.path.basename(filename)
         for case in testsuite.findall('testcase'):
           test_name = case.attrib.get('name', '')
           failures = case.findall('failure')
@@ -56,17 +59,19 @@ def find_failing_tests(xml_files: list[str]) -> tuple[dict[str, list[tuple[str, 
                 case.attrib.get('message', '').strip() + '\n' +
                 (case.text or '').strip() for case in failures + errors)
             rel_path = os.path.relpath(filename)
-            failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
-    except Exception as e:  # pylint: disable=broad-except
-      logging.error('Error parsing %s: %s', filename, e)
+            failing_tests[rel_path].append(
+                (f'{suite_name}.{test_name}', message))
+    except Exception as error:  # pylint: disable=broad-except
+      logging.error('Error parsing %s: %s', filename, error)
       unparseable_files.append(filename)
   return failing_tests, unparseable_files
 
 
-def generate_filter_string(failing_tests: dict[str, list[tuple[str, str]]]) -> str:
+def generate_filter_string(
+    failing_tests: dict[str, list[tuple[str, str]]]) -> str:
   """Generates a positive GTest filter string from failing tests."""
   all_failed = [test for tests in failing_tests.values() for test, _ in tests]
-  return ':'.join(all_failed) or "-*"
+  return ':'.join(all_failed) or '-*'
 
 
 def scrub_passing_tests(xml_file: str):
@@ -76,12 +81,14 @@ def scrub_passing_tests(xml_file: str):
     return
 
   root = tree.getroot()
+  # Iterate through all testsuites in the XML.
   for testsuite in root.findall('testsuite'):
     testcases = testsuite.findall('testcase')
     remaining_count = 0
     failures_count = 0
     errors_count = 0
 
+    # Remove testcases that did not fail or error.
     for testcase in testcases:
       has_failure = testcase.find('failure') is not None
       has_error = testcase.find('error') is not None
@@ -95,18 +102,22 @@ def scrub_passing_tests(xml_file: str):
       else:
         testsuite.remove(testcase)
 
+    # If all testcases in a suite passed, remove the suite.
     if remaining_count == 0:
       root.remove(testsuite)
     else:
+      # Update counts for the testsuite.
       testsuite.set('tests', str(remaining_count))
       testsuite.set('failures', str(failures_count))
       testsuite.set('errors', str(errors_count))
 
-  # Update root attributes
-  total_tests = sum(int(ts.get('tests', 0)) for ts in root.findall('testsuite'))
-  total_failures = sum(int(ts.get('failures', 0)) for ts in root.findall('testsuite'))
-  total_errors = sum(int(ts.get('errors', 0)) for ts in root.findall('testsuite'))
-  
+  # Update root attributes by summing counts from remaining testsuites.
+  total_tests, total_failures, total_errors = 0, 0, 0
+  for remaining_testsuite in root.findall('testsuite'):
+    total_tests += int(remaining_testsuite.get('tests', 0))
+    total_failures += int(remaining_testsuite.get('failures', 0))
+    total_errors += int(remaining_testsuite.get('errors', 0))
+
   root.set('tests', str(total_tests))
   root.set('failures', str(total_failures))
   root.set('errors', str(total_errors))
@@ -119,9 +130,7 @@ def main(args: list[str] | None = None) -> int:
   parser = argparse.ArgumentParser(
       description='Parses JUnit XML files and handles test results.')
   parser.add_argument(
-      'xml_files',
-      nargs='+',
-      help='List of JUnit XML files to process.')
+      'xml_files', nargs='*', help='List of JUnit XML files to process.')
   parser.add_argument(
       '--generate-filter',
       action='store_true',

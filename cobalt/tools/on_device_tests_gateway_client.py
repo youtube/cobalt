@@ -240,17 +240,21 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
       target_name = test_target.split(':')[-1]
+      gtest_filter = None
+      # Use previous results to generate a filter to retry only failing tests.
       if args.previous_results:
-        target_files = [f for f in args.previous_results if os.path.basename(f).startswith(f'{target_name}_')]
+        target_files = [
+            file_path for file_path in args.previous_results
+            if os.path.basename(file_path).startswith(f'{target_name}_')
+        ]
         if target_files:
           failing_tests, unparseable_files = find_failing_tests(target_files)
-          if unparseable_files:
-            gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-          else:
+          # Only use the generated filter if all files were parseable.
+          if not unparseable_files:
             gtest_filter = generate_filter_string(failing_tests)
-        else:
-          gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-      else:
+
+      # Fallback to default filter if no filter was generated.
+      if gtest_filter is None:
         gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
 
       if gtest_filter == '-*':
@@ -380,7 +384,7 @@ def main() -> int:
       '--previous_results',
       type=str,
       nargs='+',
-      help='List of JUnit XML files from previous run to generate retry filter.',
+      help='List of JUnit XML files from previous run for retry filter.',
   )
   trigger_args.add_argument(
       '--retry_level',
