@@ -88,7 +88,7 @@ runs:
 
         for run in $(seq 1 $max_runs); do
           echo "::group::Run ${run} of ${max_runs}"
-          
+
           current_gcs_results_path="${{ inputs.gcs_results_path }}_run${run}"
 
           # Trigger tests
@@ -119,14 +119,14 @@ runs:
             --test_attempts 1 \
             --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
             --gcs_result_path "${current_gcs_results_path}" "${previous_results_args[@]}"
-            
+
           run_status=$?
-          
+
           # Download results
           download_dir="${GITHUB_WORKSPACE}/tmp_results_run${run}"
           mkdir -p "${download_dir}"
           gsutil -q cp -r "${current_gcs_results_path}/*" "${download_dir}/" || true
-          
+
           # Check results and maintain summary
           current_failing="false"
           xml_files=("${download_dir}"/**/*.xml)
@@ -135,7 +135,7 @@ runs:
           elif ! python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py "${xml_files[@]}"; then
             current_failing="true"
           fi
-          
+
           # Scrub passing tests for runs 2 and 3 in postsubmit
           if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]] && [[ $run -gt 1 ]]; then
             for f in "${download_dir}"/**/*.xml; do
@@ -149,17 +149,17 @@ runs:
               base=$(basename "$f")
               name="${base%.*}"
               ext="${base##*.}"
-              
+
               # Copy to datadog
               cp "$f" "${datadog_output}/${{ matrix.platform }}/${name}_run${run}.${ext}"
-              
+
               # Copy to summary if it's run 1 or it passed in this run
               if [[ $run -eq 1 ]] || [[ "${current_failing}" == "false" ]]; then
                 cp "$f" "${summary_output}/${{ matrix.platform }}/${name}_run${run}.${ext}"
               fi
             fi
           done
-          
+
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             if [[ "${current_failing}" == "false" ]]; then
               echo "Passed on attempt ${run}."
@@ -168,7 +168,11 @@ runs:
             else
               suite_failed="true"
               # Prepare previous results args for next run
-              previous_results_args=("--previous_results" "${xml_files[@]}")
+              if [[ "${#xml_files[@]}" -gt 0 ]]; then
+                previous_results_args=("--previous_results" "${xml_files[@]}")
+              else
+                previous_results_args=()
+              fi
             fi
           else
             # Postsubmit: Always run 3 times
@@ -176,10 +180,10 @@ runs:
               suite_failed="true"
             fi
           fi
-          
+
           echo "::endgroup::"
         done
-        
+
         # Final exit code
         if [[ "${suite_failed}" == "true" ]]; then
           exit 1
