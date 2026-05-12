@@ -42,6 +42,7 @@ declare_args() {
   rdk_enable_firebolt_api = false
   rdk_enable_rdkservices_api = true
   rdk_enable_wpecryptography = true
+  rdk_enable_firebolt_legacy_rpc_v1 = false
 }
 
 rdk_pkgconfig_extra_args = []
@@ -222,7 +223,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/linux/system_symbolize.cc",
 
     # RDK implementation
-    "accessibility_data.cc",
     "accessibility_extension.cc",
     "accessibility_extension.h",
     "application_rdk.cc",
@@ -369,6 +369,8 @@ static_library("starboard_platform_sources") {
 
   if (rdk_enable_rdkservices_api) {
     sources += [
+      "accessibility_data.cc",
+      "accessibility_data.h",
       "rdkservices.cc",
       "rdkservices.h",
     ]
@@ -388,6 +390,9 @@ static_library("starboard_platform_sources") {
       "FireboltTransport",
     ]
     defines += [ "ENABLE_FIREBOLT_API=1" ]
+    if (rdk_enable_firebolt_legacy_rpc_v1) {
+      defines += [ "FIREBOLT_LEGACY_RPC_V1=1" ]
+    }
   }
 
   if (rdk_enable_wpecryptography) {

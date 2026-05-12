@@ -25,6 +25,7 @@
 #include "third_party/starboard/rdk/shared/log_override.h"
 
 #include <firebolt/firebolt.h>
+#include <firebolt/gateway.h>
 
 #include <chrono>
 #include <cstring>
@@ -519,15 +520,25 @@ void FireboltInterface::lazy_init() {
   if (connected_.has_value())
     return;
 
-  const char* kFireboltEndpoint = getenv("FIREBOLT_ENDPOINT");
-  const bool kEnableLegacyRPCv1 = false;
   const auto kConnectionTimeout = 3s;
+  const char* kFireboltEndpoint = getenv("FIREBOLT_ENDPOINT");
 
   SB_DCHECK(kFireboltEndpoint && kFireboltEndpoint[0] != '\0');
   if (!kFireboltEndpoint || kFireboltEndpoint[0] == '\0') {
     connected_ = false;
     return;
   }
+
+  const bool kEnableLegacyRPCv1 = ([]()->bool {
+    if (const char* env = getenv("FIREBOLT_LEGACY_RPC_V1"); !!env) {
+      return (0 == strncasecmp(env, "1", 1)) || (0 == strncasecmp(env, "true", 4));
+    }
+#if defined(FIREBOLT_LEGACY_RPC_V1) && FIREBOLT_LEGACY_RPC_V1
+    return true;
+#else
+    return false;
+#endif
+  })();
 
   Firebolt::Config cfg { };
   cfg.wsUrl = kFireboltEndpoint;
@@ -571,6 +582,14 @@ void FireboltInterface::lazy_init() {
     const auto connected_tp = std::chrono::steady_clock::now();
     device_.init();
     text_to_speech_.init();
+    if (cfg.legacyRPCv1) {
+      // Let gateway know we're ready to receive notifications
+      auto& gateway = Firebolt::Transport::GetGatewayInstance();
+      auto result = gateway.request("lifecycle.ready", {}).get();
+      if (!result) {
+        SB_LOG(ERROR) << "lifecycle.ready() failed, error code = " << result.error();
+      }
+    }
     const auto init_completed_tp = std::chrono::steady_clock::now();
     SB_LOG(INFO) << "Firebolt init completed."
                  << " Connect took: " << std::chrono::duration_cast<std::chrono::milliseconds>(connected_tp - start_tp).count() << " ms,"
