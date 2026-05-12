@@ -53,6 +53,8 @@ namespace {
 
 const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
+const char kH5vccSettingsKeyMediaAllowAudioWritingOnPause[] =
+    "Media.AllowAudioWritingOnPause";
 const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
     "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
@@ -67,6 +69,8 @@ const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
+    "Media.EnableVideoRendererVspAdjustment";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
@@ -81,6 +85,8 @@ const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
     "Media.MaxSamplesPerWrite";
 const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
     "Media.SkipFlushOnDecoderTeardown";
+const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
+    "Media.SkipVideoFramesOver60Fps";
 const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
     "Media.UseDualThreadsForVideo";
 
@@ -247,6 +253,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     allocator->SetAllocateOnDemand(enable_allocate_on_demand);
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaAllowAudioWritingOnPause)) {
+    parsed.allow_audio_writing_on_pause = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings,
           kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
     parsed.disable_low_performance_sw_decoder = *val != 0;
@@ -268,12 +278,20 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_reset_audio_decoder = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
+    parsed.enable_video_renderer_vsp_adjustment = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
     parsed.force_decode_to_texture = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
     parsed.skip_flush_on_decoder_teardown = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
+    parsed.skip_video_frames_over_60_fps = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
