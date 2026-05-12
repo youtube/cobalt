@@ -172,7 +172,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool force_big_endian_hdr_metadata_;
 
   const std::optional<int> tunnel_mode_audio_session_id_;
-  const bool is_tunnel_mode_enabled_;
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;

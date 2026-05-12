@@ -424,7 +424,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id =
             GenerateAudioSessionId(creation_parameters);
         SB_LOG(INFO) << "Generated tunnel mode audio session id "
-                     << starboard::ToString(tunnel_mode_audio_session_id);
+                     << ToString(tunnel_mode_audio_session_id);
       } else {
         SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
       }

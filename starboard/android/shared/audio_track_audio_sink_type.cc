@@ -525,16 +525,13 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  const int64_t kStartTime = 0;
-  // Disable tunnel mode.
-  const std::optional<int> kTunnelModeAudioSessionId = std::nullopt;
-  const bool kIsWebAudio = true;
-  const bool kAllowAudioWritingOnPause = false;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 {update_source_status_func, consume_frames_func, error_func},
-                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio,
-                kAllowAudioWritingOnPause, context);
+                /*start_media_time=*/0,
+                /*tunnel_mode_audio_session_id=*/std::nullopt,
+                /*is_web_audio=*/true,
+                /*allow_audio_writing_on_pause=*/false, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(

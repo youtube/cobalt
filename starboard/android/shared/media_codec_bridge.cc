@@ -312,7 +312,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
                << ", require_software_codec="
                << ToString(require_software_codec)
                << ", tunnel_mode_audio_session_id="
-               << starboard::ToString(tunnel_mode_audio_session_id)
+               << ToString(tunnel_mode_audio_session_id)
                << ", force_big_endian_hdr_metadata="
                << ToString(force_big_endian_hdr_metadata)
                << ", max_video_input_size=" << max_video_input_size;
