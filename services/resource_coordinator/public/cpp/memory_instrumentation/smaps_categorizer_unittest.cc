@@ -85,7 +85,7 @@ TEST_F(SmapsCategorizerTest, RequestDumpCoalescing) {
   ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   
   testing::NiceMock<MockDetailedMetricsDelegate> delegate;
-  SmapsCategorizer categorizer(delegate.GetWeakPtr());
+  SmapsCategorizer categorizer(&delegate);
 
   base::RunLoop run_loop;
   int call_count = 0;

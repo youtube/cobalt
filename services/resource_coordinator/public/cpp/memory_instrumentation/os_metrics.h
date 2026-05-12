@@ -77,6 +77,7 @@ class COMPONENT_EXPORT(
   static void SetProcSmapsForTesting(FILE*);
 #if BUILDFLAG(IS_COBALT)
   static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
+  static void SetSmapsRollupForTesting(FILE*);
   static base::File GetSmapsFileForScanning();
   static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(
       const std::string& smaps_content);

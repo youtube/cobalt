@@ -62,6 +62,7 @@ using mojom::VmRegion;
 using mojom::VmRegionPtr;
 
 #if BUILDFLAG(IS_COBALT)
+FILE* g_proc_smaps_rollup_for_testing = nullptr;
 const size_t kPssValidationThresholdKb = 30720;
 
 base::Lock& GetTestingGlobalsLock() {
@@ -87,15 +88,27 @@ void GetSmapsRollup(base::ProcessHandle handle,
                     size_t* pss,
                     size_t* swap_pss) {
   std::string content;
-  std::string file_name =
-      "/proc/" +
-      (handle == base::kNullProcessHandle ? "self"
-                                          : base::NumberToString(handle)) +
-      "/smaps_rollup";
-  if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
-    return;
+  bool use_mock = false;
+  {
+    base::AutoLock lock(GetTestingGlobalsLock());
+    if (g_proc_smaps_rollup_for_testing) {
+      use_mock = true;
+      fseek(g_proc_smaps_rollup_for_testing, 0, SEEK_SET);
+      base::ReadStreamToString(g_proc_smaps_rollup_for_testing, &content);
+    }
+  }
+
+  if (!use_mock) {
+    std::string file_name =
+        "/proc/" +
+        (handle == base::kNullProcessHandle ? "self"
+                                            : base::NumberToString(handle)) +
+        "/smaps_rollup";
+    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
+      *pss = size_t(0);
+      *swap_pss = size_t(0);
+      return;
+    }
   }
 
   if (content.empty()) {
@@ -784,6 +797,14 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 
 #if BUILDFLAG(IS_COBALT)
 // static
+void OSMetrics::SetSmapsRollupForTesting(FILE* f) {
+  base::AutoLock lock(GetTestingGlobalsLock());
+  g_proc_smaps_rollup_for_testing = f;
+}
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+// static
 base::File OSMetrics::GetSmapsFileForScanning() {
   base::AutoLock testing_lock(GetTestingGlobalsLock());
   if (g_proc_smaps_for_testing) {
@@ -890,6 +911,10 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   }
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    // We intentionally ignore the return value of FillDetailedMetrics. If detailed
+    // metrics collection or validation fails, we gracefully fall back to basic
+    // metrics (which are populated by FillOSMemoryDump above) rather than failing
+    // the entire OS memory dump request.
     FillDetailedMetrics(handle, flags, dump, delegate);
   }
 
