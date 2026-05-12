@@ -21,8 +21,9 @@ import shutil
 import sys
 
 if len(sys.argv) < 5:
-    print("Usage: tvos_packager.py <src_dir> <out_dir> <package_dir> <build_info_path>")
-    sys.exit(1)
+  print('Usage: tvos_packager.py <src_dir> <out_dir> <package_dir> '
+        '<build_info_path>')
+  sys.exit(1)
 
 src_dir = sys.argv[1]
 out_dir = sys.argv[2]
@@ -37,26 +38,27 @@ archive_src = os.path.join(out_dir, 'obj/cobalt/libcobalt_archive.a')
 archive_dest = os.path.join(lib_dir, 'cobalt.a')
 
 if not os.path.exists(archive_src):
-    print(f"Error: Native archive libcobalt_archive.a not found at {archive_src}")
-    sys.exit(1)
+  print(f'Error: Native archive libcobalt_archive.a not found at '
+        f'{archive_src}')
+  sys.exit(1)
 
-print(f"Copying cobalt archive to {archive_dest}...")
+print(f'Copying cobalt archive to {archive_dest}...')
 shutil.copy2(archive_src, archive_dest)
 
 # 2. Copy 'content' tree (asset pack)
 content_src = os.path.join(out_dir, 'install', 'usr', 'share', 'cobalt')
 content_dest = os.path.join(package_dir, 'content')
 if os.path.exists(content_dest):
-    shutil.rmtree(content_dest)
+  shutil.rmtree(content_dest)
 
 if os.path.exists(content_src):
-    print("Copying content tree...")
-    shutil.copytree(content_src, content_dest)
+  print('Copying content tree...')
+  shutil.copytree(content_src, content_dest)
 else:
-    print(f"Warning: Content tree not found at {content_src}")
+  print(f'Warning: Content tree not found at {content_src}')
 
 # 3. Copy build_info.json
-print("Copying build_info.json...")
+print('Copying build_info.json...')
 shutil.copy2(build_info_path, os.path.join(package_dir, 'build_info.json'))
 
-print("Success!")
+print('Success!')
