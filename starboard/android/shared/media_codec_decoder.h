@@ -97,7 +97,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
-      bool enable_output_checker);
+      bool enable_output_checker,
+      bool skip_video_frames_over_60_fps);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -127,6 +128,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
       bool enable_output_checker,
+      bool skip_video_frames_over_60_fps,
       std::string* error_message);
   ~MediaCodecDecoder();
 
