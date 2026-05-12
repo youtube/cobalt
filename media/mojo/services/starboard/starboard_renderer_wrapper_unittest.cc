@@ -159,9 +159,6 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
                         const std::vector<uint32_t>& texture_service_ids,
                         const std::vector<uint32_t>& texture_targets,
                         uint64_t decode_target,
-#if BUILDFLAG(IS_ANDROID)
-                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
-#endif  // BUILDFLAG(IS_ANDROID)
                         base::WaitableEvent* done_event) override {
     done_event->Signal();
   }
@@ -210,12 +207,7 @@ class StarboardRendererWrapperTest : public testing::Test {
         gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
-        std::make_unique<StarboardRendererWrapper>(std::move(traits)
-#if BUILDFLAG(IS_ANDROID)
-                                                       ,
-                                                   /*ref_counted_lock=*/nullptr
-#endif  // BUILDFLAG(IS_ANDROID)
-        );
+        std::make_unique<StarboardRendererWrapper>(std::move(traits));
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);
 

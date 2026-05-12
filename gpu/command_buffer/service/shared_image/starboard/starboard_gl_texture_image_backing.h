@@ -25,10 +25,6 @@
 #include "gpu/gpu_gles2_export.h"
 #include "starboard/decode_target.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "gpu/command_buffer/service/ref_counted_lock.h"
-#endif
-
 namespace gpu {
 
 class GPU_GLES2_EXPORT StarboardGLTextureBacking
@@ -44,10 +40,7 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
                             std::vector<GLuint> texture_ids,
                             std::vector<uint32_t> texture_targets,
                             uint64_t decode_target
-#if BUILDFLAG(IS_ANDROID)
-                            ,
-                            scoped_refptr<gpu::RefCountedLock> drdc_lock
-#endif
+
   );
 
   ~StarboardGLTextureBacking() override;
@@ -76,10 +69,6 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
       passthrough_textures_;
 
   SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
-
-#if BUILDFLAG(IS_ANDROID)
-  scoped_refptr<gpu::RefCountedLock> drdc_lock_;
-#endif
 };
 
 }  // namespace gpu

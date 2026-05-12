@@ -26,10 +26,6 @@
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "gpu/command_buffer/service/ref_counted_lock.h"
-#endif  // BUILDFLAG(IS_ANDROID)
-
 namespace media {
 // StarboardGpuFactory allows to post tasks on gpu thread.
 // StarboardRenderer uses this class to post graphical tasks.
@@ -63,9 +59,7 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
       const std::vector<uint32_t>& texture_service_ids,
       const std::vector<uint32_t>& texture_targets,
       uint64_t decode_target,
-#if BUILDFLAG(IS_ANDROID)
-      scoped_refptr<gpu::RefCountedLock> drdc_lock,
-#endif  // BUILDFLAG(IS_ANDROID)
+
       base::WaitableEvent* done_event) = 0;
 };
 

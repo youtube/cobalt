@@ -25,35 +25,18 @@
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "ui/gl/gl_utils.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "gpu/command_buffer/service/ref_counted_lock.h"
-#endif
-
 namespace gpu {
 
 class StarboardGLTextureBacking::
     GLTexturePassthroughStarboardImageRepresentation
-    : public GLTexturePassthroughImageRepresentation
-#if BUILDFLAG(IS_ANDROID)
-    ,
-      public RefCountedLockHelperDrDc
-#endif
-{
+    : public GLTexturePassthroughImageRepresentation {
  public:
   GLTexturePassthroughStarboardImageRepresentation(
       SharedImageManager* manager,
       StarboardGLTextureBacking* backing,
       MemoryTypeTracker* tracker,
-      std::vector<scoped_refptr<gpu::gles2::TexturePassthrough>> textures
-#if BUILDFLAG(IS_ANDROID)
-      ,
-      scoped_refptr<RefCountedLock> drdc_lock
-#endif
-      )
+      std::vector<scoped_refptr<gpu::gles2::TexturePassthrough>> textures)
       : GLTexturePassthroughImageRepresentation(manager, backing, tracker),
-#if BUILDFLAG(IS_ANDROID)
-        RefCountedLockHelperDrDc(std::move(drdc_lock)),
-#endif
         passthrough_textures_(std::move(textures)) {
     for (auto& passthrough_texture : passthrough_textures_) {
       CHECK(passthrough_texture);
@@ -68,24 +51,13 @@ class StarboardGLTextureBacking::
     return passthrough_textures_[plane_index];
   }
 
-  bool BeginAccess(GLenum mode) override NO_THREAD_SAFETY_ANALYSIS {
+  bool BeginAccess(GLenum mode) override {
     // This representation should only be called for read.
     DCHECK(mode == GL_SHARED_IMAGE_ACCESS_MODE_READ_CHROMIUM);
-#if BUILDFLAG(IS_ANDROID)
-    if (GetDrDcLockPtr()) {
-      GetDrDcLockPtr()->Acquire();
-    }
-#endif
     return true;
   }
 
-  void EndAccess() override NO_THREAD_SAFETY_ANALYSIS {
-#if BUILDFLAG(IS_ANDROID)
-    if (GetDrDcLockPtr()) {
-      GetDrDcLockPtr()->Release();
-    }
-#endif
-  }
+  void EndAccess() override {}
 
  private:
   std::vector<scoped_refptr<gles2::TexturePassthrough>> passthrough_textures_;
@@ -101,12 +73,7 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
     SharedImageUsageSet usage,
     std::vector<GLuint> texture_ids,
     std::vector<uint32_t> texture_targets,
-    uint64_t decode_target
-#if BUILDFLAG(IS_ANDROID)
-    ,
-    scoped_refptr<gpu::RefCountedLock> drdc_lock
-#endif
-    )
+    uint64_t decode_target)
     : ClearTrackingSharedImageBacking(mailbox,
                                       format,
                                       size,
@@ -123,9 +90,6 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
         base::MakeRefCounted<gpu::gles2::TexturePassthrough>(
             texture_ids[i], texture_targets[i]));
   }
-#if BUILDFLAG(IS_ANDROID)
-  drdc_lock_ = std::move(drdc_lock);
-#endif
   SetCleared();
 }
 
@@ -155,12 +119,7 @@ StarboardGLTextureBacking::ProduceGLTexturePassthrough(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker) {
   return std::make_unique<GLTexturePassthroughStarboardImageRepresentation>(
-      manager, this, tracker, passthrough_textures_
-#if BUILDFLAG(IS_ANDROID)
-      ,
-      drdc_lock_
-#endif
-  );
+      manager, this, tracker, passthrough_textures_);
 }
 
 std::unique_ptr<SkiaGaneshImageRepresentation>

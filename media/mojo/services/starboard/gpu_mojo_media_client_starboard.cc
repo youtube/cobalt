@@ -23,10 +23,6 @@
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 #include "media/starboard/starboard_cdm_factory.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "gpu/command_buffer/service/ref_counted_lock.h"
-#endif  // BUILDFLAG(IS_ANDROID)
-
 namespace media {
 
 class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
@@ -69,16 +65,8 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
       StarboardRendererTraits traits) final {
 #if BUILDFLAG(IS_ANDROID)
     traits.android_overlay_factory_cb = android_overlay_factory_cb_;
-    scoped_refptr<gpu::RefCountedLock> ref_counted_lock;
-
-    if (features::NeedThreadSafeAndroidMedia()) {
-      ref_counted_lock = base::MakeRefCounted<gpu::RefCountedLock>();
-    }
-    return std::make_unique<StarboardRendererWrapper>(std::move(traits),
-                                                      ref_counted_lock);
-#else   // BUILDFLAG(IS_ANDROID)
-    return std::make_unique<StarboardRendererWrapper>(std::move(traits));
 #endif  // BUILDFLAG(IS_ANDROID)
+    return std::make_unique<StarboardRendererWrapper>(std::move(traits));
   }
 
   std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
