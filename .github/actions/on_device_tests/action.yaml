@@ -143,22 +143,18 @@ runs:
             done
           fi
 
-          # Move to datadog and summary dirs with run suffix to avoid overwrite (Bug 4)
-          for f in "${download_dir}"/**/*; do
-            if [[ -f "$f" ]]; then
-              base=$(basename "$f")
-              name="${base%.*}"
-              ext="${base##*.}"
-
-              # Copy to datadog
-              cp "$f" "${datadog_output}/${{ matrix.platform }}/${name}_run${run}.${ext}"
-
-              # Copy to summary if it's run 1 or it passed in this run
-              if [[ $run -eq 1 ]] || [[ "${current_failing}" == "false" ]]; then
-                cp "$f" "${summary_output}/${{ matrix.platform }}/${name}_run${run}.${ext}"
-              fi
-            fi
-          done
+          # Maintain summary results
+          passed="false"
+          if [[ "${current_failing}" == "false" ]]; then
+            passed="true"
+          fi
+          bash ${GITHUB_WORKSPACE}/.github/actions/maintain_summary_results/maintain_summary_results.sh \
+            "${run}" \
+            "${passed}" \
+            "${download_dir}/**/*" \
+            "${summary_output}/${{ matrix.platform }}" \
+            "${datadog_output}/${{ matrix.platform }}" \
+            "true"
 
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             if [[ "${current_failing}" == "false" ]]; then
