@@ -8,7 +8,6 @@
   "test_device_family": "raspi",
   "test_e2e": true,
   "test_root_target": "//cobalt:gn_all",
-  "test_attempts": "3",
   "test_dimensions": {
     "device_type": "raspi",
     "device_pool": "maneki"
