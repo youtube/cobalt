@@ -79,7 +79,7 @@ std::unique_ptr<AAudioAudioSink> AAudioAudioSink::Create(
   aaudio->streamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
   aaudio->streamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
   aaudio->streamBuilder_setPerformanceMode(builder,
-                                           AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+                                           AAUDIO_PERFORMANCE_MODE_NONE);
   aaudio->streamBuilder_setChannelCount(builder, channels);
   aaudio->streamBuilder_setSampleRate(builder, sampling_frequency_hz);
 
@@ -180,7 +180,9 @@ void AAudioAudioSink::AudioThreadFunc() {
 
   while (!quit_) {
     // 1. Handle Playback Head and Consume Frames
+    SB_LOG(INFO) << "[AAudioTrace] Calling stream_getState";
     aaudio_stream_state_t state = aaudio_->stream_getState(stream_);
+    SB_LOG(INFO) << "[AAudioTrace] stream_getState returned: " << state;
     bool is_currently_playing = (state == AAUDIO_STREAM_STATE_STARTED);
 
     if (is_currently_playing || state == AAUDIO_STREAM_STATE_PAUSED) {
@@ -188,8 +190,10 @@ void AAudioAudioSink::AudioThreadFunc() {
       int64_t time_nanoseconds = 0;
 
       // Retrieve hardware timestamp
+      SB_LOG(INFO) << "[AAudioTrace] Calling stream_getTimestamp";
       aaudio_result_t result = aaudio_->stream_getTimestamp(
           stream_, CLOCK_MONOTONIC, &frame_position, &time_nanoseconds);
+      SB_LOG(INFO) << "[AAudioTrace] stream_getTimestamp returned: " << result;
 
       if (result == AAUDIO_OK) {
         SB_DCHECK_GE(frame_position, last_playback_head_position);
@@ -222,14 +226,29 @@ void AAudioAudioSink::AudioThreadFunc() {
     }
 
     // 3. Handle Stream State Changes
+    bool can_start = (state == AAUDIO_STREAM_STATE_OPEN ||
+                      state == AAUDIO_STREAM_STATE_PAUSED ||
+                      state == AAUDIO_STREAM_STATE_STOPPED ||
+                      state == AAUDIO_STREAM_STATE_PAUSING ||
+                      state == AAUDIO_STREAM_STATE_STOPPING);
+
     if (is_currently_playing && !is_playing) {
+      SB_LOG(INFO) << "[AAudioTrace] Calling stream_requestPause";
       aaudio_->stream_requestPause(stream_);
-    } else if (!is_currently_playing && is_playing) {
+      SB_LOG(INFO) << "[AAudioTrace] stream_requestPause returned";
+    } else if (can_start && is_playing) {
+      SB_LOG(INFO) << "[AAudioTrace] Calling stream_requestStart";
       aaudio_->stream_requestStart(stream_);
+      SB_LOG(INFO) << "[AAudioTrace] stream_requestStart returned";
     }
 
     if (!is_playing || frames_in_buffer == 0) {
-      usleep(10'000);
+      int sleep_us = 10'000;
+      if (state != AAUDIO_STREAM_STATE_STARTED) {
+        sleep_us = 200'000;  // Slow down polling when not actively playing to
+                             // prevent driver starvation
+      }
+      usleep(sleep_us);
       continue;
     }
 
@@ -306,8 +325,11 @@ int AAudioAudioSink::WriteData(const void* buffer,
 
   int64_t start = CurrentMonotonicTime();
 
+  SB_LOG(INFO) << "[AAudioTrace] Calling stream_write with "
+               << expected_written_frames << " frames";
   aaudio_result_t result = aaudio_->stream_write(
       stream_, write_ptr, expected_written_frames, kWriteTimeoutNanoseconds);
+  SB_LOG(INFO) << "[AAudioTrace] stream_write returned: " << result;
 
   int64_t duration = CurrentMonotonicTime() - start;
 
