@@ -60,12 +60,15 @@ pipeline () {
     local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
     mkdir -p "${package_dir}"
 
+    # Natively build the static archive for tvOS
+    autoninja -C "${out_dir}" cobalt_archive
+
     # TODO(b/294130306): Move build_info to gn packaging.
     local build_info_path="${out_dir}/gen/build_info.json"
     cp "${build_info_path}" "${package_dir}/"
 
     # Create release package.
-    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/simple_packager.py" \
+    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/tvos_packager.py" \
       "${WORKSPACE_COBALT}" \
       "${out_dir}" \
       "${package_dir}" \
