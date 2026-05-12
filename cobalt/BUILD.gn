@@ -136,7 +136,6 @@ if (is_ios && target_platform == "tvos") {
       ":common",
       "//base",
       "//cobalt/browser/tvos/intents:yt_intents",
-      "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//components/crash/core/app",
       "//content/public/app",
