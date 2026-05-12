@@ -124,6 +124,8 @@ public abstract class CobaltActivity extends Activity {
   private boolean mEnableSplashScreen;
   private String mStartDeepLink;
 
+  private Object mBackInvokedCallback;
+
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
     if (componentName == null) {
@@ -449,7 +451,7 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(9);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      OnBackInvokedHelper.register(this);
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
     }
   }
 
@@ -583,6 +585,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -828,18 +834,28 @@ public abstract class CobaltActivity extends Activity {
 
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
-    static void register(final CobaltActivity activity) {
+    static OnBackInvokedCallback register(final CobaltActivity activity) {
+      OnBackInvokedCallback callback = new OnBackInvokedCallback() {
+        @Override
+        public void onBackInvoked() {
+          // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+        }
+      };
       activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
           OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-          new OnBackInvokedCallback() {
-            @Override
-            public void onBackInvoked() {
-              // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
-              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
-            }
-          }
+          callback
       );
+      return callback;
+    }
+
+    static void unregister(CobaltActivity activity, Object callback) {
+      if (callback instanceof OnBackInvokedCallback) {
+        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+            (OnBackInvokedCallback) callback
+        );
+      }
     }
   }
 
