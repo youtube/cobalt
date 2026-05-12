@@ -57,6 +57,12 @@ config("platform_configuration") {
       configs += [ "//starboard/build/config:starboard" ]
     }
 
+    if (!build_with_separate_cobalt_toolchain && !is_component_build) {
+      configs += [
+        "//build/config/gcc:rpath_for_built_shared_libraries",
+      ]
+    }
+
     libs = [
       "pthread",
     ]
