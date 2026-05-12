@@ -124,7 +124,10 @@ bool is_valid_musl_mask(uint32_t mask) {
       MUSL_IN_EXCL_UNLINK | MUSL_IN_MASK_ADD | MUSL_IN_ISDIR | MUSL_IN_ONESHOT;
 
 #ifdef IN_MASK_CREATE
+  SB_LOG(INFO) << "IN_MASK_CREATE is defined";
   all_masks |= MUSL_IN_MASK_CREATE;
+#else
+  SB_LOG(INFO) << "IN_MASK_CREATE is not defined";
 #endif
   return (mask & ~all_masks) == 0;
 }
