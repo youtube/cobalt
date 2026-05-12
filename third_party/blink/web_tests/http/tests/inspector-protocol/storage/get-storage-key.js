@@ -19,4 +19,4 @@
   }
 
   testRunner.completeTest();
-})
+})(testRunner);
