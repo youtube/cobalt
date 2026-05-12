@@ -218,6 +218,9 @@ test("cobalt_browsertests") {
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
+
+    # TODO(b/511244766): separate target for perf test.
+    "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",

@@ -87,14 +87,14 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->reset_audio_decoder;
   experiment_features.skip_flush_on_decoder_teardown =
       extension_features->skip_flush_on_decoder_teardown;
+  experiment_features.use_dual_threads_for_video =
+      FromBoolPointer(extension_features->use_dual_threads_for_video);
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
   experiment_features.video_renderer_min_decoded_frames =
       FromIntPointer(extension_features->video_renderer_min_decoded_frames);
   experiment_features.video_renderer_min_input_buffers =
       FromIntPointer(extension_features->video_renderer_min_input_buffers);
-  experiment_features.use_dual_threads_for_video =
-      FromBoolPointer(extension_features->use_dual_threads_for_video);
 
   *GetOrCreateExperimentalFeatures() = experiment_features;
 }

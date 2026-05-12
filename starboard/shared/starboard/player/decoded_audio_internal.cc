@@ -92,11 +92,6 @@ int DecodedAudio::frames() const {
   return static_cast<int>(size_in_bytes_ / bytes_per_sample / channels_);
 }
 
-bool DecodedAudio::IsFormat(SbMediaAudioSampleType sample_type,
-                            SbMediaAudioFrameStorageType storage_type) const {
-  return sample_type_ == sample_type && storage_type_ == storage_type;
-}
-
 void DecodedAudio::ShrinkTo(int new_size_in_bytes) {
   SB_DCHECK_LE(new_size_in_bytes, size_in_bytes_);
   size_in_bytes_ = new_size_in_bytes;
@@ -184,6 +179,11 @@ void DecodedAudio::AdjustForDiscardedDurations(
           ? current_frames
           : AudioDurationToFrames(discarded_duration_from_back, sample_rate);
   size_in_bytes_ -= bytes_per_frame * discarded_frames_from_back;
+}
+
+bool DecodedAudio::IsFormat(SbMediaAudioSampleType sample_type,
+                            SbMediaAudioFrameStorageType storage_type) const {
+  return sample_type_ == sample_type && storage_type_ == storage_type;
 }
 
 scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(

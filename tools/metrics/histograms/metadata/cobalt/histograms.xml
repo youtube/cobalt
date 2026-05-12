@@ -31,6 +31,20 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
+    enum="Android.MemoryPressureNotification" expires_after="never">
+  <owner>sideboard@google.com</owner>
+  <summary>
+    Memory pressure notifications sent by Android through ComponentCallbacks2.
+    This metric is copied from android/histograms where it expired in 2021.
+  </summary>
+  <token key="AndroidProcessType">
+    <variant name=".Browser" summary="Browser process"/>
+    <variant name=".ChildService"
+        summary="Child service process (renderer, GPU, etc.)"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>

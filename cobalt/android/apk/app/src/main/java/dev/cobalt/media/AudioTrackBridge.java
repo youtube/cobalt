@@ -424,7 +424,14 @@ public class AudioTrackBridge {
     // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (mPositionLock) {
-      if (mAudioTrack.getTimestamp(mRawAudioTimestamp)) {
+      boolean success = false;
+      try {
+        success = mAudioTrack.getTimestamp(mRawAudioTimestamp);
+      } catch (Exception | OutOfMemoryError e) {
+        Log.e(TAG, "Failed to getAudioTimestamp", e);
+      }
+
+      if (success) {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition

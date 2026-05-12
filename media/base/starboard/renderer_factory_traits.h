@@ -24,7 +24,7 @@
 #include "media/base/media_export.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/timestamp_constants.h"
-#include "media/starboard/bind_host_receiver_callback.h"
+#include "media/starboard/starboard_callbacks.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -41,7 +41,6 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   StarboardRendererConfig::ExperimentalFeatures experimental_features;
   gfx::Size viewport_size;
   GetSbWindowHandleCallback get_sb_window_handle_callback;
-  BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 
 }  // namespace media

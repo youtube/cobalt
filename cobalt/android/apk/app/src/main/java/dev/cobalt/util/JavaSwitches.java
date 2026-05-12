@@ -31,11 +31,22 @@ public class JavaSwitches {
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
+  /** flag to enable fast track mic capture. */
+  public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
+    }
+
+    if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
+      extraCommandLineArgs.add("--disable-quic");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
+      extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
     }
 
     return extraCommandLineArgs;

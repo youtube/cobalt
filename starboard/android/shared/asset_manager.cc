@@ -74,30 +74,6 @@ std::string FallbackPath(const std::string& path) {
 // static
 SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance)
 
-AssetManager::AssetManager() {
-  const int kPathSize = PATH_MAX / 2;
-  char path[kPathSize] = {0};
-  SB_CHECK(SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize))
-      << "Unable to get system temp path for AssetManager.";
-  SB_CHECK_LT(starboard::strlcat(path, "/asset_tmp", kPathSize), kPathSize)
-      << "Unable to construct temp path for AssetManager.";
-  tmp_root_ = path;
-  ClearTempDir();
-}
-
-uint64_t AssetManager::AcquireInternalFd() {
-  std::lock_guard scoped_lock(mutex_);
-  do {
-    ++internal_fd_;
-  } while (in_use_internal_fd_set_.count(internal_fd_) == 1);
-  in_use_internal_fd_set_.insert(internal_fd_);
-  return internal_fd_;
-}
-
-std::string AssetManager::TempFilepath(uint64_t internal_fd) const {
-  return tmp_root_ + "/" + std::to_string(internal_fd);
-}
-
 int AssetManager::Open(const char* path, int oflag) {
   if (!path) {
     return -1;
@@ -145,11 +121,6 @@ int AssetManager::Open(const char* path, int oflag) {
   return fd;
 }
 
-bool AssetManager::IsAssetFd(int fd) const {
-  std::lock_guard scoped_lock(mutex_);
-  return fd_to_internal_fd_map_.count(fd) == 1;
-}
-
 int AssetManager::Close(int fd) {
   mutex_.Acquire();
   if (auto search = fd_to_internal_fd_map_.find(fd);
@@ -167,6 +138,35 @@ int AssetManager::Close(int fd) {
   }
   mutex_.Release();
   return -1;
+}
+
+bool AssetManager::IsAssetFd(int fd) const {
+  std::lock_guard scoped_lock(mutex_);
+  return fd_to_internal_fd_map_.count(fd) == 1;
+}
+
+AssetManager::AssetManager() {
+  const int kPathSize = PATH_MAX / 2;
+  char path[kPathSize] = {0};
+  SB_CHECK(SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize))
+      << "Unable to get system temp path for AssetManager.";
+  SB_CHECK_LT(starboard::strlcat(path, "/asset_tmp", kPathSize), kPathSize)
+      << "Unable to construct temp path for AssetManager.";
+  tmp_root_ = path;
+  ClearTempDir();
+}
+
+uint64_t AssetManager::AcquireInternalFd() {
+  std::lock_guard scoped_lock(mutex_);
+  do {
+    ++internal_fd_;
+  } while (in_use_internal_fd_set_.count(internal_fd_) == 1);
+  in_use_internal_fd_set_.insert(internal_fd_);
+  return internal_fd_;
+}
+
+std::string AssetManager::TempFilepath(uint64_t internal_fd) const {
+  return tmp_root_ + "/" + std::to_string(internal_fd);
 }
 
 void AssetManager::ClearTempDir() {

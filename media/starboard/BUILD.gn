@@ -35,7 +35,6 @@ source_set("starboard") {
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_decoder_buffer_allocator_strategy.h",
-      "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",
@@ -46,6 +45,7 @@ source_set("starboard") {
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
       "sbplayer_interface.h",
+      "starboard_callbacks.h",
       "starboard_cdm.cc",
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",

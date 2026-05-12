@@ -155,20 +155,6 @@ void SbPlayerPrivateImpl::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
-                                          int dropped_video_frames,
-                                          int ticket,
-                                          bool is_progressing) {
-  std::lock_guard lock(mutex_);
-  if (ticket_ != ticket) {
-    return;
-  }
-  media_time_ = media_time;
-  is_progressing_ = is_progressing;
-  media_time_updated_at_ = CurrentMonotonicTime();
-  dropped_video_frames_ = dropped_video_frames;
-}
-
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
   return worker_->GetCurrentDecodeTarget();
 }
@@ -228,6 +214,20 @@ SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
   --number_of_players_;
   SB_LOG(INFO) << "Destroying SbPlayerPrivateImpl. There are "
                << number_of_players_ << " players.";
+}
+
+void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
+                                          int dropped_video_frames,
+                                          int ticket,
+                                          bool is_progressing) {
+  std::lock_guard lock(mutex_);
+  if (ticket_ != ticket) {
+    return;
+  }
+  media_time_ = media_time;
+  is_progressing_ = is_progressing;
+  media_time_updated_at_ = CurrentMonotonicTime();
+  dropped_video_frames_ = dropped_video_frames;
 }
 
 }  // namespace starboard

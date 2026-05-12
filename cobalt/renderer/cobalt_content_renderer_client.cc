@@ -67,6 +67,8 @@ const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
+    "Media.ForceDecodeToTexture";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -148,10 +150,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
 
   // TODO(b/375232937) Add IAMF
   return codecs;
-}
-
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
 // TODO: b/460292554 - This code is a tentative solution, and will be replaced
@@ -270,6 +268,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_reset_audio_decoder = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
+    parsed.force_decode_to_texture = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
     parsed.skip_flush_on_decoder_teardown = *val != 0;
   }
@@ -324,12 +326,6 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
           base::SequencedTaskRunner::GetCurrentDefault())};
   content::RenderThread::Get()->BindHostReceiver(
       h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
-}
-
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
-  BindHostReceiverWithValuation(std::move(receiver));
 }
 
 CobaltContentRendererClient::CobaltContentRendererClient()
@@ -507,12 +503,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ProcessH5vccSettings(h5vcc_settings);
   }
   renderer_factory_traits->experimental_features = experimental_features;
-
-  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
