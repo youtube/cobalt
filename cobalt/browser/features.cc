@@ -35,5 +35,9 @@ BASE_FEATURE(kAsyncDnsAndDoH,
              "AsyncDnsAndDoH",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kUseIPv4ForDNS,
+             "UseIPv4ForDNS",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
