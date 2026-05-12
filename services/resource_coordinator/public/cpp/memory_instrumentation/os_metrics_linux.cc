@@ -908,6 +908,10 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   }
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    // We intentionally ignore the return value of FillDetailedMetrics. If detailed
+    // metrics collection or validation fails, we gracefully fall back to basic
+    // metrics (which are populated by FillOSMemoryDump above) rather than failing
+    // the entire OS memory dump request.
     FillDetailedMetrics(handle, flags, dump, delegate);
   }
 
@@ -1065,22 +1069,6 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
     dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(it_rss->second);
   }
 
-  auto it_pa = stats.find("rss:partition_alloc");
-  if (it_pa != stats.end()) {
-    dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(it_pa->second);
-  }
-  auto it_malloc = stats.find("rss:malloc");
-  if (it_malloc != stats.end()) {
-    dump->malloc_rss_kb = base::saturated_cast<uint32_t>(it_malloc->second);
-  }
-  auto it_v8 = stats.find("rss:v8");
-  if (it_v8 != stats.end()) {
-    dump->v8_rss_kb = base::saturated_cast<uint32_t>(it_v8->second);
-  }
-  auto it_stacks = stats.find("rss:stacks");
-  if (it_stacks != stats.end()) {
-    dump->stacks_rss_kb = base::saturated_cast<uint32_t>(it_stacks->second);
-  }
 
   if (!flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
     return true;
