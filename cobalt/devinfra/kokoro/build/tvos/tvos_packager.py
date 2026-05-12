@@ -20,15 +20,13 @@ import os
 import shutil
 import sys
 
-if len(sys.argv) < 5:
-  print('Usage: tvos_packager.py <src_dir> <out_dir> <package_dir> '
-        '<build_info_path>')
+if len(sys.argv) < 4:
+  print('Usage: tvos_packager.py <out_dir> <package_dir> <build_info_path>')
   sys.exit(1)
 
-src_dir = sys.argv[1]
-out_dir = sys.argv[2]
-package_dir = sys.argv[3]
-build_info_path = sys.argv[4]
+out_dir = sys.argv[1]
+package_dir = sys.argv[2]
+build_info_path = sys.argv[3]
 
 # 1. Copy libcobalt_archive.a compiled natively by Ninja
 lib_dir = os.path.join(package_dir, 'lib')

@@ -69,7 +69,6 @@ pipeline () {
 
     # Create release package.
     python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/tvos_packager.py" \
-      "${WORKSPACE_COBALT}" \
       "${out_dir}" \
       "${package_dir}" \
       "${build_info_path}"
