@@ -157,7 +157,7 @@ def package_and_deploy(
     tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
     if mode == "plugin":
         tar_cmd.append("libloader_app.so")
-    tar_cmd.extend(["gen/build_info.json", "."])
+    tar_cmd.extend(["gen/build_info.json"])
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
