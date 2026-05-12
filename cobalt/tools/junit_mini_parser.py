@@ -70,7 +70,8 @@ def find_failing_tests(
 def generate_filter_string(
     failing_tests: dict[str, list[tuple[str, str]]]) -> str:
   """Generates a positive GTest filter string from failing tests."""
-  all_failed = [test for tests in failing_tests.values() for test, _ in tests]
+  all_failed = sorted(
+      list(set(test for tests in failing_tests.values() for test, _ in tests)))
   return ':'.join(all_failed) or '-*'
 
 

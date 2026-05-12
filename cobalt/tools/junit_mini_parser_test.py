@@ -186,6 +186,13 @@ class TestGenerateFilterString(unittest.TestCase):
     parts = result.split(':')
     self.assertEqual(len(parts), 3)
 
+  def test_deduplication(self):
+    failing_tests = {
+        'report1.xml': [('SuiteA.test1', 'msg')],
+        'report2.xml': [('SuiteA.test1', 'msg')]
+    }
+    self.assertEqual(generate_filter_string(failing_tests), 'SuiteA.test1')
+
 
 class TestScrubPassingTests(unittest.TestCase):
   """Test cases for scrub_passing_tests."""
