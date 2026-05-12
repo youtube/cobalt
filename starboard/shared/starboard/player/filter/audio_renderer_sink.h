@@ -50,9 +50,12 @@ class AudioRendererSink {
 
   virtual ~AudioRendererSink() {}
 
-  virtual void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
-                                      int* max_cached_frames,
-                                      int* min_frames_per_append) const = 0;
+  struct RendererParams {
+    int max_cached_frames;
+    int min_frames_per_append;
+  };
+  virtual RendererParams GetAudioRendererParams(
+      const AudioStreamInfo& audio_stream_info) const = 0;
 
   virtual bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const = 0;
