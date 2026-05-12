@@ -45,6 +45,9 @@ class AAudioLoader {
                                      int32_t channelCount);
   void streamBuilder_setSampleRate(AAudioStreamBuilder* builder,
                                    int32_t sampleRate);
+  void streamBuilder_setDataCallback(AAudioStreamBuilder* builder,
+                                     AAudioStream_dataCallback callback,
+                                     void* userData);
   aaudio_result_t streamBuilder_openStream(AAudioStreamBuilder* builder,
                                            AAudioStream** stream);
 
@@ -97,6 +100,10 @@ class AAudioLoader {
   typedef void (*PFN_AAudioStreamBuilder_setSampleRate)(
       AAudioStreamBuilder* builder,
       int32_t sampleRate);
+  typedef void (*PFN_AAudioStreamBuilder_setDataCallback)(
+      AAudioStreamBuilder* builder,
+      AAudioStream_dataCallback callback,
+      void* userData);
   typedef aaudio_result_t (*PFN_AAudioStreamBuilder_openStream)(
       AAudioStreamBuilder* builder,
       AAudioStream** stream);
@@ -139,6 +146,8 @@ class AAudioLoader {
       pfn_AAudioStreamBuilder_setChannelCount = nullptr;
   PFN_AAudioStreamBuilder_setSampleRate pfn_AAudioStreamBuilder_setSampleRate =
       nullptr;
+  PFN_AAudioStreamBuilder_setDataCallback
+      pfn_AAudioStreamBuilder_setDataCallback = nullptr;
   PFN_AAudioStreamBuilder_openStream pfn_AAudioStreamBuilder_openStream =
       nullptr;
 

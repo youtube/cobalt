@@ -53,6 +53,7 @@ AAudioLoader::AAudioLoader() {
   RESOLVE_SYMBOL(AAudioStreamBuilder_setFormat);
   RESOLVE_SYMBOL(AAudioStreamBuilder_setChannelCount);
   RESOLVE_SYMBOL(AAudioStreamBuilder_setSampleRate);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setDataCallback);
   RESOLVE_SYMBOL(AAudioStreamBuilder_openStream);
 
   RESOLVE_SYMBOL(AAudioStream_close);
@@ -131,6 +132,14 @@ void AAudioLoader::streamBuilder_setSampleRate(AAudioStreamBuilder* builder,
                                                int32_t sampleRate) {
   SB_DCHECK(initialized_);
   pfn_AAudioStreamBuilder_setSampleRate(builder, sampleRate);
+}
+
+void AAudioLoader::streamBuilder_setDataCallback(
+    AAudioStreamBuilder* builder,
+    AAudioStream_dataCallback callback,
+    void* userData) {
+  SB_DCHECK(initialized_);
+  pfn_AAudioStreamBuilder_setDataCallback(builder, callback, userData);
 }
 
 aaudio_result_t AAudioLoader::streamBuilder_openStream(

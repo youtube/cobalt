@@ -26,8 +26,8 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"  // for Callbacks definition
 #include "starboard/audio_sink.h"
 #include "starboard/common/pass_key.h"
-#include "starboard/common/thread.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 namespace android {
@@ -52,21 +52,27 @@ class AAudioAudioSink : public SbAudioSinkImpl {
                   SbAudioSinkFrameBuffers frame_buffers,
                   int frames_per_channel,
                   AudioTrackAudioSinkType::Callbacks callbacks,
-                  AAudioStream* stream,
+                  AAudioStreamBuilder* builder,
                   void* context);
   ~AAudioAudioSink() override;
 
   bool IsType(SbAudioSinkPrivate::Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
+  AAudioStream* stream() const { return stream_; }
 
  private:
-  class AAudioOutThread;
+  static aaudio_data_callback_result_t AAudioDataCallback(AAudioStream* stream,
+                                                          void* userData,
+                                                          void* audioData,
+                                                          int32_t numFrames);
+  static AAudioStream* OpenStreamHelper(AAudioStreamBuilder* builder,
+                                        AAudioAudioSink* sink);
 
-  void AudioThreadFunc();
-  void SpawnThread();
+  aaudio_data_callback_result_t OnAudioCallback(void* audioData,
+                                                int32_t numFrames);
+  void PollProgress();
 
-  int WriteData(const void* buffer, int expected_written_frames);
   void ApplyVolume(void* buffer, int frames, double volume);
 
   void ReportError(const std::string& error_message);
@@ -84,15 +90,14 @@ class AAudioAudioSink : public SbAudioSinkImpl {
   const raw_ptr<AAudioLoader> aaudio_;
   const raw_ptr<AAudioStream> stream_;
 
-  std::unique_ptr<Thread> audio_out_thread_;
-  std::atomic<bool> quit_{false};
+  const std::unique_ptr<JobThread> job_thread_;
+  JobQueue::JobToken progress_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   std::mutex mutex_;
   double volume_ = 1.0;
   double playback_rate_ = 1.0;
-
-  // Temporary buffer for software volume application
-  std::vector<uint8_t> volume_buffer_;
+  int64_t last_playback_head_position_ = 0;
+  int underflow_count_ = 0;
 
   // Performance instrumentation stats
   int write_count_ = 0;
