@@ -89,9 +89,9 @@ test("nplb") {
   # All platforms use the Starboard Media functionality.
   sources = media_sources
 
-  if (is_androidtv) {
+  if (is_androidtv || is_tvos) {
     # TODO(mcasas): These two are just placeholders for SbWindowCreate/Destroy
-    # methods which are needed to build media_player_files on is_androidtv
+    # methods which are needed to build media_player_files on androidtv/tvos
     # platforms. Use the starboard/android ones instead.
     sources += [
       "//starboard/shared/stub/window_create.cc",
