@@ -56,7 +56,16 @@ base::trace_event::MemoryDumpRequestArgs QueuedRequest::GetRequestArgs() {
 
 std::vector<mojom::MemDumpFlags> QueuedRequest::memory_dump_flags() const {
   if (!args.memory_footprint_only) {
-    return base::ToVector(OSMetrics::MemDumpFlagSet::All());
+    std::vector<mojom::MemDumpFlags> flags = {
+        mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS,
+        mojom::MemDumpFlags::MEM_DUMP_PSS};
+#if BUILDFLAG(IS_COBALT)
+    if (args.level_of_detail ==
+        base::trace_event::MemoryDumpLevelOfDetail::kDetailed) {
+      flags.push_back(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+    }
+#endif
+    return flags;
   }
   return {};
 }
