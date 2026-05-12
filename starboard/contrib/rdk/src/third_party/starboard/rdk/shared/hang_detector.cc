@@ -104,7 +104,6 @@ seconds get_check_interval() {
 struct HangDetector
 {
   static void* ThreadEntryPoint(void* context) {
-    // setpriority returns 0 on success and -1 on failure. The default nice value is 0. See https://linux.die.net/man/2/setpriority
     setpriority(PRIO_PROCESS, 0, ::starboard::SbPriorityToNice(kSbThreadNoPriority));
     SB_DCHECK(context);
     static_cast<HangDetector*>(context)->DoWork();

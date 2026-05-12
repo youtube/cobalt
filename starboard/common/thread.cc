@@ -36,7 +36,7 @@ namespace starboard {
 int SbPriorityToNice(SbThreadPriority priority) {
   // Nice value settings are shared between Android and Linux.
   // They are selected from looking at:
-  //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
+  // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
   switch (priority) {
     case kSbThreadPriorityLowest:
       return 19;
