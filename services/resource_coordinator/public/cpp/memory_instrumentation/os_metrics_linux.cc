@@ -34,7 +34,16 @@
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/strings/ascii.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/no_destructor.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/synchronization/lock.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer.h"
+
+#endif
 
 #if BUILDFLAG(IS_COBALT)
 #include <atomic>
@@ -62,6 +71,7 @@ using mojom::VmRegion;
 using mojom::VmRegionPtr;
 
 #if BUILDFLAG(IS_COBALT)
+FILE* g_proc_smaps_rollup_for_testing = nullptr;
 const size_t kPssValidationThresholdKb = 30720;
 
 base::Lock& GetTestingGlobalsLock() {
@@ -87,15 +97,27 @@ void GetSmapsRollup(base::ProcessHandle handle,
                     size_t* pss,
                     size_t* swap_pss) {
   std::string content;
-  std::string file_name =
-      "/proc/" +
-      (handle == base::kNullProcessHandle ? "self"
-                                          : base::NumberToString(handle)) +
-      "/smaps_rollup";
-  if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
-    return;
+  bool use_mock = false;
+  {
+    base::AutoLock lock(GetTestingGlobalsLock());
+    if (g_proc_smaps_rollup_for_testing) {
+      use_mock = true;
+      fseek(g_proc_smaps_rollup_for_testing, 0, SEEK_SET);
+      base::ReadStreamToString(g_proc_smaps_rollup_for_testing, &content);
+    }
+  }
+
+  if (!use_mock) {
+    std::string file_name =
+        "/proc/" +
+        (handle == base::kNullProcessHandle ? "self"
+                                            : base::NumberToString(handle)) +
+        "/smaps_rollup";
+    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
+      *pss = size_t(0);
+      *swap_pss = size_t(0);
+      return;
+    }
   }
 
   if (content.empty()) {
@@ -774,6 +796,14 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 #endif
   g_proc_smaps_for_testing = f;
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void OSMetrics::SetSmapsRollupForTesting(FILE* f) {
+  base::AutoLock lock(GetTestingGlobalsLock());
+  g_proc_smaps_rollup_for_testing = f;
+}
+#endif
 
 #if BUILDFLAG(IS_COBALT)
 // static
