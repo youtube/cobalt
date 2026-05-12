@@ -68,6 +68,14 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Fetch Current Labels
+        id: get-labels
+        shell: bash
+        run: |
+          labels=$(gh pr view ${{ github.event.number }} --json labels -q '[.labels.[].name]')
+          echo "labels=${labels}" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -294,6 +302,7 @@ jobs:
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
+      labels: ${{ steps.get-labels.outputs.labels }}
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -517,7 +526,7 @@ jobs:
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'runtest')
+          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
@@ -564,7 +573,7 @@ jobs:
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'runtest')
+          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_e2e_tests
@@ -600,7 +609,7 @@ jobs:
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'runtest')
+          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_tests
@@ -631,7 +640,7 @@ jobs:
       needs.initialize.outputs.test_yts_playback == 'true' &&
         (
           (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test')) ||
-          (github.event_name == 'workflow_dispatch' && inputs.label_name == 'yts_playback_test')
+          contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_playback_tests

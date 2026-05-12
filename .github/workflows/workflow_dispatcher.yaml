@@ -25,62 +25,55 @@ jobs:
             const event = context.payload;
             const pr = event.pull_request;
 
-            if (context.eventName !== 'pull_request') {
-              console.log('Not a pull request event.');
+            if (context.eventName !== 'pull_request_target') {
+              console.log('Not a pull_request_target event.');
               return;
             }
 
-            let workflowsStr = '';
-            let labelName = '';
+            const mapping = {
+              'runtest': process.env.RUNTEST_WORKFLOWS,
+              'yts_playback_test': process.env.YTS_PLAYBACK_TEST_WORKFLOWS,
+              'ready_for_review': process.env.READY_FOR_REVIEW_WORKFLOWS
+            };
 
-            if (event.action === 'ready_for_review') {
-              workflowsStr = process.env.READY_FOR_REVIEW_WORKFLOWS;
-              labelName = event.label.name;
-            } else if (event.action === 'labeled' && event.label.name === 'runtest') {
-              workflowsStr = process.env.RUNTEST_WORKFLOWS;
-              labelName = event.label.name;
-            } else if (event.action === 'labeled' && event.label.name === 'runtest') {
-              workflowsStr = process.env.YTS_PLAYBACK_TEST_WORKFLOWS;
-            }
+            const key = event.action === 'labeled' ? event.label.name : event.action;
+            const workflowsStr = mapping[key];
 
             if (!workflowsStr) {
-              console.log(`No workflows configured for action: ${event.action} ${labelName}`);
+              console.log(`No workflows configured for action/label: ${key}`);
               return;
             }
 
             const workflows = workflowsStr.split(',');
-            const ref = pr.head.ref;
+            const labelName = event.action === 'labeled' ? event.label.name : '';
 
-            for (const workflow of workflows) {
-              console.log(`Triggering ${workflow} for ref ${ref} with label_name: ${labelName}`);
+            await Promise.all(workflows.map(async (workflow) => {
               try {
-                await github.rest.actions.createWorkflowDispatch({
+                console.log(`Looking for runs of ${workflow} for branch ${pr.head.ref}`);
+                const runs = await github.rest.actions.listWorkflowRuns({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   workflow_id: workflow,
-                  ref: ref,
-                  inputs: {
-                    nightly: 'false',
-                    label_name: labelName
-                  }
+                  branch: pr.head.ref,
+                  event: 'pull_request'
                 });
-                console.log(`Successfully triggered ${workflow}`);
-              } catch (error) {
-                console.error(`Failed to trigger ${workflow}:`, error);
-              }
-            }
-
-            if (labelName === 'runtest') {
-              console.log(`Removing label ${labelName}`);
-              try {
-                await github.rest.issues.removeLabel({
+                
+                const prRuns = runs.data.workflow_runs.filter(run => run.head_sha === pr.head.sha);
+                if (prRuns.length === 0) {
+                  console.log(`No runs found for workflow ${workflow}, branch ${pr.head.ref}, and SHA ${pr.head.sha}`);
+                  return;
+                }
+                
+                const latestRun = prRuns[0];
+                
+                console.log(`Rerunning run ${latestRun.id} for workflow ${workflow}`);
+                await github.rest.actions.rerunWorkflow({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: pr.number,
-                  name: labelName
+                  run_id: latestRun.id
                 });
-                console.log(`Successfully removed label ${labelName}`);
+                console.log(`Successfully requested rerun for ${workflow}`);
               } catch (error) {
-                console.error(`Failed to remove label ${labelName}:`, error);
+                console.error(`Failed to rerun ${workflow}:`, error);
               }
-            }
+            }));
