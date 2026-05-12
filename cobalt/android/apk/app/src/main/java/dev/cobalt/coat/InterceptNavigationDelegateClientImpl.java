@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 
 /**
- * Class that provides embedder-level information to InterceptNavigationDelegateImpl based off a
- * Tab.
+ * Class that provides embedder-level information to InterceptNavigationDelegateImpl based off of
+ * WebContents and CobaltActivity.
  */
 public class InterceptNavigationDelegateClientImpl implements InterceptNavigationDelegateClient {
     private WebContents mWebContents;

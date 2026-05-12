@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,15 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 /**
- * Cobalt's implementation of the {@link ExternalNavigationDelegate}.
+ * Coordinates with Chromium's {@link org.chromium.components.external_intents.ExternalNavigationHandler}
+ * to handle outbound deep links. When the browser navigates to non-standard web schemes
+ * (e.g., "nflx://", "intent://"), this delegate intercepts the navigation and attempts
+ * to launch the corresponding external Android applications.
+ *
+ * Lifetime model: This class is created dynamically per-navigation or per-session and is
+ * generally tied to the lifetime of the active {@link WebContents} or the hosting {@link android.app.Activity}.
+ *
+ * Threading model: All methods in this class must be called on the main/UI thread.
  */
 public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegate {
     private WebContents mWebContents;
@@ -56,6 +64,12 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
     /**
      * Handles a URL that is not a standard web URL (http or https).
      * This can be called from the Activity on startup or from the navigation throttle.
+     *
+     * This logic is inspired by and mirrors standard Chrome for Android (Clank) intent URI
+     * parsing and fallback resolution. Reference path in Chromium:
+     * /components/external_intents/android/java/src/org/chromium/components/external_intents/ExternalNavigationHandler.java
+     * For intent specification details, see: https://developer.chrome.com/docs/android/intents
+     *
      * @return {@code true} if the URL was handled.
      */
     public static boolean handleExternalURL(Context context, GURL url) {
@@ -109,11 +123,15 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
 
         // Let the browser handle standard web schemes.
         if (scheme.equals("http") || scheme.equals("https")) {
-            // Special case for development package to prevent escaping to YouTube TV app
-            if ("dev.cobalt.coat".equals(mContext.getPackageName())) {
-                if (url.getHost().contains("youtube.com")) {
-                    return true; // Disable external intent requests, keep in Cobalt
-                }
+
+            // Prevent the launch of Kimono (com.google.android.youtube.tv) on startup launch
+            // of Cobalt (dev.cobalt.coat). It is still possible to launch Kimono using a
+            // different intent format (ie. youtube.tv).
+            boolean isCoAtApp = "dev.cobalt.coat".equals(mContext.getPackageName());
+            String host = url.getHost();
+            boolean isYouTubeRequest = host.equals("youtube.com") || host.endsWith(".youtube.com");
+            if (isCoAtApp && isYouTubeRequest) {
+                return true; // Disable external intent requests, keep in Cobalt
             }
             return false;
         }
