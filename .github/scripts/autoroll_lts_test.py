@@ -37,6 +37,29 @@ class TestAutorollLts(unittest.TestCase):
     self.assertEqual(unmerged, {})
 
   @patch('subprocess.run')
+  def test_resolve_conflicts_deleted_by_us(self, mock_run):
+    """Test resolve_conflicts with 'deleted by us' conflict."""
+    unmerged = {'file1.txt': {'theirs'}}
+    mock_run.return_value = MagicMock(returncode=0)
+
+    with patch('sys.stderr'):
+      resolved = autoroll_lts.resolve_conflicts(unmerged)
+
+    self.assertTrue(resolved)
+    mock_run.assert_called_with(['git', 'rm', 'file1.txt'], check=True)
+
+  @patch('subprocess.run')
+  def test_resolve_conflicts_other(self, mock_run):
+    """Test resolve_conflicts with other conflicts."""
+    unmerged = {'file1.txt': {'ours', 'theirs'}}
+
+    with patch('sys.stderr'):
+      resolved = autoroll_lts.resolve_conflicts(unmerged)
+
+    self.assertFalse(resolved)
+    mock_run.assert_not_called()
+
+  @patch('subprocess.run')
   def test_cherry_pick_conflict_deleted_by_us(self, mock_run):
     """Test cherry_pick handles 'deleted by us' conflicts."""
 
