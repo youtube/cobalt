@@ -99,6 +99,7 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
+    robolectric_runtime_deps: List[str] = None,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   combined_deps = set()
@@ -111,6 +112,37 @@ def create_archive(
         return
       continue
     target_path, target_name = target.split(':')
+
+    tar_root = '.' if flatten_deps else out_dir
+    target_deps = set()
+    target_src_root_deps = set()
+
+    if target_name.endswith('_junit_tests'):
+      print('Handling JUnit tests manually:', target)
+      target_deps.add(os.path.join('bin', f'run_{target_name}'))
+      if robolectric_runtime_deps:
+        for lib in robolectric_runtime_deps:
+          target_src_root_deps.add(
+              os.path.join('third_party/robolectric/cipd/lib', lib))
+
+      # Add test_targets.json to archive so that test runners know what to run.
+      test_targets_json = os.path.join(out_dir, 'test_targets.json')
+      if os.path.exists(test_targets_json):
+        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
+
+      output_path = os.path.join(destination_dir,
+                                 f'{target_name}_deps.tar.{compression}')
+      if flatten_deps:
+        _make_tar(
+            output_path,
+            compression,
+            compression_level,
+            [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+        )
+      else:
+        raise ValueError('Unsupported configuration.')
+      continue
+
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
@@ -132,14 +164,6 @@ def create_archive(
       # Android tests expects files both in the out and source root folders
       # to be in the working directory of the archive whereas Linux tests
       # expect it relative to the binary.
-      tar_root = '.' if flatten_deps else out_dir
-      target_deps = set()
-      target_src_root_deps = set()
-
-      # Add test_targets.json to archive so that test runners know what to run.
-      test_targets_json = os.path.join(out_dir, 'test_targets.json')
-      if os.path.exists(test_targets_json):
-        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
       for line in runtime_deps_file:
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
@@ -226,6 +250,11 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
+  parser.add_argument(
+      '--robolectric-runtime-deps',
+      type=lambda arg: arg.split(','),
+      help='Specific Robolectric JAR filenames to include from '
+      'third_party/robolectric/cipd/lib.')
   args = parser.parse_args()
 
   if args.flatten_deps != args.archive_per_target:
@@ -240,7 +269,8 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      robolectric_runtime_deps=args.robolectric_runtime_deps)
 
 
 if __name__ == '__main__':
