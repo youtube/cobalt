@@ -164,9 +164,10 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
     @Override
     public void closeTab() {}
 
+    // Cobalt should never be in Incognito mode
     @Override
     public boolean isIncognito() {
-        return mWebContents.isIncognito();
+        return false;
     }
 
     @Override

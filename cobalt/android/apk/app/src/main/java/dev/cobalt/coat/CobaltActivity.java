@@ -119,6 +119,14 @@ public abstract class CobaltActivity extends Activity {
   private boolean mEnableSplashScreen;
   private String mStartDeepLink;
 
+  public String getStartupUrl() {
+    return mStartupUrl;
+  }
+
+  public String getStartDeepLink() {
+    return mStartDeepLink;
+  }
+
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
     if (componentName == null) {
