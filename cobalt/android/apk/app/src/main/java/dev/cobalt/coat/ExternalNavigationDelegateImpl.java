@@ -124,14 +124,17 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
         // Let the browser handle standard web schemes.
         if (scheme.equals("http") || scheme.equals("https")) {
 
-            // Prevent the launch of Kimono (com.google.android.youtube.tv) on startup launch
-            // of Cobalt (dev.cobalt.coat). It is still possible to launch Kimono using a
-            // different intent format (ie. youtube.tv).
-            boolean isCoAtApp = "dev.cobalt.coat".equals(mContext.getPackageName());
-            String host = url.getHost();
-            boolean isYouTubeRequest = host.equals("youtube.com") || host.endsWith(".youtube.com");
-            if (isCoAtApp && isYouTubeRequest) {
-                return true; // Disable external intent requests, keep in Cobalt
+            if (mContext instanceof CobaltActivity) {
+                CobaltActivity activity = (CobaltActivity) mContext;
+                String startupUrl = activity.getStartupUrl();
+                String startDeepLink = activity.getStartDeepLink();
+                String urlSpec = url.getSpec();
+
+                // Disable external intent requests if navigating to the app's initial startup URL or deep link.
+                if ((startupUrl != null && urlSpec.equals(startupUrl)) ||
+                    (startDeepLink != null && !startDeepLink.isEmpty() && urlSpec.equals(startDeepLink))) {
+                    return true;
+                }
             }
             return false;
         }
