@@ -26,6 +26,11 @@ mojom("gl") {
     "//ui/gl/mojom",
     "//url/mojom:url_mojom_gurl",
   ]
+
+  if (is_cobalt) {
+    public_deps -= [ "//services/webnn/public/mojom" ]
+  }
+  
   if (is_chromeos) {
     public_deps += [
       "//chromeos/ash/experiences/arc/mojom:media",
@@ -45,6 +50,10 @@ mojom("gl") {
 
   if (is_chromeos && use_linux_video_acceleration) {
     enabled_features += [ "enable_arc_media" ]
+  }
+
+  if (is_cobalt) {
+    enabled_features += [ "is_cobalt" ]
   }
 
   cpp_typemaps = [

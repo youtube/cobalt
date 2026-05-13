@@ -18,7 +18,9 @@ import "mojo/public/mojom/base/byte_string.mojom";
 import "mojo/public/mojom/base/memory_pressure_level.mojom";
 import "mojo/public/mojom/base/process_id.mojom";
 import "mojo/public/mojom/base/shared_memory.mojom";
+[EnableIfNot=is_cobalt]
 import "services/webnn/public/mojom/features.mojom";
+[EnableIfNot=is_cobalt]
 import "services/webnn/public/mojom/webnn_context_provider.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "ui/gfx/mojom/buffer_types.mojom";
@@ -139,7 +141,7 @@ interface GpuService {
 
   // Binds the pending receiver used to access the hardware accelerated OS
   // machine learning APIs.
-  [RuntimeFeature=webnn.mojom.features.kWebMachineLearningNeuralNetwork]
+  [EnableIfNot=is_cobalt, RuntimeFeature=webnn.mojom.features.kWebMachineLearningNeuralNetwork]
   BindWebNNContextProvider(
       pending_receiver<webnn.mojom.WebNNContextProvider>? receiver,
       int32 client_id);

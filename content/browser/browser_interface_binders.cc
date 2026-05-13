@@ -126,8 +126,10 @@
 #include "services/shape_detection/public/mojom/facedetection_provider.mojom.h"
 #include "services/shape_detection/public/mojom/shape_detection_service.mojom.h"
 #include "services/shape_detection/public/mojom/textdetection.mojom.h"
-#include "services/webnn/public/mojom/features.mojom-features.h"
-#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/webnn/public/mojom/features.mojom-features.h"  //nogncheck
+#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"  // nogncheck
+#endif // #if !BUILDFLAG(IS_COBALT)
 #include "storage/browser/quota/quota_internals.mojom.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
@@ -305,6 +307,7 @@ void BindTextDetection(
   GetShapeDetectionService()->BindTextDetection(std::move(receiver));
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void BindWebNNContextProviderForRenderFrame(
     RenderFrameHost* host,
     mojo::PendingReceiver<webnn::mojom::WebNNContextProvider> receiver) {
@@ -332,6 +335,7 @@ void BindWebNNContextProviderForWorker(
   process_host->GetGpuClient()->BindWebNNContextProvider(std::move(receiver));
 #endif
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_MAC)
 void BindTextInputHost(
@@ -937,11 +941,13 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   map->Add<handwriting::mojom::HandwritingRecognitionService>(
       base::BindRepeating(&CreateHandwritingRecognitionService));
 
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForRenderFrame, base::Unretained(host)));
   }
+#endif
 
   map->Add<blink::mojom::WebBluetoothService>(base::BindRepeating(
       &WebBluetoothServiceImpl::BindIfAllowed, base::Unretained(host)));
@@ -1361,6 +1367,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
 
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     // base::Unretained(host->GetProcessHost()) is safe because the map is owned
@@ -1369,6 +1376,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
         &BindWebNNContextProviderForWorker<DedicatedWorkerHost>,
         base::Unretained(host)));
   }
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(
@@ -1548,12 +1556,14 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
         &SharedWorkerHost::BindPressureService, base::Unretained(host)));
   }
 #endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<SharedWorkerHost>,
         base::Unretained(host)));
   }
+#endif
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     map->Add<blink::mojom::AIManager>(
         base::BindRepeating(&ContentBrowserClient::BindAIManager,
@@ -1728,12 +1738,14 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
       &ServiceWorkerHost::CreateBucketManagerHost, base::Unretained(host)));
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &ServiceWorkerHost::BindUsbService, base::Unretained(host)));
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<ServiceWorkerHost>,
         base::Unretained(host)));
   }
+#endif
   if (base::FeatureList::IsEnabled(blink::features::kBuiltInAIAPI)) {
     map->Add<blink::mojom::AIManager>(base::BindRepeating(
         &ServiceWorkerHost::BindAIManager, base::Unretained(host)));
