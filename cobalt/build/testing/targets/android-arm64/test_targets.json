@@ -1,6 +1,6 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
-  "test_targets": [
+  "_test_targets": [
     "base:base_perftests",
     "base:base_unittests",
     "cobalt/testing/browser_tests:cobalt_browsertests",
@@ -28,7 +28,7 @@
     "url:url_perftests",
     "url:url_unittests"
   ],
-  "executables": [
+  "_executables": [
     "out/android-arm64_devel/base_perftests_apk/base_perftests-debug.apk",
     "out/android-arm64_devel/base_unittests_apk/base_unittests-debug.apk",
     "out/android-arm64_devel/cobalt_browsertests_apk/cobalt_browsertests-debug.apk",
