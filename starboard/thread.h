@@ -98,7 +98,6 @@ static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
 // Returns the Thread ID of the currently executing thread.
 SB_EXPORT SbThreadId SbThreadGetId();
 
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
