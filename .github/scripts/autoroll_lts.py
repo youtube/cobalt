@@ -82,6 +82,38 @@ def get_unmerged_files():
   return files
 
 
+def resolve_conflicts(unmerged):
+  """Attempts to resolve conflicts automatically.
+
+  Returns:
+    bool: True if all conflicts were resolved, False otherwise.
+  """
+  deleted_by_us = []
+  other_conflicts = []
+  for path, stages in unmerged.items():
+    if 'theirs' in stages and 'ours' not in stages:
+      deleted_by_us.append(path)
+    else:
+      other_conflicts.append(path)
+
+  if other_conflicts:
+    print(
+        f'Cannot resolve conflicts autonomously. Other conflicts: '
+        f'{other_conflicts}',
+        file=sys.stderr)
+    return False
+
+  if deleted_by_us:
+    print(
+        f"Resolving 'deleted by us' conflicts: {deleted_by_us}",
+        file=sys.stderr)
+    for path in deleted_by_us:
+      subprocess.run(['git', 'rm', path], check=True)
+    return True
+
+  return False
+
+
 def cherry_pick(sha, num, title):
   log_output = get_out(
       ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
@@ -105,30 +137,9 @@ def cherry_pick(sha, num, title):
     subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
   except subprocess.CalledProcessError as error:
     unmerged = get_unmerged_files()
-    deleted_by_us = []
-    other_conflicts = []
-    for path, stages in unmerged.items():
-      if 'theirs' in stages and 'ours' not in stages:
-        deleted_by_us.append(path)
-      else:
-        other_conflicts.append(path)
-
-    if other_conflicts:
-      print(
-          f'Cannot resolve conflicts autonomously. Other conflicts: '
-          f'{other_conflicts}',
-          file=sys.stderr)
+    if not resolve_conflicts(unmerged):
       subprocess.run(['git', 'reset', '--hard', 'HEAD'], check=True)
       raise error
-
-    if deleted_by_us:
-      print(
-          f"Resolving 'deleted by us' conflicts: {deleted_by_us}",
-          file=sys.stderr)
-      for path in deleted_by_us:
-        subprocess.run(['git', 'rm', path], check=True)
-    else:
-      pass
 
   # Check if there are changes to commit.
   res = subprocess.run(['git', 'diff', '--quiet', '--cached'], check=False)
