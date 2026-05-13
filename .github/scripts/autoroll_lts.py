@@ -92,11 +92,9 @@ def cherry_pick(sha, num, title):
   if len(ps) > 1:
     cmd.append('--mainline=1')
 
-  failed = False
   try:
     subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
   except subprocess.CalledProcessError as error:
-    failed = True
     unmerged = get_unmerged_files()
     deleted_by_us = []
     other_conflicts = []
@@ -127,8 +125,6 @@ def cherry_pick(sha, num, title):
   res = subprocess.run(['git', 'diff', '--quiet', '--cached'], check=False)
   if res.returncode == 0:
     print('Nothing to commit.', file=sys.stderr)
-    if failed:
-      subprocess.run(['git', 'cherry-pick', '--abort'], check=True)
     return False
 
   cmd = [
