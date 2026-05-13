@@ -65,6 +65,7 @@ import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -222,10 +223,14 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
+      RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
+      if (savedInstanceState == null) {
+        RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", false);
+      }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
     StartupGuard.getInstance().setStartupMilestone(7);
