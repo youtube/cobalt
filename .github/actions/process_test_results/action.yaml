@@ -24,7 +24,7 @@ runs:
       id: set-summary-glob
       run: |
         results_glob="${{ inputs.results_glob }}"
-        summary_glob="${results_glob/\/**\//\/**\/summary\/}"
+        summary_glob="${results_glob/\/**\//\/**\/summary\/**\/}"
         echo "summary_glob=${summary_glob}" >> $GITHUB_OUTPUT
       shell: bash
 
@@ -61,11 +61,11 @@ runs:
         shopt -s globstar nullglob
 
         if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-          check_glob="${RESULTS_GLOB/\/**\//\/**\/summary\/}"
+          check_glob="${RESULTS_GLOB/\/**\//\/**\/summary\/**\/}"
           expected_files=${GTEST_SHARDS}
           failed_count=${TESTS_FAILED:-0}
         else
-          check_glob="${RESULTS_GLOB/\/**\//\/**\/datadog\/}"
+          check_glob="${RESULTS_GLOB/\/**\//\/**\/datadog\/**\/}"
           expected_files=$((3 * GTEST_SHARDS))
 
           # For postsubmit, check all files in datadog folder for any failure.
