@@ -56,12 +56,20 @@ def get_pr_set(branch, exclude_branch):
 
 
 def get_unmerged_files():
+  """Returns a dict of files with conflicts mapping to named stages.
+
+  Stages are mapped as follows:
+  - '1': 'ancestor'
+  - '2': 'ours'
+  - '3': 'theirs'
+  """
   res = subprocess.run(['git', 'ls-files', '-u'],
                        capture_output=True,
                        text=True,
                        check=True)
   lines = res.stdout.splitlines()
   files = {}
+  stage_map = {'1': 'ancestor', '2': 'ours', '3': 'theirs'}
   for line in lines:
     parts = line.split()
     if len(parts) >= 4:
@@ -69,7 +77,8 @@ def get_unmerged_files():
       path = parts[3]
       if path not in files:
         files[path] = set()
-      files[path].add(stage)
+      stage_name = stage_map.get(stage, stage)
+      files[path].add(stage_name)
   return files
 
 
@@ -99,7 +108,7 @@ def cherry_pick(sha, num, title):
     deleted_by_us = []
     other_conflicts = []
     for path, stages in unmerged.items():
-      if '3' in stages and '2' not in stages:
+      if 'theirs' in stages and 'ours' not in stages:
         deleted_by_us.append(path)
       else:
         other_conflicts.append(path)
