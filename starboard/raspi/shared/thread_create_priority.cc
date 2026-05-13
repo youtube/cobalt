@@ -102,39 +102,6 @@ void SetRoundRobinScheduler(int priority) {
 
 }  // namespace
 
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport) {
-    return false;
-  }
-
-  // Use different schedulers according to priority. This is preferred over
-  // using SCHED_RR for all threads because the scheduler time slice is too
-  // high (defaults to 100ms) for the desired threading behavior.
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-    case kSbThreadPriorityLow:
-      SetIdleScheduler();
-      break;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      SetOtherScheduler();
-      break;
-    case kSbThreadPriorityHigh:
-      SetRoundRobinScheduler(0);
-      break;
-    case kSbThreadPriorityHighest:
-      SetRoundRobinScheduler(1);
-      break;
-    case kSbThreadPriorityRealTime:
-      SetRoundRobinScheduler(kMaxRoundRobinPriority);
-      break;
-    default:
-      SB_NOTREACHED();
-      break;
-  }
-  return true;
-}
-
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   int scheduler = sched_getscheduler(0);
   if (scheduler == -1) {
