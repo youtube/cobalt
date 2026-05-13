@@ -5,6 +5,9 @@ inputs:
   path:
     description: Destination path (e.g. cobalt).
     required: true
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
 
 outputs:
   cache_hit:
@@ -16,6 +19,8 @@ runs:
   steps:
     - name: Authenticate with GoB
       uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Prepare OverlayFS Workspace
       id: prepare
