@@ -72,7 +72,8 @@ const char* kSabiJsonIdX64Sysv =
     "\"alignment_pointer\":8,\"alignment_short\":2,\"calling_convention\":"
     "\"sysv\",\"endianness\":\"little\",\"floating_point_abi\":\"\",\"floating_"
     "point_fpu\":\"\",\"sb_api_version\":18,\"signedness_of_char\":\"signed\","
-    "\"signedness_of_enum\":\"signed\",\"size_of_char\":1,\"size_of_double\":8,"
+    "\"signedness_of_enum\":\"unsigned\",\"size_of_char\":1,\"size_of_double\":"
+    "8,"
     "\"size_of_enum\":4,\"size_of_float\":4,\"size_of_int\":4,\"size_of_"
     "llong\":8,\"size_of_long\":8,\"size_of_pointer\":8,\"size_of_short\":2,"
     "\"target_arch\":\"x64\",\"target_arch_sub\":\"\",\"word_size\":64}";
