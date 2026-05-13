@@ -57,15 +57,15 @@ jobs:
                   branch: pr.head.ref,
                   event: 'pull_request'
                 });
-                
+
                 const prRuns = runs.data.workflow_runs.filter(run => run.head_sha === pr.head.sha);
                 if (prRuns.length === 0) {
                   console.log(`No runs found for workflow ${workflow}, branch ${pr.head.ref}, and SHA ${pr.head.sha}`);
                   return;
                 }
-                
+
                 const latestRun = prRuns[0];
-                
+
                 console.log(`Rerunning run ${latestRun.id} for workflow ${workflow}`);
                 await github.rest.actions.rerunWorkflow({
                   owner: context.repo.owner,
