@@ -87,16 +87,6 @@ Returns the Thread ID of the currently executing thread.
 SbThreadId SbThreadGetId()
 ```
 
-### SbThreadGetPriority
-
-Get the thread priority of the current thread.
-
-#### Declaration
-
-```
-bool SbThreadGetPriority(SbThreadPriority *priority)
-```
-
 ### SbThreadIsValidId
 
 Returns whether the given thread ID is valid.
