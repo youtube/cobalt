@@ -415,6 +415,13 @@ jint JniMediaCodecBridge::QueueInputBuffer(jint index,
                                            jint flags,
                                            jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
+
+  queue_input_count_++;
+  if (queue_input_count_ >= 500) {
+    MediaCodecBridge::LogArtGcStats(queue_input_count_, "JAVA_JNI");
+    queue_input_count_ = 0;
+  }
+
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
       presentation_time_microseconds, flags, is_decode_only);
@@ -583,6 +590,12 @@ MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
   SB_CHECK(handler_);
 }
 
-
-
+// static
+void MediaCodecBridge::LogArtGcStats(int frame_count,
+                                     const char* backend_name) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jstring> j_backend_name(env,
+                                             env->NewStringUTF(backend_name));
+  Java_MediaCodecBridge_logArtGcStats(env, frame_count, j_backend_name);
+}
 }  // namespace starboard

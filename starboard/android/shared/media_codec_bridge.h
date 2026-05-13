@@ -182,6 +182,7 @@ class MediaCodecBridge {
   void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
 
   static jboolean IsFrameRenderedCallbackEnabled();
+  static void LogArtGcStats(int frame_count, const char* backend_name);
 
  protected:
   explicit MediaCodecBridge(Handler* handler);
@@ -227,6 +228,7 @@ class JniMediaCodecBridge : public MediaCodecBridge {
 
  private:
   jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  int queue_input_count_ = 0;
 };
 
 }  // namespace starboard

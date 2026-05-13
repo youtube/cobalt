@@ -433,6 +433,18 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
+  @CalledByNative
+  public static void logArtGcStats(int frameCount, String backendName) {
+    try {
+      String gcCount = android.os.Debug.getRuntimeStat("art.gc.gc-count");
+      String gcTime = android.os.Debug.getRuntimeStat("art.gc.gc-time");
+      String allocated = android.os.Debug.getRuntimeStat("art.gc.bytes-allocated");
+      Log.i(TAG, String.format(Locale.US, "[ArtGcPerf] Backend: %s | Frames: %d | Total GC Count: %s | Total GC Time: %s ms | Total Allocated: %s bytes", backendName, frameCount, gcCount, gcTime, allocated));
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to log ART GC stats", e);
+    }
+  }
+
   private boolean isDecodeOnlyFlagEnabled() {
     // Right now, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
     if (!mIsTunnelingPlayback) {

@@ -80,6 +80,7 @@ class NdkMediaCodecBridge : public MediaCodecBridge {
   explicit NdkMediaCodecBridge(Handler* handler, AMediaCodec* codec);
 
   AMediaCodec* codec_ = nullptr;
+  int queue_input_count_ = 0;
 };
 
 }  // namespace starboard

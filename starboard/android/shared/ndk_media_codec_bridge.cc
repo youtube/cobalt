@@ -180,6 +180,12 @@ jint NdkMediaCodecBridge::QueueInputBuffer(jint index,
                                            jlong presentation_time_microseconds,
                                            jint flags,
                                            jboolean is_decode_only) {
+  queue_input_count_++;
+  if (queue_input_count_ >= 500) {
+    MediaCodecBridge::LogArtGcStats(queue_input_count_, "NATIVE_NDK");
+    queue_input_count_ = 0;
+  }
+
   media_status_t status = AMediaCodec_queueInputBuffer(
       codec_, index, offset, size, presentation_time_microseconds, flags);
   return status == AMEDIA_OK ? MEDIA_CODEC_OK : MEDIA_CODEC_ERROR;
