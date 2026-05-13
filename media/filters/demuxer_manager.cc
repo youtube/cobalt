@@ -127,6 +127,13 @@ DemuxerManager::~DemuxerManager() {
   // thread, and needs to be deleted there.
   if (GetDemuxerType() == DemuxerType::kManifestDemuxer) {
     media_task_runner_->DeleteSoon(FROM_HERE, std::move(demuxer_));
+  } else if (GetDemuxerType() == DemuxerType::kChunkDemuxer) {
+    base::TimeTicks start = base::TimeTicks::Now();
+    demuxer_.reset();
+    base::TimeDelta elapsed = base::TimeTicks::Now() - start;
+    LOG(INFO) << "ChunkDemuxer total destruction took "
+              << elapsed.InMilliseconds() << " ms ("
+              << elapsed.InMicroseconds() << " us)";
   }
 }
 

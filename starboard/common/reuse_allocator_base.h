@@ -43,6 +43,8 @@ class ReuseAllocatorBase : public Allocator {
 
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
+  void BatchFree(const std::vector<void*>& memories1,
+                 const std::vector<void*>& memories2);
 
   size_t GetCapacity() const override { return capacity_; }
   size_t GetAllocated() const override { return total_allocated_; }

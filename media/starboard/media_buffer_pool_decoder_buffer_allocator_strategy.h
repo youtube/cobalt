@@ -41,6 +41,8 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
                  size_t alignment) override;
 
   void Free(DemuxerStream::Type type, void* p) override;
+  void BatchFree(const std::vector<void*>& audio_pointers,
+                 const std::vector<void*>& video_pointers) override;
 
   void Write(void* p, const void* data, size_t size) override;
 

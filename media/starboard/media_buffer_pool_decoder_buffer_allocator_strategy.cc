@@ -83,6 +83,13 @@ void MediaBufferPoolDecoderBufferAllocatorStrategy::Free(
   }
 }
 
+void MediaBufferPoolDecoderBufferAllocatorStrategy::BatchFree(
+    const std::vector<void*>& audio_pointers,
+    const std::vector<void*>& video_pointers) {
+  CHECK(false) << "MediaBufferPoolDecoderBufferAllocatorStrategy doesn't "
+                  "support BatchFree.";
+}
+
 void MediaBufferPoolDecoderBufferAllocatorStrategy::Write(void* p,
                                                           const void* data,
                                                           size_t size) {

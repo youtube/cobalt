@@ -105,6 +105,22 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
+    virtual bool IsBatchFreeEnabled() const { return false; }
+    virtual void StartBatching() {}
+    virtual void StopBatching() {}
+
+    // RAII helper to safely manage the batching lifecycle.
+    class MEDIA_EXPORT BatchScope {
+     public:
+      BatchScope() {
+        DCHECK(Allocator::Get()->IsBatchFreeEnabled());
+        Allocator::Get()->StartBatching();
+      }
+      ~BatchScope() { Allocator::Get()->StopBatching(); }
+
+      BatchScope(const BatchScope&) = delete;
+      BatchScope& operator=(const BatchScope&) = delete;
+    };
 
    protected:
     ~Allocator() {}

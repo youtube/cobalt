@@ -35,6 +35,11 @@
 
 namespace media {
 
+thread_local std::vector<void*>* DecoderBufferAllocator::pending_audio_frees_ =
+    nullptr;
+thread_local std::vector<void*>* DecoderBufferAllocator::pending_video_frees_ =
+    nullptr;
+
 namespace {
 
 // The current default AllocatorStrategy is InPlaceReuseAllocatorBase.
@@ -143,6 +148,17 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
     return;
   }
 
+  if (pending_audio_frees_) {
+    DCHECK(is_batch_free_enabled_);
+    if (type == DemuxerStream::AUDIO) {
+      pending_audio_frees_->push_back(p);
+    } else {
+      DCHECK_EQ(type, DemuxerStream::VIDEO);
+      pending_video_frees_->push_back(p);
+    }
+    return;
+  }
+
   base::AutoLock scoped_lock(mutex_);
 
   DCHECK(strategy_);
@@ -201,6 +217,64 @@ base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
       SbMediaGetBufferGarbageCollectionDurationThreshold());
+}
+
+bool DecoderBufferAllocator::IsBatchFreeEnabled() const {
+  return is_batch_free_enabled_;
+}
+
+void DecoderBufferAllocator::StartBatching() {
+  DCHECK(is_batch_free_enabled_);
+  DCHECK(!pending_audio_frees_);
+  DCHECK(!pending_video_frees_);
+  pending_audio_frees_ = new std::vector<void*>();
+  pending_audio_frees_->reserve(16 * 1024);
+  pending_video_frees_ = new std::vector<void*>();
+  pending_video_frees_->reserve(16 * 1024);
+}
+
+void DecoderBufferAllocator::StopBatching() {
+  DCHECK(pending_audio_frees_);
+  DCHECK(pending_video_frees_);
+
+  bool has_pending_frees =
+      !pending_audio_frees_->empty() || !pending_video_frees_->empty();
+
+  if (has_pending_frees) {
+    base::AutoLock scoped_lock(mutex_);
+    DCHECK(strategy_);
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    if (starboard::Allocator::ExtraLogLevel() >= 2) {
+      for (const auto& p : *pending_audio_frees_) {
+        ++pending_allocation_operations_count_;
+        pending_allocation_operations_ << " f " << p;
+        TryFlushAllocationLog_Locked();
+      }
+      for (const auto& p : *pending_video_frees_) {
+        ++pending_allocation_operations_count_;
+        pending_allocation_operations_ << " f " << p;
+        TryFlushAllocationLog_Locked();
+      }
+    }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+    strategy_->BatchFree(*pending_audio_frees_, *pending_video_frees_);
+
+    bool should_reset_strategy =
+        is_strategy_switch_pending_ || is_memory_pool_allocated_on_demand_;
+
+    if (should_reset_strategy && strategy_->GetAllocated() == 0) {
+      LOG(INFO) << "Freeing " << strategy_->GetCapacity()
+                << " bytes of decoder buffer pool.";
+      strategy_.reset();
+    }
+  }
+
+  delete pending_audio_frees_;
+  pending_audio_frees_ = nullptr;
+  delete pending_video_frees_;
+  pending_video_frees_ = nullptr;
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
@@ -360,5 +434,11 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
   }
 }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+// static
+void DecoderBufferAllocator::EnableBatchFree() {
+  Get()->is_batch_free_enabled_ = true;
+  LOG(INFO) << "DecoderBufferAllocator batch free is enabled";
+}
 
 }  // namespace media
