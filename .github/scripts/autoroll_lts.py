@@ -111,7 +111,7 @@ def cherry_pick(sha, num, title):
           f'Cannot resolve conflicts autonomously. Other conflicts: '
           f'{other_conflicts}',
           file=sys.stderr)
-      subprocess.run(['git', 'cherry-pick', '--abort'], check=True)
+      subprocess.run(['git', 'reset', '--hard', 'HEAD'], check=True)
       raise error
 
     if deleted_by_us:
