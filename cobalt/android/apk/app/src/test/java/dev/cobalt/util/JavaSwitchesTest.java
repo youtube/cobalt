@@ -120,4 +120,39 @@ public class JavaSwitchesTest {
 
     assertThat(args).contains("--avoid-cc-reuse-resource");
   }
+
+  @Test
+  public void getExtraCommandLineArgs_GpuRasterizationMsaa() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT, "4");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--gpu-rasterization-msaa-sample-count=4");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_DisableGpuRasterizationMsaa() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.DISABLE_GPU_RASTERIZATION_MSAA, "true");
+    // Should take precedence over specific sample count
+    javaSwitches.put(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT, "4");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--gpu-rasterization-msaa-sample-count=0");
+    assertThat(args).doesNotContain("--gpu-rasterization-msaa-sample-count=4");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_DiskCacheAndHttpCache() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.DISK_CACHE_SIZE, "10485760");
+    javaSwitches.put(JavaSwitches.DISABLE_HTTP_CACHE, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--disk-cache-size=10485760");
+    assertThat(args).contains("--disable-http-cache");
+  }
 }

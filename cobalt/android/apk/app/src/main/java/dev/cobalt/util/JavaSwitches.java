@@ -97,6 +97,17 @@ public class JavaSwitches {
 
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
+  /** GPU rasterization MSAA sample count. Value type: Integer */
+  public static final String GPU_RASTERIZATION_MSAA_SAMPLE_COUNT = "GpuRasterizationMsaaSampleCount";
+
+  /** Disable GPU rasterization MSAA. Value type: Boolean (presence means true) */
+  public static final String DISABLE_GPU_RASTERIZATION_MSAA = "DisableGpuRasterizationMsaa";
+
+  /** Disk cache size. Value type: Integer */
+  public static final String DISK_CACHE_SIZE = "DiskCacheSize";
+
+  /** Disable HTTP cache. Value type: Boolean (presence means true) */
+  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -222,6 +233,26 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_RASTERIZATION_MSAA)) {
+      extraCommandLineArgs.add("--gpu-rasterization-msaa-sample-count=0");
+    } else if (javaSwitches.containsKey(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT)) {
+      extraCommandLineArgs.add(
+          "--gpu-rasterization-msaa-sample-count="
+              + javaSwitches
+                  .get(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT)
+                  .replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISK_CACHE_SIZE)) {
+      extraCommandLineArgs.add(
+          "--disk-cache-size="
+              + javaSwitches.get(JavaSwitches.DISK_CACHE_SIZE).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--disable-http-cache");
     }
 
     return extraCommandLineArgs;
