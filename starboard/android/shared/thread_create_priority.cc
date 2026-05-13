@@ -20,6 +20,7 @@
 #include <sys/resource.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration_constants.h"
 
 namespace {
@@ -47,48 +48,7 @@ SbThreadPriority NiceToSbPriority(int nice) {
   return kSbThreadPriorityNormal;
 }
 
-void SetNiceValue(int nice) {
-  int result = setpriority(PRIO_PROCESS, 0, nice);
-  if (result != 0) {
-    SB_NOTREACHED();
-  }
-}
-
 }  // namespace
-
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport) {
-    return false;
-  }
-
-  // Nice value settings are selected from looking at:
-  //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-      SetNiceValue(19);
-      break;
-    case kSbThreadPriorityLow:
-      SetNiceValue(10);
-      break;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      SetNiceValue(0);
-      break;
-    case kSbThreadPriorityHigh:
-      SetNiceValue(-8);
-      break;
-    case kSbThreadPriorityHighest:
-      SetNiceValue(-16);
-      break;
-    case kSbThreadPriorityRealTime:
-      SetNiceValue(-19);
-      break;
-    default:
-      SB_NOTREACHED();
-      break;
-  }
-  return true;
-}
 
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   errno = 0;
