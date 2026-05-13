@@ -94,11 +94,8 @@ typedef enum SbSystemPropertyId {
   // of device selection (e.g. in-app DIAL).
   kSbSystemPropertyFriendlyName,
 
-  // A deprecated alias for |kSbSystemPropertyBrandName|.
-  kSbSystemPropertyManufacturerName,
-
   // The name of the brand under which the device is being sold.
-  kSbSystemPropertyBrandName = kSbSystemPropertyManufacturerName,
+  kSbSystemPropertyBrandName,
 
   // The final production model number of the device.
   kSbSystemPropertyModelName,
@@ -136,39 +133,6 @@ typedef enum SbSystemPropertyId {
   // Please see Youtube Technical requirements for a full list of allowed values
   kSbSystemPropertyDeviceType,
 } SbSystemPropertyId;
-
-// Enumeration of device types.
-typedef enum SbSystemDeviceType {
-  // Blue-ray Disc Player (BDP).
-  kSbSystemDeviceTypeBlueRayDiskPlayer,
-
-  // A relatively high-powered TV device used primarily for playing games.
-  kSbSystemDeviceTypeGameConsole,
-
-  // Over the top (OTT) devices stream content via the Internet over another
-  // type of network, e.g. cable or satellite.
-  kSbSystemDeviceTypeOverTheTopBox,
-
-  // Set top boxes (STBs) stream content primarily over cable or satellite.
-  // Some STBs can also stream OTT content via the Internet.
-  kSbSystemDeviceTypeSetTopBox,
-
-  // A Smart TV is a TV that can directly run applications that stream OTT
-  // content via the Internet.
-  kSbSystemDeviceTypeTV,
-
-  // Desktop PC.
-  kSbSystemDeviceTypeDesktopPC,
-
-  // An Android TV Device.
-  kSbSystemDeviceTypeAndroidTV,
-
-  // A wall video projector.
-  kSbSystemDeviceTypeVideoProjector,
-
-  // Unknown device.
-  kSbSystemDeviceTypeUnknown,
-} SbSystemDeviceType;
 
 // Runtime capabilities are boolean properties of a platform that can't be
 // determined at compile-time. They may vary from device to device, but they

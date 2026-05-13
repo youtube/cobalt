@@ -339,12 +339,6 @@ struct CompileAssert {};
 #endif
 #endif  // defined(SB_C_FORCE_INLINE)
 
-#if defined(SB_C_INLINE)
-#error "Your platform should not define SB_C_INLINE, it is deprecated."
-#else
-#define SB_C_INLINE inline
-#endif
-
 // SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries. //
 // SB_API_VERSION >= 16
 #if !defined(SB_EXPORT_PLATFORM)  // auto-configure
