@@ -31,43 +31,42 @@ runs:
         mkdir -p unit_test/
         cd unit_test/
         tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
-    - name: Run Tests
+    - name: Setup Environment for Host Tests
+      shell: bash
+      run: |
+        results_dir="${GITHUB_WORKSPACE}/results"
+        echo "results_dir=${results_dir}" >> $GITHUB_ENV
+        mkdir -p "${results_dir}"
+
+        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}"
+        echo "out_dir=${out_dir}" >> $GITHUB_ENV
+
+        LD_LIBRARY_PATH="${out_dir}/starboard:${out_dir}"
+        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+        echo "ASAN_OPTIONS=exitcode=0" >> $GITHUB_ENV
+        echo "XVFB_SERVER_ARGS=-screen 0 1920x1080x24i +render +extension GLX -noreset" >> $GITHUB_ENV
+
+    - name: Run GTests
       id: run-tests
+      if: ${{ inputs.test_on_host == 'true' }}
       shell: bash
       env:
-        XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         set -x
         env
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
-        # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
-        LD_LIBRARY_PATH="${out_dir}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
-        export LD_LIBRARY_PATH
-
-        # TODO: b/467135717 - Remove this once tests don't have asan leaks.
-        # Don't fail if only asan fails.
-        export ASAN_OPTIONS=exitcode=0
-
-        # Make results dir available to the archiving step below.
-        results_dir="${GITHUB_WORKSPACE}/results"
-        echo "results_dir=${results_dir}" >> $GITHUB_ENV
-
-        # Test results (xml and logs) must be in a subfolder in results_dir
-        # to be picked up by the test result processor.
-        # This also prevents accidental overwriting when collecting results.
         test_output="${results_dir}/shard_${{ matrix.shard }}"
         mkdir -p ${test_output}
 
         failed_suites=""
         cd unit_test/
 
-        for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
-          filename=$(basename "${test_binary_path}")
-          test_binary="${filename%%.*}"
+        for target in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.on_host.unit // [] | .[]'); do
+          test_binary="${target#*:}"
+          test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${test_binary}"
 
           echo "Running tests for suite: ${test_binary}"
 
@@ -80,11 +79,12 @@ runs:
           echo "Test filter evaluated to: ${test_filter}"
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
-          # TODO: Investigate test_runner.py
 
-          # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
-          # If so, use it as the entrypoint to run tests.
           wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          if [[ ! -x "${wrapper_path}" ]]; then
+            wrapper_path="bin/run_${test_binary}"
+          fi
+
           if [[ -x "${wrapper_path}" ]]; then
             ENTRYPOINT="./${wrapper_path}"
           else
@@ -105,7 +105,6 @@ runs:
             }
 
             if [[ ! -f ${xml_path} ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
             fi
           fi
@@ -113,7 +112,48 @@ runs:
         echo "Finished running tests..."
         if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
-          # Fail the job so it's easy to retrigger.
+          exit 1
+        fi
+
+    - name: Run JUnit Tests
+      if: ${{ inputs.test_on_host == 'true' }}
+      shell: bash
+      run: |
+        set -x
+        set -o pipefail
+
+        cd unit_test/
+        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
+
+        failed_suites=""
+
+        if [[ -f "${targets_file}" ]]; then
+          for target in $(jq -cr '.on_host.junit // [] | .[]' "${targets_file}"); do
+            test_binary="${target#*:}"
+            test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${test_binary}"
+            log_path="${results_dir}/${test_binary}_log.txt"
+
+            wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+            if [[ ! -x "${wrapper_path}" ]]; then
+              wrapper_path="bin/run_${test_binary}"
+            fi
+
+            if [[ -x "${wrapper_path}" ]]; then
+              echo "Running JUnit tests for suite: ${test_binary}"
+              /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                  stdbuf -i0 -o0 -e0 ./${wrapper_path} 2>&1 | tee ${log_path} || {
+                echo "JUnit test suite failed: ${test_binary}"
+                failed_suites="${failed_suites} ${test_binary}"
+              }
+            else
+              echo "Wrapper script not found or not executable: ${wrapper_path}"
+              failed_suites="${failed_suites} ${test_binary}"
+            fi
+          done
+        fi
+
+        if [[ -n "${failed_suites}" ]]; then
+          echo "JUnit test suites failed:${failed_suites}"
           exit 1
         fi
     - name: Archive Test Results

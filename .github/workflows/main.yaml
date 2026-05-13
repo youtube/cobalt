@@ -490,15 +490,21 @@ jobs:
         with:
           package_dir: out/test-package
 
+      - name: Upload Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
+        uses: ./.github/actions/upload_host_test_artifacts
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
+
       - name: Upload Test Artifacts
         uses: ./.github/actions/upload_test_artifacts
         with:
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          archive_browsertests: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_browser == 'true' }}
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
 

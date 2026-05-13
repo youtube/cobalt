@@ -1,0 +1,56 @@
+name: Host Test Artifact Upload
+description: Uploads test archives for on-host tests (Linux GTests, Android JUnit tests).
+inputs:
+  test_artifacts_key:
+    description: "Artifact key used to store on-host test artifacts."
+    required: true
+  test_targets_json_file:
+    description: "The path to test targets json file."
+    required: true
+  platform:
+    description: "The platform for which artifacts are being uploaded."
+    required: true
+  config:
+    description: "The build configuration (e.g., devel, qa, gold)."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create Artifacts Directory
+      run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+      shell: bash
+
+    - name: Archive Host Test Dependencies
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -x
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        cd cobalt/src/
+
+        TARGETS=$(jq -cr '.on_host // {} | [.[] | .[]] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+
+        FLAGS="--compression zstd --compression-level=9"
+        if [[ "${PLATFORM}" == *android* ]]; then
+          FLAGS="${FLAGS} --use-android-deps-path"
+        fi
+
+        if [[ -n "${TARGETS}" ]]; then
+          time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+            --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
+            --out-dir out/${PLATFORM}_${CONFIG}/ \
+            --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+            --targets "${TARGETS}" \
+            ${FLAGS}
+        fi
+      shell: bash
+
+    - name: Upload On-Host Test Artifacts Archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.test_artifacts_key }}
+        path: artifacts/*
+        retention-days: 3

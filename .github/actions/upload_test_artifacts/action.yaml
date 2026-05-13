@@ -1,24 +1,15 @@
-name: Test Artifact Upload
-description: Uploads test archives for on-device and on-host tests.
+name: Device Test Artifact Upload
+description: Uploads test archives for on-device tests.
 inputs:
   upload_e2e_test_artifacts:
     description: "Indicates if E2E test artifacts should be uploaded."
     required: true
-  upload_on_host_test_artifacts:
-    description: "Indicates if on-host test artifacts should be uploaded."
-    required: true
   upload_on_device_test_artifacts:
     description: "Indicates if on-device test artifacts should be uploaded."
-    required: true
-  test_artifacts_key:
-    description: "Artifact key used to store on-host test artifacts."
     required: true
   test_targets_json_file:
     description: "The path to test targets json file."
     required: true
-  archive_browsertests:
-    description: "Indicates if browser tests should be archived."
-    default: "false"
   platform:
     description: "The platform for which artifacts are being uploaded."
     required: true
@@ -66,18 +57,7 @@ runs:
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
-
-        # Archive browser tests if requested.
-        if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then
-          # Determine the browser test target for this platform.
-          BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
-          if [[ -n "${TARGETS}" ]]; then
-            TARGETS="${TARGETS},${BROWSERTEST_TARGET}"
-          else
-            TARGETS="${BROWSERTEST_TARGET}"
-          fi
-        fi
+        TARGETS=$(jq -cr '.on_device // {} | [.[] | .[]] | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         if [[ -n "${TARGETS}" ]]; then
           time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
@@ -88,13 +68,7 @@ runs:
             ${FLAGS}
         fi
       shell: bash
-    - name: Upload On-Host Test Artifacts Archive
-      if: inputs.upload_on_host_test_artifacts == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.test_artifacts_key }}
-        path: artifacts/*
-        retention-days: 3
+
     - name: Set up Cloud SDK
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
