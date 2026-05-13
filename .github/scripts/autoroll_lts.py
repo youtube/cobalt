@@ -95,7 +95,7 @@ def cherry_pick(sha, num, title):
   failed = False
   try:
     subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
-  except subprocess.CalledProcessError as e:
+  except subprocess.CalledProcessError as error:
     failed = True
     unmerged = get_unmerged_files()
     deleted_by_us = []
@@ -112,7 +112,7 @@ def cherry_pick(sha, num, title):
           f'{other_conflicts}',
           file=sys.stderr)
       subprocess.run(['git', 'cherry-pick', '--abort'], check=True)
-      raise e
+      raise error
 
     if deleted_by_us:
       print(
