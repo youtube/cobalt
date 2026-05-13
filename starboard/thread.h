@@ -98,9 +98,6 @@ static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
 // Returns the Thread ID of the currently executing thread.
 SB_EXPORT SbThreadId SbThreadGetId();
 
-// Set the thread priority of the current thread.
-SB_EXPORT bool SbThreadSetPriority(SbThreadPriority priority);
-
 // Get the thread priority of the current thread.
 SB_EXPORT bool SbThreadGetPriority(SbThreadPriority* priority);
 

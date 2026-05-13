@@ -62,58 +62,6 @@ bool PthreadToSbThreadPriority(int priority,
 
 }  // namespace
 
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport) {
-    return false;
-  }
-
-  float relative_priority = 0.5f;
-
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-      relative_priority = 0.1f;
-      break;
-    case kSbThreadPriorityLow:
-      relative_priority = 0.3f;
-      break;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      relative_priority = 0.5f;
-      break;
-    case kSbThreadPriorityHigh:
-      relative_priority = 0.7f;
-      break;
-    case kSbThreadPriorityHighest:
-      relative_priority = 0.9f;
-      break;
-    case kSbThreadPriorityRealTime:
-      relative_priority = 0.99f;
-      break;
-    default:
-      SB_NOTREACHED();
-      break;
-  }
-
-  struct sched_param param;
-  int policy = SCHED_RR;
-
-  // Get the current thread scheduling parameters. Only the thread priority
-  // will be changed.
-  SB_CHECK(pthread_getschedparam(pthread_self(), &policy, &param) == 0);
-  int min_priority = sched_get_priority_min(policy);
-  int max_priority = sched_get_priority_max(policy);
-
-  // Thread priority set with pthread does not appear to have the same range
-  // as NSThread priorities. A pthread set to sched_get_priority_max() won't
-  // have NSThread.threadPriority == 1.0. Consider switching to NSThread if a
-  // higher priority is required.
-  param.sched_priority = static_cast<int>(
-      min_priority + relative_priority * (max_priority - min_priority));
-  SB_CHECK(pthread_setschedparam(pthread_self(), policy, &param) == 0);
-
-  return true;
-}
-
 bool SbThreadGetPriority(SbThreadPriority* priority) {
   struct sched_param param;
   int policy;
