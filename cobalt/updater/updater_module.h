@@ -130,8 +130,6 @@ class UpdaterModule {
                          base::TimeDelta update_check_delay);
   ~UpdaterModule();
 
-  // TODO: b/454440974 Investigate whether singleton is necessary.
-
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
