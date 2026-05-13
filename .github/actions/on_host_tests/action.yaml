@@ -64,9 +64,18 @@ runs:
         failed_suites=""
         cd unit_test/
 
-        for target in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.on_host.unit // [] | .[]'); do
-          test_binary="${target#*:}"
-          test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${test_binary}"
+        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
+        unit_executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
+
+        if [[ -n "${unit_executables}" ]]; then
+          executables="${unit_executables}"
+        else
+          executables=$(jq -cr '.on_host.unit // [] | map(. | split(":")[-1]) | join(" ")' "${targets_file}")
+        fi
+
+        for executable in ${executables}; do
+          test_binary="${executable%%.*}"
+          test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${executable}"
 
           echo "Running tests for suite: ${test_binary}"
 

@@ -57,7 +57,7 @@ runs:
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        TARGETS=$(jq -cr '.on_device // {} | [.[] | .[]] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        TARGETS=$(jq -cr '(.on_device.unit // []) + (.on_device.browser // []) | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         if [[ -n "${TARGETS}" ]]; then
           time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
