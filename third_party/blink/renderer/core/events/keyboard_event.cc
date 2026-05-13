@@ -22,6 +22,7 @@
 
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 
+#include "base/logging.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -138,6 +139,11 @@ KeyboardEvent::KeyboardEvent(const WebKeyboardEvent& key,
   if (key.native_key_code == 0xE5)  // VKEY_PROCESSKEY
     key_code_ = 0xE5;
 #endif
+
+  LOG(INFO) << "Charley Blink KeyboardEvent: Created type=" << type()
+            << ", windows_key_code=" << key.windows_key_code
+            << ", key_code_=" << key_code_
+            << ", key_=" << key_;
 }
 
 KeyboardEvent::KeyboardEvent(const AtomicString& event_type,

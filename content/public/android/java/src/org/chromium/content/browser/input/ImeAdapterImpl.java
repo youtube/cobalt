@@ -890,6 +890,7 @@ public class ImeAdapterImpl
                     event.getAction(),
                     event.getKeyCode());
         }
+        Log.i(TAG, "Charley ImeAdapterImpl: dispatchKeyEvent action=" + event.getAction() + ", keycode=" + event.getKeyCode() + ", hasInputConnection=" + (mInputConnection != null));
         if (mInputConnection != null) return mInputConnection.sendKeyEventOnUiThread(event);
         return sendKeyEvent(event);
     }
@@ -1089,6 +1090,7 @@ public class ImeAdapterImpl
     }
 
     boolean sendKeyEvent(KeyEvent event) {
+        Log.i(TAG, "Charley ImeAdapterImpl: sendKeyEvent action=" + event.getAction() + ", keycode=" + event.getKeyCode() + ", isValid=" + isValid());
         if (!isValid()) return false;
 
         int action = event.getAction();

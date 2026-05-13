@@ -5,8 +5,11 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 #include <sys/prctl.h>
+#include <cstring>
+#include <string>
 
 #include "build/build_config.h"
+#include "third_party/jni_zero/cobalt_for_google3_buildflags.h"
 #include "third_party/jni_zero/generate_jni/JniInit_jni.h"
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
@@ -32,14 +35,25 @@ void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
 jclass GetClassInternal(JNIEnv* env,
                         const char* class_name,
                         const char* split_name) {
+#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+  std::string storage;
+  const char* actual_class_name = class_name;
+  if (strncmp(class_name, "org/chromium/", 13) == 0) {
+    storage = std::string("cobalt/") + class_name;
+    actual_class_name = storage.c_str();
+  }
+#else
+  const char* actual_class_name = class_name;
+#endif
+
   jclass clazz;
   if (g_class_resolver != nullptr) {
-    clazz = g_class_resolver(env, class_name, split_name);
+    clazz = g_class_resolver(env, actual_class_name, split_name);
   } else {
-    clazz = env->FindClass(class_name);
+    clazz = env->FindClass(actual_class_name);
   }
   if (ClearException(env) || !clazz) {
-    JNI_ZERO_FLOG("Failed to find class %s", class_name);
+    JNI_ZERO_FLOG("Failed to find class %s", actual_class_name);
   }
   return clazz;
 }

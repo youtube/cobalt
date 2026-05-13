@@ -7,6 +7,7 @@
 #include <android/input.h>
 
 #include "base/check.h"
+#include "base/logging.h"
 #include "base/time/time.h"
 #include "ui/events/android/key_event_utils.h"
 #include "ui/events/base_event_utils.h"
@@ -99,6 +100,9 @@ WebKeyboardEvent WebKeyboardEventBuilder::Build(
   result.dom_code = static_cast<int>(dom_code);
   result.dom_key = GetDomKeyFromEvent(env, android_key_event, keycode,
                                       modifiers, unicode_character);
+  LOG(INFO) << "Charley WebKeyboardEventBuilder: Build keycode=" << keycode
+            << ", windows_key_code=" << result.windows_key_code
+            << ", dom_key=" << ui::KeycodeConverter::DomKeyToKeyString(result.dom_key);
   result.unmodified_text[0] = unicode_character;
   if (result.windows_key_code == ui::VKEY_RETURN) {
     // This is the same behavior as GTK:

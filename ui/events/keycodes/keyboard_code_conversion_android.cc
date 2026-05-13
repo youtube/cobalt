@@ -187,6 +187,8 @@ DomKey GetDomKeyFromAndroidKeycode(int keycode) {
       return DomKey::CLOSE;
     case AKEYCODE_MEDIA_EJECT:
       return DomKey::EJECT;
+    case 188: // AKEYCODE_BUTTON_1
+      return DomKey::LAUNCH_THIS_APPLICATION;
     case AKEYCODE_MEDIA_RECORD:
       return DomKey::MEDIA_RECORD;
     case AKEYCODE_F1:

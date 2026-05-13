@@ -79,6 +79,13 @@
                 "obj/components/url_formatter/android/url_formatter_java.javac.jar",
                 "obj/components/variations/android/variations_java.javac.jar",
                 "obj/components/variations/variations_java.javac.jar",
+                "obj/components/external_intents/android/java.javac.jar",
+                "obj/components/embedder_support/android/util_java.javac.jar",
+                "obj/components/messages/android/java.javac.jar",
+                "obj/components/navigation_interception/android/navigation_interception_java.javac.jar",
+                "obj/components/webapk/android/libs/client/java.javac.jar",
+                "obj/components/messages/android/jni_headers_java.javac.jar",
+                "obj/components/browser_ui/widget/android/java.javac.jar",
                 "obj/components/crash/android/java.javac.jar",
                 "obj/components/crash/android/jni_headers_java.javac.jar",
                 "obj/components/viz/service/service_java.javac.jar",
@@ -434,6 +441,34 @@
                 {
                     "from_file": "obj/components/embedder_support/android/view_java.javac.jar",
                     "to_file": "jar/components_embedder_support_android_view_java.jar"
+                },
+                {
+                    "from_file": "obj/components/external_intents/android/java.javac.jar",
+                    "to_file": "jar/components_external_intents_android_java.jar"
+                },
+                {
+                    "from_file": "obj/components/embedder_support/android/util_java.javac.jar",
+                    "to_file": "jar/components_embedder_support_android_util_java.jar"
+                },
+                {
+                    "from_file": "obj/components/messages/android/java.javac.jar",
+                    "to_file": "jar/components_messages_android_java.jar"
+                },
+                {
+                    "from_file": "obj/components/messages/android/jni_headers_java.javac.jar",
+                    "to_file": "jar/components_messages_android_jni_headers_java.jar"
+                },
+                {
+                    "from_file": "obj/components/browser_ui/widget/android/java.javac.jar",
+                    "to_file": "jar/components_browser_ui_widget_android_java.jar"
+                },
+                {
+                    "from_file": "obj/components/navigation_interception/android/navigation_interception_java.javac.jar",
+                    "to_file": "jar/components_navigation_interception_android_navigation_interception_java.jar"
+                },
+                {
+                    "from_file": "obj/components/webapk/android/libs/client/java.javac.jar",
+                    "to_file": "jar/components_webapk_android_libs_client_java.jar"
                 },
                 {
                     "from_file": "obj/components/input/android/java.javac.jar",

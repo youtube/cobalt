@@ -312,6 +312,9 @@ const struct DomKeyToKeyboardCodeEntry {
     // http://www.w3.org/TR/DOM-Level-3-Events-key/#keys-device
 #if BUILDFLAG(IS_POSIX)
     {DomKey::LAUNCH_ASSISTANT, VKEY_ASSISTANT},
+#if BUILDFLAG(IS_COBALT)
+    {DomKey::LAUNCH_THIS_APPLICATION, VKEY_LAUNCH_THIS_APPLICATION},
+#endif
     {DomKey::BRIGHTNESS_DOWN, VKEY_BRIGHTNESS_DOWN},
     {DomKey::BRIGHTNESS_UP, VKEY_BRIGHTNESS_UP},
     {DomKey::POWER, VKEY_POWER},
