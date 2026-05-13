@@ -19,13 +19,26 @@ import platform
 import subprocess
 import sys
 
+import os
+
 if __name__ == '__main__':
   if platform.system() != 'Linux':
     sys.exit(0)
 
   google_java_format_args = sys.argv[1:]
+
+  # Verify that the actual google-java-format binary is checked out locally,
+  # rather than executing depot_tools' placeholder wrapper which exits with 2.
+  primary_solution_path = os.path.abspath(
+      os.path.join(os.path.dirname(__file__), '..', '..'))
+  bin_path = os.path.join(primary_solution_path, 'third_party',
+                          'google-java-format', 'google-java-format')
+  if not os.path.exists(bin_path):
+    print('google-java-format binary not found, skipping.')
+    sys.exit(0)
+
   try:
-    sys.exit(subprocess.call(['google-java-format'] + google_java_format_args))
+    sys.exit(subprocess.call([bin_path] + google_java_format_args))
   except FileNotFoundError:
     print('google-java-format not found, skipping.')
     sys.exit(0)
