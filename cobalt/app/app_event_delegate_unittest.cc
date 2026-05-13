@@ -15,9 +15,12 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "cobalt/app/app_event_runner.h"
 #include "content/public/test/browser_task_environment.h"
+#include "starboard/extension/crash_handler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -65,10 +68,49 @@ class MockAppEventRunner : public AppEventRunner {
   MOCK_METHOD(void, DoUnfreeze, (), (override));
 };
 
+// This class provides a bridge to allow gMock to verify calls made through the
+// C-style Starboard extension function pointer interface.
+class MockCrashHandler {
+ public:
+  MockCrashHandler() {
+    ON_CALL(*this, SetString(testing::_, testing::_))
+        .WillByDefault(testing::Return(true));
+  }
+  MOCK_METHOD(bool, SetString, (const char* key, const char* value));
+
+  static bool SetStringStatic(const char* key, const char* value) {
+    return instance_->SetString(key, value);
+  }
+
+  static void SetInstance(MockCrashHandler* instance) { instance_ = instance; }
+
+ private:
+  static MockCrashHandler* instance_;
+};
+
+MockCrashHandler* MockCrashHandler::instance_ = nullptr;
+
 class AppEventDelegateTest : public ::testing::Test {
  public:
   AppEventDelegateTest() {
-    auto runner = std::make_unique<MockAppEventRunner>();
+    MockCrashHandler::SetInstance(&mock_crash_handler_);
+    crash_handler_extension_.name = kCobaltExtensionCrashHandlerName;
+    crash_handler_extension_.version = 2;
+    crash_handler_extension_.SetString = &MockCrashHandler::SetStringStatic;
+
+    CreateDelegate();
+  }
+
+  ~AppEventDelegateTest() override { MockCrashHandler::SetInstance(nullptr); }
+
+ protected:
+  void CreateDelegate(bool nice_runner = false) {
+    std::unique_ptr<MockAppEventRunner> runner;
+    if (nice_runner) {
+      runner = std::make_unique<testing::NiceMock<MockAppEventRunner>>();
+    } else {
+      runner = std::make_unique<MockAppEventRunner>();
+    }
     runner_ = runner.get();
 
     // Use default implementations for state tracking to avoid manual setup.
@@ -85,17 +127,28 @@ class AppEventDelegateTest : public ::testing::Test {
       is_visible_ = false;
     }));
 
-    delegate_ = std::make_unique<AppEventDelegate>(std::move(runner));
+    // The constructor calls SetApplicationStateAnnotation(kInitial).
+    // We set a baseline expectation that ignores the exact count of SetString
+    // calls globally, so individual tests can focus on specific transitions.
+    EXPECT_CALL(mock_crash_handler_, SetString(testing::_, testing::_))
+        .Times(testing::AnyNumber());
+
+    delegate_ = std::make_unique<AppEventDelegate>(std::move(runner),
+                                                   &crash_handler_extension_);
   }
 
- protected:
   void SendEvent(SbEventType type, void* data = nullptr) {
+    if (!delegate_) {
+      CreateDelegate();
+    }
     SbEvent event = {type, 0, data};
     delegate_->HandleEvent(&event);
     task_environment_.RunUntilIdle();
   }
 
   content::BrowserTaskEnvironment task_environment_;
+  MockCrashHandler mock_crash_handler_;
+  CobaltExtensionCrashHandlerApi crash_handler_extension_ = {};
   MockAppEventRunner* runner_;
   std::unique_ptr<AppEventDelegate> delegate_;
 
@@ -352,6 +405,68 @@ TEST_F(AppEventDelegateTest, RedundantUnfreezeIgnored) {
   // App is already unfrozen (Concealed).
   EXPECT_CALL(*runner_, DoUnfreeze()).Times(0);
   SendEvent(kSbEventTypeUnfreeze);
+}
+
+TEST_F(AppEventDelegateTest,
+       SynthesisStopFromStartedReflectedInCrashAnnotations) {
+  delegate_.reset();  // Restart lifecycle to verify the kInitial transition.
+  InSequence s;
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kInitial")));
+  CreateDelegate(/*nice_runner=*/true);
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kStarted")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kBlurred")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kConcealed")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kFrozen")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kStopped")));
+
+  SendEvent(kSbEventTypeStart);
+  SendEvent(kSbEventTypeStop);
+}
+
+TEST_F(AppEventDelegateTest,
+       FrozenToStartedViaFocusReflectedInCrashAnnotations) {
+  delegate_.reset();  // Restart lifecycle to verify the kInitial transition.
+  InSequence s;
+  // 1. Arrange: get the app into a Frozen state.
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kInitial")));
+  CreateDelegate(/*nice_runner=*/true);
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kConcealed")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kFrozen")));
+
+  SendEvent(kSbEventTypePreload);  // kInitial -> kConcealed
+  SendEvent(kSbEventTypeFreeze);   // kConcealed -> kFrozen
+
+  // 2. Act and verify: transition from Frozen to Started (via Focus).
+  // This should trigger: kFrozen -> kConcealed -> kBlurred -> kStarted.
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kConcealed")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kBlurred")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kStarted")));
+
+  SendEvent(kSbEventTypeFocus);
 }
 
 }  // namespace cobalt

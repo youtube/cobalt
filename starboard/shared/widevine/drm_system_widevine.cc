@@ -269,18 +269,19 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`.  We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  starboard::MimeType mime_type(std::string("key_system/") + key_system);
+  auto mime_type =
+      starboard::MimeType::Create(std::string("key_system/") + key_system);
 
-  if (!mime_type.is_valid()) {
+  if (!mime_type) {
     return false;
   }
-  SB_DCHECK_EQ(mime_type.type(), "key_system");
+  SB_DCHECK_EQ(mime_type->type(), "key_system");
 
   for (auto wv_key_system : kWidevineKeySystems) {
-    if (mime_type.subtype() == wv_key_system) {
-      for (int i = 0; i < mime_type.GetParamCount(); ++i) {
-        if (mime_type.GetParamName(i) == "encryptionscheme") {
-          auto value = mime_type.GetParamStringValue(i);
+    if (mime_type->subtype() == wv_key_system) {
+      for (int i = 0; i < mime_type->GetParamCount(); ++i) {
+        if (mime_type->GetParamName(i) == "encryptionscheme") {
+          auto value = mime_type->GetParamStringValue(i);
           if (value != "cenc" && value != "cbcs" && value != "cbcs-1-9") {
             return false;
           }
@@ -372,20 +373,6 @@ void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
   }
   session_closed_callback_(this, context_, sb_drm_session_id,
                            sb_drm_session_id_size);
-}
-
-void DrmSystemWidevine::UpdateServerCertificate(int ticket,
-                                                const void* certificate,
-                                                int certificate_size) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_certificate(static_cast<const char*>(certificate),
-                                    certificate_size);
-  wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
-
-  is_server_certificate_set_ = (status == wv3cdm::kSuccess);
-
-  server_certificate_updated_callback_(this, context_, ticket,
-                                       CdmStatusToSbDrmStatus(status), "");
 }
 
 void IncrementIv(uint8_t* iv, size_t block_count) {
@@ -545,6 +532,20 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
 
   buffer->SetDecryptedContent(std::move(output_data));
   return kSuccess;
+}
+
+void DrmSystemWidevine::UpdateServerCertificate(int ticket,
+                                                const void* certificate,
+                                                int certificate_size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  const std::string str_certificate(static_cast<const char*>(certificate),
+                                    certificate_size);
+  wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
+
+  is_server_certificate_set_ = (status == wv3cdm::kSuccess);
+
+  server_certificate_updated_callback_(this, context_, ticket,
+                                       CdmStatusToSbDrmStatus(status), "");
 }
 
 void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(

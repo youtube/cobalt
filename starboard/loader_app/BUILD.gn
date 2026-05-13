@@ -57,43 +57,25 @@ static_library("record_loader_app_status") {
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  source_set("loader_app_sources") {
+    sources = _common_loader_app_sources
+    deps = [
+      ":common_loader_app_dependencies",
+      "//starboard:starboard_with_main",
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/elf_loader",
+    ]
+  }
+
   target(starboard_level_final_executable_type, "loader_app") {
     output_dir = root_build_dir
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-      sources = _common_loader_app_sources
-      deps = [
-        ":common_loader_app_dependencies",
-        "//starboard:starboard_with_main",
-        "//starboard/content/fonts:copy_font_data",
-        "//starboard/elf_loader",
-      ]
+      deps = [ ":loader_app_sources" ]
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     }
   }
 } else {
   not_needed([ "_common_loader_app_sources" ])
-}
-
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  # TODO: b/261635039 enable this target on Android
-  target(starboard_level_final_executable_type, "loader_app_sys") {
-    if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
-        target_os != "android") {
-      sources = _common_loader_app_sources
-
-      starboard_syms_path =
-          rebase_path("//starboard/starboard.syms", root_build_dir)
-      ldflags = [
-        "-Wl,--dynamic-list=$starboard_syms_path",
-        "-ldl",
-      ]
-      deps = [
-        ":common_loader_app_dependencies",
-        "//starboard/content/fonts:copy_font_data",
-        "//starboard/elf_loader:elf_loader_sys",
-      ]
-    }
-  }
 }
 
 static_library("app_key_files") {
@@ -318,7 +300,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
     deps = [
       "//starboard:starboard_group",
-      "//starboard/common:common",
+      "//starboard/common",
     ]
   }
 

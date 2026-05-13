@@ -17,6 +17,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
+#include <memory>
 #include <string>
 
 #include "starboard/audio_sink.h"
@@ -85,22 +86,17 @@ const bool g_registered =
 }  // namespace
 
 FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
+    starboard::PassKey<FfmpegAudioDecoderImpl<FFMPEG>>,
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info)
     : JobOwner(job_queue),
-      codec_context_(NULL),
-      av_frame_(NULL),
-      stream_ended_(false),
+      ffmpeg_(FFMPEGDispatch::GetInstance()),
       audio_stream_info_(audio_stream_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
   SB_DCHECK_NE(GetFfmpegCodecIdByMediaCodec(audio_stream_info_),
                AV_CODEC_ID_NONE)
       << "Unsupported audio codec " << audio_stream_info_.codec;
-  ffmpeg_ = FFMPEGDispatch::GetInstance();
-  SB_DCHECK(ffmpeg_);
-  if ((ffmpeg_->specialization_version()) == FFMPEG) {
-    InitializeCodec();
-  }
+  SB_CHECK(ffmpeg_);
 }
 
 FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
@@ -108,10 +104,16 @@ FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
 }
 
 // static
-FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
+std::unique_ptr<FfmpegAudioDecoder> FfmpegAudioDecoderImpl<FFMPEG>::Create(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info) {
-  return new FfmpegAudioDecoderImpl<FFMPEG>(job_queue, audio_stream_info);
+  auto decoder = std::make_unique<FfmpegAudioDecoderImpl<FFMPEG>>(
+      starboard::PassKey<FfmpegAudioDecoderImpl<FFMPEG>>(), job_queue,
+      audio_stream_info);
+  if (!decoder->InitializeCodec()) {
+    return nullptr;
+  }
+  return decoder;
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
@@ -305,10 +307,6 @@ void FfmpegAudioDecoderImpl<FFMPEG>::Reset() {
   CancelPendingJobs();
 }
 
-bool FfmpegAudioDecoderImpl<FFMPEG>::is_valid() const {
-  return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
-}
-
 SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
   SB_CHECK(BelongsToCurrentThread());
 
@@ -342,12 +340,12 @@ SbMediaAudioFrameStorageType FfmpegAudioDecoderImpl<FFMPEG>::GetStorageType()
   return kSbMediaAudioFrameStorageTypeInterleaved;
 }
 
-void FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
+bool FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_ = ffmpeg_->avcodec_alloc_context3(NULL);
 
   if (codec_context_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate ffmpeg codec context";
-    return;
+    return false;
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
@@ -395,14 +393,14 @@ void FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
   if (codec == NULL) {
     SB_LOG(ERROR) << "Unable to allocate ffmpeg codec context";
     TeardownCodec();
-    return;
+    return false;
   }
 
   int rv = ffmpeg_->OpenCodec(codec_context_, codec);
   if (rv < 0) {
     SB_LOG(ERROR) << "Unable to open codec";
     TeardownCodec();
-    return;
+    return false;
   }
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
@@ -413,7 +411,9 @@ void FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();
+    return false;
   }
+  return true;
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::TeardownCodec() {

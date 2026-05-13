@@ -17,7 +17,7 @@
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_utils.h"
-#include "base/base_jni_headers/PiiElider_jni.h"
+#include "base/base_jni/PiiElider_jni.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/logging.h"
 #include "base/base_switches.h"

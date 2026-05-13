@@ -20,7 +20,7 @@
 #include "cobalt/android/jni_headers/StarboardFeatureList_jni.h"
 
 using base::android::ConvertJavaStringToUTF8;
-using base::android::JavaParamRef;
+using jni_zero::JavaParamRef;
 
 namespace starboard::features {
 

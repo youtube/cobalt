@@ -100,6 +100,7 @@ static_library("common") {
     "string.h",
     "thread.cc",
     "thread.h",
+    "thread_options.h",
     "time.cc",
     "time.h",
   ]

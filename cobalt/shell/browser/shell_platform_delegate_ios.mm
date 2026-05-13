@@ -22,6 +22,7 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
@@ -29,6 +30,7 @@
 #import "starboard/tvos/shared/starboard_application.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -107,7 +109,6 @@ const char kAllTracingCategories[] = "*";
 - (void)forward;
 - (void)reloadOrStop;
 - (void)setURL:(NSString*)url;
-- (void)setContents:(UIView*)content;
 - (void)stopTracing;
 - (void)startTracingWithCategories:(const char*)categories;
 - (UIAlertController*)actionSheetWithTitle:(nullable NSString*)title
@@ -261,9 +262,8 @@ const char kAllTracingCategories[] = "*";
   [_contentView addSubview:playerContainerView];
   [SBDGetApplication() setPlayerContainerView:playerContainerView];
 
-  // Once the splash screen web contents are created, the corresponding UIView
-  // will be added to `_contentView`.
-  _shell->LoadSplashScreenWebContents();
+  UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
+  [_contentView addSubview:web_contents_view];
 }
 
 - (id)initWithShell:(content::Shell*)shell {
@@ -453,17 +453,6 @@ const char kAllTracingCategories[] = "*";
   return YES;
 }
 
-- (void)setContents:(UIView*)content {
-  // The frame must be explicitly set for the actual web view after the splash
-  // screen is shown. Doing so for the splash screen view too does not hurt.
-  content.frame = _contentView.bounds;
-  // There is no need to manually remove other views: when the splash screen is
-  // shown, it is the first view. When this method is called because the web
-  // contents need to be shown, the splash screen view has already been deleted
-  // and removed from the hierarchy automatically.
-  [_contentView addSubview:content];
-}
-
 - (UIAlertController*)actionSheetWithTitle:(nullable NSString*)title
                                    message:(nullable NSString*)message {
   UIAlertController* alertController = [UIAlertController
@@ -603,6 +592,7 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   // Gives a restoration identifier so that state restoration works.
   controller.restorationIdentifier = @"rootViewController";
   window.rootViewController = controller;
+  [controller loadViewIfNeeded];
 
   shell_data.window = window;
 }
@@ -632,26 +622,17 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  UIView* web_contents_view =
+  // Add the splash screen UIView on top of the main web contents view. It will
+  // be automatically removed from the view hierarchy once it finishes loading
+  // and window.close() is called.
+  UIView* splash_screen_web_contents_view =
       shell->splash_screen_web_contents()->GetNativeView().Get();
   [static_cast<ContentShellWindowDelegate*>(
-      shell_data.window.rootViewController) setContents:web_contents_view];
+       shell_data.window.rootViewController)
+          .contentView addSubview:splash_screen_web_contents_view];
 }
 
-void ShellPlatformDelegate::UpdateContents(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  content::WebContents* web_contents = shell->web_contents();
-  if (web_contents->GetVisibility() != content::Visibility::VISIBLE) {
-    // Explicitly call WasShown() to match the call to WasHidden() made by
-    // Shell::ScheduleSwitchToMainWebContents().
-    web_contents->WasShown();
-  }
-  UIView* web_contents_view = web_contents->GetNativeView().Get();
-  [static_cast<ContentShellWindowDelegate*>(
-      shell_data.window.rootViewController) setContents:web_contents_view];
-}
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
@@ -709,7 +690,14 @@ void ShellPlatformDelegate::SetTitle(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
 }
 
-void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {}
+void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  // Change the default background color to match that of the UIWindow itself,
+  // otherwise there can be a white flash while the page is being loaded.
+  if (auto* view = shell->web_contents()->GetRenderWidgetHostView()) {
+    view->SetBackgroundColor(SK_ColorBLACK);
+  }
+}
 
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));

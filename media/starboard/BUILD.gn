@@ -18,8 +18,7 @@ import("//starboard/build/buildflags.gni")
 
 assert(use_starboard_media, "This file is only for use_starboard_media builds")
 
-import("//media/media_options.gni")
-import("//starboard/build/buildflags.gni")
+import("//build/buildflag_header.gni")
 
 config("disable_unreachable_warnings") {
   cflags = [
@@ -31,61 +30,11 @@ config("disable_unreachable_warnings") {
 source_set("starboard") {
   visibility = [ "//media" ]
 
-  defines = [
-    # TODO(b/326508279): Revisit background mode
-    "COBALT_MEDIA_ENABLE_BACKGROUND_MODE=0",
-
-    # TODO(b/375069564): Revisit CValStats
-    "COBALT_MEDIA_ENABLE_CVAL=0",
-
-    # TODO(b/375070492): Revisit decode-to-texture
-    "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
-
-    # TODO(b/375218518): Revisit FormatSupportQueryMetrics
-    "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
-
-    # TODO(b/375232937): Enable IAMF
-    "COBALT_MEDIA_ENABLE_IAMF_SUPPORT=0",
-
-    # TODO(b/326654546): Revisit max video input size
-    "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
-
-    # TODO(b/375234428): Revisit startup latency tracking
-    "COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING=0",
-
-    # TODO(b/326497953): Revisit suspend/resume support
-    "COBALT_MEDIA_ENABLE_SUSPEND_RESUME=0",
-
-    # TODO(b/375241265): Re-enable UMA metrics
-    "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
-  ]
-
   sources = []
-  if (!media_use_ffmpeg) {
-    sources += [
-      "progressive/avc_access_unit.cc",
-      "progressive/avc_access_unit.h",
-      "progressive/avc_parser.cc",
-      "progressive/avc_parser.h",
-      "progressive/data_source_reader.cc",
-      "progressive/data_source_reader.h",
-      "progressive/mp4_map.cc",
-      "progressive/mp4_map.h",
-      "progressive/mp4_parser.cc",
-      "progressive/mp4_parser.h",
-      "progressive/progressive_demuxer.cc",
-      "progressive/progressive_demuxer.h",
-      "progressive/progressive_parser.cc",
-      "progressive/progressive_parser.h",
-      "progressive/rbsp_stream.cc",
-      "progressive/rbsp_stream.h",
-    ]
-  }
-
+  deps = []
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_decoder_buffer_allocator_strategy.h",
-      "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",
@@ -96,6 +45,7 @@ source_set("starboard") {
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
       "sbplayer_interface.h",
+      "starboard_callbacks.h",
       "starboard_cdm.cc",
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",
@@ -106,9 +56,11 @@ source_set("starboard") {
       "starboard_utils.cc",
       "starboard_utils.h",
     ]
+
+    deps += [ ":buildflags" ]
   }
 
-  deps = [
+  deps += [
     "//base",
     "//media:media_buildflags",
     "//media/base",
@@ -116,15 +68,12 @@ source_set("starboard") {
     "//mojo/public/cpp/bindings:bindings",
     "//starboard:starboard_group",
     "//starboard/common",
+    "//third_party/abseil-cpp:absl",
     "//url",
   ]
 
   if (is_android) {
     deps += [ "//media/base/android" ]
-  }
-
-  if (!media_use_ffmpeg) {
-    deps += [ "//third_party/abseil-cpp:absl" ]
   }
 
   # TODO(b/380940036): remove the circular dependency.
@@ -139,13 +88,6 @@ source_set("starboard") {
 source_set("unit_tests") {
   testonly = true
   sources = []
-  if (!media_use_ffmpeg) {
-    sources += [
-      "progressive/mock_data_source_reader.h",
-      "progressive/mp4_map_unittest.cc",
-      "progressive/rbsp_stream_unittest.cc",
-    ]
-  }
   if (use_starboard_media) {
     sources += [
       "decoder_buffer_allocator_strategy_test.cc",
@@ -165,5 +107,34 @@ source_set("unit_tests") {
     "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
+  ]
+}
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [
+    # TODO(b/326508279): Revisit background mode
+    "COBALT_MEDIA_ENABLE_BACKGROUND_MODE=0",
+
+    # TODO(b/375069564): Revisit CValStats
+    "COBALT_MEDIA_ENABLE_CVAL=0",
+
+    # TODO(b/375218518): Revisit FormatSupportQueryMetrics
+    "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
+
+    # TODO(b/326654546): Revisit max video input size
+    "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
+
+    # TODO(b/375234428): Revisit startup latency tracking
+    "COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING=0",
+
+    # TODO(b/326497953): Revisit suspend/resume support
+    "COBALT_MEDIA_ENABLE_SUSPEND_RESUME=0",
+
+    # TODO(b/375241265): Re-enable UMA metrics
+    "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
+
+    # TODO(b/505744317): Enable AV2 once supported in Chromium
+    "COBALT_MEDIA_ENABLE_AV2_SUPPORT=0",
   ]
 }

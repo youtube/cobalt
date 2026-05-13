@@ -2,15 +2,12 @@ name: OverlayFS Workspace Checkout
 description: Uses an OverlayFS mount of a golden workspace to provide zero-copy, instant checkouts.
 
 inputs:
-  ref:
-    description: Git ref to checkout.
-    required: true
   path:
     description: Destination path (e.g. cobalt).
     required: true
-  run_sync:
-    description: Whether or not to run gclient sync for the PR.
-    default: 'true'
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
 
 outputs:
   cache_hit:
@@ -20,9 +17,16 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
+
     - name: Prepare OverlayFS Workspace
       id: prepare
       shell: bash
+      env:
+        REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
       run: |
         # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
         LOWER_DIR="/runner-cache/golden-workspace"
@@ -45,25 +49,9 @@ runs:
         # Ensure the directories exist
         mkdir -p "$UPPER_DIR" "$WORK_DIR" "$MERGED_DIR"
 
-        # Add GoB Authentication
-        if ! curl -s -m 2 -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" > /dev/null; then
-          echo "Metadata server not reachable. Skipping GoB authentication setup."
-        else
-          SERVICE_ACCOUNT=$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email")
-          ACCESS_TOKEN=$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
-          if [[ -n "${SERVICE_ACCOUNT}" && -n "${ACCESS_TOKEN}" ]]; then
-            echo "::add-mask::${ACCESS_TOKEN}"
-            echo "Authenticating with ${SERVICE_ACCOUNT}"
-            GITCOOKIES_PATH="/tmp/gitcookies"
-            (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
-              "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
-            git config --global http.cookiefile "${GITCOOKIES_PATH}"
-          fi
-        fi
-
-        # If the golden workspace does not exist or is corrupted (missing .gclient), initialize it.
+        # If the golden workspace does not exist or is corrupted (missing .runner_cache_ready), initialize it.
         # This will only happen once per node!
-        if [ ! -f "$LOWER_DIR/.gclient" ]; then
+        if [ ! -f "$LOWER_DIR/.runner_cache_ready" ]; then
           IS_CACHE_HOT="false"
           echo "cache_hit=false" >> $GITHUB_OUTPUT
           echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
@@ -73,18 +61,20 @@ runs:
           mkdir -p "$LOWER_DIR"
           cd "$LOWER_DIR"
 
-          git clone https://github.com/youtube/cobalt.git src
+          git clone "$REPO_URL" src
           # Clone depot_tools
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
           export PATH="$LOWER_DIR/depot_tools:$PATH"
 
           gclient config \
             --name=src \
-            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
-            "https://github.com/youtube/cobalt.git"
+            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" "$REPO_URL"
           echo "target_os=['android', 'linux']" >> .gclient
           echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history
+
+          # Create marker file to indicate the cache is fully populated and valid
+          touch "$LOWER_DIR/.runner_cache_ready"
         else
           IS_CACHE_HOT="true"
           echo "cache_hit=true" >> $GITHUB_OUTPUT
@@ -110,54 +100,3 @@ runs:
         git config --global --add safe.directory "$MERGED_DIR"
         git config --global --add safe.directory "$MERGED_DIR/src"
         git config --global --add safe.directory "$MERGED_DIR/depot_tools"
-
-        echo "Updating PR commit in upper layer..."
-        cd "$MERGED_DIR/src"
-        git fetch origin ${{ inputs.ref }}
-        git checkout ${{ inputs.ref }}
-
-        echo "Applying gclient configuration..."
-        cd "$MERGED_DIR"
-        export PATH="$MERGED_DIR/depot_tools:$PATH"
-
-        # Persist depot_tools and CIPD cache to the GitHub Actions environment for subsequent steps
-        echo "$MERGED_DIR/depot_tools" >> $GITHUB_PATH
-        echo "CIPD_CACHE_DIR=/runner-cache/cipd-cache" >> $GITHUB_ENV
-
-        echo "Bootstrapping Python 3 for depot_tools..."
-        # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source "$MERGED_DIR/depot_tools/bootstrap_python3" && bootstrap_python3
-
-        # Disable Chromium client side build telemetry
-        build_telemetry opt-out
-
-        # Set target OS
-        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
-          echo "target_os=['android']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
-          echo "target_os=['ios']" >> .gclient
-        fi
-
-        # Set target CPU
-        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
-          echo "target_cpu=['x64', 'arm64']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
-          echo "target_cpu=['x64', 'arm']" >> .gclient
-        fi
-
-        if [[ "${{ inputs.run_sync }}" == "true" ]]; then
-          echo "Syncing specific dependencies needed for this PR..."
-          cd "$MERGED_DIR"
-          gclient sync \
-            --verbose \
-            --shallow \
-            --no-history \
-            --reset \
-            --nohooks \
-            --force \
-            --delete_unversioned_trees \
-            --revision "${{ inputs.ref }}"
-
-          echo "Running gclient runhooks..."
-          gclient runhooks --verbose
-        fi

@@ -88,10 +88,6 @@ MEDIA_EXPORT extern const char kForceVideoOverlays[];
 MEDIA_EXPORT extern const char kMSEAudioBufferSizeLimitMb[];
 MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitMb[];
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitClampMb[];
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 MEDIA_EXPORT extern const char kClearKeyCdmPathForTesting[];
 MEDIA_EXPORT extern const char kOverrideEnabledCdmInterfaceVersion[];
 MEDIA_EXPORT extern const char kOverrideHardwareSecureCodecsForTesting[];
@@ -232,11 +228,10 @@ MEDIA_EXPORT extern const base::FeatureParam<bool>
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDuration);
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal;
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
 #endif  // BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioCaptureFastTrack);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);

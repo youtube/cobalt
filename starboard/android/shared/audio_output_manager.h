@@ -17,10 +17,9 @@
 
 #include <jni.h>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 #include "starboard/media.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -29,7 +28,7 @@ class AudioOutputManager {
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 
-  base::android::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
+  jni_zero::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
       JNIEnv* env,
       int sample_type,
       int sample_rate,
@@ -39,11 +38,11 @@ class AudioOutputManager {
       jboolean is_web_audio);
 
   void DestroyAudioTrackBridge(JNIEnv* env,
-                               base::android::ScopedJavaLocalRef<jobject>& obj);
+                               jni_zero::ScopedJavaLocalRef<jobject>& obj);
 
   bool GetOutputDeviceInfo(JNIEnv* env,
                            jint index,
-                           base::android::ScopedJavaLocalRef<jobject>& obj);
+                           jni_zero::ScopedJavaLocalRef<jobject>& obj);
 
   int GetMinBufferSize(JNIEnv* env,
                        jint sample_type,
@@ -78,7 +77,7 @@ class AudioOutputManager {
   friend struct base::DefaultSingletonTraits<AudioOutputManager>;
 
   // Java AudioOutputManager instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
 }  // namespace starboard

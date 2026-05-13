@@ -17,7 +17,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "cobalt/android/jni_headers/CobaltService_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -25,12 +24,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_service.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
   ReceiveMessageCallback receive_callback;
   std::string name;
-  base::android::ScopedJavaGlobalRef<jobject> cobalt_service;
+  jni_zero::ScopedJavaGlobalRef<jobject> cobalt_service;
 
   ~CobaltExtensionPlatformServicePrivate() = default;
 } CobaltExtensionPlatformServicePrivate;
@@ -39,8 +39,10 @@ namespace starboard {
 
 namespace {
 
+using jni_zero::AttachCurrentThread;
+
 bool Has(const char* name) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   return starboard::StarboardBridge::GetInstance()->HasCobaltService(env, name);
 }
 
@@ -48,7 +50,7 @@ CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
 
   if (!Has(name)) {
     SB_LOG(ERROR) << "Can't open Service " << name;
@@ -74,7 +76,7 @@ void Close(CobaltExtensionPlatformService service) {
     return;
   }
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   Java_CobaltService_onClose(env, service->cobalt_service);
 
   starboard::StarboardBridge::GetInstance()->CloseCobaltService(
@@ -97,7 +99,7 @@ void* Send(CobaltExtensionPlatformService service,
     return nullptr;
   }
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
   auto j_response = Java_CobaltService_receiveFromClient(
@@ -142,7 +144,7 @@ const void* GetPlatformServiceApiAndroid() {
 void JNI_CobaltService_NativeSendToClient(
     JNIEnv* env,
     jlong nativeService,
-    const base::android::JavaParamRef<jbyteArray>& j_data) {
+    const jni_zero::JavaParamRef<jbyteArray>& j_data) {
   auto* service =
       reinterpret_cast<CobaltExtensionPlatformServicePrivate*>(nativeService);
 

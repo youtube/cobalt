@@ -17,7 +17,7 @@ build = common.build {
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt:gn_all'
+      value = 'cobalt:gn_all loader_app loader_app_rdk_plugin'
     },
     {
       key = 'TARGET_CPU'

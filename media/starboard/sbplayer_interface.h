@@ -16,13 +16,15 @@
 #define MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 
 #include "base/time/time.h"
-#if COBALT_MEDIA_ENABLE_CVAL
-#include "cobalt/media/base/cval_stats.h"
-#endif  // COBALT_MEDIA_ENABLE_CVAL
-#if COBALT_MEDIA_ENABLE_UMA_METRICS
-#include "cobalt/media/base/metrics_provider.h"
-#endif  // COBALT_MEDIA_ENABLE_UMA_METRICS
+#include "media/starboard/buildflags.h"
 #include "starboard/player.h"
+
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#include "cobalt/media/base/cval_stats.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
+#include "cobalt/media/base/metrics_provider.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
 
 #if SB_HAS(PLAYER_WITH_URL)
 #include SB_URL_PLAYER_INCLUDE_PATH
@@ -93,15 +95,15 @@ class SbPlayerInterface {
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
 
-#if COBALT_MEDIA_ENABLE_CVAL
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   // disabled by default, but can be enabled via h5vcc setting.
   void EnableCValStats(bool should_enable) {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
-#endif  // COBALT_MEDIA_ENABLE_CVAL
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
 
-#if !COBALT_MEDIA_ENABLE_UMA_METRICS
+#if !BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
   enum class MediaAction {
     UNKNOWN_ACTION,
     WEBMEDIAPLAYER_SEEK,
@@ -128,7 +130,7 @@ class SbPlayerInterface {
     void StartTrackingAction(...) {}
     void EndTrackingAction(...) {}
   };
-#endif  // !COBALT_MEDIA_ENABLE_UMA_METRICS
+#endif  // !BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
   MediaMetricsProvider media_metrics_provider_;
 
   bool SetDecodeToTexturePreferred(bool preferred);

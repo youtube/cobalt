@@ -299,9 +299,9 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+  void raisePlatformError(@PlatformError.ErrorType int errorType, long data, String url) {
     StartupGuard.getInstance().setStartupMilestone(37);
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data);
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
     mPlatformError.raise();
   }
 
@@ -771,5 +771,10 @@ public class StarboardBridge {
   @CalledByNative
   protected void setStartupMilestone(int milestone) {
     StartupGuard.getInstance().setStartupMilestone(milestone);
+  }
+
+  @CalledByNative
+  protected void setStartupDiagnosisInfo(String key, String value) {
+    StartupGuard.getInstance().setDiagnosisInfo(key, value);
   }
 }

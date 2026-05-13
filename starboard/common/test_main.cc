@@ -26,7 +26,24 @@
 #include "starboard/tvos/shared/starboard_test_environment.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_test_environment.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace {
+
+int RunTests(int argc, char** argv) {
+#if BUILDFLAG(IS_ANDROID)
+  ::testing::AddGlobalTestEnvironment(
+      new starboard::StarboardTestEnvironment());
+#elif BUILDFLAG(IS_IOS_TVOS)
+  ::testing::AddGlobalTestEnvironment(
+      new starboard::StarboardTestEnvironment(argc, argv));
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  return RUN_ALL_TESTS();
+}
+
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -37,16 +54,10 @@ int InitAndRunAllTests(int argc, char** argv) {
   // This code is based on //base/test/launcher/unit_test_launcher_ios.cc.
   CHECK(base::CommandLine::InitializedForCurrentProcess() ||
         base::CommandLine::Init(argc, argv));
-  base::InitIOSRunHook(base::BindOnce(
-      [](int argc, char** argv) {
-        ::testing::AddGlobalTestEnvironment(
-            new starboard::StarboardTestEnvironment(argc, argv));
-        return RUN_ALL_TESTS();
-      },
-      argc, argv));
+  base::InitIOSRunHook(base::BindOnce(&RunTests, argc, argv));
   return base::RunTestsFromIOSApp();
-#else
-  return RUN_ALL_TESTS();
+#else   // BUILDFLAG(IS_IOS_TVOS)
+  return RunTests(argc, argv);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 }
 }  // namespace
@@ -61,7 +72,7 @@ int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
 #endif  // !SB_IS(EVERGREEN)
-#else
+#else   // BUILDFLAG(IS_STARBOARD)
 // If the OS is not Starboard use the regular main e.g. ATV.
 int main(int argc, char** argv) {
   return InitAndRunAllTests(argc, argv);
