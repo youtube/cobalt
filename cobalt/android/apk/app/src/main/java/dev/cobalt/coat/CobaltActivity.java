@@ -838,7 +838,7 @@ public abstract class CobaltActivity extends Activity {
 
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
-    static OnBackInvokedCallback register(final CobaltActivity activity) {
+    static Object register(final CobaltActivity activity) {
       OnBackInvokedCallback callback = new OnBackInvokedCallback() {
         @Override
         public void onBackInvoked() {
