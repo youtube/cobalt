@@ -27,7 +27,7 @@ class TestAutorollLts(unittest.TestCase):
     mock_run.return_value = MagicMock(stdout=mock_output, returncode=0)
 
     unmerged = autoroll_lts.get_unmerged_files()
-    self.assertEqual(unmerged, {'file1.txt': {'2', '3'}})
+    self.assertEqual(unmerged, {'file1.txt': {'ours', 'theirs'}})
 
   @patch('subprocess.run')
   def test_get_unmerged_files_empty(self, mock_run):
@@ -40,6 +40,7 @@ class TestAutorollLts(unittest.TestCase):
   def test_cherry_pick_conflict_deleted_by_us(self, mock_run):
     """Test cherry_pick handles 'deleted by us' conflicts."""
 
+    # pylint: disable=unused-argument
     def side_effect(cmd, *args, **kwargs):
       if 'log' in cmd:
         return MagicMock(stdout='date\x00author\x00body', returncode=0)
@@ -49,7 +50,8 @@ class TestAutorollLts(unittest.TestCase):
         raise subprocess.CalledProcessError(1, cmd)
       if 'ls-files' in cmd:
         return MagicMock(
-            stdout='100644 1234567890abcdef1234567890abcdef12345678 3\tfile1.txt\n',
+            stdout=('100644 1234567890abcdef1234567890abcdef12345678 '
+                    '3\tfile1.txt\n'),
             returncode=0,
         )
       if 'rm' in cmd:
