@@ -52,6 +52,7 @@ EOF
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
   # -R, --reset resets any local changes before updating (git only)
+  luci-auth context -service-account-json "${KOKORO_KEYSTORE_DIR}/${GCLOUD_KEY_FILE_NAME}" -- \
   gclient sync -v \
     --shallow \
     --no-history \
