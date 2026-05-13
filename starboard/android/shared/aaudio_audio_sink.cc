@@ -274,6 +274,13 @@ aaudio_data_callback_result_t AAudioAudioSink::OnAudioCallback(
     write_count_++;
     total_duration_ += duration;
     total_frames_ += numFrames;
+
+    if (last_callback_time_us_ > 0) {
+      int64_t interval = start_time - last_callback_time_us_;
+      total_callback_interval_us_ += interval;
+      total_callback_interval_squared_us_ += interval * interval;
+    }
+    last_callback_time_us_ = start_time;
   }
 
   return AAUDIO_CALLBACK_RESULT_CONTINUE;
@@ -327,23 +334,39 @@ void AAudioAudioSink::PollProgress() {
   int local_write_count = 0;
   int64_t local_total_duration = 0;
   int local_total_frames = 0;
+  int64_t local_total_interval = 0;
+  int64_t local_total_interval_squared = 0;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (write_count_ >= 500) {
       local_write_count = write_count_;
       local_total_duration = total_duration_;
       local_total_frames = total_frames_;
+      local_total_interval = total_callback_interval_us_;
+      local_total_interval_squared = total_callback_interval_squared_us_;
+
       write_count_ = 0;
       total_duration_ = 0;
       total_frames_ = 0;
+      total_callback_interval_us_ = 0;
+      total_callback_interval_squared_us_ = 0;
     }
   }
   if (local_write_count >= 500) {
+    double avg_interval =
+        (double)local_total_interval / (local_write_count - 1);
+    double avg_interval_squared =
+        (double)local_total_interval_squared / (local_write_count - 1);
+    double variance = avg_interval_squared - (avg_interval * avg_interval);
+    double jitter = std::sqrt(std::max(0.0, variance));
+
     SB_LOG(INFO)
         << "[AudioSinkPerf] Write Type: NATIVE_AAUDIO_CALLBACK, Writes: "
         << local_write_count
         << ", Avg Frames: " << (local_total_frames / local_write_count)
-        << ", Avg Time: " << (local_total_duration / local_write_count) << "us";
+        << ", Avg Time: " << (local_total_duration / local_write_count) << "us"
+        << ", Avg Interval: " << (int)avg_interval << "us"
+        << ", Jitter: " << (int)jitter << "us";
   }
 
   // Thread-safe underflow logging

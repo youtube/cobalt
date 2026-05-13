@@ -15,6 +15,7 @@
 #include "starboard/android/shared/audio_track_bridge.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
@@ -195,19 +196,7 @@ int AudioTrackBridge::WriteSample(const float* samples,
                                   audio_data_local_ref, num_of_samples);
   int64_t duration = CurrentMonotonicTime() - start;
 
-  write_count_++;
-  total_duration_ += duration;
-  total_samples_ += num_of_samples;
-
-  if (write_count_ >= 500) {
-    SB_LOG(INFO) << "[AudioSinkPerf] Write Type: JNI_FLOAT, Writes: "
-                 << write_count_
-                 << ", Avg Samples: " << (total_samples_ / write_count_)
-                 << ", Avg Time: " << (total_duration_ / write_count_) << "us";
-    write_count_ = 0;
-    total_duration_ = 0;
-    total_samples_ = 0;
-  }
+  UpdateStats(duration, num_of_samples, start, "JNI_FLOAT");
 
   return result;
 }
@@ -240,19 +229,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
 
   int64_t duration = CurrentMonotonicTime() - start;
 
-  write_count_++;
-  total_duration_ += duration;
-  total_samples_ += num_of_samples;
-
-  if (write_count_ >= 500) {
-    SB_LOG(INFO) << "[AudioSinkPerf] Write Type: JNI_INT16, Writes: "
-                 << write_count_
-                 << ", Avg Samples: " << (total_samples_ / write_count_)
-                 << ", Avg Time: " << (total_duration_ / write_count_) << "us";
-    write_count_ = 0;
-    total_duration_ = 0;
-    total_samples_ = 0;
-  }
+  UpdateStats(duration, num_of_samples, start, "JNI_INT16");
 
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
@@ -363,6 +340,43 @@ int AudioTrackBridge::GetPlayState(JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
 
   return Java_AudioTrackBridge_getPlayState(env, j_audio_track_bridge_);
+}
+
+void AudioTrackBridge::UpdateStats(int64_t duration,
+                                   int num_samples,
+                                   int64_t start_time,
+                                   const char* write_type) {
+  write_count_++;
+  total_duration_ += duration;
+  total_samples_ += num_samples;
+
+  if (last_write_time_us_ > 0) {
+    int64_t interval = start_time - last_write_time_us_;
+    total_write_interval_us_ += interval;
+    total_write_interval_squared_us_ += interval * interval;
+  }
+  last_write_time_us_ = start_time;
+
+  if (write_count_ >= 500) {
+    double avg_interval = (double)total_write_interval_us_ / (write_count_ - 1);
+    double avg_interval_squared =
+        (double)total_write_interval_squared_us_ / (write_count_ - 1);
+    double variance = avg_interval_squared - (avg_interval * avg_interval);
+    double jitter = std::sqrt(std::max(0.0, variance));
+
+    SB_LOG(INFO) << "[AudioSinkPerf] Write Type: " << write_type
+                 << ", Writes: " << write_count_
+                 << ", Avg Samples: " << (total_samples_ / write_count_)
+                 << ", Avg Time: " << (total_duration_ / write_count_) << "us"
+                 << ", Avg Interval: " << (int)avg_interval << "us"
+                 << ", Jitter: " << (int)jitter << "us";
+
+    write_count_ = 0;
+    total_duration_ = 0;
+    total_samples_ = 0;
+    total_write_interval_us_ = 0;
+    total_write_interval_squared_us_ = 0;
+  }
 }
 
 }  // namespace starboard

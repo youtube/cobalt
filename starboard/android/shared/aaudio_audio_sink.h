@@ -104,6 +104,9 @@ class AAudioAudioSink : public SbAudioSinkImpl {
   int write_count_ = 0;
   int64_t total_duration_ = 0;
   int total_frames_ = 0;
+  int64_t last_callback_time_us_ = 0;
+  int64_t total_callback_interval_us_ = 0;
+  int64_t total_callback_interval_squared_us_ = 0;
 };
 
 }  // namespace android
