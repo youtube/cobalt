@@ -43,6 +43,10 @@ sbmainargs = []
 if boolean("@PLUGIN_COBALT_EVEGREEN_LITE@"):
     sbmainargs.append("--evergreen_lite")
 
+if boolean("@PLUGIN_COBALT_ENABLE_DEVTOOLS@"):
+    sbmainargs.append("--remote-debugging-port=9222")
+    sbmainargs.append("--remote-allow-origins=*")
+
 configuration.add("sbmainargs", sbmainargs)
 
 root = JSON()
