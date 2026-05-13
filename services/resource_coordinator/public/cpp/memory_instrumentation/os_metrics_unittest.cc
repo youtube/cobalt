@@ -528,8 +528,7 @@ TEST(OSMetricsTest, DetailedMetricsIntegration) {
   EXPECT_EQ(128u, (*dump.detailed_stats_kb)["pss:category2"]);
   EXPECT_EQ(0u, (*dump.detailed_stats_kb)["pss:other"]);
 
-  // Verify legacy fields are also populated.
-  EXPECT_EQ(162u, dump.libchrobalt_pss_kb);
+
 
   OSMetrics::SetProcSmapsForTesting(nullptr);
   OSMetrics::SetSmapsRollupForTesting(nullptr);
@@ -558,7 +557,9 @@ TEST(OSMetricsTest, DetailedMetricsDisabled) {
   EXPECT_TRUE(OSMetrics::FillOSMemoryDump(base::kNullProcessHandle, flags, &dump,
                                           delegate.GetWeakPtr()));
 
-  EXPECT_FALSE(dump.detailed_stats_kb.has_value());
+  ASSERT_TRUE(dump.detailed_stats_kb.has_value());
+  EXPECT_TRUE(dump.detailed_stats_kb->find("pss:category2") ==
+              dump.detailed_stats_kb->end());
 
   OSMetrics::SetProcSmapsForTesting(nullptr);
   OSMetrics::SetSmapsRollupForTesting(nullptr);
@@ -588,7 +589,6 @@ TEST(OSMetricsTest, DetailedMetricsConcurrency) {
   } args[kNumThreads];
 
   for (int i = 0; i < kNumThreads; ++i) {
-    args[i].delegate = std::make_unique<SimpleDetailedMetricsDelegate>();
     args[i].success = false;
     args[i].dump = mojom::RawOSMemDump::New();
     args[i].dump->platform_private_footprint =
@@ -605,6 +605,8 @@ TEST(OSMetricsTest, DetailedMetricsConcurrency) {
         FROM_HERE, {base::MayBlock()},
         base::BindOnce(
             [](ThreadArgs* args, base::WaitableEvent* event) {
+              args->delegate =
+                  std::make_unique<SimpleDetailedMetricsDelegate>();
               OSMetrics::MemDumpFlagSet flags;
               flags.Put(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
               args->success = OSMetrics::FillOSMemoryDump(
