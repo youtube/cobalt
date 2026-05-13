@@ -46,7 +46,8 @@ def find_failing_tests(
         continue
 
       root = tree.getroot()
-      for testsuite in root.findall('testsuite'):
+      suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
+      for testsuite in suites:
         suite_name = testsuite.attrib.get('name', '')
         if not suite_name:
           suite_name = os.path.basename(filename)
@@ -83,7 +84,8 @@ def scrub_passing_tests(xml_file: str):
 
   root = tree.getroot()
   # Iterate through all testsuites in the XML.
-  for testsuite in root.findall('testsuite'):
+  suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
+  for testsuite in suites:
     testcases = testsuite.findall('testcase')
     remaining_count = 0
     failures_count = 0
@@ -113,15 +115,16 @@ def scrub_passing_tests(xml_file: str):
       testsuite.set('errors', str(errors_count))
 
   # Update root attributes by summing counts from remaining testsuites.
-  total_tests, total_failures, total_errors = 0, 0, 0
-  for remaining_testsuite in root.findall('testsuite'):
-    total_tests += int(remaining_testsuite.get('tests', 0))
-    total_failures += int(remaining_testsuite.get('failures', 0))
-    total_errors += int(remaining_testsuite.get('errors', 0))
+  if root.tag != 'testsuite':
+    total_tests, total_failures, total_errors = 0, 0, 0
+    for remaining_testsuite in root.findall('testsuite'):
+      total_tests += int(remaining_testsuite.get('tests', 0))
+      total_failures += int(remaining_testsuite.get('failures', 0))
+      total_errors += int(remaining_testsuite.get('errors', 0))
 
-  root.set('tests', str(total_tests))
-  root.set('failures', str(total_failures))
-  root.set('errors', str(total_errors))
+    root.set('tests', str(total_tests))
+    root.set('failures', str(total_failures))
+    root.set('errors', str(total_errors))
 
   tree.write(xml_file, encoding='utf-8', xml_declaration=True)
 
