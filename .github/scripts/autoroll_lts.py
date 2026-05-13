@@ -55,6 +55,24 @@ def get_pr_set(branch, exclude_branch):
   return prs
 
 
+def get_unmerged_files():
+  res = subprocess.run(['git', 'ls-files', '-u'],
+                       capture_output=True,
+                       text=True,
+                       check=True)
+  lines = res.stdout.splitlines()
+  files = {}
+  for line in lines:
+    parts = line.split()
+    if len(parts) >= 4:
+      stage = parts[2]
+      path = parts[3]
+      if path not in files:
+        files[path] = set()
+      files[path].add(stage)
+  return files
+
+
 def cherry_pick(sha, num, title):
   log_output = get_out(
       ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
@@ -73,13 +91,52 @@ def cherry_pick(sha, num, title):
   ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
   if len(ps) > 1:
     cmd.append('--mainline=1')
-  subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
+
+  failed = False
+  try:
+    subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
+  except subprocess.CalledProcessError as e:
+    failed = True
+    unmerged = get_unmerged_files()
+    deleted_by_us = []
+    other_conflicts = []
+    for path, stages in unmerged.items():
+      if '3' in stages and '2' not in stages:
+        deleted_by_us.append(path)
+      else:
+        other_conflicts.append(path)
+
+    if other_conflicts:
+      print(
+          f'Cannot resolve conflicts autonomously. Other conflicts: '
+          f'{other_conflicts}',
+          file=sys.stderr)
+      subprocess.run(['git', 'cherry-pick', '--abort'], check=True)
+      raise e
+
+    if deleted_by_us:
+      print(
+          f"Resolving 'deleted by us' conflicts: {deleted_by_us}",
+          file=sys.stderr)
+      for path in deleted_by_us:
+        subprocess.run(['git', 'rm', path], check=True)
+    else:
+      pass
+
+  # Check if there are changes to commit.
+  res = subprocess.run(['git', 'diff', '--quiet', '--cached'], check=False)
+  if res.returncode == 0:
+    print('Nothing to commit.', file=sys.stderr)
+    if failed:
+      subprocess.run(['git', 'cherry-pick', '--abort'], check=True)
+    return False
 
   cmd = [
       'git', 'commit', '--no-verify', f'--author={author}', f'--date={date}',
       '-m', msg
   ]
   subprocess.run(cmd, check=True, stdout=sys.stderr)
+  return True
 
 
 def main():
@@ -117,11 +174,12 @@ def main():
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
       if pr_num not in autoroll_prs:
-        cherry_pick(sha, pr_num, title)
-        autoroll_prs.add(pr_num)
-        commits_added += 1
-
-      links.append(f'- #{pr_num}')
+        if cherry_pick(sha, pr_num, title):
+          autoroll_prs.add(pr_num)
+          commits_added += 1
+          links.append(f'- #{pr_num}')
+      else:
+        links.append(f'- #{pr_num}')
 
   if links:
     print('\n'.join(links))
