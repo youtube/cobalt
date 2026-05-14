@@ -34,6 +34,7 @@ env:
   # All files in the root directory are automatically included.
   CI_ESSENTIALS: |
     .github
+    build/android
     cobalt/build
     cobalt/docker
     cobalt/testing/browser_tests/tools
