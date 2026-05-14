@@ -78,7 +78,7 @@ get_registry_authentication_token () {
   # workers to access GCP hosted container/artifiact registries.
   # go/gcs-tpc-bigstore-user-guide#authentication-http-bearer-tokensaccess-tokens
   local svc_account="${REGISTRY_METADATA}/instance/service-accounts/default"
-  gcloud config set account "${svc_account}"
+  gcloud config set account "$(curl -s -H 'Metadata-Flavor: Google' "${svc_account}/email")"  
   export SISO_CREDENTIAL_HELPER=gcloud
   local access_token=$(curl -H 'Metadata-Flavor: Google' ${svc_account}/token | cut -d'"' -f 4)
   echo "${access_token}"
