@@ -192,10 +192,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
 }
 
-void AudioTrackAudioSink::SpawnThread() {
-  audio_out_thread_->Start();
-}
-
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
@@ -217,6 +213,18 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
     // mode. It will be no-op for non tunnel player.
     bridge_->SetPlaybackRate(playback_rate);
   }
+}
+
+void AudioTrackAudioSink::SetVolume(double volume) {
+  bridge_->SetVolume(volume);
+}
+
+int AudioTrackAudioSink::GetUnderrunCount() {
+  return bridge_->GetUnderrunCount();
+}
+
+int AudioTrackAudioSink::GetStartThresholdInFrames() {
+  return bridge_->GetStartThresholdInFrames();
 }
 
 // TODO: Break down the function into manageable pieces.
@@ -421,6 +429,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   bridge_->PauseAndFlush();
 }
 
+void AudioTrackAudioSink::SpawnThread() {
+  audio_out_thread_->Start();
+}
+
 int AudioTrackAudioSink::WriteData(JNIEnv* env,
                                    const void* buffer,
                                    int expected_written_frames,
@@ -455,18 +467,6 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
 
 int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
-}
-
-void AudioTrackAudioSink::SetVolume(double volume) {
-  bridge_->SetVolume(volume);
-}
-
-int AudioTrackAudioSink::GetUnderrunCount() {
-  return bridge_->GetUnderrunCount();
-}
-
-int AudioTrackAudioSink::GetStartThresholdInFrames() {
-  return bridge_->GetStartThresholdInFrames();
 }
 
 // static

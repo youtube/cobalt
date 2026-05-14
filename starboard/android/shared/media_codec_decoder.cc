@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_decoder.h"
 
 #include <sched.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include "starboard/android/shared/media_common.h"
@@ -23,6 +24,7 @@
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -129,7 +131,8 @@ MediaCodecDecoder::CreateForVideo(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool enable_output_checker) {
+    bool enable_output_checker,
+    bool skip_video_frames_over_60_fps) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -137,7 +140,8 @@ MediaCodecDecoder::CreateForVideo(
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      use_dual_threads, enable_output_checker, &error_message);
+      use_dual_threads, enable_output_checker, skip_video_frames_over_60_fps,
+      &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -201,6 +205,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
     bool enable_output_checker,
+    bool skip_video_frames_over_60_fps,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -227,7 +232,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size,
-      enable_output_checker);
+      enable_output_checker, skip_video_frames_over_60_fps);
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
@@ -342,6 +347,61 @@ void MediaCodecDecoder::WriteEndOfStream() {
 void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
+}
+
+bool MediaCodecDecoder::Flush() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  // Try to flush if we can, otherwise return |false| to recreate the codec
+  // completely. Flush() is called by `player_worker` thread,
+  // but MediaCodecDecoder is on `audio_decoder` and `video_decoder`
+  // threads, let `player_worker` destroy `audio_decoder` and
+  // `video_decoder` threads to clean up all pending tasks,
+  // and Flush()/Start() |media_codec_bridge_|.
+
+  // 1. Terminate `audio_decoder` or `video_decoder` thread.
+  TerminateDecoderThread();
+
+  // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
+  // 2.1. Flush() |media_codec_bridge_|.
+  host_->OnFlushing();
+  jint status = media_codec_bridge_->Flush();
+  if (status != MEDIA_CODEC_OK) {
+    SB_LOG(ERROR) << "Failed to flush media codec.";
+    return false;
+  }
+
+  // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
+  number_of_pending_inputs_.store(0);
+  pending_inputs_.clear();
+  input_buffer_indices_.clear();
+  dequeue_output_results_.clear();
+  pending_input_to_retry_ = std::nullopt;
+
+  // 2.3. Add OutputFormatChanged to get current output format after Flush().
+  DequeueOutputResult dequeue_output_result = {};
+  dequeue_output_result.index = -1;
+  dequeue_output_results_.push_back(dequeue_output_result);
+
+  // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
+  if (flush_delay_usec_ > 0) {
+    usleep(flush_delay_usec_);
+  }
+
+  // 2.5. Restart() |media_codec_bridge_|. As the codec is configured in
+  // asynchronous mode, call Start() after Flush() has returned to
+  // resume codec operations. After Restart(), input_buffer_index should
+  // start with 0.
+  if (!media_codec_bridge_->Restart()) {
+    SB_LOG(ERROR) << "Failed to start media codec.";
+    return false;
+  }
+
+  // 3. Recreate `audio_decoder` and `video_decoder` threads in
+  // WriteInputBuffers().
+  stream_ended_.store(false);
+  destroying_.store(false);
+  return true;
 }
 
 // TODO(b/329686979): Abstract common code of thread creation functions.
@@ -866,7 +926,7 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    SbThreadSetPriority(kSbThreadPriorityHigh);
+    setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);
@@ -932,61 +992,6 @@ void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {
   SB_DCHECK(tunnel_mode_enabled_);
 
   first_tunnel_frame_ready_cb_();
-}
-
-bool MediaCodecDecoder::Flush() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
-  // Try to flush if we can, otherwise return |false| to recreate the codec
-  // completely. Flush() is called by `player_worker` thread,
-  // but MediaCodecDecoder is on `audio_decoder` and `video_decoder`
-  // threads, let `player_worker` destroy `audio_decoder` and
-  // `video_decoder` threads to clean up all pending tasks,
-  // and Flush()/Start() |media_codec_bridge_|.
-
-  // 1. Terminate `audio_decoder` or `video_decoder` thread.
-  TerminateDecoderThread();
-
-  // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
-  // 2.1. Flush() |media_codec_bridge_|.
-  host_->OnFlushing();
-  jint status = media_codec_bridge_->Flush();
-  if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "Failed to flush media codec.";
-    return false;
-  }
-
-  // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
-  number_of_pending_inputs_.store(0);
-  pending_inputs_.clear();
-  input_buffer_indices_.clear();
-  dequeue_output_results_.clear();
-  pending_input_to_retry_ = std::nullopt;
-
-  // 2.3. Add OutputFormatChanged to get current output format after Flush().
-  DequeueOutputResult dequeue_output_result = {};
-  dequeue_output_result.index = -1;
-  dequeue_output_results_.push_back(dequeue_output_result);
-
-  // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
-  if (flush_delay_usec_ > 0) {
-    usleep(flush_delay_usec_);
-  }
-
-  // 2.5. Restart() |media_codec_bridge_|. As the codec is configured in
-  // asynchronous mode, call Start() after Flush() has returned to
-  // resume codec operations. After Restart(), input_buffer_index should
-  // start with 0.
-  if (!media_codec_bridge_->Restart()) {
-    SB_LOG(ERROR) << "Failed to start media codec.";
-    return false;
-  }
-
-  // 3. Recreate `audio_decoder` and `video_decoder` threads in
-  // WriteInputBuffers().
-  stream_ended_.store(false);
-  destroying_.store(false);
-  return true;
 }
 
 }  // namespace starboard

@@ -11,6 +11,9 @@ inputs:
   use_cache:
     description: Whether or not to use runner cache.
     default: 'true'
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
 
 runs:
   using: "composite"
@@ -102,6 +105,8 @@ runs:
 
     - name: Authenticate with GoB
       uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'

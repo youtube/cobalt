@@ -53,7 +53,9 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
-constexpr int kDefaultMaxSamplePerWrite = 1;
+// The value of 12 was chosen after experimentation was done. For more
+// details, see b/497891900.
+constexpr int kDefaultMaxSamplePerWrite = 12;
 
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {

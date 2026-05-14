@@ -42,6 +42,8 @@ final class VolumeStateReceiver extends BroadcastReceiver {
       return;
     }
     imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0));
+    imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0));
+
   }
 
   public void setWebContents(WebContents webContents) {

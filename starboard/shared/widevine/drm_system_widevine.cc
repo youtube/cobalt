@@ -375,20 +375,6 @@ void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
                            sb_drm_session_id_size);
 }
 
-void DrmSystemWidevine::UpdateServerCertificate(int ticket,
-                                                const void* certificate,
-                                                int certificate_size) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_certificate(static_cast<const char*>(certificate),
-                                    certificate_size);
-  wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
-
-  is_server_certificate_set_ = (status == wv3cdm::kSuccess);
-
-  server_certificate_updated_callback_(this, context_, ticket,
-                                       CdmStatusToSbDrmStatus(status), "");
-}
-
 void IncrementIv(uint8_t* iv, size_t block_count) {
   if (0 == block_count) {
     return;
@@ -546,6 +532,20 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
 
   buffer->SetDecryptedContent(std::move(output_data));
   return kSuccess;
+}
+
+void DrmSystemWidevine::UpdateServerCertificate(int ticket,
+                                                const void* certificate,
+                                                int certificate_size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  const std::string str_certificate(static_cast<const char*>(certificate),
+                                    certificate_size);
+  wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
+
+  is_server_certificate_set_ = (status == wv3cdm::kSuccess);
+
+  server_certificate_updated_callback_(this, context_, ticket,
+                                       CdmStatusToSbDrmStatus(status), "");
 }
 
 void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
