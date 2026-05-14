@@ -53,8 +53,11 @@ public final class JniAndroid {
     public static class UncaughtExceptionException extends RuntimeException {
         public UncaughtExceptionException(String nativeStackTrace, Throwable uncaughtException) {
             super(
-                    "Native stack trace:" + System.lineSeparator() + nativeStackTrace,
+                    "Uncaught Java exception:" + System.lineSeparator()
+                            + Log.getStackTraceString(uncaughtException) + System.lineSeparator()
+                            + "Native stack trace:" + System.lineSeparator() + nativeStackTrace,
                     uncaughtException);
+            setStackTrace(uncaughtException.getStackTrace());
         }
     }
 
