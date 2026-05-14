@@ -189,7 +189,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(frame_buffer_);
   SB_CHECK(bridge_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load();
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
@@ -227,6 +227,11 @@ int AudioTrackAudioSink::GetStartThresholdInFrames() {
   return bridge_->GetStartThresholdInFrames();
 }
 
+bool AudioTrackAudioSink::Flush() {
+  flush_requested_ = true;
+  return true;
+}
+
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
   JNIEnv* env = AttachCurrentThread();
@@ -244,6 +249,19 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       features::kReleaseVideoFramesAfterAudioStarts);
 
   while (!quit_) {
+    if (flush_requested_) {
+      bridge_->PauseAndFlush();
+      frames_in_audio_track = 0;
+      accumulated_written_frames = 0;
+      last_playback_head_event_at = -1;
+      // Set to -1 to ignore the first playback head position read after a
+      // flush. This avoids using a stale value from before the reset, which
+      // could lead to incorrect frame consumption calculations.
+      last_playback_head_position = -1;
+      flush_requested_ = false;
+      continue;
+    }
+
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (bridge_->GetAndResetHasAudioDeviceChanged(env)) {
@@ -268,10 +286,16 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (should_update_media_time) {
       playback_head_position =
           bridge_->GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK_GE(playback_head_position, last_playback_head_position);
 
-      int frames_consumed =
-          playback_head_position - last_playback_head_position;
+      int frames_consumed = 0;
+      if (last_playback_head_position == -1) {
+        last_playback_head_position = playback_head_position;
+      } else {
+        frames_consumed =
+            std::max(0, static_cast<int>(playback_head_position -
+                                         last_playback_head_position));
+      }
+
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
@@ -367,8 +391,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         std::vector<uint8_t> silence_buffer(channels_ *
                                             GetBytesPerSample(sample_type_) *
                                             silence_frames_per_append);
-        int64_t sync_time =
-            start_time_ + GetFramesDurationUs(accumulated_written_frames);
+        int64_t sync_time = start_time_.load() +
+                            GetFramesDurationUs(accumulated_written_frames);
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
@@ -380,7 +404,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
     SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
-        start_time_ + GetFramesDurationUs(accumulated_written_frames);
+        start_time_.load() + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK_LE(start_position + expected_written_frames, frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
