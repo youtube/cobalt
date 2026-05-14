@@ -214,15 +214,6 @@ TEST(SbMediaBufferTest, InitialCapacity) {
   EXPECT_GE(SbMediaGetInitialBufferCapacity(), 0);
 }
 
-TEST(SbMediaBufferTest, Padding) {
-  // SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value
-  // is no longer used when allocating media buffers.  This is verified
-  // explicitly here by ensuring its return value is 0.
-  // An implementation that has specific padding requirement should make a
-  // copy of the incoming buffer when necessary.
-  EXPECT_EQ(SbMediaGetBufferPadding(), 0);
-}
-
 TEST(SbMediaBufferTest, PoolAllocateOnDemand) {
   // Just don't crash.
   SbMediaIsBufferPoolAllocateOnDemand();

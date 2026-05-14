@@ -102,7 +102,6 @@ class MEDIA_EXPORT DecoderBuffer
     virtual void Write(Handle handle, const void* data, size_t size) = 0;
 
     virtual int GetBufferAlignment() const = 0;
-    virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
 

@@ -612,22 +612,6 @@ SB_EXPORT int64_t SbMediaGetBufferGarbageCollectionDurationThreshold();
 // can return 0.
 SB_EXPORT int SbMediaGetInitialBufferCapacity();
 
-// DEPRECATED with SB_API_VERSION 16
-//
-// SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is
-// no longer used when allocating media buffers.  This is verified explicitly
-// in nplb tests by ensuring its return value is 0.
-//
-// An implementation that has specific padding requirement should make a
-// copy of the incoming buffer when necessary.
-//
-#if SB_API_VERSION < 16
-// Extra bytes allocated at the end of a media buffer to ensure that the buffer
-// can be use optimally by specific instructions like SIMD. Set to 0 to remove
-// any padding.
-#endif  // SB_API_VERSION < 16
-SB_EXPORT int SbMediaGetBufferPadding();
-
 // When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
 // isn't zero, media buffers will be allocated using a memory pool. Set the
 // following variable to true to allocate the media buffer pool memory on demand
