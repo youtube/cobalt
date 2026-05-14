@@ -151,6 +151,8 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   void SetVolume(double volume) override;
   int GetUnderrunCount();
   int GetStartThresholdInFrames();
+  bool Flush();
+  void SetStartTime(int64_t start_time) { start_time_.store(start_time); }
 
  private:
   class AudioTrackOutThread;
@@ -171,7 +173,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const raw_ptr<void> frame_buffer_;
   const int frames_per_channel_;
   const AudioTrackAudioSinkType::Callbacks callbacks_;
-  const int64_t start_time_;  // microseconds
+  std::atomic<int64_t> start_time_;  // microseconds
   const int max_frames_per_request_;
   const raw_ptr<void> context_;
 
@@ -181,6 +183,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const std::unique_ptr<AudioTrackBridge> bridge_;
 
   volatile bool quit_ = false;
+  std::atomic_bool flush_requested_{false};
   // Guaranteed to be non-null.
   const std::unique_ptr<Thread> audio_out_thread_;
 
