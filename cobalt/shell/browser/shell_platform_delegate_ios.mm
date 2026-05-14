@@ -950,6 +950,8 @@ const char kAllTracingCategories[] = "*";
   static NSDate* searchResultLastDate;
   static NSString* searchResultLastString;
   searchResultLastDate = [NSDate date];
+  __weak id<SBDOnScreenKeyboardManagerDelegate> weakKeyboardManagerDelegate =
+      _keyboardManagerDelegate;
   dispatch_after(
       dispatch_time(DISPATCH_TIME_NOW,
                     (int64_t)(kSearchResultDebounceTime * NSEC_PER_SEC)),
@@ -964,8 +966,7 @@ const char kAllTracingCategories[] = "*";
           return;
         }
         searchResultLastString = searchString;
-        [self->_keyboardManagerDelegate
-            keyboardTextChanged:[searchString copy]];
+        [weakKeyboardManagerDelegate keyboardTextChanged:[searchString copy]];
       });
 }
 
