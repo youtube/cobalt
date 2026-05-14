@@ -130,7 +130,6 @@ TEST(SbSystemGetPropertyTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPropertyChipsetModelNumber, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyFirmwareVersion, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyFriendlyName, __LINE__);
-  UnmodifiedOnFailureTest(kSbSystemPropertyManufacturerName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyBrandName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelYear, __LINE__);
@@ -155,7 +154,6 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
       kSbSystemPropertyChipsetModelNumber,
       kSbSystemPropertyFirmwareVersion,
       kSbSystemPropertyFriendlyName,
-      kSbSystemPropertyManufacturerName,
       kSbSystemPropertyModelName,
       kSbSystemPropertyModelYear,
       kSbSystemPropertySystemIntegratorName,
