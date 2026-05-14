@@ -5,6 +5,7 @@
 #ifndef BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 #define BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 
+#include <atomic>
 #include <cstdint>
 #include <string_view>
 #include "base/base_export.h"
@@ -25,6 +26,7 @@ enum class MemoryContext : uint8_t {
 };
 
 BASE_EXPORT MemoryContext GetCurrentMemoryContext();
+BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 
 class BASE_EXPORT ScopedMemoryContext {
  public:

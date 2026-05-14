@@ -14,12 +14,15 @@
 
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 
+#include <atomic>
+#include <thread>
+
 #include "base/feature_list.h"
+#include "base/memory/cobalt_memory_attribution_observer.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "cobalt/browser/features.h"
-#include "partition_alloc/partition_alloc_allocation_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -35,9 +38,10 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
     scoped_feature_list_.InitAndEnableFeature(
         cobalt::features::kCobaltMemoryAttributionManager);
     manager_ = CobaltMemoryAttributionManager::Get();
+    auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
     // Reset counters and snapshots for clean test state.
     for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
-      manager_->counters_[i].store(0, std::memory_order_relaxed);
+      observer->GetCounters()[i].value.store(0, std::memory_order_relaxed);
       manager_->last_snapshots_[i] = 0;
     }
     manager_->last_report_time_ = base::TimeTicks::Now();
@@ -46,16 +50,19 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
   void TearDown() override { manager_->Stop(); }
 
   void TriggerAllocationHook(size_t size) {
-    partition_alloc::AllocationNotificationData notification_data(nullptr, size,
-                                                                  nullptr);
-    manager_->AllocationHook(notification_data);
+    base::memory::CobaltMemoryAttributionObserver::Get()->OnAllocation(
+        base::allocator::dispatcher::AllocationNotificationData(
+            nullptr, size, nullptr,
+            base::allocator::dispatcher::AllocationSubsystem::
+                kPartitionAllocator));
   }
 
   void TriggerReportUma() { manager_->ReportUma(); }
 
   uint64_t GetCounter(MemoryContext context) {
-    return manager_->counters_[static_cast<size_t>(context)].load(
-        std::memory_order_relaxed);
+    return base::memory::CobaltMemoryAttributionObserver::Get()
+        ->GetCounters()[static_cast<size_t>(context)]
+        .value.load(std::memory_order_relaxed);
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -143,6 +150,21 @@ TEST_F(CobaltMemoryAttributionManagerTest, ReportUmaEmitsDeltas) {
   histogram_tester.ExpectBucketCount("Memory.Cobalt.AllocationVolume.DOM", 5,
                                      1);
   histogram_tester.ExpectTotalCount("Memory.Cobalt.AllocationVolume.DOM", 2);
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest,
+       AllocationHookOnNewThreadDoesNotCrash) {
+  // This test specifically verifies that calling OnAllocation on a newly
+  // spawned thread does not trigger emutls recursion crashes or static
+  // initialization reentrancy deadlocks on Android x86/ARM.
+  std::atomic_bool thread_executed{false};
+  std::thread new_thread([&]() {
+    // Trigger the first allocation on this new thread.
+    TriggerAllocationHook(1024);
+    thread_executed.store(true, std::memory_order_relaxed);
+  });
+  new_thread.join();
+  EXPECT_TRUE(thread_executed.load(std::memory_order_relaxed));
 }
 
 }  // namespace memory

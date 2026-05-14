@@ -83,6 +83,10 @@ source_set("starboard") {
     ":disable_unreachable_warnings",
     "//media:subcomponent_config",
   ]
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
 }
 
 source_set("unit_tests") {

@@ -28,10 +28,6 @@
 #include "base/timer/timer.h"
 #include "base/trace_event/memory_dump_provider.h"
 
-namespace partition_alloc {
-class AllocationNotificationData;
-}
-
 namespace cobalt {
 class MemoryAttributionBrowserTest;
 namespace memory {
@@ -66,20 +62,12 @@ class CobaltMemoryAttributionManager
   CobaltMemoryAttributionManager();
   ~CobaltMemoryAttributionManager() override;
 
-  static void AllocationHook(
-      const partition_alloc::AllocationNotificationData& notification_data);
-
-  void StartTimerOnSequence();
-  void StopTimerOnSequence();
   void ReportUma();
 
-  static std::atomic<uint64_t>
-      counters_[static_cast<size_t>(base::memory::MemoryContext::kCount)];
   uint64_t
       last_snapshots_[static_cast<size_t>(base::memory::MemoryContext::kCount)];
   base::TimeTicks last_report_time_;
   base::RepeatingTimer timer_;
-  scoped_refptr<base::SequencedTaskRunner> timer_task_runner_;
   bool is_observing_ = false;
 };
 

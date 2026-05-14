@@ -62,8 +62,6 @@ component("sql") {
     "//third_party/sqlite",
   ]
 
-
-
   public_deps = [ ":sql_name_variants" ]
 
   # For vfs_wrapper.cc time-machine exclusions.
@@ -79,6 +77,10 @@ component("sql") {
       "vfs_wrapper_fuchsia.cc",
       "vfs_wrapper_fuchsia.h",
     ]
+  }
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
   }
 }
 

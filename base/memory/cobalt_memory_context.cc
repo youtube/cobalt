@@ -4,26 +4,43 @@
 
 #include "base/memory/cobalt_memory_context.h"
 
+#include "base/allocator/dispatcher/tls.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 
 namespace base {
 namespace memory {
 
 namespace {
-thread_local MemoryContext g_current_memory_context = MemoryContext::kUnknown;
+MemoryContext* GetThreadLocalMemoryContext() {
+#if USE_LOCAL_TLS_EMULATION()
+  static base::NoDestructor<
+      base::allocator::dispatcher::ThreadLocalStorage<MemoryContext>>
+      thread_local_data("cobalt_memory_context");
+  return thread_local_data->GetThreadLocalData();
+#else
+  thread_local MemoryContext g_current_memory_context = MemoryContext::kUnknown;
+  return &g_current_memory_context;
+#endif
+}
 }  // namespace
 
 MemoryContext GetCurrentMemoryContext() {
-  return g_current_memory_context;
+  return *GetThreadLocalMemoryContext();
 }
 
-ScopedMemoryContext::ScopedMemoryContext(MemoryContext context)
-    : prev_context_(g_current_memory_context) {
-  g_current_memory_context = context;
+void SetCurrentMemoryContext(MemoryContext context) {
+  *GetThreadLocalMemoryContext() = context;
+}
+
+ScopedMemoryContext::ScopedMemoryContext(MemoryContext context) {
+  MemoryContext* current = GetThreadLocalMemoryContext();
+  prev_context_ = *current;
+  *current = context;
 }
 
 ScopedMemoryContext::~ScopedMemoryContext() {
-  g_current_memory_context = prev_context_;
+  *GetThreadLocalMemoryContext() = prev_context_;
 }
 
 std::string_view ContextToString(MemoryContext context) {
