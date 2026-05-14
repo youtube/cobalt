@@ -13,10 +13,6 @@ inputs:
   num_gtest_shards:
     description: "Total number of shards used to run the steps in this file."
     required: true
-  test_on_host:
-    description: "Indicates if this is a host test job."
-    required: false
-    default: 'false'
 runs:
   using: "composite"
   steps:
