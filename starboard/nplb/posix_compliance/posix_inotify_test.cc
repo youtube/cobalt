@@ -118,10 +118,6 @@ TEST(PosixInotifyTest, InotifyAddWatchEinvalNotAnInotifyFd) {
 }
 
 TEST(PosixInotifyTest, InotifyAddWatchEexist) {
-  // IN_MASK_CREATE is not present in kernels <4.18.
-#ifndef IN_MASK_CREATE
-  GTEST_SKIP() << "IN_MASK_CREATE is not defined on this platform";
-#endif
   nplb::ScopedRandomFile file;
   ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
 
@@ -134,6 +130,11 @@ TEST(PosixInotifyTest, InotifyAddWatchEexist) {
   errno = 0;
   int wd2 = inotify_add_watch(fd, file.filename().c_str(),
                               IN_MODIFY | IN_MASK_CREATE);
+  // IN_MASK_CREATE is not present in kernels <4.18 and will cause flag
+  // validation to fail with EINVAL.
+  if (errno == EINVAL) {
+    GTEST_SKIP() << "IN_MASK_CREATE is not defined on this platform";
+  }
   EXPECT_EQ(wd2, -1);
   EXPECT_EQ(errno, EEXIST);
 
@@ -181,10 +182,6 @@ TEST(PosixInotifyTest, InotifyAddWatchEnotdir) {
 }
 
 TEST(PosixInotifyTest, InotifyAddWatchEinvalAddAndCreateFlags) {
-  // IN_MASK_CREATE is not present in kernels <4.18.
-#ifndef IN_MASK_CREATE
-  GTEST_SKIP() << "IN_MASK_CREATE is not defined on this platform";
-#endif
   nplb::ScopedRandomFile file;
   ASSERT_TRUE(nplb::FileExists(file.filename().c_str()));
 
