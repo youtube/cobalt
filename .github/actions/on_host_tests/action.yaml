@@ -49,7 +49,6 @@ runs:
 
     - name: Run GTests
       id: run-tests
-      if: ${{ inputs.test_on_host == 'true' }}
       shell: bash
       env:
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
@@ -129,7 +128,6 @@ runs:
         fi
 
     - name: Run JUnit Tests
-      if: ${{ inputs.test_on_host == 'true' }}
       shell: bash
       run: |
         set -x
