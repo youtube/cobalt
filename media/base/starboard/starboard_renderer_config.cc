@@ -56,6 +56,8 @@ std::ostream& operator<<(
             << ToString(features.enable_reset_audio_decoder)
             << ", enable_video_renderer_vsp_adjustment="
             << ToString(features.enable_video_renderer_vsp_adjustment)
+            << ", flush_audio_track_during_seek="
+            << ToString(features.flush_audio_track_during_seek)
             << ", force_decode_to_texture="
             << ToString(features.force_decode_to_texture)
             << ", skip_flush_on_decoder_teardown="
