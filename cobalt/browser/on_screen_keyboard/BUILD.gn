@@ -30,6 +30,7 @@ source_set("on_screen_keyboard") {
       "on_screen_keyboard_impl_tvos.h",
       "on_screen_keyboard_impl_tvos.mm",
     ]
+    deps += [ "//starboard:starboard_group" ]
   } else {
     sources += [
       "on_screen_keyboard_impl_stub.cc",
