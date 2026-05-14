@@ -810,6 +810,8 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
 #if BUILDFLAG(IS_COBALT)
+  dump->vm_size_kb =
+      base::saturated_cast<uint32_t>(info->vm_size_bytes / 1024);
   // TODO(cleanup): Remove this legacy code when appropriate.
 #if BUILDFLAG(IS_ANDROID)
   PopulateCobaltSmapsMetrics(handle, dump);
