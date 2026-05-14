@@ -13,6 +13,10 @@ since the version previous to it.
 The `SbThreadSetPriority` API is no longer used. Instead, the standard POSIX
 `setpriority` API should be used directly.
 
+### Removed SbThreadGetPriority
+The `SbThreadGetPriority` API is no longer used. Instead, the standard POSIX
+`getpriority` API should be used directly.
+
 ### Removed SbThreadSampler and SbThreadContext
 The SbThreadSampler and SbThreadContext APIs are no longer used. Instead,
 POSIX APIs are used directly.
