@@ -180,17 +180,18 @@ void AudioInputStreamStarboard::ReadAudio() {
       params_.frames_per_buffer() * params_.channels() * sizeof(int16_t);
   const size_t max_fifo_size_bytes = target_buffer_size_bytes * kMaxFifoBuffers;
   const size_t read_size_bytes =
-      std::max(size_t{kMinReadBytes}, target_buffer_size_bytes);
+      std::max(static_cast<size_t>(kMinReadBytes), target_buffer_size_bytes);
 
-  std::vector<uint8_t> temp_read_buf(read_size_bytes);
+  // Read directly into the FIFO to avoid extra allocation and copy.
+  size_t current_fifo_size = audio_fifo_.size();
+  audio_fifo_.resize(current_fifo_size + read_size_bytes);
   int bytes_read = SbMicrophoneRead(
-      microphone_, reinterpret_cast<char*>(temp_read_buf.data()),
+      microphone_,
+      reinterpret_cast<char*>(audio_fifo_.data() + current_fifo_size),
       read_size_bytes);
 
   if (bytes_read > 0) {
-    audio_fifo_.insert(audio_fifo_.end(), temp_read_buf.data(),
-                       temp_read_buf.data() + bytes_read);
-
+    audio_fifo_.resize(current_fifo_size + bytes_read);
     if (audio_fifo_.size() > max_fifo_size_bytes) {
       size_t bytes_to_drop = audio_fifo_.size() - max_fifo_size_bytes;
       audio_fifo_.erase(audio_fifo_.begin(),
@@ -198,14 +199,18 @@ void AudioInputStreamStarboard::ReadAudio() {
       DLOG(WARNING) << "Audio FIFO overflow, dropped " << bytes_to_drop
                     << " bytes.";
     }
-  } else if (bytes_read < 0) {
-    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read << ".";
-    HandleError("SbMicrophoneRead");
-    return;
+  } else {
+    audio_fifo_.resize(current_fifo_size);
+    if (bytes_read < 0) {
+      DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read << ".";
+      HandleError("SbMicrophoneRead");
+      return;
+    }
   }
 
   bool data_pushed = false;
-  if (audio_fifo_.size() >= target_buffer_size_bytes) {
+  // Process all available complete buffers to minimize latency.
+  while (audio_fifo_.size() >= target_buffer_size_bytes) {
     std::copy(audio_fifo_.begin(),
               audio_fifo_.begin() + target_buffer_size_bytes,
               reinterpret_cast<uint8_t*>(buffer_.data()));
@@ -217,13 +222,11 @@ void AudioInputStreamStarboard::ReadAudio() {
 
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
     data_pushed = true;
-  }
-
-  // Adaptive scheduling: poll faster if we didn't have enough data to push.
-  if (data_pushed) {
     next_read_time_ =
         std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
-  } else {
+  }
+
+  if (!data_pushed) {
     next_read_time_ = base::TimeTicks::Now() + buffer_duration_ / 2;
   }
 
