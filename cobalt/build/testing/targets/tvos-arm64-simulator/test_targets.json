@@ -4,9 +4,9 @@
     "base:base_unittests",
     "cobalt/testing/browser_tests:cobalt_browsertests"
   ],
-
+  "TODO(b/507872542)": "Revisit this and determine how we configure tvOS tests.",
   "executables": [
-    "out/linux-x64x11_devel/base_perftests",
-    "out/linux-x64x11_devel/base_unittests"
+    "out/arm64-simulator_devel/bin/base_perftests",
+    "out/arm64-simulator_devel/bin/base_unittests"
   ]
 }
