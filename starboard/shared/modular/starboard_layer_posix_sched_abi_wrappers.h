@@ -37,6 +37,9 @@ SB_EXPORT int __abi_wrap_sched_getaffinity(musl_pid_t pid,
 SB_EXPORT int __abi_wrap_sched_getparam(musl_pid_t pid,
                                         musl_sched_param* param);
 
+SB_EXPORT int __abi_wrap_sched_setparam(musl_pid_t pid,
+                                        const musl_sched_param* param);
+
 SB_EXPORT int __abi_wrap_sched_getscheduler(musl_pid_t pid);
 
 SB_EXPORT int __abi_wrap_sched_setscheduler(musl_pid_t pid,

@@ -32,6 +32,7 @@ rendering issues caused by Chromium's shader expectations.
 * `if_indextoname`
 * `if_nametoindex`
 * `sched_getparam`
+* `sched_setparam`
 * `sched_getscheduler`
 * `sched_setscheduler`
 * `statx`
