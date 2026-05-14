@@ -53,7 +53,7 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 
 @protocol SBDOnScreenKeyboardManager
 
-@property(nonatomic) id<SBDOnScreenKeyboardManagerDelegate>
+@property(nonatomic, weak) id<SBDOnScreenKeyboardManagerDelegate>
     keyboardManagerDelegate;
 
 @property(nonatomic, readonly) CGRect boundingRect;

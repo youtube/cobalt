@@ -303,7 +303,7 @@ const char kAllTracingCategories[] = "*";
 // Manages tracing and tracing state.
 @property(nonatomic, strong) TracingHandler* tracingHandler;
 // SBDOnScreenKeyboardManagerDelegate implementation.
-@property(nonatomic, strong) id<SBDOnScreenKeyboardManagerDelegate>
+@property(nonatomic, weak) id<SBDOnScreenKeyboardManagerDelegate>
     keyboardManagerDelegate;
 
 + (UIColor*)backgroundColorDefault;
