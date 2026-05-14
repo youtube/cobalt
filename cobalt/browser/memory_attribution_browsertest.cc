@@ -66,11 +66,15 @@ IN_PROC_BROWSER_TEST_F(MemoryAttributionBrowserTest, RecordsAttributedMemory) {
 
   auto check_histogram = [](const std::string& name) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
-    bool exists = histogram && histogram->SnapshotSamples()->TotalCount() > 0;
-    if (!exists) {
-      LOG(WARNING) << "Histogram not found or empty: " << name;
+    if (!histogram) {
+      return false;
     }
-    return exists;
+    auto samples = histogram->SnapshotSamples();
+    if (samples->TotalCount() == 0) {
+      return false;
+    }
+    EXPECT_LT(samples->GetCount(0), samples->TotalCount());
+    return true;
   };
 
   EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.DOM"));
