@@ -24,6 +24,22 @@ blink_modules_sources("v8") {
       generated_sync_iterator_sources_in_modules +
       generated_typedef_sources_in_modules + generated_union_sources_in_modules
 
+  if (is_cobalt) {
+    _excludes = [
+      "*v8_canvas_2d_gpu_*",
+      "*v8_gpu.*",
+      "*v8_gpu_*",
+      "*v8_ml.*",
+      "*v8_ml_*",
+      "*v8_xr.*",
+      "*v8_xr_*",
+      "*v8_union_*gpu*",
+    ]
+    _filtered = filter_exclude(sources, _excludes)
+    sources = []
+    sources = _filtered
+  }
+
   deps = [
     ":generated",
     "//third_party/blink/renderer/platform",
