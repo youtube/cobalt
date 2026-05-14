@@ -46,6 +46,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
       overlay_plane_id_(traits.overlay_plane_id),
       renderer_(
           traits.task_runner,
+          traits.gpu_task_runner,
           std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
                                          traits.task_runner),
           traits.overlay_plane_id,
