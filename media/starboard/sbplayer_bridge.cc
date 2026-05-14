@@ -714,18 +714,24 @@ void SbPlayerBridge::CreatePlayer() {
       experimental_features_extension->version >= 1) {
     StarboardExtensionExperimentalFeatures extension_features = {};
 
+    extension_features.allow_audio_writing_on_pause =
+        experimental_features_.allow_audio_writing_on_pause;
     extension_features.disable_low_performance_sw_decoder =
         experimental_features_.disable_low_performance_sw_decoder;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
     extension_features.enable_codec_output_checker =
         experimental_features_.enable_codec_output_checker;
+    extension_features.enable_video_renderer_vsp_adjustment =
+        experimental_features_.enable_video_renderer_vsp_adjustment;
     extension_features.flush_decoder_during_reset =
         experimental_features_.enable_flush_during_seek;
     extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
     extension_features.skip_flush_on_decoder_teardown =
         experimental_features_.skip_flush_on_decoder_teardown;
+    extension_features.skip_video_frames_over_60_fps =
+        experimental_features_.skip_video_frames_over_60_fps;
     extension_features.use_dual_threads_for_video =
         ToBoolPointer(experimental_features_.use_dual_threads_for_video);
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
