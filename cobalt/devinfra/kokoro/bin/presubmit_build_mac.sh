@@ -76,31 +76,15 @@ EOF
   done
   # Build Cobalt.
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
-  autoninja -C "${out_dir}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
-  # Package and upload nightly release archive.
-  if is_release_build && is_release_config; then
-    local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
-    mkdir -p "${package_dir}"
-
-    # TODO(b/294130306): Move build_info to gn packaging.
-    local build_info_path="${out_dir}/gen/build_info.json"
-    cp "${build_info_path}" "${package_dir}/"
-
-    # Create release package.
-    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/simple_packager.py" \
-      "${WORKSPACE_COBALT}" \
-      "${out_dir}" \
-      "${package_dir}" \
-      "${build_info_path}"
-
-    # Create and upload nightly archive.
-    create_and_upload_nightly_archive \
-      "${PLATFORM}" \
-      "${package_dir}" \
-      "${package_dir}.tar.gz" \
-      "${build_info_path}"
+  # Extract test targets from JSON.
+  local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
+  if [[ -f "${test_targets_json}" ]]; then
+    local json_targets=$(python3 -c "import json, re; print(' '.join(t.split(':')[-1] for t in json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())).get('test_targets', [])))")
+    GN_TARGET="${GN_TARGET:-} ${json_targets}"
   fi
+
+  autoninja -C "${out_dir}" ${GN_TARGET}
 
   if [[ "${GN_TARGET}" == *"cobalt_browsertests"* ]]; then
     echo "Running Cobalt Browser Tests in Simulator..."
@@ -113,6 +97,7 @@ EOF
      "${out_dir}"/cobalt_browsertests.app
   fi
 
+  # TODO(b/507872651): Revisit this and see if we could shard tests on multiple bots.
   # if has_simulator_tests; then
   #   time python3 "${WORKSPACE_COBALT}/cobalt/tools/buildbot/run_unit_tests.py" \
   #     --platform "${PLATFORM}" \
@@ -151,7 +136,6 @@ setup_mac () {
     export SISO_CREDENTIAL_HELPER="gcloud"
   fi
 }
-
 
 has_simulator_tests () {
   [[ "${PLATFORM}" == "darwin-tvos-simulator" && "${CONFIG}" == "devel" ]]

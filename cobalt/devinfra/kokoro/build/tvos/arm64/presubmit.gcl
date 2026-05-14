@@ -23,7 +23,7 @@ config build = common.build {
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt_browsertests'
+      value = 'cobalt'
     }
   ]
 }
