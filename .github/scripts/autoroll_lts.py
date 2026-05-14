@@ -71,7 +71,7 @@ def get_unmerged_files():
   files = {}
   stage_map = {'1': 'ancestor', '2': 'ours', '3': 'theirs'}
   for line in lines:
-    parts = line.split()
+    parts = line.split(None, 3)
     if len(parts) >= 4:
       stage = parts[2]
       path = parts[3]
