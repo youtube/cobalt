@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "base/feature_list.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/singleton.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -68,6 +69,7 @@ class CobaltMemoryAttributionManager
 
   void Start();
   void Stop();  // For testing
+  void RequestReportUmaForTesting(base::OnceClosure callback);
 
   MemoryContext GetCurrentContext() const { return g_current_memory_context; }
 
@@ -90,7 +92,8 @@ class CobaltMemoryAttributionManager
   void StopTimerOnSequence();
   void ReportUma();
 
-  std::atomic<uint64_t> counters_[static_cast<size_t>(MemoryContext::kCount)];
+  static std::atomic<uint64_t>
+      counters_[static_cast<size_t>(MemoryContext::kCount)];
   uint64_t last_snapshots_[static_cast<size_t>(MemoryContext::kCount)];
   base::TimeTicks last_report_time_;
   base::RepeatingTimer timer_;
