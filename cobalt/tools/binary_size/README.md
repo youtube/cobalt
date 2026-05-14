@@ -46,7 +46,7 @@ Below is the index of available diagnostic and analysis tools in this suite.
 | Tool | Primary Mission |
 | :--- | :--- |
 | **`analyze_feature_disable_difficulty.py`** | Audits build graph reachability and C++ caller coupling to score the difficulty of manually removing a feature. |
-| *(Future Tools)* | Additional helper tools added to this suite will be documented below. |
+| **`analyze_size_diff.py`** | SuperSize console script to compute absolute net PSS overhead, subsystem-level growth, and targeted third-party libraries driving bloat between two build snapshots. |
 
 ---
 
@@ -97,5 +97,27 @@ A feature is highly suitable for manual removal if its report satisfies the foll
 *   **Target Classification**: `DEDICATED` (Perfectly encapsulated inside its own directory).
 *   **Build Coupling**: $\le 3$ Funnel Targets (Requires editing very few `BUILD.gn` files).
 *   **C++ Surface**: $\le 5$ Include Integration Points (Minimal macro-gating required).
+
+---
+
+### 2. Snapshot Diffing (`analyze_size_diff.py`)
+
+Generates high-level binary footprint diffs between two compiled snapshots (e.g., across branches, pull requests, or release upgrades) to audit net growth. It runs inside the SuperSize console REPL.
+
+#### Usage Workflow
+1. **Generate the Diff Archive**:
+   ```bash
+   ./tools/binary_size/supersize diff rdk_26.size rdk_27.size --output rdk_26_27.sizediff
+   ```
+2. **Run the Analysis**:
+   ```bash
+   ./tools/binary_size/supersize console rdk_26_27.sizediff --query='exec(open("cobalt/tools/binary_size/analyze_size_diff.py").read())'
+   ```
+
+#### Output Capabilities & Feature Removal Guidance
+* **Net PSS Overhead**: Measures absolute growth via `delta.raw_symbols.pss` to capture alignment padding and unmapped additions accurately.
+* **Subsystem Slicing**: Aggregates net diffs by major upstream Chromium component buckets (e.g., `v8`, `Blink`, `net`) to trace high-level architectural inflation.
+* **Newly Added Component Gating**: Isolates brand-new symbols added in the modified snapshot and maps them directly to official functional component tags. This clearly highlights entire new upstream feature additions driving binary bloat.
+* **Third-Party Target Isolation**: Filters specifically for external libraries under `third_party/` growing by $\ge 5\text{ KB}$. Because external code is heavily decoupled, these libraries represent low-hanging fruit for surgical unbundling (via high-level GN feature gating) if their underlying functionalities are not needed.
 
 ---
