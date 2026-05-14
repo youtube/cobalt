@@ -119,28 +119,42 @@ def create_archive(
 
     if target_name.endswith('_junit_tests'):
       print('Handling JUnit tests manually:', target)
-      target_deps.add(os.path.join('bin', f'run_{target_name}'))
+
+      wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
+      if flatten_deps:
+        target_deps.add(wrapper_rel_path)
+      else:
+        target_deps.add(os.path.join(out_dir, wrapper_rel_path))
+
       if robolectric_runtime_deps:
         for lib in robolectric_runtime_deps:
-          target_src_root_deps.add(
-              os.path.join('third_party/robolectric/cipd/lib', lib))
+          lib_path = os.path.join('third_party/robolectric/cipd/lib', lib)
+          target_src_root_deps.add(lib_path)
 
-      # Add test_targets.json to archive so that test runners know what to run.
-      test_targets_json = os.path.join(out_dir, 'test_targets.json')
-      if os.path.exists(test_targets_json):
-        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
-
-      output_path = os.path.join(destination_dir,
-                                 f'{target_name}_deps.tar.{compression}')
       if flatten_deps:
-        _make_tar(
-            output_path,
-            compression,
-            compression_level,
-            [(target_deps, out_dir), (target_src_root_deps, source_dir)],
-        )
+        target_deps.add('test_targets.json')
       else:
-        raise ValueError('Unsupported configuration.')
+        target_deps.add(os.path.join(out_dir, 'test_targets.json'))
+
+      if archive_per_target:
+        output_path = os.path.join(destination_dir,
+                                   f'{target_name}_deps.tar.{compression}')
+        if flatten_deps:
+          _make_tar(
+              output_path,
+              compression,
+              compression_level,
+              [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+          )
+        else:
+          raise ValueError('Unsupported configuration.')
+      else:
+        if flatten_deps:
+          raise ValueError('Unsupported configuration.')
+        else:
+          combined_deps |= target_deps
+          combined_deps |= target_src_root_deps
+
       continue
 
     # Paths are configured in test.gni:
