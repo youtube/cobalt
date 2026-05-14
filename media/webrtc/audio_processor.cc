@@ -618,10 +618,10 @@ AudioParameters AudioProcessor::GetDefaultOutputFormat(
       need_webrtc_audio_processing
           ?
 #if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
-          std::min(media::webrtcaudioprocessingsampleratehz(),
+          std::min(media::WebRtcAudioProcessingSampleRateHz(),
                    input_format.sample_rate())
 #elif BUILDFLAG(IS_COBALT)
-          std::min(media::webrtcaudioprocessingsampleratehz(),
+          std::min(media::WebRtcAudioProcessingSampleRateHz(),
                    input_format.sample_rate())
 #else
           media::WebRtcAudioProcessingSampleRateHz()
