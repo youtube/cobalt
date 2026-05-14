@@ -540,18 +540,18 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Run On-Device Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
+        if: ${{ fromJson(steps.test-target-json.outputs.on_device_count) > 0 }}
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+          test_targets_json: ${{ steps.test-target-json.outputs.on_device_targets }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.test-target-json.outputs.on_device_targets }}
 
   e2e-test:
     needs: [initialize, build]
@@ -750,7 +750,7 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Run On-Host Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
+        if: ${{ fromJson(steps.test-target-json.outputs.on_host_count) > 0 }}
         uses: ./.github/actions/on_host_tests
         with:
           nightly: ${{ inputs.nightly }}
@@ -758,7 +758,7 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.test-target-json.outputs.on_host_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]

@@ -11,19 +11,26 @@ runs:
     - name: Test target count
       id: parse-json
       run: |
-        test_targets_json="$(cat test_targets.json | jq -cr '
-          (.on_host.unit // []) +
-          (.on_host.junit // []) +
-          (.on_device.unit // []) +
-          (.on_device.browser // [])
-        ')"
-        echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-        echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        targets_file="test_targets.json"
+
+        on_host_targets=$(jq -cr '(.on_host.unit // []) + (.on_host.junit // []) + (.on_host.browser // [])' "${targets_file}")
+        echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
+        echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+
+        on_device_targets=$(jq -cr '(.on_device.unit // []) + (.on_device.browser // [])' "${targets_file}")
+        echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
+        echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
-  test_targets_count:
-    description: The number of test targets.
-    value: ${{ steps.parse-json.outputs.test_targets_count }}
-  test_targets_json:
-    description: The test targets in a JSON array.
-    value: '${{ steps.parse-json.outputs.test_targets_json }}'
+  on_host_targets:
+    description: The on-host test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_targets }}
+  on_host_count:
+    description: The number of on-host test targets.
+    value: ${{ steps.parse-json.outputs.on_host_count }}
+  on_device_targets:
+    description: The on-device test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_targets }}
+  on_device_count:
+    description: The number of on-device test targets.
+    value: ${{ steps.parse-json.outputs.on_device_count }}
