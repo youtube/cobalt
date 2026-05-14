@@ -28,4 +28,7 @@ interface H5vccRuntime {
 
   // Register the remote DeepLinkListener.
   AddListener(pending_remote<DeepLinkListener> listener);
+
+  // Notify the browser that the page visibility has changed to visible in the renderer.
+  PageVisibilityVisible();
 };

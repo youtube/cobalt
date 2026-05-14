@@ -91,6 +91,9 @@ class AppEventDelegate {
   // Receives a Starboard event and handles it.
   void HandleEvent(const SbEvent* event);
 
+  // Called when the renderer acknowledges visibility.
+  void OnRevealAck();
+
   bool IsRunning() const;
   bool IsVisible() const;
   bool IsFocused() const;
@@ -133,6 +136,9 @@ class AppEventDelegate {
   bool is_transitioning_ = false;
 
   base::OnceClosure transition_quit_closure_;
+
+  bool waiting_for_reveal_ack_ = false;
+  bool pending_focus_ = false;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.

@@ -17,12 +17,15 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.h"
 
 namespace blink {
 
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
+      PageVisibilityObserver(window.GetFrame()->GetPage()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
       deep_link_receiver_(this, window.GetExecutionContext()) {
   EnsureRemoteIsBound();
@@ -33,6 +36,13 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
   deep_link_receiver_.reset();
+}
+
+void H5vccRuntime::PageVisibilityChanged() {
+  if (GetPage() && GetPage()->IsPageVisible()) {
+    EnsureRemoteIsBound();
+    remote_h5vcc_runtime_->PageVisibilityVisible();
+  }
 }
 
 String H5vccRuntime::initialDeepLink() {

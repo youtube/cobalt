@@ -31,12 +31,14 @@
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/context_factory.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/aura/window_tree_host_platform.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -44,6 +46,10 @@
 #include "ui/color/color_id.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
+#include "ui/platform_window/platform_window.h"
+#if defined(USE_AURA)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif
 #include "ui/views/background.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
@@ -114,7 +120,43 @@ class ShellView : public views::BoxLayoutView,
                       .SetWebContents(web_contents)
                       .SetPreferredSize(size))
         .BuildChildren();
-    web_contents->Focus();
+
+    bool should_focus = true;
+#if defined(STARBOARD)
+    gfx::NativeView window = web_contents->GetNativeView();
+    if (window) {
+      aura::WindowTreeHost* host = window->GetHost();
+      if (host) {
+        auto* host_platform = static_cast<aura::WindowTreeHostPlatform*>(host);
+        ui::PlatformWindow* platform_window = host_platform->platform_window();
+        if (platform_window) {
+#if defined(USE_AURA)
+          auto* pw_starboard =
+              static_cast<ui::PlatformWindowStarboard*>(platform_window);
+          bool is_waiting =
+              pw_starboard->IsWaitingForRevealAck() ||
+              content::Shell::GetPlatform()->waiting_for_reveal_ack();
+          if (is_waiting) {
+            should_focus = false;
+            if (!pw_starboard->IsWaitingForRevealAck()) {
+              pw_starboard->SetWaitingForRevealAck(true);
+            }
+          }
+#else
+          bool is_waiting =
+              content::Shell::GetPlatform()->waiting_for_reveal_ack();
+          if (is_waiting) {
+            should_focus = false;
+          }
+#endif
+        }
+      }
+    }
+#endif
+
+    if (should_focus) {
+      web_contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+    }
     web_view_->SizeToPreferredSize();
 
     // Resize the widget, keeping the same origin.

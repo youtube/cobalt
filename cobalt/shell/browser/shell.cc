@@ -572,11 +572,6 @@ void Shell::DidStartLoading() {
 }
 
 void Shell::DidStopLoading() {
-  // Set initial focus to the web content.
-  if (web_contents()->GetRenderWidgetHostView()) {
-    web_contents()->GetRenderWidgetHostView()->Focus();
-  }
-
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -983,8 +978,9 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  // TODO(danakj): Move this to ShellPlatformDelegate.
-  contents->Focus();
+  if (!g_platform->waiting_for_reveal_ack()) {
+    contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+  }
 }
 
 bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
@@ -1077,6 +1073,10 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
   return true;
 }
 
+bool Shell::ShouldFocusPageAfterCrash(WebContents* source) {
+  return !g_platform->waiting_for_reveal_ack();
+}
+
 gfx::Size Shell::GetShellDefaultSize() {
   static gfx::Size default_shell_size;  // Only go through this method once.
 
@@ -1110,7 +1110,7 @@ void Shell::Focus() {
   // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
   // the focus until the WebContents signals it has become visible.
   if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
-    web_contents_->Focus();
+    web_contents_->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
     pending_focus_ = false;
   } else {
     pending_focus_ = true;

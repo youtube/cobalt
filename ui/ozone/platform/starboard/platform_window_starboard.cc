@@ -68,6 +68,10 @@ void PlatformWindowStarboard::ClearWindowDestroyedCallback() {
       std::make_unique<WindowDestroyedCallback>(base::DoNothing());
 }
 
+void PlatformWindowStarboard::SetWaitingForRevealAck(bool waiting) {
+  waiting_for_reveal_ack_ = waiting;
+}
+
 PlatformWindowStarboard::PlatformWindowStarboard(
     PlatformWindowDelegate* delegate,
     const gfx::Rect& bounds)
@@ -118,6 +122,9 @@ void PlatformWindowStarboard::ProcessWindowSizeChangedEvent(int width,
 }
 
 void PlatformWindowStarboard::ProcessFocusEvent(bool is_focused) {
+  if (waiting_for_reveal_ack_) {
+    return;
+  }
   if (is_focused) {
     Activate();
   } else {
@@ -241,6 +248,9 @@ PlatformWindowState PlatformWindowStarboard::GetPlatformWindowState() const {
 }
 
 void PlatformWindowStarboard::Activate() {
+  if (waiting_for_reveal_ack_) {
+    return;
+  }
   if (activation_state_ != ActivationState::kActive) {
     activation_state_ = ActivationState::kActive;
     delegate_->OnActivationChanged(/*active=*/true);

@@ -24,6 +24,8 @@
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/aura/window_tree_host_platform.h"
+#include "ui/platform_window/platform_window.h"
 
 namespace content {
 
@@ -97,7 +99,9 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
     parent->AddChild(content);
   }
 
-  content->Show();
+  if (!waiting_for_reveal_ack_) {
+    content->Show();
+  }
 }
 
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
@@ -107,7 +111,9 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
     SetContents(shell);
   }
 
-  platform_->aura->host()->Show();
+  static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host())
+      ->platform_window()
+      ->Show(true);
 }
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
