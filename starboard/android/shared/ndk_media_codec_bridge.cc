@@ -19,6 +19,7 @@
 #include <media/NdkMediaCrypto.h>
 #include <media/NdkMediaFormat.h>
 
+#include "starboard/android/shared/media_common.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 

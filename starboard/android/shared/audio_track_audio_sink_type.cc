@@ -608,8 +608,9 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool allow_audio_writing_on_pause,
     void* context) {
   bool has_property_override = false;
-  bool use_aaudio = ShouldUseAAudio(tunnel_mode_audio_session_id,
-                                    audio_sample_type, &has_property_override);
+  bool use_aaudio = ShouldUseAAudio(
+      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
+      audio_sample_type, &has_property_override);
 
   if (use_aaudio) {
     SB_LOG(INFO) << "[AudioSink] Attempting to use NATIVE AAUDIO backend.";
@@ -626,7 +627,9 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   }
 
   SB_LOG(INFO) << "[AudioSink] Selected Backend: JAVA AUDIOTRACK (Reason: "
-               << (tunnel_mode_audio_session_id != -1
+               << (tunnel_mode_audio_session_id.value_or(
+                       TUNNEL_MODE_AUDIO_SESSION_ID_NONE) !=
+                           TUNNEL_MODE_AUDIO_SESSION_ID_NONE
                        ? "Tunnel Mode"
                        : (has_property_override
                               ? "Forced OFF by Property"

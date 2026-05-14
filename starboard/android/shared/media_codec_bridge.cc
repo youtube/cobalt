@@ -42,7 +42,15 @@ using jni_zero::AttachCurrentThread;
 using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaLocalRef;
 
-bool ShouldUseNdkMediaCodec(int tunnel_mode_audio_session_id) {
+bool ShouldUseNdkMediaCodec(int tunnel_mode_audio_session_id,
+                            bool require_secured_decoder,
+                            jobject j_media_crypto) {
+  if (require_secured_decoder || j_media_crypto) {
+    SB_LOG(INFO) << "[MediaCodec] Secure decoding requested. NDK AMediaCodec "
+                    "does not support DRM. Forcing NDK AMediaCodec OFF.";
+    return false;
+  }
+
   char prop_val[PROP_VALUE_MAX] = "";
   __system_property_get("debug.cobalt.use_ndk_media_codec", prop_val);
 
@@ -271,7 +279,9 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
                      starboard::ToString(!!j_media_crypto).data()));
   }
 
-  if (ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id)) {
+  if (ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id.value_or(
+                                 TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
+                             require_secured_decoder, j_media_crypto)) {
     auto ndk_bridge = NdkMediaCodecBridge::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,
