@@ -54,7 +54,7 @@ class OnScreenKeyboardImplTvos final : public OnScreenKeyboardImpl {
   struct ObjCStorage;
   std::unique_ptr<ObjCStorage> objc_storage_;
 
-  base::WeakPtrFactory<OnScreenKeyboardImpl> weak_ptr_factory_{this};
+  base::WeakPtrFactory<OnScreenKeyboardImplTvos> weak_ptr_factory_{this};
 };
 
 }  // namespace on_screen_keyboard
