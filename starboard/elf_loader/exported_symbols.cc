@@ -38,6 +38,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/socket.h>
@@ -291,6 +292,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(write);
 
   // Linux APIs
+  REGISTER_SYMBOL(ioctl);
   REGISTER_SYMBOL(recvmmsg);
 
   // Custom mapped POSIX APIs to compatibility wrappers.

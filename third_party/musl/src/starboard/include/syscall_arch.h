@@ -52,13 +52,6 @@ SbThreadId SbThreadGetId();
 #define __SYSCALL_CONCAT(a, b) __SYSCALL_CONCAT_X(a, b)
 #define syscall(name, ...) __SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__)
 
-// Map `libc_wrapper_SYS_ioctl(int fd, op,...)` to `ioctl_op(int fd,...)` calls
-// to allow separate implementation per ioctl operation.
-#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b) a##b
-#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT(a,b) __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b)
-#define __LIBC_WRAPPER_SYS_IOCTL_DISP(b, op, fd_param, ...) __LIBC_WRAPPER_SYS_IOCTL_CONCAT(b,op)(fd_param, ##__VA_ARGS__)
-#define libc_wrapper_SYS_ioctl(fd, op, ...) __LIBC_WRAPPER_SYS_IOCTL_DISP(ioctl_, op, fd, ##__VA_ARGS__)
-
 // Signal that we support these sycalls. This for code that checks for existence
 // of a definition to determine whether to use fallbacks.
 #define SYS_close SYS_close
