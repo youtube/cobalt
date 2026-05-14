@@ -31,6 +31,7 @@ class AllocationNotificationData;
 }
 
 namespace cobalt {
+class MemoryAttributionBrowserTest;
 namespace memory {
 
 enum class MemoryContext {
@@ -77,6 +78,7 @@ class CobaltMemoryAttributionManager
  private:
   friend struct base::DefaultSingletonTraits<CobaltMemoryAttributionManager>;
   friend class CobaltMemoryAttributionManagerTest;
+  friend class cobalt::MemoryAttributionBrowserTest;
 
   CobaltMemoryAttributionManager();
   ~CobaltMemoryAttributionManager() override;
