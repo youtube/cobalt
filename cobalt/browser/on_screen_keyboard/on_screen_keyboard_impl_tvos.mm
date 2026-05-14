@@ -135,6 +135,13 @@ OnScreenKeyboardImplTvos::OnScreenKeyboardImplTvos(
       objc_storage_->on_screen_keyboard_observer;
 }
 
+OnScreenKeyboardImplTvos::~OnScreenKeyboardImplTvos() {
+  if (SBDGetApplication().onScreenKeyboardManager.keyboardManagerDelegate ==
+      objc_storage_->on_screen_keyboard_observer) {
+    SBDGetApplication().onScreenKeyboardManager.keyboardManagerDelegate = nil;
+  }
+}
+
 void OnScreenKeyboardImplTvos::Show(const std::string& text,
                                     mojom::KeyboardOptionsPtr options,
                                     ShowCallback callback) {

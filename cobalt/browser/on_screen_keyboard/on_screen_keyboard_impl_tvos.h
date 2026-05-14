@@ -30,6 +30,8 @@ class OnScreenKeyboardImplTvos final : public OnScreenKeyboardImpl {
       content::RenderFrameHost& render_frame_host,
       mojo::PendingReceiver<mojom::OnScreenKeyboard> receiver);
 
+  ~OnScreenKeyboardImplTvos() override;
+
   void Show(const std::string& text,
             mojom::KeyboardOptionsPtr options,
             ShowCallback) override;
