@@ -57,6 +57,7 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         set -x
 
