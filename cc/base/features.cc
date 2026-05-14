@@ -79,7 +79,7 @@ BASE_FEATURE(kReclaimPrepaintTilesWhenIdle,
 // to find a better balance between checkerboarding and memory.
 BASE_FEATURE(kSmallerInterestArea,
              "SmallerInterestArea",
-             base::FEATURE_DISABLED_BY_DEFAULT
+             base::FEATURE_ENABLED_BY_DEFAULT
 );
 
 const base::FeatureParam<int> kInterestAreaSizeInPixels{
