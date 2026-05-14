@@ -152,6 +152,9 @@ def create_archive(
           target_deps=target_deps,
           target_src_root_deps=target_src_root_deps,
       )
+      if not archive_per_target:
+        combined_deps |= target_deps
+        combined_deps |= target_src_root_deps
     else:
       # Paths are configured in test.gni:
       # https://github.com/youtube/cobalt/blob/main/testing/test.gni
@@ -267,6 +270,11 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
+  parser.add_argument(
+      '--robolectric-runtime-deps',
+      type=lambda arg: arg.split(','),
+      help='Specific Robolectric JAR filenames to include from '
+      'third_party/robolectric/cipd/lib.')
   args = parser.parse_args()
 
   if args.flatten_deps != args.archive_per_target:
@@ -281,7 +289,8 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      robolectric_runtime_deps=args.robolectric_runtime_deps)
 
 
 if __name__ == '__main__':
