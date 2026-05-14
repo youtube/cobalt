@@ -28,9 +28,7 @@ runs:
       shell: bash
       run: |
         set -x
-        mkdir -p unit_test/
-        cd unit_test/
-        tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
+        tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
     - name: Setup Environment for Host Tests
       shell: bash
       run: |
@@ -38,7 +36,7 @@ runs:
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
         mkdir -p "${results_dir}"
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}"
+        out_dir="${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}"
         echo "out_dir=${out_dir}" >> $GITHUB_ENV
 
         LD_LIBRARY_PATH="${out_dir}/starboard:${out_dir}"
@@ -61,7 +59,7 @@ runs:
         mkdir -p ${test_output}
 
         failed_suites=""
-        cd unit_test/
+
 
         targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
         unit_executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
@@ -130,7 +128,7 @@ runs:
         set -x
         set -o pipefail
 
-        cd unit_test/
+
         targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
 
         failed_suites=""
