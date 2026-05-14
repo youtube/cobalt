@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Script to automatically roll LTS branch."""
 import argparse
+from collections import defaultdict
 import re
 import subprocess
 import sys
@@ -68,19 +69,21 @@ def get_unmerged_files():
                        text=True,
                        check=True)
   lines = res.stdout.splitlines()
-  files = {}
+  files = defaultdict(set)
   stage_map = {'1': 'ancestor', '2': 'ours', '3': 'theirs'}
   for line in lines:
     parts = line.split('\t', 1)
-    if len(parts) >= 2:
-      metadata, path = parts
-      meta_parts = metadata.split()
-      if len(meta_parts) >= 3:
-        stage = meta_parts[2]
-        if path not in files:
-          files[path] = set()
-        stage_name = stage_map.get(stage, stage)
-        files[path].add(stage_name)
+    if len(parts) < 2:
+      print(f'Warning: Malformed line (missing tab): {line}', file=sys.stderr)
+      continue
+    metadata, path = parts
+    meta_parts = metadata.split()
+    if len(meta_parts) < 3:
+      print(f'Warning: Malformed metadata: {metadata}', file=sys.stderr)
+      continue
+    _, _, stage = meta_parts[:3]
+    stage_name = stage_map.get(stage, stage)
+    files[path].add(stage_name)
   return files
 
 
