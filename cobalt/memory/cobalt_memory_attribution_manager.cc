@@ -32,39 +32,10 @@
 namespace cobalt {
 namespace memory {
 
-thread_local MemoryContext g_current_memory_context = MemoryContext::kUnknown;
-
-namespace {
-
-std::string_view ContextToString(MemoryContext context) {
-  switch (context) {
-    case MemoryContext::kUnknown:
-      return "Unknown";
-    case MemoryContext::kDOM:
-      return "DOM";
-    case MemoryContext::kLayout:
-      return "Layout";
-    case MemoryContext::kMedia:
-      return "Media";
-    case MemoryContext::kScript:
-      return "Script";
-    case MemoryContext::kNetwork:
-      return "Network";
-    case MemoryContext::kGraphics:
-      return "Graphics";
-    case MemoryContext::kStorage:
-      return "Storage";
-    case MemoryContext::kCount:
-      return "Unknown";
-  }
-}
-
-}  // namespace
-
 // static
 std::atomic<uint64_t>
     CobaltMemoryAttributionManager::counters_[static_cast<size_t>(
-        MemoryContext::kCount)];
+        base::memory::MemoryContext::kCount)];
 
 // static
 CobaltMemoryAttributionManager* CobaltMemoryAttributionManager::Get() {
@@ -74,7 +45,8 @@ CobaltMemoryAttributionManager* CobaltMemoryAttributionManager::Get() {
 }
 
 CobaltMemoryAttributionManager::CobaltMemoryAttributionManager() {
-  for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
+  for (size_t i = 0;
+       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
     counters_[i].store(0, std::memory_order_relaxed);
     last_snapshots_[i] = 0;
   }
@@ -130,8 +102,8 @@ void CobaltMemoryAttributionManager::Stop() {
 // static
 void CobaltMemoryAttributionManager::AllocationHook(
     const partition_alloc::AllocationNotificationData& notification_data) {
-  counters_[static_cast<size_t>(g_current_memory_context)].fetch_add(
-      notification_data.size(), std::memory_order_relaxed);
+  counters_[static_cast<size_t>(base::memory::GetCurrentMemoryContext())]
+      .fetch_add(notification_data.size(), std::memory_order_relaxed);
 }
 
 void CobaltMemoryAttributionManager::StartTimerOnSequence() {
@@ -162,14 +134,16 @@ void CobaltMemoryAttributionManager::ReportUma() {
   if ((now - last_report_time_) > base::Minutes(7)) {
     // Skip reporting if timer was delayed by device suspension
     last_report_time_ = now;
-    for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
+    for (size_t i = 0;
+         i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
       last_snapshots_[i] = counters_[i].load(std::memory_order_relaxed);
     }
     return;
   }
   last_report_time_ = now;
 
-  for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
+  for (size_t i = 0;
+       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
     uint64_t current = counters_[i].load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];
     uint64_t emitted_mb = delta / (1024 * 1024);
@@ -177,7 +151,8 @@ void CobaltMemoryAttributionManager::ReportUma() {
 
     base::UmaHistogramMemoryMB(
         base::StrCat({"Memory.Cobalt.AllocationVolume.",
-                      ContextToString(static_cast<MemoryContext>(i))}),
+                      base::memory::ContextToString(
+                          static_cast<base::memory::MemoryContext>(i))}),
         emitted_mb);
   }
 }
@@ -185,11 +160,13 @@ void CobaltMemoryAttributionManager::ReportUma() {
 bool CobaltMemoryAttributionManager::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
     base::trace_event::ProcessMemoryDump* pmd) {
-  for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
+  for (size_t i = 0;
+       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
     uint64_t current = counters_[i].load(std::memory_order_relaxed);
     std::string dump_name =
         base::StrCat({"cobalt/memory_attribution/",
-                      ContextToString(static_cast<MemoryContext>(i))});
+                      base::memory::ContextToString(
+                          static_cast<base::memory::MemoryContext>(i))});
     auto* dump = pmd->CreateAllocatorDump(dump_name);
     dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
                     base::trace_event::MemoryAllocatorDump::kUnitsBytes,

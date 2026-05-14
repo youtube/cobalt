@@ -2449,6 +2449,8 @@ component("base") {
 
   if (is_cobalt) {
     sources += [
+      "memory/cobalt_memory_context.cc",
+      "memory/cobalt_memory_context.h",
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]

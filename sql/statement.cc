@@ -35,7 +35,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/base_tracing.h"
 #if BUILDFLAG(IS_COBALT)
-#include "cobalt/memory/cobalt_memory_attribution_manager.h"  // nogncheck
+#include "base/memory/cobalt_memory_context.h"
 #endif
 #include "sql/database.h"
 #include "sql/sqlite_result_code.h"
@@ -161,8 +161,8 @@ bool Statement::Run() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if BUILDFLAG(IS_COBALT)
-  cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kStorage);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kStorage);
 #endif
 
 #if DCHECK_IS_ON()

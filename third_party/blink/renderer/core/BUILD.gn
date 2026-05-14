@@ -466,9 +466,7 @@ component("core") {
     deps += [ "//starboard:starboard_group" ]
   }
 
-  if (is_cobalt) {
-    deps += [ "//cobalt/memory" ]
-  }
+
 }
 
 # Certain sources should be compiled with heavy optimization enabled.

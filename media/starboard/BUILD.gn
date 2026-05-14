@@ -72,10 +72,6 @@ source_set("starboard") {
     "//url",
   ]
 
-  if (is_cobalt) {
-    deps += [ "//cobalt/memory" ]
-  }
-
   if (is_android) {
     deps += [ "//media/base/android" ]
   }

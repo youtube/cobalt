@@ -15,6 +15,7 @@
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 
 #include "base/feature_list.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "cobalt/browser/features.h"
@@ -23,6 +24,10 @@
 
 namespace cobalt {
 namespace memory {
+
+using base::memory::GetCurrentMemoryContext;
+using base::memory::MemoryContext;
+using base::memory::ScopedMemoryContext;
 
 class CobaltMemoryAttributionManagerTest : public testing::Test {
  protected:
@@ -58,21 +63,21 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
 };
 
 TEST_F(CobaltMemoryAttributionManagerTest, ScopedMemoryContextRestoresContext) {
-  EXPECT_EQ(g_current_memory_context, MemoryContext::kUnknown);
+  EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kUnknown);
 
   {
     ScopedMemoryContext dom_context(MemoryContext::kDOM);
-    EXPECT_EQ(g_current_memory_context, MemoryContext::kDOM);
+    EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kDOM);
 
     {
       ScopedMemoryContext media_context(MemoryContext::kMedia);
-      EXPECT_EQ(g_current_memory_context, MemoryContext::kMedia);
+      EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kMedia);
     }
 
-    EXPECT_EQ(g_current_memory_context, MemoryContext::kDOM);
+    EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kDOM);
   }
 
-  EXPECT_EQ(g_current_memory_context, MemoryContext::kUnknown);
+  EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kUnknown);
 }
 
 TEST_F(CobaltMemoryAttributionManagerTest,

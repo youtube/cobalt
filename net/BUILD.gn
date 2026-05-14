@@ -1156,6 +1156,8 @@ component("net") {
     "//third_party/simdutf:simdutf",
   ]
 
+
+
   public_deps = [
     ":net_export_header",
     ":net_public_deps",
