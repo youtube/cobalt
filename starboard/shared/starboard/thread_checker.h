@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
 #include "starboard/common/log.h"
+#include <unistd.h>
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -38,7 +39,7 @@ class ThreadChecker {
     // https://github.com/youtube/cobalt/blob/c38073920388e75c8a4451811e723562cf63ca58/base/threading/platform_thread_posix.cc
     thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
     if (tls_thread_id == kSbThreadInvalidId) {
-      tls_thread_id = SbThreadGetId();
+      tls_thread_id = gettid();
     }
     return tls_thread_id;
   }

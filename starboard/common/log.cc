@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cstring>
@@ -188,7 +189,7 @@ void LogMessage::Init(const char* file, int line) {
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
 #endif  // __ANDROID_API__ < 26
   stream_ << '[';
-  stream_ << name << '/' << SbThreadGetId() << ':';
+  stream_ << name << '/' << gettid() << ':';
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm tm_time = {0};
