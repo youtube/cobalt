@@ -40,6 +40,17 @@ class TestAutorollLts(unittest.TestCase):
     self.assertEqual(unmerged, {'file with spaces.txt': {'ours', 'theirs'}})
 
   @patch('subprocess.run')
+  def test_get_unmerged_files_with_leading_spaces(self, mock_run):
+    """Test get_unmerged_files with filenames containing leading spaces."""
+    mock_output = ('100644 abcdef 2\t  file with leading spaces.txt\n'
+                   '100644 abcdef 3\t  file with leading spaces.txt\n')
+    mock_run.return_value = MagicMock(stdout=mock_output, returncode=0)
+
+    unmerged = autoroll_lts.get_unmerged_files()
+    self.assertEqual(unmerged,
+                     {'  file with leading spaces.txt': {'ours', 'theirs'}})
+
+  @patch('subprocess.run')
   def test_get_unmerged_files_empty(self, mock_run):
     """Test get_unmerged_files with empty output."""
     mock_run.return_value = MagicMock(stdout='', returncode=0)
