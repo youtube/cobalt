@@ -77,6 +77,10 @@ class COMPONENT_EXPORT(
   static void SetProcSmapsForTesting(FILE*);
 #if BUILDFLAG(IS_COBALT)
   static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
+  static void SetSmapsRollupForTesting(FILE*);
+  static base::File GetSmapsFileForScanning();
+  static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(
+      const std::string& smaps_content);
 #endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
@@ -86,7 +90,7 @@ class COMPONENT_EXPORT(
   static bool FillDetailedMetrics(base::ProcessHandle handle,
                                   const MemDumpFlagSet& flags,
                                   mojom::RawOSMemDump* dump,
-                                  base::WeakPtr<DetailedMetricsDelegate> delegate) { return false; }
+                                  base::WeakPtr<DetailedMetricsDelegate> delegate);
   static bool ReadDetailedMetricsFile(base::ProcessHandle handle,
                                       base::WeakPtr<DetailedMetricsDelegate> delegate) { return false; }
 #endif

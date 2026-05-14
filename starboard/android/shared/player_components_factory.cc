@@ -171,31 +171,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   const bool enable_video_renderer_vsp_adjustment_;
 };
 
-class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
- public:
-  bool error_occurred() const { return error_occurred_.load(); }
-
- private:
-  void GetSourceStatus(int* frames_in_buffer,
-                       int* offset_in_frames,
-                       bool* is_playing,
-                       bool* is_eos_reached) override {
-    *frames_in_buffer = *offset_in_frames = 0;
-    *is_playing = true;
-    *is_eos_reached = false;
-  }
-  void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
-    SB_DCHECK_EQ(frames_consumed, 0);
-  }
-
-  void OnError(bool capability_changed,
-               const std::string& error_message) override {
-    error_occurred_.store(true);
-  }
-
-  std::atomic_bool error_occurred_{false};
-};
-
 class PlayerComponentsPassthrough : public PlayerComponents {
  public:
   PlayerComponentsPassthrough(

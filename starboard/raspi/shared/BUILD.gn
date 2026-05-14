@@ -73,7 +73,6 @@ static_library("starboard_platform_sources") {
     "//starboard/raspi/shared/player_components_factory.cc",
     "//starboard/raspi/shared/system_get_property.cc",
     "//starboard/raspi/shared/system_gles2.cc",
-    "//starboard/raspi/shared/thread_create_priority.cc",
     "//starboard/raspi/shared/video_renderer_sink_impl.cc",
     "//starboard/raspi/shared/video_renderer_sink_impl.h",
     "//starboard/raspi/shared/window_create.cc",
