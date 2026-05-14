@@ -75,6 +75,9 @@ IN_PROC_BROWSER_TEST_F(MemoryAttributionBrowserTest, RecordsAttributedMemory) {
 
   EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.DOM"));
   EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Layout"));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Script"));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Network"));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Graphics"));
 }
 
 }  // namespace cobalt

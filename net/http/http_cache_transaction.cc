@@ -41,6 +41,9 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/values.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"  // nogncheck
+#endif
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -177,6 +180,12 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   DCHECK(request);
   DCHECK(request->IsConsistent());
   DCHECK(!callback.is_null());
+
+#if BUILDFLAG(IS_COBALT)
+  cobalt::memory::ScopedMemoryContext scoped_context(
+      cobalt::memory::MemoryContext::kNetwork);
+#endif
+
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("net"),
                     "HttpCacheTransactionState", track_for_state_change_, "url",
                     request->url.spec());

@@ -20,6 +20,9 @@
 #include "base/types/optional_util.h"
 #include "base/types/pass_key.h"
 #include "base/values.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"  // nogncheck
+#endif
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
@@ -585,6 +588,11 @@ void URLRequest::set_allow_credentials(bool allow_credentials) {
 
 void URLRequest::Start() {
   DCHECK(delegate_);
+
+#if BUILDFLAG(IS_COBALT)
+  cobalt::memory::ScopedMemoryContext scoped_context(
+      cobalt::memory::MemoryContext::kNetwork);
+#endif
 
   // We do not support credentials with a non-general
   // NetworkIsolationPartition.

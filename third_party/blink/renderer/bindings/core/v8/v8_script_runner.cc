@@ -479,7 +479,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
 
 #if BUILDFLAG(IS_COBALT)
   cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kDOM);
+      cobalt::memory::MemoryContext::kScript);
 #endif
 
   v8::Local<v8::Value> script_name =

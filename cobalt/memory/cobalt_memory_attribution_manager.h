@@ -40,6 +40,10 @@ enum class MemoryContext {
   kDOM = 1,
   kLayout = 2,
   kMedia = 3,
+  kScript = 4,
+  kNetwork = 5,
+  kGraphics = 6,
+  kStorage = 7,
   kCount
 };
 

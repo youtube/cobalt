@@ -78,32 +78,52 @@ TEST_F(CobaltMemoryAttributionManagerTest, ScopedMemoryContextRestoresContext) {
 TEST_F(CobaltMemoryAttributionManagerTest,
        AllocationHookIncrementsActiveContext) {
   EXPECT_EQ(GetCounter(MemoryContext::kUnknown), 0u);
-  EXPECT_EQ(GetCounter(MemoryContext::kDOM), 0u);
-
   TriggerAllocationHook(1024);
   EXPECT_EQ(GetCounter(MemoryContext::kUnknown), 1024u);
-  EXPECT_EQ(GetCounter(MemoryContext::kDOM), 0u);
 
-  {
-    ScopedMemoryContext dom_context(MemoryContext::kDOM);
+  MemoryContext contexts[] = {
+      MemoryContext::kDOM,     MemoryContext::kLayout,
+      MemoryContext::kMedia,   MemoryContext::kScript,
+      MemoryContext::kNetwork, MemoryContext::kGraphics,
+      MemoryContext::kStorage,
+  };
+
+  for (MemoryContext context : contexts) {
+    EXPECT_EQ(GetCounter(context), 0u);
+    ScopedMemoryContext scoped_context(context);
     TriggerAllocationHook(2048);
-    EXPECT_EQ(GetCounter(MemoryContext::kUnknown), 1024u);
-    EXPECT_EQ(GetCounter(MemoryContext::kDOM), 2048u);
+    EXPECT_EQ(GetCounter(context), 2048u);
   }
 }
 
 TEST_F(CobaltMemoryAttributionManagerTest, ReportUmaEmitsDeltas) {
   base::HistogramTester histogram_tester;
 
-  {
-    ScopedMemoryContext dom_context(MemoryContext::kDOM);
-    TriggerAllocationHook(15 * 1024 * 1024);  // 15 MB
+  struct {
+    MemoryContext context;
+    const char* histogram_name;
+  } test_cases[] = {
+      {MemoryContext::kDOM, "Memory.Cobalt.AllocationVolume.DOM"},
+      {MemoryContext::kLayout, "Memory.Cobalt.AllocationVolume.Layout"},
+      {MemoryContext::kMedia, "Memory.Cobalt.AllocationVolume.Media"},
+      {MemoryContext::kScript, "Memory.Cobalt.AllocationVolume.Script"},
+      {MemoryContext::kNetwork, "Memory.Cobalt.AllocationVolume.Network"},
+      {MemoryContext::kGraphics, "Memory.Cobalt.AllocationVolume.Graphics"},
+      {MemoryContext::kStorage, "Memory.Cobalt.AllocationVolume.Storage"},
+  };
+
+  for (const auto& test_case : test_cases) {
+    {
+      ScopedMemoryContext scoped_context(test_case.context);
+      TriggerAllocationHook(15 * 1024 * 1024);  // 15 MB
+    }
   }
 
   TriggerReportUma();
 
-  histogram_tester.ExpectUniqueSample("Memory.Cobalt.AllocationVolume.DOM", 15,
-                                      1);
+  for (const auto& test_case : test_cases) {
+    histogram_tester.ExpectUniqueSample(test_case.histogram_name, 15, 1);
+  }
   histogram_tester.ExpectUniqueSample("Memory.Cobalt.AllocationVolume.Unknown",
                                       0, 1);
 
