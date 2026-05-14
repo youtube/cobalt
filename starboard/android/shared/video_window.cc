@@ -26,8 +26,10 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/ref_counted.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 
@@ -42,8 +44,14 @@ SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
 jobject g_j_video_surface = NULL;
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = NULL;
+
+}  // namespace
+
+namespace {
+
 // Global video surface pointer holder.
-VideoSurfaceHolder* g_video_surface_holder = NULL;
+scoped_refptr<SurfaceDestroyNotifier> g_surface_destroy_notifier = nullptr;
+
 // Global boolean to indicate if we need to reset SurfaceView after playing
 // vertical video.
 bool g_reset_surface_on_clear_window = false;
@@ -53,22 +61,29 @@ bool g_reset_surface_on_clear_window = false;
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder) {
-    g_video_surface_holder->OnSurfaceDestroyed();
-    g_video_surface_holder = NULL;
+  scoped_refptr<SurfaceDestroyNotifier> notifier_to_notify;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_surface_destroy_notifier) {
+      notifier_to_notify = g_surface_destroy_notifier;
+      g_surface_destroy_notifier = nullptr;
+    }
+    if (g_j_video_surface) {
+      env->DeleteGlobalRef(g_j_video_surface);
+      g_j_video_surface = NULL;
+    }
+    if (g_native_video_window) {
+      ANativeWindow_release(g_native_video_window);
+      g_native_video_window = NULL;
+    }
+    if (surface) {
+      g_j_video_surface = env->NewGlobalRef(surface.obj());
+      g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    }
   }
-  if (g_j_video_surface) {
-    env->DeleteGlobalRef(g_j_video_surface);
-    g_j_video_surface = NULL;
-  }
-  if (g_native_video_window) {
-    ANativeWindow_release(g_native_video_window);
-    g_native_video_window = NULL;
-  }
-  if (surface) {
-    g_j_video_surface = env->NewGlobalRef(surface.obj());
-    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+
+  if (notifier_to_notify) {
+    notifier_to_notify->Notify();
   }
 }
 
@@ -76,31 +91,44 @@ void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
   g_reset_surface_on_clear_window = true;
 }
 
+void SurfaceDestroyNotifier::RunTask() {
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (!disconnected_ && holder_) {
+    holder_->OnSurfaceDestroyed();
+  }
+  done_ = true;
+  cv_.notify_one();
+}
+
 // static
 bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
   // surface and it is not held by any decoder, i.e.
-  // g_video_surface_holder is NULL.
+  // g_surface_destroy_notifier is NULL.
   std::lock_guard lock(*GetViewSurfaceMutex());
-  return !g_video_surface_holder && g_j_video_surface;
+  return !g_surface_destroy_notifier && g_j_video_surface;
 }
 
-jobject VideoSurfaceHolder::AcquireVideoSurface() {
+scoped_refptr<SurfaceDestroyNotifier> VideoSurfaceHolder::AcquireVideoSurface(
+    JobQueue* job_queue,
+    jobject* out_surface) {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder != NULL) {
-    return NULL;
+  if (g_surface_destroy_notifier != nullptr) {
+    return nullptr;
   }
   if (!g_j_video_surface) {
-    return NULL;
+    return nullptr;
   }
-  g_video_surface_holder = this;
-  return g_j_video_surface;
+  g_surface_destroy_notifier = new SurfaceDestroyNotifier(this, job_queue);
+  *out_surface = g_j_video_surface;
+  return g_surface_destroy_notifier;
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder == this) {
-    g_video_surface_holder = NULL;
+  if (g_surface_destroy_notifier && g_surface_destroy_notifier->Holds(this)) {
+    g_surface_destroy_notifier->Disconnect();
+    g_surface_destroy_notifier = nullptr;
   }
 }
 

@@ -253,6 +253,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
+  scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;
+  bool in_on_surface_destroyed_ = false;
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;

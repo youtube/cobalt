@@ -979,7 +979,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (surface_view_) {
         j_output_surface = static_cast<jobject>(surface_view_);
       } else {
-        j_output_surface = AcquireVideoSurface();
+        surface_destroy_notifier_ =
+            AcquireVideoSurface(job_queue(), &j_output_surface);
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
@@ -1067,6 +1068,10 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
+  if (surface_destroy_notifier_ && !in_on_surface_destroyed_) {
+    surface_destroy_notifier_->Disconnect();
+    surface_destroy_notifier_ = nullptr;
+  }
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
@@ -1344,7 +1349,9 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
+  in_on_surface_destroyed_ = true;
   TeardownCodec();
+  in_on_surface_destroyed_ = false;
   {
     std::lock_guard lock(surface_destroy_mutex_);
     surface_destroyed_ = true;
