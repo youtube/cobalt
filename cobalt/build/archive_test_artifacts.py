@@ -118,6 +118,12 @@ def create_junit_archive(
       target_deps.add(os.path.join(out_dir, wrapper_rel_path))
       target_deps.add(os.path.join(out_dir, 'test_targets.json'))
 
+      # Add resource APK and native libs
+      target_deps.add(
+          os.path.join(out_dir, 'obj/cobalt/android',
+                       f'{target_name}.robo.ap_'))
+      target_deps.add(os.path.join(out_dir, 'robolectric_x64'))
+
     if robolectric_runtime_deps:
       for lib in robolectric_runtime_deps:
         lib_path = os.path.join(_ROBOLECTRIC_DEPS_DIR, lib)
