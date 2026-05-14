@@ -62,6 +62,7 @@ source_set("starboard") {
 
   deps += [
     "//base",
+    "//cobalt/memory",
     "//media:media_buildflags",
     "//media/base",
     "//media/renderers",

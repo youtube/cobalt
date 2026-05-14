@@ -460,6 +460,23 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Cobalt.AllocationVolume.{Context}" units="MiB"
+    expires_after="2027-05-13">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-core@google.com</owner>
+  <summary>
+    Records the total volume of memory allocated (gross allocations) by the
+    {Context} subsystem during a strict 5-minute sampling window. Emitted
+    periodically by CobaltMemoryAttributionManager.
+  </summary>
+  <token key="Context">
+    <variant name="DOM" summary="DOM subsystem"/>
+    <variant name="Layout" summary="Layout subsystem"/>
+    <variant name="Media" summary="Media pipeline"/>
+    <variant name="Unknown" summary="Unattributed allocations"/>
+  </token>
+</histogram>
+
 <histogram name="Memory.Experimental.Browser2.AndroidRuntime" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
