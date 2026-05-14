@@ -30,6 +30,8 @@ _EXCLUDE_DIRS = [
     '../../third_party/jdk/',
 ]
 
+_ROBOLECTRIC_DEPS_DIR = 'third_party/robolectric/cipd/lib'
+
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
               file_lists: List[Tuple[str, str]]):
@@ -88,30 +90,53 @@ def _handle_browsertests(
   subprocess.check_call(cmd)
 
 
-def _handle_junit_target(
+def create_junit_archive(
     *,
-    target_name: str,
+    targets: List[str],
+    source_dir: str,
     out_dir: str,
+    destination_dir: str,
+    compression: str,
+    compression_level: int,
     flatten_deps: bool,
-    robolectric_runtime_deps: List[str],
-    target_deps: set,
-    target_src_root_deps: set,
+    robolectric_runtime_deps: List[str] = None,
 ):
-  """Handles adding JUnit specific files to dependencies."""
-  print('Handling JUnit tests manually:', target_name)
+  """Handles archiving for JUnit tests manually."""
+  combined_deps = set()
+  for target in targets:
+    _, target_name = target.split(':')
+    print('Handling JUnit tests manually:', target_name)
 
-  wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
-  if flatten_deps:
-    target_deps.add(wrapper_rel_path)
-    target_deps.add('test_targets.json')
-  else:
-    target_deps.add(os.path.join(out_dir, wrapper_rel_path))
-    target_deps.add(os.path.join(out_dir, 'test_targets.json'))
+    target_deps = set()
+    target_src_root_deps = set()
 
-  if robolectric_runtime_deps:
-    for lib in robolectric_runtime_deps:
-      lib_path = os.path.join('third_party/robolectric/cipd/lib', lib)
-      target_src_root_deps.add(lib_path)
+    wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
+    if flatten_deps:
+      target_deps.add(wrapper_rel_path)
+      target_deps.add('test_targets.json')
+    else:
+      target_deps.add(os.path.join(out_dir, wrapper_rel_path))
+      target_deps.add(os.path.join(out_dir, 'test_targets.json'))
+
+    if robolectric_runtime_deps:
+      for lib in robolectric_runtime_deps:
+        lib_path = os.path.join(_ROBOLECTRIC_DEPS_DIR, lib)
+        target_src_root_deps.add(lib_path)
+
+    if flatten_deps:
+      raise ValueError('Unsupported configuration for JUnit tests.')
+    else:
+      combined_deps |= target_deps
+      combined_deps |= target_src_root_deps
+
+  output_path = os.path.join(destination_dir,
+                             f'test_artifacts.tar.{compression}')
+  _make_tar(
+      output_path,
+      compression,
+      compression_level,
+      [(combined_deps, source_dir)],
+  )
 
 
 def create_archive(
@@ -125,7 +150,6 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
-    robolectric_runtime_deps: List[str] = None,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   combined_deps = set()
@@ -138,67 +162,50 @@ def create_archive(
         return
       continue
     target_path, target_name = target.split(':')
-
-    tar_root = '.' if flatten_deps else out_dir
-    target_deps = set()
-    target_src_root_deps = set()
-
-    if target_name.endswith('_junit_tests'):
-      _handle_junit_target(
-          target_name=target_name,
-          out_dir=out_dir,
-          flatten_deps=flatten_deps,
-          robolectric_runtime_deps=robolectric_runtime_deps,
-          target_deps=target_deps,
-          target_src_root_deps=target_src_root_deps,
-      )
-      if not archive_per_target:
-        combined_deps |= target_deps
-        combined_deps |= target_src_root_deps
+    # Paths are configured in test.gni:
+    # https://github.com/youtube/cobalt/blob/main/testing/test.gni
+    if use_android_deps_path:
+      deps_file = os.path.join(
+          out_dir, 'gen.runtime', target_path,
+          f'{target_name}__test_runner_script.runtime_deps')
     else:
-      # Paths are configured in test.gni:
-      # https://github.com/youtube/cobalt/blob/main/testing/test.gni
-      if use_android_deps_path:
-        deps_file = os.path.join(
-            out_dir, 'gen.runtime', target_path,
-            f'{target_name}__test_runner_script.runtime_deps')
-      else:
-        deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
-        if not os.path.exists(deps_file):
-          # If |deps_file| doesn't exist it could be due to being generated with
-          # the starboard_toolchain. In that case, we should look in subfolders.
-          # For the time being, just try with an extra starboard/ in the path.
-          deps_file = os.path.join(out_dir, 'starboard',
-                                   f'{target_name}.runtime_deps')
+      deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
+      if not os.path.exists(deps_file):
+        # If |deps_file| doesn't exist it could be due to being generated with
+        # the starboard_toolchain. In that case, we should look in subfolders.
+        # For the time being, just try with an extra starboard/ in the path.
+        deps_file = os.path.join(out_dir, 'starboard',
+                                 f'{target_name}.runtime_deps')
 
-      print('Collecting runtime dependencies for', target)
-      with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
-        # The paths in the runtime_deps files are relative to the out folder.
-        # Android tests expects files both in the out and source root folders
-        # to be in the working directory of the archive whereas Linux tests
-        # expect it relative to the binary.
+    print('Collecting runtime dependencies for', target)
+    with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
+      # The paths in the runtime_deps files are relative to the out folder.
+      # Android tests expects files both in the out and source root folders
+      # to be in the working directory of the archive whereas Linux tests
+      # expect it relative to the binary.
+      tar_root = '.' if flatten_deps else out_dir
+      target_deps = set()
+      target_src_root_deps = set()
 
-        # Add test_targets.json to archive so that test runners know what to
-        # run.
-        test_targets_json = os.path.join(out_dir, 'test_targets.json')
-        if os.path.exists(test_targets_json):
-          target_deps.add(os.path.join(tar_root, 'test_targets.json'))
+      # Add test_targets.json to archive so that test runners know what to run.
+      test_targets_json = os.path.join(out_dir, 'test_targets.json')
+      if os.path.exists(test_targets_json):
+        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
-        for line in runtime_deps_file:
-          if any(line.startswith(path) for path in _EXCLUDE_DIRS):
-            continue
+      for line in runtime_deps_file:
+        if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+          continue
 
-          if flatten_deps and line.startswith('../../'):
-            target_src_root_deps.add(line.strip()[6:])
-          else:
-            # Rebase all files to be relative to their respective root
-            # (source or out dir) to be able to flatten them below.
-            # Chromium test runners
-            # have access to the source directory in '../..' which ours (ODTs
-            # especially) do not.
-            rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
-            target_deps.add(rel_path)
-        combined_deps |= target_deps
+        if flatten_deps and line.startswith('../../'):
+          target_src_root_deps.add(line.strip()[6:])
+        else:
+          # Rebase all files to be relative to their respective root (source or
+          # out dir) to be able to flatten them below. Chromium test runners
+          # have access to the source directory in '../..' which ours (ODTs
+          # especially) do not.
+          rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
+          target_deps.add(rel_path)
+      combined_deps |= target_deps
 
       if archive_per_target:
         output_path = os.path.join(destination_dir,
@@ -280,17 +287,27 @@ def main():
   if args.flatten_deps != args.archive_per_target:
     raise ValueError('Unsupported configuration.')
 
-  create_archive(
-      targets=args.targets,
-      source_dir=args.source_dir,
-      out_dir=args.out_dir,
-      destination_dir=args.destination_dir,
-      archive_per_target=args.archive_per_target,
-      use_android_deps_path=args.use_android_deps_path,
-      compression=args.compression,
-      compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps,
-      robolectric_runtime_deps=args.robolectric_runtime_deps)
+  if any(t.endswith('_junit_tests') for t in args.targets):
+    create_junit_archive(
+        targets=args.targets,
+        source_dir=args.source_dir,
+        out_dir=args.out_dir,
+        destination_dir=args.destination_dir,
+        compression=args.compression,
+        compression_level=args.compression_level,
+        flatten_deps=args.flatten_deps,
+        robolectric_runtime_deps=args.robolectric_runtime_deps)
+  else:
+    create_archive(
+        targets=args.targets,
+        source_dir=args.source_dir,
+        out_dir=args.out_dir,
+        destination_dir=args.destination_dir,
+        archive_per_target=args.archive_per_target,
+        use_android_deps_path=args.use_android_deps_path,
+        compression=args.compression,
+        compression_level=args.compression_level,
+        flatten_deps=args.flatten_deps)
 
 
 if __name__ == '__main__':
