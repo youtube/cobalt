@@ -959,7 +959,8 @@ const char kAllTracingCategories[] = "*";
           return;
         }
         NSString* searchString = searchController.searchBar.text;
-        if (searchResultLastString && searchResultLastString == searchString) {
+        if (searchResultLastString &&
+            [searchResultLastString isEqualToString:searchString]) {
           return;
         }
         searchResultLastString = searchString;
