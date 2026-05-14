@@ -117,6 +117,8 @@ class ShellPlatformDelegate {
   // from WebContentsObserver. If navigation creates a new main frame, this may
   // occur more than once.
   virtual void MainFrameCreated(Shell* shell);
+  virtual void OnPageVisibilityVisible(Shell* shell);
+  bool waiting_for_reveal_ack() const { return waiting_for_reveal_ack_; }
 
   // Allows platforms to override the JavascriptDialogManager. By default
   // returns null, which signals that the Shell should use its own instance.
@@ -194,6 +196,7 @@ class ShellPlatformDelegate {
   base::flat_map<Shell*, ShellData> shell_data_map_;
 
   bool is_visible_ = true;
+  bool waiting_for_reveal_ack_ = false;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This
   // is created in Initialize(), and is defined for each platform

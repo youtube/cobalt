@@ -22,6 +22,13 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
+#include "ui/aura/window_tree_host_platform.h"
+#include "ui/platform_window/platform_window.h"
+#if defined(USE_AURA)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif
 
 namespace content {
 
@@ -68,9 +75,24 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
+  waiting_for_reveal_ack_ = true;
   for (auto* shell : Shell::windows()) {
+    auto* native_view = shell->web_contents()->GetNativeView();
+    if (native_view) {
+      if (native_view->GetRootWindow()) {
+        auto* host = native_view->GetRootWindow()->GetHost();
+        if (host) {
+          auto* host_platform =
+              static_cast<aura::WindowTreeHostPlatform*>(host);
+#if defined(USE_AURA)
+          auto* platform_window = static_cast<ui::PlatformWindowStarboard*>(
+              host_platform->platform_window());
+          platform_window->SetWaitingForRevealAck(true);
+#endif
+        }
+      }
+    }
     RevealShell(shell);
-    shell->web_contents()->WasShown();
   }
   is_visible_ = true;
 }
@@ -114,6 +136,30 @@ bool ShellPlatformDelegate::HandlePointerLockRequest(
 
 bool ShellPlatformDelegate::ShouldAllowRunningInsecureContent(Shell* shell) {
   return false;
+}
+
+void ShellPlatformDelegate::OnPageVisibilityVisible(Shell* shell) {
+  if (waiting_for_reveal_ack_) {
+    waiting_for_reveal_ack_ = false;
+    auto* native_view = shell->web_contents()->GetNativeView();
+    if (native_view) {
+      if (native_view->GetRootWindow()) {
+        auto* host = native_view->GetRootWindow()->GetHost();
+        if (host) {
+          auto* host_platform =
+              static_cast<aura::WindowTreeHostPlatform*>(host);
+#if defined(USE_AURA)
+          auto* platform_window = static_cast<ui::PlatformWindowStarboard*>(
+              host_platform->platform_window());
+          platform_window->SetWaitingForRevealAck(false);
+#endif
+        }
+        native_view->GetRootWindow()->Show();
+      }
+      native_view->Show();
+    }
+    shell->web_contents()->WasShown();
+  }
 }
 
 }  // namespace content

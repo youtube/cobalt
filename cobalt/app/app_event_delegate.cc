@@ -24,6 +24,7 @@
 #include "base/run_loop.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/app/app_event_runner.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "content/public/browser/browser_thread.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
@@ -81,6 +82,9 @@ AppEventDelegate::AppEventDelegate(
     // If a special runner wasn't provided, use the default.
     runner_ = AppEventRunner::Create();
   }
+
+  h5vcc_runtime::H5vccRuntimeImpl::SetRevealAckCallback(base::BindRepeating(
+      &AppEventDelegate::OnRevealAck, base::Unretained(this)));
 }
 
 AppEventDelegate::~AppEventDelegate() {}
@@ -331,8 +335,46 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
   }
 }
 
+void AppEventDelegate::OnRevealAck() {
+  base::AutoLock lock(lock_);
+  if (waiting_for_reveal_ack_) {
+    waiting_for_reveal_ack_ = false;
+    if (pending_focus_) {
+      pending_focus_ = false;
+      // PostTask is used here to avoid deadlocking, as OnRevealAck holds
+      // lock_ and the task also tries to acquire it.
+      content::GetUIThreadTaskRunner({})->PostTask(
+          FROM_HERE, base::BindOnce(
+                         [](AppEventDelegate* delegate) {
+                           base::AutoLock lock(delegate->lock_);
+                           delegate->TransitionToLifeCycleState(
+                               ApplicationState::kStarted);
+                         },
+                         base::Unretained(this)));
+    }
+  }
+}
+
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   lock_.AssertAcquired();
+
+  // If we are trying to transition to kStarted (Focused) but are still waiting
+  // for the renderer to acknowledge that it has become visible (Reveal ACK),
+  // we defer the focus transition. This ensures the strict sequence:
+  // [Unfreeze -> Reveal -> Focus].
+  if (state == ApplicationState::kStarted && waiting_for_reveal_ack_) {
+    pending_focus_ = true;
+    return;
+  }
+
+  // If we are transitioning to kBlurred (which corresponds to a Reveal event
+  // when moving up from a lower state), we set waiting_for_reveal_ack_ to true.
+  // This flag will block subsequent transition to kStarted until the renderer
+  // sends the Reveal ACK via Mojo.
+  if (state == ApplicationState::kBlurred &&
+      application_state_ < ApplicationState::kBlurred) {
+    waiting_for_reveal_ack_ = true;
+  }
 
   // TransitionToLifeCycleState ensures that the application moves from its
   // current state to the target |state| by traversing all intermediate states

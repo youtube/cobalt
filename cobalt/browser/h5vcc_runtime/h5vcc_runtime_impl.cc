@@ -18,8 +18,12 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -28,6 +32,18 @@ using ::starboard::StarboardBridge;
 #endif
 
 namespace h5vcc_runtime {
+
+namespace {
+base::RepeatingClosure& GetRevealAckCallback() {
+  static base::NoDestructor<base::RepeatingClosure> callback;
+  return *callback;
+}
+}  // namespace
+
+// static
+void H5vccRuntimeImpl::SetRevealAckCallback(RevealAckCallback callback) {
+  GetRevealAckCallback() = std::move(callback);
+}
 
 // TODO (b/395126160): refactor mojom implementation on Android
 H5vccRuntimeImpl::H5vccRuntimeImpl(
@@ -68,6 +84,25 @@ void H5vccRuntimeImpl::AddListener(
   // can be accessed anywhere.
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   manager->AddListener(std::move(listener_remote));
+}
+
+void H5vccRuntimeImpl::PageVisibilityVisible() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  auto* web_contents =
+      content::WebContents::FromRenderFrameHost(&render_frame_host());
+  if (!web_contents) {
+    return;
+  }
+
+  content::Shell* shell = content::Shell::FromWebContents(web_contents);
+  if (shell) {
+    content::Shell::GetPlatform()->OnPageVisibilityVisible(shell);
+  }
+
+  if (GetRevealAckCallback()) {
+    GetRevealAckCallback().Run();
+  }
 }
 
 }  // namespace h5vcc_runtime
