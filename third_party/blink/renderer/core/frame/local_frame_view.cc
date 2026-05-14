@@ -2667,6 +2667,12 @@ bool LocalFrameView::AnyFrameIsPrintingOrPaintingPreview() {
 void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   DCHECK(ScriptForbiddenScope::WillBeScriptForbidden());
   DCHECK(LocalFrameTreeAllowsThrottling());
+
+#if BUILDFLAG(IS_COBALT)
+  cobalt::memory::ScopedMemoryContext scoped_context(
+      cobalt::memory::MemoryContext::kGraphics);
+#endif
+
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::RunPaintLifecyclePhase");
   // While printing or capturing a paint preview of a document, the paint walk
   // is done into a special canvas. There is no point doing a normal paint step

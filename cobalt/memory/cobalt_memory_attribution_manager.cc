@@ -46,7 +46,15 @@ std::string_view ContextToString(MemoryContext context) {
       return "Layout";
     case MemoryContext::kMedia:
       return "Media";
-    default:
+    case MemoryContext::kScript:
+      return "Script";
+    case MemoryContext::kNetwork:
+      return "Network";
+    case MemoryContext::kGraphics:
+      return "Graphics";
+    case MemoryContext::kStorage:
+      return "Storage";
+    case MemoryContext::kCount:
       return "Unknown";
   }
 }
