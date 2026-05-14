@@ -105,6 +105,13 @@ FEATURE_LIST_START
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
 
+// By default, Cobalt destroys and recreates AudioTrack during Seek().
+// Set the following variable to true to force it to Flush() AudioTrack
+// during Seek().
+STARBOARD_FEATURE(kForceFlushAudioTrackDuringReset,
+                  "ForceFlushAudioTrackDuringReset",
+                  false)
+
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
