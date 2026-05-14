@@ -20,6 +20,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
@@ -120,6 +121,8 @@ void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
 DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
     size_t size) {
+  cobalt::memory::ScopedMemoryContext scoped_context(
+      cobalt::memory::MemoryContext::kMedia);
   base::AutoLock scoped_lock(mutex_);
 
   EnsureStrategyIsCreated();

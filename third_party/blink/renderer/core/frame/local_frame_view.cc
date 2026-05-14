@@ -204,6 +204,10 @@
     }                               \
   } while (false)
 
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#endif
+
 namespace blink {
 namespace {
 
@@ -807,6 +811,11 @@ void LocalFrameView::UpdateLayout() {
   DCHECK(frame_);
   DCHECK_EQ(frame_->View(), this);
   DCHECK(frame_->GetPage());
+
+#if BUILDFLAG(IS_COBALT)
+  cobalt::memory::ScopedMemoryContext scoped_context(
+      cobalt::memory::MemoryContext::kLayout);
+#endif
 
   Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
 

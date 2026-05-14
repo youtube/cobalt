@@ -67,7 +67,9 @@
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
-#include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#endif
 
 namespace blink {
 
@@ -474,6 +476,11 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
     v8::Local<v8::Data> host_defined_options,
     ExecutionContext* context) {
   DCHECK(!script.IsEmpty());
+
+#if BUILDFLAG(IS_COBALT)
+  cobalt::memory::ScopedMemoryContext scoped_context(
+      cobalt::memory::MemoryContext::kDOM);
+#endif
 
   v8::Local<v8::Value> script_name =
       script->GetUnboundScript()->GetScriptName();
