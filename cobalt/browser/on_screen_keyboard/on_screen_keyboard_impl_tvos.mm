@@ -124,13 +124,13 @@ OnScreenKeyboardImplTvos::OnScreenKeyboardImplTvos(
   objc_storage_->on_screen_keyboard_observer = [[OnScreenKeyboardObserver alloc]
         initWithCallbacks:base::BindRepeating(
                               &OnScreenKeyboardImplTvos::KeyboardBlurred,
-                              base::Unretained(this))
+                              weak_ptr_factory_.GetWeakPtr())
           focusedCallback:base::BindRepeating(
                               &OnScreenKeyboardImplTvos::KeyboardFocused,
-                              base::Unretained(this))
+                              weak_ptr_factory_.GetWeakPtr())
       textChangedCallback:base::BindRepeating(
                               &OnScreenKeyboardImplTvos::KeyboardTextChanged,
-                              base::Unretained(this))];
+                              weak_ptr_factory_.GetWeakPtr())];
   SBDGetApplication().onScreenKeyboardManager.keyboardManagerDelegate =
       objc_storage_->on_screen_keyboard_observer;
 }
