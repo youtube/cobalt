@@ -26,6 +26,7 @@ class OnScreenKeyboardImplStub final : public OnScreenKeyboardImpl {
   OnScreenKeyboardImplStub(
       content::RenderFrameHost& render_frame_host,
       mojo::PendingReceiver<mojom::OnScreenKeyboard> receiver);
+  ~OnScreenKeyboardImplStub() override;
 
   void Show(const std::string& text,
             mojom::KeyboardOptionsPtr options,

@@ -24,6 +24,8 @@ OnScreenKeyboardImplStub::OnScreenKeyboardImplStub(
     mojo::PendingReceiver<mojom::OnScreenKeyboard> receiver)
     : OnScreenKeyboardImpl(render_frame_host, std::move(receiver)) {}
 
+OnScreenKeyboardImplStub::~OnScreenKeyboardImplStub() = default;
+
 void OnScreenKeyboardImplStub::Show(const std::string& text,
                                     mojom::KeyboardOptionsPtr options,
                                     ShowCallback callback) {
