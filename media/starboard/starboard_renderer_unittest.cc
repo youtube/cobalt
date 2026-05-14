@@ -200,7 +200,6 @@ class StarboardRendererTest : public testing::Test {
   const std::unique_ptr<StarboardRenderer> renderer_ =
       std::make_unique<StarboardRenderer>(
           task_environment_.GetMainThreadTaskRunner(),
-          task_environment_.GetMainThreadTaskRunner(),
           std::make_unique<NullMediaLog>(),
           /*overlay_plane_id=*/base::UnguessableToken::Create(),
           /*audio_write_duration_local=*/base::Seconds(1),

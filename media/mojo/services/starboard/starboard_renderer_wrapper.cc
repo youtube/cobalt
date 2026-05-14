@@ -44,9 +44,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
                                traits.task_runner),
       video_geometry_setter_service_(traits.video_geometry_setter_service),
       overlay_plane_id_(traits.overlay_plane_id),
-      renderer_(
+      renderer_(std::make_unique<StarboardRenderer>(
           traits.task_runner,
-          traits.gpu_task_runner,
           std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
                                          traits.task_runner),
           traits.overlay_plane_id,
@@ -59,7 +58,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           ,
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
-      ) {
+              )) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
@@ -68,7 +67,12 @@ StarboardRendererWrapper::StarboardRendererWrapper(
   gpu_task_runner_ = std::move(traits.gpu_task_runner);
 }
 
-StarboardRendererWrapper::~StarboardRendererWrapper() = default;
+StarboardRendererWrapper::~StarboardRendererWrapper() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // We explicitly destroy |renderer_| first to ensure that other members like
+  // |gpu_task_runner_| outlive |renderer_|.
+  renderer_.reset();
+}
 
 void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
                                           RendererClient* client,
@@ -340,7 +344,7 @@ StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
   if (test_renderer_) {
     return test_renderer_;
   }
-  return &renderer_;
+  return renderer_.get();
 }
 
 base::SequenceBound<StarboardGpuFactory>*

@@ -50,7 +50,6 @@ class MockStarboardRenderer : public StarboardRenderer {
  public:
   MockStarboardRenderer(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      const scoped_refptr<base::SingleThreadTaskRunner>& gpu_task_runner,
       std::unique_ptr<MediaLog> media_log,
       const base::UnguessableToken& overlay_plane_id,
       TimeDelta audio_write_duration_local,
@@ -65,7 +64,6 @@ class MockStarboardRenderer : public StarboardRenderer {
 #endif  // BUILDFLAG(IS_ANDROID)
       )
       : StarboardRenderer(task_runner,
-                          gpu_task_runner,
                           std::move(media_log),
                           overlay_plane_id,
                           audio_write_duration_local,
@@ -179,7 +177,6 @@ class StarboardRendererWrapperTest : public testing::Test {
 
   StarboardRendererWrapperTest()
       : mock_renderer_(std::make_unique<StrictMock<MockStarboardRenderer>>(
-            task_environment_.GetMainThreadTaskRunner(),
             task_environment_.GetMainThreadTaskRunner(),
             std::make_unique<NullMediaLog>(),
             base::UnguessableToken::Create(),

@@ -21,7 +21,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
@@ -52,20 +51,18 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer : public Renderer,
                                        private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      const scoped_refptr<base::SingleThreadTaskRunner>& gpu_task_runner,
-      std::unique_ptr<MediaLog> media_log,
-      const base::UnguessableToken& overlay_plane_id,
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
-      const std::string& max_video_capabilities,
-      const StarboardRendererConfig::ExperimentalFeatures&
-          experimental_features,
-      const gfx::Size& viewport_size
+  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                    std::unique_ptr<MediaLog> media_log,
+                    const base::UnguessableToken& overlay_plane_id,
+                    TimeDelta audio_write_duration_local,
+                    TimeDelta audio_write_duration_remote,
+                    const std::string& max_video_capabilities,
+                    const StarboardRendererConfig::ExperimentalFeatures&
+                        experimental_features,
+                    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+                    ,
+                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
@@ -197,7 +194,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  const scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
   const std::unique_ptr<MediaLog> media_log_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;

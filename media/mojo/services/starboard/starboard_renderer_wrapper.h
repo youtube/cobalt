@@ -16,6 +16,7 @@
 #define MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -152,7 +153,7 @@ class StarboardRendererWrapper
   mojo::Remote<ClientExtension> client_extension_remote_;
   cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
   const base::UnguessableToken overlay_plane_id_;
-  StarboardRenderer renderer_;
+  std::unique_ptr<StarboardRenderer> renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
   scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
