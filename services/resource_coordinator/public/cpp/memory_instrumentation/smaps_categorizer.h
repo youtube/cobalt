@@ -22,6 +22,7 @@
 #include "base/files/file.h"
 #include "base/functional/callback_forward.h"
 #include "base/component_export.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
@@ -50,7 +51,7 @@ using ParsedSmapsResults = std::vector<ParsedSmapsEntry>;
 class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
     SmapsCategorizer {
  public:
-  explicit SmapsCategorizer(base::WeakPtr<DetailedMetricsDelegate> delegate);
+  explicit SmapsCategorizer(DetailedMetricsDelegate* delegate);
   ~SmapsCategorizer();
 
   SmapsCategorizer(const SmapsCategorizer&) = delete;
@@ -76,7 +77,7 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   bool isScanning() const { return !pending_callbacks_.empty(); }
 
-  base::WeakPtr<DetailedMetricsDelegate> delegate_;
+  base::raw_ptr<DetailedMetricsDelegate> delegate_;
   std::vector<base::OnceClosure> pending_callbacks_;
 
   SEQUENCE_CHECKER(sequence_checker_);
