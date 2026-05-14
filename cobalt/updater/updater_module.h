@@ -148,6 +148,7 @@ class UpdaterModule {
   void MarkSuccessfulImpl();
   void Update();
 
+  // TODO: b/513314330 Investigate alternatives to Singleton
   // Holds the single instance of UpdaterModule.
   static UpdaterModule* updater_module_;
 };
