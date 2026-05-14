@@ -39,6 +39,7 @@ env:
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
+    testing/test_env.py
 
 jobs:
   # Retrieves configuration from json file.

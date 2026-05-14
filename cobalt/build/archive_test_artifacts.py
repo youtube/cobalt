@@ -129,6 +129,9 @@ def create_junit_archive(
         lib_path = os.path.join(_ROBOLECTRIC_DEPS_DIR, lib)
         target_src_root_deps.add(lib_path)
 
+    # Add third_party/catapult/devil for test_runner.py
+    target_src_root_deps.add('third_party/catapult/devil')
+
     if flatten_deps:
       raise ValueError('Unsupported configuration for JUnit tests.')
     else:
