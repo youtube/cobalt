@@ -73,7 +73,10 @@ runs:
           executables=$(jq -cr '.on_host.unit // [] | map(. | split(":")[-1]) | join(" ")' "${targets_file}")
         fi
 
-        for executable in ${executables}; do
+        if [[ -z "${executables}" ]]; then
+          echo "No on-host unit tests to run."
+        else
+          for executable in ${executables}; do
           test_binary="${executable%%.*}"
           test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${executable}"
 
@@ -118,6 +121,7 @@ runs:
             fi
           fi
         done
+        fi
         echo "Finished running tests..."
         if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
@@ -137,7 +141,11 @@ runs:
         failed_suites=""
 
         if [[ -f "${targets_file}" ]]; then
-          for target in $(jq -cr '.on_host.junit // [] | .[]' "${targets_file}"); do
+          junit_targets=$(jq -cr '.on_host.junit // [] | .[]' "${targets_file}")
+          if [[ -z "${junit_targets}" ]]; then
+            echo "No on-host JUnit tests to run."
+          else
+            for target in ${junit_targets}; do
             test_binary="${target#*:}"
             test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${test_binary}"
             log_path="${results_dir}/${test_binary}_log.txt"
@@ -159,6 +167,7 @@ runs:
               failed_suites="${failed_suites} ${test_binary}"
             fi
           done
+          fi
         fi
 
         if [[ -n "${failed_suites}" ]]; then
