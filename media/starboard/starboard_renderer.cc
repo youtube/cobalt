@@ -21,7 +21,9 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#if BUILDFLAG(IS_COBALT)
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#endif
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
@@ -753,8 +755,10 @@ void StarboardRenderer::OnDemuxerStreamRead(
     int max_buffers,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
+#if BUILDFLAG(IS_COBALT)
   cobalt::memory::ScopedMemoryContext scoped_context(
       cobalt::memory::MemoryContext::kMedia);
+#endif
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,

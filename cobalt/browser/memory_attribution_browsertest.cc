@@ -36,15 +36,11 @@ class MemoryAttributionBrowserTest : public content::ContentBrowserTest {
   ~MemoryAttributionBrowserTest() override = default;
 
  protected:
-  void TriggerStart() {
-    memory::CobaltMemoryAttributionManager::Get()->Start();
-  }
   void TriggerReportUma() {
-    auto* manager = memory::CobaltMemoryAttributionManager::Get();
-    // Ensure last_report_time_ is set to Now() so ReportUma does not skip
-    // reporting due to the 7-minute suspension check.
-    manager->last_report_time_ = base::TimeTicks::Now();
-    manager->ReportUma();
+    base::RunLoop run_loop;
+    memory::CobaltMemoryAttributionManager::Get()->RequestReportUmaForTesting(
+        run_loop.QuitClosure());
+    run_loop.Run();
   }
 
  private:
@@ -52,8 +48,6 @@ class MemoryAttributionBrowserTest : public content::ContentBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(MemoryAttributionBrowserTest, RecordsAttributedMemory) {
-  TriggerStart();
-
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));

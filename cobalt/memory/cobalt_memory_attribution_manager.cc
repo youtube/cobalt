@@ -54,6 +54,11 @@ std::string_view ContextToString(MemoryContext context) {
 }  // namespace
 
 // static
+std::atomic<uint64_t>
+    CobaltMemoryAttributionManager::counters_[static_cast<size_t>(
+        MemoryContext::kCount)];
+
+// static
 CobaltMemoryAttributionManager* CobaltMemoryAttributionManager::Get() {
   return base::Singleton<
       CobaltMemoryAttributionManager,
@@ -117,7 +122,7 @@ void CobaltMemoryAttributionManager::Stop() {
 // static
 void CobaltMemoryAttributionManager::AllocationHook(
     const partition_alloc::AllocationNotificationData& notification_data) {
-  Get()->counters_[static_cast<size_t>(g_current_memory_context)].fetch_add(
+  counters_[static_cast<size_t>(g_current_memory_context)].fetch_add(
       notification_data.size(), std::memory_order_relaxed);
 }
 
@@ -129,6 +134,19 @@ void CobaltMemoryAttributionManager::StartTimerOnSequence() {
 
 void CobaltMemoryAttributionManager::StopTimerOnSequence() {
   timer_.Stop();
+}
+
+void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
+    base::OnceClosure callback) {
+  if (!timer_task_runner_) {
+    std::move(callback).Run();
+    return;
+  }
+  timer_task_runner_->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&CobaltMemoryAttributionManager::ReportUma,
+                     base::Unretained(this)),
+      std::move(callback));
 }
 
 void CobaltMemoryAttributionManager::ReportUma() {
@@ -146,12 +164,13 @@ void CobaltMemoryAttributionManager::ReportUma() {
   for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
     uint64_t current = counters_[i].load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];
-    last_snapshots_[i] = current;
+    uint64_t emitted_mb = delta / (1024 * 1024);
+    last_snapshots_[i] += emitted_mb * (1024 * 1024);
 
     base::UmaHistogramMemoryMB(
         base::StrCat({"Memory.Cobalt.AllocationVolume.",
                       ContextToString(static_cast<MemoryContext>(i))}),
-        delta / (1024 * 1024));
+        emitted_mb);
   }
 }
 
