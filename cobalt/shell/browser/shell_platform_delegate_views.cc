@@ -135,7 +135,7 @@ class ShellView : public views::BoxLayoutView,
               static_cast<ui::PlatformWindowStarboard*>(platform_window);
           bool is_waiting =
               pw_starboard->IsWaitingForRevealAck() ||
-              content::Shell::GetPlatform()->waiting_for_reveal_ack();
+              content::Shell::GetPlatform()->IsWaitingForRevealAck();
           if (is_waiting) {
             should_focus = false;
             if (!pw_starboard->IsWaitingForRevealAck()) {
@@ -144,7 +144,7 @@ class ShellView : public views::BoxLayoutView,
           }
 #else
           bool is_waiting =
-              content::Shell::GetPlatform()->waiting_for_reveal_ack();
+              content::Shell::GetPlatform()->IsWaitingForRevealAck();
           if (is_waiting) {
             should_focus = false;
           }

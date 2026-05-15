@@ -84,6 +84,19 @@ class AppEventRunnerImpl : public AppEventRunner {
         false /* is_content_browsertests */, is_visible);
   }
 
+  bool IsWaitingForRevealAck() const override {
+    if (content::Shell::GetPlatform()) {
+      return content::Shell::GetPlatform()->IsWaitingForRevealAck();
+    }
+    return false;
+  }
+
+  void ClearWaitingForRevealAck() override {
+    if (content::Shell::GetPlatform()) {
+      content::Shell::GetPlatform()->ClearWaitingForRevealAck();
+    }
+  }
+
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
     return content_main_delegate_.get();
   }

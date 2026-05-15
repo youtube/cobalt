@@ -137,7 +137,6 @@ class AppEventDelegate {
 
   base::OnceClosure transition_quit_closure_;
 
-  bool waiting_for_reveal_ack_ = false;
   bool pending_focus_ = false;
 
 #if BUILDFLAG(IS_STARBOARD)
