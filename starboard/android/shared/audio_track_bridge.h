@@ -43,7 +43,7 @@ class AudioTrackBridge {
       int channels,
       int sampling_frequency_hz,
       int preferred_buffer_size_in_bytes,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio);
 
   AudioTrackBridge(
