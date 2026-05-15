@@ -40,6 +40,15 @@ rendering issues caused by Chromium's shader expectations.
 ### Added AV2 to SbMediaVideoCodec
 This prepares Cobalt for future AV2 playback support.
 
+### Removed unused configuration constants
+The following configuration constants were removed as they are no longer used by Cobalt core:
+* `kSbFileMaxOpen`
+* `kSbMaxThreadLocalKeys`
+* `kSbMaxThreadNameLength`
+* `kSbNetworkReceiveBufferSize`
+* `kSbPathSepChar`
+* `kSbPathSepString`
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
