@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include <vector>
 
 #include "starboard/nplb/player_test_fixture.h"
@@ -27,6 +28,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
+using std::chrono::seconds;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -228,7 +230,7 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
     ASSERT_EQ(initial_configs, configs_after_presenting);
   }
 
-  const int64_t seek_to_time = 1'000'000;  // 1 second
+  const seconds seek_to_time(1);
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time));
 
   std::vector<SbMediaAudioConfiguration> configs_after_seek;

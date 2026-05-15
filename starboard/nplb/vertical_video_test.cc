@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -30,6 +31,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::VideoDmpReader;
+using std::chrono::milliseconds;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -131,9 +133,9 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   SB_DCHECK(player_fixture.HasAudio());
 
   int audio_samples_to_write =
-      player_fixture.ConvertDurationToAudioBufferCount(200'000);
+      player_fixture.ConvertDurationToAudioBufferCount(milliseconds(200));
   int video_samples_to_write =
-      player_fixture.ConvertDurationToVideoBufferCount(200'000);
+      player_fixture.ConvertDurationToVideoBufferCount(milliseconds(200));
 
   GroupedSamples samples;
   samples.AddAudioSamples(0, audio_samples_to_write);

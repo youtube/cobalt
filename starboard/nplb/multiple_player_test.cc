@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include <list>
 #include <string>
 
@@ -34,6 +35,7 @@ namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
 using ::starboard::VideoDmpReader;
+using std::chrono::milliseconds;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -200,7 +202,7 @@ void WriteSamples(const SbPlayerTestConfig& player_config,
     return;
   }
 
-  const int64_t kDurationToPlay = 200'000;  // 200ms
+  const milliseconds kDurationToPlay(200);
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
