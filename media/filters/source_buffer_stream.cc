@@ -1861,6 +1861,12 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     DVLOG(2)
         << __func__
         << ": Skipping updating memory limit as memory limit was overridden.";
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (GetVideoBufferSizeClamp() != std::numeric_limits<size_t>::max()) {
+      LOG(WARNING)
+          << "Experiment VideoBufferSizeClamp is active but ignored as memory limit was overridden.";
+    }
+#endif //  BUILDFLAG(USE_STARBOARD_MEDIA)
   } else {
     // Dynamically increase |memory_limit_| on video config changes.
     size_t new_memory_limit =
@@ -1871,17 +1877,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       memory_limit_ = new_memory_limit;
     }
   }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Dynamically increase |memory_limit_| when video resolution goes up.
-  // Note: m138+ introduces new ways to set the stream memory limit.
-  // TODO: b/460460519 - Readjust this code after rebasing to m138+.
-  memory_limit_ = std::max(
-      memory_limit_,
-      GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer,
-                                       &config));
-  memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return true;
 }

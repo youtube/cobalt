@@ -156,7 +156,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
   REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
@@ -220,8 +219,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadGetId);
-  REGISTER_SYMBOL(SbThreadGetPriority);
-  REGISTER_SYMBOL(SbThreadSetPriority);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
