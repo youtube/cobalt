@@ -13,8 +13,6 @@ These instructions were tested on a clean ubuntu:22.04 environment. We recommend
 
    ```bash
    sudo apt update && sudo apt install -qqy --no-install-recommends \
-     bison clang libasound2-dev libgles2-mesa-dev libglib2.0-dev \
-     libxcomposite-dev libxi-dev libxrender-dev nasm ninja-build \
      git curl python3-dev xz-utils lsb-release file
    ```
 
