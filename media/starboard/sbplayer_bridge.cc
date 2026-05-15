@@ -728,6 +728,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.enable_flush_during_seek;
     extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
+    extension_features.flush_audio_track_during_seek =
+        experimental_features_.flush_audio_track_during_seek;
     extension_features.skip_flush_on_decoder_teardown =
         experimental_features_.skip_flush_on_decoder_teardown;
     extension_features.skip_video_frames_over_60_fps =

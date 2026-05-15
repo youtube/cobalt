@@ -17,6 +17,8 @@
 
 #include <jni.h>
 
+#include <optional>
+
 #include "base/memory/singleton.h"
 #include "starboard/media.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -34,7 +36,7 @@ class AudioOutputManager {
       int sample_rate,
       int channel_count,
       int preferred_buffer_size_in_bytes,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       jboolean is_web_audio);
 
   void DestroyAudioTrackBridge(JNIEnv* env,
@@ -56,7 +58,8 @@ class AudioOutputManager {
 
   bool GetAndResetHasAudioDeviceChanged(JNIEnv* env);
 
-  int GenerateTunnelModeAudioSessionId(JNIEnv* env, int numberOfChannels);
+  std::optional<int> GenerateTunnelModeAudioSessionId(JNIEnv* env,
+                                                      int numberOfChannels);
 
   bool HasPassthroughSupportFor(JNIEnv* env, int encoding);
 
