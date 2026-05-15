@@ -25,20 +25,22 @@ Consider adding the `depot_tools` directory to `PATH` in `.bashrc`, `.profile`, 
 
 ## Get source code ##
 
-Download the repository. Use whichever protocol you prefer.
+There are two supported approaches to configuring your local checkout.
 
-```
-git clone --single-branch git@github.com:youtube/cobalt.git chromium/src
-git -C chromium/src remote add _gclient git@github.com:youtube/cobalt.git
+### Option A: Automated Checkout Setup (Recommended)
+If you are initializing a fresh workspace, you can utilize the automated Cobalt checkout orchestration script located in the repository tools:
+
+```bash
+python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --internal --github-user "<your_github_username>"
 ```
 
-Configure gclient and download subrepos
+### Option B: Standard Chromium Checkout (Manual)
+If you prefer managing the checkout manually:
 
-```
-cd chromium
-gclient config --name=src git@github.com:youtube/cobalt.git
-cd src
-gclient sync --no-history -r $(git rev-parse @)
+```bash
+mkdir ~/chromium && cd ~/chromium
+fetch --nohooks chromium
+# Note: Use --no-history for a faster checkout without full commit history.
 ```
 
 
@@ -46,30 +48,35 @@ gclient sync --no-history -r $(git rev-parse @)
 
 Install build dependencies:
 
+```bash
+cd src
+build/install-build-deps.sh
+gclient runhooks
 ```
-./build/install-build-deps.sh
 
-```
+Build Evergreen for Linux:
 
-Build Evergreen for linux:
+```bash
+gn args out/evergreen-x64_devel
+# Enter: target_os="linux" target_cpu="x64" is_cobalt=true use_evergreen=true build_type="devel"
 
-```
-cobalt/build/gn.py -p evergreen-x64 -c devel --no-rbe
-autoninja -C out/evergreen-x64_devel/ cobalt_loader nplb_loader
+autoninja -C out/evergreen-x64_devel cobalt_loader nplb_loader
 ```
 
 ## Running Cobalt ##
 
-After build complete, you can run Cobalt with:
+After the build completes, you can run Cobalt in Evergreen mode with:
 
-```
-out/evergreen-x64_devel/loader_app
+```bash
+cd out/evergreen-x64_devel
+./cobalt_loader.py
 ```
 
-To run `nplb`:
+To run `nplb` in Evergreen mode:
 
-```
-out/evergreen-x64_devel/elf_loader_sandbox --evergreen_content=. --evergreen_library=libnplb.so
+```bash
+cd out/evergreen-x64_devel
+./nplb_loader.py
 ```
 
 ## Additional Tips: ##

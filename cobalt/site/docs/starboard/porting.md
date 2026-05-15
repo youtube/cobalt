@@ -21,8 +21,9 @@ conflict with future Cobalt source code changes.
 To complete the instructions below, you first need to clone the Cobalt source
 code repository:
 
-```sh
-$ git clone https://cobalt.googlesource.com/cobalt
+```bash
+mkdir ~/chromium && cd ~/chromium
+fetch --nohooks chromium
 ```
 
 If you prefer, you can instead complete the instructions for

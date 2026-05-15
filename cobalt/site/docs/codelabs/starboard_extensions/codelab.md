@@ -716,16 +716,16 @@ Once you've written your test you can execute it to confirm that it passes.
 from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
-```
-$ cobalt/build/gn.py -p linux-x64x11
-```
-
-```
-$ ninja -C out/linux-x64x11_devel all
+```bash
+gn args out/linux-x64x11_devel
 ```
 
+```bash
+autoninja -C out/linux-x64x11_devel extension_test
 ```
-$ out/linux-x64x11_devel/extension_test
+
+```bash
+out/linux-x64x11_devel/extension_test
 ```
 
 Tip: because the `extension_test` has type `<(gtest_target_type)`, we can use
