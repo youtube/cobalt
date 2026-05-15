@@ -243,7 +243,6 @@ static_library("starboard_platform_sources") {
     "media/media_get_buffer_padding.cc",
     "media/media_get_initial_buffer_capacity.cc",
     "media/media_get_max_buffer_capacity.cc",
-    "media/media_get_progressive_buffer_budget.cc",
     "media/media_get_video_buffer_budget.cc",
     "media/media_is_audio_supported.cc",
     "media/media_is_buffer_pool_allocate_on_demand.cc",
