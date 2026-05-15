@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/modules_initializer.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <memory>
 
@@ -78,7 +79,9 @@
 #include "third_party/blink/renderer/modules/media_capabilities_names.h"
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/modules/mediasource/media_source_registry_impl.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/presentation/presentation.h"
 #include "third_party/blink/renderer/modules/push_messaging/push_messaging_client.h"
 #include "third_party/blink/renderer/modules/remoteplayback/html_media_element_remote_playback.h"
@@ -259,9 +262,11 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
       &RemoteObjectGatewayFactoryImpl::Bind, WrapWeakPersistent(&frame)));
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   frame.GetInterfaceRegistry()->AddInterface(
       WTF::BindRepeating(&PeerConnectionTracker::BindToFrame,
                          WrapCrossThreadWeakPersistent(&frame)));
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   if (base::FeatureList::IsEnabled(kBlinkEnableInnerTextAgent)) {
     frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
