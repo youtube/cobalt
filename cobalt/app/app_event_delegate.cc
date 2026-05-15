@@ -337,8 +337,9 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
 
 void AppEventDelegate::OnRevealAck() {
   base::AutoLock lock(lock_);
-  if (waiting_for_reveal_ack_) {
-    waiting_for_reveal_ack_ = false;
+  bool is_waiting = runner_->IsWaitingForRevealAck();
+  if (is_waiting) {
+    runner_->ClearWaitingForRevealAck();
     if (pending_focus_) {
       pending_focus_ = false;
       // PostTask is used here to avoid deadlocking, as OnRevealAck holds
@@ -362,18 +363,10 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   // for the renderer to acknowledge that it has become visible (Reveal ACK),
   // we defer the focus transition. This ensures the strict sequence:
   // [Unfreeze -> Reveal -> Focus].
-  if (state == ApplicationState::kStarted && waiting_for_reveal_ack_) {
+  bool is_waiting = runner_->IsWaitingForRevealAck();
+  if (state == ApplicationState::kStarted && is_waiting) {
     pending_focus_ = true;
     return;
-  }
-
-  // If we are transitioning to kBlurred (which corresponds to a Reveal event
-  // when moving up from a lower state), we set waiting_for_reveal_ack_ to true.
-  // This flag will block subsequent transition to kStarted until the renderer
-  // sends the Reveal ACK via Mojo.
-  if (state == ApplicationState::kBlurred &&
-      application_state_ < ApplicationState::kBlurred) {
-    waiting_for_reveal_ack_ = true;
   }
 
   // TransitionToLifeCycleState ensures that the application moves from its

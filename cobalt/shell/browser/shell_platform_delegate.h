@@ -118,7 +118,8 @@ class ShellPlatformDelegate {
   // occur more than once.
   virtual void MainFrameCreated(Shell* shell);
   virtual void OnPageVisibilityVisible(Shell* shell);
-  bool waiting_for_reveal_ack() const { return waiting_for_reveal_ack_; }
+  bool IsWaitingForRevealAck() const;
+  void ClearWaitingForRevealAck();
 
   // Allows platforms to override the JavascriptDialogManager. By default
   // returns null, which signals that the Shell should use its own instance.
@@ -196,6 +197,10 @@ class ShellPlatformDelegate {
   base::flat_map<Shell*, ShellData> shell_data_map_;
 
   bool is_visible_ = true;
+  // This flag tracks whether we are waiting for the web app to acknowledge
+  // becoming visible (Reveal ACK). We need this local copy because the
+  // source of truth in PlatformWindowStarboard is not accessible during
+  // early resume stages (root_window is null).
   bool waiting_for_reveal_ack_ = false;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This

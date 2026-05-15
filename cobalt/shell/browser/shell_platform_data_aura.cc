@@ -121,7 +121,9 @@ ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size,
 #if defined(USE_AURA)
   auto* pw_starboard = static_cast<ui::PlatformWindowStarboard*>(
       host_platform->platform_window());
-  if (!pw_starboard->IsWaitingForRevealAck()) {
+  bool is_waiting = content::Shell::GetPlatform()->IsWaitingForRevealAck();
+  pw_starboard->SetWaitingForRevealAck(is_waiting);
+  if (!is_waiting) {
     host_->window()->Show();
   }
 #else

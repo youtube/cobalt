@@ -53,6 +53,12 @@ class AppEventRunner {
   // Returns the main delegate.
   virtual cobalt::CobaltMainDelegate* GetMainDelegate() = 0;
 
+  // Returns true if the application is waiting for reveal ACK.
+  virtual bool IsWaitingForRevealAck() const = 0;
+
+  // Clears the waiting for reveal ACK flag.
+  virtual void ClearWaitingForRevealAck() = 0;
+
   // Lifecycle signals called from the application.
   // These functions check and update the running, visible, focused, and frozen
   // state values and call their matching DoFoo() functions for the actual

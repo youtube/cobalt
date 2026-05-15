@@ -32,6 +32,28 @@
 
 namespace content {
 
+namespace {
+#if defined(USE_AURA)
+ui::PlatformWindowStarboard* GetPlatformWindowStarboard(Shell* shell) {
+  auto* native_view = shell->web_contents()->GetNativeView();
+  if (!native_view) {
+    return nullptr;
+  }
+  auto* root_window = native_view->GetRootWindow();
+  if (!root_window) {
+    return nullptr;
+  }
+  auto* host = root_window->GetHost();
+  if (!host) {
+    return nullptr;
+  }
+  auto* host_platform = static_cast<aura::WindowTreeHostPlatform*>(host);
+  return static_cast<ui::PlatformWindowStarboard*>(
+      host_platform->platform_window());
+}
+#endif
+}  // namespace
+
 bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
 }
@@ -87,7 +109,9 @@ void ShellPlatformDelegate::OnReveal() {
 #if defined(USE_AURA)
           auto* platform_window = static_cast<ui::PlatformWindowStarboard*>(
               host_platform->platform_window());
-          platform_window->SetWaitingForRevealAck(true);
+          if (platform_window) {
+            platform_window->SetWaitingForRevealAck(true);
+          }
 #endif
         }
       }
@@ -139,27 +163,60 @@ bool ShellPlatformDelegate::ShouldAllowRunningInsecureContent(Shell* shell) {
 }
 
 void ShellPlatformDelegate::OnPageVisibilityVisible(Shell* shell) {
-  if (waiting_for_reveal_ack_) {
+  if (IsWaitingForRevealAck()) {
     waiting_for_reveal_ack_ = false;
+#if defined(USE_AURA)
+    auto* platform_window = GetPlatformWindowStarboard(shell);
+    if (platform_window) {
+      platform_window->SetWaitingForRevealAck(false);
+    }
     auto* native_view = shell->web_contents()->GetNativeView();
     if (native_view) {
       if (native_view->GetRootWindow()) {
-        auto* host = native_view->GetRootWindow()->GetHost();
-        if (host) {
-          auto* host_platform =
-              static_cast<aura::WindowTreeHostPlatform*>(host);
-#if defined(USE_AURA)
-          auto* platform_window = static_cast<ui::PlatformWindowStarboard*>(
-              host_platform->platform_window());
-          platform_window->SetWaitingForRevealAck(false);
-#endif
-        }
         native_view->GetRootWindow()->Show();
       }
       native_view->Show();
     }
+#endif
     shell->web_contents()->WasShown();
   }
 }
 
+bool ShellPlatformDelegate::IsWaitingForRevealAck() const {
+  bool new_is_waiting = false;
+#if defined(USE_AURA)
+  auto* shell = Shell::windows().empty() ? nullptr : Shell::windows().front();
+  if (shell) {
+    auto* platform_window = GetPlatformWindowStarboard(shell);
+    if (platform_window) {
+      new_is_waiting = platform_window->IsWaitingForRevealAck();
+    }
+  }
+#endif
+  // We check both the internal flag and the platform window state.
+  // The platform window needs to track this state to block focus events
+  // synchronously. However, during early resume stages, the platform window
+  // might not be accessible, so we must also maintain the state internally
+  // in ShellPlatformDelegate to avoid losing it.
+  // We cannot simply assume it is true when the platform window is
+  // inaccessible, because that is also the case during initial startup, where
+  // we are NOT waiting for a reveal ACK and must not block focus.
+  // Furthermore, we need the local flag to override the platform window state
+  // if it holds a stale 'false' value (e.g., if it was non-null but not yet
+  // updated when queried).
+  return waiting_for_reveal_ack_ || new_is_waiting;
+}
+
+void ShellPlatformDelegate::ClearWaitingForRevealAck() {
+  waiting_for_reveal_ack_ = false;
+#if defined(USE_AURA)
+  auto* shell = Shell::windows().empty() ? nullptr : Shell::windows().front();
+  if (shell) {
+    auto* platform_window = GetPlatformWindowStarboard(shell);
+    if (platform_window) {
+      platform_window->SetWaitingForRevealAck(false);
+    }
+  }
+#endif
+}
 }  // namespace content

@@ -978,7 +978,7 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  if (!g_platform->waiting_for_reveal_ack()) {
+  if (!g_platform->IsWaitingForRevealAck()) {
     contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
   }
 }
@@ -1074,7 +1074,7 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
 }
 
 bool Shell::ShouldFocusPageAfterCrash(WebContents* source) {
-  return !g_platform->waiting_for_reveal_ack();
+  return !g_platform->IsWaitingForRevealAck();
 }
 
 gfx::Size Shell::GetShellDefaultSize() {
