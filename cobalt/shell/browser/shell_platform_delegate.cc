@@ -23,12 +23,12 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/aura/window_tree_host_platform.h"
-#include "ui/platform_window/platform_window.h"
-#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#include "ui/platform_window/platform_window.h"
 #endif
 
 namespace content {

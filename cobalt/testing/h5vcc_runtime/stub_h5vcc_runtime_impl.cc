@@ -42,4 +42,6 @@ void StubH5vccRuntimeImpl::GetAndClearInitialDeepLink(
 void StubH5vccRuntimeImpl::AddListener(
     mojo::PendingRemote<h5vcc_runtime::mojom::DeepLinkListener> listener) {}
 
+void StubH5vccRuntimeImpl::PageVisibilityVisible() {}
+
 }  // namespace content
