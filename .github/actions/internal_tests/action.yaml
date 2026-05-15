@@ -74,14 +74,14 @@ runs:
           --label github \
           --label ${GITHUB_EVENT_NAME} \
           --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
-          --label branch:${GITHUB_REF_NAME} \
+          --label "actor-${GITHUB_ACTOR}" \
+          --label "actor_id-${GITHUB_ACTOR_ID}" \
+          --label "triggering_actor-${GITHUB_TRIGGERING_ACTOR}" \
+          --label "sha-${GITHUB_SHA}" \
+          --label "repository-${GITHUB_REPO}" \
+          --label "author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME}" \
+          --label "author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}" \
+          --label "branch:${GITHUB_REF_NAME}" \
           --dimensions '${{ inputs.test_dimensions }}' \
           --artifact_name '${{ inputs.artifact_name }}' \
           --device_family '${{ inputs.test_device_family }}' \
