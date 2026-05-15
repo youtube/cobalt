@@ -291,7 +291,61 @@ jobs:
           set -x
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+      - name: Evaluate CI Pruning
+        id: prune
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Default to running CI unless proven otherwise.
+          echo "skip_ci=false" >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # 1. Fetch base branch to compare changes.
+            git fetch origin ${{ github.event.pull_request.base.sha }} --depth=1
+            git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
+
+            # 2. Define strict allowlist of documentation and metadata patterns.
+            # CI can ONLY be skipped if every single touched file matches this list.
+            allow_patterns=(
+              "\.md$"               # Markdown documentation (README, tutorials)
+              "^docs/"              # Documentation directory
+              "^OWNERS$"            # Directory owner manifests
+              "^AUTHORS$"           # Contributor list
+              "^LICENSE"            # License and legal files
+              "^DIR_METADATA$"      # Directory metadata
+              "^WATCHLISTS$"        # Watchlist manifests
+              "^\.gitignore$"       # Git ignore configurations
+              "^\.gitattributes$"   # Git attributes
+            )
+
+            # 3. Evaluate every changed file against the allowlist.
+            skip_ci=true
+            while IFS= read -r filename; do
+              [[ -z "$filename" ]] && continue
+
+              file_matched=false
+              for pattern in "${allow_patterns[@]}"; do
+                if [[ "$filename" =~ $pattern ]]; then
+                  file_matched=true
+                  break
+                fi
+              done
+
+              # If a file didn't match any allowlist pattern, we cannot skip CI.
+              if [[ "$file_matched" == "false" ]]; then
+                echo "File '$filename' is not in the pruning allowlist. Triggering full CI."
+                skip_ci=false
+                break
+              fi
+            done < changed_files.txt
+
+            if [[ "$skip_ci" == "true" ]]; then
+              echo "All changed files are documentation or metadata. Safely pruning CI!"
+              echo "skip_ci=true" >> $GITHUB_OUTPUT
+            fi
+          fi
     outputs:
+      skip_ci: ${{ steps.prune.outputs.skip_ci }}
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -326,6 +380,7 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
+    if: needs.initialize.outputs.skip_ci != 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -348,7 +403,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.test_on_host == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -371,7 +426,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.web_tests == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -394,6 +449,7 @@ jobs:
 
   build:
     needs: [initialize, docker-build-image]
+    if: needs.initialize.outputs.skip_ci != 'true'
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
@@ -827,7 +883,7 @@ jobs:
   test-results:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
     if: |
-      always() &&
+      always() && needs.initialize.outputs.skip_ci != 'true' &&
       (
         needs.on-device-test.result != 'skipped' ||
         needs.on-host-test.result != 'skipped' ||
@@ -912,7 +968,7 @@ jobs:
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
-    if: always() && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
+    if: always() && needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -981,27 +1037,42 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
+      - name: Verify CI Pipeline Status
+        run: |
+          # 1. If upstream CI was safely pruned/skipped, report success immediately.
+          if [[ "${{ needs.initialize.outputs.skip_ci }}" == "true" ]]; then
+            echo "CI was safely pruned by initialization checks. Gatekeeper passing!"
+            exit 0
+          fi
+
+          # 2. Verify that required upstream jobs succeeded. If any job failed, timed out, or was cancelled, fail the gatekeeper.
+          if [[ "${{ needs.build.result }}" != "success" || "${{ needs.test-results.result }}" != "success" || "${{ needs.browser-test-results.result }}" != "success" ]]; then
+            echo "::error::A required upstream job failed, timed out, or was cancelled!"
+            exit 1
+          fi
+        shell: bash
       - name: Restore CI Essentials
+        if: needs.initialize.outputs.skip_ci != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Unit Test Results
-        if: needs.test-results.result != 'skipped' && needs.test-results.result != ''
+        if: needs.initialize.outputs.skip_ci != 'true' && needs.test-results.result != 'skipped' && needs.test-results.result != ''
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Download Browser Test Results
-        if: needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != ''
+        if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != ''
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
+        if: always() && needs.initialize.outputs.skip_ci != 'true' && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
