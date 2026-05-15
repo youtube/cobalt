@@ -168,6 +168,18 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                   name + " isn't a supported setting.");
   }
 
+  if (name == "Media.EnableAllocateOnDemand") {
+    return ProcessSettingAs<bool>(
+        script_state, exception_context, name, *value,
+        [](bool enable) -> Result {
+          auto* allocator = ::media::DecoderBufferAllocator::Get();
+          if (!allocator) {
+            return base::unexpected("DecoderBufferAllocator is not available.");
+          }
+          allocator->SetAllocateOnDemand(enable);
+          return base::ok();
+        });
+  }
   if (name == "Media.AppendFirstSegmentSynchronously") {
     return ProcessSettingAs<bool>(script_state, exception_context, name, *value,
                                   [this](bool enable) -> Result {
