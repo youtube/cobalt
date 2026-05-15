@@ -24,7 +24,7 @@
 
 namespace starboard {
 
-bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
+bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     return false;
   }

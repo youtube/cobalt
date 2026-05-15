@@ -22,24 +22,24 @@
 namespace starboard {
 namespace {
 
-TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecodeRequired) {
+TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecoderRequired) {
   // Blank capabilities
-  EXPECT_FALSE(IsSoftwareDecodeRequired(""));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(""));
 
   // Explicitly required/preferred
-  EXPECT_TRUE(IsSoftwareDecodeRequired("softwaredecoder=required"));
-  EXPECT_TRUE(IsSoftwareDecodeRequired("softwaredecoder=preferred"));
+  EXPECT_TRUE(IsSoftwareDecoderRequired("softwaredecoder=required"));
+  EXPECT_TRUE(IsSoftwareDecoderRequired("softwaredecoder=preferred"));
 
   // Explicitly disallowed/unpreferred
-  EXPECT_FALSE(IsSoftwareDecodeRequired("softwaredecoder=disallowed"));
-  EXPECT_FALSE(IsSoftwareDecodeRequired("softwaredecoder=unpreferred"));
+  EXPECT_FALSE(IsSoftwareDecoderRequired("softwaredecoder=disallowed"));
+  EXPECT_FALSE(IsSoftwareDecoderRequired("softwaredecoder=unpreferred"));
 
   // Low resolution + low fps (should trigger fallback to software)
-  EXPECT_TRUE(IsSoftwareDecodeRequired("width=432; height=240; framerate=15"));
+  EXPECT_TRUE(IsSoftwareDecoderRequired("width=432; height=240; framerate=15"));
 
   // High resolution (should trigger hardware)
   EXPECT_FALSE(
-      IsSoftwareDecodeRequired("width=1920; height=1080; framerate=30"));
+      IsSoftwareDecoderRequired("width=1920; height=1080; framerate=30"));
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
