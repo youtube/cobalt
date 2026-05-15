@@ -120,7 +120,7 @@ In the text editor that opens, enter your desired configuration:
 
 ```gn
 target_os = "android"
-target_cpu = "arm64"       # Use "arm" for 32-bit ATV hardware (verify via adb shell getprop ro.product.cpu.abi)
+target_cpu = "arm"         # Use "arm64" for 64-bit ATV hardware (verify via adb shell getprop ro.product.cpu.abi)
 
 is_cobalt = true
 is_androidtv = true
