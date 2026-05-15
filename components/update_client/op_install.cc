@@ -199,11 +199,8 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
                    result.unpack_path.value(), app_key)) {
       // Write the version of the unpacked update package to the persisted data.
       if (metadata != nullptr) {
-        base::ThreadPool::PostTask(
-            FROM_HERE, base::BindOnce(
-              &PersistedData::SetLastInstalledEgAndSbVersion,
-              base::Unretained(metadata), id, next_version,
-              std::to_string(SB_API_VERSION)));
+        metadata->SetLastInstalledEgAndSbVersion(
+            id, next_version, std::to_string(SB_API_VERSION));
       }
     } else {
       LOG(ERROR) << "CobaltFinishInstallation failed.";

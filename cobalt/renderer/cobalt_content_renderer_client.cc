@@ -17,9 +17,6 @@
 #include <string>
 #include <variant>
 
-#include "base/command_line.h"
-#include "base/containers/flat_map.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -32,7 +29,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
-#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -71,10 +67,10 @@ const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
     "Media.EnableVideoRendererVspAdjustment";
+const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
+    "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
-const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
-    "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
     "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
@@ -89,14 +85,6 @@ const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
     "Media.SkipVideoFramesOver60Fps";
 const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
     "Media.UseDualThreadsForVideo";
-
-// Map that stores all current bindings of H5vcc settings to media switches.
-// If a setting has a corresponding switch, we will enable the switch with the
-// corresponding value.
-const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
-    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
-     switches::kMSEVideoBufferSizeLimitClampMb},
-};
 
 using ExperimentalFeatures =
     ::media::StarboardRendererConfig::ExperimentalFeatures;
@@ -156,36 +144,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
 
   // TODO(b/375232937) Add IAMF
   return codecs;
-}
-
-// TODO: b/460292554 - This code is a tentative solution, and will be replaced
-// once base::Feature is fully supported.
-//
-// Append the h5vcc setting to the corresponding media switch, if such mapping
-// exists. H5vcc settings are either pass their value to a media switch for code
-// in /media to use, or are given to Starboard Renderer for direct usage.
-bool AppendSettingToSwitch(const std::string& setting_name,
-                           const H5vccSettingValue& setting_value) {
-  auto it = kH5vccSettingToSwitchMap.find(setting_name);
-  if (it == kH5vccSettingToSwitchMap.end()) {
-    return false;
-  }
-  std::string switch_name = it->second;
-  std::string setting_str;
-  if (auto* val_str = std::get_if<std::string>(&setting_value)) {
-    setting_str = *val_str;
-  } else if (auto* val_int = std::get_if<int64_t>(&setting_value)) {
-    setting_str = base::NumberToString(*val_int);
-  } else {
-    LOG(WARNING) << "Attempted to apply switch " << switch_name
-                 << " but the setting value was not an integer or string.";
-    return false;
-  }
-  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
-                                                            setting_str);
-  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
-            << setting_str;
-  return true;
 }
 
 std::map<std::string, H5vccSettingValue> ParseH5vccSettings(
@@ -282,6 +240,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_video_renderer_vsp_adjustment = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek)) {
+    parsed.flush_audio_track_during_seek = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
     parsed.force_decode_to_texture = *val != 0;
   }
@@ -310,10 +272,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
       /*max_val=*/100'000, kH5vccUnsetSentinel);
-
-  for (const auto& [setting_name, setting_value] : settings) {
-    AppendSettingToSwitch(setting_name, setting_value);
-  }
   return parsed;
 }
 

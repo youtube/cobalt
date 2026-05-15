@@ -228,25 +228,6 @@ TEST(SbMediaBufferTest, PoolAllocateOnDemand) {
   SbMediaIsBufferPoolAllocateOnDemand();
 }
 
-TEST(SbMediaBufferTest, ProgressiveBudget) {
-  const int kMinProgressiveBudget = 8 * 1024 * 1024;
-  int audio_budget = SbMediaGetAudioBufferBudget();
-  for (auto video_codec : kVideoCodecs) {
-    for (auto bits_per_pixel : kBitsPerPixelValues) {
-      int video_budget_1080p =
-          SbMediaGetVideoBufferBudget(video_codec, 1920, 1080, bits_per_pixel);
-      for (auto resolution : kVideoResolutions) {
-        int progressive_budget = SbMediaGetProgressiveBufferBudget(
-            video_codec, resolution[0], resolution[1], bits_per_pixel);
-        EXPECT_LT(progressive_budget, video_budget_1080p + audio_budget)
-            << "Progressive budget must be less than sum of 1080p video "
-               "budget and audio budget";
-        EXPECT_GE(progressive_budget, kMinProgressiveBudget);
-      }
-    }
-  }
-}
-
 TEST(SbMediaBufferTest, UsingMemoryPool) {
   EXPECT_TRUE(SbMediaIsBufferUsingMemoryPool())
       << "This function is deprecated. Media buffer pools are always "
@@ -279,9 +260,6 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   for (auto resolution : kVideoResolutions) {
     for (auto bits_per_pixel : kBitsPerPixelValues) {
       for (auto codec : kVideoCodecs) {
-        TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetProgressiveBufferBudget, codec,
-                                       resolution[0], resolution[1],
-                                       bits_per_pixel);
         TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetVideoBufferBudget, codec,
                                        resolution[0], resolution[1],
                                        bits_per_pixel);

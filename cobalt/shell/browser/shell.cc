@@ -70,6 +70,10 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/android/shared/audio_permission_requester.h"
@@ -515,6 +519,15 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
+#endif
+#if BUILDFLAG(USE_EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    LOG(INFO) << "Mark the current installation as successful after the "
+                 "PrimaryMainDocumentElement is available.";
+    updater_module->MarkSuccessful();
+  }
 #endif
 }
 

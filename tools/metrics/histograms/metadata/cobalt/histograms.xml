@@ -45,6 +45,14 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Android.ColdStart" enum="Boolean" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the application startup was a cold start (true) or a warm
+    start (false). Recorded during activity initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
