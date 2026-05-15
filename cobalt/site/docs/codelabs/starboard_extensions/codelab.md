@@ -717,7 +717,7 @@ from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
 ```bash
-cobalt/build/gn.py -p linux-x64x11 -c devel
+cobalt/build/gn.py -p linux-x64x11 -c devel --no-rbe
 autoninja -C out/linux-x64x11_devel extension_test
 out/linux-x64x11_devel/extension_test
 ```
