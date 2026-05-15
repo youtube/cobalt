@@ -33,6 +33,7 @@ struct ExperimentalFeatures {
   bool enable_av1_startup_optimization = false;
   bool enable_codec_output_checker = false;
   bool enable_video_renderer_vsp_adjustment = false;
+  bool flush_audio_track_during_seek = false;
   bool flush_decoder_during_reset = false;
   bool reset_audio_decoder = false;
   bool skip_flush_on_decoder_teardown = false;
