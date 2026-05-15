@@ -31,10 +31,11 @@
 #include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 #include "ui/wm/core/base_focus_rules.h"
+#include "ui/wm/core/focus_controller.h"
+
 #if defined(USE_AURA)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif
-#include "ui/wm/core/focus_controller.h"
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/aura/screen_ozone.h"

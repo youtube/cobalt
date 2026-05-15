@@ -68,6 +68,39 @@
 
 namespace content {
 
+namespace {
+#if defined(STARBOARD)
+bool CheckAndHandleRevealState(WebContents* web_contents) {
+  gfx::NativeView window = web_contents->GetNativeView();
+  if (!window) {
+    return false;
+  }
+  aura::WindowTreeHost* host = window->GetHost();
+  if (!host) {
+    return false;
+  }
+  auto* host_platform = static_cast<aura::WindowTreeHostPlatform*>(host);
+  ui::PlatformWindow* platform_window = host_platform->platform_window();
+  if (!platform_window) {
+    return false;
+  }
+
+#if defined(USE_AURA)
+  auto* pw_starboard =
+      static_cast<ui::PlatformWindowStarboard*>(platform_window);
+  bool is_waiting = pw_starboard->IsWaitingForRevealAck() ||
+                    content::Shell::GetPlatform()->IsWaitingForRevealAck();
+  if (is_waiting && !pw_starboard->IsWaitingForRevealAck()) {
+    pw_starboard->SetWaitingForRevealAck(true);
+  }
+  return is_waiting;
+#else
+  return content::Shell::GetPlatform()->IsWaitingForRevealAck();
+#endif
+}
+#endif
+}  // namespace
+
 struct ShellPlatformDelegate::ShellData {
   gfx::Size content_size;
   // Self-owned Widget, destroyed through CloseNow().
@@ -123,34 +156,8 @@ class ShellView : public views::BoxLayoutView,
 
     bool should_focus = true;
 #if defined(STARBOARD)
-    gfx::NativeView window = web_contents->GetNativeView();
-    if (window) {
-      aura::WindowTreeHost* host = window->GetHost();
-      if (host) {
-        auto* host_platform = static_cast<aura::WindowTreeHostPlatform*>(host);
-        ui::PlatformWindow* platform_window = host_platform->platform_window();
-        if (platform_window) {
-#if defined(USE_AURA)
-          auto* pw_starboard =
-              static_cast<ui::PlatformWindowStarboard*>(platform_window);
-          bool is_waiting =
-              pw_starboard->IsWaitingForRevealAck() ||
-              content::Shell::GetPlatform()->IsWaitingForRevealAck();
-          if (is_waiting) {
-            should_focus = false;
-            if (!pw_starboard->IsWaitingForRevealAck()) {
-              pw_starboard->SetWaitingForRevealAck(true);
-            }
-          }
-#else
-          bool is_waiting =
-              content::Shell::GetPlatform()->IsWaitingForRevealAck();
-          if (is_waiting) {
-            should_focus = false;
-          }
-#endif
-        }
-      }
+    if (CheckAndHandleRevealState(web_contents)) {
+      should_focus = false;
     }
 #endif
 

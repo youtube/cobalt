@@ -99,23 +99,12 @@ void ShellPlatformDelegate::OnReveal() {
   }
   waiting_for_reveal_ack_ = true;
   for (auto* shell : Shell::windows()) {
-    auto* native_view = shell->web_contents()->GetNativeView();
-    if (native_view) {
-      if (native_view->GetRootWindow()) {
-        auto* host = native_view->GetRootWindow()->GetHost();
-        if (host) {
-          auto* host_platform =
-              static_cast<aura::WindowTreeHostPlatform*>(host);
 #if defined(USE_AURA)
-          auto* platform_window = static_cast<ui::PlatformWindowStarboard*>(
-              host_platform->platform_window());
-          if (platform_window) {
-            platform_window->SetWaitingForRevealAck(true);
-          }
-#endif
-        }
-      }
+    auto* platform_window = GetPlatformWindowStarboard(shell);
+    if (platform_window) {
+      platform_window->SetWaitingForRevealAck(true);
     }
+#endif
     RevealShell(shell);
   }
   is_visible_ = true;
@@ -163,23 +152,24 @@ bool ShellPlatformDelegate::ShouldAllowRunningInsecureContent(Shell* shell) {
 }
 
 void ShellPlatformDelegate::OnPageVisibilityVisible(Shell* shell) {
-  if (IsWaitingForRevealAck()) {
-    waiting_for_reveal_ack_ = false;
-#if defined(USE_AURA)
-    auto* platform_window = GetPlatformWindowStarboard(shell);
-    if (platform_window) {
-      platform_window->SetWaitingForRevealAck(false);
-    }
-    auto* native_view = shell->web_contents()->GetNativeView();
-    if (native_view) {
-      if (native_view->GetRootWindow()) {
-        native_view->GetRootWindow()->Show();
-      }
-      native_view->Show();
-    }
-#endif
-    shell->web_contents()->WasShown();
+  if (!IsWaitingForRevealAck()) {
+    return;
   }
+  waiting_for_reveal_ack_ = false;
+#if defined(USE_AURA)
+  auto* platform_window = GetPlatformWindowStarboard(shell);
+  if (platform_window) {
+    platform_window->SetWaitingForRevealAck(false);
+  }
+  auto* native_view = shell->web_contents()->GetNativeView();
+  if (native_view) {
+    if (native_view->GetRootWindow()) {
+      native_view->GetRootWindow()->Show();
+    }
+    native_view->Show();
+  }
+#endif
+  shell->web_contents()->WasShown();
 }
 
 bool ShellPlatformDelegate::IsWaitingForRevealAck() const {

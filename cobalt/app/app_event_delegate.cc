@@ -338,22 +338,24 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
 void AppEventDelegate::OnRevealAck() {
   base::AutoLock lock(lock_);
   bool is_waiting = runner_->IsWaitingForRevealAck();
-  if (is_waiting) {
-    runner_->ClearWaitingForRevealAck();
-    if (pending_focus_) {
-      pending_focus_ = false;
-      // PostTask is used here to avoid deadlocking, as OnRevealAck holds
-      // lock_ and the task also tries to acquire it.
-      content::GetUIThreadTaskRunner({})->PostTask(
-          FROM_HERE, base::BindOnce(
-                         [](AppEventDelegate* delegate) {
-                           base::AutoLock lock(delegate->lock_);
-                           delegate->TransitionToLifeCycleState(
-                               ApplicationState::kStarted);
-                         },
-                         base::Unretained(this)));
-    }
+  if (!is_waiting) {
+    return;
   }
+  runner_->ClearWaitingForRevealAck();
+  if (!pending_focus_) {
+    return;
+  }
+  pending_focus_ = false;
+  // PostTask is used here to avoid deadlocking, as OnRevealAck holds
+  // lock_ and the task also tries to acquire it.
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](AppEventDelegate* delegate) {
+            base::AutoLock lock(delegate->lock_);
+            delegate->TransitionToLifeCycleState(ApplicationState::kStarted);
+          },
+          base::Unretained(this)));
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
