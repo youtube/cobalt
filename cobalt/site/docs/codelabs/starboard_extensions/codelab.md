@@ -717,32 +717,8 @@ from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
 ```bash
-# Open an interactive text editor to configure your GN build directory
-gn args out/linux-x64x11_devel
-```
-
-In the text editor that opens, enter your desired configuration:
-
-```gn
-# Set target operating system and architecture to Linux x64
-target_os = "linux"
-target_cpu = "x64"
-
-# Enable Cobalt browser engine and Starboard media adaptations
-is_cobalt = true
-use_starboard_media = true
-
-# Set build optimization level to development
-build_type = "devel"
-```
-
-```bash
-# Compile the extension_test target using autoninja, which automatically optimizes CPU core utilization
+cobalt/build/gn.py -p linux-x64x11 -c devel
 autoninja -C out/linux-x64x11_devel extension_test
-```
-
-```bash
-# Execute the compiled extension test binary to verify your Starboard Extension implementation
 out/linux-x64x11_devel/extension_test
 ```
 
