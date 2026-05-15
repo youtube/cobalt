@@ -86,6 +86,7 @@ class SurfaceDestroyNotifier
     std::lock_guard<std::mutex> lock(mutex_);
     disconnected_ = true;
     job_queue_ = nullptr;
+    holder_ = nullptr;
   }
 
   void Notify() {

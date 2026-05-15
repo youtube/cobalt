@@ -41,13 +41,9 @@ namespace {
 // Global video surface pointer mutex.
 SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
 // Global pointer to the single video surface.
-jobject g_j_video_surface = NULL;
+jobject g_j_video_surface = nullptr;
 // Global pointer to the single video window.
-ANativeWindow* g_native_video_window = NULL;
-
-}  // namespace
-
-namespace {
+ANativeWindow* g_native_video_window = nullptr;
 
 // Global video surface pointer holder.
 scoped_refptr<SurfaceDestroyNotifier> g_surface_destroy_notifier = nullptr;

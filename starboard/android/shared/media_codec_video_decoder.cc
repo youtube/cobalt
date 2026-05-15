@@ -1338,7 +1338,6 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   // When this function is called, the decoder no longer owns the surface.
-  owns_video_surface_ = false;
   in_on_surface_destroyed_ = true;
   TeardownCodec();
   in_on_surface_destroyed_ = false;
