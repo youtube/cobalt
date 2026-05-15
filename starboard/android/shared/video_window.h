@@ -42,7 +42,8 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
-  // acquired before last holder release the surface.
+  // Returns the surface to which video should be rendered. The surface
+  // cannot be acquired before last holder release the surface.
   scoped_refptr<SurfaceDestroyNotifier> AcquireVideoSurface(
       JobQueue* job_queue,
       jobject* out_surface);
@@ -58,6 +59,23 @@ class VideoSurfaceHolder {
   void ClearVideoWindow(bool force_reset_surface);
 };
 
+// SurfaceDestroyNotifier is used to safely handle the destruction of the video
+// surface from JNI without causing deadlocks.
+//
+// Purpose: Decouples the JNI thread (which notifies about surface destruction)
+// from the player worker thread (which performs the teardown). It schedules
+// the teardown task on the player worker thread and waits for it with a timeout
+// to avoid hanging the JNI thread.
+//
+// Lifetime/Ownership: This class is RefCountedThreadSafe. It is created by
+// VideoSurfaceHolder when acquiring the surface, and references are held by
+// the global `g_surface_destroy_notifier` and the `MediaCodecVideoDecoder`.
+// The task scheduled on the JobQueue also retains a reference to ensure
+// the object stays alive until execution completes.
+//
+// Threading Model: `Notify()` is called from the JNI thread. `RunTask()`
+// executes on the player worker thread. Internal state is protected by its
+// own mutex.
 class SurfaceDestroyNotifier
     : public RefCountedThreadSafe<SurfaceDestroyNotifier> {
  public:
