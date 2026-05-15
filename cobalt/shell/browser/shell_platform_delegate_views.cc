@@ -48,7 +48,7 @@
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
 #include "ui/platform_window/platform_window.h"
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif
 #include "ui/views/background.h"

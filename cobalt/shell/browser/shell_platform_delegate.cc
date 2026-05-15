@@ -200,7 +200,7 @@ bool ShellPlatformDelegate::IsWaitingForRevealAck() const {
 
 void ShellPlatformDelegate::ClearWaitingForRevealAck() {
   waiting_for_reveal_ack_ = false;
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   auto* shell = Shell::windows().empty() ? nullptr : Shell::windows().front();
   if (shell) {
     auto* platform_window = GetPlatformWindowStarboard(shell);
