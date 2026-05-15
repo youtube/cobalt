@@ -131,6 +131,8 @@ def create_junit_archive(
 
     # Add third_party/catapult/devil for test_runner.py
     target_src_root_deps.add('third_party/catapult/devil')
+    # Add third_party/catapult/dependency_manager for devil
+    target_src_root_deps.add('third_party/catapult/dependency_manager')
 
     if flatten_deps:
       raise ValueError('Unsupported configuration for JUnit tests.')
