@@ -107,6 +107,10 @@ source_set("browser") {
     ]
   }
 
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
+  }
+
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
@@ -212,7 +216,7 @@ source_set("cobalt_crash_annotations") {
     "//base",
     "//third_party/crashpad/crashpad/client",
   ]
-  if (is_android) {
+  if (is_android && !use_evergreen) {
     sources += [ "crash_annotator/crash_annotator_jni.cc" ]
     deps += [ "//cobalt/android:jni_headers" ]
   }

@@ -32,7 +32,6 @@ import java.util.Set;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.media_session.mojom.MediaSessionAction;
 import org.chromium.services.media_session.MediaImage;
 import org.chromium.services.media_session.MediaMetadata;
@@ -55,7 +54,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private final ArtworkLoader mArtworkLoader;
   private final Holder<Activity> mActivityHolder;
   private WebContents mWebContents;
-  private WebContentsObserver mWebContentsObserver;
   private MediaSessionCompat mMediaSession;
   private MediaSessionObserver mMediaSessionObserver;
   private boolean mIsControllable;
@@ -104,36 +102,43 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
           @Override
           public void onPlay() {
+            Log.i(TAG, "MediaSession action: PLAY");
             onReceiveAction(MediaSessionAction.PLAY);
           }
 
           @Override
           public void onPause() {
+            Log.i(TAG, "MediaSession action: PAUSE");
             onReceiveAction(MediaSessionAction.PAUSE);
           }
 
           @Override
           public void onSkipToPrevious() {
+            Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
             onReceiveAction(MediaSessionAction.PREVIOUS_TRACK);
           }
 
           @Override
           public void onSkipToNext() {
+            Log.i(TAG, "MediaSession action: SKIP NEXT");
             onReceiveAction(MediaSessionAction.NEXT_TRACK);
           }
 
           @Override
           public void onFastForward() {
+            Log.i(TAG, "MediaSession action: FAST FORWARD");
             onReceiveAction(MediaSessionAction.SEEK_FORWARD);
           }
 
           @Override
           public void onRewind() {
+            Log.i(TAG, "MediaSession action: REWIND");
             onReceiveAction(MediaSessionAction.SEEK_BACKWARD);
           }
 
           @Override
           public void onSeekTo(long pos) {
+            Log.i(TAG, "MediaSession action: SEEK " + pos);
             // To be cautious, explicitly run the code on main loop .
             mMainHandler.post(
                 new Runnable() {
@@ -149,6 +154,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
           @Override
           public void onStop() {
+            Log.i(TAG, "MediaSession action: STOP");
             onReceiveAction(MediaSessionAction.STOP);
           }
         };
@@ -158,12 +164,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     if (mWebContents == webContents) {
       return;
     }
-
-    if (mWebContentsObserver != null) {
-      mWebContentsObserver.observe(null);
-      mWebContentsObserver = null;
-    }
-
     if (webContents == null) {
       cleanupMediaSessionObserver();
       mWebContents = null;
@@ -171,18 +171,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
 
     mWebContents = webContents;
-    mWebContentsObserver =
-        new WebContentsObserver(mWebContents) {
-          @Override
-          public void mediaSessionCreated(MediaSession mediaSession) {
-            setupMediaSessionObserver(mediaSession);
-          }
-
-          @Override
-          public void webContentsDestroyed() {
-            setWebContents(null);
-          }
-        };
     setupMediaSessionObserver(MediaSession.fromWebContents(mWebContents));
   }
 
@@ -222,8 +210,22 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     Log.i(TAG, "MediaSession has been deactivated.");
   }
 
-  private MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
-    return new MediaSessionObserver(mediaSession) {
+  private void cleanupMediaSessionObserver() {
+    if (mMediaSessionObserver == null) {
+      return;
+    }
+    mMediaSessionObserver.stopObserving();
+    mMediaSessionObserver = null;
+  }
+
+  private void setupMediaSessionObserver(MediaSession mediaSession) {
+    if (mMediaSessionObserver != null && mMediaSessionObserver.getMediaSession() == mediaSession) {
+      return;
+    }
+
+    cleanupMediaSessionObserver();
+    mMediaSessionObserver =
+        new MediaSessionObserver(mediaSession) {
           @Override
           public void mediaSessionDestroyed() {
             // We always keep a MediaSession, so nothing to destroy here.
@@ -269,25 +271,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
             updatePlaybackState();
           }
         };
-  }
-
-  private void cleanupMediaSessionObserver() {
-    if (mMediaSessionObserver == null) {
-      return;
-    }
-    mMediaSessionObserver.stopObserving();
-    mMediaSessionObserver = null;
-  }
-
-  private void setupMediaSessionObserver(MediaSession mediaSession) {
-    if (mMediaSessionObserver != null && mMediaSessionObserver.getMediaSession() == mediaSession) {
-      return;
-    }
-
-    cleanupMediaSessionObserver();
-    if(mediaSession != null) {
-      mMediaSessionObserver = createMediaSessionObserver(mediaSession);
-    }
   }
 
   private void toggleKeepScreenOn(boolean keepScreenOn) {

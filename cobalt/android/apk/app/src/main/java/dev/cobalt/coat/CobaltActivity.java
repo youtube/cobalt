@@ -26,15 +26,19 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
@@ -60,6 +64,8 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
+import org.chromium.base.memory.MemoryPressureUma;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -118,6 +124,8 @@ public abstract class CobaltActivity extends Activity {
 
   private boolean mEnableSplashScreen;
   private String mStartDeepLink;
+  
+  private Object mBackInvokedCallback;
 
   public String getStartupUrl() {
     return mStartupUrl;
@@ -226,10 +234,14 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
+      RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
+      if (savedInstanceState == null) {
+        RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", false);
+      }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
     StartupGuard.getInstance().setStartupMilestone(7);
@@ -454,6 +466,7 @@ public abstract class CobaltActivity extends Activity {
 
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+    MemoryPressureUma.initializeForBrowser();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
@@ -465,6 +478,10 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
     StartupGuard.getInstance().setStartupMilestone(9);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
+    }
   }
 
   /**
@@ -600,6 +617,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -834,6 +855,33 @@ public abstract class CobaltActivity extends Activity {
   private void updateShellActivityVisible(boolean isVisible) {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
+    }
+  }
+
+  @RequiresApi(api = 33)
+  private static class OnBackInvokedHelper {
+    static Object register(final CobaltActivity activity) {
+      OnBackInvokedCallback callback = new OnBackInvokedCallback() {
+        @Override
+        public void onBackInvoked() {
+          // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+        }
+      };
+      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+          callback
+      );
+      return callback;
+    }
+
+    static void unregister(CobaltActivity activity, Object callback) {
+      if (callback instanceof OnBackInvokedCallback) {
+        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+            (OnBackInvokedCallback) callback
+        );
+      }
     }
   }
 }

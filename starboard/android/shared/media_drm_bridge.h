@@ -22,11 +22,10 @@
 #include <string_view>
 #include <vector>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ref.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/drm.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -94,16 +93,15 @@ class MediaDrmBridge {
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
-  void OnSessionMessage(
-      JNIEnv* env,
-      jint ticket,
-      const base::android::JavaParamRef<jbyteArray>& session_id,
-      jint request_type,
-      const base::android::JavaParamRef<jbyteArray>& message);
+  void OnSessionMessage(JNIEnv* env,
+                        jint ticket,
+                        const jni_zero::JavaParamRef<jbyteArray>& session_id,
+                        jint request_type,
+                        const jni_zero::JavaParamRef<jbyteArray>& message);
   void OnKeyStatusChange(
       JNIEnv* env,
-      const base::android::JavaParamRef<jbyteArray>& session_id,
-      const base::android::JavaParamRef<jobjectArray>& key_information);
+      const jni_zero::JavaParamRef<jbyteArray>& session_id,
+      const jni_zero::JavaParamRef<jobjectArray>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
@@ -117,11 +115,11 @@ class MediaDrmBridge {
   // The factory method guarantees that |j_media_drm_bridge_| is non-null.
   // Instances are only returned if initialization succeeds; therefore, this
   // member is guaranteed to be valid for the lifetime of the object.
-  base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
 
   // |j_media_crypto_| is non-null after initialization, but may be reset
   // via CreateMediaCryptoSession() if a session creation failure occurs.
-  base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
 std::ostream& operator<<(std::ostream& os, DrmOperationStatus);

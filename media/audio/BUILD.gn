@@ -281,9 +281,23 @@ source_set("audio") {
         "android/opensles_wrapper.cc",
       ]
     }
-    libs += [ "aaudio" ]
+    # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
+    if (!is_cobalt) {
+      libs += [ "aaudio" ]
+    }
 
     deps += [ "//media/base/android:media_jni_headers" ]
+
+    if (use_starboard_media) {
+      sources += [
+        "android/starboard_audio_input_stream.cc",
+        "android/starboard_audio_input_stream.h",
+      ]
+      deps += [
+        "//starboard:starboard_headers_only",
+        "//starboard/android/shared:starboard_platform",
+      ]
+    }
   }
 
   if (is_linux || is_chromeos) {

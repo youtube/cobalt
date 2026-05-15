@@ -12,23 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <jni.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_audio_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/features.h"
@@ -44,12 +47,13 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using features::FeatureList;
+using jni_zero::AttachCurrentThread;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -67,9 +71,11 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
-                                    bool allow_audio_writing_on_pause = false,
-                                    bool pause_using_audio_track_state = false)
+  explicit AudioRendererSinkAndroid(
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool allow_audio_writing_on_pause,
+      bool enable_video_renderer_vsp_adjustment,
+      bool allow_flush_during_seek)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -88,20 +94,27 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
                   audio_frame_storage_type, frame_buffers,
-                  frame_buffers_size_in_frames, update_source_status_func,
-                  consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  allow_audio_writing_on_pause, pause_using_audio_track_state,
+                  frame_buffers_size_in_frames,
+                  {update_source_status_func, consume_frames_func, error_func},
+                  start_media_time, tunnel_mode_audio_session_id,
+                  /*is_web_audio=*/false, allow_audio_writing_on_pause,
                   context);
             }),
-        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
+        is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
+        enable_video_renderer_vsp_adjustment_(
+            enable_video_renderer_vsp_adjustment),
+        allow_flush_during_seek_(allow_flush_during_seek) {}
 
   bool AllowOverflowAudioSamples() const override {
-    return tunnel_mode_audio_session_id_ != -1;
+    return is_tunnel_mode_enabled_;
   }
 
   bool AllowDirectPlaybackRateSetting() const override {
-    return tunnel_mode_audio_session_id_ != -1;
+    return is_tunnel_mode_enabled_ && !enable_video_renderer_vsp_adjustment_;
+  }
+
+  bool HasStarted() const override {
+    return !is_flushed_ && AudioRendererSinkImpl::HasStarted();
   }
 
   void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
@@ -126,7 +139,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
         audio_stream_info.number_of_channels, sample_type,
         audio_stream_info.samples_per_second);
 
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (is_tunnel_mode_enabled_) {
       // AudioTrack.setPlaybackParams() might need extra buffer to support
       // playback speed greater than 1.0x.
       const double kMaxPlaybackSpeed = 2.0;
@@ -148,10 +161,52 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                                  AudioRendererSink::kAudioSinkFramesAlignment);
   }
 
+  void Start(int64_t media_start_time,
+             int channels,
+             int sampling_frequency_hz,
+             SbMediaAudioSampleType audio_sample_type,
+             SbMediaAudioFrameStorageType audio_frame_storage_type,
+             SbAudioSinkFrameBuffers frame_buffers,
+             int frames_per_channel,
+             RenderCallback* render_callback) override {
+    is_flushed_ = false;
+    // Re-use the existing audio sink if the new audio parameters match the
+    // existing ones. Otherwise, fall back to the default behavior of destroying
+    // and re-creating the sink.
+    if (allow_flush_during_seek_ && audio_sink_ &&
+        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
+        channels == channels_ &&
+        sampling_frequency_hz == sampling_frequency_hz_ &&
+        audio_sample_type == audio_sample_type_ &&
+        audio_frame_storage_type == audio_frame_storage_type_) {
+      SB_LOG(INFO) << "Audio track is already started with the same config, "
+                   << "skipping Start().";
+      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
+      track_sink->SetStartTime(media_start_time);
+      // Explicitly set the playback rate and volume because HasStarted()
+      // returns false while in the flushed state, causing the renderer to
+      // skip updating the sink with these parameters during seek.
+      track_sink->SetPlaybackRate(playback_rate_);
+      track_sink->SetVolume(volume_);
+      render_callback_ = render_callback;
+      return;
+    }
+
+    channels_ = channels;
+    sampling_frequency_hz_ = sampling_frequency_hz;
+    audio_sample_type_ = audio_sample_type;
+    audio_frame_storage_type_ = audio_frame_storage_type;
+
+    AudioRendererSinkImpl::Start(media_start_time, channels,
+                                 sampling_frequency_hz, audio_sample_type,
+                                 audio_frame_storage_type, frame_buffers,
+                                 frames_per_channel, render_callback);
+  }
+
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (is_tunnel_mode_enabled_) {
       // Currently the implementation only supports tunnel mode with int16 audio
       // samples.
       return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
@@ -160,32 +215,33 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
   }
 
-  const int tunnel_mode_audio_session_id_;
-};
-
-class AudioRendererSinkCallbackStub : public AudioRendererSink::RenderCallback {
- public:
-  bool error_occurred() const { return error_occurred_.load(); }
-
- private:
-  void GetSourceStatus(int* frames_in_buffer,
-                       int* offset_in_frames,
-                       bool* is_playing,
-                       bool* is_eos_reached) override {
-    *frames_in_buffer = *offset_in_frames = 0;
-    *is_playing = true;
-    *is_eos_reached = false;
-  }
-  void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
-    SB_DCHECK_EQ(frames_consumed, 0);
+  void Reset() override {
+    if (allow_flush_during_seek_ && audio_sink_ &&
+        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType())) {
+      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
+      if (track_sink->Flush()) {
+        SB_LOG(INFO) << "Flushing AudioTrack.";
+        is_flushed_ = true;
+        return;
+      }
+    }
+    SB_LOG(INFO) << "Resetting AudioTrack.";
+    is_flushed_ = false;
+    AudioRendererSink::Reset();
   }
 
-  void OnError(bool capability_changed,
-               const std::string& error_message) override {
-    error_occurred_.store(true);
-  }
+  const bool is_tunnel_mode_enabled_;
+  const bool enable_video_renderer_vsp_adjustment_;
+  const bool allow_flush_during_seek_;
 
-  std::atomic_bool error_occurred_{false};
+  mutable bool is_flushed_ = false;
+
+  int channels_ = -1;
+  int sampling_frequency_hz_ = -1;
+  SbMediaAudioSampleType audio_sample_type_ =
+      kSbMediaAudioSampleTypeInt16Deprecated;
+  SbMediaAudioFrameStorageType audio_frame_storage_type_ =
+      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 class PlayerComponentsPassthrough : public PlayerComponents {
@@ -238,12 +294,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (!creation_parameters.audio_mime().empty()) {
-      MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
+      auto audio_mime_type = MimeType::Create(creation_parameters.audio_mime());
+      if (!audio_mime_type ||
+          !audio_mime_type->ValidateBoolParameter("audiopassthrough")) {
         return Failure("Invalid audio mime type.");
       }
-      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
+      if (!audio_mime_type->GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
         return Failure("Passthrough disabled by mime attribute.");
@@ -255,11 +311,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.experimental_features().flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+      auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
+      if (video_mime_type &&
+          video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
             enable_flush_during_seek ||
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+            video_mime_type->GetParamBoolValue("enableflushduringseek", false);
       }
     }
     SB_LOG_IF(INFO, enable_flush_during_seek)
@@ -285,7 +342,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     std::unique_ptr<VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      constexpr int kTunnelModeAudioSessionId = -1;
+      constexpr std::optional<int> kTunnelModeAudioSessionId = std::nullopt;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
       auto video_decoder = CreateVideoDecoder(
@@ -316,28 +373,24 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
             ? creation_parameters.audio_mime()
             : "";
-    MimeType audio_mime_type(audio_mime);
-    if (!audio_mime.empty()) {
-      if (!audio_mime_type.is_valid()) {
-        return Failure("Invalid audio MIME: '" + audio_mime + "'");
-      }
+    if (!audio_mime.empty() && !MimeType::Create(audio_mime)) {
+      return Failure("Invalid audio MIME: '" + audio_mime + "'");
     }
 
     const std::string video_mime =
         creation_parameters.video_codec() != kSbMediaVideoCodecNone
             ? creation_parameters.video_mime()
             : "";
-    MimeType video_mime_type(video_mime);
-    if (!video_mime.empty()) {
-      if (!video_mime_type.is_valid() ||
-          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !video_mime_type.ValidateBoolParameter("enableflushduringseek") ||
-          !video_mime_type.ValidateBoolParameter("enableresetaudiodecoder")) {
-        return Failure("Invalid video MIME: '" + video_mime + "'");
-      }
+    auto video_mime_type = MimeType::Create(video_mime);
+    if (!video_mime.empty() &&
+        (!video_mime_type ||
+         !video_mime_type->ValidateBoolParameter("tunnelmode") ||
+         !video_mime_type->ValidateBoolParameter("enableflushduringseek") ||
+         !video_mime_type->ValidateBoolParameter("enableresetaudiodecoder"))) {
+      return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
-    int tunnel_mode_audio_session_id = -1;
+    std::optional<int> tunnel_mode_audio_session_id = std::nullopt;
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -345,13 +398,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           FeatureList::IsEnabled(features::kForceTunnelMode);
       enable_tunnel_mode =
           force_tunnel_mode ||
-          video_mime_type.GetParamBoolValue("tunnelmode", false);
+          (video_mime_type &&
+           video_mime_type->GetParamBoolValue("tunnelmode", false));
 
       SB_LOG(INFO) << "Tunnel mode is "
                    << (enable_tunnel_mode ? "enabled. " : "disabled. ")
                    << "Video mime parameter \"tunnelmode\" value: "
-                   << video_mime_type.GetParamStringValue("tunnelmode",
-                                                          "<not provided>")
+                   << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                             "tunnelmode", "<not provided>")
+                                       : "<not provided>")
                    << (force_tunnel_mode ? ", force tunnel mode is on." : ".");
     } else {
       SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
@@ -369,7 +424,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id =
             GenerateAudioSessionId(creation_parameters);
         SB_LOG(INFO) << "Generated tunnel mode audio session id "
-                     << tunnel_mode_audio_session_id;
+                     << ToString(tunnel_mode_audio_session_id);
       } else {
         SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
       }
@@ -377,11 +432,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG(INFO) << "Tunnel mode not enabled.";
     }
 
-    if (tunnel_mode_audio_session_id == -1) {
+    if (!tunnel_mode_audio_session_id) {
       SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
     } else {
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
-                   << tunnel_mode_audio_session_id << '.';
+                   << *tunnel_mode_audio_session_id << '.';
     }
 
     const auto& experimental_features =
@@ -389,43 +444,52 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_reset_audio_decoder =
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         experimental_features.reset_audio_decoder ||
-        video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
+        (video_mime_type &&
+         video_mime_type->GetParamBoolValue("enableresetaudiodecoder", false));
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
         << " audio decoder during Reset(). Video mime parameter "
         << "\"enableresetaudiodecoder\" value: "
-        << video_mime_type.GetParamStringValue("enableresetaudiodecoder",
-                                               "<not provided>")
+        << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                  "enableresetaudiodecoder", "<not provided>")
+                            : "<not provided>")
         << ".";
 
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.flush_decoder_during_reset ||
-        video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+        (video_mime_type &&
+         video_mime_type->GetParamBoolValue("enableflushduringseek", false));
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
         << " audio decoder during Reset(). Video mime parameter "
         << "\"enableflushduringseek\" value: "
-        << video_mime_type.GetParamStringValue("enableflushduringseek",
-                                               "<not provided>")
+        << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                  "enableflushduringseek", "<not provided>")
+                            : "<not provided>")
         << ".";
+
+    bool allow_flush_audio_track_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
+        experimental_features.flush_audio_track_during_seek;
+    SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
+        << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
+        << " audio track during Reset().";
 
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      // TODO: b/349854301 - Connect to experimental flag.
-      const bool pause_using_audio_track_state =
-          FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
-      SB_LOG_IF(INFO, pause_using_audio_track_state)
-          << "kPauseUsingAudioTrackState is set to true, force using "
-          << "AudioTrackState while pausing playback.";
-
       // TODO: b/500811542 - Connect to H5VCC.
       const bool allow_audio_writing_on_pause =
           experimental_features.allow_audio_writing_on_pause;
       SB_LOG_IF(INFO, allow_audio_writing_on_pause)
           << "allow_audio_writing_on_pause is set to true.";
+
+      const bool enable_video_renderer_vsp_adjustment =
+          experimental_features.enable_video_renderer_vsp_adjustment;
+      SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
+          << "enable_video_renderer_vsp_adjustment is set to true.";
 
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
@@ -434,11 +498,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
                               force_platform_opus_decoder)) {
-          auto audio_decoder_impl =
-              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
-          if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl;
-          }
+          return OpusAudioDecoder::Create(job_queue, audio_stream_info);
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
@@ -462,7 +522,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
               tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              pause_using_audio_track_state);
+              enable_video_renderer_vsp_adjustment,
+              allow_flush_audio_track_during_seek);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -473,7 +534,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
-      if (tunnel_mode_audio_session_id == -1) {
+      if (experimental_features.enable_video_renderer_vsp_adjustment &&
+          !experimental_features.allow_audio_writing_on_pause) {
+        return Failure(
+            "Video renderer vsp adjustment needs to be enabled with audio "
+            "writing on pause.");
+      }
+
+      if (!tunnel_mode_audio_session_id) {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
@@ -497,7 +565,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
   NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateVideoDecoder(
       const CreationParameters& creation_parameters,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size) {
     auto experimental_features = creation_parameters.experimental_features();
@@ -515,22 +583,24 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
-      MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateStringParameter("hdrinfoendianness",
-                                                  "big|little")) {
+      auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
+      if (video_mime_type && video_mime_type->ValidateStringParameter(
+                                 "hdrinfoendianness", "big|little")) {
         const std::string& hdr_info_endianness =
-            video_mime_type.GetParamStringValue("hdrinfoendianness",
-                                                /*default=*/"little");
+            video_mime_type->GetParamStringValue("hdrinfoendianness",
+                                                 /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
-      if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
+      if (video_mime_type &&
+          video_mime_type->ValidateBoolParameter("forceresetsurface")) {
         force_reset_surface =
-            video_mime_type.GetParamBoolValue("forceresetsurface", true);
+            video_mime_type->GetParamBoolValue("forceresetsurface", true);
       }
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+      if (video_mime_type &&
+          video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
             enable_flush_during_seek ||
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+            video_mime_type->GetParamBoolValue("enableflushduringseek", false);
       }
     }
 
@@ -634,20 +704,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     return false;
   }
 
-  int GenerateAudioSessionId(const CreationParameters& creation_parameters) {
+  std::optional<int> GenerateAudioSessionId(
+      const CreationParameters& creation_parameters) {
     bool force_secure_pipeline_under_tunnel_mode = false;
     SB_DCHECK(IsTunnelModeSupported(creation_parameters,
                                     &force_secure_pipeline_under_tunnel_mode));
 
     JNIEnv* env = AttachCurrentThread();
-    int tunnel_mode_audio_session_id =
+    std::optional<int> tunnel_mode_audio_session_id =
         AudioOutputManager::GetInstance()->GenerateTunnelModeAudioSessionId(
             env, creation_parameters.audio_stream_info().number_of_channels);
 
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:
     // https://developer.android.com/reference/android/media/AudioManager#generateAudioSessionId()
-    SB_LOG_IF(WARNING, tunnel_mode_audio_session_id == -1)
+    SB_LOG_IF(WARNING, !tunnel_mode_audio_session_id)
         << "Failed to generate audio session id for tunnel mode.";
 
     return tunnel_mode_audio_session_id;

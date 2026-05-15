@@ -23,231 +23,153 @@ namespace starboard {
 namespace {
 
 TEST(IamfUtilTest, Valid) {
-  std::string codec_param = "iamf.000.000.Opus";
-  IamfMimeUtil util(codec_param);
-  EXPECT_TRUE(util.is_valid());
-
-  codec_param = "iamf.000.000.fLaC";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-
-  codec_param = "iamf.000.000.ipcm";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-
-  codec_param = "iamf.000.000.mp4a.40.2";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
+  EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.Opus").has_value());
+  EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.fLaC").has_value());
+  EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.ipcm").has_value());
+  EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.mp4a.40.2").has_value());
 }
 
 TEST(IamfUtilTest, Invalid) {
   // Invalid substream codec
-  std::string codec_param = "iamf.000.000.vorbis";
-  IamfMimeUtil util(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.vorbis").has_value());
 
   // Invalid codec capitalization
-  codec_param = "iamf.000.000.opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.000.000.flac";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.000.000.FlAc";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.000.000.MP4a.40.2";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "IAMF.000.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.opus").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.flac").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.FlAc").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.MP4a.40.2").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("IAMF.000.000.Opus").has_value());
 
   // Invalid additional profile value
-  codec_param = "iamf.000.999.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.999.Opus").has_value());
 
   // Invalid primary profile value
-  codec_param = "iamf.999.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.999.000.Opus").has_value());
 
   // Invalid leading codec param
-  codec_param = "iacb.000.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iacb.000.000.Opus").has_value());
 
   // Invalid length for Opus substream
-  codec_param = "iamf.000.000.Opus.40.2";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.Opus.40.2").has_value());
 
   // Invalid length for AAC-LC substream
-  codec_param = "iamf.000.000.mp4a";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.mp4a").has_value());
 
   // Invalid param for AAC-LC substream
-  codec_param = "iamf.000.000.mp4a.40.3";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.mp4a.40.3").has_value());
 
   // Invalid param for AAC-LC substream
-  codec_param = "iamf.000.000.mp4a.40.20";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.mp4a.40.20").has_value());
 
   // Too many delimiting periods
-  codec_param = "iamf.000.000..Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000..Opus").has_value());
 
   // Leading delimiting period
-  codec_param = ".iamf.000.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create(".iamf.000.000.Opus").has_value());
 
   // Trailing delimiting period
-  codec_param = "iamf.000.000.Opus.";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.Opus.").has_value());
 
   // No delimiting period between codec param string and primary profile
-  codec_param = "iamf000.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf000.000.Opus").has_value());
 
   // Invalid primary profile length
-  codec_param = "iamf.00.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.0000.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.00.000.Opus").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.0000.000.Opus").has_value());
 
   // Invalid additional profile length
-  codec_param = "iamf.000.00.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.000.0000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.00.Opus").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.0000.Opus").has_value());
 
   // Letters in primary profile value
-  codec_param = "iamf.0aa.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.xxx.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.0aa.000.Opus").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.xxx.000.Opus").has_value());
 
   // Letters in additional profile value
-  codec_param = "iamf.000.0aa.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-  codec_param = "iamf.000.xxx.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.0aa.Opus").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.xxx.Opus").has_value());
 
   // Letter in primary profile value
-  codec_param = "iamf.0a0.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.0a0.000.Opus").has_value());
 
   // Invalid additional profile with AAC-LC substream
-  codec_param = "iamf.000.00.mp4a.40.2";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.00.mp4a.40.2").has_value());
 
   // Misplaced delimiting period for AAC-LC substream
-  codec_param = "iamf.000.000.mp4a.402.";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.mp4a.402.").has_value());
 
   // Negative primary profile value
-  codec_param = "iamf.-12.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.-12.000.Opus").has_value());
 
-  // Empty param
-  codec_param = "";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("").has_value());
 
   // Leading whitespace
-  codec_param = " iamf.000.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create(" iamf.000.000.Opus").has_value());
 
   // Trailing whitespace
-  codec_param = "iamf.000.000.Opus ";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.Opus ").has_value());
 
   // Whitespace in the middle
-  codec_param = "iamf.00 0.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.00 0.000.Opus").has_value());
 
   // HE-AAC substream param
-  codec_param = "iamf.000.000.mp4a.40.5";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.000.mp4a.40.5").has_value());
 
   // Non IAMF codec param
-  codec_param = "ec-3";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
+  EXPECT_FALSE(IamfMimeUtil::Create("ec-3").has_value());
 }
 
-TEST(IamfUtilTest, SubstreamCodec) {
-  std::string codec_param = "iamf.000.000.Opus";
-  IamfMimeUtil util(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecOpus);
-
-  codec_param = "iamf.000.000.fLaC";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecFlac);
-
-  codec_param = "iamf.000.000.ipcm";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecIpcm);
-
-  codec_param = "iamf.000.000.mp4a.40.2";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecMp4a);
+TEST(IamfUtilTest, SubstreamCodecOpus) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecOpus);
 }
 
-TEST(IamfUtilTest, Profile) {
-  std::string codec_param = "iamf.000.000.Opus";
-  IamfMimeUtil util(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.primary_profile(), kIamfProfileSimple);
-  EXPECT_EQ(util.additional_profile(), kIamfProfileSimple);
+TEST(IamfUtilTest, SubstreamCodecFlac) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.fLaC");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecFlac);
+}
 
-  codec_param = "iamf.001.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.primary_profile(), kIamfProfileBase);
-  EXPECT_EQ(util.additional_profile(), kIamfProfileSimple);
+TEST(IamfUtilTest, SubstreamCodecIpcm) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.ipcm");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecIpcm);
+}
 
-  codec_param = "iamf.000.001.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  EXPECT_EQ(util.primary_profile(), kIamfProfileSimple);
-  EXPECT_EQ(util.additional_profile(), kIamfProfileBase);
+TEST(IamfUtilTest, SubstreamCodecMp4a) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.mp4a.40.2");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->substream_codec(), kIamfSubstreamCodecMp4a);
+}
 
-  codec_param = "iamf.002.000.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_TRUE(util.is_valid());
-  ASSERT_NE(util.primary_profile(), kIamfProfileSimple);
-  ASSERT_NE(util.primary_profile(), kIamfProfileBase);
-  ASSERT_EQ(util.primary_profile(), 2U);
+TEST(IamfUtilTest, ProfileSimpleSimple) {
+  auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->primary_profile(), kIamfProfileSimple);
+  EXPECT_EQ(util->additional_profile(), kIamfProfileSimple);
+}
+
+TEST(IamfUtilTest, ProfileBaseSimple) {
+  auto util = IamfMimeUtil::Create("iamf.001.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->primary_profile(), kIamfProfileBase);
+  EXPECT_EQ(util->additional_profile(), kIamfProfileSimple);
+}
+
+TEST(IamfUtilTest, ProfileSimpleBase) {
+  auto util = IamfMimeUtil::Create("iamf.000.001.Opus");
+  ASSERT_TRUE(util.has_value());
+  EXPECT_EQ(util->primary_profile(), kIamfProfileSimple);
+  EXPECT_EQ(util->additional_profile(), kIamfProfileBase);
+}
+
+TEST(IamfUtilTest, ProfileOther) {
+  auto util = IamfMimeUtil::Create("iamf.002.000.Opus");
+  ASSERT_TRUE(util.has_value());
+  ASSERT_NE(util->primary_profile(), kIamfProfileSimple);
+  ASSERT_NE(util->primary_profile(), kIamfProfileBase);
+  ASSERT_EQ(util->primary_profile(), 2U);
 }
 
 TEST(IamfUtilTest, ParsesSequenceHeaderObu) {

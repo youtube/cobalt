@@ -105,6 +105,13 @@ FEATURE_LIST_START
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
 
+// By default, Cobalt destroys and recreates AudioTrack during Seek().
+// Set the following variable to true to force it to Flush() AudioTrack
+// during Seek().
+STARBOARD_FEATURE(kForceFlushAudioTrackDuringReset,
+                  "ForceFlushAudioTrackDuringReset",
+                  false)
+
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
@@ -125,13 +132,6 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // mime attribute "tunnelmode=true". Set the following variable to true to force
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
-
-// By default, Cobalt pauses AudioTrack without play state from AudioTrack.
-// Set the following variable to true to force it using play state from
-// AudioTrack while pausing the playback.
-STARBOARD_FEATURE(kPauseUsingAudioTrackState,
-                  "PauseUsingAudioTrackState",
-                  false)
 
 // Cobalt VideoRenderAlgorithm used to release video frames immediately after
 // playback starts. Set the following variable to true to make it release video

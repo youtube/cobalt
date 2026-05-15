@@ -84,6 +84,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                        const scoped_refptr<VideoFrame>& frame);
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
   void OnSeekTimeout();
+  void WritePendingInputs();
 
   MediaTimeProvider* const media_time_provider_;
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
@@ -108,6 +109,13 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   std::atomic_bool seeking_{false};
   std::atomic<int32_t> input_buffers_sent_{0};
   int64_t seeking_to_time_ = 0;  // microseconds
+
+  // When experiment |enable_video_renderer_vsp_adjustment| is enabled and
+  // playabck rate is not 0.0x or 1.0x. Video renderer vsp adjustment will be
+  // enabled. Once it's enabled, it cannot be reset.
+  bool is_vsp_adjustment_enabled_ = false;
+  InputBuffers pending_input_buffers_;
+  bool pending_end_of_stream_ = false;
 
   // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
   std::atomic<int32_t> number_of_frames_{0};

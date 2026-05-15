@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <malloc.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <poll.h>
 #include <sched.h>
@@ -219,8 +220,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadGetId);
-  REGISTER_SYMBOL(SbThreadGetPriority);
-  REGISTER_SYMBOL(SbThreadSetPriority);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -332,6 +331,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);
   REGISTER_WRAPPER(getrlimit);
+  REGISTER_WRAPPER(if_indextoname);
+  REGISTER_WRAPPER(if_nametoindex);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);

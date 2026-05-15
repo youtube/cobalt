@@ -108,22 +108,6 @@ MemFdMediaBufferPool* MemFdMediaBufferPool::Get() {
   return &instance;
 }
 
-MemFdMediaBufferPool::MemFdMediaBufferPool() {
-  fd_ = CreateReliableCacheFd("cobalt_media_buffer_pool", 0);
-
-  if (fd_ >= 0) {
-    SB_LOG(INFO) << "Created memfd for MediaBufferPool.";
-  } else {
-    SB_LOG(WARNING) << "Failed to create memfd in constructor.";
-  }
-}
-
-MemFdMediaBufferPool::~MemFdMediaBufferPool() {
-  if (fd_ >= 0) {
-    close(fd_);
-  }
-}
-
 void MemFdMediaBufferPool::ShrinkToZero() {
   // fd_ is guaranteed to be >= 0 if Get() returned this instance.
   SB_DCHECK_GE(fd_, 0);
@@ -235,6 +219,22 @@ void MemFdMediaBufferPool::Read(intptr_t position, void* buffer, size_t size) {
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   SB_CHECK_EQ(total_read, size);
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+}
+
+MemFdMediaBufferPool::MemFdMediaBufferPool() {
+  fd_ = CreateReliableCacheFd("cobalt_media_buffer_pool", 0);
+
+  if (fd_ >= 0) {
+    SB_LOG(INFO) << "Created memfd for MediaBufferPool.";
+  } else {
+    SB_LOG(WARNING) << "Failed to create memfd in constructor.";
+  }
+}
+
+MemFdMediaBufferPool::~MemFdMediaBufferPool() {
+  if (fd_ >= 0) {
+    close(fd_);
+  }
 }
 
 }  // namespace starboard

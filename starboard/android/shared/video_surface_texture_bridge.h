@@ -17,9 +17,9 @@
 
 #include <jni.h>
 
-#include "base/android/jni_android.h"
 #include "base/memory/raw_ref.h"
 #include "starboard/common/log.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -44,25 +44,24 @@ class VideoSurfaceTextureBridge {
 
   void SetOnFrameAvailableListener(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& surface_texture) const;
+      const jni_zero::JavaRef<jobject>& surface_texture) const;
   void RemoveOnFrameAvailableListener(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& surface_texture) const;
+      const jni_zero::JavaRef<jobject>& surface_texture) const;
 
-  static base::android::ScopedJavaGlobalRef<jobject> CreateVideoSurfaceTexture(
+  static jni_zero::ScopedJavaGlobalRef<jobject> CreateVideoSurfaceTexture(
       JNIEnv* env,
       int gl_texture_id);
-  static base::android::ScopedJavaGlobalRef<jobject> CreateSurface(
+  static jni_zero::ScopedJavaGlobalRef<jobject> CreateSurface(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& surface_texture);
+      const jni_zero::JavaRef<jobject>& surface_texture);
 
-  static void UpdateTexImage(
-      JNIEnv* env,
-      const base::android::JavaRef<jobject>& surface_texture);
+  static void UpdateTexImage(JNIEnv* env,
+                             const jni_zero::JavaRef<jobject>& surface_texture);
   static void GetTransformMatrix(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& surface_texture,
-      const base::android::JavaParamRef<jfloatArray>& mtx);
+      const jni_zero::JavaRef<jobject>& surface_texture,
+      const jni_zero::JavaParamRef<jfloatArray>& mtx);
 
   void OnFrameAvailable(JNIEnv*) { host_->OnFrameAvailable(); }
 

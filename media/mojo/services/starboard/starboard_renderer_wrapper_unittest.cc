@@ -145,6 +145,27 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
     done_event->Signal();
   }
 
+  void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void PostCallbackToGpu(base::OnceCallback<void()> callback) override {}
+
+  void CreateImageOnGpu(const gfx::Size& coded_size,
+                        const gfx::ColorSpace& color_space,
+                        viz::SharedImageFormat format,
+                        scoped_refptr<gpu::ClientSharedImage>& shared_image,
+                        const std::vector<uint32_t>& texture_service_ids,
+                        const std::vector<uint32_t>& texture_targets,
+                        uint64_t decode_target,
+#if BUILDFLAG(IS_ANDROID)
+                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
  private:
   void OnWillDestroyStub(bool have_context) override {}
 };
@@ -189,7 +210,12 @@ class StarboardRendererWrapperTest : public testing::Test {
         gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
-        std::make_unique<StarboardRendererWrapper>(std::move(traits));
+        std::make_unique<StarboardRendererWrapper>(std::move(traits)
+#if BUILDFLAG(IS_ANDROID)
+                                                       ,
+                                                   /*ref_counted_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+        );
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);
 

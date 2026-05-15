@@ -22,10 +22,9 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
-
-using ::base::android::ScopedJavaGlobalRef;
 
 bool GetHomeDirectory(char* out_path, int path_size) {
   int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);

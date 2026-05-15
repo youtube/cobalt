@@ -15,7 +15,7 @@
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 if (is_internal_build) {
-  import("//cobalt/internal/starboard/shared/uikit/uikit.gni")
+  import("//cobalt/internal/starboard/shared/tvos/tvos.gni")
 }
 
 static_library("test_support") {
@@ -153,7 +153,6 @@ static_library("starboard_platform") {
     "system_get_path.mm",
     "system_get_property.mm",
     "system_request_conceal.mm",
-    "thread_create_priority.cc",
     "thread_get_id.cc",
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
@@ -218,7 +217,7 @@ static_library("starboard_platform") {
       "media/oemcrypto_engine_device_properties_uikit.mm",
     ]
 
-    sources += internal_uikit_sources
+    sources += internal_tvos_sources
 
     deps += [
       "//starboard/shared/widevine:oemcrypto",

@@ -35,7 +35,6 @@ source_set("starboard") {
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_decoder_buffer_allocator_strategy.h",
-      "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",
@@ -46,6 +45,7 @@ source_set("starboard") {
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
       "sbplayer_interface.h",
+      "starboard_callbacks.h",
       "starboard_cdm.cc",
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",
@@ -118,9 +118,6 @@ buildflag_header("buildflags") {
 
     # TODO(b/375069564): Revisit CValStats
     "COBALT_MEDIA_ENABLE_CVAL=0",
-
-    # TODO(b/375070492): Revisit decode-to-texture
-    "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
 
     # TODO(b/375218518): Revisit FormatSupportQueryMetrics
     "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",

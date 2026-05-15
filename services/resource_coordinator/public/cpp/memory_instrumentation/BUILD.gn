@@ -19,6 +19,15 @@ component("memory_instrumentation") {
     "tracing_observer_proto.h",
   ]
 
+  if (is_cobalt) {
+    sources += [
+      "detailed_metrics_delegate.cc",
+      "detailed_metrics_delegate.h",
+      "smaps_categorizer.cc",
+      "smaps_categorizer.h",
+    ]
+  }
+
   if (is_apple) {
     sources += [ "os_metrics_mac.cc" ]
   }

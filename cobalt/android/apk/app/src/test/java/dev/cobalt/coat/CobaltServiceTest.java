@@ -35,8 +35,7 @@ import org.robolectric.RobolectricTestRunner;
 @RunWith(RobolectricTestRunner.class)
 public class CobaltServiceTest {
   @Rule public final MockitoRule mocks = MockitoJUnit.rule();
-  @Mock private CobaltActivity mockCobaltActivity;
-  @Captor private ArgumentCaptor<String> jsCodeCaptor;
+  @Mock private CobaltService.Natives mockNatives;
 
   private TestCobaltService testService;
 
@@ -67,71 +66,16 @@ public class CobaltServiceTest {
   @Before
   public void setUp() {
     testService = new TestCobaltService();
-    testService.setCobaltActivity(mockCobaltActivity);
+    CobaltService.setNativesForTesting(mockNatives);
   }
 
   @Test
-  public void sendToClient_formatsJsCodeWithLocaleUS() {
+  public void sendToClient_callsNativeSendToClient() {
     long testNativeService = 98765L;
     byte[] testData = "sample_payload".getBytes();
-    String expectedBase64Data = Base64.encodeToString(testData, Base64.NO_WRAP);
 
-    // Call the method under test.
     testService.callSendToClient(testNativeService, testData);
 
-    // Verify that evaluateJavaScript was called on the mockCobaltActivity.
-    verify(mockCobaltActivity).evaluateJavaScript(jsCodeCaptor.capture());
-
-    // Capture the JavaScript code passed to evaluateJavaScript.
-    String actualJsCode = jsCodeCaptor.getValue();
-
-    String expectedJsCode = String.format(Locale.US, CobaltService.jsCodeTemplate, testNativeService, expectedBase64Data);
-
-    // Assert that the captured JS code matches the expected code formatted with Locale.US.
-    assertEquals(expectedJsCode, actualJsCode);
-  }
-
-  @Test
-  public void sendToClient_usesLocaleUSRegardlessOfDefaultLocale() {
-    // Save the current default locale.
-    Locale originalLocale = Locale.getDefault();
-    try {
-      // Set the default locale to Arabic, which uses different number formatting.
-      Locale.setDefault(new Locale("ar"));
-
-      long testNativeService = 12345L;
-      byte[] testData = "test_data".getBytes();
-      String expectedBase64Data = Base64.encodeToString(testData, Base64.NO_WRAP);
-
-      // Call the method under test.
-      testService.callSendToClient(testNativeService, testData);
-
-      // Verify and capture the argument.
-      verify(mockCobaltActivity).evaluateJavaScript(jsCodeCaptor.capture());
-      String actualJsCode = jsCodeCaptor.getValue();
-
-      String expectedJsCode = String.format(Locale.US, CobaltService.jsCodeTemplate, testNativeService, expectedBase64Data);
-
-      // Assert that the captured JS code matches the expected code formatted with Locale.US.
-      // If Locale.US was NOT used in sendToClient, and the default was Arabic,
-      // the number 12345 would likely be formatted differently (e.g., with Arabic numerals),
-      // causing this assertion to fail.
-      assertEquals(expectedJsCode, actualJsCode);
-    } finally {
-      // Restore the original default locale to avoid affecting other tests.
-      Locale.setDefault(originalLocale);
-    }
-  }
-
-  @Test
-  public void sendToClient_doesNotCallEvaluateJavaScriptIfActivityIsNull() {
-    TestCobaltService serviceWithNullActivity = new TestCobaltService();
-    // We don't call setCobaltActivity, so cobaltActivity remains null.
-
-    // Calling sendToClient should not cause a crash.
-    serviceWithNullActivity.callSendToClient(123L, new byte[] {1, 2, 3});
-
-    // Verify that evaluateJavaScript was never called on the mock.
-    verifyNoInteractions(mockCobaltActivity);
+    verify(mockNatives).nativeSendToClient(testNativeService, testData);
   }
 }

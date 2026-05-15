@@ -71,6 +71,7 @@ class AudioRendererSink {
                      int frames_per_channel,
                      RenderCallback* render_callback) = 0;
   virtual void Stop() = 0;
+  virtual void Reset() { Stop(); }
 
   virtual void SetVolume(double volume) = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;
