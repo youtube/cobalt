@@ -5,7 +5,7 @@ Book: /youtube/cobalt/_book.yaml
 
 These instructions explain how Linux users set up their Cobalt development environment, clone a copy of the Cobalt source code repository, and build a Cobalt binary. Note that the binary has a graphical client and must be run locally on the machine that you are using to view the client. For example, you cannot SSH into another machine and run the binary on that machine.
 
-These instructions were tested on a clean ubuntu:22.04 environment. Required libraries can differ depending on your Linux distribution and version.
+These instructions were tested on a clean ubuntu:22.04 environment. We recommend using git version 2.51 or later (versions 2.25 and greater are known to succeed, while older versions may fail with gclient). Required libraries can differ depending on your Linux distribution and version.
 
 ## Set up your workstation
 
@@ -28,6 +28,13 @@ These instructions were tested on a clean ubuntu:22.04 environment. Required lib
 
    ```bash
    ccache --max-size=20G
+   ```
+
+   To explicitly configure `ccache` for your build, run `gn args` after initializing your build directory with `gn.py` and append the wrapper configuration:
+
+   ```bash
+   gn args out/linux-x64x11_debug
+   # Add a new line: cc_wrapper = "ccache"
    ```
 
 3. Clone Google's `depot_tools` repository and add the directory to `PATH` for this session:
@@ -98,6 +105,8 @@ To configure your local checkout, you will clone the Cobalt repository and use `
    ```
 
    This command configures the Cobalt `debug` configuration for the `linux-x64x11` platform and compiles a target named `cobalt` that you can then use to run the compiled code.
+
+   For additional tips on speeding up compilation, refer to Chromium's [faster builds documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md#faster-builds).
 
 3. Run the compiled code to launch the Cobalt client:
 
