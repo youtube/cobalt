@@ -67,6 +67,8 @@ const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
     "Media.EnableVideoRendererVspAdjustment";
+const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
+    "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -236,6 +238,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
     parsed.enable_video_renderer_vsp_adjustment = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek)) {
+    parsed.flush_audio_track_during_seek = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {

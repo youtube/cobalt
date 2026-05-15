@@ -19,10 +19,9 @@
 #include <optional>
 #include <string>
 
-#include "starboard/android/shared/media_common.h"
-#include "starboard/common/check_op.h"
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
+#include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -131,7 +130,7 @@ class MediaCodecBridge {
       const SbMediaColorMetadata* color_metadata,
       bool require_secured_decoder,
       bool require_software_codec,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       bool enable_output_checker,

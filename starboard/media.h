@@ -639,24 +639,6 @@ SB_EXPORT int SbMediaGetBufferPadding();
 // This is demonstrated to significantly reduce long-term memory fragmentation.
 SB_EXPORT bool SbMediaIsBufferPoolAllocateOnDemand();
 
-// The memory used when playing mp4 videos that is not in DASH format. The
-// resolution of such videos shouldn't go beyond 1080p. Its value should be
-// less than the sum of SbMediaGetAudioBufferBudget and
-// 'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
-//
-// |codec|: the video codec associated with the buffer.
-//
-// |resolution_width|: the width of the video resolution.
-//
-// |resolution_height|: the height of the video resolution.
-//
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR
-// than non-HDR video.
-SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
-                                                int resolution_width,
-                                                int resolution_height,
-                                                int bits_per_pixel);
-
 // DEPRECATED with SB_API_VERSION 16
 //
 // This function is deprecated in Starboard 16 and no longer used. It's not
