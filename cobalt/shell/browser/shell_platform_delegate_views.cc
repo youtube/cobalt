@@ -28,6 +28,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/context_factory.h"
@@ -69,7 +70,7 @@
 namespace content {
 
 namespace {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 bool CheckAndHandleRevealState(WebContents* web_contents) {
   gfx::NativeView window = web_contents->GetNativeView();
   if (!window) {
@@ -85,7 +86,7 @@ bool CheckAndHandleRevealState(WebContents* web_contents) {
     return false;
   }
 
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   auto* pw_starboard =
       static_cast<ui::PlatformWindowStarboard*>(platform_window);
   bool is_waiting = pw_starboard->IsWaitingForRevealAck() ||
@@ -155,7 +156,7 @@ class ShellView : public views::BoxLayoutView,
         .BuildChildren();
 
     bool should_focus = true;
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     if (CheckAndHandleRevealState(web_contents)) {
       should_focus = false;
     }

@@ -57,6 +57,9 @@ class MockAppEventRunner : public AppEventRunner {
               (const SbEvent* event),
               (override));
 
+  MOCK_METHOD(bool, IsWaitingForRevealAck, (), (const, override));
+  MOCK_METHOD(void, ClearWaitingForRevealAck, (), (override));
+
   // These are the methods called by the base class.
   MOCK_METHOD(void, DoStart, (const SbEvent* event), (override));
   MOCK_METHOD(void, DoStop, (), (override));

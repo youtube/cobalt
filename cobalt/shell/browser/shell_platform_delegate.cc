@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_frame_host.h"
@@ -26,14 +27,14 @@
 #include "ui/aura/window_tree_host.h"
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/platform_window/platform_window.h"
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif
 
 namespace content {
 
 namespace {
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 ui::PlatformWindowStarboard* GetPlatformWindowStarboard(Shell* shell) {
   auto* native_view = shell->web_contents()->GetNativeView();
   if (!native_view) {
@@ -99,7 +100,7 @@ void ShellPlatformDelegate::OnReveal() {
   }
   waiting_for_reveal_ack_ = true;
   for (auto* shell : Shell::windows()) {
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
     auto* platform_window = GetPlatformWindowStarboard(shell);
     if (platform_window) {
       platform_window->SetWaitingForRevealAck(true);
@@ -156,7 +157,7 @@ void ShellPlatformDelegate::OnPageVisibilityVisible(Shell* shell) {
     return;
   }
   waiting_for_reveal_ack_ = false;
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   auto* platform_window = GetPlatformWindowStarboard(shell);
   if (platform_window) {
     platform_window->SetWaitingForRevealAck(false);
@@ -174,7 +175,7 @@ void ShellPlatformDelegate::OnPageVisibilityVisible(Shell* shell) {
 
 bool ShellPlatformDelegate::IsWaitingForRevealAck() const {
   bool new_is_waiting = false;
-#if defined(USE_AURA)
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   auto* shell = Shell::windows().empty() ? nullptr : Shell::windows().front();
   if (shell) {
     auto* platform_window = GetPlatformWindowStarboard(shell);
