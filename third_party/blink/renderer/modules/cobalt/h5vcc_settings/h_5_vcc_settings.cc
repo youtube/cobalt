@@ -168,6 +168,14 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                   name + " isn't a supported setting.");
   }
 
+  if (name == "Media.AppendFirstSegmentSynchronously") {
+    return ProcessSettingAs<bool>(script_state, exception_context, name, *value,
+                                  [this](bool enable) -> Result {
+                                    append_first_segment_synchronously_ =
+                                        enable;
+                                    return base::ok();
+                                  });
+  }
   if (name == "Media.EnableAllocateOnDemand") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
@@ -176,14 +184,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           allocator->SetAllocateOnDemand(true);
           return true;
         });
-  }
-  if (name == "Media.AppendFirstSegmentSynchronously") {
-    return ProcessSettingAs<bool>(script_state, exception_context, name, *value,
-                                  [this](bool enable) -> Result {
-                                    append_first_segment_synchronously_ =
-                                        enable;
-                                    return base::ok();
-                                  });
   }
   if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
     return ProcessSettingAsPositiveInt(
