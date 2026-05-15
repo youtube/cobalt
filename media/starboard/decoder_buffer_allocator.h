@@ -88,7 +88,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
-  void SetAllocateOnDemand(bool enabled);
   static void EnableConfigurableDecommitStrategy(
       int block_size,
       int retain_blocks,
@@ -103,7 +102,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  bool is_memory_pool_allocated_on_demand_ GUARDED_BY(mutex_);
+  const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 
