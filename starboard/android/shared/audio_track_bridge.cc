@@ -47,20 +47,20 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     int channels,
     int sampling_frequency_hz,
     int preferred_buffer_size_in_bytes,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
 
     // TODO: Support query if platform supports float type for tunnel mode.
-    if (tunnel_mode_audio_session_id != -1) {
+    if (tunnel_mode_audio_session_id) {
       SB_DCHECK_EQ(sample_type.value(), kSbMediaAudioSampleTypeInt16Deprecated);
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||
               coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus);
     // TODO: Support passthrough under tunnel mode.
-    SB_DCHECK_EQ(tunnel_mode_audio_session_id, -1);
+    SB_DCHECK(!tunnel_mode_audio_session_id);
     // TODO: |sample_type| is not used in passthrough mode, we should make this
     // explicit.
   }

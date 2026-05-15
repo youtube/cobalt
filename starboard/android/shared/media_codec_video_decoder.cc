@@ -475,7 +475,7 @@ MediaCodecVideoDecoder::Create(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     const std::string& max_video_capabilities,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
     bool force_reset_surface,
     bool force_big_endian_hdr_metadata,
@@ -518,7 +518,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     const std::string& max_video_capabilities,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
     bool force_reset_surface,
     bool force_big_endian_hdr_metadata,
@@ -557,7 +557,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_video_frames_over_60_fps_(
           experimental_features.skip_video_frames_over_60_fps),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
-                                      tunnel_mode_audio_session_id != -1),
+                                      tunnel_mode_audio_session_id),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
@@ -570,7 +570,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
-    SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+    SB_DCHECK(tunnel_mode_audio_session_id_);
     SB_DCHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
@@ -613,12 +613,12 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", max pending input size=" << kMaxPendingInputsSize
                << ", max video capabilities=\"" << max_video_capabilities_
                << "\", and tunnel mode audio session id="
-               << tunnel_mode_audio_session_id_;
+               << ToString(tunnel_mode_audio_session_id_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     // Forces video surface to reset after tunnel mode playbacks. This prevents
     // video distortion on some platforms. For details, see http://b/182610842.
     ClearVideoWindow(/*force_reset_surface=*/true);
@@ -637,7 +637,7 @@ scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
 
 std::unique_ptr<VideoRenderAlgorithm>
 MediaCodecVideoDecoder::GetRenderAlgorithm() {
-  if (tunnel_mode_audio_session_id_ == -1) {
+  if (!tunnel_mode_audio_session_id_) {
     return std::make_unique<VideoRenderAlgorithmAndroid>(
         this, video_frame_tracker_.get());
   }
@@ -670,7 +670,7 @@ void MediaCodecVideoDecoder::Initialize(
 
 size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
   // Tunnel mode uses its own preroll logic.
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     return 0;
   }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
@@ -681,7 +681,7 @@ size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
 
 int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
   // Tunnel mode uses its own preroll logic.
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     return std::numeric_limits<int64_t>::max();
   }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
@@ -1129,7 +1129,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
-  } else if (tunnel_mode_audio_session_id_ != -1) {
+  } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
     // to the renderer again.  Schedule a task to check back.
@@ -1139,7 +1139,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
         kNeedMoreInputCheckIntervalInTunnelMode);
   }
 
-  if (tunnel_mode_audio_session_id_ != -1 && tunnel_mode_prerolling_.load()) {
+  if (tunnel_mode_audio_session_id_ && tunnel_mode_prerolling_.load()) {
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->timestamp() >= video_frame_tracker_->seek_to_time()) {
         tunnel_mode_prerolled_frames_++;
@@ -1185,7 +1185,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(
     MediaCodecBridge* media_codec_bridge) {
-  if (tunnel_mode_audio_session_id_ == -1) {
+  if (!tunnel_mode_audio_session_id_) {
     return;
   }
 
@@ -1216,7 +1216,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(*output_size);
 
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     return;
   }
   if (first_output_format_changed_) {
@@ -1244,7 +1244,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
 bool MediaCodecVideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
-  SB_DCHECK_EQ(tunnel_mode_audio_session_id_, -1);
+  SB_DCHECK(!tunnel_mode_audio_session_id_);
   return sink_->Render();
 }
 
@@ -1295,7 +1295,7 @@ void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
-  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+  SB_DCHECK(tunnel_mode_audio_session_id_);
 
   tunnel_mode_first_frame_rendered_.store(true);
   TryToSignalPrerollForTunnelMode();
@@ -1303,7 +1303,7 @@ void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
 
 void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+  SB_DCHECK(tunnel_mode_audio_session_id_);
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null
