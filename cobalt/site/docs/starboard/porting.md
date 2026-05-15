@@ -22,8 +22,19 @@ To complete the instructions below, you first need to clone the Cobalt source
 code repository:
 
 ```bash
+# Create a working directory for the Chromium source tree
 mkdir ~/chromium && cd ~/chromium
-fetch --nohooks chromium
+
+# Clone the Cobalt repository into the 'src' directory expected by gclient
+git clone --single-branch https://github.com/youtube/cobalt.git src
+
+# Configure gclient to track the Cobalt repository as the primary source
+gclient config --name=src https://github.com/youtube/cobalt.git
+
+# Synchronize all Chromium dependencies, sysroots, and toolchains.
+# Note: Using --no-history performs a shallow clone for a significantly faster checkout.
+cd src
+gclient sync --no-history -r $(git rev-parse @)
 ```
 
 If you prefer, you can instead complete the instructions for

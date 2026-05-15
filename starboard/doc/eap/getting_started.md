@@ -25,41 +25,60 @@ Consider adding the `depot_tools` directory to `PATH` in `.bashrc`, `.profile`, 
 
 ## Get source code ##
 
-There are two supported approaches to configuring your local checkout.
-
-### Option A: Automated Checkout Setup (Recommended)
-If you are initializing a fresh workspace, you can utilize the automated Cobalt checkout orchestration script located in the repository tools:
+To configure your local checkout, you will clone the Cobalt repository and use `gclient` to synchronize Chromium dependencies.
 
 ```bash
-python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --internal --github-user "<your_github_username>"
-```
-
-### Option B: Standard Chromium Checkout (Manual)
-If you prefer managing the checkout manually:
-
-```bash
+# Create a working directory for the Chromium source tree
 mkdir ~/chromium && cd ~/chromium
-fetch --nohooks chromium
-# Note: Use --no-history for a faster checkout without full commit history.
-```
 
+# Clone the Cobalt repository into the 'src' directory expected by gclient
+git clone --single-branch https://github.com/youtube/cobalt.git src
+
+# Configure gclient to track the Cobalt repository as the primary source
+gclient config --name=src https://github.com/youtube/cobalt.git
+
+# Synchronize all Chromium dependencies, sysroots, and toolchains.
+# Note: Using --no-history performs a shallow clone for a significantly faster checkout.
+cd src
+gclient sync --no-history -r $(git rev-parse @)
+```
 
 ## Building Evergreen for x64 ##
 
 Install build dependencies:
 
 ```bash
-cd src
+# Execute Chromium's automated dependency script to install required Linux system packages and fonts
 build/install-build-deps.sh
+
+# Run gclient hooks to ensure all GN toolchains and sysroots are fully configured
 gclient runhooks
 ```
 
 Build Evergreen for Linux:
 
 ```bash
+# Open an interactive text editor to configure your Evergreen GN build directory
 gn args out/evergreen-x64_devel
-# Enter: target_os="linux" target_cpu="x64" is_cobalt=true use_evergreen=true build_type="devel"
+```
 
+In the text editor that opens, enter your desired configuration:
+
+```gn
+# Set target operating system and architecture to Linux x64
+target_os = "linux"
+target_cpu = "x64"
+
+# Enable Cobalt browser engine and Evergreen binary updaters
+is_cobalt = true
+use_evergreen = true
+
+# Set build optimization level to development
+build_type = "devel"
+```
+
+```bash
+# Compile the cobalt_loader and nplb_loader targets using autoninja, which automatically optimizes CPU core utilization
 autoninja -C out/evergreen-x64_devel cobalt_loader nplb_loader
 ```
 

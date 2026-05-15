@@ -30,10 +30,11 @@ Before setting up your workspace, verify that your development machine meets the
 Chromium projects require Google's `depot_tools` suite for source code checkout and dependency management.
 
 ```bash
-# Clone depot_tools
+# Clone Google's depot_tools repository to your home directory
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/depot_tools
 
-# Add depot_tools to your PATH in ~/.bashrc or ~/.zshrc
+# Temporarily add depot_tools to your PATH for the current terminal session.
+# To make this persistent across sessions, add this line to your ~/.bashrc or ~/.zshrc file.
 export PATH="$PATH:$HOME/depot_tools"
 ```
 
@@ -41,30 +42,34 @@ export PATH="$PATH:$HOME/depot_tools"
 
 ## 3. Repository & Workspace Setup
 
-There are two supported approaches to configuring your local Chrobalt Linux checkout.
+To configure your local Chrobalt Linux checkout, you will clone the Cobalt repository and use `gclient` to synchronize Chromium dependencies.
 
-### Option A: Automated Checkout Setup (Recommended)
-If you are initializing a fresh workspace, you can utilize the automated Cobalt checkout orchestration script located in the repository tools:
-
-```bash
-python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --internal --github-user "<your_github_username>"
-```
-
-### Option B: Standard Chromium Checkout (Manual)
-If you prefer managing the checkout manually:
-
-1. **Fetch the Chromium Source Tree**:
+1. **Clone the Cobalt Repository**:
    ```bash
+   # Create a working directory for the Chromium source tree
    mkdir ~/chromium && cd ~/chromium
-   fetch --nohooks chromium
-   # Note: Use --no-history for a faster checkout without full commit history.
+
+   # Clone the Cobalt repository into the 'src' directory expected by gclient
+   git clone --single-branch https://github.com/youtube/cobalt.git src
    ```
 
-2. **Install System Dependencies**:
-   Execute Chromium's automated dependency script to install required Linux packages:
+2. **Configure gclient and Synchronize Dependencies**:
    ```bash
+   # Configure gclient to track the Cobalt repository as the primary source
+   gclient config --name=src https://github.com/youtube/cobalt.git
+
+   # Synchronize all Chromium dependencies, sysroots, and toolchains.
+   # Note: Using --no-history performs a shallow clone for a significantly faster checkout.
    cd src
+   gclient sync --no-history -r $(git rev-parse @)
+   ```
+
+3. **Install System Dependencies**:
+   ```bash
+   # Execute Chromium's automated dependency script to install required Linux system packages and fonts
    build/install-build-deps.sh
+
+   # Run gclient hooks to ensure all GN toolchains and sysroots are fully configured
    gclient runhooks
    ```
 
@@ -96,19 +101,26 @@ Choose your target optimization level via `build_type`:
 To generate your Ninja configuration, execute `gn args`:
 
 ```bash
+# Open an interactive text editor to configure your GN build directory
 gn args out/linux-x64x11_qa
 ```
 
 In the text editor that opens, enter your desired configuration:
 
 ```gn
+# Set target operating system and architecture to Linux x64
 target_os = "linux"
 target_cpu = "x64"
 
+# Enable Cobalt browser engine and Starboard media adaptations
 is_cobalt = true
 use_starboard_media = true
 
-build_type = "qa"       # Options: "debug", "devel", "qa", "gold"
+# Disable Evergreen updaters for a direct modular build
+use_evergreen = false
+
+# Set build optimization level (Options: "debug", "devel", "qa", "gold")
+build_type = "qa"
 ```
 
 ---
@@ -118,9 +130,8 @@ build_type = "qa"       # Options: "debug", "devel", "qa", "gold"
 Chrobalt Linux packages its implementation into the `cobalt` modular executable defined in `//cobalt/BUILD.gn`.
 
 ### Building the Application
-Use `autoninja` (which automatically optimizes core utilization) to build the target:
-
 ```bash
+# Compile the cobalt target using autoninja, which automatically optimizes CPU core utilization
 autoninja -C out/linux-x64x11_qa cobalt
 ```
 
@@ -133,6 +144,7 @@ out/linux-x64x11_qa/cobalt
 You can launch the compiled binary directly from the command line:
 
 ```bash
+# Navigate to the build directory and execute the cobalt binary
 cd out/linux-x64x11_qa
 ./cobalt [--url=<url>]
 ```
@@ -154,66 +166,94 @@ Chrobalt Linux supports standard command-line switches passed directly to the ru
 As Evergreen support is mandatory for certification, Cobalt can also be executed in Evergreen mode on Linux.
 
 ### Initializing an Evergreen Build Directory
-To build Evergreen Cobalt, create an output directory for `evergreen-x64`:
-
 ```bash
+# Open an interactive text editor to configure your Evergreen GN build directory
 gn args out/evergreen-x64_qa
 ```
 
 In the text editor that opens, configure the build for Evergreen:
 
 ```gn
+# Set target operating system and architecture to Linux x64
 target_os = "linux"
 target_cpu = "x64"
 
+# Enable Cobalt browser engine and Evergreen binary updaters
 is_cobalt = true
 use_evergreen = true
 
+# Set build optimization level to QA
 build_type = "qa"
 ```
 
 ### Building and Running Evergreen Cobalt
-Compile the `cobalt_loader` target, which packages the compressed Evergreen library:
-
 ```bash
+# Compile the cobalt_loader target, which packages the compressed Evergreen library
 autoninja -C out/evergreen-x64_qa cobalt_loader
 ```
 
 To launch Cobalt in Evergreen mode, execute the generated helper script:
 
 ```bash
+# Navigate to the Evergreen build directory and launch the Python loader script
 cd out/evergreen-x64_qa
 ./cobalt_loader.py [--url=<url>]
 ```
 
 ---
 
-## 7. Debugging, Logging & Testing
+## 7. Verification & Testing (NPLB)
+
+The No Platform Left Behind (NPLB) test suite verifies Starboard implementation and is mandatory for certification.
+
+### Building NPLB
+```bash
+# Compile the NPLB test suite in Evergreen mode
+autoninja -C out/evergreen-x64_qa nplb_loader
+```
+
+### Running NPLB
+You can execute NPLB using the generated Python loader script, which invokes `elf_loader_sandbox` under the hood:
+
+```bash
+# Navigate to the build directory and execute the NPLB test suite
+cd out/evergreen-x64_qa
+./nplb_loader.py
+```
+
+To pass standard Google Test filtering or output arguments:
+
+```bash
+# Run NPLB with a specific test filter and output results to an XML file
+./nplb_loader.py -- --gtest_filter=*Posix* --gtest_output=xml:/tmp/nplb_results.xml
+```
+
+---
+
+## 8. Debugging, Logging & Cleanup
 
 ### Viewing Logs
 Cobalt logs output directly to standard stdout and stderr in the terminal.
 
 ```bash
+# Run Cobalt and filter output specifically for Cobalt and Starboard events
 ./cobalt 2>&1 | grep -E "(starboard|Cobalt)"
 ```
 
 ### Debugging
 Use `gdb` or `lldb` to debug the `cobalt` binary. `debug` and `devel` builds provide full symbols for tracing execution.
 
-### Running Tests
-To build and execute Cobalt's unit test suite:
+### Environment Cleanup
+To clean build artifacts and free up disk space without deleting your source repository:
 
 ```bash
-autoninja -C out/linux-x64x11_qa cobalt_unittests
-./cobalt_unittests
+# Purge all compiled object files and artifacts in the build directory
+gn clean out/linux-x64x11_qa
 ```
 
----
-
-## 8. Environment Cleanup
-
-If you ever need to completely reset your Linux build environment or purge cached toolchains:
-
-```bash
-rm -rf ~/chromium
-```
+> [!CAUTION]
+> If you truly want to delete your entire development environment, including all uncommitted local changes, branches, and the 100GB+ source repository:
+> ```bash
+> # WARNING: This permanently deletes the entire Chromium and Cobalt source tree
+> rm -rf ~/chromium
+> ```
