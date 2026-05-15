@@ -311,6 +311,7 @@ static_library("starboard_platform") {
   ]
 
   deps = [
+    ":media_codec_video_decoder_helpers",
     "//base",
     "//third_party/opus",
   ]
@@ -379,6 +380,18 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
+static_library("media_codec_video_decoder_helpers") {
+  sources = [
+    "media_codec_video_decoder_helpers.cc",
+    "media_codec_video_decoder_helpers.h",
+  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+  ]
+}
+
 static_library("test_support") {
   testonly = true
   public_deps = [ "//testing/gtest" ]
@@ -398,6 +411,7 @@ test("starboard_platform_tests") {
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
               "media_capabilities_cache_test.cc",
+              "media_codec_video_decoder_helpers_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
@@ -413,6 +427,7 @@ test("starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
     "//starboard:starboard_group",
