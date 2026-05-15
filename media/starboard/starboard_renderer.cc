@@ -27,6 +27,7 @@
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
+#include "media/starboard/experimental_features_unpacker.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
@@ -52,10 +53,6 @@ using ::starboard::GetPlayerStateName;
 // additional call to SbPlayerWriteSamples(). By writing an extra guard audio
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
-
-// The value of 12 was chosen after experimentation was done. For more
-// details, see b/497891900.
-constexpr int kDefaultMaxSamplePerWrite = 12;
 
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
@@ -122,6 +119,7 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
+
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -146,10 +144,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      experimental_features_(experimental_features),
-      max_samples_per_write_(
-          experimental_features.max_samples_per_write.value_or(
-              kDefaultMaxSamplePerWrite)),
+      max_samples_per_write_(ExperimentalFeaturesUnpacker(experimental_features)
+                                 .GetMaxSamplesPerWrite()),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,

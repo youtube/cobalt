@@ -19,6 +19,7 @@
 #include <ostream>
 #include <string>
 
+#include "base/containers/flat_map.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "media/base/media_export.h"
@@ -28,25 +29,7 @@ namespace media {
 
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
-  struct ExperimentalFeatures {
-    // keep-sorted start
-    bool allow_audio_writing_on_pause = false;
-    bool disable_low_performance_sw_decoder = false;
-    bool enable_av1_startup_optimization = false;
-    bool enable_codec_output_checker = false;
-    bool enable_flush_during_seek = false;
-    bool enable_reset_audio_decoder = false;
-    bool enable_video_renderer_vsp_adjustment = false;
-    bool force_decode_to_texture = false;
-    bool skip_flush_on_decoder_teardown = false;
-    bool skip_video_frames_over_60_fps = false;
-    std::optional<bool> use_dual_threads_for_video;
-    std::optional<int> max_samples_per_write;
-    std::optional<int> video_decoder_initial_preroll_count;
-    std::optional<int> video_renderer_min_decoded_frames;
-    std::optional<int> video_renderer_min_input_buffers;
-    // keep-sorted end
-  };
+  using ExperimentalFeatures = base::flat_map<std::string, int64_t>;
 
   StarboardRendererConfig();
   StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,

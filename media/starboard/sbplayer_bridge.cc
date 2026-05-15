@@ -27,6 +27,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/starboard/buildflags.h"
+#include "media/starboard/experimental_features_unpacker.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
@@ -86,20 +87,6 @@ void SetDiscardPadding(
       discard_padding.first.InMicroseconds();
   sample_info->discarded_duration_from_back =
       discard_padding.second.InMicroseconds();
-}
-
-const int* ToIntPointer(const std::optional<int>& val) {
-  if (!val) {
-    return nullptr;
-  }
-  return &*val;
-}
-
-const bool* ToBoolPointer(const std::optional<bool>& val) {
-  if (!val) {
-    return nullptr;
-  }
-  return &*val;
 }
 
 }  // namespace
@@ -712,40 +699,10 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(experimental_features_extension->name,
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures extension_features = {};
-
-    extension_features.allow_audio_writing_on_pause =
-        experimental_features_.allow_audio_writing_on_pause;
-    extension_features.disable_low_performance_sw_decoder =
-        experimental_features_.disable_low_performance_sw_decoder;
-    extension_features.enable_av1_startup_optimization =
-        experimental_features_.enable_av1_startup_optimization;
-    extension_features.enable_codec_output_checker =
-        experimental_features_.enable_codec_output_checker;
-    extension_features.enable_video_renderer_vsp_adjustment =
-        experimental_features_.enable_video_renderer_vsp_adjustment;
-    extension_features.flush_decoder_during_reset =
-        experimental_features_.enable_flush_during_seek;
-    extension_features.reset_audio_decoder =
-        experimental_features_.enable_reset_audio_decoder;
-    extension_features.skip_flush_on_decoder_teardown =
-        experimental_features_.skip_flush_on_decoder_teardown;
-    extension_features.skip_video_frames_over_60_fps =
-        experimental_features_.skip_video_frames_over_60_fps;
-    extension_features.use_dual_threads_for_video =
-        ToBoolPointer(experimental_features_.use_dual_threads_for_video);
-    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
-        experimental_features_.video_decoder_initial_preroll_count);
-    extension_features.video_renderer_min_decoded_frames =
-        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
-    extension_features.video_renderer_min_input_buffers =
-        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
-
-    // Note: Some flags (e.g., 'max_samples_per_write') are not mapped here as
-    // they are directly consumed by StarboardRenderer.
+    ExperimentalFeaturesUnpacker unpacker(experimental_features_);
 
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
-        &extension_features);
+        &unpacker.GetExtensionFeatures());
   }
 
   player_ = sbplayer_interface_->Create(
@@ -1288,8 +1245,11 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     // any of the mime associated with it has `decode-to-texture=true` set.
     // TODO(b/232559177): Make the check below more flexible, to work with
     //                    other well formed inputs (e.g. with extra space).
+    ExperimentalFeaturesUnpacker unpacker(experimental_features_);
+    bool force_decode_to_texture = unpacker.ForceDecodeToTexture();
+
     bool is_decode_to_texture_preferred =
-        experimental_features_.force_decode_to_texture ||
+        force_decode_to_texture ||
         strstr(video_stream_info_.mime, "decode-to-texture=true") ||
         strstr(video_stream_info_.max_video_capabilities,
                "decode-to-texture=true");
@@ -1299,8 +1259,7 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
                 << GetPlayerOutputModeName(default_output_mode) << "\" to \""
                 << GetPlayerOutputModeName(kSbPlayerOutputModeDecodeToTexture)
                 << "\" because force_decode_to_texture is "
-                << (experimental_features_.force_decode_to_texture ? "true"
-                                                                   : "false")
+                << (force_decode_to_texture ? "true" : "false")
                 << ", mime is set to \"" << video_stream_info_.mime
                 << "\", and max_video_capabilities is set to \""
                 << video_stream_info_.max_video_capabilities << "\"";

@@ -39,6 +39,8 @@ source_set("starboard") {
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",
       "decoder_buffer_memory_info.h",
+      "experimental_features_unpacker.cc",
+      "experimental_features_unpacker.h",
       "media_buffer_pool_decoder_buffer_allocator_strategy.cc",
       "media_buffer_pool_decoder_buffer_allocator_strategy.h",
       "sbplayer_bridge.cc",
@@ -92,6 +94,7 @@ source_set("unit_tests") {
     sources += [
       "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
+      "experimental_features_unpacker_unittest.cc",
       "media_buffer_pool_decoder_buffer_allocator_strategy_test.cc",
       "starboard_memory_allocator_test.cc",
       "starboard_renderer_unittest.cc",

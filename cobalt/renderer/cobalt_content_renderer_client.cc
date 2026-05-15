@@ -49,40 +49,8 @@ namespace {
 
 const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
-const char kH5vccSettingsKeyMediaAllowAudioWritingOnPause[] =
-    "Media.AllowAudioWritingOnPause";
-const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
-    "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
-const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
-    "Media.EnableAv1StartupOptimization";
-const char kH5vccSettingsKeyMediaEnableCodecOutputChecker[] =
-    "Media.EnableCodecOutputChecker";
-// TODO: b/474454335 - Remove once seek experiment is done.
-const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
-    "Media.EnableFlushDuringSeek";
-// TODO: b/474454335 - Remove once seek experiment is done.
-const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
-    "Media.EnableResetAudioDecoder";
-const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
-    "Media.EnableVideoRendererVspAdjustment";
-const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
-    "Media.ForceDecodeToTexture";
-const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
-    "Media.VideoDecoderInitialPrerollCount";
-const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
-    "Media.VideoRendererMinInputBuffers";
-const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
-    "Media.VideoRendererMinDecodedFrames";
-const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
-    "Media.MaxSamplesPerWrite";
-const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
-    "Media.SkipFlushOnDecoderTeardown";
-const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
-    "Media.SkipVideoFramesOver60Fps";
-const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
-    "Media.UseDualThreadsForVideo";
 
 using ExperimentalFeatures =
     ::media::StarboardRendererConfig::ExperimentalFeatures;
@@ -170,34 +138,6 @@ const T* GetSettingValue(
   return std::get_if<T>(&it->second);
 }
 
-// Experiment framework uses 0 as the sentinel value for unset.
-// e.g.)
-// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
-constexpr int kH5vccUnsetSentinel = 0;
-
-std::optional<int> ProcessRangedIntH5vccSetting(
-    const std::map<std::string, H5vccSettingValue>& settings,
-    const char* key,
-    int min_val,
-    int max_val,
-    int unset_sentinel) {
-  auto* val = GetSettingValue<int64_t>(settings, key);
-  if (!val) {
-    return std::nullopt;
-  }
-  if (*val == unset_sentinel) {
-    LOG(INFO) << "Value for " << key << " matches unset sentinel (" << *val
-              << "); falling back to system default.";
-    return std::nullopt;
-  }
-  if (*val < min_val || max_val < *val) {
-    LOG(WARNING) << "Invalid value for " << key << ": " << *val;
-    return std::nullopt;
-  }
-
-  return static_cast<int>(*val);
-}
-
 ExperimentalFeatures ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ExperimentalFeatures parsed;
@@ -208,64 +148,17 @@ ExperimentalFeatures ProcessH5vccSettings(
     CHECK(allocator);
     allocator->SetAllocateOnDemand(enable_allocate_on_demand);
   }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaAllowAudioWritingOnPause)) {
-    parsed.allow_audio_writing_on_pause = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings,
-          kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
-    parsed.disable_low_performance_sw_decoder = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
-    parsed.enable_av1_startup_optimization = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableCodecOutputChecker)) {
-    parsed.enable_codec_output_checker = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
-    parsed.enable_flush_during_seek = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
-    parsed.enable_reset_audio_decoder = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
-    parsed.enable_video_renderer_vsp_adjustment = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
-    parsed.force_decode_to_texture = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
-    parsed.skip_flush_on_decoder_teardown = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
-    parsed.skip_video_frames_over_60_fps = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
-    parsed.use_dual_threads_for_video = *val != 0;
-  }
 
-  parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,
-      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
-  parsed.video_renderer_min_input_buffers = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoRendererMinInputBuffers,
-      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
-  parsed.video_renderer_min_decoded_frames = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames,
-      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
-  parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
-      /*max_val=*/100'000, kH5vccUnsetSentinel);
+  for (const auto& [key, value] : settings) {
+    if (!key.starts_with("Media.")) {
+      continue;
+    }
+    const int64_t* int_val = std::get_if<int64_t>(&value);
+    if (!int_val) {
+      continue;
+    }
+    parsed[key] = *int_val;
+  }
   return parsed;
 }
 

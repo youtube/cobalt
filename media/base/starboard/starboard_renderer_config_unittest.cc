@@ -33,8 +33,10 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   const bool enable_reset_audio_decoder = false;
 
   StarboardRendererConfig::ExperimentalFeatures experimental_features;
-  experimental_features.enable_flush_during_seek = enable_flush_during_seek;
-  experimental_features.enable_reset_audio_decoder = enable_reset_audio_decoder;
+  experimental_features["Media.EnableFlushDuringSeek"] =
+      enable_flush_during_seek ? 1 : 0;
+  experimental_features["Media.EnableResetAudioDecoder"] =
+      enable_reset_audio_decoder ? 1 : 0;
 
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
@@ -43,10 +45,10 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
-  EXPECT_EQ(config.experimental_features.enable_flush_during_seek,
-            enable_flush_during_seek);
-  EXPECT_EQ(config.experimental_features.enable_reset_audio_decoder,
-            enable_reset_audio_decoder);
+  EXPECT_EQ(config.experimental_features.at("Media.EnableFlushDuringSeek"),
+            enable_flush_during_seek ? 1 : 0);
+  EXPECT_EQ(config.experimental_features.at("Media.EnableResetAudioDecoder"),
+            enable_reset_audio_decoder ? 1 : 0);
   EXPECT_EQ(config.viewport_size, gfx::Size(1920, 1080));
 }
 
