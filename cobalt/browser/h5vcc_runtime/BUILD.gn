@@ -25,6 +25,7 @@ source_set("h5vcc_runtime") {
 
   deps = [
     "//base",
+    "//cobalt/shell:cobalt_shell_lib",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
