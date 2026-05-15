@@ -365,14 +365,13 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
 }
 
 void InitializeTrustStoreAndroid() {
+#if BUILDFLAG(IS_COBALT)
   static bool initialized = false;
   if (initialized) {
-    LOG(INFO) << "Charley: InitializeTrustStoreAndroid already triggered, skipping duplicate background task.";
     return;
   }
   initialized = true;
-  LOG(INFO) << "Charley: InitializeTrustStoreAndroid: Starting CertDB observation and posting background initialization task.";
-
+#endif  // BUILDFLAG(IS_COBALT)
   // Start observing DB change before the Trust Store is initialized so we don't
   // accidentally miss any changes. See https://crrev.com/c/4226436 for context.
   //

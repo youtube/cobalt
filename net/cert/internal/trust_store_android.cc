@@ -102,7 +102,7 @@ void TrustStoreAndroid::OnTrustStoreChanged() {
 
 scoped_refptr<TrustStoreAndroid::Impl>
 TrustStoreAndroid::MaybeInitializeAndGetImpl() {
-  #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
   int current_generation = generation_.load();
   {
     base::AutoLock lock(init_lock_);
@@ -110,16 +110,13 @@ TrustStoreAndroid::MaybeInitializeAndGetImpl() {
       return impl_;
     }
     if (is_initializing_) {
-      LOG(WARNING) << "Charley: TrustStoreAndroid::MaybeInitializeAndGetImpl: Background initialization actively in progress, returning early to avoid blocking.";
       return impl_;
     }
     is_initializing_ = true;
   }
 
-  LOG(INFO) << "Charley: TrustStoreAndroid::MaybeInitializeAndGetImpl: Starting background loading of Android user certs (generation=" << current_generation << ").";
   SCOPED_UMA_HISTOGRAM_LONG_TIMER("Net.CertVerifier.AndroidTrustStoreInit");
   auto new_impl = base::MakeRefCounted<TrustStoreAndroid::Impl>(current_generation);
-  LOG(INFO) << "Charley: TrustStoreAndroid::MaybeInitializeAndGetImpl: Finished loading Android user certs.";
 
   {
     base::AutoLock lock(init_lock_);
@@ -142,7 +139,7 @@ TrustStoreAndroid::MaybeInitializeAndGetImpl() {
   }
 
   return impl_;
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 
@@ -151,12 +148,10 @@ void TrustStoreAndroid::SyncGetIssuersOf(const bssl::ParsedCertificate* cert,
 #if BUILDFLAG(IS_COBALT)
   if (auto impl = MaybeInitializeAndGetImpl()) {
     impl->SyncGetIssuersOf(cert, issuers);
-  } else {
-    LOG(INFO) << "Charley: TrustStoreAndroid::SyncGetIssuersOf: Trust store not initialized yet, bypassing query.";
   }
 #else
   MaybeInitializeAndGetImpl()->SyncGetIssuersOf(cert, issuers);
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 bssl::CertificateTrust TrustStoreAndroid::GetTrust(
@@ -165,11 +160,10 @@ bssl::CertificateTrust TrustStoreAndroid::GetTrust(
   if (auto impl = MaybeInitializeAndGetImpl()) {
     return impl->GetTrust(cert);
   }
-  LOG(INFO) << "Charley: TrustStoreAndroid::GetTrust: Trust store not initialized yet, returning unspecified trust.";
   return bssl::CertificateTrust::ForUnspecified();
 #else
   return MaybeInitializeAndGetImpl()->GetTrust(cert);
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 

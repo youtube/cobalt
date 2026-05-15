@@ -65,7 +65,7 @@ class NET_EXPORT TrustStoreAndroid : public PlatformTrustStore,
   scoped_refptr<Impl> impl_ GUARDED_BY(init_lock_);
 #if BUILDFLAG(IS_COBALT)
   bool is_initializing_ GUARDED_BY(init_lock_) = false;
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
   // Generation number that is incremented whenever the backing Android trust
   // store changes.
   std::atomic_int generation_ = 0;
