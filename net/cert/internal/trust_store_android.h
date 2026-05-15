@@ -10,6 +10,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "net/base/net_export.h"
 #include "net/cert/cert_database.h"
 #include "net/cert/internal/platform_trust_store.h"
@@ -62,6 +63,9 @@ class NET_EXPORT TrustStoreAndroid : public PlatformTrustStore,
 
   base::Lock init_lock_;
   scoped_refptr<Impl> impl_ GUARDED_BY(init_lock_);
+#if BUILDFLAG(IS_COBALT)
+  bool is_initializing_ GUARDED_BY(init_lock_) = false;
+#endif
   // Generation number that is incremented whenever the backing Android trust
   // store changes.
   std::atomic_int generation_ = 0;
