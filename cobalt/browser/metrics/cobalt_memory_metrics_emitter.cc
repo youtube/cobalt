@@ -427,14 +427,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     };
 
     uint32_t lib_pss = get_detailed_stat("pss:lib_chrobalt");
-    if (lib_pss == 0) {
-      lib_pss = get_detailed_stat("pss:cobalt_core");
-    }
-
     uint32_t lib_rss = get_detailed_stat("rss:lib_chrobalt");
-    if (lib_rss == 0) {
-      lib_rss = get_detailed_stat("rss:cobalt_core");
-    }
 
     base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, "LibChrobaltPss"}),
                                     static_cast<int>(lib_pss / kKiB));

@@ -26,7 +26,7 @@ class CobaltDetailedMetricsDelegateTest : public testing::Test {
   CobaltDetailedMetricsDelegate delegate_;
 };
 
-TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesCobaltCore) {
+TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesLibChrobalt) {
   memory_instrumentation::SmapsMetrics m1;
   m1.pss_kb = 100;
   m1.rss_kb = 200;
@@ -44,10 +44,8 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesCobaltCore) {
 
   base::flat_map<std::string, uint64_t> stats;
   delegate_.GetAndResetStats(&stats);
-  EXPECT_EQ(stats["pss:cobalt_core"], 150u);
-  EXPECT_EQ(stats["rss:cobalt_core"], 260u);
-  EXPECT_EQ(stats["pss:lib_chrobalt"], 30u);
-  EXPECT_EQ(stats["rss:lib_chrobalt"], 40u);
+  EXPECT_EQ(stats["pss:lib_chrobalt"], 180u);
+  EXPECT_EQ(stats["rss:lib_chrobalt"], 300u);
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesV8) {
@@ -115,7 +113,7 @@ TEST_F(CobaltDetailedMetricsDelegateTest, ResetsCorrectly) {
 
   base::flat_map<std::string, uint64_t> stats;
   delegate_.GetAndResetStats(&stats);
-  EXPECT_EQ(stats["pss:cobalt_core"], 10u);
+  EXPECT_EQ(stats["pss:lib_chrobalt"], 10u);
 
   delegate_.GetAndResetStats(&stats);
   EXPECT_TRUE(stats.empty());
