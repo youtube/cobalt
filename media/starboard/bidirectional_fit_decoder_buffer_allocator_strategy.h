@@ -37,10 +37,8 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
                                      allocation_increment,
                                      enable_decommit_on_idle) {}
 
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override {
-    return bidirectional_fit_allocator_.Allocate(size, alignment);
+  void* Allocate(DemuxerStream::Type type, size_t size) override {
+    return bidirectional_fit_allocator_.Allocate(size);
   }
   void Free(DemuxerStream::Type type, void* p) override {
     bidirectional_fit_allocator_.Free(p);
