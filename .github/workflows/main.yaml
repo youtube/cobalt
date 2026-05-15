@@ -304,10 +304,29 @@ jobs:
             git fetch origin ${{ github.event.pull_request.base.sha }} --depth=1
             git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
 
-            # 2. Define strict allowlist of documentation and metadata patterns.
-            # CI can ONLY be skipped if every single touched file matches this list.
+            # 2. BANNED FILES (Global Invalidators).
+            # If a PR touches any of these, we immediately enforce a full CI run.
+            ban_patterns=(
+              "^\.github/"
+              "^DEPS$"
+              "\.py$"
+              "\.sh$"
+              "\.txt$"
+              "\.in$"
+              "^\.vpython3$"
+              "^docker-compose\.yaml$"
+              "^cobalt/docker/"
+              "^cobalt/testing/filters/"
+              "^\.clang-"
+              "^\.pylintrc$"
+              "^CPPLINT\.cfg$"
+              "^\.pre-commit-config\.yaml$"
+            )
+
+            # 3. ALLOWLIST (Documentation & Metadata).
+            # Files that are 100% safe to skip CI.
             allow_patterns=(
-              "\.md$"               # Markdown documentation (README, tutorials)
+              "\.md$"               # Markdown documentation
               "^docs/"              # Documentation directory
               "^OWNERS$"            # Directory owner manifests
               "^AUTHORS$"           # Contributor list
@@ -318,22 +337,39 @@ jobs:
               "^\.gitattributes$"   # Git attributes
             )
 
-            # 3. Evaluate every changed file against the allowlist.
+            # 4. EVALUATION LOGIC
             skip_ci=true
             while IFS= read -r filename; do
               [[ -z "$filename" ]] && continue
 
-              file_matched=false
+              # Check if file is in the Ban List
+              for pattern in "${ban_patterns[@]}"; do
+                if [[ "$filename" =~ $pattern ]]; then
+                  echo "Banned file changed: '$filename'. Triggering full CI."
+                  skip_ci=false
+                  break 2
+                fi
+              done
+
+              # Check if file is C++ / GN source (needs gn analyze in build job)
+              if [[ "$filename" =~ \.cc$ || "$filename" =~ \.h$ || "$filename" =~ \.gn$ || "$filename" =~ \.gni$ ]]; then
+                echo "Source file changed: '$filename'. Triggering CI for gn analyze."
+                skip_ci=false
+                break
+              fi
+
+              # Check if file is in Allowlist
+              file_matched_allow=false
               for pattern in "${allow_patterns[@]}"; do
                 if [[ "$filename" =~ $pattern ]]; then
-                  file_matched=true
+                  file_matched_allow=true
                   break
                 fi
               done
 
-              # If a file didn't match any allowlist pattern, we cannot skip CI.
-              if [[ "$file_matched" == "false" ]]; then
-                echo "File '$filename' is not in the pruning allowlist. Triggering full CI."
+              # If file is not banned, not C++, and not in allowlist, run CI for safety.
+              if [[ "$file_matched_allow" == "false" ]]; then
+                echo "Unlisted file type changed: '$filename'. Triggering CI for safety."
                 skip_ci=false
                 break
               fi

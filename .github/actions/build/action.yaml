@@ -51,36 +51,70 @@ runs:
           cd cobalt/src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
-      - name: Get list of changed files
+      - name: GN Analyze
+        id: analyze
         if: github.event_name == 'pull_request'
-        id: changed-files
-        env:
-          CHANGED_FILES_LIST: changed_files.txt
-        run: |
-          set -x
-          cd cobalt/src
-          # GitHub's actions/checkout action, by default, checks out the merge commit when
-          # a pull request event triggers a workflow. This merge commit represents the state
-          # of the code as if the pull request had been merged into the base branch.
-          # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
-          # HEAD commit from the base branch (i.e. HEAD~1).
-          # TODO(b/382508397): Disabled for now.
-          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
-          # cat ${CHANGED_FILES_LIST}
         shell: bash
+        run: |
+          set -euo pipefail
+          cd cobalt/src
+
+          # Default to running autoninja
+          echo "skip_autoninja=false" >> $GITHUB_OUTPUT
+
+          # Get changed files between PR and base branch
+          # GitHub Actions checks out PR merge commit, so HEAD~1 is the base branch HEAD.
+          git diff --name-only HEAD~1 HEAD > changed_files.txt || true
+
+          # If no files changed or diff failed, run build normally
+          if [[ ! -s changed_files.txt ]]; then
+            exit 0
+          fi
+
+          # Prepare input.json for gn analyze
+          FILES_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0))' < changed_files.txt)
+
+          jq -n --argjson files "$FILES_JSON" '{
+            files: $files,
+            additional_compile_targets: ["all"],
+            test_targets: []
+          }' > gn_analyze_input.json
+
+          echo "GN Analyze Input:"
+          cat gn_analyze_input.json
+
+          # Run gn analyze against the generated Ninja directory
+          gn analyze out/${{ matrix.platform }}_${{ matrix.config }} gn_analyze_input.json gn_analyze_output.json
+
+          echo "GN Analyze Output:"
+          cat gn_analyze_output.json
+
+          # Parse status
+          STATUS=$(jq -r '.status' gn_analyze_output.json)
+          if [[ "$STATUS" == "No dependency" ]]; then
+            echo "GN Analyze reported 'No dependency'. Pruning autoninja build!"
+            echo "skip_autoninja=true" >> $GITHUB_OUTPUT
+          fi
       - name: Calculate test targets
-        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
-        if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
+        if: matrix.config == 'devel'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
-          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
           cd cobalt/src
+
+          # If GN analyze proved no dependency, write empty test targets
+          if [[ "${{ steps.analyze.outputs.skip_autoninja }}" == "true" ]]; then
+            echo "GN Analyze proved no dependency. Emitting empty test targets."
+            echo '{"test_targets": []}' > "${{ inputs.test_targets_json_file }}"
+            echo "test_targets_json=[]" >> $GITHUB_OUTPUT
+            echo "test_targets_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
             echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
@@ -88,27 +122,7 @@ runs:
             exit 0
           fi
 
-          # TODO: b/382508397 - Currently, override with static test targets
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
-
-          # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
-          # # Trim any warning gn printed before the json (all lines above the first curly brace).
-          # sed -n '/^{/,$p' -i gn_desc.json
-
-          # changed_files_arg=""
-
-          # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
-          # Since the output of the script below isn't currently used the arg is disabled.
-          # if [[ -s "${CHANGED_FILES_LIST}" ]]; then
-          #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
-          # fi
-
-          # vpython3 cobalt/build/test_targets.py \
-          #     --root-target "${ROOT_TARGET}" \
-          #     ${changed_files_arg} \
-          #     --gn-json gn_desc.json \
-          #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
-
 
           test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
@@ -131,6 +145,7 @@ runs:
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
+        if: steps.analyze.outputs.skip_autoninja != 'true'
         env:
           TARGETS_JSON: ${{ inputs.targets }}
           USE_SCCACHE: ${{ inputs.enable_sccache }}
@@ -144,7 +159,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
+        if: steps.analyze.outputs.skip_autoninja != 'true' && startsWith(matrix.platform, 'android') && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }} APKs
