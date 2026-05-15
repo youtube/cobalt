@@ -35,6 +35,7 @@ env:
   CI_ESSENTIALS: |
     .github
     build/android
+    build/util
     cobalt/build
     cobalt/docker
     cobalt/testing/browser_tests/tools
