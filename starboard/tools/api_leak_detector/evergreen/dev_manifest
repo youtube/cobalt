@@ -1,7 +1,5 @@
 # Manifest of Leaking Files
 
-# This file was auto-generated using api_leak_detector.py.
-
 # b/512577414 - This is currently allowed in dev builds since it is used by the Rust symbolizer.
 dl_iterate_phdr
 
