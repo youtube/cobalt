@@ -258,7 +258,6 @@ static_library("starboard_platform") {
     "system_request_stop.cc",
     "text_to_speech_helper.cc",
     "text_to_speech_helper.h",
-    "thread_create_priority.cc",
     "thread_get_id.cc",
     "thread_platform_android.cc",
     "time_zone_get_name.cc",
@@ -428,6 +427,7 @@ test("starboard_platform_tests") {
 java_cpp_enum("java_enums") {
   sources = [
     "media_codec_bridge.h",
+    "media_common.h",
     "media_drm_bridge.h",
   ]
 }
