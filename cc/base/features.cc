@@ -69,12 +69,7 @@ BASE_FEATURE(kDetectHiDpiForMsaa,
 
 BASE_FEATURE(kReclaimPrepaintTilesWhenIdle,
              "ReclaimPrepaintTilesWhenIdle",
-#if BUILDFLAG(IS_COBALT)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This saves memory on all platforms, but while on Android savings are
 // significant (~10MiB or more of foreground memory), on desktop they were
@@ -84,11 +79,7 @@ BASE_FEATURE(kReclaimPrepaintTilesWhenIdle,
 // to find a better balance between checkerboarding and memory.
 BASE_FEATURE(kSmallerInterestArea,
              "SmallerInterestArea",
-#if BUILDFLAG(IS_COBALT)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
              base::FEATURE_DISABLED_BY_DEFAULT
-#endif
 );
 
 const base::FeatureParam<int> kInterestAreaSizeInPixels{
@@ -96,12 +87,7 @@ const base::FeatureParam<int> kInterestAreaSizeInPixels{
 
 BASE_FEATURE(kReclaimOldPrepaintTiles,
              "ReclaimOldPrepaintTiles",
-#if BUILDFLAG(IS_COBALT)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kReclaimDelayInSeconds{&kSmallerInterestArea,
                                                      "reclaim_delay_s", 30};
