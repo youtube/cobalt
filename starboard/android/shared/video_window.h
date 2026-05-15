@@ -77,7 +77,8 @@ class SurfaceDestroyNotifier
     }
 
     done_ = false;
-    job_queue_->Schedule([this]() { RunTask(); });
+    scoped_refptr<SurfaceDestroyNotifier> self(this);
+    job_queue_->Schedule([self]() { self->RunTask(); });
 
     // Wait for the task to complete with a 1-second timeout.
     cv_.wait_for(lock, std::chrono::seconds(1), [this] { return done_; });

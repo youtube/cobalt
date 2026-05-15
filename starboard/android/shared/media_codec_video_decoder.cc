@@ -1337,26 +1337,11 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
-  if (!BelongsToCurrentThread()) {
-    // Wait until codec is stopped.
-    std::unique_lock lock(surface_destroy_mutex_);
-    surface_destroyed_ = false;
-    Schedule(std::bind(&MediaCodecVideoDecoder::OnSurfaceDestroyed, this));
-    surface_condition_variable_.wait_for(lock,
-                                         std::chrono::microseconds(1'000'000),
-                                         [this] { return surface_destroyed_; });
-    return;
-  }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
   in_on_surface_destroyed_ = true;
   TeardownCodec();
   in_on_surface_destroyed_ = false;
-  {
-    std::lock_guard lock(surface_destroy_mutex_);
-    surface_destroyed_ = true;
-  }
-  surface_condition_variable_.notify_one();
 }
 
 void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
