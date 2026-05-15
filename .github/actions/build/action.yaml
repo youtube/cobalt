@@ -51,9 +51,27 @@ runs:
           cd cobalt/src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
+      - name: Get list of changed files
+        if: github.event_name == 'pull_request'
+        id: changed-files
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
+        run: |
+          set -x
+          cd cobalt/src
+          # GitHub's actions/checkout action, by default, checks out the merge commit when
+          # a pull request event triggers a workflow. This merge commit represents the state
+          # of the code as if the pull request had been merged into the base branch.
+          # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
+          # HEAD commit from the base branch (i.e. HEAD~1).
+          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST} || true
+          cat ${CHANGED_FILES_LIST} || true
+        shell: bash
       - name: GN Analyze
         id: analyze
         if: github.event_name == 'pull_request'
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
         shell: bash
         run: |
           set -euo pipefail
@@ -62,17 +80,13 @@ runs:
           # Default to running autoninja
           echo "skip_autoninja=false" >> $GITHUB_OUTPUT
 
-          # Get changed files between PR and base branch
-          # GitHub Actions checks out PR merge commit, so HEAD~1 is the base branch HEAD.
-          git diff --name-only HEAD~1 HEAD > changed_files.txt || true
-
-          # If no files changed or diff failed, run build normally
-          if [[ ! -s changed_files.txt ]]; then
+          # If no files changed, run build normally
+          if [[ ! -s "${CHANGED_FILES_LIST}" ]]; then
             exit 0
           fi
 
           # Prepare input.json for gn analyze
-          FILES_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0))' < changed_files.txt)
+          FILES_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0))' < "${CHANGED_FILES_LIST}")
 
           jq -n --argjson files "$FILES_JSON" '{
             files: $files,
