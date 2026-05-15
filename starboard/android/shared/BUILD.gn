@@ -102,7 +102,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc",
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
     "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
-    "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
     "//starboard/shared/starboard/microphone/microphone_close.cc",
     "//starboard/shared/starboard/microphone/microphone_create.cc",
