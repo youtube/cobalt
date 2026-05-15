@@ -92,6 +92,7 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTarget::Trace(visitor);
+  PageVisibilityObserver::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
   visitor->Trace(deep_link_receiver_);
 }

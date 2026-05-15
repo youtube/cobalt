@@ -90,6 +90,13 @@ TEST_F(LifecycleTest, Reveal) {
   Shell::OnReveal();
 
   EXPECT_TRUE(platform_->IsVisible());
+  // Visibility should still be HIDDEN because we are waiting for Reveal ACK.
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+
+  // Simulate Reveal ACK.
+  platform_->OnPageVisibilityVisible(shell_);
+
+  // Now visibility should be VISIBLE.
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
 }
 

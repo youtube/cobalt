@@ -49,6 +49,7 @@ class StubH5vccRuntimeImpl : public h5vcc_runtime::mojom::H5vccRuntime {
       GetAndClearInitialDeepLinkCallback callback) override;
   void AddListener(mojo::PendingRemote<h5vcc_runtime::mojom::DeepLinkListener>
                        listener) override;
+  void PageVisibilityVisible() override;
 
  private:
   // Although we don't expect multiple clients to connect, ReceiverSet is used
