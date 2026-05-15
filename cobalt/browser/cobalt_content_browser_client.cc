@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "build/build_config.h"
+
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug/dump_without_crashing.h"
@@ -219,7 +221,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return nullptr;
 #else
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
@@ -276,11 +278,11 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
     content::SiteInstance& main_frame_site,
     blink::web_pref::WebPreferences* prefs) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !defined(COBALT_IS_RELEASE_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
       web_contents, main_frame_site, prefs);
 }
