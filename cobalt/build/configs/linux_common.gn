@@ -98,8 +98,8 @@ use_dbus = false
 # Embed ICU data in the cobalt binary
 icu_use_data_file = false
 
-# Disable the Pepper API (PPAPI) plugin support
-enable_ppapi = false
+# Disable Linux hardware-accelerated video APIs explicitly (from PR #5515).
+use_vaapi = false
 
 # Enable the compiler size optimizations e.g. -Os.
 optimize_for_size = true

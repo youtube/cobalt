@@ -72,6 +72,11 @@ enable_widevine = true
 
 generate_about_credits = false
 
+# Disable plugins, PDF, and printing support to reduce binary size (from PR #7888).
+enable_plugins = false
+enable_pdf = false
+enable_printing = false
+
 # Disable WebNN and some bits of TensorFlowLite.
 build_tflite_with_xnnpack = false
 webnn_use_tflite = false
