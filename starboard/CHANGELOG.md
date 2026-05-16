@@ -25,6 +25,9 @@ POSIX APIs are used directly.
 The `SbMediaGetProgressiveBufferBudget` API is no longer used since progressive
 playback was removed.
 
+### Removed SbMediaGetBufferAlignment, SbMediaGetBufferPadding, and SbMediaIsBufferUsingMemoryPool
+These APIs were deprecated in Starboard 16 and are no longer used.
+
 ### Support decode-to-texture mode
 Implementations of `DecodeTarget` for YUV planes should ensure they use
 `GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
