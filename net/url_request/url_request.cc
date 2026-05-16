@@ -830,6 +830,10 @@ int URLRequest::DoCancel(int error, const SSLInfo& ssl_info) {
 }
 
 int URLRequest::Read(IOBuffer* dest, int dest_size) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
+#endif
   DCHECK(job_.get());
   DCHECK_NE(ERR_IO_PENDING, status_);
 

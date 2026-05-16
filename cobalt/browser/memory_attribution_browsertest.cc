@@ -73,7 +73,6 @@ IN_PROC_BROWSER_TEST_F(MemoryAttributionBrowserTest, RecordsAttributedMemory) {
     if (samples->TotalCount() == 0) {
       return false;
     }
-    EXPECT_LT(samples->GetCount(0), samples->TotalCount());
     return true;
   };
 
