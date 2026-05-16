@@ -1366,6 +1366,10 @@ Element* TreeScope::createElementNS(
 Element* TreeScope::CreateElement(const QualifiedName& q_name,
                                   const CreateElementFlags flags,
                                   const AtomicString& is) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kDOM);
+#endif
   CustomElementDefinition* definition = nullptr;
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
@@ -1387,6 +1391,10 @@ DocumentFragment* Document::createDocumentFragment() {
 }
 
 Text* Document::createTextNode(const String& data) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kDOM);
+#endif
   return Text::Create(*this, data);
 }
 

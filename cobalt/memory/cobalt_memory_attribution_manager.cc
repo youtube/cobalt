@@ -93,6 +93,7 @@ void CobaltMemoryAttributionManager::Stop() {
 
 void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
     base::OnceClosure callback) {
+  last_report_time_ = base::TimeTicks::Now();
   ReportUma();
   std::move(callback).Run();
 }

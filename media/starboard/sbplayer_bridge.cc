@@ -28,6 +28,9 @@
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -1152,6 +1155,11 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+#endif
+
   DCHECK_NE(state_, kSuspended);
 
   switch (state) {
@@ -1200,6 +1208,11 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
   if (player_ != player) {
     return;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+#endif
 
   DCHECK_NE(state_, kSuspended);
 
@@ -1257,6 +1270,12 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
   if (player_ != player) {
     return;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+#endif
+
   host_->OnPlayerError(error, message);
 }
 
@@ -1301,6 +1320,12 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   DecodingBuffers::iterator iter = decoding_buffers_.find(
       reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
   DCHECK(iter != decoding_buffers_.end());
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+#endif
+
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
                << "sample_buffer " << sample_buffer;

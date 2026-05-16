@@ -353,6 +353,9 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 }
 
 bool FFmpegVideoDecoder::FFmpegDecode(const DecoderBuffer& buffer) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
+#endif
   // Create a packet for input data.
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   // av_init_packet is deprecated and being removed, and ffmpeg clearly does
