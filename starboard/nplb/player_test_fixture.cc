@@ -598,7 +598,7 @@ void SbPlayerTestFixture::WriteEndOfStream(SbMediaType media_type) {
 void SbPlayerTestFixture::WaitAndProcessNextEvent(microseconds timeout) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
-  auto event = callback_event_queue_.GetTimed(timeout.count());
+  auto event = callback_event_queue_.GetTimed(timeout);
 
   // Ignore callback events for previous Seek().
   if (event.ticket != ticket_) {
