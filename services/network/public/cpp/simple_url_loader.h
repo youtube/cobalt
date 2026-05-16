@@ -93,6 +93,9 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
 
   // The maximum size DownloadToString will accept.
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/465213840): Check with upstream authors regarding the 20MB limit
+  // and establish a robust process for managing hardcoded download limits
+  // across release versions.
   // The existing packages are as big as 64MB, so setting the limit to 80MB for now.
   static constexpr size_t kMaxBoundedStringDownloadSize = 80 * 1024 * 1024;
 #else
