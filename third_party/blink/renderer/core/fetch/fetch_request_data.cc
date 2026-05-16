@@ -7,6 +7,8 @@
 #include "base/unguessable_token.h"
 #include "net/base/request_priority.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
+#include "content/public/common/content_milestone_features.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_http_body.h"
 #include "third_party/blink/public/platform/web_url_request.h"
@@ -236,7 +238,9 @@ FetchRequestData* FetchRequestData::CloneExceptBody() {
   request->fetch_priority_hint_ = fetch_priority_hint_;
   request->original_destination_ = original_destination_;
   request->keepalive_ = keepalive_;
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request->browsing_topics_ = browsing_topics_;
+#endif
   request->ad_auction_headers_ = ad_auction_headers_;
   request->shared_storage_writable_ = shared_storage_writable_;
   request->is_history_navigation_ = is_history_navigation_;

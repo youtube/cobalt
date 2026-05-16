@@ -32,6 +32,8 @@
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
+#include "content/public/common/content_milestone_features.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/permissions_policy/policy_disposition.mojom-blink.h"
@@ -277,6 +279,7 @@ void HTMLIFrameElement::ParseAttribute(
       should_call_did_change_attributes = true;
       UseCounter::Count(GetDocument(), WebFeature::kIFrameCSPAttribute);
     }
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   } else if (name == html_names::kBrowsingtopicsAttr) {
     if (GetExecutionContext() &&
         RuntimeEnabledFeatures::TopicsAPIEnabled(GetExecutionContext()) &&
@@ -294,6 +297,7 @@ void HTMLIFrameElement::ParseAttribute(
         should_call_did_change_attributes = true;
       }
     }
+#endif
   } else if (name == html_names::kAdauctionheadersAttr &&
              GetExecutionContext()) {
     if (!GetExecutionContext()->IsSecureContext()) {
@@ -628,11 +632,13 @@ void HTMLIFrameElement::DidChangeAttributes() {
   attributes->parsed_csp_attribute = csp.empty() ? nullptr : std::move(csp[0]);
   attributes->credentialless = credentialless_;
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (RuntimeEnabledFeatures::TopicsAPIEnabled(GetExecutionContext()) &&
       GetExecutionContext()->IsSecureContext()) {
     attributes->browsing_topics =
         FastHasAttribute(html_names::kBrowsingtopicsAttr);
   }
+#endif
 
   if (GetExecutionContext()->IsSecureContext()) {
     attributes->ad_auction_headers =

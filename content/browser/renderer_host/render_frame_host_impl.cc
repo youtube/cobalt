@@ -211,6 +211,8 @@
 #include "content/public/common/alternative_error_page_override_info.mojom.h"
 #include "content/public/common/bindings_policy.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/extra_mojo_js_features.mojom.h"
@@ -9264,6 +9266,14 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
     return;
   }
 
+#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+  if (attributes->browsing_topics) {
+    bad_message::ReceivedBadMessage(
+        GetProcess(),
+        bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
+    return;
+  }
+#else
   if (attributes->browsing_topics &&
       !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
     bad_message::ReceivedBadMessage(
@@ -9271,6 +9281,7 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
         bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
     return;
   }
+#endif
 
   if (attributes->shared_storage_writable_opted_in &&
       (!base::FeatureList::IsEnabled(network::features::kSharedStorageAPI))) {
