@@ -81,7 +81,6 @@ pipeline () {
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done
-  # Use the legacy GCE metadata authentication, allowing RBE remote execution on Kokoro bots.
   export SISO_CREDENTIAL_HELPER="gcloud"
   echo "Running autoninja build for ${TARGET_PLATFORM}_${CONFIG}..."
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
