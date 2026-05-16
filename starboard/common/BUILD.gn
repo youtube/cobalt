@@ -17,6 +17,7 @@
 
 source_set("common_headers_only") {
   sources = [
+    "duration.h",
     "log.h",
     "string.h",
     "system_property.h",
@@ -51,6 +52,7 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
+    "duration.h",
     "expected.h",
     "experimental/media_buffer_pool.cc",
     "experimental/media_buffer_pool.h",

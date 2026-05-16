@@ -16,13 +16,13 @@
 #define STARBOARD_NPLB_PLAYER_TEST_FIXTURE_H_
 
 #include <atomic>
-#include <chrono>
 #include <deque>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "starboard/common/duration.h"
 #include "starboard/common/queue.h"
 #include "starboard/drm.h"
 #include "starboard/nplb/player_test_util.h"
@@ -42,9 +42,9 @@ class SbPlayerTestFixture {
     struct AudioSamplesDescriptor {
       int start_index = 0;
       int samples_count = 0;
-      std::chrono::microseconds timestamp_offset{0};
-      std::chrono::microseconds discarded_duration_from_front{0};
-      std::chrono::microseconds discarded_duration_from_back{0};
+      microseconds timestamp_offset{0};
+      microseconds discarded_duration_from_front{0};
+      microseconds discarded_duration_from_back{0};
       bool is_end_of_stream = false;
     };
 
@@ -55,12 +55,11 @@ class SbPlayerTestFixture {
     };
 
     GroupedSamples& AddAudioSamples(int start_index, int number_of_samples);
-    GroupedSamples& AddAudioSamples(
-        int start_index,
-        int number_of_samples,
-        std::chrono::microseconds timestamp_offset,
-        std::chrono::microseconds discarded_duration_from_front,
-        std::chrono::microseconds discarded_duration_from_back);
+    GroupedSamples& AddAudioSamples(int start_index,
+                                    int number_of_samples,
+                                    microseconds timestamp_offset,
+                                    microseconds discarded_duration_from_front,
+                                    microseconds discarded_duration_from_back);
     GroupedSamples& AddAudioEOS();
     GroupedSamples& AddVideoSamples(int start_index, int number_of_samples);
     GroupedSamples& AddVideoEOS();
@@ -77,7 +76,7 @@ class SbPlayerTestFixture {
       starboard::FakeGraphicsContextProvider* fake_graphics_context_provider);
   ~SbPlayerTestFixture();
 
-  void Seek(std::chrono::microseconds time);
+  void Seek(microseconds time);
   // Write audio and video samples. It waits for
   // |kSbPlayerDecoderStateNeedsData| internally. When writing EOS are
   // requested, the function will write EOS after all samples of the same type
@@ -87,25 +86,21 @@ class SbPlayerTestFixture {
   void WaitForPlayerPresenting();
   // Wait until kSbPlayerStateEndOfStream received.
   void WaitForPlayerEndOfStream();
-  std::chrono::microseconds GetCurrentMediaTime() const;
+  microseconds GetCurrentMediaTime() const;
 
-  void SetAudioWriteDuration(std::chrono::microseconds duration);
+  void SetAudioWriteDuration(microseconds duration);
 
   SbPlayer GetPlayer() const { return player_; }
   bool HasAudio() const { return audio_dmp_reader_ != nullptr; }
   bool HasVideo() const { return video_dmp_reader_ != nullptr; }
 
-  std::chrono::microseconds GetAudioSampleTimestamp(int index) const;
-  int ConvertDurationToAudioBufferCount(
-      std::chrono::microseconds duration) const;
-  int ConvertDurationToVideoBufferCount(
-      std::chrono::microseconds duration) const;
+  microseconds GetAudioSampleTimestamp(int index) const;
+  int ConvertDurationToAudioBufferCount(microseconds duration) const;
+  int ConvertDurationToVideoBufferCount(microseconds duration) const;
 
  private:
-  static constexpr std::chrono::microseconds kDefaultWaitForPlayerStateTimeout{
-      5'000'000};
-  static constexpr std::chrono::microseconds
-      kDefaultWaitForCallbackEventTimeout{15'000};
+  static constexpr microseconds kDefaultWaitForPlayerStateTimeout{5'000'000};
+  static constexpr microseconds kDefaultWaitForCallbackEventTimeout{15'000};
 
   typedef enum CallbackEventType {
     kEmptyEvent,
@@ -160,12 +155,11 @@ class SbPlayerTestFixture {
   bool CanWriteMoreAudioData();
   bool CanWriteMoreVideoData();
 
-  void WriteAudioSamples(
-      int start_index,
-      int samples_to_write,
-      std::chrono::microseconds timestamp_offset,
-      std::chrono::microseconds discarded_duration_from_front,
-      std::chrono::microseconds discarded_duration_from_back);
+  void WriteAudioSamples(int start_index,
+                         int samples_to_write,
+                         microseconds timestamp_offset,
+                         microseconds discarded_duration_from_front,
+                         microseconds discarded_duration_from_back);
   void WriteVideoSamples(int start_index, int samples_to_write);
   void WriteEndOfStream(SbMediaType media_type);
 
@@ -175,16 +169,16 @@ class SbPlayerTestFixture {
   // * |player_state_set_| for SbPlayerState updates.
   // Executes a blocking wait for any new CallbackEvents to be enqueued.
   void WaitAndProcessNextEvent(
-      std::chrono::microseconds timeout = kDefaultWaitForCallbackEventTimeout);
+      microseconds timeout = kDefaultWaitForCallbackEventTimeout);
 
   // Waits for |kSbPlayerDecoderStateNeedsData| to be sent.
   void WaitForDecoderStateNeedsData(
-      std::chrono::microseconds timeout = kDefaultWaitForCallbackEventTimeout);
+      microseconds timeout = kDefaultWaitForCallbackEventTimeout);
 
   // Waits for desired player state update to be sent.
   void WaitForPlayerState(
       const SbPlayerState desired_state,
-      std::chrono::microseconds timeout = kDefaultWaitForPlayerStateTimeout);
+      microseconds timeout = kDefaultWaitForPlayerStateTimeout);
 
   // When the |output_mode| is decoding to texture, then this method is used to
   // advance the decoded frames.
@@ -218,8 +212,8 @@ class SbPlayerTestFixture {
 
   // The duration of how far past the current playback position we will write
   // audio samples, in microseconds.
-  std::chrono::microseconds audio_write_duration_{0};
-  std::chrono::microseconds last_written_audio_timestamp_{0};
+  microseconds audio_write_duration_{0};
+  microseconds last_written_audio_timestamp_{0};
 
   // Set of received player state updates from the underlying player. This is
   // used to check that the state updates occur in a valid order during normal

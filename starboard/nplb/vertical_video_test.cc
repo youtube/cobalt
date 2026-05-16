@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <chrono>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/duration.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
@@ -31,7 +31,6 @@ namespace nplb {
 namespace {
 
 using ::starboard::VideoDmpReader;
-using std::chrono_literals::operator""ms;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;

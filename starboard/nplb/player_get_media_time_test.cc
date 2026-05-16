@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <chrono>
-
+#include "starboard/common/duration.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -23,9 +22,6 @@ namespace nplb {
 namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
-using std::chrono::microseconds;
-using std::chrono_literals::operator""ms;
-using std::chrono_literals::operator""s;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
