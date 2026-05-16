@@ -328,7 +328,8 @@ VerifierResult VerifyCrx3FromString(
 
   // Create a little-endian representation of [signed-header-size].
   const auto header_size_octets =
-      base::I32ToLittleEndian(signed_header_data_str.size());
+      base::I32ToLittleEndian(base::checked_cast<int32_t>(
+          signed_header_data_str.size()));
 
   // Create a set of all required key hashes.
   std::set<KeyHash> required_key_set;
