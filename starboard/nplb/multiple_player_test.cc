@@ -35,7 +35,7 @@ namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
 using ::starboard::VideoDmpReader;
-using std::chrono::milliseconds;
+using std::chrono_literals::operator""ms;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -202,7 +202,7 @@ void WriteSamples(const SbPlayerTestConfig& player_config,
     return;
   }
 
-  const milliseconds kDurationToPlay(200);
+  const auto kDurationToPlay = 200ms;
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {

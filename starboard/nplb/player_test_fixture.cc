@@ -28,6 +28,7 @@ namespace nplb {
 using ::starboard::FakeGraphicsContextProvider;
 using ::starboard::VideoDmpReader;
 using std::chrono::microseconds;
+using std::chrono_literals::operator""s;
 
 using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
 using AudioSamplesDescriptor = GroupedSamples::AudioSamplesDescriptor;
@@ -276,7 +277,7 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
   SB_DCHECK(!iterator.HasMoreAudio() || audio_dmp_reader_);
   SB_DCHECK(!iterator.HasMoreVideo() || video_dmp_reader_);
 
-  const microseconds kDefaultWriteTimeout{5'000'000};
+  const auto kDefaultWriteTimeout = 5s;
 
   int64_t start = starboard::CurrentMonotonicTime();
   while (microseconds(starboard::CurrentMonotonicTime() - start) <
@@ -378,16 +379,16 @@ int SbPlayerTestFixture::ConvertDurationToAudioBufferCount(
     microseconds duration) const {
   SB_DCHECK(HasAudio());
   SB_DCHECK(audio_dmp_reader_->number_of_audio_buffers());
-  return duration.count() * audio_dmp_reader_->number_of_audio_buffers() /
-         audio_dmp_reader_->audio_duration();
+  return (duration * audio_dmp_reader_->number_of_audio_buffers()) /
+         microseconds(audio_dmp_reader_->audio_duration());
 }
 
 int SbPlayerTestFixture::ConvertDurationToVideoBufferCount(
     microseconds duration) const {
   SB_DCHECK(HasVideo());
   SB_DCHECK(video_dmp_reader_->number_of_video_buffers());
-  return duration.count() * video_dmp_reader_->number_of_video_buffers() /
-         video_dmp_reader_->video_duration();
+  return (duration * video_dmp_reader_->number_of_video_buffers()) /
+         microseconds(video_dmp_reader_->video_duration());
 }
 
 // static

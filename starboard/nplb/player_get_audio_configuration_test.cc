@@ -28,7 +28,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
-using std::chrono::seconds;
+using std::chrono_literals::operator""s;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -230,7 +230,7 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
     ASSERT_EQ(initial_configs, configs_after_presenting);
   }
 
-  const seconds seek_to_time(1);
+  const auto seek_to_time = 1s;
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time));
 
   std::vector<SbMediaAudioConfiguration> configs_after_seek;

@@ -31,7 +31,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::VideoDmpReader;
-using std::chrono::milliseconds;
+using std::chrono_literals::operator""ms;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -133,9 +133,9 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   SB_DCHECK(player_fixture.HasAudio());
 
   int audio_samples_to_write =
-      player_fixture.ConvertDurationToAudioBufferCount(milliseconds(200));
+      player_fixture.ConvertDurationToAudioBufferCount(200ms);
   int video_samples_to_write =
-      player_fixture.ConvertDurationToVideoBufferCount(milliseconds(200));
+      player_fixture.ConvertDurationToVideoBufferCount(200ms);
 
   GroupedSamples samples;
   samples.AddAudioSamples(0, audio_samples_to_write);

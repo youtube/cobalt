@@ -29,8 +29,8 @@ namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
 using std::chrono::microseconds;
-using std::chrono::milliseconds;
-using std::chrono::seconds;
+using std::chrono_literals::operator""ms;
+using std::chrono_literals::operator""s;
 using ::testing::ValuesIn;
 
 using GroupedSamples = SbPlayerTestFixture::GroupedSamples;
@@ -49,7 +49,7 @@ TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
   if (HasFatalFailure()) {
     return;
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seconds(1)));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(1s));
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {
@@ -153,17 +153,17 @@ TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
 
   // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
   // set the audio write duration to 10 seconds if audio connectors are remote.
-  player_fixture.SetAudioWriteDuration(milliseconds(500));
+  player_fixture.SetAudioWriteDuration(500ms);
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
-        0, player_fixture.ConvertDurationToAudioBufferCount(seconds(1)));
+        0, player_fixture.ConvertDurationToAudioBufferCount(1s));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
     samples.AddVideoSamples(
-        0, player_fixture.ConvertDurationToVideoBufferCount(seconds(1)));
+        0, player_fixture.ConvertDurationToVideoBufferCount(1s));
     samples.AddVideoEOS();
   }
 
@@ -188,7 +188,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
     GTEST_SKIP() << "Skip PartialAudio test for audioless content.";
   }
 
-  const microseconds kDurationToPlay = seconds(1);
+  const auto kDurationToPlay = 1s;
   const float kSegmentSize = 0.3f;
 
   GroupedSamples samples;
@@ -204,8 +204,8 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
     microseconds current_timestamp = player_fixture.GetAudioSampleTimestamp(i);
     microseconds next_timestamp = player_fixture.GetAudioSampleTimestamp(i + 1);
     microseconds buffer_duration = next_timestamp - current_timestamp;
-    microseconds segment_duration(
-        static_cast<int64_t>(buffer_duration.count() * kSegmentSize));
+    microseconds segment_duration = std::chrono::duration_cast<microseconds>(
+        buffer_duration * kSegmentSize);
     microseconds written_duration{0};
     while (written_duration < buffer_duration) {
       samples.AddAudioSamples(
@@ -228,24 +228,29 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   microseconds end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const microseconds kDurationDifferenceAllowance = milliseconds(500);
-  EXPECT_NEAR(end_media_time.count(), kDurationToPlay.count(),
-              kDurationDifferenceAllowance.count());
+  const auto kDurationDifferenceAllowance = 500ms;
+  EXPECT_NEAR(end_media_time.count(), microseconds(kDurationToPlay).count(),
+              microseconds(kDurationDifferenceAllowance).count());
   microseconds system_time_diff(end_system_time - start_system_time);
   EXPECT_NEAR((system_time_diff + start_media_time).count(),
-              kDurationToPlay.count(), kDurationDifferenceAllowance.count());
+              microseconds(kDurationToPlay).count(),
+              microseconds(kDurationDifferenceAllowance).count());
 
   SB_DLOG(INFO) << "The expected media time should be "
-                << kDurationToPlay.count() << ", the actual media time is "
-                << end_media_time.count() << ", with difference "
-                << std::abs((end_media_time - kDurationToPlay).count()) << ".";
+                << microseconds(kDurationToPlay).count()
+                << " usec, the actual media time is " << end_media_time.count()
+                << " usec, with difference "
+                << std::abs((end_media_time - kDurationToPlay).count())
+                << " usec.";
   SB_DLOG(INFO)
-      << "The expected total playing time should be " << kDurationToPlay.count()
-      << ", the actual playing time is "
-      << (system_time_diff + start_media_time).count() << ", with difference "
+      << "The expected total playing time should be "
+      << microseconds(kDurationToPlay).count()
+      << " usec, the actual playing time is "
+      << (system_time_diff + start_media_time).count()
+      << " usec, with difference "
       << std::abs(
              (system_time_diff + start_media_time - kDurationToPlay).count())
-      << ".";
+      << " usec.";
 }
 
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
@@ -265,8 +270,8 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
     GTEST_SKIP() << "Skip PartialAudio test for audioless content.";
   }
 
-  const microseconds kDurationToPlay = seconds(1);
-  const microseconds kDurationPerWrite = milliseconds(100);
+  const auto kDurationToPlay = 1s;
+  const auto kDurationPerWrite = 100ms;
   const int64_t kNumberOfBuffersToDiscard = 20;
 
   GroupedSamples samples;
@@ -279,11 +284,9 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   int written_buffer_index = 0;
   int num_of_buffers_per_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationPerWrite);
-  for (int count = 0;
-       count < kDurationToPlay.count() / kDurationPerWrite.count(); ++count) {
-    const microseconds kDurationToDiscard =
-        count % 2 == 0 ? seconds(1)
-                       : microseconds(std::numeric_limits<int64_t>::max());
+  for (int count = 0; count < kDurationToPlay / kDurationPerWrite; ++count) {
+    const auto kDurationToDiscard =
+        count % 2 == 0 ? microseconds(1s) : microseconds::max();
 
     microseconds current_timestamp =
         player_fixture.GetAudioSampleTimestamp(written_buffer_index);
@@ -315,31 +318,31 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   microseconds end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const microseconds kDurationDifferenceAllowance = milliseconds(500);
+  const auto kDurationDifferenceAllowance = 500ms;
   microseconds total_written_duration =
       player_fixture.GetAudioSampleTimestamp(written_buffer_index);
   EXPECT_NEAR(end_media_time.count(), total_written_duration.count(),
-              kDurationDifferenceAllowance.count());
+              microseconds(kDurationDifferenceAllowance).count());
   microseconds system_time_diff(end_system_time - start_system_time);
   EXPECT_NEAR((system_time_diff + start_media_time).count(),
               total_written_duration.count(),
-              kDurationDifferenceAllowance.count());
+              microseconds(kDurationDifferenceAllowance).count());
 
   SB_DLOG(INFO) << "The expected media time should be "
                 << total_written_duration.count()
-                << ", the actual media time is " << end_media_time.count()
-                << ", with difference "
+                << " usec, the actual media time is " << end_media_time.count()
+                << " usec, with difference "
                 << std::abs((end_media_time - total_written_duration).count())
-                << ".";
+                << " usec.";
   SB_DLOG(INFO) << "The expected total playing time should be "
                 << total_written_duration.count()
-                << ", the actual playing time is "
+                << " usec, the actual playing time is "
                 << (system_time_diff + start_media_time).count()
-                << ", with difference "
+                << " usec, with difference "
                 << std::abs((system_time_diff + start_media_time -
                              total_written_duration)
                                 .count())
-                << ".";
+                << " usec.";
 }
 
 class SecondaryPlayerTestThread : public AbstractTestThread {
@@ -357,7 +360,7 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
       return;
     }
 
-    const milliseconds kDurationToPlay(200);
+    const auto kDurationToPlay = 200ms;
 
     GroupedSamples samples;
     if (player_fixture.HasAudio()) {

@@ -24,8 +24,8 @@ namespace {
 
 using ::starboard::FakeGraphicsContextProvider;
 using std::chrono::microseconds;
-using std::chrono::milliseconds;
-using std::chrono::seconds;
+using std::chrono_literals::operator""ms;
+using std::chrono_literals::operator""s;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -39,7 +39,7 @@ class SbPlayerGetMediaTimeTest
 };
 
 TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
-  const microseconds kDurationToPlay = seconds(1);
+  const auto kDurationToPlay = 1s;
 
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
@@ -72,24 +72,29 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   microseconds end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const microseconds kDurationDifferenceAllowance = milliseconds(500);
-  EXPECT_NEAR(end_media_time.count(), kDurationToPlay.count(),
-              kDurationDifferenceAllowance.count());
+  const auto kDurationDifferenceAllowance = 500ms;
+  EXPECT_NEAR(end_media_time.count(), microseconds(kDurationToPlay).count(),
+              microseconds(kDurationDifferenceAllowance).count());
   microseconds system_time_diff(end_system_time - start_system_time);
   EXPECT_NEAR((system_time_diff + start_media_time).count(),
-              kDurationToPlay.count(), kDurationDifferenceAllowance.count());
+              microseconds(kDurationToPlay).count(),
+              microseconds(kDurationDifferenceAllowance).count());
 
   SB_DLOG(INFO) << "The expected media time should be "
-                << kDurationToPlay.count() << ", the actual media time is "
-                << end_media_time.count() << ", with difference "
-                << std::abs((end_media_time - kDurationToPlay).count()) << ".";
+                << microseconds(kDurationToPlay).count()
+                << " usec, the actual media time is " << end_media_time.count()
+                << " usec, with difference "
+                << std::abs((end_media_time - kDurationToPlay).count())
+                << " usec.";
   SB_DLOG(INFO)
-      << "The expected total playing time should be " << kDurationToPlay.count()
-      << ", the actual playing time is "
-      << (system_time_diff + start_media_time).count() << ", with difference "
+      << "The expected total playing time should be "
+      << microseconds(kDurationToPlay).count()
+      << " usec, the actual playing time is "
+      << (system_time_diff + start_media_time).count()
+      << " usec, with difference "
       << std::abs(
              (system_time_diff + start_media_time - kDurationToPlay).count())
-      << ".";
+      << " usec.";
 }
 
 TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
@@ -113,10 +118,10 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  const microseconds seek_to_time = seconds(1);
+  const auto seek_to_time = 1s;
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time));
 
-  const microseconds kDurationToPlay = seconds(1);
+  const auto kDurationToPlay = 1s;
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
@@ -143,28 +148,31 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   int64_t end_system_time = starboard::CurrentMonotonicTime();
   microseconds end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const microseconds kDurationDifferenceAllowance = milliseconds(500);
-  EXPECT_NEAR(end_media_time.count(), (kDurationToPlay + seek_to_time).count(),
-              kDurationDifferenceAllowance.count());
+  const auto kDurationDifferenceAllowance = 500ms;
+  EXPECT_NEAR(end_media_time.count(),
+              microseconds(kDurationToPlay + seek_to_time).count(),
+              microseconds(kDurationDifferenceAllowance).count());
   microseconds system_time_diff(end_system_time - start_system_time);
   EXPECT_NEAR((system_time_diff + start_media_time - seek_to_time).count(),
-              kDurationToPlay.count(), kDurationDifferenceAllowance.count());
+              microseconds(kDurationToPlay).count(),
+              microseconds(kDurationDifferenceAllowance).count());
 
   SB_DLOG(INFO)
       << "The expected media time should be "
-      << (kDurationToPlay + seek_to_time).count()
-      << ", the actual media time is " << end_media_time.count()
-      << ", with difference "
+      << microseconds(kDurationToPlay + seek_to_time).count()
+      << " usec, the actual media time is " << end_media_time.count()
+      << " usec, with difference "
       << std::abs((end_media_time - kDurationToPlay - seek_to_time).count())
-      << ".";
+      << " usec.";
   SB_DLOG(INFO) << "The expected total playing time should be "
-                << kDurationToPlay.count() << ", the actual playing time is "
+                << microseconds(kDurationToPlay).count()
+                << " usec, the actual playing time is "
                 << (system_time_diff + start_media_time - seek_to_time).count()
-                << ", with difference "
+                << " usec, with difference "
                 << std::abs((system_time_diff + start_media_time -
                              seek_to_time - kDurationToPlay)
                                 .count())
-                << ".";
+                << " usec.";
 }
 
 INSTANTIATE_TEST_SUITE_P(SbPlayerGetMediaTimeTests,
