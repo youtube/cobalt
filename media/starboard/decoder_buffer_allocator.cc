@@ -193,10 +193,6 @@ int DecoderBufferAllocator::GetBufferAlignment() const {
   return sizeof(void*);
 }
 
-int DecoderBufferAllocator::GetBufferPadding() const {
-  return SbMediaGetBufferPadding();
-}
-
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
