@@ -1,0 +1,17 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Lightweight build configuration. Only Linux based build is considered.
+declare_args() {
+  enable_lightweight = false
+}
+
+declare_args() {
+  # Disable Bluetooth support.
+  # Serial which depends on Bluetooth is also excluded from the build.
+  disable_bluetooth = enable_lightweight
+
+  # Disable XR support.
+  disable_xr = enable_lightweight
+}

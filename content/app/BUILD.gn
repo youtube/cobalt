@@ -5,6 +5,7 @@
 import("//build/config/apple/mobile_config.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//ppapi/buildflags/buildflags.gni")
 import("//third_party/tflite/features.gni")
 
@@ -51,6 +52,12 @@ if (is_win) {
     "//ui/events",
     "//ui/shell_dialogs",
   ]
+
+  if (disable_bluetooth) {
+    content_app_deps -= [
+      "//device/bluetooth",
+    ]
+  }
 }
 
 if (is_ios && target_platform != "tvos") {

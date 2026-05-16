@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 
@@ -83,6 +84,11 @@ mojom("mojom") {
       "//third_party/blink/public/test/mojom:modules_test_automation_blink",
     ]
   }
+
+  if (disable_bluetooth) {
+    sources -= [ "serial.mojom" ]
+    public_deps -= [ "//device/bluetooth/public/mojom" ]
+  }
 }
 
 mojom("device_service") {
@@ -105,6 +111,10 @@ mojom("device_service") {
 
   if (enable_compute_pressure) {
     enabled_features += [ "enable_compute_pressure" ]
+  }
+
+  if (disable_bluetooth) {
+    enabled_features += [ "disable_bluetooth" ]
   }
 
   public_deps = [

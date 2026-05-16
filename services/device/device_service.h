@@ -13,6 +13,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/sequence_bound.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/device/geolocation/geolocation_provider.h"
@@ -29,7 +30,9 @@
 #include "services/device/public/mojom/power_monitor.mojom.h"
 #include "services/device/public/mojom/screen_orientation.mojom.h"
 #include "services/device/public/mojom/sensor_provider.mojom.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "services/device/public/mojom/serial.mojom.h"
+#endif
 #include "services/device/public/mojom/time_zone_monitor.mojom.h"
 #include "services/device/public/mojom/usb_manager.mojom.h"
 #include "services/device/public/mojom/usb_manager_test.mojom.h"
@@ -223,8 +226,10 @@ class DeviceService : public mojom::DeviceService {
   void BindSensorProvider(
       mojo::PendingReceiver<mojom::SensorProvider> receiver) override;
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void BindSerialPortManager(
       mojo::PendingReceiver<mojom::SerialPortManager> receiver) override;
+#endif
 
   void BindTimeZoneMonitor(
       mojo::PendingReceiver<mojom::TimeZoneMonitor> receiver) override;

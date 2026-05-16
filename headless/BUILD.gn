@@ -4,6 +4,7 @@
 
 import("//build/config/c++/c++.gni")
 import("//build/config/chrome_build.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/python.gni")
 import("//build/util/lastchange.gni")
 import("//build/util/process_version.gni")
@@ -536,12 +537,19 @@ component("headless_non_renderer") {
     ]
   }
 
-  if (use_dbus) {
+  if (use_dbus && !disable_bluetooth) {
     deps += [ "//device/bluetooth" ]
   }
 
   configs += [ ":inside_headless_component" ]
   configs += [ ":headless_defines_config" ]
+
+  if (disable_bluetooth) {
+    sources -= [
+      "lib/browser/headless_bluetooth_delegate.cc",
+      "lib/browser/headless_bluetooth_delegate.h",
+    ]
+  }
 }
 
 group("headless_tests") {
@@ -595,6 +603,16 @@ test("headless_unittests") {
   }
 
   configs += [ ":headless_defines_config" ]
+
+  if (disable_bluetooth) {
+    sources -= [
+      "lib/browser/headless_bluetooth_delegate_unittest.cc",
+    ]
+
+    deps -= [
+      "//device/bluetooth/public/cpp",
+    ]
+  }
 }
 
 if (is_mac) {

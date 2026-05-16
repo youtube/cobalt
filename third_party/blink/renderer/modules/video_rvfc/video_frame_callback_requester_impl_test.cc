@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/page/page_animator.h"
 
 #include "base/time/time.h"
+#include "build/lightweight_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
@@ -363,6 +364,7 @@ TEST_F(VideoFrameCallbackRequesterImplTest, VerifyParameters_WindowRaf) {
   testing::Mock::VerifyAndClear(media_player());
 }
 
+#if !BUILDFLAG(DISABLE_XR)
 TEST_F(VideoFrameCallbackRequesterImplTest, OnXrFrameData) {
   V8TestingScope scope;
 
@@ -386,6 +388,7 @@ TEST_F(VideoFrameCallbackRequesterImplTest, OnXrFrameData) {
 
   testing::Mock::VerifyAndClear(media_player());
 }
+#endif  // !BUILDFLAG(DISABLE_XR)
 
 TEST_F(VideoFrameCallbackRequesterImplNullMediaPlayerTest, VerifyNoCrash) {
   V8TestingScope scope;

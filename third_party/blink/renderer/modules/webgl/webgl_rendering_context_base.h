@@ -34,6 +34,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/checked_math.h"
+#include "build/lightweight_buildflags.h"
 #include "device/vr/public/mojom/vr_service.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
@@ -865,7 +866,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
   static bool IsXrCompatibleFromResult(
       device::mojom::blink::XrCompatibleResult result);
   static bool DidGpuRestart(device::mojom::blink::XrCompatibleResult result);
+#if !BUILDFLAG(DISABLE_XR)
   static XRSystem* GetXrSystemFromHost(CanvasRenderingContextHost* host);
+#endif
   void MakeXrCompatibleAsync();
   void OnMakeXrCompatibleFinished(
       device::mojom::blink::XrCompatibleResult xr_compatible_result);

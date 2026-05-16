@@ -18,8 +18,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/device_event_log/device_event_log.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "device/bluetooth/bluetooth_adapter_factory.h"
+#endif
 #include "device/fido/ble_adapter_manager.h"
 #include "device/fido/discoverable_credential_metadata.h"
 #include "device/fido/features.h"
@@ -279,6 +282,7 @@ void FidoRequestHandlerBase::InitDiscoveries(
   transport_availability_callback_readiness_->num_discoveries_pending =
       discoveries_.size();
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #if BUILDFLAG(IS_MAC)
   // On recent macOS a process must have listed Bluetooth metadata in its
   // Info.plist in order to call Bluetooth APIs. Failure to do so results in
@@ -321,6 +325,7 @@ void FidoRequestHandlerBase::InitDiscoveries(
         base::BindOnce(&FidoRequestHandlerBase::ConstructBleAdapterPowerManager,
                        weak_factory_.GetWeakPtr()));
   }
+#endif
 
 #if BUILDFLAG(IS_MAC)
   transport_availability_info_.platform_has_biometrics =
@@ -406,17 +411,27 @@ void FidoRequestHandlerBase::OnBluetoothAdapterStatusChanged(
 }
 
 void FidoRequestHandlerBase::PowerOnBluetoothAdapter() {
+// Remove bluetooth implementation if bluetooth is disabled.
+#if BUILDFLAG(DISABLE_BLUETOOTH)
+  return;
+#else
   if (!bluetooth_adapter_manager_) {
     return;
   }
 
   bluetooth_adapter_manager_->SetAdapterPower(true /* set_power_on */);
+#endif
 }
 
 void FidoRequestHandlerBase::RequestBluetoothPermission(
     BlePermissionCallback callback) {
+// Remove bluetooth implementation if bluetooth is disabled.
+#if BUILDFLAG(DISABLE_BLUETOOTH)
+  std::move(callback).Run(BleStatus::kOff);
+#else
   return bluetooth_adapter_manager_->RequestBluetoothPermission(
       std::move(callback));
+#endif
 }
 
 base::WeakPtr<FidoRequestHandlerBase> FidoRequestHandlerBase::GetWeakPtr() {
@@ -640,9 +655,12 @@ void FidoRequestHandlerBase::InitializeAuthenticatorAndDispatchRequest(
                      weak_factory_.GetWeakPtr(), authenticator));
 }
 
+// Remove bluetooth implementation if bluetooth is disabled.
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void FidoRequestHandlerBase::ConstructBleAdapterPowerManager() {
   bluetooth_adapter_manager_ = std::make_unique<BleAdapterManager>(this);
 }
+#endif
 
 void FidoRequestHandlerBase::OnWinIsUvpaa(bool is_uvpaa) {
   transport_availability_info_.win_is_uvpaa = is_uvpaa;

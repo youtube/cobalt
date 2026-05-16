@@ -44,6 +44,7 @@
 #include "base/unguessable_token.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/browser_interface_broker_impl.h"
 #include "content/browser/buckets/bucket_context.h"
@@ -174,7 +175,10 @@
 #include "third_party/blink/public/mojom/render_accessibility.mojom.h"
 #include "third_party/blink/public/mojom/security_context/insecure_request_policy.mojom-forward.h"
 #include "third_party/blink/public/mojom/sensor/web_sensor_provider.mojom-forward.h"
+// Serial depends on Bluetooth
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "third_party/blink/public/mojom/serial/serial.mojom-forward.h"
+#endif
 #include "third_party/blink/public/mojom/sms/webotp_service.mojom-forward.h"
 #include "third_party/blink/public/mojom/speech/speech_synthesis.mojom-forward.h"
 #include "third_party/blink/public/mojom/webaudio/audio_context_manager.mojom-forward.h"
@@ -2089,8 +2093,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
 
+// Serial depends on Bluetooth
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   void GetSmartCardService(

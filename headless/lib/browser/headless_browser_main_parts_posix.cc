@@ -21,6 +21,7 @@
 #include "base/no_destructor.h"
 #include "base/posix/eintr_wrapper.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "build/config/linux/dbus/buildflags.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -32,7 +33,7 @@
 #include "components/os_crypt/sync/os_crypt.h"
 #include "headless/public/switches.h"
 
-#if BUILDFLAG(USE_DBUS)
+#if BUILDFLAG(USE_DBUS) && !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "device/bluetooth/dbus/bluez_dbus_manager.h"
 #endif
 
@@ -176,7 +177,7 @@ void HeadlessBrowserMainParts::PostCreateMainMessageLoop() {
 
 #if BUILDFLAG(IS_LINUX)
 
-#if BUILDFLAG(USE_DBUS)
+#if BUILDFLAG(USE_DBUS) && !BUILDFLAG(DISABLE_BLUETOOTH)
   bluez::BluezDBusManager::Initialize(/*system_bus=*/nullptr);
 #endif
 

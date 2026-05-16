@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_frame_host.h"
 #include "headless/public/headless_browser.h"
@@ -19,7 +20,9 @@
 
 namespace headless {
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 class HeadlessBluetoothDelegate;
+#endif
 class HeadlessBrowserImpl;
 
 class HeadlessContentBrowserClient : public content::ContentBrowserClient {
@@ -150,7 +153,9 @@ class HeadlessContentBrowserClient : public content::ContentBrowserClient {
 
   bool ShouldSandboxNetworkService() override;
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   content::BluetoothDelegate* GetBluetoothDelegate() override;
+#endif
 
   bool IsRendererProcessPriorityEnabled() override;
 
@@ -179,7 +184,9 @@ class HeadlessContentBrowserClient : public content::ContentBrowserClient {
   std::unique_ptr<StubPersistentRendererPrefsService>
       stub_persistent_renderer_prefs_service_;
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   std::unique_ptr<HeadlessBluetoothDelegate> bluetooth_delegate_;
+#endif
 };
 
 }  // namespace headless

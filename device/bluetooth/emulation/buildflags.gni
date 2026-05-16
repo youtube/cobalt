@@ -1,4 +1,6 @@
 # Bluetooth Device Emulation is currently not enabled on
 # binary size constrained platforms.
+import ("//build/config/lightweight.gni")
 
-enable_bluetooth_emulation = is_win || is_mac || is_linux || is_chromeos
+# If disable_bluetooth is true, it should not be built.
+enable_bluetooth_emulation = (is_win || is_mac || is_linux || is_chromeos) && !disable_bluetooth

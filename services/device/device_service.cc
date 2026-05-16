@@ -11,6 +11,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "services/device/binder_overrides.h"
@@ -22,7 +23,9 @@
 #include "services/device/geolocation/public_ip_address_location_notifier.h"
 #include "services/device/power_monitor/power_monitor_message_broadcaster.h"
 #include "services/device/public/mojom/battery_monitor.mojom.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "services/device/serial/serial_port_manager_impl.h"
+#endif
 #include "services/device/time_zone_monitor/time_zone_monitor.h"
 #include "services/device/vibration/vibration_manager_impl.h"
 #include "services/device/wake_lock/wake_lock_provider.h"
@@ -305,6 +308,7 @@ void DeviceService::BindSensorProvider(
   sensor_provider_->Bind(std::move(receiver));
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void DeviceService::BindSerialPortManager(
     mojo::PendingReceiver<mojom::SerialPortManager> receiver) {
 #if defined(IS_SERIAL_ENABLED_PLATFORM)
@@ -314,6 +318,7 @@ void DeviceService::BindSerialPortManager(
   NOTREACHED() << "Serial devices not supported on this platform.";
 #endif  // defined(IS_SERIAL_ENABLED_PLATFORM)
 }
+#endif
 
 void DeviceService::BindTimeZoneMonitor(
     mojo::PendingReceiver<mojom::TimeZoneMonitor> receiver) {

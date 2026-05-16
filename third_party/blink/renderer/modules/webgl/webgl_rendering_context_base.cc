@@ -119,7 +119,9 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_uniform_location.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_vertex_array_object.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_vertex_array_object_oes.h"
+#if !BUILDFLAG(DISABLE_XR)
 #include "third_party/blink/renderer/modules/xr/xr_system.h"
+#endif
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding_macros.h"
@@ -939,20 +941,29 @@ bool WebGLRenderingContextBase::IsXRCompatible() const {
 
 bool WebGLRenderingContextBase::IsXrCompatibleFromResult(
     device::mojom::blink::XrCompatibleResult result) {
+#if !BUILDFLAG(DISABLE_XR)
   return result ==
              device::mojom::blink::XrCompatibleResult::kAlreadyCompatible ||
          result ==
              device::mojom::blink::XrCompatibleResult::kCompatibleAfterRestart;
+#else
+   return false;
+#endif
 }
 
 bool WebGLRenderingContextBase::DidGpuRestart(
     device::mojom::blink::XrCompatibleResult result) {
+#if !BUILDFLAG(DISABLE_XR)
   return result == device::mojom::blink::XrCompatibleResult::
                        kCompatibleAfterRestart ||
          result == device::mojom::blink::XrCompatibleResult::
                        kNotCompatibleAfterRestart;
+#else
+  return false;
+#endif
 }
 
+#if !BUILDFLAG(DISABLE_XR)
 XRSystem* WebGLRenderingContextBase::GetXrSystemFromHost(
     CanvasRenderingContextHost* host) {
   XRSystem* xr = nullptr;
@@ -972,9 +983,11 @@ XRSystem* WebGLRenderingContextBase::GetXrSystemFromHost(
 
   return xr;
 }
+#endif
 
 bool WebGLRenderingContextBase::MakeXrCompatibleSync(
     CanvasRenderingContextHost* host) {
+#if !BUILDFLAG(DISABLE_XR)
   device::mojom::blink::XrCompatibleResult xr_compatible_result =
       device::mojom::blink::XrCompatibleResult::kNoDeviceAvailable;
 
@@ -983,11 +996,17 @@ bool WebGLRenderingContextBase::MakeXrCompatibleSync(
       xr->MakeXrCompatibleSync(&xr_compatible_result);
     }
   }
-
   return IsXrCompatibleFromResult(xr_compatible_result);
+#else
+  return false;
+#endif
 }
 
 void WebGLRenderingContextBase::MakeXrCompatibleAsync() {
+#if BUILDFLAG(DISABLE_XR)
+  xr_compatible_ = false;
+  CompleteXrCompatiblePromiseIfPending(DOMExceptionCode::kAbortError);
+#else
   if (XRSystem* xr = GetXrSystemFromHost(Host())) {
     // The promise will be completed on the callback.
     xr->MakeXrCompatibleAsync(
@@ -997,10 +1016,12 @@ void WebGLRenderingContextBase::MakeXrCompatibleAsync() {
     xr_compatible_ = false;
     CompleteXrCompatiblePromiseIfPending(DOMExceptionCode::kAbortError);
   }
+#endif
 }
 
 void WebGLRenderingContextBase::OnMakeXrCompatibleFinished(
     device::mojom::blink::XrCompatibleResult xr_compatible_result) {
+#if !BUILDFLAG(DISABLE_XR)
   xr_compatible_ = IsXrCompatibleFromResult(xr_compatible_result);
 
   // If the gpu process is restarted, MaybeRestoreContext will resolve the
@@ -1024,6 +1045,10 @@ void WebGLRenderingContextBase::OnMakeXrCompatibleFinished(
     }
     CompleteXrCompatiblePromiseIfPending(exception_code);
   }
+#else
+  // Act as no device was available
+  CompleteXrCompatiblePromiseIfPending(DOMExceptionCode::kInvalidStateError);
+#endif
 }
 
 void WebGLRenderingContextBase::CompleteXrCompatiblePromiseIfPending(
