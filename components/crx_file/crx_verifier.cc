@@ -216,6 +216,9 @@ VerifierResult VerifyCrx3(
   // Create a set of all required key hashes.
   std::set<KeyHash> required_key_set;
   for (const auto& key_hash : required_key_hashes) {
+    if (key_hash.size() != sizeof(KeyHash)) {
+      return VerifierResult::ERROR_EXPECTED_HASH_INVALID;
+    }
     KeyHash hash_copy;
     base::span<uint8_t>(hash_copy).copy_from(key_hash);
     required_key_set.insert(hash_copy);
@@ -330,6 +333,9 @@ VerifierResult VerifyCrx3FromString(
   // Create a set of all required key hashes.
   std::set<KeyHash> required_key_set;
   for (const auto& key_hash : required_key_hashes) {
+    if (key_hash.size() != sizeof(KeyHash)) {
+      return VerifierResult::ERROR_EXPECTED_HASH_INVALID;
+    }
     KeyHash hash_copy;
     base::span<uint8_t>(hash_copy).copy_from(key_hash);
     required_key_set.insert(hash_copy);
