@@ -205,7 +205,7 @@
   } while (false)
 
 #if BUILDFLAG(IS_COBALT)
-#include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "base/memory/cobalt_memory_context.h"
 #endif
 
 namespace blink {
@@ -813,8 +813,8 @@ void LocalFrameView::UpdateLayout() {
   DCHECK(frame_->GetPage());
 
 #if BUILDFLAG(IS_COBALT)
-  cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kLayout);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kLayout);
 #endif
 
   Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
@@ -2669,8 +2669,8 @@ void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   DCHECK(LocalFrameTreeAllowsThrottling());
 
 #if BUILDFLAG(IS_COBALT)
-  cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kGraphics);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
 #endif
 
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::RunPaintLifecyclePhase");

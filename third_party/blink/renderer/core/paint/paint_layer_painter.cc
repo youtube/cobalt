@@ -10,7 +10,6 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
 #endif
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"

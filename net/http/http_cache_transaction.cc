@@ -4,10 +4,6 @@
 
 #include "net/http/http_cache_transaction.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include "build/build_config.h"  // For IS_POSIX
 
 #if BUILDFLAG(IS_POSIX)
@@ -48,7 +44,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #if BUILDFLAG(IS_COBALT)
-#include "cobalt/memory/cobalt_memory_attribution_manager.h"  // nogncheck
+#include "base/memory/cobalt_memory_context.h"  // nogncheck
 #endif
 #include "net/base/auth.h"
 #include "net/base/features.h"
@@ -76,6 +72,9 @@
 #include "net/log/net_log_event_type.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config_service.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 using base::Time;
 using base::TimeTicks;
@@ -188,8 +187,8 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   DCHECK(!callback.is_null());
 
 #if BUILDFLAG(IS_COBALT)
-  cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kNetwork);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
 #endif
 
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("net"),

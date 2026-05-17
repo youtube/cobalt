@@ -59,7 +59,7 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #if BUILDFLAG(IS_COBALT)
-#include "cobalt/memory/cobalt_memory_attribution_manager.h"  // nogncheck
+#include "base/memory/cobalt_memory_context.h"  // nogncheck
 #endif
 #include "sql/database_memory_dump_provider.h"
 #include "sql/initialization.h"
@@ -382,8 +382,8 @@ Database::~Database() {
 
 bool Database::Open(const base::FilePath& path) {
 #if BUILDFLAG(IS_COBALT)
-  cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kStorage);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kStorage);
 #endif
 
   std::string path_string = AsUTF8ForSQL(path);

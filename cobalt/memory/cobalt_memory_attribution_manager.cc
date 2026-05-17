@@ -101,7 +101,7 @@ void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
 void CobaltMemoryAttributionManager::ReportUma() {
   base::TimeTicks now = base::TimeTicks::Now();
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-  if ((now - last_report_time_) > base::Minutes(7)) {
+  if ((now - last_report_time_) > base::Minutes(10)) {
     // Skip reporting if timer was delayed by device suspension
     last_report_time_ = now;
     for (size_t i = 0;
@@ -118,14 +118,14 @@ void CobaltMemoryAttributionManager::ReportUma() {
     uint64_t current =
         observer->GetCounters()[i].value.load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];
-    uint64_t emitted_mb = delta / (1024 * 1024);
-    last_snapshots_[i] += emitted_mb * (1024 * 1024);
+    uint64_t emitted_kb = delta / 1024;
+    last_snapshots_[i] += emitted_kb * 1024;
 
-    base::UmaHistogramMemoryMB(
+    base::UmaHistogramCustomCounts(
         base::StrCat({"Memory.Cobalt.AllocationVolume.",
                       base::memory::ContextToString(
                           static_cast<base::memory::MemoryContext>(i))}),
-        emitted_mb);
+        emitted_kb, 1, 67108864, 100);
   }
 }
 

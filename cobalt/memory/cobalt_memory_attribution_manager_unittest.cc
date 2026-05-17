@@ -94,10 +94,26 @@ TEST_F(CobaltMemoryAttributionManagerTest,
   EXPECT_EQ(GetCounter(MemoryContext::kUnknown), 1024u);
 
   MemoryContext contexts[] = {
-      MemoryContext::kDOM,     MemoryContext::kLayout,
-      MemoryContext::kMedia,   MemoryContext::kScript,
-      MemoryContext::kNetwork, MemoryContext::kGraphics,
+      MemoryContext::kDOM,
+      MemoryContext::kLayout,
+      MemoryContext::kMedia,
+      MemoryContext::kScript,
+      MemoryContext::kNetwork,
+      MemoryContext::kGraphics,
       MemoryContext::kStorage,
+      MemoryContext::kGraphicsCanvas,
+      MemoryContext::kGraphicsCompositor,
+      MemoryContext::kGraphicsGlyphs,
+      MemoryContext::kScriptHeap,
+      MemoryContext::kScriptJIT,
+      MemoryContext::kScriptBindings,
+      MemoryContext::kNetworkLoader,
+      MemoryContext::kNetworkCache,
+      MemoryContext::kBlinkDOM,
+      MemoryContext::kBlinkStyle,
+      MemoryContext::kBlinkParser,
+      MemoryContext::kPlatformIPC,
+      MemoryContext::kPlatformStarboard,
   };
 
   for (MemoryContext context : contexts) {
@@ -122,6 +138,28 @@ TEST_F(CobaltMemoryAttributionManagerTest, ReportUmaEmitsDeltas) {
       {MemoryContext::kNetwork, "Memory.Cobalt.AllocationVolume.Network"},
       {MemoryContext::kGraphics, "Memory.Cobalt.AllocationVolume.Graphics"},
       {MemoryContext::kStorage, "Memory.Cobalt.AllocationVolume.Storage"},
+      {MemoryContext::kGraphicsCanvas,
+       "Memory.Cobalt.AllocationVolume.GraphicsCanvas"},
+      {MemoryContext::kGraphicsCompositor,
+       "Memory.Cobalt.AllocationVolume.GraphicsCompositor"},
+      {MemoryContext::kGraphicsGlyphs,
+       "Memory.Cobalt.AllocationVolume.GraphicsGlyphs"},
+      {MemoryContext::kScriptHeap, "Memory.Cobalt.AllocationVolume.ScriptHeap"},
+      {MemoryContext::kScriptJIT, "Memory.Cobalt.AllocationVolume.ScriptJIT"},
+      {MemoryContext::kScriptBindings,
+       "Memory.Cobalt.AllocationVolume.ScriptBindings"},
+      {MemoryContext::kNetworkLoader,
+       "Memory.Cobalt.AllocationVolume.NetworkLoader"},
+      {MemoryContext::kNetworkCache,
+       "Memory.Cobalt.AllocationVolume.NetworkCache"},
+      {MemoryContext::kBlinkDOM, "Memory.Cobalt.AllocationVolume.BlinkDOM"},
+      {MemoryContext::kBlinkStyle, "Memory.Cobalt.AllocationVolume.BlinkStyle"},
+      {MemoryContext::kBlinkParser,
+       "Memory.Cobalt.AllocationVolume.BlinkParser"},
+      {MemoryContext::kPlatformIPC,
+       "Memory.Cobalt.AllocationVolume.PlatformIPC"},
+      {MemoryContext::kPlatformStarboard,
+       "Memory.Cobalt.AllocationVolume.PlatformStarboard"},
   };
 
   for (const auto& test_case : test_cases) {
@@ -134,7 +172,7 @@ TEST_F(CobaltMemoryAttributionManagerTest, ReportUmaEmitsDeltas) {
   TriggerReportUma();
 
   for (const auto& test_case : test_cases) {
-    histogram_tester.ExpectUniqueSample(test_case.histogram_name, 15, 1);
+    histogram_tester.ExpectUniqueSample(test_case.histogram_name, 15360, 1);
   }
   histogram_tester.ExpectUniqueSample("Memory.Cobalt.AllocationVolume.Unknown",
                                       0, 1);
@@ -147,7 +185,7 @@ TEST_F(CobaltMemoryAttributionManagerTest, ReportUmaEmitsDeltas) {
 
   TriggerReportUma();
 
-  histogram_tester.ExpectBucketCount("Memory.Cobalt.AllocationVolume.DOM", 5,
+  histogram_tester.ExpectBucketCount("Memory.Cobalt.AllocationVolume.DOM", 5120,
                                      1);
   histogram_tester.ExpectTotalCount("Memory.Cobalt.AllocationVolume.DOM", 2);
 }

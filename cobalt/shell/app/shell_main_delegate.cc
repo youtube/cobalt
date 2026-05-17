@@ -378,12 +378,8 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
               PoissonAllocationSamplerInclusion::kEnforce,
           memory_system::DispatcherParameters::
               AllocationTraceRecorderInclusion::kIgnore,
-          process_type
-#if BUILDFLAG(IS_COBALT)
-          ,
-          memory_system::CobaltMemoryAttributionInclusion::kInclude
-#endif
-          )
+          process_type,
+          memory_system::CobaltMemoryAttributionInclusion::kInclude)
       .Initialize(memory_system_);
 
   return std::nullopt;

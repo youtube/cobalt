@@ -56,6 +56,7 @@ class CobaltMemoryAttributionManager
 
  private:
   friend struct base::DefaultSingletonTraits<CobaltMemoryAttributionManager>;
+  friend struct base::LeakySingletonTraits<CobaltMemoryAttributionManager>;
   friend class CobaltMemoryAttributionManagerTest;
   friend class cobalt::MemoryAttributionBrowserTest;
 

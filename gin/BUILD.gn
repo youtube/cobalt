@@ -114,10 +114,6 @@ component("gin") {
     frameworks = [ "CoreFoundation.framework" ]
   }
 
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
-
   configs += [ "//v8:external_startup_data" ]
 }
 

@@ -21,7 +21,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 #if BUILDFLAG(IS_COBALT)
-#include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "base/memory/cobalt_memory_context.h"
 #endif
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
@@ -124,8 +124,8 @@ DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
     size_t size) {
 #if BUILDFLAG(IS_COBALT)
-  cobalt::memory::ScopedMemoryContext scoped_context(
-      cobalt::memory::MemoryContext::kMedia);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
 #endif
   base::AutoLock scoped_lock(mutex_);
 

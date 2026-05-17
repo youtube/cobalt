@@ -32,13 +32,11 @@
 #include <algorithm>
 
 #include "base/auto_reset.h"
-#include "base/containers/adapters.h"
-#include "base/hash/hash.h"
-
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
 #endif
+#include "base/containers/adapters.h"
+#include "base/hash/hash.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
 #include "third_party/blink/renderer/core/css/check_pseudo_has_cache_scope.h"
@@ -128,6 +126,10 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 namespace blink {
 
@@ -4044,6 +4046,10 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
     UpdateViewportSize();
     NthIndexCache nth_index_cache(GetDocument());
     if (NeedsStyleRecalc()) {
+#if BUILDFLAG(IS_COBALT)
+      base::memory::ScopedMemoryContext scoped_context(
+          base::memory::MemoryContext::kBlinkStyle);
+#endif
       TRACE_EVENT0("blink,blink_style", "Document::recalcStyle");
       SCOPED_BLINK_UMA_HISTOGRAM_TIMER_HIGHRES("Style.RecalcTime");
       Element* viewport_defining = GetDocument().ViewportDefiningElement();

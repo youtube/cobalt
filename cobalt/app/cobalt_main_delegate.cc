@@ -14,10 +14,6 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include <memory>
 #include <optional>
 #include <utility>
@@ -81,10 +77,6 @@ CobaltMainDelegate::~CobaltMainDelegate() {
 }
 
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kScript);
-#endif
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(14);
@@ -124,10 +116,6 @@ CobaltMainDelegate::CreateContentUtilityClient() {
 
 std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kScript);
-#endif
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(15);
@@ -198,10 +186,6 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kScript);
-#endif
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(16);
