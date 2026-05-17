@@ -4,10 +4,6 @@
 
 #include "src/heap/concurrent-marking.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include <algorithm>
 #include <atomic>
 #include <stack>
@@ -250,9 +246,6 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
@@ -301,9 +294,6 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());

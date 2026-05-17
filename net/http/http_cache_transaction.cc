@@ -4,10 +4,6 @@
 
 #include "net/http/http_cache_transaction.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include "build/build_config.h"  // For IS_POSIX
 
 #if BUILDFLAG(IS_POSIX)
@@ -45,9 +41,6 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/values.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -74,6 +67,9 @@
 #include "net/log/net_log_event_type.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config_service.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 using base::Time;
 using base::TimeTicks;

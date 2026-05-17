@@ -17,13 +17,11 @@
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/no_destructor.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
@@ -755,10 +753,8 @@ void StarboardRenderer::OnDemuxerStreamRead(
     int max_buffers,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kMedia);
-#endif
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
@@ -852,10 +848,8 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kMedia);
-#endif
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if the callback is fired when creation of the `player_bridge_`
@@ -1055,10 +1049,8 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kMedia);
-#endif
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (audio_read_delayed_) {
     OnNeedData(DemuxerStream::AUDIO, max_number_of_buffers_to_write);

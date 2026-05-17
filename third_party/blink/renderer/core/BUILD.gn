@@ -465,10 +465,6 @@ component("core") {
   if (is_cobalt && use_starboard_media) {
     deps += [ "//starboard:starboard_group" ]
   }
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
 }
 
 # Certain sources should be compiled with heavy optimization enabled.
@@ -514,10 +510,6 @@ blink_core_sources("core_hot") {
   if (enable_vectorized_html_scanning) {
     deps += [ "//third_party/highway:libhwy" ]
     defines += [ "BLINK_ENABLE_VECTORIZED_HTML_SCANNING=1" ]
-  }
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
   }
 
   allow_circular_includes_from = [

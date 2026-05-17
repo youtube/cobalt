@@ -64,7 +64,8 @@ IN_PROC_BROWSER_TEST_F(MemoryAttributionBrowserTest, RecordsAttributedMemory) {
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  auto check_histogram = [](const std::string& name) {
+  auto check_histogram = [](const std::string& name,
+                            bool require_non_zero = false) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
     if (!histogram) {
       return false;
@@ -73,15 +74,18 @@ IN_PROC_BROWSER_TEST_F(MemoryAttributionBrowserTest, RecordsAttributedMemory) {
     if (samples->TotalCount() == 0) {
       return false;
     }
+    if (require_non_zero && samples->GetCount(0) >= samples->TotalCount()) {
+      return false;
+    }
     return true;
   };
 
-  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.DOM"));
-  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Layout"));
-  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Script"));
-  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Network"));
-  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Graphics"));
-  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Storage"));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.DOM", true));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Layout", true));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Script", true));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Network", true));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Graphics", true));
+  EXPECT_TRUE(check_histogram("Memory.Cobalt.AllocationVolume.Storage", false));
 }
 
 }  // namespace cobalt

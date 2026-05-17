@@ -29,16 +29,14 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
@@ -87,6 +85,10 @@
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 namespace blink {
 
@@ -689,6 +691,10 @@ void HTMLDocumentParser::ForcePlaintextForTextDocument() {
 }
 
 bool HTMLDocumentParser::PumpTokenizer() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkParser);
+#endif
   DCHECK(!GetDocument()->IsPrefetchOnly());
   DCHECK(!IsStopped());
 

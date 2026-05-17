@@ -192,6 +192,10 @@
 #include "ui/gfx/geometry/quad_f.h"
 #include "ui/gfx/geometry/rect_f.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 // Used to check for dirty layouts violating document lifecycle rules.
 // If arg evaluates to true, the program will continue. If arg evaluates to
 // false, program will crash if DCHECK_IS_ON() or return false from the current
@@ -204,9 +208,6 @@
     }                               \
   } while (false)
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 
 namespace blink {
 namespace {

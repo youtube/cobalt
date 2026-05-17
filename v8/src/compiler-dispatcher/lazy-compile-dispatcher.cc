@@ -4,11 +4,6 @@
 
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
-
 #include <atomic>
 
 #include "include/v8-platform.h"
@@ -42,9 +37,6 @@ class LazyCompileDispatcher::JobTask : public v8::JobTask {
       : lazy_compile_dispatcher_(lazy_compile_dispatcher) {}
 
   void Run(JobDelegate* delegate) final {
-#if BUILDFLAG(IS_COBALT)
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     lazy_compile_dispatcher_->DoBackgroundWork(delegate);
   }
 

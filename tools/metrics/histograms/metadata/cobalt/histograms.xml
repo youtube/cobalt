@@ -460,22 +460,48 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Cobalt.AllocationVolume.{Context}" units="MiB"
-    expires_after="2027-05-13">
+<histogram name="Memory.Cobalt.AllocationVolume.{Context}" units="KB"
+    expires_after="2027-05-18">
   <owner>avvall@google.com</owner>
   <owner>cobalt-core@google.com</owner>
   <summary>
     Records the total volume of memory allocated (gross allocations) by the
     {Context} subsystem during a strict 5-minute sampling window. Emitted
-    periodically by CobaltMemoryAttributionManager.
+    periodically by CobaltMemoryAttributionManager using CustomCounts
+    exponential buckets ranging from 1 KB up to 64 GB.
   </summary>
   <token key="Context">
+    <variant name="BlinkDOM"
+        summary="Blink garbage-collected DOM elements subsystem"/>
+    <variant name="BlinkParser"
+        summary="Blink HTML tokenizer and XML parser subsystem"/>
+    <variant name="BlinkStyle"
+        summary="Blink CSS engine and style selector matching subsystem"/>
     <variant name="DOM" summary="DOM subsystem"/>
     <variant name="Graphics" summary="Graphics and paint subsystem"/>
+    <variant name="GraphicsCanvas"
+        summary="Graphics canvas and geometry subsystem"/>
+    <variant name="GraphicsCompositor"
+        summary="Graphics compositor and ozone subsystem"/>
+    <variant name="GraphicsGlyphs"
+        summary="Graphics glyphs and font caching subsystem"/>
     <variant name="Layout" summary="Layout subsystem"/>
     <variant name="Media" summary="Media pipeline"/>
     <variant name="Network" summary="Network subsystem"/>
+    <variant name="NetworkCache"
+        summary="Network cached and dynamic buffers subsystem"/>
+    <variant name="NetworkLoader"
+        summary="Network loader and preloader subsystem"/>
+    <variant name="PlatformIPC"
+        summary="Platform Mojo inter-process communication subsystem"/>
+    <variant name="PlatformStarboard"
+        summary="Platform native Starboard helper subsystem"/>
     <variant name="Script" summary="Script execution subsystem"/>
+    <variant name="ScriptBindings"
+        summary="Script Blink C++ to V8 bindings subsystem"/>
+    <variant name="ScriptHeap" summary="Script managed V8 GC heap subsystem"/>
+    <variant name="ScriptJIT"
+        summary="Script JIT execution code space subsystem"/>
     <variant name="Storage" summary="Storage subsystem"/>
     <variant name="Unknown" summary="Unattributed allocations"/>
   </token>
