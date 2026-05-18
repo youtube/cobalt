@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Script to automatically roll LTS branch."""
 import argparse
+from collections import defaultdict
 import re
 import subprocess
 import sys
@@ -55,6 +56,69 @@ def get_pr_set(branch, exclude_branch):
   return prs
 
 
+def get_unmerged_files():
+  """Returns a dict of files with conflicts mapping to named stages.
+
+  Stages are mapped as follows:
+  - '1': 'ancestor'
+  - '2': 'ours'
+  - '3': 'theirs'
+  """
+  res = subprocess.run(['git', 'ls-files', '-u'],
+                       capture_output=True,
+                       text=True,
+                       check=True)
+  lines = res.stdout.splitlines()
+  files = defaultdict(set)
+  stage_map = {'1': 'ancestor', '2': 'ours', '3': 'theirs'}
+  for line in lines:
+    parts = line.split('\t', 1)
+    if len(parts) < 2:
+      print(f'Warning: Malformed line (missing tab): {line}', file=sys.stderr)
+      continue
+    metadata, path = parts
+    meta_parts = metadata.split()
+    if len(meta_parts) < 3:
+      print(f'Warning: Malformed metadata: {metadata}', file=sys.stderr)
+      continue
+    _, _, stage = meta_parts[:3]
+    stage_name = stage_map.get(stage, stage)
+    files[path].add(stage_name)
+  return files
+
+
+def resolve_conflicts(unmerged):
+  """Attempts to resolve conflicts automatically.
+
+  Returns:
+    bool: True if all conflicts were resolved, False otherwise.
+  """
+  deleted_by_us = []
+  other_conflicts = []
+  for path, stages in unmerged.items():
+    if 'theirs' in stages and 'ours' not in stages:
+      deleted_by_us.append(path)
+    else:
+      other_conflicts.append(path)
+
+  if other_conflicts:
+    print(
+        f'Cannot resolve conflicts autonomously. Other conflicts: '
+        f'{other_conflicts}',
+        file=sys.stderr)
+    return False
+
+  if deleted_by_us:
+    print(
+        f"Resolving 'deleted by us' conflicts: {deleted_by_us}",
+        file=sys.stderr)
+    for path in deleted_by_us:
+      subprocess.run(['git', 'rm', path], check=True)
+    return True
+
+  return False
+
+
 def cherry_pick(sha, num, title):
   log_output = get_out(
       ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
@@ -73,13 +137,27 @@ def cherry_pick(sha, num, title):
   ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
   if len(ps) > 1:
     cmd.append('--mainline=1')
-  subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
+
+  try:
+    subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
+  except subprocess.CalledProcessError as error:
+    unmerged = get_unmerged_files()
+    if not resolve_conflicts(unmerged):
+      subprocess.run(['git', 'reset', '--hard', 'HEAD'], check=True)
+      raise error
+
+  # Check if there are changes to commit.
+  res = subprocess.run(['git', 'diff', '--quiet', '--cached'], check=False)
+  if res.returncode == 0:
+    print('Nothing to commit.', file=sys.stderr)
+    return False
 
   cmd = [
       'git', 'commit', '--no-verify', f'--author={author}', f'--date={date}',
       '-m', msg
   ]
   subprocess.run(cmd, check=True, stdout=sys.stderr)
+  return True
 
 
 def main():
@@ -117,11 +195,12 @@ def main():
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
       if pr_num not in autoroll_prs:
-        cherry_pick(sha, pr_num, title)
-        autoroll_prs.add(pr_num)
-        commits_added += 1
-
-      links.append(f'- #{pr_num}')
+        if cherry_pick(sha, pr_num, title):
+          autoroll_prs.add(pr_num)
+          commits_added += 1
+          links.append(f'- #{pr_num}')
+      else:
+        links.append(f'- #{pr_num}')
 
   if links:
     print('\n'.join(links))
