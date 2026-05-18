@@ -16,6 +16,7 @@
 #include "starboard/player.h"
 // clang-format on
 
+#include <chrono>
 #include <string>
 #include <utility>
 
@@ -32,6 +33,12 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
+
+namespace {
+
+constexpr auto kVideoSurfaceWaitTimeout = std::chrono::seconds(5);
+
+}  // namespace
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
@@ -195,9 +202,16 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     // Check the availability of the video window. As we only support one main
     // player, and sub players are in decode to texture mode on Android, a
     // single video window should be enough.
-    if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable() &&
-        !starboard::GetSurfaceViewForCurrentThread()) {
-      SB_LOG(ERROR) << "Video surface is not available now.";
+
+    // Block safely on a condition variable until the UI thread registers the
+    // surface (up to kVideoSurfaceWaitTimeout) to resolve the startup race
+    // condition where player creation runs ahead of surface registration. We
+    // check the fast thread-local surface first to avoid blocking in
+    // AndroidOverlay mode.
+    if (!starboard::GetSurfaceViewForCurrentThread() &&
+        !starboard::VideoSurfaceHolder::WaitForVideoSurface(
+            kVideoSurfaceWaitTimeout)) {
+      SB_LOG(ERROR) << "Video surface is not available now after waiting.";
       player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
                         "Video surface is not available now");
       return kSbPlayerInvalid;
