@@ -65,7 +65,7 @@ namespace updater {
 // mechanisms (locks, atomics) are used to ensure thread safety.
 class Configurator : public update_client::Configurator {
  public:
-  explicit Configurator(
+  Configurator(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       const std::string& user_agent);
 
