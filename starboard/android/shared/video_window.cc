@@ -43,11 +43,11 @@ SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
 // Global condition variable to notify waiters when surface becomes available.
 SB_ONCE_INITIALIZE_FUNCTION(std::condition_variable, GetViewSurfaceCondVar)
 // Global pointer to the single video surface.
-jobject g_j_video_surface = NULL;
+jobject g_j_video_surface = nullptr;
 // Global pointer to the single video window.
-ANativeWindow* g_native_video_window = NULL;
+ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
-VideoSurfaceHolder* g_video_surface_holder = NULL;
+VideoSurfaceHolder* g_video_surface_holder = nullptr;
 // Global boolean to indicate if we need to reset SurfaceView after playing
 // vertical video.
 bool g_reset_surface_on_clear_window = false;
@@ -61,15 +61,15 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     std::lock_guard lock(*GetViewSurfaceMutex());
     if (g_video_surface_holder) {
       g_video_surface_holder->OnSurfaceDestroyed();
-      g_video_surface_holder = NULL;
+      g_video_surface_holder = nullptr;
     }
     if (g_j_video_surface) {
       env->DeleteGlobalRef(g_j_video_surface);
-      g_j_video_surface = NULL;
+      g_j_video_surface = nullptr;
     }
     if (g_native_video_window) {
       ANativeWindow_release(g_native_video_window);
-      g_native_video_window = NULL;
+      g_native_video_window = nullptr;
     }
     if (surface) {
       g_j_video_surface = env->NewGlobalRef(surface.obj());
@@ -96,11 +96,11 @@ bool VideoSurfaceHolder::WaitForVideoSurface(
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder != NULL) {
-    return NULL;
+  if (g_video_surface_holder != nullptr) {
+    return nullptr;
   }
   if (!g_j_video_surface) {
-    return NULL;
+    return nullptr;
   }
   g_video_surface_holder = this;
   return g_j_video_surface;
@@ -118,7 +118,7 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
 
 bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == NULL) {
+  if (g_native_video_window == nullptr) {
     return false;
   } else {
     *width = ANativeWindow_getWidth(g_native_video_window);
