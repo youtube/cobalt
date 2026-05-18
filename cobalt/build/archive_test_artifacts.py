@@ -117,6 +117,8 @@ def create_junit_archive(
     else:
       target_deps.add(os.path.join(out_dir, wrapper_rel_path))
       target_deps.add(os.path.join(out_dir, 'test_targets.json'))
+      # Add helper script needed by test_runner.py
+      target_deps.add(os.path.join(out_dir, 'bin/helper', target_name))
 
       # Add resource APK and native libs
       target_deps.add(
