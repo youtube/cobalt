@@ -85,7 +85,6 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
 
     std::vector<Operation> operations;
     std::unordered_set<std::string> handles;
-
     for (auto&& allocation : allocations) {
       auto tokens = base::SplitStringUsingSubstr(
           allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
@@ -101,11 +100,7 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
             buffer_type == DemuxerStream::VIDEO);
 
       if (tokens[0] == "allocate") {
-        // In the format of "allocate <handle> <buffer_type> <size> [alignment]"
-        // Legacy test data files checked into the repository include the
-        // alignment field (5 tokens). Newly recorded logs do not (4 tokens).
-        // We accept both to avoid needing to regenerate legacy test fixtures.
-        CHECK(tokens.size() == 4u || tokens.size() == 5u);
+        // In the format of "allocate <handle> <buffer_type> <size>"
         CHECK_EQ(handles.count(handle), 0u);
 
         handles.insert(handle);
