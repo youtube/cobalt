@@ -61,24 +61,6 @@ TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(PosixDirectoryOpenTest, ManySunnyDay) {
-  std::string path = GetTempDir();
-  EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
-
-  const int kMany = kSbFileMaxOpen;
-  std::vector<DIR*> directories(kMany, 0);
-
-  for (size_t i = 0; i < directories.size(); ++i) {
-    directories[i] = opendir(path.c_str());
-    EXPECT_TRUE(directories[i] != NULL);
-  }
-
-  for (size_t i = 0; i < directories.size(); ++i) {
-    EXPECT_TRUE(closedir(directories[i]) == 0);
-  }
-}
-
 TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());

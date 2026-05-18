@@ -85,6 +85,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->enable_codec_output_checker;
   experiment_features.enable_video_renderer_vsp_adjustment =
       extension_features->enable_video_renderer_vsp_adjustment;
+  experiment_features.flush_audio_track_during_seek =
+      extension_features->flush_audio_track_during_seek;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
   experiment_features.reset_audio_decoder =

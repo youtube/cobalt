@@ -30,7 +30,7 @@ import traceback
 
 # Calculate repository root relative to this script's location
 _REPO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", ".."))
+    os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 # Add libsupersize to python path
 sys.path.append(os.path.join(_REPO_ROOT, "tools/binary_size"))

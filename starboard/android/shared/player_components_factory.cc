@@ -31,6 +31,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/features.h"
@@ -71,9 +72,10 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(
-      int tunnel_mode_audio_session_id = -1,
-      bool allow_audio_writing_on_pause = false,
-      bool enable_video_renderer_vsp_adjustment = false)
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool allow_audio_writing_on_pause,
+      bool enable_video_renderer_vsp_adjustment,
+      bool allow_flush_during_seek)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -98,17 +100,21 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,
                   context);
             }),
-        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+        is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
         enable_video_renderer_vsp_adjustment_(
-            enable_video_renderer_vsp_adjustment) {}
+            enable_video_renderer_vsp_adjustment),
+        allow_flush_during_seek_(allow_flush_during_seek) {}
 
   bool AllowOverflowAudioSamples() const override {
-    return tunnel_mode_audio_session_id_ != -1;
+    return is_tunnel_mode_enabled_;
   }
 
   bool AllowDirectPlaybackRateSetting() const override {
-    return tunnel_mode_audio_session_id_ != -1 &&
-           !enable_video_renderer_vsp_adjustment_;
+    return is_tunnel_mode_enabled_ && !enable_video_renderer_vsp_adjustment_;
+  }
+
+  bool HasStarted() const override {
+    return !is_flushed_ && AudioRendererSinkImpl::HasStarted();
   }
 
   void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
@@ -133,7 +139,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
         audio_stream_info.number_of_channels, sample_type,
         audio_stream_info.samples_per_second);
 
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (is_tunnel_mode_enabled_) {
       // AudioTrack.setPlaybackParams() might need extra buffer to support
       // playback speed greater than 1.0x.
       const double kMaxPlaybackSpeed = 2.0;
@@ -155,10 +161,52 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                                  AudioRendererSink::kAudioSinkFramesAlignment);
   }
 
+  void Start(int64_t media_start_time,
+             int channels,
+             int sampling_frequency_hz,
+             SbMediaAudioSampleType audio_sample_type,
+             SbMediaAudioFrameStorageType audio_frame_storage_type,
+             SbAudioSinkFrameBuffers frame_buffers,
+             int frames_per_channel,
+             RenderCallback* render_callback) override {
+    is_flushed_ = false;
+    // Re-use the existing audio sink if the new audio parameters match the
+    // existing ones. Otherwise, fall back to the default behavior of destroying
+    // and re-creating the sink.
+    if (allow_flush_during_seek_ && audio_sink_ &&
+        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
+        channels == channels_ &&
+        sampling_frequency_hz == sampling_frequency_hz_ &&
+        audio_sample_type == audio_sample_type_ &&
+        audio_frame_storage_type == audio_frame_storage_type_) {
+      SB_LOG(INFO) << "Audio track is already started with the same config, "
+                   << "skipping Start().";
+      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
+      track_sink->SetStartTime(media_start_time);
+      // Explicitly set the playback rate and volume because HasStarted()
+      // returns false while in the flushed state, causing the renderer to
+      // skip updating the sink with these parameters during seek.
+      track_sink->SetPlaybackRate(playback_rate_);
+      track_sink->SetVolume(volume_);
+      render_callback_ = render_callback;
+      return;
+    }
+
+    channels_ = channels;
+    sampling_frequency_hz_ = sampling_frequency_hz;
+    audio_sample_type_ = audio_sample_type;
+    audio_frame_storage_type_ = audio_frame_storage_type;
+
+    AudioRendererSinkImpl::Start(media_start_time, channels,
+                                 sampling_frequency_hz, audio_sample_type,
+                                 audio_frame_storage_type, frame_buffers,
+                                 frames_per_channel, render_callback);
+  }
+
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (is_tunnel_mode_enabled_) {
       // Currently the implementation only supports tunnel mode with int16 audio
       // samples.
       return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
@@ -167,8 +215,33 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
   }
 
-  const int tunnel_mode_audio_session_id_;
+  void Reset() override {
+    if (allow_flush_during_seek_ && audio_sink_ &&
+        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType())) {
+      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
+      if (track_sink->Flush()) {
+        SB_LOG(INFO) << "Flushing AudioTrack.";
+        is_flushed_ = true;
+        return;
+      }
+    }
+    SB_LOG(INFO) << "Resetting AudioTrack.";
+    is_flushed_ = false;
+    AudioRendererSink::Reset();
+  }
+
+  const bool is_tunnel_mode_enabled_;
   const bool enable_video_renderer_vsp_adjustment_;
+  const bool allow_flush_during_seek_;
+
+  mutable bool is_flushed_ = false;
+
+  int channels_ = -1;
+  int sampling_frequency_hz_ = -1;
+  SbMediaAudioSampleType audio_sample_type_ =
+      kSbMediaAudioSampleTypeInt16Deprecated;
+  SbMediaAudioFrameStorageType audio_frame_storage_type_ =
+      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 class PlayerComponentsPassthrough : public PlayerComponents {
@@ -269,7 +342,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     std::unique_ptr<VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      constexpr int kTunnelModeAudioSessionId = -1;
+      constexpr std::optional<int> kTunnelModeAudioSessionId = std::nullopt;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
       auto video_decoder = CreateVideoDecoder(
@@ -317,7 +390,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
-    int tunnel_mode_audio_session_id = -1;
+    std::optional<int> tunnel_mode_audio_session_id = std::nullopt;
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -351,7 +424,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id =
             GenerateAudioSessionId(creation_parameters);
         SB_LOG(INFO) << "Generated tunnel mode audio session id "
-                     << tunnel_mode_audio_session_id;
+                     << ToString(tunnel_mode_audio_session_id);
       } else {
         SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
       }
@@ -359,11 +432,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG(INFO) << "Tunnel mode not enabled.";
     }
 
-    if (tunnel_mode_audio_session_id == -1) {
+    if (!tunnel_mode_audio_session_id) {
       SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
     } else {
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
-                   << tunnel_mode_audio_session_id << '.';
+                   << *tunnel_mode_audio_session_id << '.';
     }
 
     const auto& experimental_features =
@@ -395,6 +468,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                                   "enableflushduringseek", "<not provided>")
                             : "<not provided>")
         << ".";
+
+    bool allow_flush_audio_track_during_seek =
+        FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
+        experimental_features.flush_audio_track_during_seek;
+    SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
+        << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
+        << " audio track during Reset().";
 
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
@@ -442,7 +522,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
               tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              enable_video_renderer_vsp_adjustment);
+              enable_video_renderer_vsp_adjustment,
+              allow_flush_audio_track_during_seek);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -460,7 +541,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             "writing on pause.");
       }
 
-      if (tunnel_mode_audio_session_id == -1) {
+      if (!tunnel_mode_audio_session_id) {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
@@ -484,7 +565,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
   NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateVideoDecoder(
       const CreationParameters& creation_parameters,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size) {
     auto experimental_features = creation_parameters.experimental_features();
@@ -623,20 +704,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     return false;
   }
 
-  int GenerateAudioSessionId(const CreationParameters& creation_parameters) {
+  std::optional<int> GenerateAudioSessionId(
+      const CreationParameters& creation_parameters) {
     bool force_secure_pipeline_under_tunnel_mode = false;
     SB_DCHECK(IsTunnelModeSupported(creation_parameters,
                                     &force_secure_pipeline_under_tunnel_mode));
 
     JNIEnv* env = AttachCurrentThread();
-    int tunnel_mode_audio_session_id =
+    std::optional<int> tunnel_mode_audio_session_id =
         AudioOutputManager::GetInstance()->GenerateTunnelModeAudioSessionId(
             env, creation_parameters.audio_stream_info().number_of_channels);
 
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:
     // https://developer.android.com/reference/android/media/AudioManager#generateAudioSessionId()
-    SB_LOG_IF(WARNING, tunnel_mode_audio_session_id == -1)
+    SB_LOG_IF(WARNING, !tunnel_mode_audio_session_id)
         << "Failed to generate audio session id for tunnel mode.";
 
     return tunnel_mode_audio_session_id;

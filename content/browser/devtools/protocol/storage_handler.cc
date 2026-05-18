@@ -536,6 +536,24 @@ void StorageHandler::ClearCookies(
                      std::move(callback)));
 }
 
+#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+Response StorageHandler::SerializeStorageKey(
+    RenderFrameHostImpl* rfh,
+    std::string* serialized_storage_key) const {
+  if (!rfh) {
+    return Response::ServerError("Internal error: RenderFrameHost is null");
+  }
+  const blink::StorageKey& storage_key = rfh->GetStorageKey();
+  if (storage_key.origin().opaque()) {
+    return Response::ServerError(
+        "Frame corresponds to an opaque origin and its storage key cannot be "
+        "serialized");
+  }
+  *serialized_storage_key = storage_key.Serialize();
+  return Response::Success();
+}
+#endif
+
 Response StorageHandler::GetStorageKeyForFrame(
     const std::string& frame_id,
     std::string* serialized_storage_key) {
@@ -547,6 +565,10 @@ Response StorageHandler::GetStorageKeyForFrame(
   if (!node) {
     return Response::InvalidParams("Frame tree node for given frame not found");
   }
+#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+  return SerializeStorageKey(node->current_frame_host(),
+                             serialized_storage_key);
+#else
   RenderFrameHostImpl* rfh = node->current_frame_host();
   if (rfh->GetStorageKey().origin().opaque()) {
     return Response::ServerError(
@@ -555,7 +577,29 @@ Response StorageHandler::GetStorageKeyForFrame(
   }
   *serialized_storage_key = rfh->GetStorageKey().Serialize();
   return Response::Success();
+#endif
 }
+
+#if CHROMIUM_MILESTONE_LE_138
+Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
+                                       std::string* serialized_storage_key) {
+#if BUILDFLAG(IS_COBALT)
+  if (frame_id.has_value()) {
+    return GetStorageKeyForFrame(frame_id.value(), serialized_storage_key);
+  }
+
+  if (frame_host_) {
+    return SerializeStorageKey(frame_host_, serialized_storage_key);
+  }
+
+  return Response::ServerError(
+      "Could not determine storage key for the target (workers not supported "
+      "yet in this implementation).");
+#else
+  return Response::ServerError("Not implemented");
+#endif
+}
+#endif
 
 namespace {
 uint32_t GetRemoveDataMask(const std::string& storage_types) {
