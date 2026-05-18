@@ -401,3 +401,4 @@ of microseconds to wait before calling the `callback` function. Set `delay` to
 ```
 SbEventId SbEventSchedule(SbEventCallback callback, void *context, int64_t delay)
 ```
+

@@ -247,3 +247,4 @@ Set the thread priority of the current thread.
 ```
 bool SbThreadSetPriority(SbThreadPriority priority)
 ```
+

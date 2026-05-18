@@ -43,3 +43,4 @@ the mapped memory can be used.
 *   `kSbMemoryMapProtectWrite`
 *   `kSbMemoryMapProtectExec`
 *   `kSbMemoryMapProtectReadWrite`
+

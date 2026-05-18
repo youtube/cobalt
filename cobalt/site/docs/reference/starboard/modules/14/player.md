@@ -663,3 +663,4 @@ SbPlayerGetMaximumNumberOfSamplesPerWrite().
 ```
 void SbPlayerWriteSample2(SbPlayer player, SbMediaType sample_type, const SbPlayerSampleInfo *sample_infos, int number_of_sample_infos)
 ```
+

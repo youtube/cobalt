@@ -734,3 +734,4 @@ may assume `duration` >= 0.5 seconds.
 ```
 void SbMediaSetAudioWriteDuration(int64_t duration)
 ```
+

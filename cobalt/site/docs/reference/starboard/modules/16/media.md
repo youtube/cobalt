@@ -710,3 +710,4 @@ removed, only to emit warnings at build and test time.
 ```
 bool SbMediaIsBufferUsingMemoryPool()
 ```
+

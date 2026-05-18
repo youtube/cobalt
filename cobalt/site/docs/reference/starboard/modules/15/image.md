@@ -76,3 +76,4 @@ indefinitely.
 ```
 bool SbImageIsDecodeSupported(const char *mime_type, SbDecodeTargetFormat format)
 ```
+

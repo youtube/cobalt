@@ -45,3 +45,4 @@ and LOCATION is a specific location within the area. Typical names are
 ```
 const char* SbTimeZoneGetName()
 ```
+

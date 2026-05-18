@@ -138,3 +138,4 @@ kSbConditionVariableTimedOut result.
 ```
 SbConditionVariableResult SbConditionVariableWaitTimed(SbConditionVariable *condition, SbMutex *mutex, int64_t timeout_duration)
 ```
+

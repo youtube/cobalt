@@ -410,7 +410,7 @@ Indicates whether `drm_system` is a valid SbDrmSystem.
 #### Declaration
 
 ```
-static bool SbDrmSystemIsValid(SbDrmSystem drm)
+bool SbDrmSystemIsValid(SbDrmSystem drm)
 ```
 
 ### SbDrmTicketIsValid
@@ -420,7 +420,7 @@ Indicates whether `ticket` is a valid ticket.
 #### Declaration
 
 ```
-static bool SbDrmTicketIsValid(int ticket)
+bool SbDrmTicketIsValid(int ticket)
 ```
 
 ### SbDrmUpdateServerCertificate
@@ -475,3 +475,4 @@ must not be NULL.
 ```
 void SbDrmUpdateSession(SbDrmSystem drm_system, int ticket, const void *key, int key_size, const void *session_id, int session_id_size)
 ```
+
