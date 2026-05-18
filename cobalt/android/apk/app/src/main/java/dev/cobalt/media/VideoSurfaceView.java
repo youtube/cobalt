@@ -89,8 +89,16 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      sCurrentSurface = holder.getSurface();
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      final Surface surface = holder.getSurface();
+      sCurrentSurface = surface;
+      Log.w(TAG, "Forcing 4s delay in surfaceCreated for reproduction.");
+      new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          Log.w(TAG, "Delay finished, calling onVideoSurfaceChanged.");
+          VideoSurfaceViewJni.get().onVideoSurfaceChanged(surface);
+        }
+      }, 4000);
     }
 
     @Override
