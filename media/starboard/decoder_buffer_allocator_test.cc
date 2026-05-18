@@ -88,7 +88,7 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
     for (auto&& allocation : allocations) {
       auto tokens = base::SplitStringUsingSubstr(
           allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-      CHECK_GE(tokens.size(), 4u);
+      CHECK_EQ(tokens.size(), 4u);
 
       const std::string& handle = tokens[1];
       const DemuxerStream::Type buffer_type =
@@ -109,7 +109,6 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
             Operation{Operation::Type::kAllocate, handle, buffer_type, size});
       } else {
         // In the format of "free <handle> <buffer_type> <size>"
-        CHECK_EQ(tokens.size(), 4u);
         CHECK_EQ(tokens[0], "free");
         CHECK_EQ(handles.erase(handle), 1u);
 
