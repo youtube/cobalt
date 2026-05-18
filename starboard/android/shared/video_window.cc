@@ -89,11 +89,9 @@ void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
 bool VideoSurfaceHolder::WaitForVideoSurface(
     std::chrono::milliseconds timeout) {
   std::unique_lock lock(*GetViewSurfaceMutex());
-  if (g_j_video_surface) {
-    return true;
-  }
-  return GetViewSurfaceCondVar()->wait_for(
-      lock, timeout, [] { return g_j_video_surface != nullptr; });
+  return GetViewSurfaceCondVar()->wait_for(lock, timeout, [] {
+    return g_j_video_surface != nullptr && g_video_surface_holder == nullptr;
+  });
 }
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
@@ -109,10 +107,13 @@ jobject VideoSurfaceHolder::AcquireVideoSurface() {
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder == this) {
-    g_video_surface_holder = NULL;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder == this) {
+      g_video_surface_holder = nullptr;
+    }
   }
+  GetViewSurfaceCondVar()->notify_all();
 }
 
 bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
