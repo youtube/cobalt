@@ -17,6 +17,7 @@
 
 #include "build/build_config.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/duration.h"
 #include "starboard/common/string.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_test_fixture.h"
@@ -200,7 +201,7 @@ void WriteSamples(const SbPlayerTestConfig& player_config,
     return;
   }
 
-  const int64_t kDurationToPlay = 200'000;  // 200ms
+  const auto kDurationToPlay = 200ms;
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {

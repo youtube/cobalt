@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/duration.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
@@ -131,9 +132,9 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   SB_DCHECK(player_fixture.HasAudio());
 
   int audio_samples_to_write =
-      player_fixture.ConvertDurationToAudioBufferCount(200'000);
+      player_fixture.ConvertDurationToAudioBufferCount(200ms);
   int video_samples_to_write =
-      player_fixture.ConvertDurationToVideoBufferCount(200'000);
+      player_fixture.ConvertDurationToVideoBufferCount(200ms);
 
   GroupedSamples samples;
   samples.AddAudioSamples(0, audio_samples_to_write);

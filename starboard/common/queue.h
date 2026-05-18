@@ -22,6 +22,7 @@
 #define STARBOARD_COMMON_QUEUE_H_
 
 #include <algorithm>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
@@ -70,13 +71,18 @@ class Queue {
     return T();
   }
 
+  T GetTimed(int64_t duration_us) {
+    return GetTimed(std::chrono::microseconds(duration_us));
+  }
+
   // Gets the item at the front of the queue, blocking until there is such an
-  // item, or the given timeout duration (in microseconds) expires, or the queue
-  // is woken up. If there are multiple waiters, this Queue guarantees that only
-  // one waiter will receive any given queue item.
-  T GetTimed(int64_t duration) {
+  // item, or the given timeout duration expires, or the queue is woken up. If
+  // there are multiple waiters, this Queue guarantees that only one waiter
+  // will receive any given queue item.
+  template <typename Rep, typename Period>
+  T GetTimed(std::chrono::duration<Rep, Period> duration) {
     std::unique_lock lock(mutex_);
-    if (!condition_.wait_for(lock, std::chrono::microseconds(duration),
+    if (!condition_.wait_for(lock, duration,
                              [this] { return !queue_.empty() || wake_; })) {
       return T();
     }

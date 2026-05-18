@@ -14,6 +14,7 @@
 
 #include <vector>
 
+#include "starboard/common/duration.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -228,7 +229,7 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
     ASSERT_EQ(initial_configs, configs_after_presenting);
   }
 
-  const int64_t seek_to_time = 1'000'000;  // 1 second
+  const auto seek_to_time = 1s;
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time));
 
   std::vector<SbMediaAudioConfiguration> configs_after_seek;

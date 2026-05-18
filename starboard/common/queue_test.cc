@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "starboard/common/duration.h"
 #include "starboard/common/thread.h"
 
 namespace starboard {
@@ -225,6 +226,24 @@ TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
 
   putter_thread.Start();
   received_value = queue_.GetTimed(kMillisInUs * 500);
+  putter_thread.Join();
+
+  EXPECT_EQ(99, received_value);
+  EXPECT_EQ(0, queue_.Size());
+}
+
+TEST_F(QueueIntTest, GetTimedChronoReturnsDefaultOnTimeout) {
+  int received_value = queue_.GetTimed(50ms);
+  EXPECT_EQ(0, received_value);
+  EXPECT_EQ(0, queue_.Size());
+}
+
+TEST_F(QueueIntTest, GetTimedChronoRetrievesItemWithinTimeout) {
+  int received_value = 0;
+  PutterThread putter_thread(&queue_, 99, kMillisInUs * 10);
+
+  putter_thread.Start();
+  received_value = queue_.GetTimed(500ms);
   putter_thread.Join();
 
   EXPECT_EQ(99, received_value);
