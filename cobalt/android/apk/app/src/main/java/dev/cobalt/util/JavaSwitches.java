@@ -62,14 +62,20 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--js-flags=--no-decommit-pooled-pages");
     }
 
+    StringJoiner featureParams = new StringJoiner("/");
     if (javaSwitches.containsKey(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS)) {
       String size = javaSwitches.get(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS).replaceAll("[^0-9]", "");
-      extraCommandLineArgs.add("--enable-features=SmallerInterestArea:size_in_pixels/" + size);
+      featureParams.add("size_in_pixels/" + size); 
     }
 
     if (javaSwitches.containsKey(JavaSwitches.RECLAIM_DELAY_IN_SECONDS)) {
       String delay = javaSwitches.get(JavaSwitches.RECLAIM_DELAY_IN_SECONDS).replaceAll("[^0-9]", "");
-      extraCommandLineArgs.add("--enable-features=SmallerInterestArea:reclaim_delay_s/" + delay);
+      featureParams.add("reclaim_delay_s/" + delay); 
+    }
+
+    if (featureParams.length() > 0) {
+      extraCommandLineArgs.add(
+          "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
     return extraCommandLineArgs;
