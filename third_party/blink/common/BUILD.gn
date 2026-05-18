@@ -352,6 +352,7 @@ source_set("common") {
 
 test("blink_common_unittests") {
   visibility = [ "*" ]
+  sources = []
   deps = [
     ":common_unittests_sources",
     "//services/metrics/public/cpp:metrics_cpp",

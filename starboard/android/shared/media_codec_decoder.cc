@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_decoder.h"
 
 #include <sched.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include "starboard/android/shared/media_common.h"
@@ -23,6 +24,7 @@
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -124,7 +126,7 @@ MediaCodecDecoder::CreateForVideo(
     bool require_software_codec,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -197,7 +199,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool require_software_codec,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -211,7 +213,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
-      tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
+      tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
@@ -924,7 +926,7 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    SbThreadSetPriority(kSbThreadPriorityHigh);
+    setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);

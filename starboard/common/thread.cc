@@ -17,6 +17,7 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -31,6 +32,30 @@
 #include "starboard/system.h"
 
 namespace starboard {
+
+int SbPriorityToNice(SbThreadPriority priority) {
+  // Nice value settings are shared between Android and Linux.
+  // They are selected from looking at:
+  // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      return 19;
+    case kSbThreadPriorityLow:
+      return 10;
+    case kSbThreadNoPriority:
+    case kSbThreadPriorityNormal:
+      return 0;
+    case kSbThreadPriorityHigh:
+      return -8;
+    case kSbThreadPriorityHighest:
+      return -16;
+    case kSbThreadPriorityRealTime:
+      return -19;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
 
 struct Thread::Data {
   pthread_t thread_ = 0;
@@ -97,7 +122,10 @@ void* Thread::ThreadEntryPoint(void* context) {
 #endif
   bool priority_set = false;
   if (this_ptr->priority_) {
-    priority_set = SbThreadSetPriority(*this_ptr->priority_);
+    // setpriority returns 0 on success and -1 on failure. The default nice
+    // value is 0. See https://linux.die.net/man/2/setpriority
+    priority_set = (setpriority(PRIO_PROCESS, 0,
+                                SbPriorityToNice(*this_ptr->priority_)) == 0);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="

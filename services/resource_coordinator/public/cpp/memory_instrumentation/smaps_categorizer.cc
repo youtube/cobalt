@@ -63,7 +63,7 @@ bool ParseSmapsLine(std::string_view line, uint64_t* value_kb) {
 
 }  // namespace
 
-SmapsCategorizer::SmapsCategorizer(base::WeakPtr<DetailedMetricsDelegate> delegate)
+SmapsCategorizer::SmapsCategorizer(DetailedMetricsDelegate* delegate)
     : delegate_(delegate) {
   // Detach from the creation sequence (which is typically the main UI thread).
   // This ensures that the sequence checker will bind to the background sequenced
@@ -137,7 +137,7 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
   ParsedSmapsResults results;
   results.reserve(128);
 
-  char buffer[4096];
+  char buffer[8192];
   size_t buffer_offset = 0;
 
   std::string current_name;
@@ -169,6 +169,8 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
       buffer_offset = total_buffered;
       if (buffer_offset == sizeof(buffer)) {
         // Force flush if buffer is full and no newline.
+        LOG(WARNING) << "smaps line exceeded buffer size (" << sizeof(buffer)
+                     << " bytes) without newline, discarding line data.";
         buffer_offset = 0;
       }
       continue;
