@@ -29,4 +29,23 @@ bundle_data_xcassets("resources") {
     "Assets.xcassets/ic_stop.imageset/ic_stop_2x.png",
     "Assets.xcassets/ic_stop.imageset/ic_stop_3x.png",
   ]
+
+  # Official builds use different assets for the app icon and top shelf iamge.
+  if (!is_official_build) {
+    sources += [
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Content.imageset/bg.png",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Content.imageset/cobalt.png",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Content.imageset/bg.png",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset/cobalt.png",
+    ]
+  }
 }
