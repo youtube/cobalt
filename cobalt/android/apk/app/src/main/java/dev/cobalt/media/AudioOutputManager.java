@@ -348,7 +348,7 @@ public class AudioOutputManager {
             sampleSizeInBytes,
             numberOfChannels,
             AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE);
-        return TunnelModeAudioSessionId.NONE;
+        return -1;
       }
     }
     AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);

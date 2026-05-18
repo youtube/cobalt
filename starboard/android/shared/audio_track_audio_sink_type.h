@@ -79,7 +79,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                      int frames_per_channel,
                      Callbacks callbacks,
                      int64_t start_time,
-                     std::optional<int> tunnel_mode_audio_session_id,
+                     int tunnel_mode_audio_session_id,
                      bool is_web_audio,
                      bool allow_audio_writing_on_pause,
                      void* context);
@@ -124,7 +124,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int preferred_buffer_size,
       AudioTrackAudioSinkType::Callbacks callbacks,
       int64_t start_media_time,
-      std::optional<int> tunnel_mode_audio_session_id,
+      int tunnel_mode_audio_session_id,
       bool is_web_audio,
       bool allow_audio_writing_on_pause,
       void* context);
@@ -139,7 +139,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
                       int preferred_buffer_size,
                       AudioTrackAudioSinkType::Callbacks callbacks,
                       int64_t start_media_time,
-                      std::optional<int> tunnel_mode_audio_session_id,
+                      int tunnel_mode_audio_session_id,
                       bool allow_audio_writing_on_pause,
                       std::unique_ptr<AudioTrackBridge> bridge,
                       void* context);
