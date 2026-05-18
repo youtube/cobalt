@@ -166,7 +166,11 @@ void SourceBufferState::Init(StreamParser::InitCB init_cb,
 
 void SourceBufferState::ChangeType(
     std::unique_ptr<StreamParser> new_stream_parser,
-    const std::string& new_expected_codecs) {
+    const std::string& new_expected_codecs
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    , const std::string& new_mime_type
+#endif
+    ) {
   DCHECK_GE(state_, PENDING_PARSER_CONFIG);
   DCHECK_NE(state_, PENDING_PARSER_INIT);
   DCHECK(!parsing_media_segment_);
@@ -177,6 +181,14 @@ void SourceBufferState::ChangeType(
     state_ = PENDING_PARSER_RECONFIG;
 
   stream_parser_ = std::move(new_stream_parser);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  for (auto& stream : audio_streams_) {
+    stream.second->SetMimeType(new_mime_type);
+  }
+  for (auto& stream : video_streams_) {
+    stream.second->SetMimeType(new_mime_type);
+  }
+#endif
   InitializeParser(new_expected_codecs);
 }
 
