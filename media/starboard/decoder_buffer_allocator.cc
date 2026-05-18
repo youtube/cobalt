@@ -187,7 +187,6 @@ void DecoderBufferAllocator::Write(Handle handle,
   strategy_->Write(reinterpret_cast<void*>(handle), data, size);
 }
 
-
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
