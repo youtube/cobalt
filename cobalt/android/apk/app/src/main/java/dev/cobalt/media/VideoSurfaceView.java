@@ -87,10 +87,19 @@ public class VideoSurfaceView extends SurfaceView {
 
     boolean mSawInitialChange = false;
 
+    private static final int REPRO_DELAY_MS = 4_000; // Set to 0 to disable reproduction delay
+
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-      sCurrentSurface = holder.getSurface();
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+    public void surfaceCreated(final SurfaceHolder holder) {
+      Log.w(TAG, "Forcing " + REPRO_DELAY_MS + "ms delay in surfaceCreated for reproduction.");
+      new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          Log.w(TAG, "Delay finished, calling onVideoSurfaceChanged.");
+          sCurrentSurface = holder.getSurface();
+          VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+        }
+      }, REPRO_DELAY_MS);
     }
 
     @Override
