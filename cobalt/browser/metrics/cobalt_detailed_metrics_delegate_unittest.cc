@@ -42,10 +42,38 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesLibChrobalt) {
   m3.rss_kb = 60;
   delegate_.OnSmapsEntry("libcobalt.so", m3);
 
+  // Test versioned library
+  memory_instrumentation::SmapsMetrics m4;
+  m4.pss_kb = 10;
+  m4.rss_kb = 20;
+  delegate_.OnSmapsEntry("/path/libchrobalt.so.1", m4);
+
+  // Test extensionless library name
+  memory_instrumentation::SmapsMetrics m5;
+  m5.pss_kb = 5;
+  m5.rss_kb = 10;
+  delegate_.OnSmapsEntry("/path/libchrobalt", m5);
+
+  // Test anonymous VMA named by linker
+  memory_instrumentation::SmapsMetrics m6;
+  m6.pss_kb = 15;
+  m6.rss_kb = 30;
+  delegate_.OnSmapsEntry("[anon:libchrobalt]", m6);
+
+  // Test zipped library in APK path
+  memory_instrumentation::SmapsMetrics m7;
+  m7.pss_kb = 25;
+  m7.rss_kb = 50;
+  delegate_.OnSmapsEntry(
+      "/data/app/~~ZUxrktv3lijbkDqS51Qkvg==/"
+      "dev.cobalt.coat-fzLCLOcgUwFG4gfsO4037Q==/base.apk!lib/arm/"
+      "libchrobalt.so",
+      m7);
+
   base::flat_map<std::string, uint64_t> stats;
   delegate_.GetAndResetStats(&stats);
-  EXPECT_EQ(stats["pss:lib_chrobalt"], 180u);
-  EXPECT_EQ(stats["rss:lib_chrobalt"], 300u);
+  EXPECT_EQ(stats["pss:lib_chrobalt"], 235u);
+  EXPECT_EQ(stats["rss:lib_chrobalt"], 410u);
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesV8) {
