@@ -85,6 +85,7 @@ class UpdaterModule {
  public:
   static void CreateInstance(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const std::string& user_agent,
       base::TimeDelta update_check_delay);
 
   static UpdaterModule* GetInstance();
@@ -127,6 +128,7 @@ class UpdaterModule {
  private:
   // Private constructor and destructor to enforce singleton pattern.
   explicit UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
+                         const std::string& user_agent,
                          base::TimeDelta update_check_delay);
   ~UpdaterModule();
 
@@ -138,6 +140,7 @@ class UpdaterModule {
   int update_check_count_ = 0;
   bool is_updater_running_;
   base::TimeDelta update_check_delay_ = kDefaultUpdateCheckDelay;
+  std::string user_agent_;
 
   int GetUpdateCheckCount() { return update_check_count_; }
   void IncrementUpdateCheckCount() { update_check_count_++; }
