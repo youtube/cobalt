@@ -41,6 +41,8 @@ env:
     cobalt/tools
     testing/test_env.py
 
+  # Additional build scripts and tools required ONLY for executing Android JUnit tests on host.
+  # Dynamically checked out during test execution to keep initial checkout minimal.
   ANDROID_JUNIT_CI_ESSENTIALS: |
     build/android
     build/util
@@ -443,7 +445,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       # TODO(b/501486531): This step duplicates a lot of logic from
       # other steps like depot_tools and checkout. Because I need
@@ -546,7 +547,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Parse Test Target JSON
         id: test-target-json
@@ -591,7 +591,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run E2E Tests
         uses: ./.github/actions/internal_tests
@@ -627,7 +626,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run YTS Tests
         uses: ./.github/actions/internal_tests
@@ -658,7 +656,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run YTS Playback Tests
         uses: ./.github/actions/internal_tests
@@ -692,7 +689,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run Browser Tests (Linux)
         uses: ./.github/actions/linux_browser_tests
@@ -730,7 +726,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run YTS WPT Tests
         uses: ./.github/actions/internal_tests
@@ -762,7 +757,6 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout-cone-mode: false
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Parse Test Target JSON
         id: test-target-json
