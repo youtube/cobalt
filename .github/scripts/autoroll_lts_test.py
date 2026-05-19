@@ -124,5 +124,54 @@ class TestAutorollLts(unittest.TestCase):
     self.assertTrue(result)
 
 
+class TestAutorollLtsMain(unittest.TestCase):
+  """Test cases for main() function argument parsing and defaults."""
+
+  @patch('autoroll_lts.get_pr_set')
+  @patch('autoroll_lts.get_commits')
+  @patch('sys.argv', ['autoroll_lts.py', '--target-branch', '27.lts'])
+  def test_main_defaults(self, mock_get_commits, mock_get_pr_set):
+    """Test main() with default arguments."""
+    mock_get_pr_set.return_value = set()
+    mock_get_commits.return_value = []
+
+    with patch('sys.stderr'):
+      autoroll_lts.main()
+
+    mock_get_commits.assert_called_once_with(
+        'main', '27.lts', '2079b05a9fee4de18abd188fa4a6aceb01a77d7e')
+
+  @patch('autoroll_lts.get_pr_set')
+  @patch('autoroll_lts.get_commits')
+  @patch('sys.argv',
+         ['autoroll_lts.py', '--target-branch', '27.lts', '--start-commit', ''])
+  def test_main_empty_start_commit(self, mock_get_commits, mock_get_pr_set):
+    """Test main() with empty string start commit."""
+    mock_get_pr_set.return_value = set()
+    mock_get_commits.return_value = []
+
+    with patch('sys.stderr'):
+      autoroll_lts.main()
+
+    mock_get_commits.assert_called_once_with(
+        'main', '27.lts', '2079b05a9fee4de18abd188fa4a6aceb01a77d7e')
+
+  @patch('autoroll_lts.get_pr_set')
+  @patch('autoroll_lts.get_commits')
+  @patch('sys.argv', [
+      'autoroll_lts.py', '--target-branch', '27.lts', '--start-commit',
+      'custom_commit'
+  ])
+  def test_main_custom_start_commit(self, mock_get_commits, mock_get_pr_set):
+    """Test main() with custom start commit."""
+    mock_get_pr_set.return_value = set()
+    mock_get_commits.return_value = []
+
+    with patch('sys.stderr'):
+      autoroll_lts.main()
+
+    mock_get_commits.assert_called_once_with('main', '27.lts', 'custom_commit')
+
+
 if __name__ == '__main__':
   unittest.main()
