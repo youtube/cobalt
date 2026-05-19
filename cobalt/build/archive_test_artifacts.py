@@ -157,6 +157,7 @@ def create_archive(
             'third_party/catapult/common/py_utils',
             'third_party/catapult/dependency_manager',
             'third_party/catapult/devil',
+            'third_party/catapult/third_party/six',
         ])
 
       for line in runtime_deps_file:

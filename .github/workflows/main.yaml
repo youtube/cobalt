@@ -52,6 +52,9 @@ env:
     build/print_python_deps.py
     build/zip_helpers.py
     third_party/logdog
+    third_party/colorama
+    third_party/jinja2
+    third_party/markupsafe
     testing/android/junit/shadows-allowlist.txt
 
 jobs:
