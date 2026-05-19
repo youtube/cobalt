@@ -66,7 +66,11 @@ android_library("cobalt_browser_java") {
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
   ]
   srcjar_deps = [ ":browser_jni_headers" ]
-  deps = [ "//third_party/jni_zero:jni_zero_java" ]
+  deps = [
+    "//components/navigation_interception/android:navigation_interception_java",
+    "//content/public/android:content_full_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
 }
 
 android_library("cobalt_main_java") {
@@ -81,6 +85,7 @@ android_library("cobalt_main_java") {
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
     "//components/embedder_support/android:view_java",
+    "//components/navigation_interception/android:navigation_interception_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
@@ -124,6 +129,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltInterceptNavigationDelegate.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
