@@ -14,11 +14,12 @@
 
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <mutex>
 #include <string>
 #include <utility>
-#include <unistd.h>
 #include <vector>
 
 #include "build/build_config.h"

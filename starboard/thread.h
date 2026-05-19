@@ -96,6 +96,7 @@ static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
 }
 
 
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

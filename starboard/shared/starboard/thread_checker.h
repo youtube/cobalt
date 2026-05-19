@@ -15,8 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
-#include "starboard/common/log.h"
 #include <unistd.h>
+
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 
 namespace starboard {
