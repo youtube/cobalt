@@ -59,7 +59,7 @@ git checkout 25.lts.1+
 python cobalt/build/gn.py -p rdk-arm -C devel
 
 # Build the RDK Starboard libraries and executables
-ninja -v -j 32 -C out/rdk-arm_devel loader_app_install native/crashpad_handler elf_loader_sandbox_install elf_loader_sandbox_bin loader_app_bin
+ninja -v -j 32 -C out/rdk-arm_devel loader_app_install native_target/crashpad_handler elf_loader_sandbox_install elf_loader_sandbox_bin loader_app_bin
 ```
 
 Once the build completes successfully, the output library is available at `out/rdk-arm_devel/libloader_app.so`.

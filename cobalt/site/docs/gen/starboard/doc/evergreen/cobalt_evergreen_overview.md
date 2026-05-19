@@ -114,8 +114,8 @@ First, partners should set `sb_is_evergreen_compatible = true` in the platform's
 platforms that are maintained by Google and used to build Cobalt core.)
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
-"starboard" toolchain to add a "native" toolchain that is identical except that
-it sets `is_starboard = false`.
+"starboard" toolchain to add a "native_target" toolchain that is identical
+except that it sets `is_starboard = false`.
 
 For example:
 
@@ -124,14 +124,14 @@ gcc_toolchain("target") {
   ...
 }
 
-gcc_toolchain("native") {
+gcc_toolchain("native_target") {
   ...
   is_starboard = false
 }
 ```
 
-This "native" toolchain is required in order to build the `crashpad_handler`
-binary, which should NOT use the Starboard porting layer.
+This "native_target" toolchain is required in order to build the
+`crashpad_handler` binary, which should NOT use the Starboard porting layer.
 
 Additionally, partners should install crash handlers as instructed in the
 [Installing Crash Handlers for Cobalt guide](../crash_handlers.md).
@@ -181,16 +181,16 @@ current branch.
 The partner port of Starboard is built with the partner’s "target" toolchain and
 is linked into the `loader_app`, which knows how to dynamically load
 `libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
-"native" toolchain. For example:
+"native_target" toolchain. For example:
 
 ```
 $ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa" sb_api_version=15'
 $ ninja -C out/<partner_port_name>_qa loader_app
-$ ninja -C out/<partner_port_name>_qa native/crashpad_handler
+$ ninja -C out/<partner_port_name>_qa native_target/crashpad_handler
 ```
 
 Note that when building `crashpad_handler`, a special prefix is used to have
-Ninja compile the target in the non-default, "native" toolchain.
+Ninja compile the target in the non-default, "native_target" toolchain.
 
 ### What is an example for how this would help me?
 
@@ -306,7 +306,7 @@ instructions available [here](cobalt_evergreen_reference_port_raspi2.md).
 1. Build the `crashpad_database_util` target and deploy it onto the device.
 ```
 $ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa"'
-$ ninja -C out/<partner_port_name>_qa native/crashpad_database_util
+$ ninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
 ```
 2. Remove the existing state for crashpad as it throttles uploads to 1 per hour:
 ```

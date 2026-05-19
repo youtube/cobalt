@@ -7,28 +7,28 @@ Cobalt 26.
 ## Building Crashpad components
 
 Partners are still required to build the Crashpad handler executable using a
-"native" toolchain defined by the platform; see
+"native_target" toolchain defined by the platform; see
 [cobalt_evergreen_overview.md](../evergreen/cobalt_evergreen_overview.md) for
 more information.
 
 A change is only needed if your platform's toolchain uses C++17 and you
 experience C++17-related errors when building the
-`native/crashpad_handler` target. In this case you should set
+`native_target/crashpad_handler` target. In this case you should set
 `build_base_with_cpp17 = true` in the toolchain definition. The Crashpad client,
 which is linked into Starboard's `loader_app`, also depends on `//base`. So if
-you need to assign `build_base_with_cpp17` for your platform's "native"
+you need to assign `build_base_with_cpp17` for your platform's "native_target"
 toolchain then you'll likely need to do the same for its "starboard" toolchain.
 
 ## Deploying the Crashpad handler
 
 Partners are still required to deploy the Crashpad handler alongside the
 `loader_app`. *However*, the Crashpad handler executable should now be placed
-inside a "native" parent directory. So you should have:
+inside a "native_target" parent directory. So you should have:
 
 ```
 ├── Directory containing kSbSystemPathExecutableFile
     ├── loader_app <--(kSbSystemPathExecutableFile)
-    ├── native
+    ├── native_target
         ├── crashpad_handler
 ```
 

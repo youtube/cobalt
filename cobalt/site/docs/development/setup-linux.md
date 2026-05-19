@@ -296,7 +296,7 @@ for more information. Here is an example of devel build and Starboard API 16.
 
     ```sh
     ninja -C $TARGET_DIR loader_app_install
-    ninja -C $TARGET_DIR native/crashpad_handler
+    ninja -C $TARGET_DIR native_target/crashpad_handler
     ninja -C $TARGET_DIR elf_loader_sandbox_install
     ```
 
@@ -307,7 +307,7 @@ for more information. Here is an example of devel build and Starboard API 16.
     cp -r $EVERGREEN_DIR/install/lib/ $TARGET_DIR/content/app/cobalt
     cp -r $EVERGREEN_DIR/content/ $TARGET_DIR/content/app/cobalt
     cp $EVERGREEN_DIR/manifest.json $TARGET_DIR/
-    cp $TARGET_DIR/native/crashpad_handler $TARGET_DIR/
+    cp $TARGET_DIR/native_target/crashpad_handler $TARGET_DIR/
 
     # The three executables: crashpad_handler, loader_app and elf_loader_sandbox are now placed in $TARGET_DIR/
     ```

@@ -17,7 +17,7 @@ $ git clone https://cobalt.googlesource.com/cobalt
 ## Build the loader app (new entry point)
 $ cd cobalt/src
 $ cobalt/build/gn.py -p raspi-2 -c qa
-$ ninja -C out/raspi-2_qa starboard/loader_app native/crashpad_handler
+$ ninja -C out/raspi-2_qa starboard/loader_app native_target/crashpad_handler
 
 ## Create package directory for Cobalt Evergreen
 $ export COEG_PATH=coeg

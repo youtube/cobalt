@@ -133,7 +133,7 @@ return and complete the following steps.
 1. Build Crashpad handler first
 
     ```sh
-    ninja -C out/android-arm_qa native/crashpad_handler
+    ninja -C out/android-arm_qa native_target/crashpad_handler
     ```
 
 1. Build loader_app APK

@@ -150,7 +150,7 @@ config("buildflag_defines") {
   }
 
   # Use is_native_toolchain and BUILDFLAG(IS_NATIVE_TOOLCHAIN) for code that
-  # should only be built using the platform's "native" toolchain. This is for
+  # should only be built using the platform's "native_target" toolchain. This is for
   # binaries that should run natively on the system, without Starboard.
   if (is_native_toolchain) {
     defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TOOLCHAIN" ]

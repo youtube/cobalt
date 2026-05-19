@@ -41,7 +41,7 @@ gcc_toolchain("starboard") {
   propagates_configs = !enable_cobalt_hermetic_hacks
 }
 
-gcc_toolchain("native") {
+gcc_toolchain("native_target") {
   cc = gcc_toolchain_cc
   cxx = gcc_toolchain_cxx
   ld = cxx

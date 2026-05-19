@@ -28,7 +28,7 @@ overridable_clang_toolchain("starboard") {
   propagates_configs = !enable_cobalt_hermetic_hacks
 }
 
-clang_toolchain("native") {
+clang_toolchain("native_target") {
   toolchain_args = {
     is_starboard = false
     current_os = "linux"
