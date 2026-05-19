@@ -8,7 +8,7 @@ on:
       start_commit:
         description: 'The commit to start rolling from, should point to the last release chore'
         type: string
-        default: '217cc0c75ae4620743cd57d436f5f3a7e10cd289'
+        default: '2079b05a9fee4de18abd188fa4a6aceb01a77d7e'
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number

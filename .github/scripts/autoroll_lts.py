@@ -163,10 +163,14 @@ def cherry_pick(sha, num, title):
 def main():
   p = argparse.ArgumentParser()
   p.add_argument('--target-branch', required=True)
-  p.add_argument('--start-commit')
+  p.add_argument(
+      '--start-commit', default='2079b05a9fee4de18abd188fa4a6aceb01a77d7e')
   p.add_argument('--origin-branch', default='main')
   p.add_argument('--max-commits', type=int, default=1000)
   args = p.parse_args()
+
+  if not args.start_commit:
+    args.start_commit = '2079b05a9fee4de18abd188fa4a6aceb01a77d7e'
 
   links = []
   target_prs = get_pr_set(args.target_branch, args.origin_branch)
