@@ -152,10 +152,12 @@ def create_archive(
         wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
         target_deps.add(os.path.join(out_dir, wrapper_rel_path))
         target_deps.add(os.path.join(out_dir, 'bin/helper', target_name))
-        target_src_root_deps.add('third_party/catapult/devil')
-        target_src_root_deps.add('third_party/catapult/dependency_manager')
-        target_src_root_deps.add('third_party/catapult/common/py_utils')
-        target_src_root_deps.add('third_party/catapult/common/py_trace_event')
+        target_src_root_deps.update([
+            'third_party/catapult/common/py_trace_event',
+            'third_party/catapult/common/py_utils',
+            'third_party/catapult/dependency_manager',
+            'third_party/catapult/devil',
+        ])
 
       for line in runtime_deps_file:
         if not is_junit_test and any(
