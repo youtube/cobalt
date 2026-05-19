@@ -51,10 +51,6 @@ env:
     build/action_helpers.py
     build/print_python_deps.py
     build/zip_helpers.py
-    third_party/catapult/devil
-    third_party/catapult/dependency_manager
-    third_party/catapult/common/py_utils
-    third_party/catapult/common/py_trace_event
     third_party/logdog
     testing/android/junit/shadows-allowlist.txt
 
