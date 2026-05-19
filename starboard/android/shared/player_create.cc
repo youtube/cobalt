@@ -36,7 +36,7 @@
 
 namespace {
 
-constexpr auto kVideoSurfaceWaitTimeout = std::chrono::seconds(5);
+constexpr auto kVideoSurfaceWaitTimeout = std::chrono::seconds(30);
 
 }  // namespace
 
