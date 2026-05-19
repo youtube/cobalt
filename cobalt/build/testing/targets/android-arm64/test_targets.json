@@ -36,9 +36,5 @@
     "_browser": [
       "cobalt/testing/browser_tests:cobalt_browsertests"
     ]
-  },
-  "robolectric_runtime_deps": [
-    "android-all-15-robolectric-12650502.jar",
-    "android-all-instrumented-15-robolectric-12650502-i7.jar"
-  ]
+  }
 }
