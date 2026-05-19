@@ -117,7 +117,7 @@ class GranularMemoryBrowsertest : public ContentBrowserTest {
   base::ScopedFILE temp_rollup_;
 };
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
   // Ensure at least one renderer process is active.
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
@@ -159,9 +159,9 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
               run_loop.QuitClosure(), browser_pid));
   run_loop.Run();
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest,
                        BackgroundDumpSkipsDetailedStats) {
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
@@ -197,9 +197,9 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest,
               run_loop.QuitClosure(), browser_pid));
   run_loop.Run();
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
   // Ensure at least one renderer process is active.
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
@@ -287,6 +287,6 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
   memory_instrumentation::MemoryInstrumentation::GetInstance()
       ->SetDetailedMetricsDelegate(nullptr);
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace content
