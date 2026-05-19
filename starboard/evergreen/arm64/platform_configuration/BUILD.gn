@@ -12,18 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/build/configs/hacks.gni")
-
 config("sabi_flags") {
-  # TODO: b/454711326 - Use "-march=arm64v8a" once we don't need dotprod
-  # functions for libvpx.
-  if (enable_cobalt_hermetic_hacks) {
-    cflags = [ "-march=armv9-a+sve+sme+dotprod+i8mm" ]
-  } else {
-    cflags = [ "-march=arm64v8a" ]
-  }
-
-  cflags += [
+  cflags = [
+    # We rely on the target triple to establish the baseline arm64v8a ABI.
+    # Explicitly specifying "-march=arm64v8a" here would cause GN to place it
+    # after target-specific cflags on the compiler command line, overriding
+    # advanced micro-architecture flags (e.g. dotprod, sve) in third_party
+    # dependencies like libvpx and libyuv.
     "-target",
     "arm64v8a-unknown-linux-elf",
 
@@ -40,6 +35,7 @@ config("platform_configuration") {
     "//starboard/evergreen/shared/platform_configuration",
   ]
 
+  # Enforce 64-bit ARM ELF emulation mode for the linker.
   ldflags = [
     "-Wl,-m",
     "-Wl,aarch64elf",
