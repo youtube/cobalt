@@ -64,8 +64,8 @@ runs:
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST} || true
-          cat ${CHANGED_FILES_LIST} || true
+          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: GN Analyze
         id: analyze
@@ -77,17 +77,21 @@ runs:
           set -euo pipefail
           cd cobalt/src
 
-          # Default to running autoninja
+          # Default to running autoninja unless proven otherwise.
           echo "skip_autoninja=false" >> $GITHUB_OUTPUT
 
-          # If no files changed, run build normally
+          # If no files changed, run build normally.
           if [[ ! -s "${CHANGED_FILES_LIST}" ]]; then
             exit 0
           fi
 
-          # Prepare input.json for gn analyze
-          FILES_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0))' < "${CHANGED_FILES_LIST}")
+          # Prepare input.json for gn analyze.
+          # GN expects source file paths to be prefixed with '//' (e.g., //cobalt/browser/main.cc).
+          FILES_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0) | "//" + .)' < "${CHANGED_FILES_LIST}")
 
+          # We evaluate against additional_compile_targets: ["all"] to determine if the modified files
+          # affect any output in the entire Ninja build graph. test_targets is kept empty because
+          # test binaries are already built as compile targets under "all".
           jq -n --argjson files "$FILES_JSON" '{
             files: $files,
             additional_compile_targets: ["all"],
@@ -97,13 +101,13 @@ runs:
           echo "GN Analyze Input:"
           cat gn_analyze_input.json
 
-          # Run gn analyze against the generated Ninja directory
+          # Run gn analyze against the configured Ninja build directory.
           gn analyze out/${{ matrix.platform }}_${{ matrix.config }} gn_analyze_input.json gn_analyze_output.json
 
           echo "GN Analyze Output:"
           cat gn_analyze_output.json
 
-          # Parse status
+          # Parse status to see if changes affect the build graph.
           STATUS=$(jq -r '.status' gn_analyze_output.json)
           if [[ "$STATUS" == "No dependency" ]]; then
             echo "GN Analyze reported 'No dependency'. Pruning autoninja build!"
@@ -121,7 +125,8 @@ runs:
           set -x
           cd cobalt/src
 
-          # If GN analyze proved no dependency, write empty test targets
+          # If GN analyze proved no dependency, emit empty test targets so downstream test runners
+          # (on-host-test, on-device-test) know there is zero work to do and exit immediately.
           if [[ "${{ steps.analyze.outputs.skip_autoninja }}" == "true" ]]; then
             echo "GN Analyze proved no dependency. Emitting empty test targets."
             echo '{"test_targets": []}' > "${{ inputs.test_targets_json_file }}"
@@ -136,6 +141,8 @@ runs:
             exit 0
           fi
 
+          # Copy static test targets definitions over to the output JSON file.
+          # Static test targets overwrite dynamic targets to ensure stable pre-verified test suites are executed.
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
           test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')

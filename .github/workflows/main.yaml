@@ -307,39 +307,40 @@ jobs:
             # 2. BANNED FILES (Global Invalidators).
             # If a PR touches any of these, we immediately enforce a full CI run.
             ban_patterns=(
-              "^\.github/"
-              "^DEPS$"
-              "\.py$"
-              "\.sh$"
-              "\.txt$"
-              "\.in$"
-              "^\.vpython3$"
-              "^docker-compose\.yaml$"
-              "^cobalt/docker/"
-              "^cobalt/testing/filters/"
-              "^\.clang-"
-              "^\.pylintrc$"
-              "^CPPLINT\.cfg$"
-              "^\.pre-commit-config\.yaml$"
+              '^\.github/'
+              '^DEPS$'
+              '\.py$'
+              '\.sh$'
+              '\.txt$'
+              '\.in$'
+              '^\.vpython3$'
+              '^docker-compose\.yaml$'
+              '^cobalt/docker/'
+              '^cobalt/testing/filters/'
+              '^\.clang-'
+              '^\.pylintrc$'
+              '^CPPLINT\.cfg$'
+              '^\.pre-commit-config\.yaml$'
             )
 
             # 3. ALLOWLIST (Documentation & Metadata).
             # Files that are 100% safe to skip CI.
             allow_patterns=(
-              "\.md$"               # Markdown documentation
-              "^docs/"              # Documentation directory
-              "^OWNERS$"            # Directory owner manifests
-              "^AUTHORS$"           # Contributor list
-              "^LICENSE"            # License and legal files
-              "^DIR_METADATA$"      # Directory metadata
-              "^WATCHLISTS$"        # Watchlist manifests
-              "^\.gitignore$"       # Git ignore configurations
-              "^\.gitattributes$"   # Git attributes
+              '\.md$'               # Markdown documentation
+              '^docs/'              # Documentation directory
+              '^OWNERS$'            # Directory owner manifests
+              '^AUTHORS$'           # Contributor list
+              '^LICENSE'            # License and legal files
+              '^DIR_METADATA$'      # Directory metadata
+              '^WATCHLISTS$'        # Watchlist manifests
+              '^\.gitignore$'       # Git ignore configurations
+              '^\.gitattributes$'   # Git attributes
             )
 
             # 4. EVALUATION LOGIC
+            # Read every changed file path robustly, handling trailing newlines properly.
             skip_ci=true
-            while IFS= read -r filename; do
+            while IFS= read -r filename || [ -n "$filename" ]; do
               [[ -z "$filename" ]] && continue
 
               # Check if file is in the Ban List
@@ -1081,11 +1082,15 @@ jobs:
             exit 0
           fi
 
-          # 2. Verify that required upstream jobs succeeded. If any job failed, timed out, or was cancelled, fail the gatekeeper.
-          if [[ "${{ needs.build.result }}" != "success" || "${{ needs.test-results.result }}" != "success" || "${{ needs.browser-test-results.result }}" != "success" ]]; then
-            echo "::error::A required upstream job failed, timed out, or was cancelled!"
-            exit 1
-          fi
+          # 2. Verify that required upstream jobs succeeded or were safely skipped.
+          # In a multi-platform matrix (e.g., android-x86), test jobs may be disabled, resulting in a 'skipped' result state.
+          # We explicitly allow both 'success' and 'skipped' statuses. Any other state (failure, cancelled, timed_out) is fatal.
+          for result in "${{ needs.build.result }}" "${{ needs.test-results.result }}" "${{ needs.browser-test-results.result }}"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "::error::A required upstream job failed, timed out, or was cancelled (result: $result)!"
+              exit 1
+            fi
+          done
         shell: bash
       - name: Restore CI Essentials
         if: needs.initialize.outputs.skip_ci != 'true'
