@@ -412,3 +412,4 @@ event loop with the application event handler.
 ```
 int SbRunStarboardMain(int argc, char **argv, SbEventHandleCallback callback)
 ```
+

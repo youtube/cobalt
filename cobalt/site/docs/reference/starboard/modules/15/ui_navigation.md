@@ -262,7 +262,7 @@ right and top-to-bottom.
 ///     | Negative position. | Positive position. | Positive position. |
 ///     +--------------------+--------------------+--------------------+
 ///                          ^
-///                  Content Offset X = 0.
+///                  Content Offset X = 0. 
 ```
 
 ```
@@ -282,7 +282,7 @@ This represents a 2x3 transform matrix in row-major order.
 
 ```
 ///   | a b tx |
-///   | c d ty |
+///   | c d ty | 
 ```
 
 #### Members
@@ -321,3 +321,4 @@ Returns whether the given navigation item handle is valid.
 ```
 static bool SbUiNavItemIsValid(SbUiNavItem item)
 ```
+

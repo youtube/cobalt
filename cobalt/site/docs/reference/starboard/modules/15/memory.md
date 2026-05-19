@@ -330,3 +330,4 @@ SbMemoryMap(). For example, if one call to `SbMemoryMap(0x1000)` returns
 ```
 bool SbMemoryUnmap(void *virtual_address, int64_t size_bytes)
 ```
+

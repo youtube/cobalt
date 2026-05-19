@@ -181,3 +181,4 @@ Sets the default options for system windows.
 ```
 void SbWindowSetDefaultOptions(SbWindowOptions *options)
 ```
+

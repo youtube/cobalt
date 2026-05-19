@@ -418,3 +418,4 @@ The return value identifies the number of bytes written, or `-1` on error.
 ```
 static int SbFileWriteAll(SbFile file, const char *data, int size)
 ```
+
