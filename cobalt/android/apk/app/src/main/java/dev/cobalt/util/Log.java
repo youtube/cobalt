@@ -18,6 +18,7 @@ package dev.cobalt.util;
  * Logging wrapper that delegates directly to Chromium's base Log class at compile time.
  * This proxy completely eliminates JNI reflection overhead, retains optimal ProGuard
  * dead-code stripping, and restores global usability of Log.d and Log.v.
+ * This class is thread-safe and its methods can be safely called from any thread.
  */
 public final class Log {
   public static final String TAG = "starboard";
