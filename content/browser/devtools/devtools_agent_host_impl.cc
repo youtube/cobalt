@@ -16,8 +16,11 @@
 #include "base/observer_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
-#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"
+#include "build/build_config.h"
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/devtools/devtools_http_handler.h"
 #include "content/browser/devtools/devtools_manager.h"
 #include "content/browser/devtools/devtools_pipe_handler.h"
@@ -185,7 +188,9 @@ DevToolsAgentHost::List DevToolsAgentHost::GetOrCreateAll() {
   RenderFrameDevToolsAgentHost::AddAllAgentHosts(&result);
   WebContentsDevToolsAgentHost::AddAllAgentHosts(&result);
 
+#if !BUILDFLAG(IS_COBALT)
   AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAll(&result);
+#endif
   MojomDevToolsAgentHost::GetAll(&result);
 
 #if DCHECK_IS_ON()

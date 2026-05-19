@@ -22,7 +22,9 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/navigation_url_loader_delegate.h"
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
@@ -94,6 +96,10 @@ namespace content {
 
 class AgentClusterKey;
 class CrossOriginEmbedderPolicyReporter;
+#if !BUILDFLAG(IS_COBALT)
+class FencedFrameProperties;
+class FencedFrameURLMapping;
+#endif
 class FrameTreeNode;
 class NavigationUIData;
 class NavigationURLLoader;
@@ -112,7 +118,9 @@ class CONTENT_EXPORT NavigationRequest
       public NavigationURLLoaderDelegate,
       public NavigationThrottleRunner::Delegate,
       public CommitDeferringConditionRunner::Delegate,
+#if !BUILDFLAG(IS_COBALT)
       public FencedFrameURLMapping::MappingResultObserver,
+#endif
       public mojom::NavigationRendererCancellationListener,
       private RenderProcessHostObserver,
       private network::mojom::TrustTokenAccessObserver,
@@ -1210,10 +1218,9 @@ class CONTENT_EXPORT NavigationRequest
     return prerender_frame_tree_node_id_.value();
   }
 
-  const std::optional<FencedFrameProperties>& GetFencedFrameProperties() const {
-    return fenced_frame_properties_;
-  }
+  const std::optional<FencedFrameProperties>& GetFencedFrameProperties() const;
 
+#if !BUILDFLAG(IS_COBALT)
   // Compute and return the `FencedFrameProperties` that this
   // `NavigationRequest` acts under, i.e. the properties attached to this
   // `NavigationRequest` if present.
@@ -1225,6 +1232,9 @@ class CONTENT_EXPORT NavigationRequest
   const std::optional<FencedFrameProperties>& ComputeFencedFrameProperties(
       FencedFramePropertiesNodeSource node_source =
           FencedFramePropertiesNodeSource::kClosestAncestor) const;
+#else
+  const std::optional<FencedFrameProperties>& ComputeFencedFrameProperties() const;
+#endif
 
   const std::optional<base::UnguessableToken> ComputeFencedFrameNonce() const;
 
@@ -1758,6 +1768,7 @@ class CONTENT_EXPORT NavigationRequest
       CommitDeferringCondition::NavigationType navigation_type,
       std::optional<FrameTreeNodeId> candidate_prerender_frame_tree_node_id);
 
+#if !BUILDFLAG(IS_COBALT)
   // Get the `FencedFrameURLMapping` associated with the current page.
   FencedFrameURLMapping& GetFencedFrameURLMap();
 
@@ -1769,6 +1780,7 @@ class CONTENT_EXPORT NavigationRequest
   // resume the deferred navigation.
   void OnFencedFrameURLMappingComplete(
       const std::optional<FencedFrameProperties>& properties) override;
+#endif
 
   // Called from BeginNavigation(), OnPrerenderingActivationChecksComplete(),
   // or OnFencedFrameURLMappingComplete().
@@ -3050,15 +3062,17 @@ class CONTENT_EXPORT NavigationRequest
   //
   // If the navigation doesn't commit (e.g. an HTTP 204 response), the fenced
   // frame properties will not be stored in the fenced frame root.
+#if !BUILDFLAG(IS_COBALT)
   std::optional<FencedFrameProperties> fenced_frame_properties_;
 
   // For fenced frames, any contextual string that was written by the embedder
   // via `blink::FencedFrameConfig::setSharedStorageContext()` to be later
   // retrieved only inside an eligible shared storage worklet in the fenced
-  // frame via `sharedStorage.context`. absl:nullopt if this request is not for
+  // frame via `sharedStorage.context`. std::nullopt if this request is not for
   // a fenced frame or if the context string wasn't set prior to this
   // navigation.
   std::optional<std::u16string> embedder_shared_storage_context_;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Prerender2:
   // The type to trigger prerendering. The value is valid only when Prerender2

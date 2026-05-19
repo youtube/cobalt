@@ -13,8 +13,11 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/input/browser_controls_state.h"
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/renderer_host/stored_page.h"
 #include "content/browser/shared_storage/shared_storage_saved_query_data.h"
 #include "content/common/content_export.h"
@@ -159,9 +162,11 @@ class CONTENT_EXPORT PageImpl : public Page {
     return text_autosizer_page_info_;
   }
 
+#if !BUILDFLAG(IS_COBALT)
   FencedFrameURLMapping& fenced_frame_urls_map() {
     return fenced_frame_urls_map_;
   }
+#endif
 
   void set_last_main_document_source_id(ukm::SourceId id) {
     last_main_document_source_id_ = id;
@@ -370,7 +375,9 @@ class CONTENT_EXPORT PageImpl : public Page {
 
   // Fenced frames:
   // Any fenced frames created within this page will access this map.
+#if !BUILDFLAG(IS_COBALT)
   FencedFrameURLMapping fenced_frame_urls_map_;
+#endif
 
   // If `blink::features::kSharedStorageSelectURLLimit` is enabled, the number
   // of bits of entropy remaining in this pageload's overall budget for calls to

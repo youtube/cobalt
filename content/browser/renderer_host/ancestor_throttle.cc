@@ -12,6 +12,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
@@ -59,6 +60,9 @@ bool HeadersContainFrameAncestorsCSP(
 RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
                                                 RenderFrameHostImpl* frame) {
   bool allows_information_inflow = false;
+#if BUILDFLAG(IS_COBALT)
+  allows_information_inflow = !frame->IsFencedFrameRoot();
+#else
   if (base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
     if (request) {
@@ -76,6 +80,7 @@ RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
   } else {
     allows_information_inflow = !frame->IsFencedFrameRoot();
   }
+#endif
 
   if (!allows_information_inflow && request &&
       base::FeatureList::IsEnabled(

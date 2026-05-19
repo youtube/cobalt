@@ -21,7 +21,10 @@
 #include "base/strings/string_util.h"
 #include "base/timer/elapsed_timer.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
-#include "content/browser/fenced_frame/fenced_frame.h"
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/fenced_frame/fenced_frame.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
@@ -55,6 +58,9 @@ base::LazyInstance<FrameTreeNodeIdMap>::DestructorAtExit
     g_frame_tree_node_id_map = LAZY_INSTANCE_INITIALIZER;
 
 FencedFrame* FindFencedFrame(const FrameTreeNode* frame_tree_node) {
+#if BUILDFLAG(IS_COBALT)
+  return nullptr;
+#else
   // TODO(crbug.com/40053214): Consider having a pointer to `FencedFrame` in
   // `FrameTreeNode` or having a map between them.
 
@@ -69,6 +75,7 @@ FencedFrame* FindFencedFrame(const FrameTreeNode* frame_tree_node) {
     }
   }
   return nullptr;
+#endif
 }
 
 }  // namespace
@@ -1011,14 +1018,25 @@ bool FrameTreeNode::HasPendingCommitNavigation() {
 }
 
 bool FrameTreeNode::IsFencedFrameRoot() const {
+#if BUILDFLAG(IS_COBALT)
+  return false;
+#else
   return fenced_frame_status_ == FencedFrameStatus::kFencedFrameRoot;
+#endif
 }
 
 bool FrameTreeNode::IsInFencedFrameTree() const {
+#if BUILDFLAG(IS_COBALT)
+  return false;
+#else
   return fenced_frame_status_ != FencedFrameStatus::kNotNestedInFencedFrame;
+#endif
 }
 
 FrameTreeNode* FrameTreeNode::GetClosestAncestorWithFencedFrameProperties() {
+#if BUILDFLAG(IS_COBALT)
+  return nullptr;
+#else
   FrameTreeNode* node = this;
   while (node) {
     if (node->fenced_frame_properties_.has_value()) {
@@ -1028,8 +1046,10 @@ FrameTreeNode* FrameTreeNode::GetClosestAncestorWithFencedFrameProperties() {
   }
 
   return nullptr;
+#endif
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::optional<FencedFrameProperties>& FrameTreeNode::GetFencedFrameProperties(
     FencedFramePropertiesNodeSource node_source) {
   if (node_source == FencedFramePropertiesNodeSource::kFrameTreeRoot) {
@@ -1044,9 +1064,19 @@ std::optional<FencedFrameProperties>& FrameTreeNode::GetFencedFrameProperties(
 
   return node ? node->fenced_frame_properties_ : fenced_frame_properties_;
 }
+#else
+std::optional<FencedFrameProperties>& FrameTreeNode::GetFencedFrameProperties() {
+  static base::NoDestructor<std::optional<FencedFrameProperties>> empty_properties;
+  return *empty_properties;
+}
+#endif
 
 size_t FrameTreeNode::GetFencedFrameDepth(
     size_t& shared_storage_fenced_frame_root_count) {
+#if BUILDFLAG(IS_COBALT)
+  shared_storage_fenced_frame_root_count = 0;
+  return 0;
+#else
   DCHECK_EQ(shared_storage_fenced_frame_root_count, 0u);
 
   size_t depth = 0;
@@ -1072,9 +1102,13 @@ size_t FrameTreeNode::GetFencedFrameDepth(
   }
 
   return depth;
+#endif
 }
 
 std::optional<base::UnguessableToken> FrameTreeNode::GetFencedFrameNonce() {
+#if BUILDFLAG(IS_COBALT)
+  return std::nullopt;
+#else
   // For partition nonce, all nested frame inside a fenced frame tree should
   // operate on the partition nonce of the frame tree root.
   auto& root_fenced_frame_properties = GetFencedFrameProperties(
@@ -1091,9 +1125,11 @@ std::optional<base::UnguessableToken> FrameTreeNode::GetFencedFrameNonce() {
   CHECK(blink::features::IsAllowURNsInIframeEnabled());
   CHECK(!IsInFencedFrameTree());
   return std::nullopt;
+#endif
 }
 
 void FrameTreeNode::SetFencedFramePropertiesIfNeeded() {
+#if !BUILDFLAG(IS_COBALT)
   if (!IsFencedFrameRoot()) {
     return;
   }
@@ -1101,10 +1137,14 @@ void FrameTreeNode::SetFencedFramePropertiesIfNeeded() {
   // The fenced frame properties are set only on the fenced frame root.
   // In the future, they will be set on the FrameTree instead.
   fenced_frame_properties_ = FencedFrameProperties();
+#endif
 }
 
 blink::FencedFrame::DeprecatedFencedFrameMode
 FrameTreeNode::GetDeprecatedFencedFrameMode() {
+#if BUILDFLAG(IS_COBALT)
+  return blink::FencedFrame::DeprecatedFencedFrameMode::kDefault;
+#else
   if (!IsInFencedFrameTree()) {
     return blink::FencedFrame::DeprecatedFencedFrameMode::kDefault;
   }
@@ -1124,6 +1164,7 @@ FrameTreeNode::GetDeprecatedFencedFrameMode() {
   }
 
   return root_fenced_frame_properties->mode();
+#endif
 }
 
 bool FrameTreeNode::IsErrorPageIsolationEnabled() const {
@@ -1135,6 +1176,7 @@ void FrameTreeNode::SetSrcdocValue(const std::string& srcdoc_value) {
   srcdoc_value_ = srcdoc_value;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::vector<const SharedStorageBudgetMetadata*>
 FrameTreeNode::FindSharedStorageBudgetMetadata() {
   std::vector<const SharedStorageBudgetMetadata*> result;
@@ -1157,9 +1199,17 @@ FrameTreeNode::FindSharedStorageBudgetMetadata() {
 
   return result;
 }
+#else
+std::vector<const void*> FrameTreeNode::FindSharedStorageBudgetMetadata() {
+  return {};
+}
+#endif
 
 std::optional<std::u16string>
 FrameTreeNode::GetEmbedderSharedStorageContextIfAllowed() {
+#if BUILDFLAG(IS_COBALT)
+  return std::nullopt;
+#else
   std::optional<FencedFrameProperties>& properties = GetFencedFrameProperties();
   // We only return embedder context for frames that are same origin with the
   // fenced frame root or ancestor URN iframe.
@@ -1169,6 +1219,7 @@ FrameTreeNode::GetEmbedderSharedStorageContextIfAllowed() {
     return std::nullopt;
   }
   return properties->embedder_shared_storage_context();
+#endif
 }
 
 const scoped_refptr<BrowsingContextState>&

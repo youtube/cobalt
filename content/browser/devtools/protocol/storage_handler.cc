@@ -4,6 +4,7 @@
 
 #include "content/browser/devtools/protocol/storage_handler.h"
 
+#include "build/build_config.h"
 #include <stdint.h>
 
 #include <memory>
@@ -62,7 +63,9 @@
 #include "content/browser/devtools/protocol/network.h"
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -1113,6 +1116,7 @@ void StorageHandler::OnInterestGroupAccessed(
 }
 
 namespace {
+#if !BUILDFLAG(IS_COBALT)
 void SendGetInterestGroup(
     std::unique_ptr<StorageHandler::GetInterestGroupDetailsCallback> callback,
     std::optional<SingleStorageInterestGroup> storage_group) {
@@ -1131,13 +1135,17 @@ void SendGetInterestGroup(
   callback->sendSuccess(
       std::make_unique<base::Value::Dict>(std::move(ig_serialization)));
 }
-
+#endif
 }  // namespace
 
 void StorageHandler::GetInterestGroupDetails(
     const std::string& owner_origin_string,
     const std::string& name,
     std::unique_ptr<GetInterestGroupDetailsCallback> callback) {
+#if BUILDFLAG(IS_COBALT)
+  callback->sendFailure(Response::ServerError(
+      "Storage.getInterestGroupDetails is not supported on Cobalt"));
+#else
   if (!storage_partition_) {
     callback->sendFailure(Response::InternalError());
     return;
@@ -1162,6 +1170,7 @@ void StorageHandler::GetInterestGroupDetails(
   manager->GetInterestGroup(
       owner_origin, name,
       base::BindOnce(&SendGetInterestGroup, std::move(callback)));
+#endif
 }
 
 Response StorageHandler::SetInterestGroupTracking(bool enable) {
@@ -2543,6 +2552,10 @@ Response StorageHandler::SetProtectedAudienceKAnonymity(
     const std::string& in_owner_origin,
     const std::string& in_group_name,
     std::unique_ptr<std::vector<Binary>> in_hashes) {
+#if BUILDFLAG(IS_COBALT)
+  return Response::ServerError(
+      "Storage.setProtectedAudienceKAnonymity is not supported on Cobalt");
+#else
   url::Origin owner_origin = url::Origin::Create(GURL(in_owner_origin));
 
   // Ensure we are in "test" mode.
@@ -2566,7 +2579,9 @@ Response StorageHandler::SetProtectedAudienceKAnonymity(
       /*positive_hashed_keys=*/std::move(hashes),
       /*update_time=*/base::Time::Now(),
       /*replace_existing_values=*/true);
+
   return Response::Success();
+#endif
 }
 
 }  // namespace protocol

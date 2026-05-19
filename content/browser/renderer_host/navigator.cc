@@ -4,6 +4,7 @@
 
 #include "content/browser/renderer_host/navigator.h"
 
+#include "build/build_config.h"
 #include <utility>
 
 #include "base/check_op.h"
@@ -16,7 +17,9 @@
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#include "content/browser/interest_group/interest_group_features.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "content/browser/interest_group/interest_group_features.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -594,6 +597,7 @@ void Navigator::DidNavigate(
           .ShouldClearProxiesOnCommit(),
       navigation_request->commit_params().frame_policy, allow_paint_holding);
 
+#if !BUILDFLAG(IS_COBALT)
   // Reset the old frame host's weak pointer to auction initiator page when it
   // is a cross-document navigation and the frame does not go into bfcache.
   if ((base::FeatureList::IsEnabled(features::kDetectInconsistentPageImpl)) &&
@@ -601,6 +605,7 @@ void Navigator::DidNavigate(
       !old_frame_host->IsInBackForwardCache()) {
     old_frame_host->set_auction_initiator_page(nullptr);
   }
+#endif
 
   // The main frame, same site, and cross-site navigation checks for user
   // activation mirror the checks in DocumentLoader::CommitNavigation() (note:

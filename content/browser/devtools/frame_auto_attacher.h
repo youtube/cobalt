@@ -56,7 +56,9 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
  private:
   raw_ptr<RenderFrameHostImpl> render_frame_host_ = nullptr;
   bool observing_service_workers_ = false;
+#if !BUILDFLAG(IS_COBALT)
   bool observing_auction_worklets_ = false;
+#endif
   bool observing_shared_storage_worklets_ = false;
 };
 

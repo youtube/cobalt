@@ -10375,6 +10375,9 @@ void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
 
 bool RenderFrameHostImpl::IsFencedFrameReportingFromRendererAllowed(
     bool cross_origin_exposed) {
+#if BUILDFLAG(IS_COBALT)
+  return false;
+#else
   if (!blink::features::IsFencedFramesEnabled()) {
     mojo::ReportBadMessage(
         "Request to send reporting beacons received while FencedFrames not "
@@ -10449,12 +10452,14 @@ bool RenderFrameHostImpl::IsFencedFrameReportingFromRendererAllowed(
   }
 
   return true;
+#endif
 }
 
 void RenderFrameHostImpl::SendFencedFrameReportingBeaconInternal(
     const FencedFrameReporter::DestinationVariant& event_variant,
     blink::FencedFrame::ReportingDestination destination,
     std::optional<int64_t> navigation_id) {
+#if !BUILDFLAG(IS_COBALT)
   std::string error_message;
   // By default, log w/ error severity. Can be overwritten to lower severity
   // depending on the error.
@@ -10480,6 +10485,7 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeaconInternal(
                         navigation_id)) {
     AddMessageToConsole(console_message_level, error_message);
   }
+#endif
 }
 
 void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(

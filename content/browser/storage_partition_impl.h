@@ -35,6 +35,7 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
+#include "build/build_config.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -803,7 +804,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   scoped_refptr<ContentIndexContextImpl> content_index_context_;
   std::unique_ptr<AttributionManager> attribution_manager_;
   std::unique_ptr<FontAccessManager> font_access_manager_;
+#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
+#endif
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
   std::unique_ptr<AggregationService> aggregation_service_;

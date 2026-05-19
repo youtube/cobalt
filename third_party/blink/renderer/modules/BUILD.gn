@@ -185,6 +185,8 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
     ]
 
+    sub_modules -= [ "//third_party/blink/renderer/modules/ad_auction" ]
+
     if (use_starboard_media) {
       sub_modules += [
         "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
@@ -286,6 +288,13 @@ source_set("modules_testing") {
     "webaudio/testing/internals_web_audio.cc",
     "webaudio/testing/internals_web_audio.h",
   ]
+
+  if (is_cobalt) {
+    sources -= [
+      "ad_auction/testing/internals_protected_audience.cc",
+      "ad_auction/testing/internals_protected_audience.h",
+    ]
+  }
 
   if (enable_compute_pressure) {
     sources += [
@@ -746,6 +755,13 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/modules/ad_auction:unit_tests",
     "//third_party/blink/renderer/modules/breakout_box:unit_tests",
     "//third_party/blink/renderer/modules/clipboard:unit_tests",
+  ]
+
+  if (is_cobalt) {
+    deps -= [ "//third_party/blink/renderer/modules/ad_auction:unit_tests" ]
+  }
+
+  deps += [
     "//third_party/blink/renderer/modules/file_system_access:unit_tests",
     "//third_party/blink/renderer/modules/gamepad:unit_tests",
     "//third_party/blink/renderer/modules/hid:unit_tests",

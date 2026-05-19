@@ -4331,6 +4331,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // checks fail, it implies none of the reporting beacons can be sent. This
   // function should only handle checks not specific to individual destination
   // and event data.
+#if !BUILDFLAG(IS_COBALT)
   // Note: This function has side effects. It may terminate misbehaving
   // renderers. It may also add messages for certain cases that return false.
   bool IsFencedFrameReportingFromRendererAllowed(bool cross_origin_exposed);
@@ -4341,6 +4342,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const FencedFrameReporter::DestinationVariant& event_variant,
       blink::FencedFrame::ReportingDestination destination,
       std::optional<int64_t> navigation_id = std::nullopt);
+#endif
 
   // Indicates whether this frame has third-party storage
   // partitioning enabled. This depends on the deprecation trial (which can

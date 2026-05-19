@@ -19,6 +19,7 @@
 #include "base/observer_list.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_frame_host_manager.h"
@@ -472,6 +473,11 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
     return popup_creator_origin_;
   }
 
+  // If the url from the the last BeginNavigation is about:srcdoc, this value
+  // stores the srcdoc_attribute's value for re-use in history navigations.
+  void SetSrcdocValue(const std::string& srcdoc_value);
+  const std::string& srcdoc_value() const { return srcdoc_value_; }
+
   // Sets the associated FrameTree for this node. The node can change FrameTrees
   // as part of prerendering, which allows a page loaded in the prerendered
   // FrameTree to be used for a navigation in the primary frame tree.
@@ -548,10 +554,12 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // arbitrary restrictions in "default mode" so that using opaque ads mode is
   // less necessary.
   void SetFencedFramePropertiesOpaqueAdsModeForTesting() {
+#if !BUILDFLAG(IS_COBALT)
     if (fenced_frame_properties_.has_value()) {
       fenced_frame_properties_
           ->SetFencedFramePropertiesOpaqueAdsModeForTesting();
     }
+#endif
   }
 
   // Returns the mode attribute from the `FencedFrameProperties` if this frame
@@ -586,18 +594,15 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // Returns true if error page isolation is enabled.
   bool IsErrorPageIsolationEnabled() const;
 
-  // Functions to store and retrieve a frame's srcdoc value on this
-  // FrameTreeNode.
-  void SetSrcdocValue(const std::string& srcdoc_value);
-  const std::string& srcdoc_value() const { return srcdoc_value_; }
-
   void set_fenced_frame_properties(
       const std::optional<FencedFrameProperties>& fenced_frame_properties) {
+#if !BUILDFLAG(IS_COBALT)
     // TODO(crbug.com/40202462): Reenable this DCHECK once ShadowDOM and
     // loading urns in iframes (for FLEDGE OT) are gone.
     // DCHECK_EQ(fenced_frame_status_,
     //          RenderFrameHostImpl::FencedFrameStatus::kFencedFrameRoot);
     fenced_frame_properties_ = fenced_frame_properties;
+#endif
   }
 
   // This function returns the fenced frame properties associated with the given
@@ -616,9 +621,13 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // the fenced frame properties interact with urn iframes.
   // TODO(crbug.com/40060657): Once navigation support for urn::uuid in iframes
   // is deprecated, remove the parameter `node_source`.
+#if !BUILDFLAG(IS_COBALT)
   std::optional<FencedFrameProperties>& GetFencedFrameProperties(
       FencedFramePropertiesNodeSource node_source =
           FencedFramePropertiesNodeSource::kClosestAncestor);
+#else
+  std::optional<FencedFrameProperties>& GetFencedFrameProperties();
+#endif
 
   // Helper function for getting the FrameTreeNode that houses the relevant
   // FencedFrameProperties when GetFencedFrameProperties() is called with
@@ -626,7 +635,11 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   FrameTreeNode* GetClosestAncestorWithFencedFrameProperties();
 
   bool HasFencedFrameProperties() const {
+#if BUILDFLAG(IS_COBALT)
+    return false;
+#else
     return fenced_frame_properties_.has_value();
+#endif
   }
 
   // Returns the number of fenced frame boundaries above this frame. The
@@ -650,8 +663,12 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // possibly be associated with a fenced frame root, unless when
   // `kAllowURNsInIframes` is enabled in which case they could be be associated
   // with any node.
+#if !BUILDFLAG(IS_COBALT)
   std::vector<const SharedStorageBudgetMetadata*>
   FindSharedStorageBudgetMetadata();
+#else
+  std::vector<const void*> FindSharedStorageBudgetMetadata();
+#endif
 
   // Returns any shared storage context string that was written to a
   // `blink::FencedFrameConfig` before navigation via
@@ -953,11 +970,13 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   const FencedFrameStatus fenced_frame_status_ =
       FencedFrameStatus::kNotNestedInFencedFrame;
 
+#if !BUILDFLAG(IS_COBALT)
   // If this is a fenced frame resulting from a urn:uuid navigation, this
   // contains all the metadata specifying the resulting context.
   // TODO(crbug.com/40202462): Move this into the FrameTree once ShadowDOM
   // and urn iframes are gone.
   std::optional<FencedFrameProperties> fenced_frame_properties_;
+#endif
 
   // The tracker of the task that restarts the BFCache navigation. It might be
   // used to cancel the task.
@@ -969,7 +988,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   //    succeeds.
   // 2. By RenderFrameHostImpl::SetOriginDependentStateOfNewFrame() when a new
   //    frame is first created, which will reflect the origin of the initial
-  //    about::blank document before any navigation has committed.
+  //    about:blank document before any navigation has committed.
   url::Origin last_successful_origin_;
 
   // Manages creation and swapping of RenderFrameHosts for this frame.
