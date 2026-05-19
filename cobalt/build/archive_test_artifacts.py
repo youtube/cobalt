@@ -154,6 +154,7 @@ def create_archive(
         target_deps.add(os.path.join(out_dir, 'bin/helper', target_name))
         target_src_root_deps.add('third_party/catapult/devil')
         target_src_root_deps.add('third_party/catapult/dependency_manager')
+        target_src_root_deps.add('testing/android/junit/shadows-allowlist.txt')
 
       for line in runtime_deps_file:
         if not is_junit_test and any(
