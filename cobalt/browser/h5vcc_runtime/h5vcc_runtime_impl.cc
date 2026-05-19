@@ -21,8 +21,7 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
-#include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
 #include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -33,18 +32,6 @@ using ::starboard::StarboardBridge;
 
 namespace h5vcc_runtime {
 
-namespace {
-base::RepeatingClosure& GetRevealAckCallback() {
-  static base::NoDestructor<base::RepeatingClosure> callback;
-  return *callback;
-}
-}  // namespace
-
-// static
-void H5vccRuntimeImpl::SetRevealAckCallback(RevealAckCallback callback) {
-  GetRevealAckCallback() = std::move(callback);
-}
-
 // TODO (b/395126160): refactor mojom implementation on Android
 H5vccRuntimeImpl::H5vccRuntimeImpl(
     content::RenderFrameHost& render_frame_host,
@@ -52,6 +39,16 @@ H5vccRuntimeImpl::H5vccRuntimeImpl(
     : content::DocumentService<mojom::H5vccRuntime>(render_frame_host,
                                                     std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&render_frame_host);
+  H5vccRuntimeManager::GetInstance()->RegisterFrame(web_contents, this);
+}
+
+H5vccRuntimeImpl::~H5vccRuntimeImpl() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&render_frame_host());
+  H5vccRuntimeManager::GetInstance()->UnregisterFrame(web_contents, this);
 }
 
 void H5vccRuntimeImpl::Create(
@@ -88,21 +85,10 @@ void H5vccRuntimeImpl::AddListener(
 
 void H5vccRuntimeImpl::PageVisibilityVisible() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  auto* web_contents =
+  content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host());
-  if (!web_contents) {
-    return;
-  }
-
-  content::Shell* shell = content::Shell::FromWebContents(web_contents);
-  if (shell) {
-    content::Shell::GetPlatform()->OnPageVisibilityVisible(shell);
-  }
-
-  if (GetRevealAckCallback()) {
-    GetRevealAckCallback().Run();
-  }
+  H5vccRuntimeManager::GetInstance()->OnPageVisibilityVisible(web_contents,
+                                                              this);
 }
 
 }  // namespace h5vcc_runtime

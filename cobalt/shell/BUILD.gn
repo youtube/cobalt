@@ -65,6 +65,7 @@ group("cobalt_shell_lib_deps") {
     "//base:base_static",
     "//cc/base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/h5vcc_runtime:h5vcc_runtime",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",

@@ -16,6 +16,8 @@ source_set("h5vcc_runtime") {
   sources = [
     "h5vcc_runtime_impl.cc",
     "h5vcc_runtime_impl.h",
+    "h5vcc_runtime_manager.cc",
+    "h5vcc_runtime_manager.h",
   ]
 
   public_deps = [
@@ -25,7 +27,6 @@ source_set("h5vcc_runtime") {
 
   deps = [
     "//base",
-    "//cobalt/shell:cobalt_shell_lib",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",

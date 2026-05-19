@@ -35,6 +35,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"

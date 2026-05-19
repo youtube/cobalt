@@ -82,6 +82,10 @@ TEST_F(LifecycleTest, Reveal) {
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
+  // Simulate that the frame was visible before conceal, so OnReveal will
+  // trigger WasShown().
+  platform_->AddPreviouslyVisibleWebContentsForTesting(shell_->web_contents());
+
   // Trigger reveal.
   EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
     platform_->ShellPlatformDelegate::OnReveal();
@@ -90,8 +94,9 @@ TEST_F(LifecycleTest, Reveal) {
   Shell::OnReveal();
 
   EXPECT_TRUE(platform_->IsVisible());
-  // Visibility should still be HIDDEN because we are waiting for Reveal ACK.
-  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+  // Visibility should now be VISIBLE because we called WasShown() in OnReveal
+  // to unblock the renderer.
+  EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
 
   // Simulate Reveal ACK.
   platform_->OnPageVisibilityVisible(shell_);

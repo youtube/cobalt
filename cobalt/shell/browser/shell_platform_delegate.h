@@ -16,6 +16,7 @@
 #define COBALT_SHELL_BROWSER_SHELL_PLATFORM_DELEGATE_H_
 
 #include <memory>
+#include <set>
 #include <string>
 
 #include "base/containers/flat_map.h"
@@ -34,6 +35,8 @@ class ViewsDelegate;
 #include "ui/display/screen.h"
 #endif
 
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+
 class GURL;
 
 namespace content {
@@ -44,7 +47,7 @@ class ShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
-class ShellPlatformDelegate {
+class ShellPlatformDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
  public:
   enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
 
@@ -141,6 +144,11 @@ class ShellPlatformDelegate {
   // destruction. Returns false if the Shell should destroy itself.
   virtual bool DestroyShell(Shell* shell);
 
+  void AddPreviouslyVisibleWebContentsForTesting(
+      content::WebContents* web_contents) {
+    previously_visible_web_contents_.insert(web_contents);
+  }
+
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
   virtual gfx::NativeWindow GetNativeWindow(Shell* shell);
@@ -184,6 +192,13 @@ class ShellPlatformDelegate {
 #endif
 
  private:
+  // h5vcc_runtime::H5vccRuntimeObserver implementation.
+  void OnAllFramesVisible(content::WebContents* web_contents) override;
+
+  // Flag to remember that an OS-initiated focus event arrived while we were
+  // waiting for Reveal ACK. If true, focus will be applied to the window
+  // as soon as OnAllFramesVisible is called.
+  bool deferred_focus_ = false;
   friend class ShellTestBase;
   friend class MockShellPlatformDelegate;
 #if BUILDFLAG(IS_APPLE)
@@ -202,6 +217,11 @@ class ShellPlatformDelegate {
   // source of truth in PlatformWindowStarboard is not accessible during
   // early resume stages (root_window is null).
   bool waiting_for_reveal_ack_ = false;
+
+  // Set of WebContents that were visible before the application was concealed.
+  // This is used on reveal to decide which WebContents we should wait for
+  // Reveal ACK from. We only wait for those that were active before.
+  std::set<content::WebContents*> previously_visible_web_contents_;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This
   // is created in Initialize(), and is defined for each platform

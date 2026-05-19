@@ -83,11 +83,12 @@ AppEventDelegate::AppEventDelegate(
     runner_ = AppEventRunner::Create();
   }
 
-  h5vcc_runtime::H5vccRuntimeImpl::SetRevealAckCallback(base::BindRepeating(
-      &AppEventDelegate::OnRevealAck, base::Unretained(this)));
+  h5vcc_runtime::H5vccRuntimeManager::GetInstance()->AddObserver(this);
 }
 
-AppEventDelegate::~AppEventDelegate() {}
+AppEventDelegate::~AppEventDelegate() {
+  h5vcc_runtime::H5vccRuntimeManager::GetInstance()->RemoveObserver(this);
+}
 
 bool AppEventDelegate::IsRunning() const {
   base::AutoLock lock(lock_);
@@ -209,7 +210,9 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
     case kSbEventTypeReveal:
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
-      // Ensure all intermediate state changes are triggered.
+      // Ensure all intermediate state changes are triggered. Duplicate events
+      // are safe as they only update target_state_ and don't trigger duplicate
+      // transitions or JS events.
       TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
       break;
     case kSbEventTypeStop:
@@ -292,6 +295,7 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
         break;
       case ApplicationState::kBlurred:
         runner_->OnConceal();
+        pending_web_contents_.clear();
         next_state = ApplicationState::kConcealed;
         break;
       case ApplicationState::kConcealed:
@@ -316,6 +320,13 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
         next_state = ApplicationState::kBlurred;
         break;
       case ApplicationState::kBlurred:
+        if (runner_->IsWaitingForRevealAck()) {
+          // Pause transition until Reveal ACK is received. Reset flag to allow
+          // interruption by new events (which will use the deactivating
+          // branch).
+          is_transitioning_ = false;
+          return;
+        }
         runner_->OnFocus();
         next_state = ApplicationState::kStarted;
         break;
@@ -335,41 +346,42 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
   }
 }
 
+void AppEventDelegate::OnAllFramesVisible(content::WebContents* web_contents) {
+  // Called when all frames in a specific WebContents have completed layout
+  // and are visible after a reveal transition.
+  bool should_ack = false;
+  {
+    base::AutoLock lock(lock_);
+    // Remove this WebContents from the set of pending ones we are waiting for.
+    pending_web_contents_.erase(web_contents);
+    // When the set becomes empty, it means ALL active WebContents have
+    // acknowledged they are visible, and we can proceed to grant focus.
+    if (pending_web_contents_.empty()) {
+      should_ack = true;
+    }
+  }
+  if (should_ack) {
+    OnRevealAck();
+  }
+}
+
+void AppEventDelegate::OnStartWaitingForReveal(
+    content::WebContents* web_contents) {
+  base::AutoLock lock(lock_);
+  pending_web_contents_.insert(web_contents);
+}
+
 void AppEventDelegate::OnRevealAck() {
   base::AutoLock lock(lock_);
-  bool is_waiting = runner_->IsWaitingForRevealAck();
-  if (!is_waiting) {
+  if (!runner_->IsWaitingForRevealAck()) {
     return;
   }
   runner_->ClearWaitingForRevealAck();
-  if (!pending_focus_) {
-    return;
-  }
-  pending_focus_ = false;
-  // PostTask is used here to avoid deadlocking, as OnRevealAck holds
-  // lock_ and the task also tries to acquire it.
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](AppEventDelegate* delegate) {
-            base::AutoLock lock(delegate->lock_);
-            delegate->TransitionToLifeCycleState(ApplicationState::kStarted);
-          },
-          base::Unretained(this)));
+  ExecuteNextStepOnUIThreadLocked(true /* schedule_next_step */);
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   lock_.AssertAcquired();
-
-  // If we are trying to transition to kStarted (Focused) but are still waiting
-  // for the renderer to acknowledge that it has become visible (Reveal ACK),
-  // we defer the focus transition. This ensures the strict sequence:
-  // [Unfreeze -> Reveal -> Focus].
-  bool is_waiting = runner_->IsWaitingForRevealAck();
-  if (state == ApplicationState::kStarted && is_waiting) {
-    pending_focus_ = true;
-    return;
-  }
 
   // TransitionToLifeCycleState ensures that the application moves from its
   // current state to the target |state| by traversing all intermediate states
