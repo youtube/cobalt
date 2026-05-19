@@ -21,6 +21,13 @@ The `SbThreadGetPriority` API is no longer used. Instead, the standard POSIX
 The SbThreadSampler and SbThreadContext APIs are no longer used. Instead,
 POSIX APIs are used directly.
 
+### Removed SbMediaGetProgressiveBufferBudget
+The `SbMediaGetProgressiveBufferBudget` API is no longer used since progressive
+playback was removed.
+
+### Removed SbMediaGetBufferAlignment, SbMediaGetBufferPadding, and SbMediaIsBufferUsingMemoryPool
+These APIs were deprecated in Starboard 16 and are no longer used.
+
 ### Support decode-to-texture mode
 Implementations of `DecodeTarget` for YUV planes should ensure they use
 `GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
@@ -35,6 +42,15 @@ rendering issues caused by Chromium's shader expectations.
 
 ### Added AV2 to SbMediaVideoCodec
 This prepares Cobalt for future AV2 playback support.
+
+### Removed unused configuration constants
+The following configuration constants were removed as they are no longer used by Cobalt core:
+* `kSbFileMaxOpen`
+* `kSbMaxThreadLocalKeys`
+* `kSbMaxThreadNameLength`
+* `kSbNetworkReceiveBufferSize`
+* `kSbPathSepChar`
+* `kSbPathSepString`
 
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
