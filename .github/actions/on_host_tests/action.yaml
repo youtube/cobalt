@@ -29,6 +29,27 @@ runs:
       run: |
         set -x
         tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
+
+    - name: Check for JUnit Tests
+      id: check-junit
+      shell: bash
+      run: |
+        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
+        if [[ -f "${targets_file}" ]]; then
+          junit_targets=$(jq -cr '.on_host.junit // [] | .[]' "${targets_file}")
+          if [[ -n "${junit_targets}" ]]; then
+            echo "has_junit=true" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+    - name: Checkout Android JUnit Essentials
+      if: steps.check-junit.outputs.has_junit == 'true'
+      uses: actions/checkout@v4
+      with:
+        clean: false
+        sparse-checkout: |
+          ${{ env.CI_ESSENTIALS }}
+          ${{ env.ANDROID_JUNIT_CI_ESSENTIALS }}
     - name: Setup Environment for Host Tests
       shell: bash
       run: |
@@ -121,27 +142,6 @@ runs:
           echo "Test suites failed:${failed_suites}"
           exit 1
         fi
-
-    - name: Check for JUnit Tests
-      id: check-junit
-      shell: bash
-      run: |
-        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
-        if [[ -f "${targets_file}" ]]; then
-          junit_targets=$(jq -cr '.on_host.junit // [] | .[]' "${targets_file}")
-          if [[ -n "${junit_targets}" ]]; then
-            echo "has_junit=true" >> $GITHUB_OUTPUT
-          fi
-        fi
-
-    - name: Checkout Android JUnit Essentials
-      if: steps.check-junit.outputs.has_junit == 'true'
-      uses: actions/checkout@v4
-      with:
-        clean: false
-        sparse-checkout: |
-          ${{ env.CI_ESSENTIALS }}
-          ${{ env.ANDROID_JUNIT_CI_ESSENTIALS }}
 
     - name: Run JUnit Tests
       shell: bash
