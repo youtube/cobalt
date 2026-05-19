@@ -14,114 +14,34 @@
 
 package dev.cobalt.util;
 
-import java.lang.reflect.Method;
-import java.util.Locale;
-
 /**
- * Logging wrapper to allow for better control of Proguard log stripping. Many dependent
- * configurations have rules to strip logs which makes it hard to control from the app.
- *
- * <p>The implementation is using reflection.
+ * Logging wrapper that delegates directly to Chromium's base Log class at compile time.
+ * This proxy completely eliminates JNI reflection overhead, retains optimal ProGuard
+ * dead-code stripping, and restores global usability of Log.d and Log.v.
  */
 public final class Log {
   public static final String TAG = "starboard";
 
-  private static Method sLogV;
-  private static Method sLogD;
-  private static Method sLogI;
-  private static Method sLogW;
-  private static Method sLogE;
-
-  static {
-    initLogging();
-  }
-
   private Log() {}
 
-  private static void initLogging() {
-    sLogV = getLogMethod("v");
-    sLogD = getLogMethod("d");
-    sLogI = getLogMethod("i");
-    sLogW = getLogMethod("w");
-    sLogE = getLogMethod("e");
+  public static void v(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.v(tag, messageTemplate, args);
   }
 
-  private static Method getLogMethod(String methodName) {
-    try {
-      return org.chromium.base.Log.class.getDeclaredMethod(
-          methodName, String.class, String.class, Throwable.class);
-    } catch (Throwable e) {
-      // We catch Throwable to handle NoClassDefFoundError if the R8 compiler
-      // completely strips the org.chromium.base.Log class, preventing a startup crash.
-      // This failure is safely ignorable as logging is a non-critical helper feature
-      // and the application should still boot normally even if logging is disabled.
-    }
-    return null;
+  public static void d(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.d(tag, messageTemplate, args);
   }
 
-  private static Throwable getThrowableToLog(Object[] args) {
-    if (args == null || args.length == 0) {
-      return null;
-    }
-    Object lastArg = args[args.length - 1];
-    if (!(lastArg instanceof Throwable)) {
-      return null;
-    }
-    return (Throwable) lastArg;
+  public static void i(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.i(tag, messageTemplate, args);
   }
 
-  /** Returns a formatted log message, using the supplied format and arguments. */
-  private static String formatLog(String messageTemplate, Throwable tr, Object... params) {
-    if ((params != null) && ((tr == null && params.length > 0) || params.length > 1)) {
-      messageTemplate = String.format(Locale.US, messageTemplate, params);
-    }
-    return messageTemplate;
+  public static void w(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.w(tag, messageTemplate, args);
   }
 
-  private static int logWithMethod(
-      Method logMethod, String tag, String messageTemplate, Object... args) {
-    try {
-      if (logMethod != null) {
-        Throwable tr = getThrowableToLog(args);
-        String msg = formatLog(messageTemplate, tr, args);
-        return (int) logMethod.invoke(null, tag, msg, tr);
-      }
-    } catch (Throwable e) {
-      // ignore
-    }
-    return 0;
+  public static void e(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.e(tag, messageTemplate, args);
   }
 
-  public static int v(String tag, String messageTemplate, Object... args) {
-    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.VERBOSE)) {
-      return logWithMethod(sLogV, tag, messageTemplate, args);
-    }
-    return 0;
-  }
-
-  public static int d(String tag, String messageTemplate, Object... args) {
-    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.DEBUG)) {
-      return logWithMethod(sLogD, tag, messageTemplate, args);
-    }
-    return 0;
-  }
-
-  public static int i(String tag, String messageTemplate, Object... args) {
-    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.INFO)) {
-      return logWithMethod(sLogI, tag, messageTemplate, args);
-    }
-    return 0;
-  }
-
-  public static int w(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(sLogW, tag, messageTemplate, args);
-  }
-
-  public static int w(String tag, Throwable tr) {
-    return logWithMethod(sLogW, tag, "", tr);
-  }
-
-  public static int e(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(sLogE, tag, messageTemplate, args);
-  }
 }
