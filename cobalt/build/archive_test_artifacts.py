@@ -155,6 +155,7 @@ def create_archive(
         target_src_root_deps.add('third_party/catapult/devil')
         target_src_root_deps.add('third_party/catapult/dependency_manager')
         target_src_root_deps.add('third_party/catapult/common/py_utils')
+        target_src_root_deps.add('third_party/catapult/common/py_trace_event')
         target_src_root_deps.add('testing/android/junit/shadows-allowlist.txt')
 
       for line in runtime_deps_file:

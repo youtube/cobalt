@@ -36,6 +36,7 @@ env:
     .github
     build/android
     build/util
+    build/gn_helpers.py
     cobalt/build
     cobalt/docker
     cobalt/testing/browser_tests/tools
