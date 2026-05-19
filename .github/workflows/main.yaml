@@ -55,6 +55,7 @@ env:
     third_party/colorama
     third_party/jinja2
     third_party/markupsafe
+    third_party/protobuf
     testing/android/junit/shadows-allowlist.txt
 
 jobs:
