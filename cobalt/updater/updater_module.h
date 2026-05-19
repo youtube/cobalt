@@ -126,6 +126,7 @@ class UpdaterModule {
   void MarkSuccessful();
 
  private:
+ // Private constructor and destructor to enforce singleton pattern.
   UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
                 const std::string& user_agent,
                 base::TimeDelta update_check_delay);
