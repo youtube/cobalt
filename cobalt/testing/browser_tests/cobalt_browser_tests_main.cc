@@ -77,10 +77,19 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       testing::InitGoogleTest(&argc, argv);
 
       base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+      std::string disabled_features =
+          command_line->GetSwitchValueASCII("disable-features");
+      if (disabled_features.empty()) {
+        disabled_features = "PartitionAllocDanglingPtr";
+      } else if (disabled_features.find("PartitionAllocDanglingPtr") ==
+                 std::string::npos) {
+        disabled_features += ",PartitionAllocDanglingPtr";
+      }
+
       auto feature_list = std::make_unique<base::FeatureList>();
       feature_list->InitFromCommandLine(
           command_line->GetSwitchValueASCII("enable-features"),
-          command_line->GetSwitchValueASCII("disable-features"));
+          disabled_features);
       base::FeatureList::SetInstance(std::move(feature_list));
 
       // TODO(b/433354983): Support more platforms.
