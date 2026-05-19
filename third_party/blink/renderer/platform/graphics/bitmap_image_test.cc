@@ -851,11 +851,11 @@ TEST_F(BitmapHistogramTest, DecodedImageType) {
                            BitmapImageMetrics::DecodedImageType::kICO);
   ExpectImageRecordsSample("gracehopper.bmp", "Blink.DecodedImageType",
                            BitmapImageMetrics::DecodedImageType::kBMP);
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
   ExpectImageRecordsSample("red-full-ranged-8bpc.avif",
                            "Blink.DecodedImageType",
                            BitmapImageMetrics::DecodedImageType::kAVIF);
-#endif  // BUILDFLAG(ENABLE_AV1_DECODER)
+#endif  // BUILDFLAG(ENABLE_DAV1D_DECODER)
 }
 
 TEST_F(BitmapHistogramTest, DecodedImageDensityKiBWeighted) {
@@ -865,7 +865,7 @@ TEST_F(BitmapHistogramTest, DecodedImageDensityKiBWeighted) {
     LoadImage("rgb-jpeg-red.jpg");           // 64x64
     // 500x500 but animation is not reported.
     LoadBlinkWebTestsImage("webp-animated-large.webp");
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
     LoadImage("red-full-ranged-8bpc.avif");  // 3x3
     // 159x159 but animation is not reported.
     LoadBlinkWebTestsImage("avif/star-animated-8bpc.avif");
@@ -878,7 +878,7 @@ TEST_F(BitmapHistogramTest, DecodedImageDensityKiBWeighted) {
         "Blink.DecodedImage.JpegDensity.KiBWeighted", 0);
     histogram_tester.ExpectTotalCount(
         "Blink.DecodedImage.WebPDensity.KiBWeighted2", 0);
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
     histogram_tester.ExpectTotalCount(
         "Blink.DecodedImage.AvifDensity.KiBWeighted2", 0);
 #endif
@@ -899,11 +899,11 @@ TEST_F(BitmapHistogramTest, DecodedImageDensityKiBWeighted) {
                            "Blink.DecodedImage.WebPDensity.KiBWeighted2", 24,
                            19);
 
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
   // 840x1120, 18769 bytes --> 0.16, 18 KiB
   ExpectImageRecordsSample(
       "happy_dog.avif", "Blink.DecodedImage.AvifDensity.KiBWeighted2", 16, 18);
-#endif  // BUILDFLAG(ENABLE_AV1_DECODER)
+#endif  // BUILDFLAG(ENABLE_DAV1D_DECODER)
 }
 
 }  // namespace blink
