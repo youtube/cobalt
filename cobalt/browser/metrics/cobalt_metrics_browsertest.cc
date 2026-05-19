@@ -13,18 +13,21 @@
 // limitations under the License.
 
 #include "base/metrics/statistics_recorder.h"
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/test/browser_test.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -37,6 +40,15 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
         {{"memory-metrics-interval", "1"}, {"cpu-metrics-interval", "1"}});
   }
   ~CobaltMetricsBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    content::ContentBrowserTest::SetUpOnMainThread();
+    if (auto* instrumentation =
+            memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+      static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
+      instrumentation->SetDetailedMetricsDelegate(delegate.get());
+    }
+  }
 
  private:
   base::test::ScopedFeatureList feature_list_;
