@@ -682,7 +682,6 @@ void CheckDanglingRawPtrBufferEmpty() {
 }  // namespace
 
 void InstallDanglingRawPtrChecks() {
-  bool enabled = FeatureList::IsEnabled(features::kPartitionAllocDanglingPtr);
   // Multiple tests can run within the same executable's execution. This line
   // ensures problems detected from the previous test are causing error before
   // entering the next one...
@@ -698,7 +697,7 @@ void InstallDanglingRawPtrChecks() {
     AtExitManager::RegisterTask(base::BindOnce(CheckDanglingRawPtrBufferEmpty));
   }
 
-  if (!enabled) {
+  if (!FeatureList::IsEnabled(features::kPartitionAllocDanglingPtr)) {
     partition_alloc::SetDanglingRawPtrDetectedFn([](uintptr_t) {});
     partition_alloc::SetDanglingRawPtrReleasedFn([](uintptr_t) {});
     return;
@@ -1003,6 +1002,12 @@ void PartitionAllocSupport::ReconfigureAfterZygoteFork(
 void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     const std::string& process_type,
     bool configure_dangling_pointer_detector) {
+#if !BUILDFLAG(IS_COBALT)
+  if (configure_dangling_pointer_detector) {
+    base::allocator::InstallDanglingRawPtrChecks();
+  }
+  base::allocator::InstallUnretainedDanglingRawPtrChecks();
+#endif  // !BUILDFLAG(IS_COBALT)
   {
     base::AutoLock scoped_lock(lock_);
     // Avoid initializing more than once.
@@ -1030,10 +1035,12 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     called_after_feature_list_init_ = true;
   }
 
+#if BUILDFLAG(IS_COBALT)
   if (configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();
+#endif  // BUILDFLAG(IS_COBALT)
 
   DCHECK_NE(process_type, switches::kZygoteProcess);
   [[maybe_unused]] BrpConfiguration brp_config =
