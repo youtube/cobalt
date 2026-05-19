@@ -25,9 +25,6 @@ import subprocess
 import tempfile
 import time
 
-# Dynamic repository root detection
-DEFAULT_REPO_ROOT = (
-    "/usr/local/google/home/avvall/secondary_cobalt_checkout/src")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -39,7 +36,8 @@ def find_repository_root():
         os.path.join(current, "build")):
       return current
     current = os.path.dirname(current)
-  return DEFAULT_REPO_ROOT
+  # Dynamic fallback to three directories up from script location
+  return os.path.dirname(os.path.dirname(os.path.dirname(SCRIPT_DIR)))
 
 
 REPO_ROOT = find_repository_root()
