@@ -9,6 +9,11 @@
 #include <tuple>
 #include <utility>
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #include "base/allocator/partition_alloc_support.h"
 #include "base/check.h"
 #include "base/command_line.h"
@@ -214,6 +219,9 @@ class ContentSandboxHelper : public gpu::GpuSandboxHelper {
 
 // Main function for starting the Gpu process.
 int GpuMain(MainFunctionParams parameters) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
+#endif
   TRACE_EVENT("gpu,startup", "GpuMain");
 
   base::CurrentProcess::GetInstance().SetProcessType(

@@ -7441,6 +7441,9 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_tracing",
       "//build/win:default_exe_manifest",
     ]
+    if (is_cobalt) {
+      deps += [ "//base" ]
+    }
   }
 
   # This config disables a link time optimization "ICF", which may merge
