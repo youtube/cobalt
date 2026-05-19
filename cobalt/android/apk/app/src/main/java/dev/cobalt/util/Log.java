@@ -43,27 +43,37 @@ public final class Log {
       sLogV =
           org.chromium.base.Log.class.getDeclaredMethod(
               "v", String.class, String.class, Throwable.class);
-    } catch (Throwable e) {}
+    } catch (Throwable e) {
+      // ignore
+    }
     try {
       sLogD =
           org.chromium.base.Log.class.getDeclaredMethod(
               "d", String.class, String.class, Throwable.class);
-    } catch (Throwable e) {}
+    } catch (Throwable e) {
+      // ignore
+    }
     try {
       sLogI =
           org.chromium.base.Log.class.getDeclaredMethod(
               "i", String.class, String.class, Throwable.class);
-    } catch (Throwable e) {}
+    } catch (Throwable e) {
+      // ignore
+    }
     try {
       sLogW =
           org.chromium.base.Log.class.getDeclaredMethod(
               "w", String.class, String.class, Throwable.class);
-    } catch (Throwable e) {}
+    } catch (Throwable e) {
+      // ignore
+    }
     try {
       sLogE =
           org.chromium.base.Log.class.getDeclaredMethod(
               "e", String.class, String.class, Throwable.class);
-    } catch (Throwable e) {}
+    } catch (Throwable e) {
+      // ignore
+    }
   }
 
   private static Throwable getThrowableToLog(Object[] args) {
