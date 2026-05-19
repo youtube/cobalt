@@ -67,6 +67,7 @@ declare_args() {
 if (starboard_toolchain == "") {
   if (build_with_separate_cobalt_toolchain) {
     starboard_toolchain = "//$starboard_path/toolchain:starboard"
+
     # TODO(crbug.com/492403745): `native_target` toolchains should be renamed to
     # `native`.
     native_toolchain = "//$starboard_path/toolchain:native_target"
