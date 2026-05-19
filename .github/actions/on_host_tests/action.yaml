@@ -66,6 +66,8 @@ runs:
       uses: actions/checkout@v4
       with:
         clean: false
+        fetch-depth: 1
+        filter: blob:none
         sparse-checkout-cone-mode: false
         sparse-checkout: |
           ${{ env.CI_ESSENTIALS }}
