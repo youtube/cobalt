@@ -270,10 +270,7 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
                       // Verify Cobalt categories are present.
                       EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at(
                                     "pss:lib_chrobalt"),
-                                100u);
-                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at(
-                                    "pss:cobalt_core"),
-                                50u);
+                                150u);
                     }
                     break;
                   }
