@@ -114,8 +114,8 @@ First, partners should set `sb_is_evergreen_compatible = true` in the platform's
 platforms that are maintained by Google and used to build Cobalt core.)
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
-"target" toolchain to add a "native_target" toolchain that is identical except
-that it sets `is_starboard = false` and `is_native_target_build = true`.
+"starboard" toolchain to add a "native_target" toolchain that is identical
+except that it sets `is_starboard = false`.
 
 For example:
 

@@ -185,7 +185,7 @@ use_epoll = is_linux || is_chromeos || is_android
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
 
-# Builds using the starboard or native_target toolchains must use
+# Builds using the starboard or native toolchains must use
 # //copied_base/base instead.
 if (is_cobalt && is_partner_toolchain) {
   not_needed([ "use_epoll" ])
@@ -1863,7 +1863,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.
