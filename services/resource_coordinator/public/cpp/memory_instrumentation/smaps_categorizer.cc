@@ -17,6 +17,8 @@
 
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer.h"
 
+#include <string_view>
+
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
@@ -26,13 +28,13 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/abseil-cpp/absl/strings/match.h"
 #include "third_party/abseil-cpp/absl/strings/numbers.h"
-#include "third_party/abseil-cpp/absl/strings/string_view.h"
 
 namespace memory_instrumentation {
 
@@ -47,12 +49,12 @@ enum class SmapsReliability {
 };
 
 // Helper to parse a line like "Pss:                328 kB"
-bool ParseSmapsLine(absl::string_view line, uint64_t* value_kb) {
+bool ParseSmapsLine(std::string_view line, uint64_t* value_kb) {
   size_t colon_pos = line.find(':');
-  if (colon_pos == absl::string_view::npos) return false;
+  if (colon_pos == std::string_view::npos) return false;
 
-  absl::string_view value_part = line.substr(colon_pos + 1);
-  std::vector<absl::string_view> tokens = base::SplitStringPiece(
+  std::string_view value_part = line.substr(colon_pos + 1);
+  std::vector<std::string_view> tokens = base::SplitStringPiece(
       value_part, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (tokens.empty()) return false;
 
@@ -61,8 +63,13 @@ bool ParseSmapsLine(absl::string_view line, uint64_t* value_kb) {
 
 }  // namespace
 
-SmapsCategorizer::SmapsCategorizer(base::WeakPtr<DetailedMetricsDelegate> delegate)
-    : delegate_(std::move(delegate)) {
+SmapsCategorizer::SmapsCategorizer(DetailedMetricsDelegate* delegate)
+    : delegate_(delegate) {
+  // Detach from the creation sequence (which is typically the main UI thread).
+  // This ensures that the sequence checker will bind to the background sequenced
+  // task runner (e.g., MemoryInfra or ThreadPool polling runner) when RequestDump()
+  // is first called, verifying sequence affinity on the background runner.
+  DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
 SmapsCategorizer::~SmapsCategorizer() {
@@ -130,7 +137,7 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
   ParsedSmapsResults results;
   results.reserve(128);
 
-  char buffer[4096];
+  char buffer[8192];
   size_t buffer_offset = 0;
 
   std::string current_name;
@@ -153,62 +160,49 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
       break;
 
     size_t total_buffered = buffer_offset + bytes_read;
-    absl::string_view chunk(buffer, total_buffered);
+    std::string_view chunk(buffer, total_buffered);
     size_t last_newline = chunk.find_last_of('\n');
 
-    if (last_newline == absl::string_view::npos) {
+    if (last_newline == std::string_view::npos) {
       // Line too long for buffer or no newline yet.
       // This shouldn't happen for smaps, but we must handle it.
       buffer_offset = total_buffered;
       if (buffer_offset == sizeof(buffer)) {
         // Force flush if buffer is full and no newline.
+        LOG(WARNING) << "smaps line exceeded buffer size (" << sizeof(buffer)
+                     << " bytes) without newline, discarding line data.";
         buffer_offset = 0;
       }
       continue;
     }
 
-    absl::string_view processable = chunk.substr(0, last_newline + 1);
-    while (!processable.empty()) {
-      size_t newline_pos = processable.find('\n');
-      absl::string_view line = processable.substr(0, newline_pos);
-      processable.remove_prefix(newline_pos + 1);
-
+    std::string_view processable(buffer, last_newline + 1);
+    base::StringViewTokenizer line_t(processable, "\n");
+    while (line_t.GetNext()) {
+      std::string_view line = line_t.token_piece();
       if (line.empty())
         continue;
 
-      if (absl::ascii_isxdigit(line[0]) && line.find('-') != absl::string_view::npos) {
+      if (absl::ascii_isxdigit(line[0]) && line.find('-') != std::string_view::npos) {
         // Header line: "00400000-00452000 r-xp 00000000 08:02 173521
         // /usr/bin/dbus-daemon"
         flush_entry();
         in_entry = true;
 
-        // Find the name (starts after the 5th field)
-        size_t space_count = 0;
-        size_t name_start = absl::string_view::npos;
-        for (size_t i = 0; i < line.size(); ++i) {
-          if (absl::ascii_isspace(line[i])) {
-            space_count++;
-            while (i + 1 < line.size() && absl::ascii_isspace(line[i + 1])) {
-              i++;
-            }
-            if (space_count == 5) {
-              name_start = i + 1;
-              break;
-            }
+        base::StringViewTokenizer field_t(line, " ");
+        size_t field_count = 0;
+        while (field_t.GetNext()) {
+          field_count++;
+          if (field_count == 5) {
+            const char* token_end_ptr = &*field_t.token_end();
+            size_t offset = std::distance(line.data(), token_end_ptr);
+            size_t remaining = line.size() - offset;
+            std::string_view remainder(token_end_ptr, remaining);
+            std::string_view name_sv =
+                base::TrimWhitespaceASCII(remainder, base::TRIM_ALL);
+            current_name = std::string(name_sv);
+            break;
           }
-        }
-        if (name_start != absl::string_view::npos && name_start < line.size()) {
-          absl::string_view name_sv = line.substr(name_start);
-          // Trim leading/trailing spaces from name
-          while (!name_sv.empty() &&
-                 absl::ascii_isspace(name_sv.front())) {
-            name_sv.remove_prefix(1);
-          }
-          while (!name_sv.empty() &&
-                 absl::ascii_isspace(name_sv.back())) {
-            name_sv.remove_suffix(1);
-          }
-          current_name = std::string(name_sv);
         }
       } else if (in_entry) {
         uint64_t val = 0;

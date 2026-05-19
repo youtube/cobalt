@@ -17,6 +17,7 @@
 #include "base/types/expected.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_memory_limit.h"
 #include "media/base/stream_parser.h"
 #include "media/filters/source_buffer_state.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -187,6 +188,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
           ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+          return true;
+        });
+  }
+  if (name == "Media.VideoBufferSizeClampMb") {
+    return ProcessSettingAsPositiveInt(
+        script_state, exception_context, name, *value, [](int int_value) {
+          ::media::SetVideoBufferSizeClamp(int_value);
           return true;
         });
   }

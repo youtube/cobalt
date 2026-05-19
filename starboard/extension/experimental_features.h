@@ -33,12 +33,16 @@ typedef struct StarboardExtensionExperimentalFeatures {
   // If a field is NULL, it means the value is not set.
   // The fields should be in alphabetical order.
   // keep-sorted start
+  bool allow_audio_writing_on_pause;
   bool disable_low_performance_sw_decoder;
   bool enable_av1_startup_optimization;
   bool enable_codec_output_checker;
+  bool enable_video_renderer_vsp_adjustment;
+  bool flush_audio_track_during_seek;
   bool flush_decoder_during_reset;
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;
+  bool skip_video_frames_over_60_fps;
   const bool* use_dual_threads_for_video;
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;

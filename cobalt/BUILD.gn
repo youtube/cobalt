@@ -66,7 +66,6 @@ group("gn_all") {
     deps += [
       ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
     ]
   }
@@ -289,6 +288,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",

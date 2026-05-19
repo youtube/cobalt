@@ -107,7 +107,7 @@ class AudioDecoderTest
   }
   void SetUp() override {
     ASSERT_NE(dmp_reader_.audio_stream_info().codec, kSbMediaAudioCodecNone);
-    ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+    ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
     CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoder_,
                      &audio_renderer_sink_);
@@ -274,12 +274,10 @@ class AudioDecoderTest
   }
 
   // The start_index will be updated to the new position.
-  void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
+  void WriteTimeLimitedInputs(size_t* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
-    SB_DCHECK_GE(*start_index, 0);
     SB_DCHECK_LT(*start_index, dmp_reader_.number_of_audio_buffers());
-    ASSERT_NO_FATAL_FAILURE(
-        WriteSingleInput(static_cast<size_t>(*start_index)));
+    ASSERT_NO_FATAL_FAILURE(WriteSingleInput(*start_index));
     SB_DCHECK(last_input_buffer_);
     int64_t last_timestamp = last_input_buffer_->timestamp();
     int64_t first_timestamp = last_timestamp;
@@ -290,8 +288,7 @@ class AudioDecoderTest
       Event event = kError;
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
       if (event == kConsumed) {
-        ASSERT_NO_FATAL_FAILURE(
-            WriteSingleInput(static_cast<size_t>(*start_index)));
+        ASSERT_NO_FATAL_FAILURE(WriteSingleInput(*start_index));
         SB_DCHECK(last_input_buffer_);
         last_timestamp = last_input_buffer_->timestamp();
         ++(*start_index);
@@ -701,7 +698,7 @@ TEST_P(AudioDecoderTest, LimitedInput) {
   int64_t duration = 500'000;  // 0.5 seconds
 
   ASSERT_TRUE(decoded_audios_.empty());
-  int start_index = 0;
+  size_t start_index = 0;
   ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
 
   if (start_index >= dmp_reader_.number_of_audio_buffers()) {
@@ -713,16 +710,16 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 }
 
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
-  constexpr int kMaxAccessUnitsToDecode = 256;
+  constexpr size_t kMaxAccessUnitsToDecode = 256;
   int64_t duration = 500'000;  // 0.5 seconds
 
   int64_t start = CurrentMonotonicTime();
-  int start_index = 0;
+  size_t start_index = 0;
   Event event;
   while (true) {
     ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
-    if (start_index >= std::min<int>(dmp_reader_.number_of_audio_buffers(),
-                                     kMaxAccessUnitsToDecode)) {
+    if (start_index >= std::min<size_t>(dmp_reader_.number_of_audio_buffers(),
+                                        kMaxAccessUnitsToDecode)) {
       break;
     }
     SB_DCHECK(last_input_buffer_);
@@ -963,7 +960,7 @@ TEST_P(AudioDecoderTest, ResetInRunningStateWithEndOfStream) {
   ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AudioDecoderTests,
     AudioDecoderTest,
     Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,

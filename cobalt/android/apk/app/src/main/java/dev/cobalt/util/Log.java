@@ -39,25 +39,24 @@ public final class Log {
   private Log() {}
 
   private static void initLogging() {
+    sLogV = getLogMethod("v");
+    sLogD = getLogMethod("d");
+    sLogI = getLogMethod("i");
+    sLogW = getLogMethod("w");
+    sLogE = getLogMethod("e");
+  }
+
+  private static Method getLogMethod(String methodName) {
     try {
-      sLogV =
-          android.util.Log.class.getDeclaredMethod(
-              "v", String.class, String.class, Throwable.class);
-      sLogD =
-          android.util.Log.class.getDeclaredMethod(
-              "d", String.class, String.class, Throwable.class);
-      sLogI =
-          android.util.Log.class.getDeclaredMethod(
-              "i", String.class, String.class, Throwable.class);
-      sLogW =
-          android.util.Log.class.getDeclaredMethod(
-              "w", String.class, String.class, Throwable.class);
-      sLogE =
-          android.util.Log.class.getDeclaredMethod(
-              "e", String.class, String.class, Throwable.class);
+      return org.chromium.base.Log.class.getDeclaredMethod(
+          methodName, String.class, String.class, Throwable.class);
     } catch (Throwable e) {
-      // ignore
+      // We catch Throwable to handle NoClassDefFoundError if the R8 compiler
+      // completely strips the org.chromium.base.Log class, preventing a startup crash.
+      // This failure is safely ignorable as logging is a non-critical helper feature
+      // and the application should still boot normally even if logging is disabled.
     }
+    return null;
   }
 
   private static Throwable getThrowableToLog(Object[] args) {
@@ -94,21 +93,21 @@ public final class Log {
   }
 
   public static int v(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.VERBOSE)) {
+    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.VERBOSE)) {
       return logWithMethod(sLogV, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int d(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
+    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.DEBUG)) {
       return logWithMethod(sLogD, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int i(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.INFO)) {
+    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.INFO)) {
       return logWithMethod(sLogI, tag, messageTemplate, args);
     }
     return 0;

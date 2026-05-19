@@ -1863,7 +1863,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.

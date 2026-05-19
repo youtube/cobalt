@@ -277,7 +277,9 @@ vars = {
   'screen_ai_windows_386': 'version:138.01',
 
   # siso CIPD package version.
-  'siso_version': 'git_revision:df8adf712c5b5605b438fdfcd44235107811e5ef',
+  # Cobalt: Only need for M138. Need a newer siso for building
+  # cobalt with gcloud credentials.
+  'siso_version': 'git_revision:080102c196eef824a444b70272cb6d645b6abe09',
 
   # download libaom test data
   'download_libaom_testdata': False,

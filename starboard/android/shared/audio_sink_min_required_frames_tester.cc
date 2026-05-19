@@ -132,8 +132,11 @@ void AudioSinkMinRequiredFramesTester::TesterThreadFunc() {
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
-        {UpdateSourceStatusFunc, ConsumeFramesFunc, ErrorFunc}, 0, -1, false,
-        false, this);
+        {UpdateSourceStatusFunc, ConsumeFramesFunc, ErrorFunc},
+        /*start_media_time=*/0,
+        /*tunnel_mode_audio_session_id=*/std::nullopt,
+        /*is_web_audio=*/false,
+        /*allow_audio_writing_on_pause=*/false, this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(

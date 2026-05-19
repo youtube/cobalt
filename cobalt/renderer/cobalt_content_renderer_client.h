@@ -69,8 +69,6 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 
-  void BindHostReceiver(mojo::GenericPendingReceiver receiver);
-
  private:
   void EnsureH5vccSettingsRemoteInitialized();
   void OnGetSbWindow(uint64_t handle);

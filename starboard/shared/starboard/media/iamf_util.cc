@@ -109,13 +109,14 @@ bool StringToProfile(const std::string& input, uint32_t* profile) {
 }
 }  // namespace
 
-IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
+// static
+std::optional<IamfMimeUtil> IamfMimeUtil::Create(const std::string& mime_type) {
   // Reference: Immersive Audio Model and Formats;
   //            v1.0.0
   //            6.3. Codecs Parameter String
   // (https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter)
   if (mime_type.find("iamf") != 0) {
-    return;
+    return std::nullopt;
   }
 
   // 4   FOURCC string "iamf".
@@ -127,63 +128,71 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   // +9  The remaining string is one of "Opus", "mp4a.40.2", "fLaC", or "ipcm".
   constexpr int kMaxIamfCodecIdLength = 22;
   if (mime_type.size() > kMaxIamfCodecIdLength) {
-    return;
+    return std::nullopt;
   }
 
   const std::vector<std::string> vec = SplitString(mime_type, '.');
   // The mime type must be in 4 parts for all substreams other than AAC, which
   // is 6 parts.
   if (vec.size() != 4 && vec.size() != 6) {
-    return;
+    return std::nullopt;
   }
 
   // The primary profile must be between 0 and 255 inclusive.
   uint32_t primary_profile = 0;
   if (!StringToProfile(vec[1], &primary_profile)) {
-    return;
+    return std::nullopt;
   }
 
   // The additional profile must be between 0 and 255 inclusive.
   uint32_t additional_profile = 0;
   if (!StringToProfile(vec[2], &additional_profile)) {
-    return;
+    return std::nullopt;
   }
 
   // The codec string should be one of "Opus", "mp4a", "fLaC", or "ipcm".
   std::string codec = vec[3];
   if ((codec != "Opus") && (codec != "mp4a") && (codec != "fLaC") &&
       (codec != "ipcm")) {
-    return;
+    return std::nullopt;
   }
+
+  IamfSubstreamCodec substream_codec = kIamfSubstreamCodecUnknown;
 
   // Only IAMF codec parameter strings with "mp4a" should be greater than 4
   // elements.
   if (codec == "mp4a") {
     if (vec.size() != 6) {
-      return;
+      return std::nullopt;
     }
 
     // The fields following "mp4a" should be "40" and "2" to signal AAC-LC.
     if (vec[4] != "40" || vec[5] != "2") {
-      return;
+      return std::nullopt;
     }
-    substream_codec_ = kIamfSubstreamCodecMp4a;
+    substream_codec = kIamfSubstreamCodecMp4a;
   } else {
     if (vec.size() > 4) {
-      return;
+      return std::nullopt;
     }
     if (codec == "Opus") {
-      substream_codec_ = kIamfSubstreamCodecOpus;
+      substream_codec = kIamfSubstreamCodecOpus;
     } else if (codec == "fLaC") {
-      substream_codec_ = kIamfSubstreamCodecFlac;
+      substream_codec = kIamfSubstreamCodecFlac;
     } else {
-      substream_codec_ = kIamfSubstreamCodecIpcm;
+      substream_codec = kIamfSubstreamCodecIpcm;
     }
   }
 
-  primary_profile_ = primary_profile;
-  additional_profile_ = additional_profile;
+  return IamfMimeUtil(primary_profile, additional_profile, substream_codec);
 }
+
+IamfMimeUtil::IamfMimeUtil(uint32_t primary_profile,
+                           uint32_t additional_profile,
+                           IamfSubstreamCodec substream_codec)
+    : primary_profile_(primary_profile),
+      additional_profile_(additional_profile),
+      substream_codec_(substream_codec) {}
 
 // static.
 Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
