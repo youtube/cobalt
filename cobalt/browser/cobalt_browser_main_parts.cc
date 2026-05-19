@@ -16,8 +16,10 @@
 
 #include <memory>
 
+#include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
@@ -140,6 +142,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   }
 
   StartStorageMigration();
+
+  proactive_reclaim_timer_.Start(
+      FROM_HERE, base::Seconds(30), base::BindRepeating([]() {
+        base::MemoryPressureListener::NotifyMemoryPressure(
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+        ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+      }));
 
   return result;
 }
