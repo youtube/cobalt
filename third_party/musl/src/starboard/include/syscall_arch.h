@@ -70,7 +70,6 @@ SbThreadId SbThreadGetId();
 #define SYS_openat SYS_openat
 #define SYS_unlinkat SYS_unlinkat
 #define SYS_fstatat SYS_fstatat
-#define SYS_ioctl SYS_ioctl
 
 // For Starboard builds, the syscall SYS_foo names are not mapped to numbers,
 // allowing these wrappers to use the SYS_foo syscall name.
@@ -80,7 +79,7 @@ SbThreadId SbThreadGetId();
 #define libc_wrapper_SYS_close(fildes) close(fildes)
 #define libc_wrapper_SYS_fcntl(fd, op, ...) fcntl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_gettid() SbThreadGetId()
-#define libc_wrapper_SYS_ioctl(fd, request, ...) ioctl(fd, request, ##__VA_ARGS__)
+#define libc_wrapper_SYS_ioctl(fd, op, ...) ioctl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
 #define libc_wrapper_SYS_read(fildes, buf, nbyte) read(fildes, buf, nbyte)
 #define libc_wrapper_SYS_readv(fildes, iov, iovcnt) readv(fildes, iov, iovcnt)

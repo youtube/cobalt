@@ -64,6 +64,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_getrandom_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_ioctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
@@ -282,8 +283,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(write);
 
   // Linux APIs
-  REGISTER_SYMBOL(ioctl);
   REGISTER_SYMBOL(recvmmsg);
+  REGISTER_WRAPPER(ioctl_FIONREAD);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
