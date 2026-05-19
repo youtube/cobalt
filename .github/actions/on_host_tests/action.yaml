@@ -122,18 +122,26 @@ runs:
           exit 1
         fi
 
-    - name: Sparse Checkout Android JUnit Essentials
+    - name: Check for JUnit Tests
+      id: check-junit
       shell: bash
       run: |
         targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
         if [[ -f "${targets_file}" ]]; then
           junit_targets=$(jq -cr '.on_host.junit // [] | .[]' "${targets_file}")
           if [[ -n "${junit_targets}" ]]; then
-            echo "JUnit tests detected. Adding Android JUnit essentials to sparse checkout..."
-            # git sparse-checkout add takes space-separated patterns.
-            git sparse-checkout add $(echo "${ANDROID_JUNIT_CI_ESSENTIALS}" | tr '\n' ' ')
+            echo "has_junit=true" >> $GITHUB_OUTPUT
           fi
         fi
+
+    - name: Checkout Android JUnit Essentials
+      if: steps.check-junit.outputs.has_junit == 'true'
+      uses: actions/checkout@v4
+      with:
+        clean: false
+        sparse-checkout: |
+          ${{ env.CI_ESSENTIALS }}
+          ${{ env.ANDROID_JUNIT_CI_ESSENTIALS }}
 
     - name: Run JUnit Tests
       shell: bash
