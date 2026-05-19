@@ -82,10 +82,7 @@ def generate_synthetic_normal(mean, std_dev, n):
   """Generates positive normally distributed random float samples."""
   data = []
   for _ in range(n):
-    u1 = random.random()
-    u2 = random.random()
-    z0 = math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
-    val = mean + z0 * std_dev
+    val = random.gauss(mean, std_dev)
     data.append(max(1.0, val))  # Clamp to positive values
   return data
 

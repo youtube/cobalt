@@ -77,9 +77,11 @@ def flush_system_caches(device):
 
 def launch_app(device, package, activity, args):
   """Launches Cobalt MainActivity with correct string array extras."""
-  cmd = (f"adb -s {device} shell \"am start -n {package}/{activity} "
-         f"--esa commandLineArgs '{args}'\"")
-  run_command(cmd, shell=True)
+  cmd = [
+      "adb", "-s", device, "shell", "am", "start", "-n",
+      f"{package}/{activity}", "--esa", "commandLineArgs", args
+  ]
+  run_command(cmd, shell=False)
 
 
 def capture_memory_rss(device, package):
@@ -126,8 +128,15 @@ def parse_uma_sum_metric(json_file, metric_name):
   return None
 
 
-def execute_profiling_run(device, package, activity, args, duration, run_id,
-                          tmp_json, histograms_txt):
+def execute_profiling_run(device,
+                          package,
+                          activity,
+                          args,
+                          duration,
+                          run_id,
+                          tmp_json,
+                          histograms_txt,
+                          port=9222):
   """Performs a single end-to-end benchmark run and scrapes RSS & UMA."""
   print(f"  [Run {run_id}] Stopping package {package}...")
   force_stop_app(device, package)
@@ -152,7 +161,7 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
 
   # Setup abstract socket port forwarding
   run_command([
-      "adb", "-s", device, "forward", "tcp:9222",
+      "adb", "-s", device, "forward", f"tcp:{port}",
       "localabstract:content_shell_devtools_remote"
   ])
   time.sleep(1)
@@ -168,7 +177,7 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
       f"{REPO_ROOT}/cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py",
       "--platform=android", f"--device={device}", f"--package-name={package}",
       "--no-manage-cobalt", f"--histogram-file={histograms_txt}",
-      "--poll-interval-s=2", f"--output-file={tmp_json}"
+      "--poll-interval-s=2", f"--output-file={tmp_json}", f"--port={port}"
   ]
 
   proc = None
@@ -176,7 +185,14 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
     # pylint: disable=consider-using-with
     proc = subprocess.Popen(
         scrape_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(6)
+
+    # Poll for the output file to be populated securely
+    start_time = time.time()
+    timeout_limit = 10  # max seconds to wait
+    while time.time() - start_time < timeout_limit:
+      if os.path.exists(tmp_json) and os.path.getsize(tmp_json) > 0:
+        break
+      time.sleep(0.5)
   finally:
     if proc:
       try:
@@ -239,15 +255,17 @@ def permutation_test_p_value(group1, group2, permutations=10000):
 
 
 def check_directional_consistency(baseline, experiment):
-  """Performs directional sign-test logic on sorted sample groups."""
+  """Performs standard sign-test on sequential paired runs."""
   if len(baseline) != len(experiment) or len(baseline) == 0:
     return False
 
-  s_base = sorted(baseline)
-  s_exp = sorted(experiment)
-  all_decreased = all(s_exp[i] < s_base[i] for i in range(len(baseline)))
-  all_increased = all(s_exp[i] > s_base[i] for i in range(len(baseline)))
-  return all_decreased or all_increased
+  differences = [baseline[i] - experiment[i] for i in range(len(baseline))]
+  positives = sum(1 for d in differences if d > 0)
+  negatives = sum(1 for d in differences if d < 0)
+
+  # Require at least 80% of paired differences to share the same direction
+  threshold = max(1, int(len(baseline) * 0.8))
+  return positives >= threshold or negatives >= threshold
 
 
 # --- Report Generator ---
@@ -299,6 +317,11 @@ def main():
       "--activity",
       default="dev.cobalt.app.MainActivity",
       help="Android Activity name")
+  parser.add_argument(
+      "--port",
+      type=int,
+      default=9222,
+      help="CDP port for DevTools remote debugging")
 
   parser.add_argument(
       "--baseline-args",
@@ -332,13 +355,15 @@ def main():
   baseline_uma = {"Media": [], "Graphics": [], "Script": [], "Unknown": []}
   experiment_uma = {"Media": [], "Graphics": [], "Script": [], "Unknown": []}
 
-  # Safe dynamic temporary file paths
-  temp_dir = tempfile.gettempdir()
-  tmp_json = os.path.join(temp_dir, "tmp_uma.json")
+  # Safe dynamic temporary file paths using secure tempfile API
+  tmp_json_fd, tmp_json = tempfile.mkstemp(suffix="_tmp_uma.json")
+  os.close(
+      tmp_json_fd)  # close descriptor immediately so scraper can write to it
 
-  # Create dynamic target histograms text file
-  histograms_txt = os.path.join(temp_dir, "target_histograms.txt")
-  with open(histograms_txt, "w", encoding="utf-8") as f:
+  # Create dynamic target histograms text file securely
+  histograms_fd, histograms_txt = tempfile.mkstemp(
+      suffix="_target_histograms.txt")
+  with os.fdopen(histograms_fd, "w", encoding="utf-8") as f:
     f.write("Memory.Cobalt.AllocationVolume.kMedia\n")
     f.write("Memory.Cobalt.AllocationVolume.kGraphics\n")
     f.write("Memory.Cobalt.AllocationVolume.kScript\n")
@@ -350,7 +375,7 @@ def main():
     rss, uma_active = execute_profiling_run(args.device, args.package,
                                             args.activity, args.baseline_args,
                                             args.duration, i, tmp_json,
-                                            histograms_txt)
+                                            histograms_txt, args.port)
     if rss:
       baseline_rss.append(rss)
     if uma_active:
@@ -366,7 +391,7 @@ def main():
     rss, uma_active = execute_profiling_run(args.device, args.package,
                                             args.activity, args.experiment_args,
                                             args.duration, i, tmp_json,
-                                            histograms_txt)
+                                            histograms_txt, args.port)
     if rss:
       experiment_rss.append(rss)
     if uma_active:
