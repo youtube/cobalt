@@ -36,9 +36,8 @@ env:
     .github
     build/android
     build/util
-    build/gn_helpers.py
     build/skia_gold_common
-    build/action_helpers.py
+    build/*.py
     cobalt/build
     cobalt/docker
     cobalt/testing/browser_tests/tools
