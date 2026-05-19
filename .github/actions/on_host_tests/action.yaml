@@ -66,6 +66,7 @@ runs:
       uses: actions/checkout@v4
       with:
         clean: false
+        sparse-checkout-cone-mode: false
         sparse-checkout: |
           ${{ env.CI_ESSENTIALS }}
           ${{ env.ANDROID_JUNIT_CI_ESSENTIALS }}
