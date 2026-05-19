@@ -103,9 +103,14 @@ void TrustStoreAndroid::OnTrustStoreChanged() {
 scoped_refptr<TrustStoreAndroid::Impl>
 TrustStoreAndroid::MaybeInitializeAndGetImpl() {
 #if BUILDFLAG(IS_COBALT)
-  int current_generation = generation_.load();
+  // Allow bypassing the Android trust store (user-added roots) initialization
+  // lock by returning the current impl_ if initialization is already in
+  // progress. Otherwise, set `is_initializing_ = true` and release the lock so
+  // that we can perform the slow constructor work outside of the lock.
+  int current_generation;
   {
     base::AutoLock lock(init_lock_);
+    current_generation = generation_.load();
     if (impl_ && impl_->generation() == current_generation) {
       return impl_;
     }
