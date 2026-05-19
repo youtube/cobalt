@@ -20,10 +20,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/fixed_no_free_allocator.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
 #include "starboard/common/pointer_arithmetic.h"
-#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -152,19 +152,21 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       allocator_;
 };
 
-typedef ::testing::Types<starboard::InPlaceReuseAllocatorBase,
-                         starboard::ReuseAllocatorBase>
+typedef ::testing::Types<starboard::EmbeddedMetadataReuseAllocatorBase,
+                         starboard::ExternalMetadataReuseAllocatorBase>
     Implementations;
 
 class ClassNameGenerator {
  public:
   template <typename T>
   static std::string GetName(int) {
-    if constexpr (std::is_same_v<T, starboard::InPlaceReuseAllocatorBase>) {
-      return "InPlaceReuseAllocatorBase";
+    if constexpr (std::is_same_v<
+                      T, starboard::EmbeddedMetadataReuseAllocatorBase>) {
+      return "EmbeddedMetadataReuseAllocatorBase";
     }
-    if constexpr (std::is_same_v<T, starboard::ReuseAllocatorBase>) {
-      return "ReuseAllocatorBase";
+    if constexpr (std::is_same_v<
+                      T, starboard::ExternalMetadataReuseAllocatorBase>) {
+      return "ExternalMetadataReuseAllocatorBase";
     }
   }
 };
@@ -370,10 +372,10 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2);
 
   // They might be decommitted in any order, so check if both exist.
-  // Note: For InPlaceReuseAllocatorBase, `block1` and `block2` are offset from
-  // the raw fallback memory pointer by `sizeof(BlockMetadata)`. Thus, we check
-  // if the original fallback block `contains` the user pointer, rather than
-  // checking for exact pointer equality.
+  // Note: For EmbeddedMetadataReuseAllocatorBase, `block1` and `block2` are
+  // offset from the raw fallback memory pointer by `sizeof(BlockMetadata)`.
+  // Thus, we check if the original fallback block `contains` the user pointer,
+  // rather than checking for exact pointer equality.
   bool found_block1 = false;
   bool found_block2 = false;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
@@ -418,8 +420,8 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
     this->allocator_->Free(block);
   }
 
-  // InPlaceReuseAllocatorBase batches frees and processes them all at once when
-  // idle.
+  // EmbeddedMetadataReuseAllocatorBase batches frees and processes them all at
+  // once when idle.
   EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0);
 
   size_t total_decommitted_size = 0;
