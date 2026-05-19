@@ -578,12 +578,13 @@ jobs:
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
-        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
+        if: steps.build.outputs.skip_autoninja != 'true' && (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
         uses: ./.github/actions/package
         with:
           package_dir: out/test-package
 
       - name: Upload Test Artifacts
+        if: steps.build.outputs.skip_autoninja != 'true'
         uses: ./.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -671,7 +672,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run E2E Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'e2e_test'
@@ -706,7 +711,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run YTS Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'yts_test'
@@ -736,7 +745,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run YTS Playback Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'yts_test'
@@ -769,7 +782,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run Browser Tests (Linux)
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/linux_browser_tests
         with:
           test_artifacts_key: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -806,7 +823,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run YTS WPT Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'yts_wpt_test'
@@ -882,22 +903,27 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Prepare OverlayFS Workspace
+        if: steps.prune-status.outputs.pruned != 'true'
         id: overlay_workspace
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
 
       - name: Runner Cache Hot
-        if: steps.overlay_workspace.outputs.cache_hit == 'true'
+        if: steps.prune-status.outputs.pruned != 'true' && steps.overlay_workspace.outputs.cache_hit == 'true'
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: steps.overlay_workspace.outputs.cache_hit != 'true'
+        if: steps.prune-status.outputs.pruned != 'true' && steps.overlay_workspace.outputs.cache_hit != 'true'
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
@@ -906,12 +932,14 @@ jobs:
           use_cache: true
 
       - name: Set Up Depot Tools
+        if: steps.prune-status.outputs.pruned != 'true'
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
         with:
           run_sync: 'false'
 
       - name: Run Web Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}

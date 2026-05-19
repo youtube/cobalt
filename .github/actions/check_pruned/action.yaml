@@ -1,0 +1,24 @@
+name: Check Pruned Status
+description: Checks if the platform build was pruned by GN analyze.
+outputs:
+  pruned:
+    description: "Whether the build was pruned."
+    value: ${{ steps.check.outputs.pruned }}
+runs:
+  using: "composite"
+  steps:
+    - name: Download Pruning Status
+      uses: actions/download-artifact@v5
+      continue-on-error: true
+      with:
+        name: ${{ matrix.platform }}_test_targets_json
+        path: prune_status
+    - name: Evaluate Pruned Status
+      id: check
+      shell: bash
+      run: |
+        if [[ -f prune_status/test_targets.json ]] && [[ "$(jq -r '.pruned // false' prune_status/test_targets.json)" == "true" ]]; then
+          echo "pruned=true" >> $GITHUB_OUTPUT
+        else
+          echo "pruned=false" >> $GITHUB_OUTPUT
+        fi
