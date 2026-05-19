@@ -881,7 +881,7 @@ def AddJUnitTestOptions(parser):
       '--runtime-deps-path',
       dest='runtime_deps_path',
       type=os.path.realpath,
-      help='Runtime data dependency file from GN.')
+      help=argparse.SUPPRESS)
 
 
 def AddLinkerTestOptions(parser):
