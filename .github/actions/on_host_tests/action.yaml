@@ -30,20 +30,39 @@ runs:
         set -x
         tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
 
-    - name: Check for JUnit Tests
-      id: check-junit
+    - name: Parse Test Targets
+      id: parse-targets
       shell: bash
       run: |
         targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
+        echo "targets_file=${targets_file}" >> $GITHUB_OUTPUT
+
         if [[ -f "${targets_file}" ]]; then
-          junit_targets=$(jq -cr '.on_host.junit // [] | .[]' "${targets_file}")
+          # Parse JUnit targets (space-separated list)
+          junit_targets=$(jq -cr '.on_host.junit // [] | join(" ")' "${targets_file}")
+          echo "junit_targets=${junit_targets}" >> $GITHUB_OUTPUT
           if [[ -n "${junit_targets}" ]]; then
             echo "has_junit=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_junit=false" >> $GITHUB_OUTPUT
           fi
+
+          # Parse GTest executables (space-separated list)
+          unit_executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
+          if [[ -n "${unit_executables}" ]]; then
+            executables="${unit_executables}"
+          else
+            executables=$(jq -cr '.on_host.unit // [] | map(. | split(":")[-1]) | join(" ")' "${targets_file}")
+          fi
+          echo "executables=${executables}" >> $GITHUB_OUTPUT
+        else
+          echo "has_junit=false" >> $GITHUB_OUTPUT
+          echo "junit_targets=" >> $GITHUB_OUTPUT
+          echo "executables=" >> $GITHUB_OUTPUT
         fi
 
     - name: Checkout Android JUnit Essentials
-      if: steps.check-junit.outputs.has_junit == 'true'
+      if: steps.parse-targets.outputs.has_junit == 'true'
       uses: actions/checkout@v4
       with:
         clean: false
@@ -72,6 +91,7 @@ runs:
       env:
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
+        EXECUTABLES: ${{ steps.parse-targets.outputs.executables }}
       run: |
         set -x
         env
@@ -81,20 +101,10 @@ runs:
 
         failed_suites=""
 
-
-        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
-        unit_executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
-
-        if [[ -n "${unit_executables}" ]]; then
-          executables="${unit_executables}"
-        else
-          executables=$(jq -cr '.on_host.unit // [] | map(. | split(":")[-1]) | join(" ")' "${targets_file}")
-        fi
-
-        if [[ -z "${executables}" ]]; then
+        if [[ -z "${EXECUTABLES}" ]]; then
           echo "No on-host unit tests to run."
         else
-          for executable in ${executables}; do
+          for executable in ${EXECUTABLES}; do
             test_binary="${executable%%.*}"
             test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${executable}"
 
@@ -145,21 +155,18 @@ runs:
 
     - name: Run JUnit Tests
       shell: bash
+      env:
+        JUNIT_TARGETS: ${{ steps.parse-targets.outputs.junit_targets }}
       run: |
         set -x
         set -o pipefail
 
-
-        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
-
         failed_suites=""
 
-        if [[ -f "${targets_file}" ]]; then
-          junit_targets=$(jq -cr '.on_host.junit // [] | .[]' "${targets_file}")
-          if [[ -z "${junit_targets}" ]]; then
-            echo "No on-host JUnit tests to run."
-          else
-            for target in ${junit_targets}; do
+        if [[ -z "${JUNIT_TARGETS}" ]]; then
+          echo "No on-host JUnit tests to run."
+        else
+          for target in ${JUNIT_TARGETS}; do
               test_binary="${target#*:}"
               log_path="${results_dir}/${test_binary}_log.txt"
 
@@ -178,7 +185,6 @@ runs:
               fi
             done
           fi
-        fi
 
         if [[ -n "${failed_suites}" ]]; then
           echo "JUnit test suites failed:${failed_suites}"
