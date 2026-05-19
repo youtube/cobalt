@@ -173,5 +173,73 @@ class TestAutorollLtsMain(unittest.TestCase):
     mock_get_commits.assert_called_once_with('main', '27.lts', 'custom_commit')
 
 
+class TestAutorollLtsGetPrSetAndCommits(unittest.TestCase):
+
+  def test_get_pr_set(self):
+    subjects = [
+        "Cherry pick PR #101: First cherry-pick",
+        "Revert \"Cherry pick PR #101: First cherry-pick\"",
+        "Cherry pick PR #102: Second cherry-pick",
+        "Some random commit that is not a cherry pick",
+        "Revert Cherry pick PR #102: Second cherry-pick",
+        "Cherry pick PR #103: Third cherry-pick",
+        "Cherry pick PR #104: Fourth cherry-pick",
+        "Revert \"Cherry pick PR #104: Fourth cherry-pick\"",
+        "Cherry pick PR #105: Fifth cherry-pick",
+        "Revert 'Cherry pick PR #105: Fifth cherry-pick'",
+    ]
+    with patch("autoroll_lts.get_out") as mock_get_out:
+      mock_get_out.return_value = "\n".join(subjects) + "\n"
+      prs = autoroll_lts.get_pr_set("target-branch", "main")
+      self.assertEqual(prs, {"103", "105"})
+
+  @patch("autoroll_lts.get_out")
+  def test_get_commits_with_start(self, mock_get_out):
+    mock_get_out.return_value = "sha1 Commit 1\nsha2 Commit 2\n"
+    commits = autoroll_lts.get_commits("main", "27.lts", "start_sha")
+    mock_get_out.assert_called_once_with([
+        "git", "rev-list", "--oneline", "--reverse", "main", "^27.lts",
+        "start_sha^..main"
+    ])
+    self.assertEqual(commits, ["sha1 Commit 1", "sha2 Commit 2"])
+
+  @patch("autoroll_lts.get_out")
+  def test_get_commits_without_start(self, mock_get_out):
+    mock_get_out.return_value = "sha1 Commit 1\n"
+    commits = autoroll_lts.get_commits("main", "27.lts", "")
+    mock_get_out.assert_called_once_with(
+        ["git", "rev-list", "--oneline", "--reverse", "main", "^27.lts"])
+    self.assertEqual(commits, ["sha1 Commit 1"])
+
+
+class TestAutorollLtsMainLoop(unittest.TestCase):
+
+  @patch("autoroll_lts.get_pr_set")
+  @patch("autoroll_lts.get_commits")
+  @patch("autoroll_lts.cherry_pick")
+  @patch("sys.argv",
+         ["autoroll_lts.py", "--target-branch", "27.lts", "--max-commits", "2"])
+  def test_main_loop_processing(self, mock_cherry_pick, mock_get_commits,
+                                mock_get_pr_set):
+    mock_get_pr_set.side_effect = [
+        {"100", "200"},
+        {"100", "300"},
+    ]
+    mock_get_commits.return_value = [
+        "sha1 PR title (#300)",
+        "sha2 PR title (#200)",
+        "7e6524981fdd6 Reordered build status (#9476)",
+        "sha4 Valid new PR (#400)",
+        "sha5 Another new PR (#500)",
+        "sha6 One more PR (#600)",
+    ]
+    mock_cherry_pick.return_value = True
+    with patch("sys.stderr"), patch("builtins.print") as mock_print:
+      autoroll_lts.main()
+      mock_cherry_pick.assert_called_once_with("sha4", "400", "Valid new PR")
+      printed_calls = [call[0][0] for call in mock_print.call_args_list]
+      self.assertIn("- #300\n- #400", printed_calls)
+
+
 if __name__ == '__main__':
   unittest.main()
