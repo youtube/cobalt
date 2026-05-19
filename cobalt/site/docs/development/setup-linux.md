@@ -28,10 +28,10 @@ These instructions were tested on a clean ubuntu:22.04 environment. We recommend
    ccache --max-size=20G
    ```
 
-   To explicitly configure `ccache` for your build, run `gn args` after initializing your build directory with `gn.py` and append the wrapper configuration:
+   To explicitly configure `ccache` for your build, run `gn args` *after* initializing your build directory with `gn.py` and append the wrapper configuration:
 
    ```bash
-   gn args out/linux-x64x11_debug
+   gn args out/linux-x64x11_devel
    # Add a new line: cc_wrapper = "ccache"
    ```
 
@@ -98,11 +98,11 @@ To configure your local checkout, you will clone the Cobalt repository and use `
    For example:
 
    ```bash
-   cobalt/build/gn.py -p linux-x64x11 -c debug --no-rbe
-   autoninja -C out/linux-x64x11_debug cobalt
+   cobalt/build/gn.py -p linux-x64x11 -c devel --no-rbe
+   autoninja -C out/linux-x64x11_devel cobalt
    ```
 
-   This command configures the Cobalt `debug` configuration for the `linux-x64x11` platform and compiles a target named `cobalt` that you can then use to run the compiled code.
+   This command configures the Cobalt `devel` configuration for the `linux-x64x11` platform and compiles a target named `cobalt` that you can then use to run the compiled code.
 
    For additional tips on speeding up compilation, refer to Chromium's [faster builds documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md#faster-builds).
 
@@ -110,7 +110,7 @@ To configure your local checkout, you will clone the Cobalt repository and use `
 
    ```bash
    # Note that 'cobalt' was the <target_name> from the previous step.
-   out/linux-x64x11_debug/cobalt [--url=<url>]
+   out/linux-x64x11_devel/cobalt [--url=<url>]
    ```
 
    The flags in the following table are frequently used, and the full set of flags that this command supports are in `cobalt/browser/switches.cc`.
@@ -193,7 +193,7 @@ If you ever need to completely reset your Linux build environment or purge cache
 
    ```bash
    # Purge all compiled object files and artifacts in the build directory
-   gn clean out/linux-x64x11_debug
+   gn clean out/linux-x64x11_devel
    ```
 
 2. To permanently delete the entire development environment, including all uncommitted local changes, branches, and the source repository:
