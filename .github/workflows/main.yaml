@@ -40,6 +40,7 @@ env:
     cobalt/testing/filters
     cobalt/tools
     testing/test_env.py
+    .vpython3
 
   # Additional build scripts and tools required ONLY for executing Android JUnit tests on host.
   # Dynamically checked out during test execution to keep initial checkout minimal.
