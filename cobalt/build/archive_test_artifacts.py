@@ -30,8 +30,6 @@ _EXCLUDE_DIRS = [
     '../../third_party/jdk/',
 ]
 
-_ROBOLECTRIC_DEPS_DIR = 'third_party/robolectric/cipd/lib'
-
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
               file_lists: List[Tuple[str, str]]):
@@ -90,70 +88,6 @@ def _handle_browsertests(
   subprocess.check_call(cmd)
 
 
-def create_junit_archive(
-    *,
-    targets: List[str],
-    source_dir: str,
-    out_dir: str,
-    destination_dir: str,
-    compression: str,
-    compression_level: int,
-    flatten_deps: bool,
-    robolectric_runtime_deps: List[str] = None,
-):
-  """Handles archiving for JUnit tests manually."""
-  combined_deps = set()
-  for target in targets:
-    _, target_name = target.split(':')
-    print('Handling JUnit tests manually:', target_name)
-
-    target_deps = set()
-    target_src_root_deps = set()
-
-    wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
-    if flatten_deps:
-      target_deps.add(wrapper_rel_path)
-      target_deps.add('test_targets.json')
-    else:
-      target_deps.add(os.path.join(out_dir, wrapper_rel_path))
-      target_deps.add(os.path.join(out_dir, 'test_targets.json'))
-      # Add helper script needed by test_runner.py
-      target_deps.add(os.path.join(out_dir, 'bin/helper', target_name))
-
-      # Add resource APK and native libs
-      target_deps.add(
-          os.path.join(out_dir, 'obj/cobalt/android',
-                       f'{target_name}.robo.ap_'))
-      target_deps.add(os.path.join(out_dir, 'robolectric_x64'))
-
-    if robolectric_runtime_deps:
-      for lib in robolectric_runtime_deps:
-        lib_path = os.path.join(_ROBOLECTRIC_DEPS_DIR, lib)
-        target_src_root_deps.add(lib_path)
-
-    # Add third_party/catapult/devil for test_runner.py
-    target_src_root_deps.add('third_party/catapult/devil')
-    # Add third_party/catapult/dependency_manager for devil
-    target_src_root_deps.add('third_party/catapult/dependency_manager')
-    # Add third_party/jdk for running junit tests
-    target_src_root_deps.add('third_party/jdk')
-
-    if flatten_deps:
-      raise ValueError('Unsupported configuration for JUnit tests.')
-    else:
-      combined_deps |= target_deps
-      combined_deps |= target_src_root_deps
-
-  output_path = os.path.join(destination_dir,
-                             f'test_artifacts.tar.{compression}')
-  _make_tar(
-      output_path,
-      compression,
-      compression_level,
-      [(combined_deps, source_dir)],
-  )
-
-
 def create_archive(
     *,
     targets: List[str],
@@ -177,12 +111,17 @@ def create_archive(
         return
       continue
     target_path, target_name = target.split(':')
+    is_junit_test = target_name.endswith('_junit_tests')
+
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
       deps_file = os.path.join(
           out_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
+      if not os.path.exists(deps_file) and is_junit_test:
+        deps_file = os.path.join(out_dir, 'gen.runtime', target_path,
+                                 f'{target_name}.runtime_deps')
     else:
       deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
       if not os.path.exists(deps_file):
@@ -207,8 +146,18 @@ def create_archive(
       if os.path.exists(test_targets_json):
         target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
+      if is_junit_test:
+        if flatten_deps:
+          raise ValueError('Unsupported configuration for JUnit tests.')
+        wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
+        target_deps.add(os.path.join(out_dir, wrapper_rel_path))
+        target_deps.add(os.path.join(out_dir, 'bin/helper', target_name))
+        target_src_root_deps.add('third_party/catapult/devil')
+        target_src_root_deps.add('third_party/catapult/dependency_manager')
+
       for line in runtime_deps_file:
-        if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+        if not is_junit_test and any(
+            line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
         if flatten_deps and line.startswith('../../'):
@@ -221,6 +170,7 @@ def create_archive(
           rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
           target_deps.add(rel_path)
       combined_deps |= target_deps
+      combined_deps |= target_src_root_deps
 
       if archive_per_target:
         output_path = os.path.join(destination_dir,
@@ -292,37 +242,21 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
-  parser.add_argument(
-      '--robolectric-runtime-deps',
-      type=lambda arg: arg.split(','),
-      help='Specific Robolectric JAR filenames to include from '
-      'third_party/robolectric/cipd/lib.')
   args = parser.parse_args()
 
   if args.flatten_deps != args.archive_per_target:
     raise ValueError('Unsupported configuration.')
 
-  if any(t.endswith('_junit_tests') for t in args.targets):
-    create_junit_archive(
-        targets=args.targets,
-        source_dir=args.source_dir,
-        out_dir=args.out_dir,
-        destination_dir=args.destination_dir,
-        compression=args.compression,
-        compression_level=args.compression_level,
-        flatten_deps=args.flatten_deps,
-        robolectric_runtime_deps=args.robolectric_runtime_deps)
-  else:
-    create_archive(
-        targets=args.targets,
-        source_dir=args.source_dir,
-        out_dir=args.out_dir,
-        destination_dir=args.destination_dir,
-        archive_per_target=args.archive_per_target,
-        use_android_deps_path=args.use_android_deps_path,
-        compression=args.compression,
-        compression_level=args.compression_level,
-        flatten_deps=args.flatten_deps)
+  create_archive(
+      targets=args.targets,
+      source_dir=args.source_dir,
+      out_dir=args.out_dir,
+      destination_dir=args.destination_dir,
+      archive_per_target=args.archive_per_target,
+      use_android_deps_path=args.use_android_deps_path,
+      compression=args.compression,
+      compression_level=args.compression_level,
+      flatten_deps=args.flatten_deps)
 
 
 if __name__ == '__main__':

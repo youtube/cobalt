@@ -32,14 +32,10 @@ runs:
         cd cobalt/src/
 
         TARGETS=$(jq -cr '(.on_host.unit // []) + (.on_host.junit // []) | join(",")' "${TEST_TARGETS_JSON_FILE}")
-        ROBOLECTRIC_DEPS=$(jq -cr '.robolectric_runtime_deps // [] | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         FLAGS="--compression zstd --compression-level=9"
         if [[ "${PLATFORM}" == *android* ]]; then
           FLAGS="${FLAGS} --use-android-deps-path"
-        fi
-        if [[ -n "${ROBOLECTRIC_DEPS}" ]]; then
-          FLAGS="${FLAGS} --robolectric-runtime-deps ${ROBOLECTRIC_DEPS}"
         fi
 
         if [[ -n "${TARGETS}" ]]; then
