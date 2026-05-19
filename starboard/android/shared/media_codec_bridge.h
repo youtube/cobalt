@@ -136,34 +136,32 @@ class MediaCodecBridge {
       bool enable_output_checker,
       bool skip_video_frames_over_60_fps);
 
-  ~MediaCodecBridge();
+  virtual ~MediaCodecBridge() = default;
 
-  // It is the responsibility of the client to manage the lifetime of the
-  // jobject that |GetInputBuffer| returns.
-  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
-  jint QueueInputBuffer(jint index,
-                        jint offset,
-                        jint size,
-                        jlong presentation_time_microseconds,
-                        jint flags,
-                        jboolean is_decode_only);
-  jint QueueSecureInputBuffer(jint index,
-                              jint offset,
-                              const SbDrmSampleInfo& drm_sample_info,
-                              jlong presentation_time_microseconds,
-                              jboolean is_decode_only);
+  virtual jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) = 0;
+  virtual void* GetInputBufferAddress(jint index, size_t* capacity) = 0;
+  virtual jint QueueInputBuffer(jint index,
+                                jint offset,
+                                jint size,
+                                jlong presentation_time_microseconds,
+                                jint flags,
+                                jboolean is_decode_only) = 0;
+  virtual jint QueueSecureInputBuffer(jint index,
+                                      jint offset,
+                                      const SbDrmSampleInfo& drm_sample_info,
+                                      jlong presentation_time_microseconds,
+                                      jboolean is_decode_only) = 0;
 
-  // It is the responsibility of the client to manage the lifetime of the
-  // jobject that |GetOutputBuffer| returns.
-  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
-  void ReleaseOutputBuffer(jint index, jboolean render);
-  void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
+  virtual jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) = 0;
+  virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
+  virtual void ReleaseOutputBufferAtTimestamp(jint index,
+                                              jlong render_timestamp_ns) = 0;
 
-  void SetPlaybackRate(double playback_rate);
-  bool Restart();
-  jint Flush();
-  std::optional<FrameSize> GetOutputSize();
-  std::optional<AudioOutputFormatResult> GetAudioOutputFormat();
+  virtual void SetPlaybackRate(double playback_rate) = 0;
+  virtual bool Restart() = 0;
+  virtual jint Flush() = 0;
+  virtual std::optional<FrameSize> GetOutputSize() = 0;
+  virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
 
   void OnMediaCodecError(
       JNIEnv* env,
@@ -184,17 +182,53 @@ class MediaCodecBridge {
   void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
 
   static jboolean IsFrameRenderedCallbackEnabled();
+  static void LogArtGcStats(int frame_count, const char* backend_name);
 
- private:
-  // |MediaCodecBridge|s must only be created through its factory methods.
+ protected:
   explicit MediaCodecBridge(Handler* handler);
-  void Initialize(jobject j_media_codec_bridge);
 
   Handler* const handler_;
-  jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
+ private:
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
+};
+
+class JniMediaCodecBridge : public MediaCodecBridge {
+ public:
+  explicit JniMediaCodecBridge(Handler* handler);
+  ~JniMediaCodecBridge() override;
+
+  void Initialize(jobject j_media_codec_bridge);
+
+  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
+  void* GetInputBufferAddress(jint index, size_t* capacity) override;
+  jint QueueInputBuffer(jint index,
+                        jint offset,
+                        jint size,
+                        jlong presentation_time_microseconds,
+                        jint flags,
+                        jboolean is_decode_only) override;
+  jint QueueSecureInputBuffer(jint index,
+                              jint offset,
+                              const SbDrmSampleInfo& drm_sample_info,
+                              jlong presentation_time_microseconds,
+                              jboolean is_decode_only) override;
+
+  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) override;
+  void ReleaseOutputBuffer(jint index, jboolean render) override;
+  void ReleaseOutputBufferAtTimestamp(jint index,
+                                      jlong render_timestamp_ns) override;
+
+  void SetPlaybackRate(double playback_rate) override;
+  bool Restart() override;
+  jint Flush() override;
+  std::optional<FrameSize> GetOutputSize() override;
+  std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
+
+ private:
+  jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  int queue_input_count_ = 0;
 };
 
 }  // namespace starboard

@@ -23,6 +23,7 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <optional>
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -46,6 +47,8 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+std::optional<int64_t> g_baseline_us_;
+
 namespace {
 
 using jni_zero::AttachCurrentThread;
@@ -222,6 +225,56 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
     rendered_ = true;
+    frame_count_++;
+    if (frame_count_ == 1) {
+      SB_CHECK(g_baseline_us_);
+      const int64_t baseline_us = *g_baseline_us_;
+      const auto release_us = release_time_in_nanoseconds / 1'000;
+      const int64_t now_us = CurrentMonotonicTime();
+
+      // Convert to durations for easier math
+      auto elapsed_ms = (now_us - baseline_us) / 1'000;
+      auto release_ms = (release_us - baseline_us) / 1'000;
+
+      SB_LOG(INFO) << "TTFF Performance: "
+                   << "called(msec)=" << FormatWithDigitSeparators(elapsed_ms)
+                   << ", released(msec)="
+                   << FormatWithDigitSeparators(release_ms);
+    }
+
+    if (frame && !frame->is_end_of_stream()) {
+      int64_t pts_us = frame->timestamp();
+      int64_t pts_ms = pts_us / 1000;
+      int64_t release_time_ms = release_time_in_nanoseconds / 1000000;
+      int64_t system_time_us = CurrentMonotonicTime();
+      int64_t system_time_ms = system_time_us / 1000;
+
+      int64_t pts_gap_ms = 0;
+      int64_t render_gap_ms = 0;
+      int64_t system_gap_ms = 0;
+
+      if (last_pts_us_ != -1) {
+        pts_gap_ms = (pts_us - last_pts_us_) / 1000;
+        render_gap_ms =
+            (release_time_in_nanoseconds - last_release_time_ns_) / 1000000;
+        system_gap_ms = (system_time_us - last_system_time_us_) / 1000;
+      }
+
+      SB_LOG(INFO) << "[VideoFrameDraw] "
+                   << "PTS: " << FormatWithDigitSeparators(pts_ms) << " msec, "
+                   << "render time: "
+                   << FormatWithDigitSeparators(release_time_ms) << " msec, "
+                   << "system time: "
+                   << FormatWithDigitSeparators(system_time_ms) << " msec, "
+                   << "PTS gap(pts): " << pts_gap_ms << " msec, "
+                   << "Render gap: " << render_gap_ms << " msec, "
+                   << "system time gap: " << system_gap_ms << " msec";
+
+      last_pts_us_ = pts_us;
+      last_release_time_ns_ = release_time_in_nanoseconds;
+      last_system_time_us_ = system_time_us;
+    }
+
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
@@ -231,6 +284,12 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   PlaybackRateChangedCB playback_rate_changed_cb_;
   RenderCB render_cb_;
   bool rendered_;
+
+  // Track last values for frame pacing metrics
+  int64_t last_pts_us_ = -1;
+  int64_t last_release_time_ns_ = -1;
+  int64_t last_system_time_us_ = -1;
+  int frame_count_ = 0;
 };
 
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
@@ -1166,6 +1225,11 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void ResetBaselineTime() {
+  g_baseline_us_ = CurrentMonotonicTime();
 }
 
 }  // namespace starboard
