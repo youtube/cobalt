@@ -34,6 +34,14 @@ env:
   # All files in the root directory are automatically included.
   CI_ESSENTIALS: |
     .github
+    cobalt/build
+    cobalt/docker
+    cobalt/testing/browser_tests/tools
+    cobalt/testing/filters
+    cobalt/tools
+    testing/test_env.py
+
+  ANDROID_JUNIT_CI_ESSENTIALS: |
     build/android
     build/util
     build/skia_gold_common
@@ -41,12 +49,6 @@ env:
     build/action_helpers.py
     build/print_python_deps.py
     build/zip_helpers.py
-    cobalt/build
-    cobalt/docker
-    cobalt/testing/browser_tests/tools
-    cobalt/testing/filters
-    cobalt/tools
-    testing/test_env.py
 
 jobs:
   # Retrieves configuration from json file.
