@@ -20,6 +20,7 @@
 
 #include "cobalt/app/app_event_runner.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_utils.h"
 #include "starboard/extension/crash_handler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -357,6 +358,82 @@ TEST_F(AppEventDelegateTest, RedundantRevealIgnored) {
   // App is already visible (Started).
   EXPECT_CALL(*runner_, DoReveal()).Times(0);
   SendEvent(kSbEventTypeReveal);
+}
+
+TEST_F(AppEventDelegateTest, SingleWindowRevealAck) {
+  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
+      .WillRepeatedly(testing::Return(true));
+  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
+  delegate_->OnStartWaitingForReveal(wc1);
+  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(1);
+  delegate_->OnAllFramesVisible(wc1);
+}
+
+TEST_F(AppEventDelegateTest, MultiWindowRevealAck) {
+  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
+      .WillRepeatedly(testing::Return(true));
+  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
+  content::WebContents* wc2 = reinterpret_cast<content::WebContents*>(0x2);
+  delegate_->OnStartWaitingForReveal(wc1);
+  delegate_->OnStartWaitingForReveal(wc2);
+  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(0);
+  delegate_->OnAllFramesVisible(wc1);
+  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(1);
+  delegate_->OnAllFramesVisible(wc2);
+}
+
+TEST_F(AppEventDelegateTest, ClearPendingWebContentsOnConceal) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypeStart);
+
+  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
+      .WillRepeatedly(testing::Return(true));
+  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
+  delegate_->OnStartWaitingForReveal(wc1);
+
+  EXPECT_CALL(*runner_, DoBlur());
+  SendEvent(kSbEventTypeBlur);
+  EXPECT_CALL(*runner_, DoConceal());
+  SendEvent(kSbEventTypeConceal);
+
+  EXPECT_CALL(*runner_, DoReveal());
+  SendEvent(kSbEventTypeReveal);
+
+  content::WebContents* wc2 = reinterpret_cast<content::WebContents*>(0x2);
+  delegate_->OnStartWaitingForReveal(wc2);
+
+  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(1);
+  delegate_->OnAllFramesVisible(wc2);
+}
+
+TEST_F(AppEventDelegateTest, FocusArrivesDuringReveal) {
+  bool is_waiting_for_reveal = true;
+  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
+      .WillRepeatedly(testing::Invoke(
+          [&is_waiting_for_reveal]() { return is_waiting_for_reveal; }));
+
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypeStart);
+
+  EXPECT_CALL(*runner_, DoBlur());
+  SendEvent(kSbEventTypeBlur);
+  EXPECT_CALL(*runner_, DoConceal());
+  SendEvent(kSbEventTypeConceal);
+
+  EXPECT_CALL(*runner_, DoReveal());
+  SendEvent(kSbEventTypeReveal);
+
+  EXPECT_CALL(*runner_, DoFocus()).Times(0);
+
+  SendEvent(kSbEventTypeFocus);
+
+  EXPECT_CALL(*runner_, ClearWaitingForRevealAck())
+      .WillOnce(testing::Invoke(
+          [&is_waiting_for_reveal]() { is_waiting_for_reveal = false; }));
+  EXPECT_CALL(*runner_, DoFocus()).Times(1);
+
+  delegate_->OnAllFramesVisible(reinterpret_cast<content::WebContents*>(0x1));
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventDelegateTest, RedundantConcealIgnored) {

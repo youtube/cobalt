@@ -27,6 +27,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
 
@@ -57,7 +58,7 @@ namespace cobalt {
 // Each box corresponds to an AppEventDelegate::ApplicationState. The ↔ arrows
 // represent bidirectional transitions handled via TransitionToLifeCycleState,
 // which ensures all intermediate states are traversed.
-class AppEventDelegate {
+class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
  public:
   // ApplicationState defines the lifecycle states of the application.
   // The order of these states is critical: TransitionToLifeCycleState relies on
@@ -93,6 +94,11 @@ class AppEventDelegate {
 
   // Called when the renderer acknowledges visibility.
   void OnRevealAck();
+  void OnRevealTimeout();
+
+  // h5vcc_runtime::H5vccRuntimeObserver implementation.
+  void OnAllFramesVisible(content::WebContents* web_contents) override;
+  void OnStartWaitingForReveal(content::WebContents* web_contents) override;
 
   bool IsRunning() const;
   bool IsVisible() const;
@@ -137,7 +143,10 @@ class AppEventDelegate {
 
   base::OnceClosure transition_quit_closure_;
 
-  bool pending_focus_ = false;
+  // Set of WebContents that are currently waiting for reveal acknowledgment
+  // from the renderer (Reveal ACK). Focus transitions are deferred until all
+  // WebContents in this set have completed layout and become visible.
+  std::set<content::WebContents*> pending_web_contents_;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.

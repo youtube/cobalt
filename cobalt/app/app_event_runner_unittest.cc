@@ -15,10 +15,12 @@
 #include "cobalt/app/app_event_runner.h"
 
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/public/browser/visibility.h"
 #include "content/test/test_web_contents.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -119,17 +121,31 @@ TEST_F(AppEventRunnerTest, OnConceal) {
 TEST_F(AppEventRunnerTest, OnReveal) {
   CreateTestShell(false /* is_visible */);
 
+  // Simulate that the frame was visible before conceal, so OnReveal will
+  // trigger WasShown().
+  platform_->AddPreviouslyVisibleWebContentsForTesting(shell_->web_contents());
+
+  // Create a H5vccRuntimeImpl to register a frame.
+  mojo::Remote<h5vcc_runtime::mojom::H5vccRuntime> remote;
+  h5vcc_runtime::H5vccRuntimeImpl::Create(
+      shell_->web_contents()->GetPrimaryMainFrame(),
+      remote.BindNewPipeAndPassReceiver());
+
   EXPECT_CALL(*platform_, OnReveal());
   EXPECT_CALL(*platform_, RevealShell(shell_));
   runner_->OnReveal();
 
   EXPECT_TRUE(runner_->is_visible());
-  // Visibility should still be HIDDEN because we are waiting for Reveal ACK.
+  // Visibility should still be HIDDEN because we are waiting for the frame to
+  // reveal.
   EXPECT_EQ(shell_->web_contents()->GetVisibility(),
             content::Visibility::HIDDEN);
 
-  // Simulate Reveal ACK.
-  platform_->OnPageVisibilityVisible(shell_);
+  // Simulate Reveal ACK from the frame via Mojo.
+  remote->PageVisibilityVisible();
+
+  // Wait for Mojo message to be processed.
+  base::RunLoop().RunUntilIdle();
 
   // Now visibility should be VISIBLE.
   EXPECT_EQ(shell_->web_contents()->GetVisibility(),

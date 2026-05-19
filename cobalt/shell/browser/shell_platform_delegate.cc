@@ -17,11 +17,14 @@
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window.h"
@@ -75,6 +78,10 @@ void ShellPlatformDelegate::OnBlur() {
 }
 
 void ShellPlatformDelegate::OnFocus() {
+  if (waiting_for_reveal_ack_) {
+    deferred_focus_ = true;
+    return;
+  }
   if (!IsVisible()) {
     return;
   }
@@ -87,7 +94,15 @@ void ShellPlatformDelegate::OnConceal() {
   if (!IsVisible()) {
     return;
   }
+  // Save the set of WebContents that were visible before conceal.
+  // This is used on reveal to decide which WebContents we should wait for
+  // Reveal ACK from. We only wait for those that were actually active/visible.
+  previously_visible_web_contents_.clear();
   for (auto* shell : Shell::windows()) {
+    if (shell->web_contents()->GetVisibility() ==
+        content::Visibility::VISIBLE) {
+      previously_visible_web_contents_.insert(shell->web_contents());
+    }
     shell->web_contents()->WasHidden();
     ConcealShell(shell);
   }
@@ -98,14 +113,25 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
-  waiting_for_reveal_ack_ = true;
+  // Used to ensure we only register as observer once, even if there are
+  // multiple windows to wait for.
+  bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
+    if (previously_visible_web_contents_.count(shell->web_contents())) {
+      if (!started_waiting) {
+        waiting_for_reveal_ack_ = true;
+        h5vcc_runtime::H5vccRuntimeManager::GetInstance()->AddObserver(this);
+        started_waiting = true;
+      }
+      h5vcc_runtime::H5vccRuntimeManager::GetInstance()->StartWaitingForReveal(
+          shell->web_contents());
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-    auto* platform_window = GetPlatformWindowStarboard(shell);
-    if (platform_window) {
-      platform_window->SetWaitingForRevealAck(true);
-    }
+      auto* platform_window = GetPlatformWindowStarboard(shell);
+      if (platform_window) {
+        platform_window->SetWaitingForRevealAck(true);
+      }
 #endif
+    }
     RevealShell(shell);
   }
   is_visible_ = true;
@@ -210,4 +236,26 @@ void ShellPlatformDelegate::ClearWaitingForRevealAck() {
   }
 #endif
 }
+
+void ShellPlatformDelegate::OnAllFramesVisible(
+    content::WebContents* web_contents) {
+  // Called by H5vccRuntimeManager when all frames in the specified WebContents
+  // have completed layout and are visible. This breaks the wait initiated in
+  // OnReveal.
+  ClearWaitingForRevealAck();
+  is_visible_ = true;
+
+  // If an OS focus event arrived while we were waiting, apply it now that
+  // the page is ready.
+  if (deferred_focus_) {
+    for (auto* shell : Shell::windows()) {
+      shell->Focus();
+    }
+    deferred_focus_ = false;
+  }
+
+  // Stop observing as we only need one notification per reveal.
+  h5vcc_runtime::H5vccRuntimeManager::GetInstance()->RemoveObserver(this);
+}
+
 }  // namespace content

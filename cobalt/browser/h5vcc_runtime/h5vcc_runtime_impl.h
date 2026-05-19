@@ -37,8 +37,7 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   static void Create(content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
 
-  using RevealAckCallback = base::RepeatingClosure;
-  static void SetRevealAckCallback(RevealAckCallback callback);
+  ~H5vccRuntimeImpl() override;
 
   H5vccRuntimeImpl(const H5vccRuntimeImpl&) = delete;
   H5vccRuntimeImpl& operator=(const H5vccRuntimeImpl&) = delete;
@@ -51,6 +50,10 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
       mojo::PendingRemote<mojom::DeepLinkListener> listener) override;
 
   void PageVisibilityVisible() override;
+
+  content::RenderFrameHost& GetRenderFrameHost() const {
+    return render_frame_host();
+  }
 
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,

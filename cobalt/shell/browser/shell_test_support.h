@@ -41,7 +41,6 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/views/views_delegate.h"
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
