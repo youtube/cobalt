@@ -27,43 +27,50 @@ class CobaltDetailedMetricsDelegateTest : public testing::Test {
 };
 
 TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesLibChrobalt) {
-  memory_instrumentation::SmapsMetrics m1;
-  m1.pss_kb = 100;
-  m1.rss_kb = 200;
+  const memory_instrumentation::SmapsMetrics m1 = {
+      .rss_kb = 200,
+      .pss_kb = 100,
+  };
   delegate_.OnSmapsEntry("/path/libcobalt.so", m1);
 
-  memory_instrumentation::SmapsMetrics m2;
-  m2.pss_kb = 30;
-  m2.rss_kb = 40;
+  const memory_instrumentation::SmapsMetrics m2 = {
+      .rss_kb = 40,
+      .pss_kb = 30,
+  };
   delegate_.OnSmapsEntry("/path/libchrobalt.so", m2);
 
-  memory_instrumentation::SmapsMetrics m3;
-  m3.pss_kb = 50;
-  m3.rss_kb = 60;
+  const memory_instrumentation::SmapsMetrics m3 = {
+      .rss_kb = 60,
+      .pss_kb = 50,
+  };
   delegate_.OnSmapsEntry("libcobalt.so", m3);
 
   // Test versioned library
-  memory_instrumentation::SmapsMetrics m4;
-  m4.pss_kb = 10;
-  m4.rss_kb = 20;
+  const memory_instrumentation::SmapsMetrics m4 = {
+      .rss_kb = 20,
+      .pss_kb = 10,
+  };
   delegate_.OnSmapsEntry("/path/libchrobalt.so.1", m4);
 
   // Test extensionless library name
-  memory_instrumentation::SmapsMetrics m5;
-  m5.pss_kb = 5;
-  m5.rss_kb = 10;
+  const memory_instrumentation::SmapsMetrics m5 = {
+      .rss_kb = 10,
+      .pss_kb = 5,
+  };
   delegate_.OnSmapsEntry("/path/libchrobalt", m5);
 
   // Test anonymous VMA named by linker
-  memory_instrumentation::SmapsMetrics m6;
-  m6.pss_kb = 15;
-  m6.rss_kb = 30;
+  const memory_instrumentation::SmapsMetrics m6 = {
+      .rss_kb = 30,
+      .pss_kb = 15,
+  };
   delegate_.OnSmapsEntry("[anon:libchrobalt]", m6);
 
   // Test zipped library in APK path
-  memory_instrumentation::SmapsMetrics m7;
-  m7.pss_kb = 25;
-  m7.rss_kb = 50;
+  const memory_instrumentation::SmapsMetrics m7 = {
+      .rss_kb = 50,
+      .pss_kb = 25,
+  };
   delegate_.OnSmapsEntry(
       "/data/app/~~ZUxrktv3lijbkDqS51Qkvg==/"
       "dev.cobalt.coat-fzLCLOcgUwFG4gfsO4037Q==/base.apk!lib/arm/"
@@ -77,9 +84,10 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesLibChrobalt) {
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesV8) {
-  memory_instrumentation::SmapsMetrics m;
-  m.pss_kb = 100;
-  m.rss_kb = 200;
+  const memory_instrumentation::SmapsMetrics m = {
+      .rss_kb = 200,
+      .pss_kb = 100,
+  };
   delegate_.OnSmapsEntry("[anon:v8]", m);
 
   base::flat_map<std::string, uint64_t> stats;
@@ -89,9 +97,10 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesV8) {
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesPartitionAlloc) {
-  memory_instrumentation::SmapsMetrics m;
-  m.pss_kb = 150;
-  m.rss_kb = 300;
+  const memory_instrumentation::SmapsMetrics m = {
+      .rss_kb = 300,
+      .pss_kb = 150,
+  };
   delegate_.OnSmapsEntry("[anon:partition_alloc]", m);
 
   base::flat_map<std::string, uint64_t> stats;
@@ -101,9 +110,10 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesPartitionAlloc) {
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesGraphics) {
-  memory_instrumentation::SmapsMetrics m;
-  m.pss_kb = 40;
-  m.rss_kb = 80;
+  const memory_instrumentation::SmapsMetrics m = {
+      .rss_kb = 80,
+      .pss_kb = 40,
+  };
   delegate_.OnSmapsEntry("/dev/kgsl-3d0", m);
 
   base::flat_map<std::string, uint64_t> stats;
@@ -113,9 +123,10 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesGraphics) {
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, HandlesAnonymousOther) {
-  memory_instrumentation::SmapsMetrics m;
-  m.pss_kb = 5;
-  m.rss_kb = 10;
+  const memory_instrumentation::SmapsMetrics m = {
+      .rss_kb = 10,
+      .pss_kb = 5,
+  };
   delegate_.OnSmapsEntry("", m);
 
   base::flat_map<std::string, uint64_t> stats;
@@ -124,9 +135,10 @@ TEST_F(CobaltDetailedMetricsDelegateTest, HandlesAnonymousOther) {
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, HandlesOther) {
-  memory_instrumentation::SmapsMetrics m;
-  m.pss_kb = 7;
-  m.rss_kb = 14;
+  const memory_instrumentation::SmapsMetrics m = {
+      .rss_kb = 14,
+      .pss_kb = 7,
+  };
   delegate_.OnSmapsEntry("/some/random/file", m);
 
   base::flat_map<std::string, uint64_t> stats;
@@ -135,8 +147,9 @@ TEST_F(CobaltDetailedMetricsDelegateTest, HandlesOther) {
 }
 
 TEST_F(CobaltDetailedMetricsDelegateTest, ResetsCorrectly) {
-  memory_instrumentation::SmapsMetrics m;
-  m.pss_kb = 10;
+  const memory_instrumentation::SmapsMetrics m = {
+      .pss_kb = 10,
+  };
   delegate_.OnSmapsEntry("libcobalt.so", m);
 
   base::flat_map<std::string, uint64_t> stats;
