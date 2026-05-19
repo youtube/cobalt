@@ -37,7 +37,9 @@ env:
     build/android
     build/util
     build/skia_gold_common
-    build/*.py
+    build/gn_helpers.py
+    build/action_helpers.py
+    build/print_python_deps.py
     cobalt/build
     cobalt/docker
     cobalt/testing/browser_tests/tools
