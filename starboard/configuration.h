@@ -289,7 +289,7 @@ struct CompileAssert {};
 #endif
 #endif  // defined(SB_C_FORCE_INLINE)
 
-// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries
+// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
 #if !defined(SB_EXPORT_PLATFORM)  // auto-configure
 #if SB_IS(COMPILER_GCC)
 #define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
