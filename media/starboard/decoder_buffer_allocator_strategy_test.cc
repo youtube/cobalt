@@ -18,7 +18,7 @@
 
 #include "media/base/demuxer_stream.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(b/369245553): Remove this file once Finch is ready, as we no longer need
@@ -27,9 +27,9 @@
 namespace media {
 namespace {
 
-using InPlaceReuseAllocatorStrategy =
+using EmbeddedMetadataReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
-        starboard::InPlaceReuseAllocatorBase>;
+        starboard::EmbeddedMetadataReuseAllocatorBase>;
 
 // Helper function that updates the allocator's strategy.
 // The provided callback increments `creation_count` each time a new strategy
@@ -41,7 +41,7 @@ void UpdateStrategyWithCreationCounter(DecoderBufferAllocator* allocator,
       [](int* creation_count_ptr, int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         (*creation_count_ptr)++;
-        return std::make_unique<InPlaceReuseAllocatorStrategy>(
+        return std::make_unique<EmbeddedMetadataReuseAllocatorStrategy>(
             initial_capacity, allocation_unit,
             /*enable_decommit_on_idle=*/false);
       },
@@ -171,8 +171,9 @@ TEST(DecoderBufferAllocatorStrategyTest,
   auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
 
-  // The fallback strategies (ReuseAllocatorBase/InPlaceReuseAllocatorBase)
-  // do not produce annotated pointers.
+  // The fallback strategies
+  // (ExternalMetadataReuseAllocatorBase/EmbeddedMetadataReuseAllocatorBase) do
+  // not produce annotated pointers.
   EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
 
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
