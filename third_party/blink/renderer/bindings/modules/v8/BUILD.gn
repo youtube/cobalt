@@ -4,6 +4,7 @@
 
 import("//third_party/blink/renderer/bindings/bindings.gni")
 import("//third_party/blink/renderer/bindings/generated_in_modules.gni")
+import("//third_party/blink/renderer/config.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 visibility = [ "//third_party/blink/renderer/*" ]

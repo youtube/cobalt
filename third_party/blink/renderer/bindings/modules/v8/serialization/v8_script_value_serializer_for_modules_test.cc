@@ -37,7 +37,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_certificate.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel_state.h"
-#endif
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
@@ -62,7 +62,7 @@
 #include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel_transfer_list.h"
 #include "third_party/blink/renderer/modules/peerconnection/testing/fake_webrtc_data_channel.h"
-#endif
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/webcodecs/array_buffer_util.h"
 #include "third_party/blink/renderer/modules/webcodecs/audio_data.h"
 #include "third_party/blink/renderer/modules/webcodecs/audio_data_transfer_list.h"
@@ -275,7 +275,7 @@ TEST(V8ScriptValueSerializerForModulesTest, DecodeInvalidRTCCertificate) {
       V8ScriptValueDeserializerForModules(script_state, input).Deserialize();
   EXPECT_TRUE(result->IsNull());
 }
-#endif
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 // A bunch of voodoo which allows the asynchronous WebCrypto operations to be
 // called synchronously, with the resulting JavaScript values extracted.
@@ -1968,7 +1968,7 @@ TEST(V8ScriptValueSerializerForModulesTest, TransferRTCDataChannel) {
   EXPECT_EQ(native_channel->unregister_call_count(), 0);
   EXPECT_FALSE(native_channel->close_was_called());
 }
-#endif
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 #if !BUILDFLAG(IS_ANDROID)  // SubCaptureTargets are not exposed on Android.
 TEST(V8ScriptValueSerializerForModulesTest, RoundTripCropTarget) {
