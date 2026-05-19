@@ -877,6 +877,11 @@ def AddJUnitTestOptions(parser):
       help='Path to .ap_ containing binary resources for Robolectric.')
   parser.add_argument('--shadows-allowlist',
                       help='Path to Allowlist file for Shadows.')
+  parser.add_argument(
+      '--runtime-deps-path',
+      dest='runtime_deps_path',
+      type=os.path.realpath,
+      help='Runtime data dependency file from GN.')
 
 
 def AddLinkerTestOptions(parser):
