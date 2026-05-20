@@ -157,6 +157,7 @@ runs:
         fi
 
     - name: Run JUnit Tests
+      if: always()
       shell: bash
       env:
         JUNIT_TARGETS: ${{ steps.parse-targets.outputs.junit_targets }}
@@ -169,12 +170,6 @@ runs:
         if [[ -z "${JUNIT_TARGETS}" ]]; then
           echo "No on-host JUnit tests to run."
         else
-          echo "=== DEBUG: Listing workspace contents (max-depth 3) ==="
-          find . -maxdepth 3 -not -path '*/.*' || true
-          echo "=== DEBUG: Checking if third_party/logdog exists ==="
-          ls -la third_party/logdog || echo "third_party/logdog does not exist!"
-          echo "=== DEBUG: Checking python sys.path candidates ==="
-          ls -la third_party/catapult/devil || echo "devil does not exist!"
 
           for target in ${JUNIT_TARGETS}; do
               test_binary="${target#*:}"
