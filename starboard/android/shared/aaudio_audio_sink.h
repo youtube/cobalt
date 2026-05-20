@@ -98,6 +98,7 @@ class AAudioAudioSink : public SbAudioSinkImpl {
   double volume_ = 1.0;
   double playback_rate_ = 1.0;
   int64_t last_playback_head_position_ = 0;
+  std::atomic<int> frames_in_sink_{0};
 };
 
 }  // namespace android

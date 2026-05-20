@@ -218,15 +218,19 @@ aaudio_data_callback_result_t AAudioAudioSink::OnAudioCallback(
   size_t bytes_per_sample = GetBytesPerSample(sample_type_);
   size_t bytes_per_frame = channels_ * bytes_per_sample;
 
+  int frames_in_sink = frames_in_sink_.load();
+  int available_frames = std::max(0, frames_in_buffer - frames_in_sink);
+
   // If stopped or empty, fill with silence and continue
-  if (!is_playing || frames_in_buffer == 0) {
+  if (!is_playing || available_frames == 0) {
     memset(audioData, 0, numFrames * bytes_per_frame);
 
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }
 
-  int frames_to_copy = std::min(numFrames, frames_in_buffer);
-  int start_position = offset_in_frames;
+  int frames_to_copy = std::min(numFrames, available_frames);
+  int start_position =
+      (offset_in_frames + frames_in_sink) % frames_per_channel_;
 
   if (frames_per_channel_ >= start_position + frames_to_copy) {
     // Contiguous copy
@@ -253,6 +257,8 @@ aaudio_data_callback_result_t AAudioAudioSink::OnAudioCallback(
         IncrementPointerByBytes(audioData, frames_to_copy * bytes_per_frame);
     memset(dst_ptr_silence, 0, missing_frames * bytes_per_frame);
   }
+
+  frames_in_sink_.fetch_add(frames_to_copy);
 
   // Apply volume directly to the hardware buffer
   if (current_volume != 1.0) {
@@ -334,11 +340,18 @@ void AAudioAudioSink::TrackAndConsumePlayhead() {
       int frames_to_report =
           std::min(frames_consumed, kMaxFramesConsumedPerTick);
 
-      int64_t frames_consumed_at_us = time_nanoseconds / 1000;
-      callbacks_.consume_frames(frames_to_report, frames_consumed_at_us,
-                                context_);
+      // Cap by frames actually in sink to prevent over-consuming Cobalt buffer
+      int frames_in_sink = frames_in_sink_.load();
+      frames_to_report = std::min(frames_to_report, frames_in_sink);
 
-      last_playback_head_position_ += frames_to_report;
+      if (frames_to_report > 0) {
+        int64_t frames_consumed_at_us = time_nanoseconds / 1000;
+        callbacks_.consume_frames(frames_to_report, frames_consumed_at_us,
+                                  context_);
+
+        frames_in_sink_.fetch_sub(frames_to_report);
+        last_playback_head_position_ += frames_to_report;
+      }
     }
   } else {
     SB_LOG(WARNING) << "[AudioSink] Hardware playhead went backward! "
