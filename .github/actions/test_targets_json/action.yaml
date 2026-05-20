@@ -17,20 +17,32 @@ runs:
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
         echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
+        on_host_gtest_targets=$(jq -cr '(.on_host.unit // []) + (.on_host.browser // [])' "${targets_file}")
+        echo "on_host_gtest_targets=${on_host_gtest_targets}" >> $GITHUB_OUTPUT
+
         on_device_targets=$(jq -cr '(.on_device.unit // []) + (.on_device.browser // [])' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
         echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+
+        on_device_gtest_targets=$(jq -cr '(.on_device.unit // []) + (.on_device.browser // [])' "${targets_file}")
+        echo "on_device_gtest_targets=${on_device_gtest_targets}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
   on_host_targets:
     description: The on-host test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_targets }}
+  on_host_gtest_targets:
+    description: The GTest-only host test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_gtest_targets }}
   on_host_count:
     description: The number of on-host test targets.
     value: ${{ steps.parse-json.outputs.on_host_count }}
   on_device_targets:
     description: The on-device test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_targets }}
+  on_device_gtest_targets:
+    description: The GTest-only device test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_gtest_targets }}
   on_device_count:
     description: The number of on-device test targets.
     value: ${{ steps.parse-json.outputs.on_device_count }}
