@@ -115,18 +115,18 @@ def wait_for_devtools_port(port, timeout_s=15):
   return False
 
 
-def launch_app(device, package, activity, args, platform, url, bin_path=None):
+def launch_app(args, cmd_args, url):
   """Launches Cobalt process on Android (intent) or Linux (binary Popen)."""
-  if platform == "android":
+  if args.platform == "android":
     cmd = [
-        "adb", "-s", device, "shell", "am", "start", "-n",
-        f"{package}/{activity}", "--esa", "url", url, "--esa",
-        "commandLineArgs", args
+        "adb", "-s", args.device, "shell", "am", "start", "-n",
+        f"{args.package}/{args.activity}", "--esa", "url", url, "--esa",
+        "commandLineArgs", cmd_args
     ]
     run_command(cmd, shell=False)
-  elif platform == "linux":
-    flags = args.split()
-    cmd = [bin_path] + flags + [package, url]
+  elif args.platform == "linux":
+    flags = cmd_args.split()
+    cmd = [args.bin_path] + flags + [args.package, url]
     # Use with open context block so descriptor is closed immediately
     # after Popen returns
     with open("/tmp/cobalt_process.log", "a", encoding="utf-8") as proc_log_f:
@@ -192,14 +192,14 @@ def parse_uma_sum_metric(json_file, metric_name):
   return None
 
 
-def execute_profiling_run(args,
-                          run_id,
-                          cmd_args,
-                          tmp_json,
-                          histograms_txt,
-                          url,
-                          is_random_nav=False):
+def execute_profiling_run(args, run_id, sweep_config):
   """Performs a single end-to-end benchmark run and scrapes RSS & UMA."""
+  cmd_args = sweep_config["cmd_args"]
+  tmp_json = sweep_config["tmp_json"]
+  histograms_txt = sweep_config["histograms_txt"]
+  url = sweep_config["url"]
+  is_random_nav = sweep_config.get("is_random_nav", False)
+
   logging.info("  [Run %s] Stopping package/process...", run_id)
   force_stop_app(args.device, args.package, args.platform)
 
@@ -213,8 +213,7 @@ def execute_profiling_run(args,
   flush_system_caches(args.device, args.platform)
 
   logging.info("  [Run %s] Launching Cobalt with experimental flags...", run_id)
-  proc = launch_app(args.device, args.package, args.activity, cmd_args,
-                    args.platform, url, args.bin_path)
+  proc = launch_app(args, cmd_args, url)
 
   # Setup loopback forwarder immediately if Android
   if args.platform == "android":
@@ -246,7 +245,7 @@ def execute_profiling_run(args,
       # pylint: disable=consider-using-with
       scroll_proc = subprocess.Popen(
           scroll_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except OSError as e:
       logging.warning("  ⚠️ Warning: Failed to start background scroller: %s",
                       e)
 
@@ -260,7 +259,7 @@ def execute_profiling_run(args,
     try:
       scroll_proc.terminate()
       scroll_proc.wait(timeout=3)
-    except Exception:  # pylint: disable=broad-exception-caught
+    except OSError:
       pass
 
   # 1. Capture system-wide RSS memory
@@ -372,7 +371,7 @@ def execute_profiling_run(args,
               jf.write(f"{timestamp}, Memory.Cobalt.AllocationVolume.{cat}, "
                        f"{cdp_json}\n")
           uma_captured = True
-      except Exception as e:  # pylint: disable=broad-exception-caught
+      except (ValueError, OSError) as e:
         logging.warning(
             "  ⚠️ Warning: Failed to parse C++ process logs fallback: %s", e)
 
@@ -541,7 +540,8 @@ def main():
               f"Runs: {args.runs} per config | "
               f"Duration: {args.duration}s per run").center(80)
   logging.info("%s", info_str)
-  logging.info("%s", f"   Detected Repo Root: {REPO_ROOT}".center(80))
+  repo_str = f"   Detected Repo Root: {REPO_ROOT}".center(80)
+  logging.info("%s", repo_str)
   logging.info("%s", "=" * 80)
 
   for cuj_key in active_cuj_keys:
@@ -551,8 +551,8 @@ def main():
 
     cuj_name = cuj_spec["name"]
     logging.info("\n%s", "=" * 80)
-    logging.info("%s",
-                 f"🔥 RUNNING SIGNIFICANCE CAMPAIGN FOR: {cuj_name}".center(80))
+    cuj_header = f"🔥 RUNNING SIGNIFICANCE CAMPAIGN FOR: {cuj_name}".center(80)
+    logging.info("%s", cuj_header)
     logging.info("%s\n", "=" * 80)
 
     baseline_rss = []
@@ -585,11 +585,24 @@ def main():
     b_args = f"{b_args_clean} --remote-debugging-port={args.port}"
     e_args = f"{e_args_clean} --remote-debugging-port={args.port}"
 
+    baseline_sweep_config = {
+        "cmd_args": b_args,
+        "tmp_json": tmp_json,
+        "histograms_txt": histograms_txt,
+        "url": cuj_url,
+        "is_random_nav": cuj_random_nav
+    }
+    experiment_sweep_config = {
+        "cmd_args": e_args,
+        "tmp_json": tmp_json,
+        "histograms_txt": histograms_txt,
+        "url": cuj_url,
+        "is_random_nav": cuj_random_nav
+    }
+
     logging.info("\n====== SECTION 1/2: BASELINE RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, uma_active = execute_profiling_run(args, i, b_args, tmp_json,
-                                              histograms_txt, cuj_url,
-                                              cuj_random_nav)
+      rss, uma_active = execute_profiling_run(args, i, baseline_sweep_config)
       if rss:
         baseline_rss.append(rss)
       if uma_active:
@@ -602,9 +615,7 @@ def main():
 
     logging.info("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, uma_active = execute_profiling_run(args, i, e_args, tmp_json,
-                                              histograms_txt, cuj_url,
-                                              cuj_random_nav)
+      rss, uma_active = execute_profiling_run(args, i, experiment_sweep_config)
       if rss:
         experiment_rss.append(rss)
       if uma_active:
