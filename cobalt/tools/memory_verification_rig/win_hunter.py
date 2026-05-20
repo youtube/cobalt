@@ -15,10 +15,14 @@
 """Automated Memory Win Hunter sweep campaign orchestrator for Cobalt."""
 
 import argparse
+import json
 import logging
 import os
+import random
+import re
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -37,7 +41,7 @@ def find_repository_root():
 REPO_ROOT = find_repository_root()
 
 
-def run_significance_campaign(args, flag_type, flag_name):
+def run_significance_campaign(args, flag_type, flag_name, results_json):
   """Spawns verify_stat_sig.py subprocess to run a sweep experiment."""
   cmd = [
       sys.executable,
@@ -49,6 +53,7 @@ def run_significance_campaign(args, flag_type, flag_name):
       f"--runs={args.runs}",
       f"--duration={args.duration}",
       f"--port={args.port}",
+      f"--json-results-file={results_json}",
   ]
   if args.bin_path:
     cmd.append(f"--bin-path={args.bin_path}")
@@ -78,49 +83,40 @@ def run_significance_campaign(args, flag_type, flag_name):
     return "", str(e)
 
 
-def parse_campaign_results(stdout):
-  """Parses verify_stat_sig.py stdout to extract mean reduction & p-value."""
-  mean_reduction_mb = 0.0
-  p_value = 1.0
-  is_stat_significant = False
-  directional_consistency = "FAIL"
-
-  if not stdout:
+def parse_campaign_results(results_json_path):
+  """Reads the structured JSON results file from verify_stat_sig.py."""
+  if not os.path.exists(results_json_path) or os.path.getsize(
+      results_json_path) == 0:
     return None
 
-  # Parse lines to extract statistical conclusions
-  # E.g. "• Mean Reduction:  14.32 MB (5.4%)" or "• p-value:         0.0034"
-  for line in stdout.splitlines():
-    line = line.strip()
-    if "• Mean Reduction:" in line:
-      parts = line.split()
-      # Extract numeric token, e.g., 14.32
-      for part in parts:
-        try:
-          mean_reduction_mb = float(part)
-          break
-        except ValueError:
-          pass
-    elif "• p-value:" in line:
-      parts = line.split()
-      for part in parts:
-        try:
-          p_value = float(part)
-          break
-        except ValueError:
-          pass
-      if "Directional Consistency:" in line:
-        directional_consistency = line.split(
-            "Directional Consistency:")[-1].replace(")", "").strip()
-    elif "STATISTICALLY SIGNIFICANT" in line:
-      is_stat_significant = True
+  try:
+    with open(results_json_path, "r", encoding="utf-8") as f:
+      campaign_results = json.load(f)
 
-  return {
-      "mean_reduction_mb": mean_reduction_mb,
-      "p_value": p_value,
-      "directional_consistency": directional_consistency,
-      "is_significant": is_stat_significant,
-  }
+    if not campaign_results:
+      return None
+
+    # Extract System RSS memory result or default to first metric
+    rss_entry = next((r for r in campaign_results
+                      if "System RSS" in r.get("metric_name", "")),
+                     campaign_results[0])
+
+    return {
+        "mean_reduction_mb":
+            rss_entry.get("mean_reduction_mb", 0.0),
+        "p_value":
+            rss_entry.get("p_value", 1.0),
+        "directional_consistency":
+            rss_entry.get("directional_consistency", "FAIL"),
+        "is_significant":
+            rss_entry.get("is_significant", False),
+        "all_metrics":
+            campaign_results
+    }
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    logging.warning("  ⚠️ Warning: Failed to parse campaign results JSON: %s",
+                    e)
+  return None
 
 
 def main():
@@ -157,6 +153,16 @@ def main():
       type=int,
       default=10,
       help="Max number of flags to sweep in the hunt (default: 10)")
+  parser.add_argument(
+      "--shuffle",
+      action="store_true",
+      help="Exploration Sweep: Shuffles harvested config stack before slicing")
+  parser.add_argument(
+      "--filter", help="Regex query filter to sweep specific components")
+  parser.add_argument(
+      "--enable-granular-memory",
+      action="store_true",
+      help="Forward granular memory metrics collection to the campaign")
   args = parser.parse_args()
 
   logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -195,7 +201,22 @@ def main():
       "Loaded discovered configuration stack. Switches: %s | Features: %s",
       len(switches_to_sweep), len(features_to_sweep))
 
-  # Slice the hunt to limit runs if requested
+  # Filter switches and features if --filter is specified
+  if args.filter:
+    r_pattern = re.compile(args.filter, re.IGNORECASE)
+    switches_to_sweep = [s for s in switches_to_sweep if r_pattern.search(s)]
+    features_to_sweep = [f for f in features_to_sweep if r_pattern.search(f)]
+    logging.info(
+        "Filtered configuration stack (query=%s). Switches: %s | Features: %s",
+        args.filter, len(switches_to_sweep), len(features_to_sweep))
+
+  # Shuffle the lists if --shuffle is requested
+  if args.shuffle:
+    logging.info("Exploration Sweep: Shuffling harvested config flags stack...")
+    random.shuffle(switches_to_sweep)
+    random.shuffle(features_to_sweep)
+
+  # Slice the hunt to limit runs
   target_switches = switches_to_sweep[:args.max_flags // 2]
   target_features = features_to_sweep[:args.max_flags - len(target_switches)]
   logging.info(
@@ -214,8 +235,11 @@ def main():
   # 1. Sweep Switches
   for sw in target_switches:
     logging.info("[%s/%s] Sweeping CLI Switch: %s...", index, total_sweep, sw)
-    stdout, _ = run_significance_campaign(args, "switch", sw)
-    res = parse_campaign_results(stdout)
+    tmp_fd, tmp_json = tempfile.mkstemp(suffix="_sweep_results.json")
+    os.close(tmp_fd)
+
+    run_significance_campaign(args, "switch", sw, tmp_json)
+    res = parse_campaign_results(tmp_json)
     if res:
       res["flag"] = sw
       res["type"] = "Switch"
@@ -226,6 +250,8 @@ def main():
     else:
       logging.warning("   ⚠️ Failed to collect valid profiling data for: %s",
                       sw)
+    if os.path.exists(tmp_json):
+      os.remove(tmp_json)
     index += 1
     time.sleep(2)
 
@@ -233,8 +259,11 @@ def main():
   for feat in target_features:
     logging.info("[%s/%s] Sweeping Blink Feature: %s...", index, total_sweep,
                  feat)
-    stdout, _ = run_significance_campaign(args, "feature", feat)
-    res = parse_campaign_results(stdout)
+    tmp_fd, tmp_json = tempfile.mkstemp(suffix="_sweep_results.json")
+    os.close(tmp_fd)
+
+    run_significance_campaign(args, "feature", feat, tmp_json)
+    res = parse_campaign_results(tmp_json)
     if res:
       res["flag"] = feat
       res["type"] = "Feature"
@@ -245,6 +274,8 @@ def main():
     else:
       logging.warning("   ⚠️ Failed to collect valid profiling data for: %s",
                       feat)
+    if os.path.exists(tmp_json):
+      os.remove(tmp_json)
     index += 1
     time.sleep(2)
 
