@@ -20,13 +20,10 @@
 #include "starboard/common/log.h"
 
 namespace starboard {
-namespace android {
 
 class AAudioLoader {
  public:
   static AAudioLoader* GetInstance();
-
-  bool IsSupported() const { return initialized_; }
 
   // Function wrappers
   const char* convertResultToText(aaudio_result_t returnCode);
@@ -70,68 +67,63 @@ class AAudioLoader {
   int64_t stream_getFramesRead(AAudioStream* stream);
 
  private:
-  AAudioLoader();
+  explicit AAudioLoader(void* lib_handle);
   ~AAudioLoader();
 
   void* lib_handle_ = nullptr;
-  bool initialized_ = false;
 
   // Function pointer types
-  typedef const char* (*PFN_AAudio_convertResultToText)(
-      aaudio_result_t returnCode);
-  typedef aaudio_result_t (*PFN_AAudio_createStreamBuilder)(
-      AAudioStreamBuilder** builder);
-  typedef aaudio_result_t (*PFN_AAudioStreamBuilder_delete)(
-      AAudioStreamBuilder* builder);
-  typedef void (*PFN_AAudioStreamBuilder_setDirection)(
-      AAudioStreamBuilder* builder,
-      aaudio_direction_t direction);
-  typedef void (*PFN_AAudioStreamBuilder_setSharingMode)(
-      AAudioStreamBuilder* builder,
-      aaudio_sharing_mode_t sharingMode);
-  typedef void (*PFN_AAudioStreamBuilder_setPerformanceMode)(
-      AAudioStreamBuilder* builder,
-      aaudio_performance_mode_t performanceMode);
-  typedef void (*PFN_AAudioStreamBuilder_setFormat)(
-      AAudioStreamBuilder* builder,
-      aaudio_format_t format);
-  typedef void (*PFN_AAudioStreamBuilder_setChannelCount)(
-      AAudioStreamBuilder* builder,
-      int32_t channelCount);
-  typedef void (*PFN_AAudioStreamBuilder_setSampleRate)(
-      AAudioStreamBuilder* builder,
-      int32_t sampleRate);
-  typedef void (*PFN_AAudioStreamBuilder_setDataCallback)(
-      AAudioStreamBuilder* builder,
-      AAudioStream_dataCallback callback,
-      void* userData);
-  typedef aaudio_result_t (*PFN_AAudioStreamBuilder_openStream)(
-      AAudioStreamBuilder* builder,
-      AAudioStream** stream);
+  using PFN_AAudio_convertResultToText =
+      const char* (*)(aaudio_result_t returnCode);
+  using PFN_AAudio_createStreamBuilder =
+      aaudio_result_t (*)(AAudioStreamBuilder** builder);
+  using PFN_AAudioStreamBuilder_delete =
+      aaudio_result_t (*)(AAudioStreamBuilder* builder);
+  using PFN_AAudioStreamBuilder_setDirection =
+      void (*)(AAudioStreamBuilder* builder, aaudio_direction_t direction);
+  using PFN_AAudioStreamBuilder_setSharingMode =
+      void (*)(AAudioStreamBuilder* builder, aaudio_sharing_mode_t sharingMode);
+  using PFN_AAudioStreamBuilder_setPerformanceMode =
+      void (*)(AAudioStreamBuilder* builder,
+               aaudio_performance_mode_t performanceMode);
+  using PFN_AAudioStreamBuilder_setFormat =
+      void (*)(AAudioStreamBuilder* builder, aaudio_format_t format);
+  using PFN_AAudioStreamBuilder_setChannelCount =
+      void (*)(AAudioStreamBuilder* builder, int32_t channelCount);
+  using PFN_AAudioStreamBuilder_setSampleRate =
+      void (*)(AAudioStreamBuilder* builder, int32_t sampleRate);
+  using PFN_AAudioStreamBuilder_setDataCallback =
+      void (*)(AAudioStreamBuilder* builder,
+               AAudioStream_dataCallback callback,
+               void* userData);
+  using PFN_AAudioStreamBuilder_openStream =
+      aaudio_result_t (*)(AAudioStreamBuilder* builder, AAudioStream** stream);
 
-  typedef aaudio_result_t (*PFN_AAudioStream_close)(AAudioStream* stream);
-  typedef aaudio_result_t (*PFN_AAudioStream_requestStart)(
-      AAudioStream* stream);
-  typedef aaudio_result_t (*PFN_AAudioStream_requestPause)(
-      AAudioStream* stream);
-  typedef aaudio_result_t (*PFN_AAudioStream_requestStop)(AAudioStream* stream);
-  typedef aaudio_result_t (*PFN_AAudioStream_requestFlush)(
-      AAudioStream* stream);
-  typedef aaudio_stream_state_t (*PFN_AAudioStream_getState)(
-      AAudioStream* stream);
-  typedef aaudio_result_t (*PFN_AAudioStream_getTimestamp)(
-      AAudioStream* stream,
-      clockid_t clockId,
-      int64_t* framePosition,
-      int64_t* timeNanoseconds);
-  typedef aaudio_result_t (*PFN_AAudioStream_write)(AAudioStream* stream,
-                                                    const void* buffer,
-                                                    int32_t numFrames,
-                                                    int64_t timeoutNanoseconds);
-  typedef int32_t (*PFN_AAudioStream_getBufferSizeInFrames)(
-      AAudioStream* stream);
-  typedef int32_t (*PFN_AAudioStream_getFramesPerBurst)(AAudioStream* stream);
-  typedef int64_t (*PFN_AAudioStream_getFramesRead)(AAudioStream* stream);
+  using PFN_AAudioStream_close = aaudio_result_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_requestStart =
+      aaudio_result_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_requestPause =
+      aaudio_result_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_requestStop =
+      aaudio_result_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_requestFlush =
+      aaudio_result_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_getState =
+      aaudio_stream_state_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_getTimestamp =
+      aaudio_result_t (*)(AAudioStream* stream,
+                          clockid_t clockId,
+                          int64_t* framePosition,
+                          int64_t* timeNanoseconds);
+  using PFN_AAudioStream_write =
+      aaudio_result_t (*)(AAudioStream* stream,
+                          const void* buffer,
+                          int32_t numFrames,
+                          int64_t timeoutNanoseconds);
+  using PFN_AAudioStream_getBufferSizeInFrames =
+      int32_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_getFramesPerBurst = int32_t (*)(AAudioStream* stream);
+  using PFN_AAudioStream_getFramesRead = int64_t (*)(AAudioStream* stream);
 
   // Function pointers
   PFN_AAudio_convertResultToText pfn_AAudio_convertResultToText = nullptr;
@@ -168,7 +160,6 @@ class AAudioLoader {
   PFN_AAudioStream_getFramesRead pfn_AAudioStream_getFramesRead = nullptr;
 };
 
-}  // namespace android
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AAUDIO_LOADER_H_

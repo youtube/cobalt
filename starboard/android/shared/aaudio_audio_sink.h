@@ -30,7 +30,6 @@
 #include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
-namespace android {
 
 class AAudioAudioSink : public SbAudioSinkImpl {
  public:
@@ -101,7 +100,6 @@ class AAudioAudioSink : public SbAudioSinkImpl {
   std::atomic<int> frames_in_sink_{0};
 };
 
-}  // namespace android
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_AAUDIO_AUDIO_SINK_H_

@@ -25,7 +25,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::android {
+namespace starboard {
 
 namespace {
 
@@ -61,7 +61,7 @@ std::unique_ptr<AAudioAudioSink> AAudioAudioSink::Create(
     AudioTrackAudioSinkType::Callbacks callbacks,
     void* context) {
   AAudioLoader* aaudio = AAudioLoader::GetInstance();
-  if (!aaudio->IsSupported()) {
+  if (!aaudio) {
     return nullptr;
   }
 
@@ -394,4 +394,4 @@ int64_t AAudioAudioSink::GetFramesDurationUs(int frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
 }
 
-}  // namespace starboard::android
+}  // namespace starboard

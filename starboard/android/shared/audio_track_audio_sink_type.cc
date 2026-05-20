@@ -110,8 +110,12 @@ bool HasRemoteAudioOutput() {
 
 bool ShouldUseAAudio(std::optional<int> tunnel_mode_audio_session_id,
                      SbMediaAudioSampleType audio_sample_type) {
-  return android::AAudioLoader::GetInstance()->IsSupported() &&
-         !tunnel_mode_audio_session_id &&
+  // We can use AAudio when:
+  // - AAudio is supported on the device.
+  // - Tunnel mode is not enabled. AAudio does not support tunnel mode.
+  // - Audio format is PCM (Float32 or Int16). AAudio does not support
+  //   compressed formats (e.g. AC3).
+  return AAudioLoader::GetInstance() && !tunnel_mode_audio_session_id &&
          (audio_sample_type == kSbMediaAudioSampleTypeFloat32 ||
           audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
 }
@@ -557,29 +561,17 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
-  bool use_aaudio =
-      ShouldUseAAudio(tunnel_mode_audio_session_id, audio_sample_type);
-
-  if (use_aaudio) {
-    SB_LOG(INFO) << "[AudioSink] Attempting to use NATIVE AAUDIO backend.";
-    auto native_sink = android::AAudioAudioSink::Create(
+  if (ShouldUseAAudio(tunnel_mode_audio_session_id, audio_sample_type)) {
+    auto native_sink = AAudioAudioSink::Create(
         this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
         frames_per_channel, callbacks, context);
     if (native_sink) {
-      SB_LOG(INFO) << "[AudioSink] Selected Backend: NATIVE AAUDIO";
+      SB_LOG(INFO) << "AAudioSink is created";
       return native_sink.release();
     }
-    SB_LOG(WARNING) << "[AudioSink] Failed to create AAudio stream. Falling "
-                       "back to Java AudioTrack.";
+    SB_LOG(WARNING)
+        << "Failed to create AAudio stream. Falling back to Java AudioTrack.";
   }
-
-  SB_LOG(INFO) << "[AudioSink] Selected Backend: JAVA AUDIOTRACK (Reason: "
-               << (tunnel_mode_audio_session_id.value_or(
-                       TUNNEL_MODE_AUDIO_SESSION_ID_NONE) !=
-                           TUNNEL_MODE_AUDIO_SESSION_ID_NONE
-                       ? "Tunnel Mode"
-                       : "AAudio Not Supported or Not PCM")
-               << ")";
 
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
@@ -593,7 +585,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       start_media_time, tunnel_mode_audio_session_id, is_web_audio,
       allow_audio_writing_on_pause, context);
   if (!audio_sink) {
-    SB_DLOG(ERROR)
+    SB_LOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
     return kSbAudioSinkInvalid;
   }
