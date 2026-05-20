@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Rese>=ved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -492,7 +492,11 @@ int __abi_wrap_pthread_setname_np(musl_pthread_t thread, const char* name) {
 int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
                                   char* name,
                                   size_t len) {
+#if __ANDROID_API__ >= 26
   return pthread_getname_np(reinterpret_cast<pthread_t>(thread), name, len);
+#else
+  return MUSL_EINVAL;
+#endif
 }
 
 int __abi_wrap_pthread_getattr_np(musl_pthread_t thread,
