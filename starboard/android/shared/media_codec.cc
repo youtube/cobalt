@@ -31,11 +31,11 @@
 #include "starboard/common/string.h"
 
 namespace starboard {
-namespace {
-
-bool ShouldUseNdkMediaCodec(int tunnel_mode_audio_session_id,
-                            bool require_secured_decoder,
-                            jobject j_media_crypto) {
+// static
+bool MediaCodec::ShouldUseNdkMediaCodec(
+    std::optional<int> tunnel_mode_audio_session_id,
+    bool require_secured_decoder,
+    jobject j_media_crypto) {
   // 1. Critical Usability Checks
   if (require_secured_decoder || j_media_crypto) {
     SB_LOG(INFO) << "[MediaCodec] Secure decoding requested. NDK AMediaCodec "
@@ -43,7 +43,7 @@ bool ShouldUseNdkMediaCodec(int tunnel_mode_audio_session_id,
     return false;
   }
 
-  if (tunnel_mode_audio_session_id != -1) {
+  if (tunnel_mode_audio_session_id.value_or(-1) != -1) {
     SB_LOG(INFO) << "[MediaCodec] Tunnel mode requested. NDK AMediaCodec "
                     "does not support tunnel mode. Using Java MediaCodec.";
     return false;
@@ -59,8 +59,6 @@ bool ShouldUseNdkMediaCodec(int tunnel_mode_audio_session_id,
       << "[MediaCodec] NDK AMediaCodec is usable. Selecting NDK backend.";
   return true;
 }
-
-}  // namespace
 
 // static
 std::unique_ptr<MediaCodec> MediaCodec::CreateAudioMediaCodec(
@@ -138,9 +136,9 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
                      starboard::ToString(!!j_media_crypto).data()));
   }
 
-  if (ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id.value_or(
-                                 TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
-                             require_secured_decoder, j_media_crypto)) {
+  if (MediaCodec::ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id,
+                                         require_secured_decoder,
+                                         j_media_crypto)) {
     auto ndk_bridge = NdkMediaCodec::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,

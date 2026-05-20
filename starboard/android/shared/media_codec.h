@@ -107,6 +107,11 @@ class MediaCodec {
     virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
   };
 
+  static bool ShouldUseNdkMediaCodec(
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool require_secured_decoder,
+      jobject j_media_crypto);
+
   static std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
