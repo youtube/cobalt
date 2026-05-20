@@ -14,7 +14,7 @@
 # limitations under the License.
 """Statistical significance verification engine for Cobalt."""
 
-# pylint: disable=wrong-import-position,too-many-positional-arguments,too-many-arguments,logging-fstring-interpolation,logging-not-lazy
+# pylint: disable=wrong-import-position,too-many-positional-arguments,too-many-arguments
 
 import argparse
 import json
@@ -143,7 +143,7 @@ def capture_memory_rss(device, package, platform, pid=None):
         ["adb", "-s", device, "shell", "dumpsys", "meminfo", package])
     if not stdout:
       if stderr:
-        logging.warning(f"  ⚠️ Warning: dumpsys meminfo failed: {stderr}")
+        logging.warning("  ⚠️ Warning: dumpsys meminfo failed: %s", stderr)
       return None
 
     for line in stdout.split("\n"):
@@ -183,11 +183,12 @@ def parse_uma_sum_metric(json_file, metric_name):
               if "sum" in hist:
                 return float(hist["sum"]) / 1024.0  # Convert KB to MB!
   except FileNotFoundError:
-    logging.warning(f"  ⚠️ Warning: Metric JSON file not found: {json_file}")
+    logging.warning("  ⚠️ Warning: Metric JSON file not found: %s", json_file)
   except json.JSONDecodeError:
-    logging.warning(f"  ⚠️ Warning: Failed to parse UMA JSON file: {json_file}")
+    logging.warning("  ⚠️ Warning: Failed to parse UMA JSON file: %s",
+                    json_file)
   except KeyError as e:
-    logging.warning(f"  ⚠️ Warning: UMA metrics format mismatch: {e}")
+    logging.warning("  ⚠️ Warning: UMA metrics format mismatch: %s", e)
   return None
 
 
@@ -431,21 +432,22 @@ def analyze_and_report_metric(metric_name,
   directional_sig = check_directional_consistency(baseline, experiment)
   stat_sig = p_val < sig_threshold
 
-  logging.info(f"\n📈 METRIC ANALYZED: {metric_name}")
-  logging.info("-" * 50)
-  logging.info(
-      f"   • Baseline Mean:   {b_mean:.2f} {unit} (StdDev: {b_std:.2f} {unit})")
-  logging.info(
-      f"   • Experiment Mean: {e_mean:.2f} {unit} (StdDev: {e_std:.2f} {unit})")
-  logging.info(
-      f"   • Mean Reduction:  {diff:.2f} {unit} ({reduction_pct:.1f}%)")
+  logging.info("\n📈 METRIC ANALYZED: %s", metric_name)
+  logging.info("%s", "-" * 50)
+  logging.info("   • Baseline Mean:   %.2f %s (StdDev: %.2f %s)", b_mean, unit,
+               b_std, unit)
+  logging.info("   • Experiment Mean: %.2f %s (StdDev: %.2f %s)", e_mean, unit,
+               e_std, unit)
+  logging.info("   • Mean Reduction:  %.2f %s (%.1f%%)", diff, unit,
+               reduction_pct)
   dir_str = "PASS" if directional_sig else "FAIL"
-  logging.info(f"   • p-value:         {p_val:.4f} "
-               f"(Directional Consistency: {dir_str})")
+  logging.info("   • p-value:         %.4f (Directional Consistency: %s)",
+               p_val, dir_str)
   if stat_sig:
     confidence = (1 - p_val) * 100.0
-    logging.info(f"   🎉 CONCLUSION: STATISTICALLY SIGNIFICANT "
-                 f"(Confidence: {confidence:.1f}%) 🟢")
+    logging.info(
+        "   🎉 CONCLUSION: STATISTICALLY SIGNIFICANT "
+        "(Confidence: %.1f%%) 🟢", confidence)
   else:
     logging.warning("   ⚠️ CONCLUSION: NOT STATISTICALLY SIGNIFICANT 🔴")
 
@@ -515,14 +517,16 @@ def main():
     active_cuj_keys = [args.cuj]
 
   # Print overall profiling configuration header
-  logging.info("=" * 80)
+  logging.info("%s", "=" * 80)
   logging.info(
+      "%s",
       "🚀 STARTING DUAL-TELEMETRY SIGNIFICANCE PROFILING CAMPAIGN".center(80))
-  logging.info(f"   Platform: {args.platform} | "
-               f"Runs: {args.runs} per config | "
-               f"Duration: {args.duration}s per run".center(80))
-  logging.info(f"   Detected Repo Root: {REPO_ROOT}".center(80))
-  logging.info("=" * 80)
+  info_str = (f"   Platform: {args.platform} | "
+              f"Runs: {args.runs} per config | "
+              f"Duration: {args.duration}s per run").center(80)
+  logging.info("%s", info_str)
+  logging.info("%s", f"   Detected Repo Root: {REPO_ROOT}".center(80))
+  logging.info("%s", "=" * 80)
 
   for cuj_key in active_cuj_keys:
     cuj_spec = CUJS[cuj_key]
@@ -530,9 +534,10 @@ def main():
     cuj_random_nav = cuj_spec["is_random_nav"]
 
     cuj_name = cuj_spec["name"]
-    logging.info("\n" + "=" * 80)
-    logging.info(f"🔥 RUNNING SIGNIFICANCE CAMPAIGN FOR: {cuj_name}".center(80))
-    logging.info("=" * 80 + "\n")
+    logging.info("\n%s", "=" * 80)
+    logging.info("%s",
+                 f"🔥 RUNNING SIGNIFICANCE CAMPAIGN FOR: {cuj_name}".center(80))
+    logging.info("%s\n", "=" * 80)
 
     baseline_rss = []
     experiment_rss = []
@@ -602,9 +607,9 @@ def main():
         except OSError:
           pass
 
-    logging.info("\n" + "=" * 60)
-    logging.info(f"📊 STATISTICAL EVALUATION REPORT: {cuj_name}")
-    logging.info("=" * 60)
+    logging.info("\n%s", "=" * 60)
+    logging.info("📊 STATISTICAL EVALUATION REPORT: %s", cuj_name)
+    logging.info("%s", "=" * 60)
 
     # 1. Always evaluate System RSS
     if len(baseline_rss) >= 2 and len(experiment_rss) >= 2:
@@ -622,9 +627,10 @@ def main():
         analyze_and_report_metric(
             f"Granular Allocation: k{cat} (UMA Histogram Sum)", b_list, e_list)
 
-    logging.info("\n" + "=" * 80)
-    logging.info(f"🏁 CAMPAIGN FOR {cuj_name} COMPLETE!".center(80))
-    logging.info("=" * 80 + "\n")
+    logging.info("\n%s", "=" * 80)
+    cuj_done = f"🏁 CAMPAIGN FOR {cuj_name} COMPLETE!".center(80)
+    logging.info("%s", cuj_done)
+    logging.info("%s\n", "=" * 80)
 
 
 if __name__ == "__main__":
