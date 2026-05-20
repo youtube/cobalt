@@ -39,7 +39,7 @@ runs:
 
         if [[ -f "${targets_file}" ]]; then
           # Parse JUnit targets (space-separated list)
-          junit_targets=$(jq -cr '.on_host.junit_targets // [] | join(" ")' "${targets_file}")
+          junit_targets=$(jq -cr '.test_targets // [] | map(select(endswith("_junit_tests"))) | join(" ")' "${targets_file}")
           echo "junit_targets=${junit_targets}" >> $GITHUB_OUTPUT
           if [[ -n "${junit_targets}" ]]; then
             echo "has_junit=true" >> $GITHUB_OUTPUT

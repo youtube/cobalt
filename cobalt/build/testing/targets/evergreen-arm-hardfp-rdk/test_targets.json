@@ -26,19 +26,19 @@
     "third_party/opus:test_opus_encode_loader",
     "third_party/opus:test_opus_padding_loader"
   ],
+  "test_targets": [
+    "crypto:crypto_unittests_loader",
+    "media/mojo:media_mojo_unittests_loader",
+    "skia:skia_unittests_loader",
+    "starboard/nplb:nplb_loader",
+    "third_party/abseil-cpp:absl_hardening_tests_loader",
+    "third_party/blink/renderer/platform/wtf:wtf_unittests_loader",
+    "ui/events:events_unittests_loader",
+    "ui/ozone:ozone_unittests_loader",
+    "third_party/blink/common:blink_common_unittests_loader",
+    "storage:storage_unittests_loader"
+  ],
   "on_device": {
-    "unit_targets": [
-      "crypto:crypto_unittests_loader",
-      "media/mojo:media_mojo_unittests_loader",
-      "skia:skia_unittests_loader",
-      "starboard/nplb:nplb_loader",
-      "third_party/abseil-cpp:absl_hardening_tests_loader",
-      "third_party/blink/renderer/platform/wtf:wtf_unittests_loader",
-      "ui/events:events_unittests_loader",
-      "ui/ozone:ozone_unittests_loader",
-      "third_party/blink/common:blink_common_unittests_loader",
-      "storage:storage_unittests_loader"
-    ],
     "unit_executables": [
       "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
       "out/evergreen-arm-hardfp-rdk_devel/media_mojo_unittests_loader.py",
