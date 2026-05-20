@@ -3207,6 +3207,8 @@ generated_interface_sources_in_modules = [
 
 if (is_cobalt) {
   generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_log.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_log.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_deep_link_event.cc",

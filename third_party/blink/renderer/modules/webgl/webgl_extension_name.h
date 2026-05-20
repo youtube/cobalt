@@ -32,6 +32,7 @@ enum WebGLExtensionName {
   kKHRParallelShaderCompileName,
   kNVShaderNoperspectiveInterpolationName,
   kOESDrawBuffersIndexedName,
+  kOESEGLImageExternalName,
   kOESElementIndexUintName,
   kOESFboRenderMipmapName,
   kOESSampleVariablesName,

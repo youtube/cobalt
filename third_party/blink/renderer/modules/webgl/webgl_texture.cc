@@ -23,6 +23,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_texture.h"
 
 #include "gpu/command_buffer/client/gles2_interface.h"
@@ -57,7 +58,28 @@ void WebGLTexture::SetTarget(GLenum target) {
   target_ = target;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
+                                          bool has_shared_image_access) {
+  if (Object()) {
+    if (has_shared_image_access_) {
+      Context()->ContextGL()->EndSharedImageAccessDirectCHROMIUM(Object());
+    }
+    Context()->ContextGL()->DeleteTextures(1, &Object());
+    ResetUnownedObject();
+  }
+  SetObject(new_object);
+  has_shared_image_access_ = has_shared_image_access;
+}
+#endif
+
 void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
+#if BUILDFLAG(IS_COBALT)
+  if (has_shared_image_access_) {
+    gl->EndSharedImageAccessDirectCHROMIUM(Object());
+    has_shared_image_access_ = false;
+  }
+#endif
   gl->DeleteTextures(1, &Object());
 }
 

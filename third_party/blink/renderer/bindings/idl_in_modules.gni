@@ -1286,6 +1286,9 @@ static_idl_files_in_modules = [
 ]
 
 if (is_cobalt) {
+  static_idl_files_in_modules += [
+    "//third_party/blink/renderer/modules/webgl/oes_egl_image_external.idl",
+  ]
   static_idl_files_in_modules += get_path_info(
           [
             "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",

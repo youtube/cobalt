@@ -17,8 +17,10 @@
 #include "build/build_config.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/gl_utils.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/skia_gl_image_representation.h"
 #include "gpu/command_buffer/service/skia_utils.h"
@@ -30,6 +32,63 @@
 #endif
 
 namespace gpu {
+
+class StarboardGLTextureBacking::GLTextureStarboardImageRepresentation
+    : public GLTextureImageRepresentation
+#if BUILDFLAG(IS_ANDROID)
+    ,
+      public RefCountedLockHelperDrDc
+#endif
+{
+ public:
+  GLTextureStarboardImageRepresentation(
+      SharedImageManager* manager,
+      StarboardGLTextureBacking* backing,
+      MemoryTypeTracker* tracker,
+      std::vector<gpu::gles2::Texture*> textures
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      scoped_refptr<RefCountedLock> drdc_lock
+#endif
+      )
+      : GLTextureImageRepresentation(manager, backing, tracker),
+#if BUILDFLAG(IS_ANDROID)
+        RefCountedLockHelperDrDc(std::move(drdc_lock)),
+#endif
+        textures_(std::move(textures)) {
+    for (auto* texture : textures_) {
+      CHECK(texture);
+    }
+  }
+
+  ~GLTextureStarboardImageRepresentation() override = default;
+
+  gpu::gles2::Texture* GetTexture(int plane_index) override {
+    CHECK_LT(static_cast<size_t>(plane_index), textures_.size());
+    return textures_[plane_index];
+  }
+
+  bool BeginAccess(GLenum mode) override NO_THREAD_SAFETY_ANALYSIS {
+    DCHECK(mode == GL_SHARED_IMAGE_ACCESS_MODE_READ_CHROMIUM);
+#if BUILDFLAG(IS_ANDROID)
+    if (GetDrDcLockPtr()) {
+      GetDrDcLockPtr()->Acquire();
+    }
+#endif
+    return true;
+  }
+
+  void EndAccess() override NO_THREAD_SAFETY_ANALYSIS {
+#if BUILDFLAG(IS_ANDROID)
+    if (GetDrDcLockPtr()) {
+      GetDrDcLockPtr()->Release();
+    }
+#endif
+  }
+
+ private:
+  std::vector<gpu::gles2::Texture*> textures_;
+};
 
 class StarboardGLTextureBacking::
     GLTexturePassthroughStarboardImageRepresentation
@@ -122,6 +181,16 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
     passthrough_textures_.push_back(
         base::MakeRefCounted<gpu::gles2::TexturePassthrough>(
             texture_ids[i], texture_targets[i]));
+
+    auto* texture = gpu::gles2::CreateGLES2TextureWithLightRef(
+        texture_ids[i], texture_targets[i]);
+    GLFormatDesc format_desc = GLFormatCaps().ToGLFormatDesc(format, 0);
+    texture->SetLevelInfo(texture_targets[i], 0,
+                          format_desc.image_internal_format, size.width(),
+                          size.height(), 1, 0, format_desc.data_format,
+                          format_desc.data_type, gfx::Rect(size));
+    texture->SetImmutable(true, false);
+    textures_.push_back(texture);
   }
 #if BUILDFLAG(IS_ANDROID)
   drdc_lock_ = std::move(drdc_lock);
@@ -133,6 +202,11 @@ StarboardGLTextureBacking::~StarboardGLTextureBacking() {
   // Mark context as lost to prevent glDeleteTextures calls.
   // The actual deletion of the underlying textures is handled by
   // SbDecodeTargetRelease below, since Starboard owns the texture resources.
+  for (auto* texture : textures_) {
+    if (texture) {
+      texture->RemoveLightweightRef(have_context());
+    }
+  }
   for (auto& passthrough_texture : passthrough_textures_) {
     if (passthrough_texture) {
       passthrough_texture->MarkContextLost();
@@ -149,6 +223,18 @@ SharedImageBackingType StarboardGLTextureBacking::GetType() const {
 
 void StarboardGLTextureBacking::Update(
     std::unique_ptr<gfx::GpuFence> in_fence) {}
+
+std::unique_ptr<GLTextureImageRepresentation>
+StarboardGLTextureBacking::ProduceGLTexture(SharedImageManager* manager,
+                                            MemoryTypeTracker* tracker) {
+  return std::make_unique<GLTextureStarboardImageRepresentation>(
+      manager, this, tracker, textures_
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      drdc_lock_
+#endif
+  );
+}
 
 std::unique_ptr<GLTexturePassthroughImageRepresentation>
 StarboardGLTextureBacking::ProduceGLTexturePassthrough(

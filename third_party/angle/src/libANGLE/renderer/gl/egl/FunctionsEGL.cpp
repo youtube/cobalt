@@ -295,7 +295,11 @@ egl::Error FunctionsEGL::initialize(EGLAttrib platformType, EGLNativeDisplayType
         return egl::Error(mFnPtrs->getErrorPtr(), "Failed to query extensions in system egl");
     }
 
+#if defined(STARBOARD) && defined(__ANDROID__)
+    if (hasExtension("EGL_KHR_image_base") || getProcAddress("eglCreateImageKHR") != nullptr)
+#else
     if (hasExtension("EGL_KHR_image_base"))
+#endif
     {
         ANGLE_GET_PROC_OR_ERROR(&mFnPtrs->createImageKHRPtr, eglCreateImageKHR);
         ANGLE_GET_PROC_OR_ERROR(&mFnPtrs->destroyImageKHRPtr, eglDestroyImageKHR);

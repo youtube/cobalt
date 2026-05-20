@@ -677,9 +677,28 @@ GLint ImageDesc::getMemorySize() const
 
 const ImageDesc &TextureState::getImageDesc(TextureTarget target, size_t level) const
 {
+#if defined(STARBOARD) && defined(__ANDROID__)
+    // For external textures on Android Starboard, the actual dimensions and format
+    // are managed by the external image sibling (SbDecodeTarget). ANGLE might not
+    // have these details immediately in its TextureState. Returning a 1x1
+    // placeholder prevents assertion failures in ANGLE validation during setup,
+    // which is safe since external textures are sampled using normalized coordinates.
+    size_t descIndex = GetImageDescIndex(target, level);
+    if (mType == TextureType::External && (descIndex >= mImageDescs.size() || mImageDescs[descIndex].size.empty()))
+    {
+        if (mPlaceholderExternalDesc.size.empty())
+        {
+            mPlaceholderExternalDesc = ImageDesc(Extents(1, 1, 1), Format(GL_RGBA, GL_UNSIGNED_BYTE), InitState::Initialized);
+        }
+        return mPlaceholderExternalDesc;
+    }
+    ASSERT(descIndex < mImageDescs.size());
+    return mImageDescs[descIndex];
+#else
     size_t descIndex = GetImageDescIndex(target, level);
     ASSERT(descIndex < mImageDescs.size());
     return mImageDescs[descIndex];
+#endif
 }
 
 void TextureState::setImageDesc(TextureTarget target, size_t level, const ImageDesc &desc)
