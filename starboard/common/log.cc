@@ -18,6 +18,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 #include <algorithm>
 #include <cstring>
@@ -28,8 +29,9 @@
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
+#include "build/build_config.h"
 
-#if defined(ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>
 #endif
 
@@ -189,7 +191,11 @@ void LogMessage::Init(const char* file, int line) {
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
 #endif  // __ANDROID_API__ < 26
   stream_ << '[';
+#if BUILDFLAG(IS_ANDROID)
   stream_ << name << '/' << gettid() << ':';
+#else
+  stream_ << name << '/' << syscall(SYS_gettid) << ':';
+#endif
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm tm_time = {0};

@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
@@ -696,6 +697,14 @@ musl_uid_t __abi_wrap_getuid() {
 
 musl_pid_t __abi_wrap_getpid() {
   return static_cast<musl_pid_t>(getpid());
+}
+
+musl_pid_t __abi_wrap_gettid() {
+#if defined(__linux__) || defined(__ANDROID__)
+  return static_cast<musl_pid_t>(syscall(SYS_gettid));
+#else
+  return 0;
+#endif
 }
 
 int __abi_wrap_access(const char* path, int amode) {

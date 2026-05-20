@@ -316,6 +316,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
+  REGISTER_WRAPPER(gettid);
   REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);

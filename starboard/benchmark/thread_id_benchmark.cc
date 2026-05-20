@@ -13,6 +13,14 @@
 // limitations under the License.
 
 #include <unistd.h>
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#define get_tid() gettid()
+#else
+#include <sys/syscall.h>
+#define get_tid() syscall(SYS_gettid)
+#endif
 
 #include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
@@ -23,7 +31,7 @@ namespace {
 // 1. Raw system call / Starboard API
 void BM_ThreadGetId(::benchmark::State& state) {
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(gettid());
+    ::benchmark::DoNotOptimize(get_tid());
   }
 }
 BENCHMARK(BM_ThreadGetId);
@@ -34,7 +42,7 @@ SbThreadId GetThreadId() {
   // doesn't use fork().
   thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
   if (tls_thread_id == kSbThreadInvalidId) {
-    tls_thread_id = gettid();
+    tls_thread_id = get_tid();
   }
   return tls_thread_id;
 }

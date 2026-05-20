@@ -15,9 +15,17 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 #include <unistd.h>
+#include "build/build_config.h"
 
 #include <condition_variable>
 #include <mutex>
+
+#if BUILDFLAG(IS_ANDROID)
+#define get_tid() gettid()
+#else
+#include <sys/syscall.h>
+#define get_tid() syscall(SYS_gettid)
+#endif
 
 #include "starboard/common/log.h"
 #include "starboard/egl_and_gles/buildflags.h"
@@ -113,7 +121,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (gettid() == gles_context_thread_id_.load()) {
+  if (get_tid() == gles_context_thread_id_.load()) {
     functor();
     return;
   }
@@ -132,7 +140,7 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (gettid() == gles_context_thread_id_.load()) {
+  if (get_tid() == gles_context_thread_id_.load()) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
@@ -152,7 +160,7 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
 }
 
 void FakeGraphicsContextProvider::RunLoop() {
-  gles_context_thread_id_.store(gettid());
+  gles_context_thread_id_.store(get_tid());
   while (std::function<void()> functor = functor_queue_.Get()) {
     if (!functor) {
       break;
@@ -290,7 +298,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (gettid() == gles_context_thread_id_.load()) {
+  if (get_tid() == gles_context_thread_id_.load()) {
     target_function(target_function_context);
     return;
   }
