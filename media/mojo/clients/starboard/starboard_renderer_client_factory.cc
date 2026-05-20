@@ -15,16 +15,21 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 
 #include "base/check.h"
+#include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/base/media_switches.h"
+#include "media/base/starboard/direct_renderer_service_factory.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/mojo/clients/mojo_media_log_service.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/clients/mojo_renderer_factory.h"
 #include "media/mojo/clients/mojo_renderer_wrapper.h"
+#include "media/mojo/clients/starboard/direct_renderer.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "media/mojo/services/starboard/direct_renderer_service.h"  // nogncheck
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -53,7 +58,8 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
       max_video_capabilities_(traits->max_video_capabilities),
       experimental_features_(traits->experimental_features),
       viewport_size_(traits->viewport_size),
-      get_sb_window_handle_callback_(traits->get_sb_window_handle_callback) {}
+      get_sb_window_handle_callback_(traits->get_sb_window_handle_callback),
+      get_subscriber_cb_(traits->get_subscriber_cb) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
 
@@ -103,21 +109,39 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   DCHECK(get_gpu_factories_cb_);
   GpuVideoAcceleratorFactories* gpu_factories = get_gpu_factories_cb_.Run();
 
-  // Initialize StarboardRendererWrapper via StarboardRendererConfig.
+  std::unique_ptr<media::Renderer> renderer;
+  bool use_direct_renderer = false;
+
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
       audio_write_duration_remote_, max_video_capabilities_,
       experimental_features_, viewport_size_);
-  std::unique_ptr<media::MojoRenderer> mojo_renderer =
-      mojo_renderer_factory_->CreateStarboardRenderer(
-          std::move(media_log_pending_remote), config,
-          std::move(renderer_extension_receiver),
-          std::move(client_extension_remote), media_task_runner,
-          video_renderer_sink);
+
+  if ((base::FeatureList::IsEnabled(kCobaltUsingDirectRenderer) ||
+       experimental_features_.use_direct_renderer) &&
+      base::CommandLine::ForCurrentProcess()->HasSwitch("single-process")) {
+    DCHECK(gpu_factories);
+
+    SetCreateDirectRendererServiceCallback(
+        base::BindRepeating(&DirectRendererService::Create));
+
+    scoped_refptr<base::SequencedTaskRunner> gpu_task_runner =
+        gpu_factories->GetTaskRunner();
+    void* remote_ptr = get_subscriber_cb_ ? get_subscriber_cb_.Run() : nullptr;
+    renderer = std::make_unique<media::DirectRenderer>(
+        media_task_runner, gpu_task_runner, config, media_log_, remote_ptr);
+    use_direct_renderer = true;
+  } else {
+    renderer = mojo_renderer_factory_->CreateStarboardRenderer(
+        std::move(media_log_pending_remote), config,
+        std::move(renderer_extension_receiver),
+        std::move(client_extension_remote), media_task_runner,
+        video_renderer_sink);
+  }
 
   return std::make_unique<media::StarboardRendererClient>(
-      media_task_runner, media_log_->Clone(), std::move(mojo_renderer),
-      std::move(overlay_factory), video_renderer_sink,
+      media_task_runner, media_log_->Clone(), std::move(renderer),
+      use_direct_renderer, std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
       std::move(client_extension_receiver), get_sb_window_handle_callback_,
       gpu_factories

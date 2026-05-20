@@ -483,6 +483,8 @@ source_set("base") {
   if (is_cobalt && use_starboard_media) {
     sources += [
         "starboard/demuxer_memory_limit_starboard.cc",
+        "starboard/direct_renderer_service_factory.cc",
+        "starboard/direct_renderer_service_factory.h",
         "starboard/renderer_factory_traits.h",
         "starboard/starboard_renderer_config.cc",
         "starboard/starboard_renderer_config.h",

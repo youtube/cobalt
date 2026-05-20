@@ -21,6 +21,7 @@
 #include "media/base/media_resource.h"
 #include "media/base/video_frame.h"
 #include "media/mojo/clients/mojo_renderer.h"
+#include "media/mojo/clients/starboard/direct_renderer.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -34,7 +35,8 @@ namespace media {
 StarboardRendererClient::StarboardRendererClient(
     const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
     std::unique_ptr<MediaLog> media_log,
-    std::unique_ptr<MojoRenderer> mojo_renderer,
+    std::unique_ptr<media::Renderer> renderer,
+    bool use_direct_renderer,
     std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
     VideoRendererSink* video_renderer_sink,
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
@@ -46,7 +48,8 @@ StarboardRendererClient::StarboardRendererClient(
     RequestOverlayInfoCB request_overlay_info_cb
 #endif  // BUILDFLAG(IS_ANDROID)
     )
-    : MojoRendererWrapper(std::move(mojo_renderer)),
+    : renderer_(std::move(renderer)),
+      use_direct_renderer_(use_direct_renderer),
       media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
       video_overlay_factory_(std::move(video_overlay_factory)),
@@ -77,6 +80,19 @@ StarboardRendererClient::~StarboardRendererClient() {
     overlay_info_requested_ = false;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  if (use_direct_renderer_ && renderer_) {
+    static_cast<DirectRenderer*>(renderer_.get())->ClearDirectClient();
+  }
+
+  if (renderer_) {
+    media_task_runner_->DeleteSoon(FROM_HERE, std::move(renderer_));
+  }
+}
+
+base::WeakPtr<StarboardRendererClient> StarboardRendererClient::GetWeakPtr() {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  return weak_factory_.GetWeakPtr();
 }
 
 void StarboardRendererClient::Initialize(MediaResource* media_resource,
@@ -87,6 +103,11 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
 
   client_ = client;
   init_cb_ = std::move(init_cb);
+
+  if (use_direct_renderer_) {
+    renderer_->Initialize(media_resource, this, std::move(init_cb_));
+    return;
+  }
 
   DCHECK(!AreMojoPipesConnected());
   InitAndBindMojoRenderer(base::BindOnce(
@@ -104,7 +125,38 @@ void StarboardRendererClient::StartPlayingFrom(base::TimeDelta time) {
     base::AutoLock auto_lock(lock_);
     next_video_frame_.reset();
   }
-  MojoRendererWrapper::StartPlayingFrom(time);
+  renderer_->StartPlayingFrom(time);
+}
+
+void StarboardRendererClient::SetCdm(CdmContext* cdm_context,
+                                     CdmAttachedCB cdm_attached_cb) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_->SetCdm(cdm_context, std::move(cdm_attached_cb));
+}
+
+void StarboardRendererClient::SetLatencyHint(
+    std::optional<base::TimeDelta> latency_hint) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_->SetLatencyHint(latency_hint);
+}
+
+void StarboardRendererClient::Flush(base::OnceClosure flush_cb) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_->Flush(std::move(flush_cb));
+}
+
+void StarboardRendererClient::SetPlaybackRate(double playback_rate) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_->SetPlaybackRate(playback_rate);
+}
+
+void StarboardRendererClient::SetVolume(float volume) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_->SetVolume(volume);
+}
+
+base::TimeDelta StarboardRendererClient::GetMediaTime() {
+  return renderer_->GetMediaTime();
 }
 
 RendererType StarboardRendererClient::GetRendererType() {
@@ -213,6 +265,11 @@ void StarboardRendererClient::PaintVideoHoleFrame(const gfx::Size& size) {
   // This could be called from StarboardRenderer
   // before UpdateStarboardRenderingMode(), so this is not
   // required |rendering_mode_| equals to StarboardRenderingMode::kPunchOut.
+  LOG(INFO) << "PaintVideoHoleFrame, factory is null="
+            << (video_overlay_factory_ == nullptr);
+  if (!video_renderer_sink_) {
+    return;
+  }
   video_renderer_sink_->PaintSingleFrame(
       video_overlay_factory_->CreateFrame(size));
 }
@@ -334,7 +391,7 @@ void StarboardRendererClient::InitializeMojoRenderer(
     PipelineStatusCallback init_cb) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   DCHECK(AreMojoPipesConnected());
-  MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+  renderer_->Initialize(media_resource, client, std::move(init_cb));
 }
 
 void StarboardRendererClient::InitAndConstructMojoRenderer(

@@ -22,6 +22,9 @@
 #include "media/base/media_switches.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"  // nogncheck
 #include "media/mojo/services/media_service_factory.h"  // nogncheck
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/direct_renderer_service_factory.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(ENABLE_MOJO_MEDIA_IN_GPU_PROCESS)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)

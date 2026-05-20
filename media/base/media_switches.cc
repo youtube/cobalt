@@ -520,6 +520,10 @@ BASE_FEATURE(kCobaltAudioCaptureFastTrack,
 BASE_FEATURE(kCobaltBypassMojoForMedia,
              "CobaltBypassMojoForMedia",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// Enable DirectRenderer in Cobalt single-process mode.
+BASE_FEATURE(kCobaltUsingDirectRenderer,
+             "CobaltUsingDirectRenderer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

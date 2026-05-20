@@ -39,12 +39,17 @@ class CobaltContentGpuClient : public content::ContentGpuClient {
   void PostCompositorThreadCreated(
       base::SingleThreadTaskRunner* task_runner) override;
   media::VideoGeometrySetterService* GetVideoGeometrySetterService() override;
+  void SetVideoGeometryChangeSubscriberReceiver(
+      mojo::GenericPendingReceiver receiver) override;
+  mojo::GenericPendingReceiver TakeVideoGeometryChangeSubscriberReceiver()
+      override;
 
  private:
   void CreateVideoGeometrySetterService();
 
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
+  mojo::GenericPendingReceiver pending_subscriber_receiver_;
 };
 
 }  // namespace cobalt
