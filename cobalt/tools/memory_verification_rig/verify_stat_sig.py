@@ -451,6 +451,16 @@ def analyze_and_report_metric(metric_name,
   else:
     logging.warning("   ⚠️ CONCLUSION: NOT STATISTICALLY SIGNIFICANT 🔴")
 
+  return {
+      "metric_name": metric_name,
+      "baseline_mean": b_mean,
+      "experiment_mean": e_mean,
+      "mean_reduction_mb": diff,
+      "p_value": p_val,
+      "directional_consistency": "PASS" if directional_sig else "FAIL",
+      "is_significant": stat_sig
+  }
+
 
 def main():
   logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -481,6 +491,10 @@ def main():
       "--enable-granular-memory",
       action="store_true",
       help="Enable detailed Cobalt granular memory metrics collection")
+  parser.add_argument(
+      "--json-results-file",
+      help="Optional output JSON file path to write structured campaign results"
+  )
   parser.add_argument(
       "--port",
       type=int,
@@ -515,6 +529,8 @@ def main():
     active_cuj_keys = list(CUJS.keys())
   else:
     active_cuj_keys = [args.cuj]
+
+  campaign_results = []
 
   # Print overall profiling configuration header
   logging.info("%s", "=" * 80)
@@ -613,8 +629,11 @@ def main():
 
     # 1. Always evaluate System RSS
     if len(baseline_rss) >= 2 and len(experiment_rss) >= 2:
-      analyze_and_report_metric("System RSS Memory (VmRSS/meminfo)",
-                                baseline_rss, experiment_rss)
+      res = analyze_and_report_metric("System RSS Memory (VmRSS/meminfo)",
+                                      baseline_rss, experiment_rss)
+      if res:
+        res["cuj"] = cuj_name
+        campaign_results.append(res)
     else:
       logging.error("❌ Error: Insufficient System RSS data points captured "
                     "to run significance engine.")
@@ -624,13 +643,26 @@ def main():
       b_list = value_list
       e_list = experiment_uma[cat]
       if len(b_list) >= 2 and len(e_list) >= 2:
-        analyze_and_report_metric(
+        res = analyze_and_report_metric(
             f"Granular Allocation: k{cat} (UMA Histogram Sum)", b_list, e_list)
+        if res:
+          res["cuj"] = cuj_name
+          campaign_results.append(res)
 
     logging.info("\n%s", "=" * 80)
     cuj_done = f"🏁 CAMPAIGN FOR {cuj_name} COMPLETE!".center(80)
     logging.info("%s", cuj_done)
     logging.info("%s\n", "=" * 80)
+
+    # Write structured JSON results output if requested
+    if args.json_results_file and campaign_results:
+      try:
+        with open(args.json_results_file, "w", encoding="utf-8") as jf:
+          json.dump(campaign_results, jf, indent=2)
+        logging.info("🟢 Campaign results JSON successfully dumped to: %s",
+                     args.json_results_file)
+      except OSError as e:
+        logging.error("❌ Error: Failed to write structured JSON results: %s", e)
 
 
 if __name__ == "__main__":

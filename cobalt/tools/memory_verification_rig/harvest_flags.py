@@ -28,6 +28,9 @@ TARGET_SOURCE_FILES = [
     "content/public/common/content_features.cc",
     "third_party/blink/common/features.cc",
     "third_party/blink/common/switches.cc",
+    "cobalt/shell/common/shell_switches.cc",
+    "cobalt/browser/switches.cc",
+    "cobalt/browser/features.cc",
 ]
 
 
@@ -44,8 +47,21 @@ def scan_file_for_switches_and_features(file_path):
       content = f.read()
 
       # 1. Parse switches: const char kName[] = "switch-string";
-      switch_pattern = r'const char k[A-Za-z0-9_]+\[\]\s*=\s*"([^"]+)";'
-      switches = re.findall(switch_pattern, content)
+      # Captures both variable name and string switch value for filtering
+      switch_pattern = r'const char (k[A-Za-z0-9_]+)\[\]\s*=\s*"([^"]+)";'
+      raw_switches = re.findall(switch_pattern, content)
+      for var_name, switch_val in raw_switches:
+        # A. Ignore purely numeric values (e.g. 0, 1)
+        if switch_val.isdigit():
+          continue
+        # B. Ignore constant switch values (containing underscore '_')
+        if "_" in var_name:
+          continue
+        # C. Require standard switches structure (contains at least one
+        # hyphen '-')
+        if "-" not in switch_val:
+          continue
+        switches.append(switch_val)
 
       # 2. Parse features: BASE_FEATURE(kName, "FeatureName", ...)
       feature_pattern = r'BASE_FEATURE\(k[A-Za-z0-9_]+,\s*"([^"]+)"'
