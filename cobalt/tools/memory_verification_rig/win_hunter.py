@@ -79,7 +79,7 @@ def run_significance_campaign(args, flag_type, flag_name, results_json):
   try:
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     return res.stdout, res.stderr
-  except Exception as e:  # pylint: disable=broad-exception-caught
+  except OSError as e:
     return "", str(e)
 
 
@@ -113,7 +113,7 @@ def parse_campaign_results(results_json_path):
         "all_metrics":
             campaign_results
     }
-  except Exception as e:  # pylint: disable=broad-exception-caught
+  except (OSError, ValueError, json.JSONDecodeError) as e:
     logging.warning("  ⚠️ Warning: Failed to parse campaign results JSON: %s",
                     e)
   return None
