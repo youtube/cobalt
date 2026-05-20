@@ -393,6 +393,73 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   secondary_player_thread.Join();
 }
 
+TEST_P(SbPlayerWriteSampleTest, VideoCodecSwitching) {
+  if (!GetParam().video_filename || strlen(GetParam().video_filename) == 0) {
+    GTEST_SKIP() << "Audio-only config, skipping video codec switching test.";
+  }
+
+  const char* initial_video_filename = GetParam().video_filename;
+  starboard::VideoDmpReader initial_dmp_reader(
+      initial_video_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  SbMediaVideoCodec initial_codec = initial_dmp_reader.video_codec();
+
+  SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+  if (GetParam().audio_filename && strlen(GetParam().audio_filename) > 0) {
+    starboard::VideoDmpReader audio_dmp_reader(
+        GetParam().audio_filename,
+        starboard::VideoDmpReader::kEnableReadOnDemand);
+    audio_codec = audio_dmp_reader.audio_codec();
+  }
+
+  const char* target_video_filename = nullptr;
+  for (const char* candidate_filename : GetVideoTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaVideoCodec candidate_codec = candidate_reader.video_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.video_mime_type().c_str(),
+              GetParam().key_system) &&
+          IsOutputModeSupported(GetParam().output_mode, audio_codec,
+                                candidate_codec, GetParam().key_system)) {
+        target_video_filename = candidate_filename;
+        break;
+      }
+    }
+  }
+
+  if (!target_video_filename) {
+    GTEST_SKIP()
+        << "Could not find a supported target video codec different from "
+        << initial_codec;
+  }
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  // Write first batch of samples (30 video samples).
+  const int kVideoSamplesToWrite = 30;
+  GroupedSamples samples_part1;
+  samples_part1.AddVideoSamples(0, kVideoSamplesToWrite);
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part1));
+
+  // Switch video dmp reader to target video.
+  player_fixture.SwitchVideoDmp(target_video_filename);
+
+  // Write second batch of samples and EOS.
+  GroupedSamples samples_part2;
+  samples_part2.AddVideoSamples(kVideoSamplesToWrite, kVideoSamplesToWrite);
+  samples_part2.AddVideoEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
 INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
                          SbPlayerWriteSampleTest,
                          ValuesIn(GetAllPlayerTestConfigs()),

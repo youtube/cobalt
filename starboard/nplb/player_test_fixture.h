@@ -88,6 +88,7 @@ class SbPlayerTestFixture {
   int64_t GetCurrentMediaTime() const;
 
   void SetAudioWriteDuration(int64_t duration);
+  void SwitchVideoDmp(const char* new_video_filename);
 
   SbPlayer GetPlayer() const { return player_; }
   bool HasAudio() const { return audio_dmp_reader_ != nullptr; }

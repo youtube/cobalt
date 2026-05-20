@@ -360,6 +360,14 @@ void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
   audio_write_duration_ = duration;
 }
 
+void SbPlayerTestFixture::SwitchVideoDmp(const char* new_video_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(video_dmp_reader_);
+  SB_DCHECK(new_video_filename && strlen(new_video_filename) > 0);
+  video_dmp_reader_.reset(new VideoDmpReader(
+      new_video_filename, VideoDmpReader::kEnableReadOnDemand));
+}
+
 int64_t SbPlayerTestFixture::GetAudioSampleTimestamp(int index) const {
   SB_DCHECK(HasAudio());
   SB_DCHECK(static_cast<size_t>(index) <
