@@ -20,10 +20,10 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/experimental/media_buffer_pool_bidirectional_reuse_allocator.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
-#include "starboard/common/reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/media.h"
 
 namespace media {
@@ -63,7 +63,7 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
 
   StarboardMemoryAllocator audio_fallback_allocator_;
   starboard::BidirectionalFitReuseAllocator<
-      starboard::InPlaceReuseAllocatorBase>
+      starboard::EmbeddedMetadataReuseAllocatorBase>
       audio_allocator_;
 
   // TODO(b/369245553): Consider using a small in-memory pool (e.g. 10 MBytes),

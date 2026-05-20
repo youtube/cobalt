@@ -26,10 +26,10 @@
 #include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
-#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
@@ -37,11 +37,11 @@ namespace media {
 
 namespace {
 
-// The current default AllocatorStrategy is InPlaceReuseAllocatorBase.
+// The current default AllocatorStrategy is EmbeddedMetadataReuseAllocatorBase.
 // To see more context as to why this is the case, see b/487332929.
 using DefaultReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
-        starboard::InPlaceReuseAllocatorBase>;
+        starboard::EmbeddedMetadataReuseAllocatorBase>;
 using starboard::experimental::MediaBufferPool;
 
 const char* ToString(bool value) {

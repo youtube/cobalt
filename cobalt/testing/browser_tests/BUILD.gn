@@ -232,6 +232,7 @@ test("cobalt_browsertests") {
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
+    "granular_memory_browsertest.cc",
     "navigation_browsertest.cc",
 
     #"session_history_browsertest.cc",
@@ -347,6 +348,7 @@ test("cobalt_browsertests") {
     "//services/network:test_support",
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//services/service_manager/public/cpp",
     "//services/tracing:privacy_check",
     "//services/video_capture/public/cpp",

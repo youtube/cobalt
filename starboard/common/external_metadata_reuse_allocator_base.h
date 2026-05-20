@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2014 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_
-#define STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_
+#ifndef STARBOARD_COMMON_EXTERNAL_METADATA_REUSE_ALLOCATOR_BASE_H_
+#define STARBOARD_COMMON_EXTERNAL_METADATA_REUSE_ALLOCATOR_BASE_H_
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <map>
 #include <set>
 #include <vector>
@@ -32,11 +31,12 @@ namespace starboard {
 // TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
 //                             enabled.
 
-// The base class of memory-pool based allocators, where the underlying memory
-// pool can be efficiently and safely accessed by the CPU, so the allocation
-// metadata can be kept alongside the allocated memory.  It is passed a fallback
-// allocator that it can request additional memory from as needed.
-class InPlaceReuseAllocatorBase : public Allocator {
+// The base class of allocators designed to accommodate cases where the memory
+// allocated may not be efficient or safe to access via the CPU.  It solves
+// this problem by maintaining all allocation meta data is outside of the
+// allocated memory.  It is passed a fallback allocator that it can request
+// additional memory from as needed.
+class ExternalMetadataReuseAllocatorBase : public Allocator {
  public:
   void* Allocate(size_t size) override;
   void* Allocate(size_t size, size_t alignment) override;
@@ -44,12 +44,11 @@ class InPlaceReuseAllocatorBase : public Allocator {
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
-  size_t GetCapacity() const override { return capacity_in_bytes_; }
-  size_t GetAllocated() const override { return total_allocated_in_bytes_; }
+  size_t GetCapacity() const override { return capacity_; }
+  size_t GetAllocated() const override { return total_allocated_; }
 
   bool CapacityExceeded() const {
-    return max_capacity_in_bytes_ &&
-           (capacity_in_bytes_ > max_capacity_in_bytes_);
+    return max_capacity_ && (capacity_ > max_capacity_);
   }
 
   void PrintAllocations(bool align_allocated_size,
@@ -57,32 +56,18 @@ class InPlaceReuseAllocatorBase : public Allocator {
 
   bool TryFree(void* memory);
 
-  size_t max_capacity() const { return max_capacity_in_bytes_; }
+  size_t max_capacity() const { return max_capacity_; }
 
  protected:
-  // The metadata of an allocated block stored at the very beginning of the
-  // block when it's allocated.  It natually maintains a double linked list to
-  // allow traverse through all allocated blocks.
-  struct BlockMetadata {
-    const InPlaceReuseAllocatorBase* signature;
-    intptr_t fallback_index;
-    intptr_t size;
-    BlockMetadata* previous;
-    BlockMetadata* next;
-  };
-
   class MemoryBlock {
    public:
     MemoryBlock() = default;
-    MemoryBlock(intptr_t fallback_allocation_index, void* address, size_t size)
+    MemoryBlock(int fallback_allocation_index, void* address, size_t size)
         : fallback_allocation_index_(fallback_allocation_index),
           address_(address),
           size_(size) {}
     ~MemoryBlock() { SB_DCHECK_GE(fallback_allocation_index_, 0); }
 
-    intptr_t fallback_allocation_index() const {
-      return fallback_allocation_index_;
-    }
     void* address() const {
       SB_DCHECK_GE(fallback_allocation_index_, 0);
       return address_;
@@ -125,7 +110,9 @@ class InPlaceReuseAllocatorBase : public Allocator {
                   MemoryBlock* free) const;
 
    private:
-    intptr_t fallback_allocation_index_ = -1;
+    // TODO: b/369245553 - Cobalt: Optimize memory usage for bookkeeping
+    // as there can be ~8000 or more allocations during playback.
+    int fallback_allocation_index_ = -1;
     void* address_ = nullptr;
     size_t size_ = 0;
   };
@@ -133,12 +120,12 @@ class InPlaceReuseAllocatorBase : public Allocator {
   // Freelist sorted by address.
   typedef std::set<MemoryBlock> FreeBlockSet;
 
-  InPlaceReuseAllocatorBase(Allocator* fallback_allocator,
-                            size_t initial_capacity,
-                            size_t allocation_increment,
-                            size_t max_capacity,
-                            bool enable_decommit_on_idle);
-  ~InPlaceReuseAllocatorBase() override;
+  ExternalMetadataReuseAllocatorBase(Allocator* fallback_allocator,
+                                     size_t initial_capacity,
+                                     size_t allocation_increment,
+                                     size_t max_capacity,
+                                     bool enable_decommit_on_idle);
+  ~ExternalMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
   // class which free block to take.  It returns |end| if no suitable free
@@ -157,24 +144,19 @@ class InPlaceReuseAllocatorBase : public Allocator {
   struct FallbackAllocation {
     void* address;
     size_t size;
-
-    FallbackAllocation(void* addr, size_t s) : address(addr), size(s) {}
   };
+
+  // Map from pointers we returned to the user, back to memory blocks.
+  typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
 
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
 
-  void AddAllocatedBlock(const MemoryBlock& block);
+  void AddAllocatedBlock(void* address, const MemoryBlock& block);
   FreeBlockSet::iterator AddFreeBlock(MemoryBlock block_to_add);
   void RemoveFreeBlock(FreeBlockSet::iterator it);
 
-  BlockMetadata* allocated_block_head_ = nullptr;
+  AllocatedBlockMap allocated_blocks_;
   FreeBlockSet free_blocks_;
-
-  // The free operations are batched, so it can be freed by discarding all
-  // allocated blocks (i.e. setting `allocated_block_head_` to nullptr) when all
-  // blocks are freed.  This is much faster than individually freeing thousands
-  // of blocks.
-  std::vector<void*> pending_frees_;
 
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
@@ -183,7 +165,7 @@ class InPlaceReuseAllocatorBase : public Allocator {
 
   // If non-zero, this is an upper bound on how large we will let the capacity
   // expand.
-  const size_t max_capacity_in_bytes_;
+  const size_t max_capacity_;
 
   // Whether to decommit memory when the pool becomes idle.
   const bool enable_decommit_on_idle_ = false;
@@ -193,15 +175,12 @@ class InPlaceReuseAllocatorBase : public Allocator {
   std::vector<FallbackAllocation> fallback_allocations_;
 
   // How much we have allocated from the fallback allocator.
-  size_t capacity_in_bytes_ = 0;
+  size_t capacity_;
 
-  // How many bytes has been allocated from us.
-  size_t total_allocated_in_bytes_ = 0;
-
-  // How many allocations has been allocated from us.
-  size_t total_allocated_blocks_ = 0;
+  // How much has been allocated from us.
+  size_t total_allocated_;
 };
 
 }  // namespace starboard
 
-#endif  // STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_
+#endif  // STARBOARD_COMMON_EXTERNAL_METADATA_REUSE_ALLOCATOR_BASE_H_
