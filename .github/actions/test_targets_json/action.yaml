@@ -24,7 +24,7 @@ runs:
         echo "on_host_browsertest_targets=${on_host_browsertest_targets}" >> $GITHUB_OUTPUT
 
         # Combine host targets (GN targets)
-        on_host_targets=$(jq -cn --argjson a "${on_host_gunit_targets}" --argjson b "${on_host_junit_targets}" --argjson c "${on_host_browsertest_targets}" '$a + $b + $c')
+        on_host_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
         echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
@@ -46,7 +46,7 @@ runs:
         echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
 
         # Combine device targets (GN targets)
-        on_device_targets=$(jq -cn --argjson a "${on_device_gunit_targets}" --argjson b "${on_device_browsertest_targets}" '$a + $b')
+        on_device_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
         echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
