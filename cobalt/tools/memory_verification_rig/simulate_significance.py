@@ -13,67 +13,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Significance Engine Simulator and Statistical Power Analyst for Cobalt."""
-
+# pylint: disable=wrong-import-position
 import argparse
-import math
+import logging
+import os
 import random
+import sys
 
-
-def calculate_stats(data):
-  """Calculates mean and standard deviation of a numeric array."""
-  n = len(data)
-  if n == 0:
-    return 0.0, 0.0
-  mean = sum(data) / n
-  variance = sum((x - mean)**2 for x in data) / max(1, n - 1)
-  std_dev = math.sqrt(variance)
-  return mean, std_dev
-
-
-def permutation_test_p_value(group1, group2, permutations=10000):
-  """Calculates p-value via permutation test."""
-  n1 = len(group1)
-  n2 = len(group2)
-  if n1 == 0 or n2 == 0:
-    return 1.0
-
-  mean1 = sum(group1) / n1
-  mean2 = sum(group2) / n2
-  observed_diff = abs(mean1 - mean2)
-
-  pooled = group1 + group2
-  count = 0
-  for _ in range(permutations):
-    random.shuffle(pooled)
-    perm_g1 = pooled[:n1]
-    perm_g2 = pooled[n1:]
-    perm_diff = abs((sum(perm_g1) / n1) - (sum(perm_g2) / n2))
-    if perm_diff >= observed_diff:
-      count += 1
-  return count / permutations
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from stats_utils import calculate_stats, permutation_test_p_value
 
 
 def run_simulation(case_name, baseline, experiment, sig_threshold=0.05):
   """Simulates a single significance testing case."""
-  b_mean, b_std = calculate_stats(baseline)
-  e_mean, e_std = calculate_stats(experiment)
+  b_mean, _, b_std = calculate_stats(baseline)
+  e_mean, _, e_std = calculate_stats(experiment)
   diff = b_mean - e_mean
 
   p_val = permutation_test_p_value(baseline, experiment)
   is_sig = p_val < sig_threshold
 
-  print(f"🔬 SIMULATION CASE: {case_name}")
-  print("-" * 55)
+  logging.info("🔬 SIMULATION CASE: %s", case_name)
+  logging.info("%s", "-" * 55)
   b_fmt = [f"{x:.2f}" for x in baseline]
   e_fmt = [f"{x:.2f}" for x in experiment]
-  print(f"   • Baseline:   {b_fmt} (Mean: {b_mean:.2f}, StdDev: {b_std:.2f})")
-  print(f"   • Experiment: {e_fmt} (Mean: {e_mean:.2f}, StdDev: {e_std:.2f})")
-  print(f"   • Difference: {diff:.2f} MB "
-        f"(Reduction: {(diff / b_mean) * 100.0:.1f}%)")
-  print(f"   • p-value:    {p_val:.4f}")
+  logging.info("   • Baseline:   %s (Mean: %.2f, StdDev: %.2f)", b_fmt, b_mean,
+               b_std)
+  logging.info("   • Experiment: %s (Mean: %.2f, StdDev: %.2f)", e_fmt, e_mean,
+               e_std)
+  logging.info("   • Difference: %.2f MB (Reduction: %.1f%%)", diff,
+               (diff / b_mean) * 100.0 if b_mean > 0 else 0.0)
+  logging.info("   • p-value:    %.4f", p_val)
   conclusion = "STATISTICALLY SIGNIFICANT" if is_sig else "NOT SIGNIFICANT"
-  print(f"   📢 CONCLUSION: {conclusion}")
-  print("=" * 55 + "\n")
+  logging.info("   📢 CONCLUSION: %s", conclusion)
+  logging.info("%s\n", "=" * 55)
   return is_sig
 
 
@@ -92,9 +65,11 @@ def run_aa_calibration(n_runs=5,
                        std_dev=5.0,
                        alpha=0.05):
   """Runs A/A calibration to ensure false positive rate matches Alpha."""
-  print(f"⚡ RUNNING A/A CALIBRATION (Iterations={iterations}, N={n_runs})")
-  print(f"   Parameters: Normal (Mean={mean} MB, StdDev={std_dev} MB)")
-  print("   Evaluating false positive rate under identical configs...")
+  logging.info("⚡ RUNNING A/A CALIBRATION (Iterations=%s, N=%s)", iterations,
+               n_runs)
+  logging.info("   Parameters: Normal (Mean=%.1f MB, StdDev=%.1f MB)", mean,
+               std_dev)
+  logging.info("   Evaluating false positive rate under identical configs...")
 
   false_positives = 0
   for _ in range(iterations):
@@ -105,19 +80,22 @@ def run_aa_calibration(n_runs=5,
       false_positives += 1
 
   fp_rate = (false_positives / iterations) * 100.0
-  print("-" * 55)
-  print(f"   • Total False Positives (p < {alpha}): "
-        f"{false_positives} out of {iterations}")
-  print(f"   • Empirical False Positive Rate:      {fp_rate:.1f}% "
-        f"(Expected: ~{alpha * 100.0:.1f}%)")
+  logging.info("%s", "-" * 55)
+  logging.info("   • Total False Positives (p < %s): %s out of %s", alpha,
+               false_positives, iterations)
+  logging.info(
+      "   • Empirical False Positive Rate:      %.1f%% "
+      "(Expected: ~%.1f%%)", fp_rate, alpha * 100.0)
   if abs(fp_rate - alpha * 100.0) <= 3.0:
-    print("   🟢 CALIBRATION SUCCESSFUL: perfectly calibrated! 🟢")
+    logging.info("   🟢 CALIBRATION SUCCESSFUL: perfectly calibrated! 🟢")
   else:
-    print("   ⚠️ CALIBRATION WARNING: empirical rate deviates from Alpha.")
-  print("=" * 55 + "\n")
+    logging.info(
+        "   ⚠️ CALIBRATION WARNING: empirical rate deviates from Alpha.")
+  logging.info("%s\n", "=" * 55)
 
 
 def main():
+  logging.basicConfig(level=logging.INFO, format="%(message)s")
   parser = argparse.ArgumentParser(
       description="Significance Engine Simulator & Power Analyst")
   parser.add_argument(
@@ -129,9 +107,9 @@ def main():
       help="Number of simulator iterations")
   args = parser.parse_args()
 
-  print("=" * 55)
-  print("📊 RUNNING HYPOTHESIS TESTING SIMULATOR")
-  print("=" * 55 + "\n")
+  logging.info("%s", "=" * 55)
+  logging.info("📊 RUNNING HYPOTHESIS TESTING SIMULATOR")
+  logging.info("%s\n", "=" * 55)
 
   # Case 1: Small memory win with moderate variance (Expected: NOT SIGNIFICANT)
   b1 = [275.5, 278.1, 272.9, 276.4, 274.8]

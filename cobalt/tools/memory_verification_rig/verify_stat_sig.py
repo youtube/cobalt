@@ -100,7 +100,7 @@ def launch_app(device, package, activity, args, platform, bin_path=None):
     run_command(cmd, shell=True)
   elif platform == "linux":
     flags = args.split()
-    cmd = [bin_path] + flags
+    cmd = [bin_path] + flags + [package]
     proc_log_f = open("/tmp/cobalt_process.log", "a", encoding="utf-8")  # pylint: disable=consider-using-with
     # pylint: disable=consider-using-with
     proc = subprocess.Popen(cmd, stdout=proc_log_f, stderr=proc_log_f)
@@ -143,6 +143,7 @@ def parse_uma_sum_metric(json_file, metric_name):
   """Safely extracts the sum field from the scraped UMA histogram JSON."""
   if not os.path.exists(json_file):
     return None
+  memory_keys = ["AllocationVolume", "PrivateMemoryFootprint", "Resident"]
   try:
     with open(json_file, "r", encoding="utf-8") as f:
       for line in f:
@@ -150,10 +151,29 @@ def parse_uma_sum_metric(json_file, metric_name):
           parts = line.split(",", 2)
           if len(parts) > 2:
             data = json.loads(parts[2])
-            if "result" in data and "histogram" in data["result"]:
-              hist = data["result"]["histogram"]
-              if "sum" in hist:
-                return float(hist["sum"]) / 1024.0  # Convert KB to MB!
+            if "result" not in data:
+              continue
+
+            # 1. Handle plural "histograms" list format
+            if "histograms" in data["result"]:
+              hists = data["result"]["histograms"]
+              for h in hists:
+                if "name" in h and h["name"] == metric_name:
+                  if "sum" in h:
+                    val = float(h["sum"])
+                    # Scale memory metrics from KB to MB, other metrics unscaled
+                    if any(k in metric_name for k in memory_keys):
+                      return val / 1024.0
+                    return val
+
+            # 2. Handle singular "histogram" dictionary format
+            elif "histogram" in data["result"]:
+              h = data["result"]["histogram"]
+              if "sum" in h:
+                val = float(h["sum"])
+                if any(k in metric_name for k in memory_keys):
+                  return val / 1024.0
+                return val
   except FileNotFoundError:
     print(f"  ⚠️ Warning: Metric JSON file not found: {json_file}")
   except json.JSONDecodeError:
@@ -163,8 +183,17 @@ def parse_uma_sum_metric(json_file, metric_name):
   return None
 
 
-def execute_profiling_run(device, package, activity, args, duration, run_id,
-                          tmp_json, histograms_txt, platform, bin_path):
+def execute_profiling_run(device,
+                          package,
+                          activity,
+                          args,
+                          duration,
+                          run_id,
+                          tmp_json,
+                          histograms_txt,
+                          platform,
+                          bin_path,
+                          is_scrolling_active=True):
   """Performs a single end-to-end benchmark run and scrapes RSS & UMA."""
   print(f"  [Run {run_id}] Stopping package/process...")
   force_stop_app(device, package, platform)
@@ -192,23 +221,25 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
     ])
     time.sleep(1)
 
-  # Launch background raw-websocket CDP page scroller
-  scroller_path = ("/usr/local/google/home/avvall/.gemini/jetski/brain/"
-                   "96924887-023d-426a-97ce-fac86505b533/scratch/scroll_cdp.py")
-  scroll_cmd = [
-      "python3", scroller_path, "--port=9222", f"--duration={duration - 8}",
-      "--interval=1.5"
-  ]
+  # Launch background raw-websocket CDP page scroller if scrolling is active
   scroll_proc = None
-  try:
-    # pylint: disable=consider-using-with
-    scroll_proc = subprocess.Popen(
-        scroll_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    print(f"  ⚠️ Warning: Failed to start background scroller: {e}")
+  if is_scrolling_active:
+    scroller_path = (
+        "/usr/local/google/home/avvall/.gemini/jetski/brain/"
+        "96924887-023d-426a-97ce-fac86505b533/scratch/scroll_cdp.py")
+    scroll_cmd = [
+        "python3", scroller_path, "--port=9222", f"--duration={duration - 8}",
+        "--interval=1.5"
+    ]
+    try:
+      # pylint: disable=consider-using-with
+      scroll_proc = subprocess.Popen(
+          scroll_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+      print(f"  [Run {run_id}] Actively scrolling page for {duration - 8}s "
+            f"to trigger offscreen thumbnail decodes...")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(f"  ⚠️ Warning: Failed to start background scroller: {e}")
 
-  print(f"  [Run {run_id}] Actively scrolling page for {duration - 8}s "
-        f"to trigger offscreen thumbnail decodes...")
   time.sleep(duration - 8)
 
   # Terminate background scroller cleanly
@@ -266,8 +297,50 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
       except ProcessLookupError:
         pass
 
+  # Check if UMA was successfully captured via CDP.
+  # If not, or if file is empty, fallback to parsing C++ process logs
+  uma_captured = False
   if os.path.exists(tmp_json) and os.path.getsize(tmp_json) > 0:
-    uma_captured = True
+    with open(tmp_json, "r", encoding="utf-8") as jf:
+      content = jf.read()
+      if '"histogram"' in content or '"histograms"' in content:
+        uma_captured = True
+
+  if not uma_captured:
+    # Fallback: Parse C++ process logs directly
+    process_log = "/tmp/cobalt_process.log"
+    if os.path.exists(process_log):
+      try:
+        parsed_uma = {}
+        with open(process_log, "r", encoding="utf-8") as lf:
+          for line in lf:
+            if "[UMA DIAGNOSTIC]" in line:
+              parts = line.split("[UMA DIAGNOSTIC]")[-1].strip().split("|")
+              category = None
+              bytes_val = 0
+              for part in parts:
+                part = part.strip()
+                if part.startswith("Category:"):
+                  category = part.split("Category:")[-1].strip()
+                elif part.startswith("Raw Allocated Bytes:"):
+                  val_str = part.split("Raw Allocated Bytes:")[-1].strip()
+                  bytes_val = int(val_str)
+              if category:
+                parsed_uma[category] = bytes_val
+
+        if parsed_uma:
+          with open(tmp_json, "w", encoding="utf-8") as jf:
+            for cat, bytes_val in parsed_uma.items():
+              val_kb = bytes_val / 1024.0
+              cdp_json = (f'{{"id": 999, "result": '
+                          f'{{"histogram": {{"sum": {val_kb}}}}}}}')
+              cdp_line = (
+                  f"2026-05-20 05:00:00,Memory.Cobalt.AllocationVolume.{cat},"
+                  f"{cdp_json}\n")
+              jf.write(cdp_line)
+          uma_captured = True
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"  ⚠️ Warning: Failed to parse C++ process logs fallback: {e}")
 
   print(f"  [Run {run_id}] System RSS: {rss_mb:.2f} MB"
         if rss_mb else f"  [Run {run_id}] System RSS: FAILED")
@@ -361,6 +434,16 @@ def analyze_and_report_metric(metric_name,
   else:
     print("   ⚠️ CONCLUSION: NOT STATISTICALLY SIGNIFICANT 🔴")
 
+  return {
+      "metric_name": metric_name,
+      "baseline_mean": b_mean,
+      "experiment_mean": e_mean,
+      "mean_reduction_mb": diff_mb,
+      "p_value": p_val,
+      "directional_consistency": "PASS" if directional_sig else "FAIL",
+      "is_significant": stat_sig
+  }
+
 
 def main():
   parser = argparse.ArgumentParser(
@@ -381,11 +464,25 @@ def main():
   parser.add_argument(
       "--duration", type=int, default=60, help="Watch CUJ duration in seconds")
   parser.add_argument(
+      "--cuj",
+      default="all",
+      choices=["all", "browse", "watch", "baseline", "combined"],
+      help="Specific CUJ scenario to execute (default: all)")
+  parser.add_argument(
       "--package", default="dev.cobalt.coat", help="Android Package name")
   parser.add_argument(
       "--activity",
       default="dev.cobalt.app.MainActivity",
       help="Android Activity name")
+  parser.add_argument(
+      "--port",
+      type=int,
+      default=9222,
+      help="CDP port for DevTools remote debugging")
+  parser.add_argument(
+      "--enable-granular-memory",
+      action="store_true",
+      help="Enable scraping granular memory allocation volume statistics")
 
   parser.add_argument(
       "--baseline-args",
@@ -399,8 +496,14 @@ def main():
       "--force-enable-metrics-reporting,--remote-debugging-port=9222,"
       "--enable-low-end-device-mode,--memory-metrics-interval=30",
       help="Experiment launch arguments comma-separated list")
+  parser.add_argument(
+      "--json-results-file",
+      help="Optional output JSON file path to write structured campaign results"
+  )
 
   args = parser.parse_args()
+
+  campaign_results = []
 
   if args.runs < 3:
     print("⚠️ Warning: N < 3 runs is statistically too small "
@@ -414,48 +517,52 @@ def main():
   print(f"   Detected Repo Root: {REPO_ROOT}")
   print("=" * 60)
 
-  baseline_rss = []
-  experiment_rss = []
+  # Define structured dictionary mapping of the 4 Critical User Journeys
+  cujs = {
+      "browse": {
+          "name": "1. BROWSE CUJ (Randomized UI Navigation)",
+          "url": "https://www.youtube.com/tv",
+          "scrolling": True
+      },
+      "watch": {
+          "name": "2. WATCH CUJ (Direct Video Playback)",
+          "url": "https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g",
+          "scrolling": False
+      },
+      "baseline": {
+          "name": "3. BASELINE CUJ (Idle about:blank)",
+          "url": "about:blank",
+          "scrolling": False
+      },
+      "combined": {
+          "name": "4. COMBINED CUJ (Watch Playback + UI Browse)",
+          "url": "https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g",
+          "scrolling": True
+      }
+  }
 
-  # Granular UMA databases
-  baseline_uma = {
-      "Media": [],
-      "Graphics": [],
-      "Script": [],
-      "Unknown": [],
-      "GraphicsCanvas": [],
-      "GraphicsCompositor": [],
-      "GraphicsGlyphs": [],
-      "ScriptHeap": [],
-      "ScriptJIT": [],
-      "ScriptBindings": [],
-      "NetworkLoader": [],
-      "NetworkCache": [],
-      "BlinkDOM": [],
-      "BlinkStyle": [],
-      "BlinkParser": [],
-      "PlatformIPC": [],
-      "PlatformStarboard": []
-  }
-  experiment_uma = {
-      "Media": [],
-      "Graphics": [],
-      "Script": [],
-      "Unknown": [],
-      "GraphicsCanvas": [],
-      "GraphicsCompositor": [],
-      "GraphicsGlyphs": [],
-      "ScriptHeap": [],
-      "ScriptJIT": [],
-      "ScriptBindings": [],
-      "NetworkLoader": [],
-      "NetworkCache": [],
-      "BlinkDOM": [],
-      "BlinkStyle": [],
-      "BlinkParser": [],
-      "PlatformIPC": [],
-      "PlatformStarboard": []
-  }
+  scenarios_to_run = []
+  if args.cuj == "all":
+    scenarios_to_run = ["browse", "watch", "baseline", "combined"]
+  else:
+    scenarios_to_run = [args.cuj]
+
+  # Format space-separated flags for Linux binary
+  b_args_clean = args.baseline_args.replace(",", " ")
+  e_args_clean = args.experiment_args.replace(",", " ")
+
+  # Dynamically append Port and metrics interval if missing
+  if "--remote-debugging-port" not in b_args_clean:
+    b_args_clean += f" --remote-debugging-port={args.port}"
+  if "--remote-debugging-port" not in e_args_clean:
+    e_args_clean += f" --remote-debugging-port={args.port}"
+  if "--memory-metrics-interval" not in b_args_clean:
+    b_args_clean += " --memory-metrics-interval=30"
+  if "--memory-metrics-interval" not in e_args_clean:
+    e_args_clean += " --memory-metrics-interval=30"
+
+  b_args = b_args_clean
+  e_args = e_args_clean
 
   # Safe dynamic temporary file paths
   temp_dir = tempfile.gettempdir()
@@ -481,45 +588,140 @@ def main():
     f.write("Memory.Cobalt.AllocationVolume.BlinkParser\n")
     f.write("Memory.Cobalt.AllocationVolume.PlatformIPC\n")
     f.write("Memory.Cobalt.AllocationVolume.PlatformStarboard\n")
+    f.write("GPU.SharedImage.BackingType\n")
+    f.write("Memory.Browser.PrivateMemoryFootprint\n")
+    f.write("Graphics.Smoothness.PercentDroppedFrames3.AllSequences\n")
+    f.write("Graphics.Smoothness.Jank3.AllSequences\n")
+    f.write("Scheduling.Renderer.DrawInterval\n")
     f.write("Playback.DroppedFrames\n")
 
-  # Format space-separated flags for Linux binary
-  b_args = args.baseline_args.replace(",", " ")
-  e_args = args.experiment_args.replace(",", " ")
+  for cuj_key in scenarios_to_run:
+    cuj_info = cujs[cuj_key]
+    cuj_name = cuj_info["name"]
+    cuj_url = cuj_info["url"]
+    is_scrolling = cuj_info["scrolling"]
 
-  print("\n====== SECTION 1/2: BASELINE RUNS ======")
-  for i in range(1, args.runs + 1):
-    rss, uma_active = execute_profiling_run(args.device, args.package,
-                                            args.activity, b_args,
-                                            args.duration, i, tmp_json,
-                                            histograms_txt, args.platform,
-                                            args.bin_path)
-    if rss:
-      baseline_rss.append(rss)
-    if uma_active:
-      for cat, value_list in baseline_uma.items():
-        val = parse_uma_sum_metric(tmp_json,
-                                   f"Memory.Cobalt.AllocationVolume.k{cat}")
-        if val is not None:
-          value_list.append(val)
-    time.sleep(3)
+    target_package = args.package
+    if args.platform == "linux":
+      target_package = cuj_url
 
-  print("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
-  for i in range(1, args.runs + 1):
-    rss, uma_active = execute_profiling_run(args.device, args.package,
-                                            args.activity, e_args,
-                                            args.duration, i, tmp_json,
-                                            histograms_txt, args.platform,
-                                            args.bin_path)
-    if rss:
-      experiment_rss.append(rss)
-    if uma_active:
-      for cat, value_list in experiment_uma.items():
-        val = parse_uma_sum_metric(tmp_json,
-                                   f"Memory.Cobalt.AllocationVolume.k{cat}")
-        if val is not None:
-          value_list.append(val)
-    time.sleep(3)
+    print("\n" + "=" * 60)
+    print(f"🏁 RUNNING SIGNIFICANCE CAMPAIGN: {cuj_name}")
+    print("=" * 60)
+
+    baseline_rss = []
+    experiment_rss = []
+
+    # Granular UMA databases
+    baseline_uma = {
+        "Memory.Cobalt.AllocationVolume.Media": [],
+        "Memory.Cobalt.AllocationVolume.Graphics": [],
+        "Memory.Cobalt.AllocationVolume.Script": [],
+        "Memory.Cobalt.AllocationVolume.Unknown": [],
+        "Memory.Cobalt.AllocationVolume.GraphicsCanvas": [],
+        "Memory.Cobalt.AllocationVolume.GraphicsCompositor": [],
+        "Memory.Cobalt.AllocationVolume.GraphicsGlyphs": [],
+        "Memory.Cobalt.AllocationVolume.ScriptHeap": [],
+        "Memory.Cobalt.AllocationVolume.ScriptJIT": [],
+        "Memory.Cobalt.AllocationVolume.ScriptBindings": [],
+        "Memory.Cobalt.AllocationVolume.NetworkLoader": [],
+        "Memory.Cobalt.AllocationVolume.NetworkCache": [],
+        "Memory.Cobalt.AllocationVolume.BlinkDOM": [],
+        "Memory.Cobalt.AllocationVolume.BlinkStyle": [],
+        "Memory.Cobalt.AllocationVolume.BlinkParser": [],
+        "Memory.Cobalt.AllocationVolume.PlatformIPC": [],
+        "Memory.Cobalt.AllocationVolume.PlatformStarboard": [],
+        "GPU.SharedImage.BackingType": [],
+        "Memory.Browser.PrivateMemoryFootprint": [],
+        "Graphics.Smoothness.PercentDroppedFrames3.AllSequences": [],
+        "Graphics.Smoothness.Jank3.AllSequences": [],
+        "Scheduling.Renderer.DrawInterval": []
+    }
+    experiment_uma = {
+        "Memory.Cobalt.AllocationVolume.Media": [],
+        "Memory.Cobalt.AllocationVolume.Graphics": [],
+        "Memory.Cobalt.AllocationVolume.Script": [],
+        "Memory.Cobalt.AllocationVolume.Unknown": [],
+        "Memory.Cobalt.AllocationVolume.GraphicsCanvas": [],
+        "Memory.Cobalt.AllocationVolume.GraphicsCompositor": [],
+        "Memory.Cobalt.AllocationVolume.GraphicsGlyphs": [],
+        "Memory.Cobalt.AllocationVolume.ScriptHeap": [],
+        "Memory.Cobalt.AllocationVolume.ScriptJIT": [],
+        "Memory.Cobalt.AllocationVolume.ScriptBindings": [],
+        "Memory.Cobalt.AllocationVolume.NetworkLoader": [],
+        "Memory.Cobalt.AllocationVolume.NetworkCache": [],
+        "Memory.Cobalt.AllocationVolume.BlinkDOM": [],
+        "Memory.Cobalt.AllocationVolume.BlinkStyle": [],
+        "Memory.Cobalt.AllocationVolume.BlinkParser": [],
+        "Memory.Cobalt.AllocationVolume.PlatformIPC": [],
+        "Memory.Cobalt.AllocationVolume.PlatformStarboard": [],
+        "GPU.SharedImage.BackingType": [],
+        "Memory.Browser.PrivateMemoryFootprint": [],
+        "Graphics.Smoothness.PercentDroppedFrames3.AllSequences": [],
+        "Graphics.Smoothness.Jank3.AllSequences": [],
+        "Scheduling.Renderer.DrawInterval": []
+    }
+
+    print("\n====== SECTION 1/2: BASELINE RUNS ======")
+    for i in range(1, args.runs + 1):
+      rss, uma_active = execute_profiling_run(args.device, target_package,
+                                              args.activity, b_args,
+                                              args.duration, i, tmp_json,
+                                              histograms_txt, args.platform,
+                                              args.bin_path, is_scrolling)
+      if rss:
+        baseline_rss.append(rss)
+      if uma_active:
+        for metric_name, value_list in baseline_uma.items():
+          val = parse_uma_sum_metric(tmp_json, metric_name)
+          if val is not None:
+            value_list.append(val)
+      time.sleep(3)
+
+    print("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
+    for i in range(1, args.runs + 1):
+      rss, uma_active = execute_profiling_run(args.device, target_package,
+                                              args.activity, e_args,
+                                              args.duration, i, tmp_json,
+                                              histograms_txt, args.platform,
+                                              args.bin_path, is_scrolling)
+      if rss:
+        experiment_rss.append(rss)
+      if uma_active:
+        for metric_name, value_list in experiment_uma.items():
+          val = parse_uma_sum_metric(tmp_json, metric_name)
+          if val is not None:
+            value_list.append(val)
+      time.sleep(3)
+
+    print("\n" + "=" * 60)
+    print(f"📊 SIGNIFICANCE REPORT: {cuj_name}")
+    print("=" * 60)
+
+    # 1. Evaluate System RSS
+    if len(baseline_rss) >= 2 and len(experiment_rss) >= 2:
+      res = analyze_and_report_metric("System RSS Memory (VmRSS/meminfo)",
+                                      baseline_rss, experiment_rss)
+      if res:
+        res["cuj"] = cuj_name
+        campaign_results.append(res)
+    else:
+      print("❌ Error: Insufficient System RSS data points captured "
+            "to run significance engine.")
+
+    # 2. Evaluate Granular UMA categories
+    for metric_name, value_list in baseline_uma.items():
+      b_list = value_list
+      e_list = experiment_uma[metric_name]
+      if len(b_list) >= 2 and len(e_list) >= 2:
+        if sum(b_list) > 0 or sum(e_list) > 0:
+          res = analyze_and_report_metric(f"Metric: {metric_name}", b_list,
+                                          e_list)
+          if res:
+            res["cuj"] = cuj_name
+            campaign_results.append(res)
+
+    print("\n" + "=" * 60)
 
   # Cleanup temporary workspace files
   for f_path in (tmp_json, histograms_txt):
@@ -529,28 +731,16 @@ def main():
       except OSError:
         pass
 
-  print("\n" + "=" * 60)
-  print("📊 SIGNIFICANCE ENGINE STATISTICAL EVALUATION")
-  print("=" * 60)
+  # Write structured JSON results output if requested
+  if args.json_results_file and campaign_results:
+    try:
+      with open(args.json_results_file, "w", encoding="utf-8") as jf:
+        json.dump(campaign_results, jf, indent=2)
+      print(f"🟢 Results JSON dumped to: {args.json_results_file}")
+    except OSError as e:
+      print(f"❌ Error: Failed to write structured JSON results: {e}")
 
-  # 1. Always evaluate System RSS
-  if len(baseline_rss) >= 2 and len(experiment_rss) >= 2:
-    analyze_and_report_metric("System RSS Memory (VmRSS/meminfo)", baseline_rss,
-                              experiment_rss)
-  else:
-    print("❌ Error: Insufficient System RSS data points captured "
-          "to run significance engine.")
-
-  # 2. Auto-detect and evaluate Granular UMA categories
-  for cat, value_list in baseline_uma.items():
-    b_list = value_list
-    e_list = experiment_uma[cat]
-    if len(b_list) >= 2 and len(e_list) >= 2:
-      analyze_and_report_metric(
-          f"Granular Allocation: k{cat} (UMA Histogram Sum)", b_list, e_list)
-
-  print("\n" + "=" * 60)
-  print("🎉 SIGNIFICANCE EVALUATION RUN COMPLETE!")
+  print("\n🎉 ALL CAMPAIGNS VERIFICATION RUN COMPLETE!")
   print("=" * 60 + "\n")
 
 

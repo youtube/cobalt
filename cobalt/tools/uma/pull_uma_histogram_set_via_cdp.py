@@ -127,112 +127,53 @@ def get_websocket_url(platform: str,
                       quiet: bool,
                       device_id: str = None,
                       setup_forward: bool = False):
-  """
-    Connects to the Cobalt DevTools Protocol endpoint to get the WebSocket URL.
-    """
-  if platform == 'android':
-    for i in range(MAX_WEBSOCKET_RETRIES):
-      try:
-        if setup_forward:
-          devs = list(device_utils.DeviceUtils.HealthyDevices())
-          if not devs:
-            _print_q('Error: No healthy Android devices found.', quiet)
-            return None
-          dev = None
-          if device_id:
-            for d in devs:
-              if d.serial == device_id:
-                dev = d
-                break
-          if not dev:
-            dev = devs[0]
-          dev.adb.Forward(
-              f'tcp:{port}',
-              'localabstract:content_shell_devtools_remote',
-              allow_rebind=True)
-          time.sleep(2)
+  """Connects to DevTools Protocol to get Browser WebSocket URL."""
+  if platform == 'android' and setup_forward:
+    try:
+      devs = list(device_utils.DeviceUtils.HealthyDevices())
+      if not devs:
+        _print_q('Error: No healthy Android devices found.', quiet)
+        return None
+      dev = None
+      if device_id:
+        for d in devs:
+          if d.serial == device_id:
+            dev = d
+            break
+      if not dev:
+        dev = devs[0]
+      dev.adb.Forward(
+          f'tcp:{port}',
+          'localabstract:content_shell_devtools_remote',
+          allow_rebind=True)
+      time.sleep(2)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      _print_q(f'Error setting up ADB forward: {e}', quiet)
+      return None
 
-        response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
-        response.raise_for_status()
-        targets = response.json()
-
-        for target in targets:
-          if target.get('type') == 'page' and target.get(
-              'webSocketDebuggerUrl'):
-            if 'splash.html' in target.get('url', ''):
-              continue
-            _print_q(
-                'Found existing tab: ' + target['title'] + ' - ' +
-                target['webSocketDebuggerUrl'], quiet)
-            return target['webSocketDebuggerUrl']
-
-        _print_q(
-            'No suitable existing page found, trying to create a new tab...',
-            quiet)
-        new_tab_url = f'http://{CDP_HOST}:{port}/json/new'
-        new_tab_response = requests.get(new_tab_url, timeout=5)
-        new_tab_response.raise_for_status()
-        new_tab_data = new_tab_response.json()
-        if new_tab_data.get('webSocketDebuggerUrl'):
-          _print_q(
-              'Created new tab: ' + new_tab_data['title'] + ' - ' +
-              new_tab_data['webSocketDebuggerUrl'], quiet)
-          return new_tab_data['webSocketDebuggerUrl']
-
-        raise RuntimeError(
-            'Could not find or create a suitable WebSocket debugger URL.')
-
-      except requests.exceptions.ConnectionError:
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: ' +
-            f'Connection error to Cobalt on {CDP_HOST}:{port}. Retrying...',
-            quiet)
-      except RuntimeError as e:
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An error occurred ' +
-            f'while getting WebSocket URL: {e}. Retrying...', quiet)
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An unexpected error ' +
-            f'occurred while getting WebSocket URL: {e}. Retrying...', quiet)
-      time.sleep(WEBSOCKET_RETRY_DELAY_S)
-    _print_q('Failed to get WebSocket URL after multiple retries.', quiet)
-    return None
-  elif platform == 'linux':
-    for i in range(MAX_WEBSOCKET_RETRIES):
-      try:
-        response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
-        response.raise_for_status()
-        targets = response.json()
-
-        browser_target = next((t for t in targets if t['type'] == 'browser'),
-                              None)
-        if not browser_target and targets:
-          browser_target = next((t for t in targets if t['type'] == 'page'),
-                                targets[0])
-
-        if browser_target and 'webSocketDebuggerUrl' in browser_target:
-          ws_url = browser_target['webSocketDebuggerUrl']
-          _print_q(f'Found CDP websocket URL: {ws_url}', quiet)
-          return ws_url
-        else:
-          _print_q('Could not find a suitable CDP target.', quiet)
-          if targets:
-            _print_q(f'Available targets: {json.dumps(targets, indent=2)}',
-                     quiet)
-          return None
-      except requests.exceptions.ConnectionError:
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: ' +
-            f'Connection error to Cobalt on {CDP_HOST}:{port}. Retrying...',
-            quiet)
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An unexpected error ' +
-            f'occurred while getting WebSocket URL: {e}. Retrying...', quiet)
-      time.sleep(WEBSOCKET_RETRY_DELAY_S)
-    _print_q('Failed to get WebSocket URL after multiple retries.', quiet)
-    return None
+  for i in range(MAX_WEBSOCKET_RETRIES):
+    try:
+      version_url = f'http://{CDP_HOST}:{port}/json/version'
+      response = requests.get(version_url, timeout=5)
+      response.raise_for_status()
+      data = response.json()
+      if data.get('webSocketDebuggerUrl'):
+        ws_url = data['webSocketDebuggerUrl']
+        _print_q(f'Found Browser Target CDP websocket URL: {ws_url}', quiet)
+        return ws_url
+      else:
+        _print_q('webSocketDebuggerUrl not found in /json/version.', quiet)
+    except requests.exceptions.ConnectionError:
+      _print_q(
+          f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: ' +
+          f'Connection error to Cobalt on {CDP_HOST}:{port}. Retrying...',
+          quiet)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      _print_q(
+          f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An unexpected error ' +
+          f'occurred while getting WebSocket URL: {e}. Retrying...', quiet)
+    time.sleep(WEBSOCKET_RETRY_DELAY_S)
+  _print_q('Failed to get Browser WebSocket URL after multiple retries.', quiet)
   return None
 
 
