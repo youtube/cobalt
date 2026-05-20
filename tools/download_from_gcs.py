@@ -21,6 +21,7 @@ import os
 import shutil
 import stat
 import tempfile
+import subprocess
 try:
   import urllib.request as urllib
 except ImportError:
@@ -56,27 +57,44 @@ def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
   context = create_default_context()
 
+  res = None
   try:
     res = urllib.urlopen(
         url, context=context) if context else urllib.urlopen(url)
   except urllib.URLError:
-    from ssl import _create_unverified_context  # pylint:disable=import-outside-toplevel
-    context = _create_unverified_context()
-    res = urllib.urlopen(
-        url, context=context) if context else urllib.urlopen(url)
+    try:
+      from ssl import _create_unverified_context  # pylint:disable=import-outside-toplevel
+      context = _create_unverified_context()
+      res = urllib.urlopen(
+          url, context=context) if context else urllib.urlopen(url)
+    except urllib.URLError:
+      pass
 
-  if not res:
-    logging.error('Could not reach %s', url)
-    return None
-
-  with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-    shutil.copyfileobj(res, tmp_file)
+  if res and res.getcode() == 200:
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+      shutil.copyfileobj(res, tmp_file)
+  else:
+    logging.info('HTTP download failed or was forbidden, trying gsutil...')
+    tmp_file = tempfile.NamedTemporaryFile(delete=False)
+    tmp_file.close()
+    try:
+      subprocess.check_call(['gsutil', 'cp', f'gs://{bucket}/{sha1}', tmp_file.name])
+    except subprocess.CalledProcessError as e:
+      logging.error('gsutil failed: %s', e)
+      os.unlink(tmp_file.name)
+      return None
+    except OSError as e:
+      logging.error('gsutil not found: %s', e)
+      os.unlink(tmp_file.name)
+      return None
 
   if ExtractSha1(tmp_file.name) != sha1:
     logging.error('Local and remote sha1s do not match. Skipping download.')
+    os.unlink(tmp_file.name)
     return None
 
   return tmp_file
+
 
 
 def MaybeDownloadFileFromGcs(bucket, sha1_file, output_file, force=False):
