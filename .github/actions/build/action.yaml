@@ -111,10 +111,10 @@ runs:
 
 
           test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '
-            (.on_host.unit // []) +
-            (.on_host.junit // []) +
-            (.on_device.unit // []) +
-            (.on_device.browser // [])
+            (.on_host.unit_targets // []) +
+            (.on_host.junit_targets // []) +
+            (.on_device.unit_targets // []) +
+            (.on_device.browser_targets // [])
           ')
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
 

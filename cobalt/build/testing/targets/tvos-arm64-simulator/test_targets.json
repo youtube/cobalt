@@ -1,12 +1,18 @@
 {
-  "test_targets": [
-    "base:base_perftests",
-    "base:base_unittests",
-    "cobalt/testing/browser_tests:cobalt_browsertests"
-  ],
   "TODO(b/507872542)": "Revisit this and determine how we configure tvOS tests.",
-  "executables": [
-    "out/arm64-simulator_devel/bin/base_perftests",
-    "out/arm64-simulator_devel/bin/base_unittests"
-  ]
+  "on_device": {
+    "unit_targets": [
+      "base:base_perftests",
+      "base:base_unittests"
+    ],
+    "unit_executables": [
+      "out/arm64-simulator_devel/bin/base_perftests",
+      "out/arm64-simulator_devel/bin/base_unittests"
+    ],
+    "browser_targets": [
+      "cobalt/testing/browser_tests:cobalt_browsertests"
+    ],
+    "browser_executables": [
+    ]
+  }
 }

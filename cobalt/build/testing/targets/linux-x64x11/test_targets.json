@@ -10,7 +10,7 @@
     "media:media_unittests": "b/453909269 - Fails remotely"
   },
   "on_host": {
-    "unit": [
+    "unit_targets": [
       "base:base_perftests",
       "base:base_unittests",
       "cc:cc_perftests",
@@ -46,8 +46,47 @@
       "url:url_perftests",
       "url:url_unittests"
     ],
-    "browser": [
+    "unit_executables": [
+      "base_perftests",
+      "base_unittests",
+      "cc_perftests",
+      "cc_unittests",
+      "viz_perftests",
+      "viz_unittests",
+      "crypto_unittests",
+      "google_apis_unittests",
+      "gcm_unit_tests",
+      "command_buffer_perftests",
+      "gl_tests",
+      "gpu_perftests",
+      "gpu_unittests",
+      "capture_unittests",
+      "midi_unittests",
+      "mojo_perftests",
+      "mojo_unittests",
+      "skia_unittests",
+      "sql_unittests",
+      "starboard_unittests_wrapper",
+      "nplb",
+      "blink_platform_perftests",
+      "blink_platform_unittests",
+      "blink_heap_unittests",
+      "wtf_unittests",
+      "boringssl_crypto_tests",
+      "boringssl_ssl_tests",
+      "perfetto_unittests",
+      "trace_processor_minimal_smoke_tests",
+      "zlib_unittests",
+      "ozone_unittests",
+      "wm_unittests",
+      "url_perftests",
+      "url_unittests"
+    ],
+    "browser_targets": [
       "cobalt/testing/browser_tests:cobalt_browsertests"
+    ],
+    "browser_executables": [
+      "cobalt_browsertests"
     ]
   }
 }

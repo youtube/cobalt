@@ -1,12 +1,15 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "on_host": {
-    "junit": [
+    "junit_targets": [
       "cobalt/android:cobalt_coat_junit_tests"
+    ],
+    "junit_executables": [
+      "cobalt_coat_junit_tests"
     ]
   },
   "on_device": {
-    "unit": [
+    "unit_targets": [
       "base:base_perftests",
       "base:base_unittests",
       "cobalt:cobalt_unittests",
@@ -33,8 +36,38 @@
       "url:url_perftests",
       "url:url_unittests"
     ],
-    "browser": [
+    "unit_executables": [
+      "base_perftests",
+      "base_unittests",
+      "cobalt_unittests",
+      "media_unittests",
+      "midi_unittests",
+      "mojo_perftests",
+      "mojo_unittests",
+      "net_unittests",
+      "skia_unittests",
+      "sql_unittests",
+      "nplb",
+      "starboard_platform_tests",
+      "blink_unittests",
+      "blink_platform_perftests",
+      "blink_platform_unittests",
+      "blink_heap_perftests",
+      "blink_heap_unittests",
+      "wtf_unittests",
+      "boringssl_crypto_tests",
+      "boringssl_ssl_tests",
+      "perfetto_unittests",
+      "trace_processor_minimal_smoke_tests",
+      "zlib_unittests",
+      "url_perftests",
+      "url_unittests"
+    ],
+    "browser_targets": [
       "cobalt/testing/browser_tests:cobalt_browsertests"
+    ],
+    "browser_executables": [
+      "cobalt_browsertests"
     ]
   }
 }

@@ -1,7 +1,9 @@
 {
-  "test_targets": [
-    ":blink_web_tests"
-  ],
-  "executables": [
-  ]
+  "on_host": {
+    "unit_targets": [
+      ":blink_web_tests"
+    ],
+    "unit_executables": [
+    ]
+  }
 }

@@ -39,7 +39,7 @@ runs:
 
         if [[ -f "${targets_file}" ]]; then
           # Parse JUnit targets (space-separated list)
-          junit_targets=$(jq -cr '.on_host.junit // [] | join(" ")' "${targets_file}")
+          junit_targets=$(jq -cr '.on_host.junit_targets // [] | join(" ")' "${targets_file}")
           echo "junit_targets=${junit_targets}" >> $GITHUB_OUTPUT
           if [[ -n "${junit_targets}" ]]; then
             echo "has_junit=true" >> $GITHUB_OUTPUT
@@ -48,12 +48,7 @@ runs:
           fi
 
           # Parse GTest executables (space-separated list)
-          unit_executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
-          if [[ -n "${unit_executables}" ]]; then
-            executables="${unit_executables}"
-          else
-            executables=$(jq -cr '.on_host.unit // [] | map(. | split(":")[-1]) | join(" ")' "${targets_file}")
-          fi
+          executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
           echo "executables=${executables}" >> $GITHUB_OUTPUT
         else
           echo "has_junit=false" >> $GITHUB_OUTPUT

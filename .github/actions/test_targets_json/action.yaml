@@ -13,19 +13,25 @@ runs:
       run: |
         targets_file="test_targets.json"
 
-        on_host_targets=$(jq -cr '(.on_host.unit // []) + (.on_host.junit // []) + (.on_host.browser // [])' "${targets_file}")
+        on_host_targets=$(jq -cr '(.on_host.unit_targets // []) + (.on_host.junit_targets // []) + (.on_host.browser_targets // [])' "${targets_file}")
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
         echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
-        on_host_gtest_targets=$(jq -cr '(.on_host.unit // []) + (.on_host.browser // [])' "${targets_file}")
+        on_host_gtest_targets=$(jq -cr '(.on_host.unit_targets // []) + (.on_host.browser_targets // [])' "${targets_file}")
         echo "on_host_gtest_targets=${on_host_gtest_targets}" >> $GITHUB_OUTPUT
 
-        on_device_targets=$(jq -cr '(.on_device.unit // []) + (.on_device.browser // [])' "${targets_file}")
+        on_host_executables=$(jq -cr '(.on_host.unit_executables // []) + (.on_host.junit_executables // []) + (.on_host.browser_executables // [])' "${targets_file}")
+        echo "on_host_executables=${on_host_executables}" >> $GITHUB_OUTPUT
+
+        on_device_targets=$(jq -cr '(.on_device.unit_targets // []) + (.on_device.browser_targets // [])' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
         echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
-        on_device_gtest_targets=$(jq -cr '(.on_device.unit // []) + (.on_device.browser // [])' "${targets_file}")
+        on_device_gtest_targets=$(jq -cr '(.on_device.unit_targets // []) + (.on_device.browser_targets // [])' "${targets_file}")
         echo "on_device_gtest_targets=${on_device_gtest_targets}" >> $GITHUB_OUTPUT
+
+        on_device_executables=$(jq -cr '(.on_device.unit_executables // []) + (.on_device.browser_executables // [])' "${targets_file}")
+        echo "on_device_executables=${on_device_executables}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
   on_host_targets:
@@ -34,6 +40,9 @@ outputs:
   on_host_gtest_targets:
     description: The GTest-only host test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_gtest_targets }}
+  on_host_executables:
+    description: The on-host executables in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_executables }}
   on_host_count:
     description: The number of on-host test targets.
     value: ${{ steps.parse-json.outputs.on_host_count }}
@@ -43,6 +52,9 @@ outputs:
   on_device_gtest_targets:
     description: The GTest-only device test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_gtest_targets }}
+  on_device_executables:
+    description: The on-device executables in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_executables }}
   on_device_count:
     description: The number of on-device test targets.
     value: ${{ steps.parse-json.outputs.on_device_count }}
