@@ -44,6 +44,13 @@ def find_repository_root():
 
 REPO_ROOT = find_repository_root()
 
+GRANULAR_METRICS = [
+    "Media", "Graphics", "Script", "Unknown", "GraphicsCanvas",
+    "GraphicsCompositor", "GraphicsGlyphs", "ScriptHeap", "ScriptJIT",
+    "ScriptBindings", "NetworkLoader", "NetworkCache", "BlinkDOM", "BlinkStyle",
+    "BlinkParser", "PlatformIPC", "PlatformStarboard"
+]
+
 
 def run_command(cmd, shell=False, timeout=30):
   """Executes a shell command synchronously with safety timeout limits."""
@@ -428,6 +435,10 @@ def main():
       "--activity",
       default="dev.cobalt.app.MainActivity",
       help="Android Activity name")
+  parser.add_argument(
+      "--enable-granular-memory",
+      action="store_true",
+      help="Enable detailed Cobalt granular memory metrics collection")
 
   parser.add_argument(
       "--baseline-args",
@@ -459,70 +470,23 @@ def main():
   baseline_rss = []
   experiment_rss = []
 
-  # Granular UMA databases
-  baseline_uma = {
-      "Media": [],
-      "Graphics": [],
-      "Script": [],
-      "Unknown": [],
-      "GraphicsCanvas": [],
-      "GraphicsCompositor": [],
-      "GraphicsGlyphs": [],
-      "ScriptHeap": [],
-      "ScriptJIT": [],
-      "ScriptBindings": [],
-      "NetworkLoader": [],
-      "NetworkCache": [],
-      "BlinkDOM": [],
-      "BlinkStyle": [],
-      "BlinkParser": [],
-      "PlatformIPC": [],
-      "PlatformStarboard": []
-  }
-  experiment_uma = {
-      "Media": [],
-      "Graphics": [],
-      "Script": [],
-      "Unknown": [],
-      "GraphicsCanvas": [],
-      "GraphicsCompositor": [],
-      "GraphicsGlyphs": [],
-      "ScriptHeap": [],
-      "ScriptJIT": [],
-      "ScriptBindings": [],
-      "NetworkLoader": [],
-      "NetworkCache": [],
-      "BlinkDOM": [],
-      "BlinkStyle": [],
-      "BlinkParser": [],
-      "PlatformIPC": [],
-      "PlatformStarboard": []
-  }
+  # Granular UMA databases dynamically populated
+  monitored_categories = []
+  if args.enable_granular_memory:
+    monitored_categories = GRANULAR_METRICS
+
+  baseline_uma = {cat: [] for cat in monitored_categories}
+  experiment_uma = {cat: [] for cat in monitored_categories}
 
   # Safe dynamic temporary file paths
   temp_dir = tempfile.gettempdir()
   tmp_json = os.path.join(temp_dir, "tmp_uma.json")
 
-  # Create dynamic target histograms text file
+  # Create dynamic target histograms text file securely
   histograms_txt = os.path.join(temp_dir, "target_histograms.txt")
   with open(histograms_txt, "w", encoding="utf-8") as f:
-    f.write("Memory.Cobalt.AllocationVolume.Media\n")
-    f.write("Memory.Cobalt.AllocationVolume.Graphics\n")
-    f.write("Memory.Cobalt.AllocationVolume.Script\n")
-    f.write("Memory.Cobalt.AllocationVolume.Unknown\n")
-    f.write("Memory.Cobalt.AllocationVolume.GraphicsCanvas\n")
-    f.write("Memory.Cobalt.AllocationVolume.GraphicsCompositor\n")
-    f.write("Memory.Cobalt.AllocationVolume.GraphicsGlyphs\n")
-    f.write("Memory.Cobalt.AllocationVolume.ScriptHeap\n")
-    f.write("Memory.Cobalt.AllocationVolume.ScriptJIT\n")
-    f.write("Memory.Cobalt.AllocationVolume.ScriptBindings\n")
-    f.write("Memory.Cobalt.AllocationVolume.NetworkLoader\n")
-    f.write("Memory.Cobalt.AllocationVolume.NetworkCache\n")
-    f.write("Memory.Cobalt.AllocationVolume.BlinkDOM\n")
-    f.write("Memory.Cobalt.AllocationVolume.BlinkStyle\n")
-    f.write("Memory.Cobalt.AllocationVolume.BlinkParser\n")
-    f.write("Memory.Cobalt.AllocationVolume.PlatformIPC\n")
-    f.write("Memory.Cobalt.AllocationVolume.PlatformStarboard\n")
+    for cat in monitored_categories:
+      f.write(f"Memory.Cobalt.AllocationVolume.{cat}\n")
     f.write("Playback.DroppedFrames\n")
 
   # Format space-separated flags for Linux binary
