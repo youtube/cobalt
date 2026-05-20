@@ -1104,20 +1104,31 @@ jobs:
     steps:
       - name: Verify CI Pipeline Status
         run: |
-          # 1. If upstream CI was safely pruned/skipped, report success immediately.
+          # Print exact results for debugging
+          echo "DEBUG: build result is '${{ needs.build.result }}'"
+          echo "DEBUG: test-results result is '${{ needs.test-results.result }}'"
+          echo "DEBUG: browser-test-results result is '${{ needs.browser-test-results.result }}'"
+
+          # 1. If upstream CI was safely pruned/skipped at the initialization stage, report success immediately.
           if [[ "${{ needs.initialize.outputs.skip_ci }}" == "true" ]]; then
             echo "CI was safely pruned by initialization checks. Gatekeeper passing!"
             exit 0
           fi
 
           # 2. Verify that required upstream jobs succeeded or were safely skipped.
-          # In a multi-platform matrix (e.g., android-x86), test jobs may be disabled, resulting in a 'skipped' result state.
-          # We explicitly allow both 'success' and 'skipped' statuses. Any other state (failure, cancelled, timed_out) is fatal.
+          # We explicitly allow 'success', 'skipped', and empty strings (which GHA may emit for un-triggered conditional jobs).
+          # Any other state (failure, cancelled, timed_out) is fatal.
           for result in "${{ needs.build.result }}" "${{ needs.test-results.result }}" "${{ needs.browser-test-results.result }}"; do
-            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-              echo "::error::A required upstream job failed, timed out, or was cancelled (result: $result)!"
-              exit 1
-            fi
+            trimmed_result=$(echo "$result" | xargs)
+            case "$trimmed_result" in
+              success|skipped|"")
+                echo "Upstream job result '$trimmed_result' is valid."
+                ;;
+              *)
+                echo "::error::A required upstream job failed, timed out, or was cancelled (result: $trimmed_result)!"
+                exit 1
+                ;;
+            esac
           done
         shell: bash
       - name: Restore CI Essentials
