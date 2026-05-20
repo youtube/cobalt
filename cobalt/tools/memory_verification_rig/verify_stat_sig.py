@@ -98,14 +98,12 @@ def launch_app(device, package, activity, args, platform, bin_path=None):
     cmd = (f"adb -s {device} shell \"am start -n {package}/{activity} "
            f"--esa commandLineArgs '{args}'\"")
     run_command(cmd, shell=True)
-    return None
   elif platform == "linux":
-    # Parse space-separated flags safely
     flags = args.split()
     cmd = [bin_path] + flags
+    proc_log_f = open("/tmp/cobalt_process.log", "a", encoding="utf-8")  # pylint: disable=consider-using-with
     # pylint: disable=consider-using-with
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proc = subprocess.Popen(cmd, stdout=proc_log_f, stderr=proc_log_f)
     return proc
   return None
 
@@ -171,6 +169,12 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
   print(f"  [Run {run_id}] Stopping package/process...")
   force_stop_app(device, package, platform)
 
+  if os.path.exists("/tmp/cobalt_process.log"):
+    try:
+      os.remove("/tmp/cobalt_process.log")
+    except OSError:
+      pass
+
   print(f"  [Run {run_id}] Flashing system page caches...")
   flush_system_caches(device, platform)
 
@@ -224,6 +228,12 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
   uma_captured = False
   print(f"  [Run {run_id}] Attempting to pull UMA breakdown metrics...")
 
+  if os.path.exists("/tmp/uma_scraper.log"):
+    try:
+      os.remove("/tmp/uma_scraper.log")
+    except OSError:
+      pass
+
   if os.path.exists(tmp_json):
     try:
       os.remove(tmp_json)
@@ -231,7 +241,7 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
       pass
 
   scrape_cmd = [
-      "python3",
+      "python3", "-u",
       f"{REPO_ROOT}/cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py",
       f"--platform={platform}", f"--device={device}",
       f"--package-name={package}", "--no-manage-cobalt",
@@ -241,10 +251,10 @@ def execute_profiling_run(device, package, activity, args, duration, run_id,
 
   scrape_proc = None
   try:
-    # pylint: disable=consider-using-with
-    scrape_proc = subprocess.Popen(
-        scrape_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(6)
+    with open("/tmp/uma_scraper.log", "a", encoding="utf-8") as log_f:
+      # pylint: disable=consider-using-with
+      scrape_proc = subprocess.Popen(scrape_cmd, stdout=log_f, stderr=log_f)
+      time.sleep(6)
   finally:
     if scrape_proc:
       try:
@@ -379,15 +389,15 @@ def main():
 
   parser.add_argument(
       "--baseline-args",
-      default="--remote-allow-origins=*,--enable-features="
-      "CobaltMemoryAttributionManager",
+      default="--remote-allow-origins=*,--enable-metrics,"
+      "--force-enable-metrics-reporting,--remote-debugging-port=9222,"
+      "--memory-metrics-interval=30",
       help="Baseline launch arguments comma-separated list")
   parser.add_argument(
       "--experiment-args",
-      default="--remote-allow-origins=*,--enable-features="
-      "CobaltMemoryAttributionManager,--mse-video-buffer-size-limit-mb=15,"
-      "--mse-audio-buffer-size-limit-mb=2,--js-flags=--jitless,"
-      "--skia-font-cache-limit-mb=2",
+      default="--remote-allow-origins=*,--enable-metrics,"
+      "--force-enable-metrics-reporting,--remote-debugging-port=9222,"
+      "--enable-low-end-device-mode,--memory-metrics-interval=30",
       help="Experiment launch arguments comma-separated list")
 
   args = parser.parse_args()
@@ -454,23 +464,23 @@ def main():
   # Create dynamic target histograms text file
   histograms_txt = os.path.join(temp_dir, "target_histograms.txt")
   with open(histograms_txt, "w", encoding="utf-8") as f:
-    f.write("Memory.Cobalt.AllocationVolume.kMedia\n")
-    f.write("Memory.Cobalt.AllocationVolume.kGraphics\n")
-    f.write("Memory.Cobalt.AllocationVolume.kScript\n")
-    f.write("Memory.Cobalt.AllocationVolume.kUnknown\n")
-    f.write("Memory.Cobalt.AllocationVolume.kGraphicsCanvas\n")
-    f.write("Memory.Cobalt.AllocationVolume.kGraphicsCompositor\n")
-    f.write("Memory.Cobalt.AllocationVolume.kGraphicsGlyphs\n")
-    f.write("Memory.Cobalt.AllocationVolume.kScriptHeap\n")
-    f.write("Memory.Cobalt.AllocationVolume.kScriptJIT\n")
-    f.write("Memory.Cobalt.AllocationVolume.kScriptBindings\n")
-    f.write("Memory.Cobalt.AllocationVolume.kNetworkLoader\n")
-    f.write("Memory.Cobalt.AllocationVolume.kNetworkCache\n")
-    f.write("Memory.Cobalt.AllocationVolume.kBlinkDOM\n")
-    f.write("Memory.Cobalt.AllocationVolume.kBlinkStyle\n")
-    f.write("Memory.Cobalt.AllocationVolume.kBlinkParser\n")
-    f.write("Memory.Cobalt.AllocationVolume.kPlatformIPC\n")
-    f.write("Memory.Cobalt.AllocationVolume.kPlatformStarboard\n")
+    f.write("Memory.Cobalt.AllocationVolume.Media\n")
+    f.write("Memory.Cobalt.AllocationVolume.Graphics\n")
+    f.write("Memory.Cobalt.AllocationVolume.Script\n")
+    f.write("Memory.Cobalt.AllocationVolume.Unknown\n")
+    f.write("Memory.Cobalt.AllocationVolume.GraphicsCanvas\n")
+    f.write("Memory.Cobalt.AllocationVolume.GraphicsCompositor\n")
+    f.write("Memory.Cobalt.AllocationVolume.GraphicsGlyphs\n")
+    f.write("Memory.Cobalt.AllocationVolume.ScriptHeap\n")
+    f.write("Memory.Cobalt.AllocationVolume.ScriptJIT\n")
+    f.write("Memory.Cobalt.AllocationVolume.ScriptBindings\n")
+    f.write("Memory.Cobalt.AllocationVolume.NetworkLoader\n")
+    f.write("Memory.Cobalt.AllocationVolume.NetworkCache\n")
+    f.write("Memory.Cobalt.AllocationVolume.BlinkDOM\n")
+    f.write("Memory.Cobalt.AllocationVolume.BlinkStyle\n")
+    f.write("Memory.Cobalt.AllocationVolume.BlinkParser\n")
+    f.write("Memory.Cobalt.AllocationVolume.PlatformIPC\n")
+    f.write("Memory.Cobalt.AllocationVolume.PlatformStarboard\n")
     f.write("Playback.DroppedFrames\n")
 
   # Format space-separated flags for Linux binary

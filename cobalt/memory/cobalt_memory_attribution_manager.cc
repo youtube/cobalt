@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/memory/cobalt_memory_attribution_observer.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
@@ -120,6 +121,12 @@ void CobaltMemoryAttributionManager::ReportUma() {
     uint64_t delta = current - last_snapshots_[i];
     uint64_t emitted_kb = delta / 1024;
     last_snapshots_[i] += emitted_kb * 1024;
+
+    LOG(ERROR) << "   [UMA DIAGNOSTIC] Category: "
+               << base::memory::ContextToString(
+                      static_cast<base::memory::MemoryContext>(i))
+               << " | Raw Allocated Bytes: " << current
+               << " | Delta KB: " << emitted_kb;
 
     base::UmaHistogramCustomCounts(
         base::StrCat({"Memory.Cobalt.AllocationVolume.",
