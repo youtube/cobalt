@@ -26,6 +26,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_RENDERING_CONTEXT_BASE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_RENDERING_CONTEXT_BASE_H_
 
+#include "build/build_config.h"
+
 #include <array>
 #include <memory>
 #include <optional>
@@ -673,6 +675,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
   friend class EXTTextureCompressionBPTC;
   friend class EXTTextureCompressionRGTC;
   friend class OESDrawBuffersIndexed;
+#if BUILDFLAG(IS_COBALT)
+  friend class OESEGLImageExternal;
+#endif
   friend class OESTextureFloat;
   friend class OESVertexArrayObject;
   friend class OVRMultiview2;

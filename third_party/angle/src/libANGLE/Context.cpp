@@ -4073,6 +4073,10 @@ Extensions Context::generateSupportedExtensions() const
     // Blob cache extension is provided by the ANGLE frontend
     supportedExtensions.blobCacheANGLE = true;
 
+#if defined(STARBOARD) && defined(__ANDROID__)
+    supportedExtensions.EGLImageExternalOES = true;
+#endif
+
     return supportedExtensions;
 }
 
@@ -4123,6 +4127,10 @@ void Context::initCaps()
 
     Extensions *extensions = mState.getMutableExtensions();
     *extensions            = mSupportedExtensions;
+#if defined(STARBOARD) && defined(__ANDROID__)
+    extensions->EGLImageExternalOES = true;
+#endif
+
 
     // GLES1 emulation: Initialize caps (Table 6.20 / 6.22 in the ES 1.1 spec)
     if (getClientVersion() < Version(2, 0))
@@ -4305,6 +4313,10 @@ void Context::initCaps()
             extensions->*(extensionInfo.second.ExtensionsMember) = false;
         }
     }
+
+#if defined(STARBOARD) && defined(__ANDROID__)
+    extensions->EGLImageExternalOES = true;
+#endif
 
     // Hide emulated ETC1 extension from WebGL contexts.
     if (mWebGLContext && limitations.emulatedEtc1)

@@ -31,6 +31,10 @@
 
 namespace gpu {
 
+namespace gles2 {
+class Texture;
+}
+
 class GPU_GLES2_EXPORT StarboardGLTextureBacking
     : public ClearTrackingSharedImageBacking {
  public:
@@ -60,6 +64,10 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
   void Update(std::unique_ptr<gfx::GpuFence> in_fence) override;
 
  protected:
+  std::unique_ptr<GLTextureImageRepresentation> ProduceGLTexture(
+      SharedImageManager* manager,
+      MemoryTypeTracker* tracker) override;
+
   std::unique_ptr<GLTexturePassthroughImageRepresentation>
   ProduceGLTexturePassthrough(SharedImageManager* manager,
                               MemoryTypeTracker* tracker) override;
@@ -70,8 +78,10 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
       scoped_refptr<SharedContextState> context_state) override;
 
  private:
+  class GLTextureStarboardImageRepresentation;
   class GLTexturePassthroughStarboardImageRepresentation;
 
+  std::vector<gpu::gles2::Texture*> textures_;
   std::vector<scoped_refptr<gpu::gles2::TexturePassthrough>>
       passthrough_textures_;
 

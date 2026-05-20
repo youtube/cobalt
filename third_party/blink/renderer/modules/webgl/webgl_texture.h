@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_TEXTURE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_TEXTURE_H_
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_object.h"
 
 namespace blink {
@@ -49,6 +50,10 @@ class WebGLTexture : public WebGLObject {
   // See https://www.w3.org/TR/webxrlayers-1/#opaque-texture.
   virtual bool IsOpaqueTexture() const { return false; }
 
+#if BUILDFLAG(IS_COBALT)
+  void UpdateUnderlyingObject(GLuint new_object, bool has_shared_image_access);
+#endif
+
  protected:
   // Constructor for WebGLUnownedTexture.
   explicit WebGLTexture(WebGLContextObjectSupport* ctx,
@@ -63,6 +68,9 @@ class WebGLTexture : public WebGLObject {
   int MapTargetToIndex(GLenum) const;
 
   GLenum target_;
+#if BUILDFLAG(IS_COBALT)
+  bool has_shared_image_access_ = false;
+#endif
 };
 
 }  // namespace blink
