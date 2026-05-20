@@ -113,8 +113,6 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));
-  binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
-      base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
 }
 
 }  // namespace cobalt
