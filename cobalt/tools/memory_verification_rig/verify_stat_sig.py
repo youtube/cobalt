@@ -44,19 +44,6 @@ def find_repository_root():
 
 REPO_ROOT = find_repository_root()
 
-TARGET_METRICS = [
-    "Memory.Total.ResidentSet", "Memory.Browser.ResidentSet",
-    "Memory.Browser.LibChrobaltRss", "Memory.Browser.LibChrobaltPss",
-    "Cobalt.Memory.Browser.PrivateMemoryFootprint",
-    "Memory.Experimental.Browser2.Malloc",
-    "Memory.Experimental.Browser2.JavaHeap",
-    "Memory.Experimental.Browser2.BlinkGC", "Memory.Experimental.Browser2.V8",
-    "Memory.Experimental.Browser2.PartitionAlloc",
-    "Memory.Experimental.Browser2.Skia", "Memory.GPU.PeakMemoryUsage2.PageLoad",
-    "Memory.Total.PrivateFootprintSwap", "Memory.Total.VmSize",
-    "CPU.Total.Usage", "V8.GCIncrementalMarkingReason", "V8.GCMarkCompactReason"
-]
-
 
 def run_command(cmd, shell=False, timeout=30):
   """Executes a shell command synchronously with safety timeout limits."""
@@ -108,11 +95,9 @@ def flush_system_caches(device, platform):
 def launch_app(device, package, activity, args, platform, bin_path=None):
   """Launches Cobalt process on Android (intent) or Linux (binary Popen)."""
   if platform == "android":
-    cmd = [
-        "adb", "-s", device, "shell", "am", "start", "-n",
-        f"{package}/{activity}", "--esa", "commandLineArgs", args
-    ]
-    run_command(cmd, shell=False)
+    cmd = (f"adb -s {device} shell \"am start -n {package}/{activity} "
+           f"--esa commandLineArgs '{args}'\"")
+    run_command(cmd, shell=True)
   elif platform == "linux":
     flags = args.split()
     cmd = [bin_path] + flags + [package]
@@ -168,14 +153,7 @@ def parse_uma_sum_metric(json_file, metric_name):
             if "result" in data and "histogram" in data["result"]:
               hist = data["result"]["histogram"]
               if "sum" in hist:
-                raw_val = float(hist["sum"])
-                # Check if metric name represents a memory metric in KB to
-                # convert to MB.
-                is_memory = ("Memory" in metric_name or "Malloc" in metric_name
-                             or "Heap" in metric_name or "GC" in metric_name or
-                             "Skia" in metric_name or "PartitionAlloc"
-                             in metric_name) and "Reason" not in metric_name
-                return raw_val / 1024.0 if is_memory else raw_val
+                return float(hist["sum"]) / 1024.0  # Convert KB to MB!
   except FileNotFoundError:
     print(f"  ⚠️ Warning: Metric JSON file not found: {json_file}")
   except json.JSONDecodeError:
@@ -185,17 +163,8 @@ def parse_uma_sum_metric(json_file, metric_name):
   return None
 
 
-def execute_profiling_run(device,
-                          package,
-                          activity,
-                          args,
-                          duration,
-                          run_id,
-                          tmp_json,
-                          histograms_txt,
-                          platform,
-                          bin_path,
-                          port=9222):
+def execute_profiling_run(device, package, activity, args, duration, run_id,
+                          tmp_json, histograms_txt, platform, bin_path):
   """Performs a single end-to-end benchmark run and scrapes RSS & UMA."""
   print(f"  [Run {run_id}] Stopping package/process...")
   force_stop_app(device, package, platform)
@@ -218,7 +187,7 @@ def execute_profiling_run(device,
   # Setup loopback forwarder if Android
   if platform == "android":
     run_command([
-        "adb", "-s", device, "forward", f"tcp:{port}",
+        "adb", "-s", device, "forward", "tcp:9222",
         "localabstract:content_shell_devtools_remote"
     ])
     time.sleep(1)
@@ -227,7 +196,7 @@ def execute_profiling_run(device,
   scroller_path = ("/usr/local/google/home/avvall/.gemini/jetski/brain/"
                    "96924887-023d-426a-97ce-fac86505b533/scratch/scroll_cdp.py")
   scroll_cmd = [
-      "python3", scroller_path, f"--port={port}", f"--duration={duration - 8}",
+      "python3", scroller_path, "--port=9222", f"--duration={duration - 8}",
       "--interval=1.5"
   ]
   scroll_proc = None
@@ -277,7 +246,7 @@ def execute_profiling_run(device,
       f"--platform={platform}", f"--device={device}",
       f"--package-name={package}", "--no-manage-cobalt",
       f"--histogram-file={histograms_txt}", "--poll-interval-s=2",
-      f"--output-file={tmp_json}", f"--port={port}"
+      f"--output-file={tmp_json}"
   ]
 
   scrape_proc = None
@@ -285,14 +254,7 @@ def execute_profiling_run(device,
     with open("/tmp/uma_scraper.log", "a", encoding="utf-8") as log_f:
       # pylint: disable=consider-using-with
       scrape_proc = subprocess.Popen(scrape_cmd, stdout=log_f, stderr=log_f)
-
-      # Poll for the output file to be populated securely
-      start_time = time.time()
-      timeout_limit = 10  # max seconds to wait
-      while time.time() - start_time < timeout_limit:
-        if os.path.exists(tmp_json) and os.path.getsize(tmp_json) > 0:
-          break
-        time.sleep(0.5)
+      time.sleep(6)
   finally:
     if scrape_proc:
       try:
@@ -397,17 +359,15 @@ def permutation_test_p_value(group1, group2, permutations=10000):
 
 
 def check_directional_consistency(baseline, experiment):
-  """Performs standard sign-test on sequential paired runs."""
+  """Performs directional sign-test logic on sorted sample groups."""
   if len(baseline) != len(experiment) or len(baseline) == 0:
     return False
 
-  differences = [baseline[i] - experiment[i] for i in range(len(baseline))]
-  positives = sum(1 for d in differences if d > 0)
-  negatives = sum(1 for d in differences if d < 0)
-
-  # Require at least 80% of paired differences to share the same direction
-  threshold = max(1, int(len(baseline) * 0.8))
-  return positives >= threshold or negatives >= threshold
+  s_base = sorted(baseline)
+  s_exp = sorted(experiment)
+  all_decreased = all(s_exp[i] < s_base[i] for i in range(len(baseline)))
+  all_increased = all(s_exp[i] > s_base[i] for i in range(len(baseline)))
+  return all_decreased or all_increased
 
 
 # --- Report Generator ---
@@ -421,15 +381,8 @@ def analyze_and_report_metric(metric_name,
   b_mean, _, b_std = calculate_stats(baseline)
   e_mean, _, e_std = calculate_stats(experiment)
 
-  diff = b_mean - e_mean
-  reduction_pct = (diff / b_mean) * 100.0 if b_mean > 0 else 0.0
-
-  # Check if the metric name represents a memory metric to display MB,
-  # otherwise raw units.
-  is_memory = ("Memory" in metric_name or "Malloc" in metric_name or "Heap"
-               in metric_name or "GC" in metric_name or "Skia" in metric_name or
-               "PartitionAlloc" in metric_name) and "Reason" not in metric_name
-  unit = "MB" if is_memory else "Units"
+  diff_mb = b_mean - e_mean
+  reduction_pct = (diff_mb / b_mean) * 100.0 if b_mean > 0 else 0.0
 
   p_val = permutation_test_p_value(baseline, experiment)
   directional_sig = check_directional_consistency(baseline, experiment)
@@ -437,11 +390,9 @@ def analyze_and_report_metric(metric_name,
 
   print(f"\n📈 METRIC ANALYZED: {metric_name}")
   print("-" * 50)
-  print(
-      f"   • Baseline Mean:   {b_mean:.2f} {unit} (StdDev: {b_std:.2f} {unit})")
-  print(
-      f"   • Experiment Mean: {e_mean:.2f} {unit} (StdDev: {e_std:.2f} {unit})")
-  print(f"   • Mean Reduction:  {diff:.2f} {unit} ({reduction_pct:.1f}%)")
+  print(f"   • Baseline Mean:   {b_mean:.2f} MB (StdDev: {b_std:.2f} MB)")
+  print(f"   • Experiment Mean: {e_mean:.2f} MB (StdDev: {e_std:.2f} MB)")
+  print(f"   • Mean Reduction:  {diff_mb:.2f} MB ({reduction_pct:.1f}%)")
   dir_str = "PASS" if directional_sig else "FAIL"
   print(f"   • p-value:         {p_val:.4f} "
         f"(Directional Consistency: {dir_str})")
@@ -477,21 +428,18 @@ def main():
       "--activity",
       default="dev.cobalt.app.MainActivity",
       help="Android Activity name")
-  parser.add_argument(
-      "--port",
-      type=int,
-      default=9222,
-      help="CDP port for DevTools remote debugging")
 
   parser.add_argument(
       "--baseline-args",
       default="--remote-allow-origins=*,--enable-metrics,"
-      "--force-enable-metrics-reporting,--memory-metrics-interval=30",
+      "--force-enable-metrics-reporting,--remote-debugging-port=9222,"
+      "--memory-metrics-interval=30",
       help="Baseline launch arguments comma-separated list")
   parser.add_argument(
       "--experiment-args",
       default="--remote-allow-origins=*,--enable-metrics,"
-      "--force-enable-metrics-reporting,--memory-metrics-interval=30",
+      "--force-enable-metrics-reporting,--remote-debugging-port=9222,"
+      "--enable-low-end-device-mode,--memory-metrics-interval=30",
       help="Experiment launch arguments comma-separated list")
 
   args = parser.parse_args()
@@ -511,27 +459,75 @@ def main():
   baseline_rss = []
   experiment_rss = []
 
-  # Granular UMA databases initialized dynamically
-  baseline_uma = {metric: [] for metric in TARGET_METRICS}
-  experiment_uma = {metric: [] for metric in TARGET_METRICS}
+  # Granular UMA databases
+  baseline_uma = {
+      "Media": [],
+      "Graphics": [],
+      "Script": [],
+      "Unknown": [],
+      "GraphicsCanvas": [],
+      "GraphicsCompositor": [],
+      "GraphicsGlyphs": [],
+      "ScriptHeap": [],
+      "ScriptJIT": [],
+      "ScriptBindings": [],
+      "NetworkLoader": [],
+      "NetworkCache": [],
+      "BlinkDOM": [],
+      "BlinkStyle": [],
+      "BlinkParser": [],
+      "PlatformIPC": [],
+      "PlatformStarboard": []
+  }
+  experiment_uma = {
+      "Media": [],
+      "Graphics": [],
+      "Script": [],
+      "Unknown": [],
+      "GraphicsCanvas": [],
+      "GraphicsCompositor": [],
+      "GraphicsGlyphs": [],
+      "ScriptHeap": [],
+      "ScriptJIT": [],
+      "ScriptBindings": [],
+      "NetworkLoader": [],
+      "NetworkCache": [],
+      "BlinkDOM": [],
+      "BlinkStyle": [],
+      "BlinkParser": [],
+      "PlatformIPC": [],
+      "PlatformStarboard": []
+  }
 
-  # Safe dynamic temporary file paths using secure tempfile API
-  tmp_json_fd, tmp_json = tempfile.mkstemp(suffix="_tmp_uma.json")
-  os.close(
-      tmp_json_fd)  # close descriptor immediately so scraper can write to it
+  # Safe dynamic temporary file paths
+  temp_dir = tempfile.gettempdir()
+  tmp_json = os.path.join(temp_dir, "tmp_uma.json")
 
-  # Create dynamic target histograms text file securely
-  histograms_fd, histograms_txt = tempfile.mkstemp(
-      suffix="_target_histograms.txt")
-  with os.fdopen(histograms_fd, "w", encoding="utf-8") as f:
-    for metric in TARGET_METRICS:
-      f.write(f"{metric}\n")
+  # Create dynamic target histograms text file
+  histograms_txt = os.path.join(temp_dir, "target_histograms.txt")
+  with open(histograms_txt, "w", encoding="utf-8") as f:
+    f.write("Memory.Cobalt.AllocationVolume.Media\n")
+    f.write("Memory.Cobalt.AllocationVolume.Graphics\n")
+    f.write("Memory.Cobalt.AllocationVolume.Script\n")
+    f.write("Memory.Cobalt.AllocationVolume.Unknown\n")
+    f.write("Memory.Cobalt.AllocationVolume.GraphicsCanvas\n")
+    f.write("Memory.Cobalt.AllocationVolume.GraphicsCompositor\n")
+    f.write("Memory.Cobalt.AllocationVolume.GraphicsGlyphs\n")
+    f.write("Memory.Cobalt.AllocationVolume.ScriptHeap\n")
+    f.write("Memory.Cobalt.AllocationVolume.ScriptJIT\n")
+    f.write("Memory.Cobalt.AllocationVolume.ScriptBindings\n")
+    f.write("Memory.Cobalt.AllocationVolume.NetworkLoader\n")
+    f.write("Memory.Cobalt.AllocationVolume.NetworkCache\n")
+    f.write("Memory.Cobalt.AllocationVolume.BlinkDOM\n")
+    f.write("Memory.Cobalt.AllocationVolume.BlinkStyle\n")
+    f.write("Memory.Cobalt.AllocationVolume.BlinkParser\n")
+    f.write("Memory.Cobalt.AllocationVolume.PlatformIPC\n")
+    f.write("Memory.Cobalt.AllocationVolume.PlatformStarboard\n")
+    f.write("Playback.DroppedFrames\n")
 
-  # Format space-separated flags and append remote-debugging-port dynamically
-  b_args_clean = args.baseline_args.replace(",", " ")
-  e_args_clean = args.experiment_args.replace(",", " ")
-  b_args = f"{b_args_clean} --remote-debugging-port={args.port}"
-  e_args = f"{e_args_clean} --remote-debugging-port={args.port}"
+  # Format space-separated flags for Linux binary
+  b_args = args.baseline_args.replace(",", " ")
+  e_args = args.experiment_args.replace(",", " ")
 
   print("\n====== SECTION 1/2: BASELINE RUNS ======")
   for i in range(1, args.runs + 1):
@@ -539,12 +535,13 @@ def main():
                                             args.activity, b_args,
                                             args.duration, i, tmp_json,
                                             histograms_txt, args.platform,
-                                            args.bin_path, args.port)
+                                            args.bin_path)
     if rss:
       baseline_rss.append(rss)
     if uma_active:
-      for metric, value_list in baseline_uma.items():
-        val = parse_uma_sum_metric(tmp_json, metric)
+      for cat, value_list in baseline_uma.items():
+        val = parse_uma_sum_metric(tmp_json,
+                                   f"Memory.Cobalt.AllocationVolume.{cat}")
         if val is not None:
           value_list.append(val)
     time.sleep(3)
@@ -555,12 +552,13 @@ def main():
                                             args.activity, e_args,
                                             args.duration, i, tmp_json,
                                             histograms_txt, args.platform,
-                                            args.bin_path, args.port)
+                                            args.bin_path)
     if rss:
       experiment_rss.append(rss)
     if uma_active:
-      for metric, value_list in experiment_uma.items():
-        val = parse_uma_sum_metric(tmp_json, metric)
+      for cat, value_list in experiment_uma.items():
+        val = parse_uma_sum_metric(tmp_json,
+                                   f"Memory.Cobalt.AllocationVolume.{cat}")
         if val is not None:
           value_list.append(val)
     time.sleep(3)
@@ -585,12 +583,13 @@ def main():
     print("❌ Error: Insufficient System RSS data points captured "
           "to run significance engine.")
 
-  # 2. Auto-detect and evaluate Granular UMA categories dynamically
-  for metric, value_list in baseline_uma.items():
+  # 2. Auto-detect and evaluate Granular UMA categories
+  for cat, value_list in baseline_uma.items():
     b_list = value_list
-    e_list = experiment_uma[metric]
+    e_list = experiment_uma[cat]
     if len(b_list) >= 2 and len(e_list) >= 2:
-      analyze_and_report_metric(f"Granular Telemetry: {metric}", b_list, e_list)
+      analyze_and_report_metric(
+          f"Granular Allocation: k{cat} (UMA Histogram Sum)", b_list, e_list)
 
   print("\n" + "=" * 60)
   print("🎉 SIGNIFICANCE EVALUATION RUN COMPLETE!")
