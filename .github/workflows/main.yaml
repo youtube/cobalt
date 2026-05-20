@@ -579,7 +579,7 @@ jobs:
       # Downstream process_test_results action requires GTest XML format. Since JUnit
       # Robolectric tests do not natively generate XML result files, we pass the GTest-only
       # targets list here to exclude JUnit tests from downstream results matrix processing.
-      test_targets_json: ${{ steps.test-target-json.outputs.on_device_gtest_targets }}
+      test_targets_json: ${{ steps.test-target-json.outputs.on_device_gunit_targets }}
 
   e2e-test:
     needs: [initialize, build]
@@ -789,7 +789,7 @@ jobs:
       # Downstream process_test_results action requires GTest XML format. Since JUnit
       # Robolectric tests do not natively generate XML result files, we pass the GTest-only
       # targets list here to exclude JUnit tests from downstream results matrix processing.
-      test_targets_json: ${{ steps.test-target-json.outputs.on_host_gtest_targets }}
+      test_targets_json: ${{ steps.test-target-json.outputs.on_host_gunit_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]

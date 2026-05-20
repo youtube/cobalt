@@ -23,10 +23,8 @@ runs:
         on_host_browsertest_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
         echo "on_host_browsertest_targets=${on_host_browsertest_targets}" >> $GITHUB_OUTPUT
 
-        on_host_gtest_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests") | not)) else [] end' "${targets_file}")
-        echo "on_host_gtest_targets=${on_host_gtest_targets}" >> $GITHUB_OUTPUT
-
-        on_host_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
+        # Combine host subtype targets
+        on_host_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then (.test_targets // [] | map(select(endswith("_junit_tests") | not) | select(endswith(":cobalt_browsertests") | not))) + (.test_targets // [] | map(select(endswith("_junit_tests")))) + (.test_targets // [] | map(select(endswith(":cobalt_browsertests")))) else [] end' "${targets_file}")
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
         echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
@@ -40,10 +38,8 @@ runs:
         on_device_browsertest_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
         echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
 
-        on_device_gtest_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests") | not)) else [] end' "${targets_file}")
-        echo "on_device_gtest_targets=${on_device_gtest_targets}" >> $GITHUB_OUTPUT
-
-        on_device_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
+        # Combine device subtype targets
+        on_device_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then (.test_targets // [] | map(select(endswith(":cobalt_browsertests") | not))) + (.test_targets // [] | map(select(endswith(":cobalt_browsertests")))) else [] end' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
         echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
@@ -60,9 +56,6 @@ outputs:
   on_host_browsertest_targets:
     description: The on-host browsertests targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_browsertest_targets }}
-  on_host_gtest_targets:
-    description: The GTest XML-compatible host test targets in a JSON array.
-    value: ${{ steps.parse-json.outputs.on_host_gtest_targets }}
   on_host_targets:
     description: The on-host test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_targets }}
@@ -79,9 +72,6 @@ outputs:
   on_device_browsertest_targets:
     description: The on-device browsertests targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_browsertest_targets }}
-  on_device_gtest_targets:
-    description: The GTest XML-compatible device test targets in a JSON array.
-    value: ${{ steps.parse-json.outputs.on_device_gtest_targets }}
   on_device_targets:
     description: The on-device test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_targets }}
