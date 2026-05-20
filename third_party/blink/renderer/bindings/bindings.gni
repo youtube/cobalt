@@ -262,3 +262,12 @@ bindings_unittest_files = get_path_info(
           "modules/v8/v8_element_test.cc",
         ],
         "abspath")
+
+# Exclusion patterns used in Cobalt builds to omit interfaces.
+cobalt_bindings_exclude_patterns = [
+  "*_rtc_*",
+  "*v8_rtc_*",
+  "*peer_connection*",
+  "*explicit_congestion_notification*",
+  "*v8_union_mediastreamtrack_string*",
+]
