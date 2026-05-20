@@ -2,7 +2,7 @@ name: linux
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize]
     branches:
       - main
       - experimental/*
@@ -19,6 +19,11 @@ on:
         required: true
         type: boolean
         default: false
+      label_name:
+        description: 'Label that triggered this run.'
+        required: false
+        type: string
+        default: ''
 
 permissions: read-all
 
@@ -32,6 +37,7 @@ jobs:
     with:
       platform: chromium_linux
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   # This is default Cobalt build config
@@ -43,6 +49,7 @@ jobs:
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   # This is cobalt on linux using modular build config
@@ -54,6 +61,7 @@ jobs:
     with:
       platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   # This is content_shell without starboard
@@ -65,5 +73,6 @@ jobs:
     with:
       platform: linux-web-tests
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}

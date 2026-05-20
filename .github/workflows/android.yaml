@@ -2,7 +2,7 @@ name: android
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled, ready_for_review]
+    types: [opened, reopened, synchronize]
     branches:
       - main
       - experimental/*
@@ -19,6 +19,11 @@ on:
         required: true
         type: boolean
         default: false
+      label_name:
+        description: 'Label that triggered this run.'
+        required: false
+        type: string
+        default: ''
 
 permissions: read-all
 
@@ -31,6 +36,7 @@ jobs:
     with:
       platform: chromium_android-arm64
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-arm:
@@ -41,6 +47,7 @@ jobs:
     with:
       platform: chromium_android-arm
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-x86:
@@ -51,6 +58,7 @@ jobs:
     with:
       platform: chromium_android-x86
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   # Cobalt specific build configs
@@ -62,6 +70,7 @@ jobs:
     with:
       platform: android-arm64
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   android-arm:
@@ -72,6 +81,7 @@ jobs:
     with:
       platform: android-arm
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   android-x86:
@@ -82,5 +92,6 @@ jobs:
     with:
       platform: android-x86
       nightly: ${{ github.event.inputs.nightly }}
+      label_name: ${{ github.event.inputs.label_name }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
