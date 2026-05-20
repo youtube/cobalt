@@ -752,11 +752,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   // were called and had it stored in |pending_input_to_retry_|.
   if (!input_buffer_already_written &&
       pending_input.type != PendingInput::kWriteEndOfStream) {
-    ScopedJavaLocalRef<jobject> byte_buffer(
-        media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.is_null()) {
-      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer, |byte_buffer| is"
-                    << " null.";
+    size_t capacity = 0;
+    void* address = media_codec_bridge_->GetInputBufferAddress(
+        dequeue_input_result.index, &capacity);
+    if (!address) {
+      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer address.";
       // There could be dirty callbacks right after flush, thus the
       // MediaCodec.InputBuffer could be unavailable. In that case, we should
       // re-write the input buffer with a different MediaCodec.InputBuffer.
@@ -765,12 +765,10 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
       return false;
     }
 
-    JNIEnv* env = AttachCurrentThread();
-    jint capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
-    if (capacity < size) {
+    if (capacity < static_cast<size_t>(size)) {
       auto error_message = FormatString(
           "Unable to write to MediaCodec buffer, input buffer size (%d) is"
-          " greater than |byte_buffer.capacity()| (%d).",
+          " greater than buffer capacity (%d).",
           size, static_cast<int>(capacity));
       SB_LOG(ERROR) << error_message;
       ReportError(kSbPlayerErrorDecode, error_message);
@@ -778,8 +776,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     }
 
     SB_DCHECK_GE(size, 0);
-    SB_DCHECK_LE(size, capacity);
-    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+    SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
     using ::starboard::experimental::IsPointerAnnotated;
     using ::starboard::experimental::UnannotatePointer;
