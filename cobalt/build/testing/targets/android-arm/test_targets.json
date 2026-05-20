@@ -6,7 +6,7 @@
     ]
   },
   "on_device": {
-    "_unit": [
+    "unit": [
       "base:base_perftests",
       "base:base_unittests",
       "cobalt:cobalt_unittests",
@@ -33,7 +33,7 @@
       "url:url_perftests",
       "url:url_unittests"
     ],
-    "_browser": [
+    "browser": [
       "cobalt/testing/browser_tests:cobalt_browsertests"
     ]
   }
