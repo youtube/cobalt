@@ -196,7 +196,7 @@ class TestAutorollLtsGetPrSetAndCommits(unittest.TestCase):
     with patch('autoroll_lts.get_out') as mock_get_out:
       mock_get_out.return_value = '\n'.join(subjects) + '\n'
       prs = autoroll_lts.get_pr_set('target-branch', 'main')
-      self.assertEqual(prs, {'103', '105'})
+      self.assertEqual(prs, {'103'})
 
   @patch('autoroll_lts.get_out')
   def test_get_commits_with_start(self, mock_get_out):
@@ -227,6 +227,14 @@ class TestAutorollLtsMainLoop(unittest.TestCase):
          ['autoroll_lts.py', '--target-branch', '27.lts', '--max-commits', '2'])
   def test_main_loop_processing(self, mock_cherry_pick, mock_get_commits,
                                 mock_get_pr_set):
+    """Test cases for main loop processing.
+
+    Note: This test passes --max-commits 2. Commits that are skipped (already
+    on branch or in skip list) do not increment the commits_added counter.
+    Thus, the loop continues until 2 NEW commits are cherry-picked.
+    PR #300 is already on the branch, so it is added to links but not counted.
+    PR #9476 is in the skip list, so it is skipped.
+    """
     mock_get_pr_set.side_effect = [
         {'100', '200'},
         {'100', '300'},

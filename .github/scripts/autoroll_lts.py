@@ -60,7 +60,7 @@ def get_pr_set(branch, exclude_branch):
   cmd = ['git', 'log', '--reverse', '--format=%s', branch, f'^{exclude_branch}']
   subjects = get_out(cmd).splitlines()
   for subject in subjects:
-    match = re.match(r'^(Revert\s+"?)?Cherry pick PR #(\d+):', subject)
+    match = re.match(r"^(Revert\s+['\"]?)?Cherry pick PR #(\d+):", subject)
     if match:
       revert, pr_num = match.groups()
       if revert:
