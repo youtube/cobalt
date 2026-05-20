@@ -17,8 +17,8 @@ inputs:
     description: "Space-separated list of GTest executables"
     required: false
     default: ""
-  junit_targets:
-    description: "Space-separated list of JUnit targets"
+  junit_executables:
+    description: "Space-separated list of JUnit test executables"
     required: false
     default: ""
 runs:
@@ -137,32 +137,31 @@ runs:
       if: always()
       shell: bash
       env:
-        JUNIT_TARGETS: ${{ inputs.junit_targets }}
+        JUNIT_EXECUTABLES: ${{ inputs.junit_executables }}
       run: |
         set -x
         set -o pipefail
 
         failed_suites=""
 
-        if [[ -z "${JUNIT_TARGETS}" ]]; then
+        if [[ -z "${JUNIT_EXECUTABLES}" ]]; then
           echo "No on-host JUnit tests to run."
         else
 
-          for target in ${JUNIT_TARGETS}; do
-              test_binary="${target#*:}"
+          for executable in ${JUNIT_EXECUTABLES}; do
+              test_binary="${executable##*/}"
+              test_binary="${test_binary#run_}"
               log_path="${results_dir}/${test_binary}_log.txt"
 
-              wrapper_path="out/${{ matrix.platform }}_${{ matrix.config }}/bin/run_${test_binary}"
-
-              if [[ -x "${wrapper_path}" ]]; then
+              if [[ -x "${executable}" ]]; then
                 echo "Running JUnit tests for suite: ${test_binary}"
                 /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                    stdbuf -i0 -o0 -e0 ./${wrapper_path} 2>&1 | tee ${log_path} || {
+                    stdbuf -i0 -o0 -e0 ./${executable} 2>&1 | tee ${log_path} || {
                   echo "JUnit test suite failed: ${test_binary}"
                   failed_suites="${failed_suites} ${test_binary}"
                 }
               else
-                echo "Wrapper script not found or not executable: ${wrapper_path}"
+                echo "Wrapper script not found or not executable: ${executable}"
                 failed_suites="${failed_suites} ${test_binary}"
               fi
             done

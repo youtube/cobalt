@@ -786,7 +786,7 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
           gunit_executables: ${{ join(fromJson(steps.test-target-json.outputs.on_host_gunit_executables), ' ') }}
-          junit_targets: ${{ join(fromJson(steps.test-target-json.outputs.on_host_junit_targets), ' ') }}
+          junit_executables: ${{ join(fromJson(steps.test-target-json.outputs.on_host_junit_executables), ' ') }}
     outputs:
       # Downstream process_test_results action requires GTest XML format. Since JUnit
       # Robolectric tests do not natively generate XML result files, we pass the GTest-only
