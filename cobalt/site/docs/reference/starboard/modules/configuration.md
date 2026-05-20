@@ -17,8 +17,7 @@ Starboard.
 
 ### ALLOW_EVERGREEN_SIDELOADING
 
-TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're fully
-launched.
+This will be removed in subsequent API releases and should be ignored.
 
 ### SB_ALIGNAS(byte_alignment)
 
