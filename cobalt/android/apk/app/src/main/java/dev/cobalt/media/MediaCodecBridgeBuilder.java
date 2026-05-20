@@ -56,7 +56,7 @@ class MediaCodecBridgeBuilder {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
-            -1);
+            TunnelModeAudioSessionId.NONE);
 
     byte[][] csds = {};
     boolean frameHasAdtsHeader = false;
