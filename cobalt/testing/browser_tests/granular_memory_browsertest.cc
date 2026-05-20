@@ -117,11 +117,7 @@ class GranularMemoryBrowsertest : public ContentBrowserTest {
   base::ScopedFILE temp_rollup_;
 };
 
-<<<<<<< fix/libchrobalt-rss-telemetry
-#if BUILDFLAG(IS_LINUX)
-=======
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
->>>>>>> main
 IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
   // Ensure at least one renderer process is active.
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
@@ -163,15 +159,9 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
               run_loop.QuitClosure(), browser_pid));
   run_loop.Run();
 }
-<<<<<<< fix/libchrobalt-rss-telemetry
-#endif  // BUILDFLAG(IS_LINUX)
-
-#if BUILDFLAG(IS_LINUX)
-=======
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
->>>>>>> main
 IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest,
                        BackgroundDumpSkipsDetailedStats) {
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
@@ -207,15 +197,9 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest,
               run_loop.QuitClosure(), browser_pid));
   run_loop.Run();
 }
-<<<<<<< fix/libchrobalt-rss-telemetry
-#endif  // BUILDFLAG(IS_LINUX)
-
-#if BUILDFLAG(IS_LINUX)
-=======
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
->>>>>>> main
 IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
   // Ensure at least one renderer process is active.
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
@@ -286,14 +270,7 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
                       // Verify Cobalt categories are present.
                       EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at(
                                     "pss:lib_chrobalt"),
-<<<<<<< fix/libchrobalt-rss-telemetry
-                                100u);
-                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at(
-                                    "pss:cobalt_core"),
-                                50u);
-=======
                                 150u);
->>>>>>> main
                     }
                     break;
                   }
@@ -307,10 +284,6 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
   memory_instrumentation::MemoryInstrumentation::GetInstance()
       ->SetDetailedMetricsDelegate(nullptr);
 }
-<<<<<<< fix/libchrobalt-rss-telemetry
-#endif  // BUILDFLAG(IS_LINUX)
-=======
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
->>>>>>> main
 
 }  // namespace content
