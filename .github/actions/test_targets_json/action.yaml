@@ -13,7 +13,7 @@ runs:
       run: |
         targets_file="test_targets.json"
 
-        # On-Host Targets by Subtype
+        # On-Host Targets by Subtype (GN Targets compiled under root test_targets)
         on_host_gunit_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests") | not) | select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
         echo "on_host_gunit_targets=${on_host_gunit_targets}" >> $GITHUB_OUTPUT
 
@@ -23,11 +23,12 @@ runs:
         on_host_browsertest_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
         echo "on_host_browsertest_targets=${on_host_browsertest_targets}" >> $GITHUB_OUTPUT
 
-        # Combine host subtype targets
+        # Combine host targets (GN targets)
         on_host_targets=$(jq -cn --argjson a "${on_host_gunit_targets}" --argjson b "${on_host_junit_targets}" --argjson c "${on_host_browsertest_targets}" '$a + $b + $c')
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
         echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
+        # On-Host Executables by Subtype (Exact file paths compiled under .executables)
         on_host_gunit_executables=$(jq -cr '.executables.on_host.gunit_test_executables // []' "${targets_file}")
         echo "on_host_gunit_executables=${on_host_gunit_executables}" >> $GITHUB_OUTPUT
 
@@ -37,22 +38,22 @@ runs:
         on_host_executables=$(jq -cn --argjson a "${on_host_gunit_executables}" --argjson b "${on_host_junit_executables}" '$a + $b')
         echo "on_host_executables=${on_host_executables}" >> $GITHUB_OUTPUT
 
-        # On-Device Targets by Subtype
+        # On-Device Targets by Subtype (GN Targets compiled under root test_targets)
         on_device_gunit_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
         echo "on_device_gunit_targets=${on_device_gunit_targets}" >> $GITHUB_OUTPUT
 
         on_device_browsertest_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
         echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
 
-        # Combine device subtype targets
+        # Combine device targets (GN targets)
         on_device_targets=$(jq -cn --argjson a "${on_device_gunit_targets}" --argjson b "${on_device_browsertest_targets}" '$a + $b')
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
         echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
+        # On-Device Executables by Subtype (Exact file paths compiled under .executables)
         on_device_gunit_executables=$(jq -cr '.executables.on_device.gunit_test_executables // []' "${targets_file}")
-        echo "on_device_gunit_executables=${on_device_gunit_executables}" >> $GITHUB_OUTPUT
-
-        on_device_executables=$(jq -cn --argjson a "${on_device_gunit_executables}" '[]') # Redundant or unused, but keeping output
+        on_device_browser_executables=$(jq -cr '.executables.on_device.browser_test_executables // []' "${targets_file}")
+        on_device_executables=$(jq -cn --argjson a "${on_device_gunit_executables}" --argjson b "${on_device_browser_executables}" '$a + $b')
         echo "on_device_executables=${on_device_executables}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
@@ -68,12 +69,6 @@ outputs:
   on_host_targets:
     description: The on-host test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_targets }}
-  on_host_gunit_executables:
-    description: GTest unittests executables.
-    value: ${{ steps.parse-json.outputs.on_host_gunit_executables }}
-  on_host_junit_executables:
-    description: JUnit test executables.
-    value: ${{ steps.parse-json.outputs.on_host_junit_executables }}
   on_host_executables:
     description: All host executables.
     value: ${{ steps.parse-json.outputs.on_host_executables }}
@@ -90,9 +85,6 @@ outputs:
   on_device_targets:
     description: The on-device test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_targets }}
-  on_device_gunit_executables:
-    description: Device GTests unittests executables.
-    value: ${{ steps.parse-json.outputs.on_device_gunit_executables }}
   on_device_executables:
     description: All device executables.
     value: ${{ steps.parse-json.outputs.on_device_executables }}
