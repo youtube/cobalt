@@ -21,10 +21,6 @@ inputs:
     description: "Space-separated list of JUnit targets"
     required: false
     default: ""
-  has_junit:
-    description: "Whether JUnit tests are present (true/false)"
-    required: false
-    default: "false"
 runs:
   using: "composite"
   steps:
@@ -43,7 +39,6 @@ runs:
         tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
 
     - name: Checkout Android JUnit Essentials
-      if: inputs.has_junit == 'true'
       uses: actions/checkout@v4
       with:
         clean: false
