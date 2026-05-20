@@ -521,7 +521,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIImg);
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIAll);
       }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     }
 
     bool page_is_being_dismissed =

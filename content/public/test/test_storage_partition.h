@@ -179,7 +179,7 @@ class TestStoragePartition : public StoragePartition {
     browsing_topics_site_data_manager_ = manager;
   }
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   void set_devtools_background_services_context(
       DevToolsBackgroundServicesContext* context) {
@@ -290,7 +290,7 @@ class TestStoragePartition : public StoragePartition {
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   raw_ptr<BrowsingTopicsSiteDataManager> browsing_topics_site_data_manager_ =
       nullptr;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   raw_ptr<PlatformNotificationContext> platform_notification_context_ = nullptr;
   raw_ptr<DevToolsBackgroundServicesContext>
       devtools_background_services_context_ = nullptr;

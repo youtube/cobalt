@@ -217,7 +217,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   InterestGroupManager* GetInterestGroupManager() override;
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   leveldb_proto::ProtoDatabaseProvider* GetProtoDatabaseProvider() override;
   // Use outside content.
   AttributionDataModel* GetAttributionDataModel() override;
@@ -811,7 +811,7 @@ class CONTENT_EXPORT StoragePartitionImpl
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AggregationService> aggregation_service_;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;

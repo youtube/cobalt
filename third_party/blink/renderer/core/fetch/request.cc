@@ -171,7 +171,7 @@ FetchRequestData* CreateCopyOfFetchRequestDataForFetch(
   request->SetKeepalive(original->Keepalive());
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request->SetBrowsingTopics(original->BrowsingTopics());
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request->SetAdAuctionHeaders(original->AdAuctionHeaders());
   request->SetSharedStorageWritable(original->SharedStorageWritable());
   request->SetIsHistoryNavigation(original->IsHistoryNavigation());
@@ -214,7 +214,7 @@ static bool AreAnyMembersPresent(const RequestInit* init) {
          init->hasKeepalive() ||
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
          init->hasBrowsingTopics() ||
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
          init->hasAdAuctionHeaders() || init->hasSharedStorageWritable() ||
          init->hasPriority() || init->hasSignal() || init->hasDuplex() ||
          init->hasPrivateToken() || init->hasAttributionReporting() ||
@@ -704,7 +704,7 @@ Request* Request::CreateRequestWithRequestOrString(
                         mojom::blink::WebFeature::kTopicsAPIAll);
     }
   }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (init->hasAdAuctionHeaders()) {
     if (!execution_context->IsSecureContext()) {

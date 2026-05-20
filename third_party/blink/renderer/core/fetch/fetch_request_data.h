@@ -150,7 +150,7 @@ class CORE_EXPORT FetchRequestData final
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool BrowsingTopics() const { return browsing_topics_; }
   void SetBrowsingTopics(bool b) { browsing_topics_ = b; }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   bool AdAuctionHeaders() const { return ad_auction_headers_; }
   void SetAdAuctionHeaders(bool b) { ad_auction_headers_ = b; }
@@ -268,7 +268,7 @@ class CORE_EXPORT FetchRequestData final
   bool keepalive_ = false;
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics_ = false;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool ad_auction_headers_ = false;
   bool shared_storage_writable_ = false;
   bool is_history_navigation_ = false;

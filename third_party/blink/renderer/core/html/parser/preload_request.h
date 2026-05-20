@@ -169,7 +169,7 @@ class CORE_EXPORT PreloadRequest {
   void SetBrowsingTopicsEligible(bool flag) {
     browsing_topics_eligible_ = flag;
   }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   bool IsPotentiallyLCPElement() const { return is_potentially_lcp_element_; }
 
@@ -231,7 +231,7 @@ class CORE_EXPORT PreloadRequest {
   bool shared_storage_writable_opted_in_ = false;
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics_eligible_ = false;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 };
 
 typedef Vector<std::unique_ptr<PreloadRequest>> PreloadRequestStream;

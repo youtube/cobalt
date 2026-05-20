@@ -92,6 +92,8 @@ static_library("test_support") {
     "../browser/bluetooth/test/mock_bluetooth_delegate.h",
     "../browser/browsing_data/browsing_data_test_utils.cc",
     "../browser/browsing_data/browsing_data_test_utils.h",
+    "../browser/browsing_topics/test_util.cc",
+    "../browser/browsing_topics/test_util.h",
     "../browser/btm/btm_page_visit_observer_test_utils.cc",
     "../browser/btm/btm_page_visit_observer_test_utils.h",
     "../browser/btm/btm_test_utils.cc",
@@ -193,6 +195,8 @@ static_library("test_support") {
     "../public/test/browser_test_utils.h",
     "../public/test/browsing_data_remover_test_util.cc",
     "../public/test/browsing_data_remover_test_util.h",
+    "../public/test/browsing_topics_test_util.cc",
+    "../public/test/browsing_topics_test_util.h",
     "../public/test/btm_service_test_utils.cc",
     "../public/test/btm_service_test_utils.h",
     "../public/test/captured_surface_test_utils.cc",
@@ -797,8 +801,8 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
-  if (!disable_privacy_sandbox_apis) {
-    sources += [
+  if (disable_privacy_sandbox_apis) {
+    sources -= [
       "../browser/browsing_topics/test_util.cc",
       "../browser/browsing_topics/test_util.h",
       "../public/test/browsing_topics_test_util.cc",

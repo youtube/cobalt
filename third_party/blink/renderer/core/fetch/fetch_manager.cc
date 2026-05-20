@@ -1175,7 +1175,7 @@ void FetchLoaderBase::PerformHTTPFetch(ExceptionState& exception_state) {
 
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request.SetBrowsingTopics(fetch_request_data_->BrowsingTopics());
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request.SetAdAuctionHeaders(fetch_request_data_->AdAuctionHeaders());
   request.SetAttributionReportingEligibility(
       fetch_request_data_->AttributionReportingEligibility());

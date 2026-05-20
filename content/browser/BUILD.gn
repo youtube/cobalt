@@ -108,6 +108,7 @@ source_set("browser") {
     "//components/attribution_reporting:mojom",
     "//components/back_forward_cache:enum",
     "//components/browsing_data/core:cookie_or_cache_deletion_choice",
+    "//components/browsing_topics/common:common",
     "//components/cbor",
     "//components/discardable_memory/common",
     "//components/discardable_memory/service",
@@ -725,6 +726,16 @@ source_set("browser") {
     "browsing_data/storage_partition_code_cache_data_remover.h",
     "browsing_instance.cc",
     "browsing_instance.h",
+    "browsing_topics/browsing_topics_document_host.cc",
+    "browsing_topics/browsing_topics_document_host.h",
+    "browsing_topics/browsing_topics_site_data_manager_impl.cc",
+    "browsing_topics/browsing_topics_site_data_manager_impl.h",
+    "browsing_topics/browsing_topics_site_data_storage.cc",
+    "browsing_topics/browsing_topics_site_data_storage.h",
+    "browsing_topics/browsing_topics_url_loader_interceptor.cc",
+    "browsing_topics/browsing_topics_url_loader_interceptor.h",
+    "browsing_topics/header_util.cc",
+    "browsing_topics/header_util.h",
     "btm/btm_bounce_detector.cc",
     "btm/btm_bounce_detector.h",
     "btm/btm_database.cc",
@@ -2508,20 +2519,11 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
-  if (!disable_privacy_sandbox_apis) {
-    sources += [
-      "browsing_topics/browsing_topics_document_host.cc",
-      "browsing_topics/browsing_topics_document_host.h",
-      "browsing_topics/browsing_topics_site_data_manager_impl.cc",
-      "browsing_topics/browsing_topics_site_data_manager_impl.h",
-      "browsing_topics/browsing_topics_site_data_storage.cc",
-      "browsing_topics/browsing_topics_site_data_storage.h",
-      "browsing_topics/browsing_topics_url_loader_interceptor.cc",
-      "browsing_topics/browsing_topics_url_loader_interceptor.h",
-      "browsing_topics/header_util.cc",
-      "browsing_topics/header_util.h",
-    ]
-    deps += [ "//components/browsing_topics/common:common" ]
+  if (disable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [ "browsing_topics/*" ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [ "//components/browsing_topics/common:common" ]
   }
 
   if (is_android) {

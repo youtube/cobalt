@@ -176,7 +176,7 @@ BrowsingTopicsSiteDataManager*
 TestStoragePartition::GetBrowsingTopicsSiteDataManager() {
   return browsing_topics_site_data_manager_;
 }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 DevToolsBackgroundServicesContext*
 TestStoragePartition::GetDevToolsBackgroundServicesContext() {

@@ -172,7 +172,7 @@ class CONTENT_EXPORT StoragePartition {
   virtual InterestGroupManager* GetInterestGroupManager() = 0;
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   virtual BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() = 0;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   virtual AttributionDataModel* GetAttributionDataModel() = 0;
   virtual PrivateAggregationDataModel* GetPrivateAggregationDataModel() = 0;
   virtual CookieDeprecationLabelManager* GetCookieDeprecationLabelManager() = 0;

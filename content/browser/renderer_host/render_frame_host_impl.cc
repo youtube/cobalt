@@ -9266,22 +9266,20 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
     return;
   }
 
-#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
   if (attributes->browsing_topics) {
-    bad_message::ReceivedBadMessage(
-        GetProcess(),
-        bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
-    return;
-  }
+#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+    const bool topics_disabled = true;
 #else
-  if (attributes->browsing_topics &&
-      !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
-    bad_message::ReceivedBadMessage(
-        GetProcess(),
-        bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
-    return;
+    const bool topics_disabled =
+        !base::FeatureList::IsEnabled(network::features::kBrowsingTopics);
+#endif  // BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+    if (topics_disabled) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(),
+          bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
+      return;
+    }
   }
-#endif
 
   if (attributes->shared_storage_writable_opted_in &&
       (!base::FeatureList::IsEnabled(network::features::kSharedStorageAPI))) {

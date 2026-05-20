@@ -240,7 +240,7 @@ FetchRequestData* FetchRequestData::CloneExceptBody() {
   request->keepalive_ = keepalive_;
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request->browsing_topics_ = browsing_topics_;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   request->ad_auction_headers_ = ad_auction_headers_;
   request->shared_storage_writable_ = shared_storage_writable_;
   request->is_history_navigation_ = is_history_navigation_;

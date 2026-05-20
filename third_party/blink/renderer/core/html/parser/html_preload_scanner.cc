@@ -378,7 +378,7 @@ class TokenPreloadScanner::StartTagScanner {
       DCHECK(is_img);
       request->SetBrowsingTopicsEligible(true);
     }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
     return request;
   }
@@ -465,7 +465,7 @@ class TokenPreloadScanner::StartTagScanner {
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     } else if (Match(attribute_name, html_names::kBrowsingtopicsAttr)) {
       browsing_topics_attr_set_ = true;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     } else if (use_data_src_attr_match_for_image_ &&
                Match(attribute_name, html_names::kDataSrcAttr) &&
                img_src_url_.IsNull()) {
@@ -835,7 +835,7 @@ class TokenPreloadScanner::StartTagScanner {
   bool shared_storage_writable_opted_in_ = false;
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics_attr_set_ = false;
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::optional<float> resource_width_;
   std::optional<float> resource_height_;
   features::LcppPreloadLazyLoadImageType preload_lazy_load_image_type_;

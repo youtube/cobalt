@@ -62,7 +62,7 @@
 #include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_site_data_manager_impl.h"
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/buckets/bucket_manager.h"
 #include "content/browser/cache_storage/cache_storage_control_wrapper.h"
 #include "content/browser/code_cache/generated_code_cache.h"
@@ -1506,7 +1506,7 @@ void StoragePartitionImpl::Initialize(
     browsing_topics_site_data_manager_ =
         std::make_unique<BrowsingTopicsSiteDataManagerImpl>(path);
   }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   GeneratedCodeCacheSettings settings =
       GetContentClient()->browser()->GetGeneratedCodeCacheSettings(
@@ -1894,7 +1894,7 @@ StoragePartitionImpl::GetBrowsingTopicsSiteDataManager() {
   DCHECK(initialized_);
   return browsing_topics_site_data_manager_.get();
 }
-#endif
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 ContentIndexContextImpl* StoragePartitionImpl::GetContentIndexContext() {
   DCHECK(initialized_);
