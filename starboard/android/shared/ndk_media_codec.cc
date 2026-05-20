@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/ndk_media_codec_bridge.h"
+#include "starboard/android/shared/ndk_media_codec.h"
 
 #include <android/api-level.h>
 #include <android/native_window_jni.h>
@@ -33,7 +33,7 @@ namespace {
 void OnInputBufferAvailableCallback(AMediaCodec* codec,
                                     void* userdata,
                                     int32_t index) {
-  auto* bridge = reinterpret_cast<NdkMediaCodecBridge*>(userdata);
+  auto* bridge = reinterpret_cast<NdkMediaCodec*>(userdata);
   bridge->OnInputBufferAvailable(index);
 }
 
@@ -41,14 +41,14 @@ void OnOutputBufferAvailableCallback(AMediaCodec* codec,
                                      void* userdata,
                                      int32_t index,
                                      AMediaCodecBufferInfo* info) {
-  auto* bridge = reinterpret_cast<NdkMediaCodecBridge*>(userdata);
+  auto* bridge = reinterpret_cast<NdkMediaCodec*>(userdata);
   bridge->OnOutputBufferAvailable(index, info);
 }
 
 void OnFormatChangedCallback(AMediaCodec* codec,
                              void* userdata,
                              AMediaFormat* format) {
-  auto* bridge = reinterpret_cast<NdkMediaCodecBridge*>(userdata);
+  auto* bridge = reinterpret_cast<NdkMediaCodec*>(userdata);
   bridge->OnFormatChanged(format);
 }
 
@@ -57,13 +57,13 @@ void OnErrorCallback(AMediaCodec* codec,
                      media_status_t error,
                      int32_t actionCode,
                      const char* detail) {
-  auto* bridge = reinterpret_cast<NdkMediaCodecBridge*>(userdata);
+  auto* bridge = reinterpret_cast<NdkMediaCodec*>(userdata);
   bridge->OnError(error, actionCode, detail);
 }
 
 }  // namespace
 
-std::unique_ptr<NdkMediaCodecBridge> NdkMediaCodecBridge::Create(
+std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
     SbMediaVideoCodec video_codec,
     const std::string& decoder_name,
     const Size& frame_size_hint,
@@ -119,8 +119,8 @@ std::unique_ptr<NdkMediaCodecBridge> NdkMediaCodecBridge::Create(
     return nullptr;
   }
 
-  auto bridge = std::unique_ptr<NdkMediaCodecBridge>(
-      new NdkMediaCodecBridge(handler, codec));
+  auto bridge =
+      std::unique_ptr<NdkMediaCodec>(new NdkMediaCodec(handler, codec));
 
   AMediaCodecOnAsyncNotifyCallback callbacks = {
       OnInputBufferAvailableCallback,
@@ -151,81 +151,95 @@ std::unique_ptr<NdkMediaCodecBridge> NdkMediaCodecBridge::Create(
     ANativeWindow_release(native_window);
   }
 
-  SB_LOG(INFO) << "NdkMediaCodecBridge successfully started for "
-               << decoder_name;
+  SB_LOG(INFO) << "NdkMediaCodec successfully started for " << decoder_name;
   return bridge;
 }
 
-NdkMediaCodecBridge::NdkMediaCodecBridge(Handler* handler, AMediaCodec* codec)
-    : MediaCodecBridge(handler), codec_(codec) {}
+NdkMediaCodec::NdkMediaCodec(Handler* handler, AMediaCodec* codec)
+    : handler_(handler), codec_(codec) {
+  SB_CHECK(handler_);
+}
 
-NdkMediaCodecBridge::~NdkMediaCodecBridge() {
+NdkMediaCodec::~NdkMediaCodec() {
   if (codec_) {
     AMediaCodec_stop(codec_);
     AMediaCodec_delete(codec_);
   }
 }
 
-jni_zero::ScopedJavaLocalRef<jobject> NdkMediaCodecBridge::GetInputBuffer(
+jni_zero::ScopedJavaLocalRef<jobject> NdkMediaCodec::GetInputBuffer(
     jint index) {
   return jni_zero::ScopedJavaLocalRef<jobject>();
 }
 
-void* NdkMediaCodecBridge::GetInputBufferAddress(jint index, size_t* capacity) {
+void* NdkMediaCodec::GetInputBufferAddress(jint index, size_t* capacity) {
   return AMediaCodec_getInputBuffer(codec_, index, capacity);
 }
 
-jint NdkMediaCodecBridge::QueueInputBuffer(jint index,
-                                           jint offset,
-                                           jint size,
-                                           jlong presentation_time_microseconds,
-                                           jint flags,
-                                           jboolean is_decode_only) {
+jint NdkMediaCodec::QueueInputBuffer(jint index,
+                                     jint offset,
+                                     jint size,
+                                     jlong presentation_time_microseconds,
+                                     jint flags,
+                                     jboolean is_decode_only) {
   media_status_t status = AMediaCodec_queueInputBuffer(
       codec_, index, offset, size, presentation_time_microseconds, flags);
   return status == AMEDIA_OK ? MEDIA_CODEC_OK : MEDIA_CODEC_ERROR;
 }
 
-jint NdkMediaCodecBridge::QueueSecureInputBuffer(
+jint NdkMediaCodec::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
     jlong presentation_time_microseconds,
     jboolean is_decode_only) {
-  SB_NOTREACHED() << "NdkMediaCodecBridge does not support secure playback.";
+  SB_NOTREACHED() << "NdkMediaCodec does not support secure playback.";
   return MEDIA_CODEC_ERROR;
 }
 
-jni_zero::ScopedJavaLocalRef<jobject> NdkMediaCodecBridge::GetOutputBuffer(
+jni_zero::ScopedJavaLocalRef<jobject> NdkMediaCodec::GetOutputBuffer(
     jint index) {
   return jni_zero::ScopedJavaLocalRef<jobject>();
 }
 
-void NdkMediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
+void NdkMediaCodec::ReleaseOutputBuffer(jint index, jboolean render) {
   AMediaCodec_releaseOutputBuffer(codec_, index, render);
 }
 
-void NdkMediaCodecBridge::ReleaseOutputBufferAtTimestamp(
-    jint index,
-    jlong render_timestamp_ns) {
+void NdkMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
+                                                   jlong render_timestamp_ns) {
   AMediaCodec_releaseOutputBufferAtTime(codec_, index, render_timestamp_ns);
 }
 
-void NdkMediaCodecBridge::SetPlaybackRate(double playback_rate) {
-  SB_LOG(INFO) << "NdkMediaCodecBridge::SetPlaybackRate: " << playback_rate;
+void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
+  SB_LOG(INFO) << "NdkMediaCodec::SetPlaybackRate: " << playback_rate;
+  if (!codec_) {
+    return;
+  }
+  AMediaFormat* params = AMediaFormat_new();
+  // "operating-rate" is the C++ equivalent of MediaFormat.KEY_OPERATING_RATE
+  AMediaFormat_setFloat(params, "operating-rate",
+                        static_cast<float>(playback_rate));
+  media_status_t status = AMediaCodec_setParameters(codec_, params);
+  AMediaFormat_delete(params);
+  if (status != AMEDIA_OK) {
+    SB_LOG(WARNING)
+        << "AMediaCodec_setParameters failed to set operating-rate to "
+        << playback_rate << " with status " << status;
+  }
 }
 
-bool NdkMediaCodecBridge::Restart() {
+bool NdkMediaCodec::Restart() {
   media_status_t status = AMediaCodec_start(codec_);
   return status == AMEDIA_OK;
 }
 
-jint NdkMediaCodecBridge::Flush() {
+jint NdkMediaCodec::Flush() {
   media_status_t status = AMediaCodec_flush(codec_);
   return status == AMEDIA_OK ? MEDIA_CODEC_OK : MEDIA_CODEC_ERROR;
 }
 
-std::optional<FrameSize> NdkMediaCodecBridge::GetOutputSize() {
+std::optional<FrameSize> NdkMediaCodec::GetOutputSize() {
   AMediaFormat* format = AMediaCodec_getOutputFormat(codec_);
   if (!format) {
     return std::nullopt;
@@ -238,28 +252,32 @@ std::optional<FrameSize> NdkMediaCodecBridge::GetOutputSize() {
   return FrameSize(width, height, /*has_crop_values=*/false);
 }
 
-std::optional<AudioOutputFormatResult>
-NdkMediaCodecBridge::GetAudioOutputFormat() {
+std::optional<AudioOutputFormatResult> NdkMediaCodec::GetAudioOutputFormat() {
+  SB_NOTREACHED() << "NdkMediaCodec does not support audio.";
   return std::nullopt;
 }
 
-void NdkMediaCodecBridge::OnInputBufferAvailable(int32_t index) {
+bool NdkMediaCodec::IsFrameRenderedCallbackEnabled() const {
+  return false;
+}
+
+void NdkMediaCodec::OnInputBufferAvailable(int32_t index) {
   handler_->OnMediaCodecInputBufferAvailable(index);
 }
 
-void NdkMediaCodecBridge::OnOutputBufferAvailable(int32_t index,
-                                                  AMediaCodecBufferInfo* info) {
+void NdkMediaCodec::OnOutputBufferAvailable(int32_t index,
+                                            AMediaCodecBufferInfo* info) {
   handler_->OnMediaCodecOutputBufferAvailable(
       index, info->flags, info->offset, info->presentationTimeUs, info->size);
 }
 
-void NdkMediaCodecBridge::OnFormatChanged(AMediaFormat* format) {
+void NdkMediaCodec::OnFormatChanged(AMediaFormat* format) {
   handler_->OnMediaCodecOutputFormatChanged();
 }
 
-void NdkMediaCodecBridge::OnError(media_status_t error,
-                                  int32_t actionCode,
-                                  const char* detail) {
+void NdkMediaCodec::OnError(media_status_t error,
+                            int32_t actionCode,
+                            const char* detail) {
   handler_->OnMediaCodecError(/*is_recoverable=*/true, /*is_transient=*/false,
                               detail ? detail : "NDK MediaCodec Error");
 }

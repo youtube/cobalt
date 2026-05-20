@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_BRIDGE_H_
-#define STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_BRIDGE_H_
+#ifndef STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_H_
+#define STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_H_
 
 #include <media/NdkMediaCodec.h>
 
@@ -21,15 +21,17 @@
 #include <optional>
 #include <string>
 
-#include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
 
 namespace starboard {
 
-class NdkMediaCodecBridge : public MediaCodecBridge {
+class NdkMediaCodec : public MediaCodec {
  public:
-  static std::unique_ptr<NdkMediaCodecBridge> Create(
+  using Handler = MediaCodec::Handler;
+
+  static std::unique_ptr<NdkMediaCodec> Create(
       SbMediaVideoCodec video_codec,
       const std::string& decoder_name,
       const Size& frame_size_hint,
@@ -44,7 +46,7 @@ class NdkMediaCodecBridge : public MediaCodecBridge {
       int max_video_input_size,
       bool enable_output_checker);
 
-  ~NdkMediaCodecBridge() override;
+  ~NdkMediaCodec() override;
 
   jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
   void* GetInputBufferAddress(jint index, size_t* capacity) override;
@@ -70,6 +72,7 @@ class NdkMediaCodecBridge : public MediaCodecBridge {
   jint Flush() override;
   std::optional<FrameSize> GetOutputSize() override;
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
+  bool IsFrameRenderedCallbackEnabled() const override;
 
   void OnInputBufferAvailable(int32_t index);
   void OnOutputBufferAvailable(int32_t index, AMediaCodecBufferInfo* info);
@@ -77,11 +80,12 @@ class NdkMediaCodecBridge : public MediaCodecBridge {
   void OnError(media_status_t error, int32_t actionCode, const char* detail);
 
  private:
-  explicit NdkMediaCodecBridge(Handler* handler, AMediaCodec* codec);
+  explicit NdkMediaCodec(Handler* handler, AMediaCodec* codec);
 
+  Handler* const handler_;
   AMediaCodec* codec_ = nullptr;
 };
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_BRIDGE_H_
+#endif  // STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_H_

@@ -18,6 +18,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
@@ -167,8 +168,8 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+  media_codec_bridge_ = MediaCodec::CreateAudioMediaCodec(audio_stream_info,
+                                                          this, j_media_crypto);
   if (!media_codec_bridge_) {
     *error_message = "Failed to create audio media codec bridge.";
     SB_LOG(ERROR) << *error_message;
@@ -229,7 +230,7 @@ MediaCodecDecoder::MediaCodecDecoder(
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
+  auto media_codec_bridge = MediaCodec::CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
       j_output_surface, j_media_crypto, color_metadata,
       enable_frame_renderer_listener, require_secured_decoder,
@@ -802,7 +803,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
     status = media_codec_bridge_->QueueInputBuffer(
         dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_CODEC_CONFIG, false);
+        MediaCodec::kBufferFlagCodecConfig, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
@@ -817,7 +818,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   } else {
     status = media_codec_bridge_->QueueInputBuffer(
         dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_END_OF_STREAM, false);
+        MediaCodec::kBufferFlagEndOfStream, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 

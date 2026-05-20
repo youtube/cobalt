@@ -188,6 +188,8 @@ static_library("starboard_platform") {
     "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
+    "media_codec.cc",
+    "media_codec.h",
     "media_codec_audio_decoder.cc",
     "media_codec_audio_decoder.h",
     "media_codec_bridge.cc",
@@ -210,8 +212,8 @@ static_library("starboard_platform") {
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
-    "ndk_media_codec_bridge.cc",
-    "ndk_media_codec_bridge.h",
+    "ndk_media_codec.cc",
+    "ndk_media_codec.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -443,7 +445,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
-    "media_codec_bridge.h",
+    "media_codec.h",
     "media_common.h",
     "media_drm_bridge.h",
   ]
