@@ -306,6 +306,8 @@ jobs:
           persist-credentials: false
       - name: Run Tests (${{ matrix.shard }})
         uses: ./.github/actions/on_device_tests
+        with:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
 
   # Runs on-host integration and unit tests.
   on-host-test:
