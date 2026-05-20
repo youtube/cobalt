@@ -127,6 +127,26 @@ class TestAutorollLts(unittest.TestCase):
 
     self.assertTrue(result)
 
+  @patch('subprocess.run')
+  def test_cherry_pick_raises_on_conflict_failure(self, mock_run):
+    """Test cherry_pick raises CalledProcessError on conflict failure."""
+
+    def side_effect(cmd, *args, **kwargs):
+      # pylint: disable=unused-argument
+      if 'cherry-pick' in cmd:
+        raise subprocess.CalledProcessError(1, cmd)
+      if 'ls-files' in cmd:
+        return MagicMock(
+            stdout='100644 abcdef 2\tfile1.txt\n100644 abcdef 3\tfile1.txt\n',
+            returncode=0)
+      return MagicMock(returncode=0)
+
+    mock_run.side_effect = side_effect
+
+    with patch('sys.stderr'):
+      with self.assertRaises(subprocess.CalledProcessError):
+        autoroll_lts.cherry_pick('sha', '123', 'title')
+
 
 class TestAutorollLtsMain(unittest.TestCase):
   """Test cases for main() function argument parsing and defaults."""
