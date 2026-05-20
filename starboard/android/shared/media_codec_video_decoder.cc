@@ -324,8 +324,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       enable_output_checker_(experimental_features.enable_codec_output_checker),
       skip_video_frames_over_60_fps_(
           experimental_features.skip_video_frames_over_60_fps),
-      is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
-                                      tunnel_mode_audio_session_id),
+      is_video_frame_tracker_enabled_(
+          // OnFrameRenderedListener is available since API 23, but only
+          // reliable for standard playback since API 34. Tunnel mode uses it on
+          // all SDKs.
+          android_get_device_api_level() >= 34 || tunnel_mode_audio_session_id),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
@@ -804,7 +807,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      enable_output_checker_, skip_video_frames_over_60_fps_);
+      enable_output_checker_, skip_video_frames_over_60_fps_,
+      is_video_frame_tracker_enabled_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1044,10 +1048,6 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
     decoder_status_cb_(kNeedMoreInput,
                        new VideoFrame(video_frame_tracker_->seek_to_time()));
   }
-}
-
-bool MediaCodecVideoDecoder::IsFrameRenderedCallbackEnabled() {
-  return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
 
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {

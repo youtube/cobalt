@@ -132,7 +132,8 @@ MediaCodecDecoder::CreateForVideo(
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
     bool enable_output_checker,
-    bool skip_video_frames_over_60_fps) {
+    bool skip_video_frames_over_60_fps,
+    bool use_frame_rendered_callback) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -141,7 +142,7 @@ MediaCodecDecoder::CreateForVideo(
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
       use_dual_threads, enable_output_checker, skip_video_frames_over_60_fps,
-      &error_message);
+      use_frame_rendered_callback, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -206,6 +207,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     std::optional<bool> use_dual_threads,
     bool enable_output_checker,
     bool skip_video_frames_over_60_fps,
+    bool use_frame_rendered_callback,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -229,7 +231,8 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(!drm_system_ || j_media_crypto);
   auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
-      j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
+      j_output_surface, j_media_crypto, color_metadata,
+      use_frame_rendered_callback, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size,
       enable_output_checker, skip_video_frames_over_60_fps);
