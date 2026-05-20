@@ -13,6 +13,18 @@ inputs:
   num_gtest_shards:
     description: "Total number of shards used to run the steps in this file."
     required: true
+  gunit_executables:
+    description: "Space-separated list of GTest executables"
+    required: false
+    default: ""
+  junit_targets:
+    description: "Space-separated list of JUnit targets"
+    required: false
+    default: ""
+  has_junit:
+    description: "Whether JUnit tests are present (true/false)"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -30,34 +42,8 @@ runs:
         set -x
         tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
 
-    - name: Parse Test Targets
-      id: parse-targets
-      shell: bash
-      run: |
-        targets_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
-        echo "targets_file=${targets_file}" >> $GITHUB_OUTPUT
-
-        if [[ -f "${targets_file}" ]]; then
-          # Parse JUnit targets (space-separated list)
-          junit_targets=$(jq -cr '.test_targets // [] | map(select(endswith("_junit_tests"))) | join(" ")' "${targets_file}")
-          echo "junit_targets=${junit_targets}" >> $GITHUB_OUTPUT
-          if [[ -n "${junit_targets}" ]]; then
-            echo "has_junit=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_junit=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Parse GTest executables (space-separated list)
-          executables=$(jq -cr '.executables.on_host.gunit_test_executables // [] | join(" ")' "${targets_file}")
-          echo "executables=${executables}" >> $GITHUB_OUTPUT
-        else
-          echo "has_junit=false" >> $GITHUB_OUTPUT
-          echo "junit_targets=" >> $GITHUB_OUTPUT
-          echo "executables=" >> $GITHUB_OUTPUT
-        fi
-
     - name: Checkout Android JUnit Essentials
-      if: steps.parse-targets.outputs.has_junit == 'true'
+      if: inputs.has_junit == 'true'
       uses: actions/checkout@v4
       with:
         clean: false
@@ -89,7 +75,7 @@ runs:
       env:
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
-        EXECUTABLES: ${{ steps.parse-targets.outputs.executables }}
+        EXECUTABLES: ${{ inputs.gunit_executables }}
       run: |
         set -x
         env
@@ -103,8 +89,9 @@ runs:
           echo "No on-host unit tests to run."
         else
           for executable in ${EXECUTABLES}; do
-            test_binary="${executable%%.*}"
-            test_binary_path="out/${{ matrix.platform }}_${{ matrix.config }}/${executable}"
+            test_binary="${executable##*/}"
+            test_binary="${test_binary%%.*}"
+            test_binary_path="${executable}"
 
             echo "Running tests for suite: ${test_binary}"
 
@@ -155,7 +142,7 @@ runs:
       if: always()
       shell: bash
       env:
-        JUNIT_TARGETS: ${{ steps.parse-targets.outputs.junit_targets }}
+        JUNIT_TARGETS: ${{ inputs.junit_targets }}
       run: |
         set -x
         set -o pipefail

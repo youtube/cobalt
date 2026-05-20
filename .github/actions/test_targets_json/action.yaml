@@ -28,7 +28,13 @@ runs:
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
         echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
-        on_host_executables=$(jq -cr '(.executables.on_host.gunit_test_executables // []) + (.executables.on_host.junit_test_executables // []) + (.executables.on_host.browser_test_executables // [])' "${targets_file}")
+        on_host_gunit_executables=$(jq -cr '.executables.on_host.gunit_test_executables // []' "${targets_file}")
+        echo "on_host_gunit_executables=${on_host_gunit_executables}" >> $GITHUB_OUTPUT
+
+        on_host_junit_executables=$(jq -cr '.executables.on_host.junit_test_executables // []' "${targets_file}")
+        echo "on_host_junit_executables=${on_host_junit_executables}" >> $GITHUB_OUTPUT
+
+        on_host_executables=$(jq -cn --argjson a "${on_host_gunit_executables}" --argjson b "${on_host_junit_executables}" '$a + $b')
         echo "on_host_executables=${on_host_executables}" >> $GITHUB_OUTPUT
 
         # On-Device Targets by Subtype
@@ -43,7 +49,10 @@ runs:
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
         echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
-        on_device_executables=$(jq -cr '(.executables.on_device.gunit_test_executables // []) + (.executables.on_device.browser_test_executables // [])' "${targets_file}")
+        on_device_gunit_executables=$(jq -cr '.executables.on_device.gunit_test_executables // []' "${targets_file}")
+        echo "on_device_gunit_executables=${on_device_gunit_executables}" >> $GITHUB_OUTPUT
+
+        on_device_executables=$(jq -cn --argjson a "${on_device_gunit_executables}" '[]') # Redundant or unused, but keeping output
         echo "on_device_executables=${on_device_executables}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
@@ -59,8 +68,14 @@ outputs:
   on_host_targets:
     description: The on-host test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_targets }}
+  on_host_gunit_executables:
+    description: GTest unittests executables.
+    value: ${{ steps.parse-json.outputs.on_host_gunit_executables }}
+  on_host_junit_executables:
+    description: JUnit test executables.
+    value: ${{ steps.parse-json.outputs.on_host_junit_executables }}
   on_host_executables:
-    description: The on-host executables in a JSON array.
+    description: All host executables.
     value: ${{ steps.parse-json.outputs.on_host_executables }}
   on_host_count:
     description: The number of on-host test targets.
@@ -75,8 +90,11 @@ outputs:
   on_device_targets:
     description: The on-device test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_targets }}
+  on_device_gunit_executables:
+    description: Device GTests unittests executables.
+    value: ${{ steps.parse-json.outputs.on_device_gunit_executables }}
   on_device_executables:
-    description: The on-device executables in a JSON array.
+    description: All device executables.
     value: ${{ steps.parse-json.outputs.on_device_executables }}
   on_device_count:
     description: The number of on-device test targets.
