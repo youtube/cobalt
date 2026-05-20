@@ -13,9 +13,7 @@
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkPixmap.h"
 
-#if !BUILDFLAG(IS_ANDROID)
 #include "base/system/sys_info.h"
-#endif
 
 namespace cc {
 
