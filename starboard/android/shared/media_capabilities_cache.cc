@@ -432,9 +432,20 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
                                                 int bitrate,
                                                 int fps) {
   return !FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
-                           false, must_support_tunnel_mode, frame_width,
-                           frame_height, bitrate, fps)
+                           /*require_software_codec=*/false,
+                           must_support_tunnel_mode, frame_width, frame_height,
+                           bitrate, fps)
               .empty();
+}
+
+bool MediaCapabilitiesCache::HasTunnelModeVideoDecoderFor(
+    const std::string& mime_type,
+    bool must_support_secure) {
+  return HasVideoDecoderFor(mime_type, must_support_secure,
+                            /*must_support_hdr=*/false,
+                            /*must_support_tunnel_mode=*/true,
+                            /*frame_width=*/0, /*frame_height=*/0,
+                            /*bitrate=*/0, /*fps=*/0);
 }
 
 std::string MediaCapabilitiesCache::FindAudioDecoder(
@@ -460,6 +471,18 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
   }
 
   return "";
+}
+
+std::string MediaCapabilitiesCache::FindVideoDecoder(
+    const std::string& mime_type,
+    bool must_support_secure,
+    bool must_support_hdr,
+    bool require_software_codec,
+    bool must_support_tunnel_mode) {
+  return FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
+                          require_software_codec, must_support_tunnel_mode,
+                          /*frame_width=*/0, /*frame_height=*/0, /*bitrate=*/0,
+                          /*fps=*/0);
 }
 
 std::string MediaCapabilitiesCache::FindVideoDecoder(

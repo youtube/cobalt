@@ -683,16 +683,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : nullptr;
 
     bool is_encrypted = !!j_media_crypto;
-    if (MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-            mime, is_encrypted, false, true, 0, 0, 0, 0)) {
+    if (MediaCapabilitiesCache::GetInstance()->HasTunnelModeVideoDecoderFor(
+            mime, is_encrypted)) {
       return true;
     }
 
     if (kForceSecurePipelineInTunnelModeWhenRequired && !is_encrypted) {
-      const bool kIsEncrypted = true;
       auto support_tunnel_mode_under_secure_pipeline =
-          MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-              mime, kIsEncrypted, false, true, 0, 0, 0, 0);
+          MediaCapabilitiesCache::GetInstance()->HasTunnelModeVideoDecoderFor(
+              mime, /*must_support_secure=*/true);
       if (support_tunnel_mode_under_secure_pipeline) {
         *force_secure_pipeline_under_tunnel_mode = true;
         return true;

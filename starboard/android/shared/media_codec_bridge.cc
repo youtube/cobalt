@@ -208,30 +208,18 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
           mime, must_support_secure, must_support_hdr, require_software_codec,
-          must_support_tunnel_mode,
-          /* frame_width = */ 0,
-          /* frame_height = */ 0,
-          /* bitrate = */ 0,
-          /* fps = */ 0);
+          must_support_tunnel_mode);
   if (decoder_name.empty() && color_metadata) {
     // On second pass, forget HDR.
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-        mime, must_support_secure, /* must_support_hdr = */ false,
-        require_software_codec, must_support_tunnel_mode,
-        /* frame_width = */ 0,
-        /* frame_height = */ 0,
-        /* bitrate = */ 0,
-        /* fps = */ 0);
+        mime, must_support_secure, /*must_support_hdr=*/false,
+        require_software_codec, must_support_tunnel_mode);
   }
   if (decoder_name.empty() && require_software_codec) {
     // On third pass, forget software codec required.
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-        mime, must_support_secure, /* must_support_hdr = */ false,
-        /* require_software_codec = */ false, must_support_tunnel_mode,
-        /* frame_width = */ 0,
-        /* frame_height = */ 0,
-        /* bitrate = */ 0,
-        /* fps = */ 0);
+        mime, must_support_secure, /*must_support_hdr=*/false,
+        /*require_software_codec=*/false, must_support_tunnel_mode);
   }
 
   if (decoder_name.empty()) {
