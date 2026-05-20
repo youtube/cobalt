@@ -324,7 +324,7 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
+    mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -529,7 +529,7 @@ class MediaCodecBridge {
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
     }
 
-    if (tunnelModeAudioSessionId != -1) {
+    if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
