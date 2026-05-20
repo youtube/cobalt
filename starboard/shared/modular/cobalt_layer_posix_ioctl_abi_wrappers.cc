@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdarg.h>
 #include <sys/ioctl.h>
+
+extern "C" {
 
 int __abi_wrap_ioctl_FIONREAD(int fd, int* arg);
 
 int ioctl_FIONREAD(int fd, int* arg) {
   return __abi_wrap_ioctl_FIONREAD(fd, arg);
 }
+}  // extern "C"
