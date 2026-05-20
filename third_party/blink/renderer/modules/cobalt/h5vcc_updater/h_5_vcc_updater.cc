@@ -27,10 +27,10 @@ H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
 
 void H5vccUpdater::ContextDestroyed() {}
 
-ScriptPromise H5vccUpdater::getUpdateServerUrl(
+ScriptPromise<IDLString> H5vccUpdater::getUpdateServerUrl(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -42,8 +42,9 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
   return resolver->Promise();
 }
 
-void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
-                                        const String& result) {
+void H5vccUpdater::OnGetUpdateServerUrl(
+    ScriptPromiseResolver<IDLString>* resolver,
+    const String& result) {
   resolver->Resolve(result);
 }
 

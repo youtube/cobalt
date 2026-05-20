@@ -17,7 +17,9 @@
 
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -32,7 +34,6 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccUpdater final
     : public ScriptWrappable,
@@ -45,12 +46,12 @@ class MODULES_EXPORT H5vccUpdater final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise getUpdateServerUrl(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLString> getUpdateServerUrl(ScriptState*, ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
-  void OnGetUpdateServerUrl(ScriptPromiseResolver*, const String&);
+  void OnGetUpdateServerUrl(ScriptPromiseResolver<IDLString>*, const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
