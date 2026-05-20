@@ -107,11 +107,6 @@ class MediaCodec {
     virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
   };
 
-  static bool ShouldUseNdkMediaCodec(
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool require_secured_decoder,
-      jobject j_media_crypto);
-
   static std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
@@ -126,6 +121,7 @@ class MediaCodec {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
+      bool enable_frame_renderer_listener,
       bool require_secured_decoder,
       bool require_software_codec,
       std::optional<int> tunnel_mode_audio_session_id,
@@ -133,6 +129,8 @@ class MediaCodec {
       int max_video_input_size,
       bool enable_output_checker,
       bool skip_video_frames_over_60_fps);
+
+  static bool IsFrameRenderedCallbackEnabled();
 
   virtual ~MediaCodec() = default;
 
@@ -160,7 +158,6 @@ class MediaCodec {
   virtual jint Flush() = 0;
   virtual std::optional<FrameSize> GetOutputSize() = 0;
   virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
-  virtual bool IsFrameRenderedCallbackEnabled() const = 0;
 };
 
 }  // namespace starboard

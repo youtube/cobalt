@@ -16,6 +16,7 @@
 
 #include <android/api-level.h>
 #include <android/native_window_jni.h>
+#include <dlfcn.h>
 #include <media/NdkMediaCrypto.h>
 #include <media/NdkMediaFormat.h>
 
@@ -29,6 +30,14 @@
 namespace starboard {
 
 namespace {
+
+void OnFrameRenderedCallback(AMediaCodec* codec,
+                             void* userdata,
+                             int64_t mediaTimeUs,
+                             int64_t systemNano) {
+  auto* bridge = reinterpret_cast<NdkMediaCodec*>(userdata);
+  bridge->OnFrameRendered(mediaTimeUs);
+}
 
 void OnInputBufferAvailableCallback(AMediaCodec* codec,
                                     void* userdata,
@@ -73,6 +82,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
+    bool enable_frame_renderer_listener,
     bool require_secured_decoder,
     bool require_software_codec,
     int max_video_input_size,
@@ -120,7 +130,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
   }
 
   auto bridge =
-      std::unique_ptr<NdkMediaCodec>(new NdkMediaCodec(handler, codec));
+      std::make_unique<NdkMediaCodec>(PassKey<NdkMediaCodec>(), handler, codec);
 
   AMediaCodecOnAsyncNotifyCallback callbacks = {
       OnInputBufferAvailableCallback,
@@ -147,6 +157,24 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
     return nullptr;
   }
 
+  if (enable_frame_renderer_listener &&
+      AMediaCodec_setOnFrameRenderedCallback) {
+    status = AMediaCodec_setOnFrameRenderedCallback(
+        codec, OnFrameRenderedCallback, bridge.get());
+    if (status == AMEDIA_OK) {
+      bridge->is_frame_rendered_callback_enabled_ = true;
+      SB_LOG(INFO) << "AMediaCodec_setOnFrameRenderedCallback successfully "
+                      "registered.";
+    } else {
+      SB_LOG(WARNING) << "AMediaCodec_setOnFrameRenderedCallback failed with "
+                         "status "
+                      << status;
+    }
+  } else if (enable_frame_renderer_listener) {
+    SB_LOG(WARNING) << "AMediaCodec_setOnFrameRenderedCallback fn not "
+                       "found in libmediandk.so.";
+  }
+
   if (native_window) {
     ANativeWindow_release(native_window);
   }
@@ -155,7 +183,9 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
   return bridge;
 }
 
-NdkMediaCodec::NdkMediaCodec(Handler* handler, AMediaCodec* codec)
+NdkMediaCodec::NdkMediaCodec(PassKey<NdkMediaCodec>,
+                             Handler* handler,
+                             AMediaCodec* codec)
     : handler_(handler), codec_(codec) {
   SB_CHECK(handler_);
 }
@@ -257,10 +287,6 @@ std::optional<AudioOutputFormatResult> NdkMediaCodec::GetAudioOutputFormat() {
   return std::nullopt;
 }
 
-bool NdkMediaCodec::IsFrameRenderedCallbackEnabled() const {
-  return false;
-}
-
 void NdkMediaCodec::OnInputBufferAvailable(int32_t index) {
   handler_->OnMediaCodecInputBufferAvailable(index);
 }
@@ -280,6 +306,10 @@ void NdkMediaCodec::OnError(media_status_t error,
                             const char* detail) {
   handler_->OnMediaCodecError(/*is_recoverable=*/true, /*is_transient=*/false,
                               detail ? detail : "NDK MediaCodec Error");
+}
+
+void NdkMediaCodec::OnFrameRendered(int64_t presentation_time_us) {
+  handler_->OnMediaCodecFrameRendered(presentation_time_us);
 }
 
 }  // namespace starboard

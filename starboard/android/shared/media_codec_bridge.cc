@@ -15,7 +15,6 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 
 #include <android/api-level.h>
-#include <sys/system_properties.h>
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
@@ -426,10 +425,6 @@ MediaCodecBridge::GetAudioOutputFormat() {
   };
 }
 
-bool MediaCodecBridge::IsFrameRenderedCallbackEnabled() const {
-  return IsFrameRenderedCallbackEnabledJni() == JNI_TRUE;
-}
-
 void MediaCodecBridge::OnMediaCodecError(
     JNIEnv* env,
     jboolean is_recoverable,
@@ -470,12 +465,6 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(
 
 void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
-}
-
-// static
-jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabledJni() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
 }  // namespace starboard

@@ -14,7 +14,6 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
-#include <sys/system_properties.h>
 #include <unistd.h>
 
 #include <algorithm>

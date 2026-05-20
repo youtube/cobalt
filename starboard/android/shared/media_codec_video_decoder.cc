@@ -26,7 +26,6 @@
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
-#include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
@@ -1053,8 +1052,6 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
                        new VideoFrame(video_frame_tracker_->seek_to_time()));
   }
 }
-
-
 
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);

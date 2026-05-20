@@ -15,7 +15,6 @@
 #include "starboard/android/shared/media_codec.h"
 
 #include <android/api-level.h>
-#include <sys/system_properties.h>
 
 #include <memory>
 #include <optional>
@@ -31,11 +30,10 @@
 #include "starboard/common/string.h"
 
 namespace starboard {
-// static
-bool MediaCodec::ShouldUseNdkMediaCodec(
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool require_secured_decoder,
-    jobject j_media_crypto) {
+namespace {
+bool ShouldUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
+                            bool require_secured_decoder,
+                            jobject j_media_crypto) {
   // 1. Critical Usability Checks
   if (require_secured_decoder || j_media_crypto) {
     SB_LOG(INFO) << "[MediaCodec] Secure decoding requested. NDK AMediaCodec "
@@ -59,6 +57,7 @@ bool MediaCodec::ShouldUseNdkMediaCodec(
       << "[MediaCodec] NDK AMediaCodec is usable. Selecting NDK backend.";
   return true;
 }
+}  // namespace
 
 // static
 std::unique_ptr<MediaCodec> MediaCodec::CreateAudioMediaCodec(
@@ -79,6 +78,7 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
+    bool enable_frame_renderer_listener,
     bool require_secured_decoder,
     bool require_software_codec,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -136,17 +136,16 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
                      starboard::ToString(!!j_media_crypto).data()));
   }
 
-  if (MediaCodec::ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id,
-                                         require_secured_decoder,
-                                         j_media_crypto)) {
+  if (ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id,
+                             require_secured_decoder, j_media_crypto)) {
     auto ndk_bridge = NdkMediaCodec::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,
-        require_secured_decoder, require_software_codec, max_video_input_size,
-        enable_output_checker);
+        enable_frame_renderer_listener, require_secured_decoder,
+        require_software_codec, max_video_input_size, enable_output_checker);
     if (ndk_bridge) {
       SB_LOG(INFO) << "[MediaCodec] Selected Backend: NDK AMediaCodec.";
-      return NonNullResult<std::unique_ptr<MediaCodec>>(std::move(ndk_bridge));
+      return ndk_bridge;
     }
     SB_LOG(WARNING) << "[MediaCodec] Failed to create NdkMediaCodec. "
                        "Falling back to Java MediaCodec.";
@@ -156,15 +155,18 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
   auto jni_result = MediaCodecBridge::CreateVideoMediaCodec(
       video_codec, decoder_name, mime, frame_size_hint, fps, max_frame_size,
       handler, j_surface, j_media_crypto, color_metadata,
-      require_secured_decoder, require_software_codec,
-      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
-      max_video_input_size, enable_output_checker,
-      skip_video_frames_over_60_fps);
+      enable_frame_renderer_listener, require_secured_decoder,
+      require_software_codec, tunnel_mode_audio_session_id,
+      force_big_endian_hdr_metadata, max_video_input_size,
+      enable_output_checker, skip_video_frames_over_60_fps);
   if (jni_result) {
-    return NonNullResult<std::unique_ptr<MediaCodec>>(
-        std::move(jni_result.value()));
+    return std::move(jni_result.value());
   }
   return Failure(jni_result.error());
+}
+
+bool MediaCodec::IsFrameRenderedCallbackEnabled() {
+  return android_get_device_api_level() >= 34;
 }
 
 }  // namespace starboard

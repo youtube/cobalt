@@ -60,7 +60,6 @@ class MediaCodecBridge : public MediaCodec {
       bool enable_output_checker,
       bool skip_video_frames_over_60_fps);
 
-
   explicit MediaCodecBridge(Handler* handler);
   ~MediaCodecBridge() override;
 
@@ -91,7 +90,6 @@ class MediaCodecBridge : public MediaCodec {
   jint Flush() override;
   std::optional<FrameSize> GetOutputSize() override;
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
-  bool IsFrameRenderedCallbackEnabled() const override;
 
   // JNI Callbacks from Java MediaCodecBridge
   void OnMediaCodecError(
@@ -111,8 +109,6 @@ class MediaCodecBridge : public MediaCodec {
                                  jlong presentation_time_us,
                                  jlong render_at_system_time_ns);
   void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
-
-  static jboolean IsFrameRenderedCallbackEnabledJni();
 
  private:
   MediaCodecBridge(const MediaCodecBridge&) = delete;
