@@ -383,8 +383,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", preroll count=" << number_of_preroll_frames_
                << ", max pending input size=" << kMaxPendingInputsSize
                << ", max video capabilities=\"" << max_video_capabilities_
-               << "\", and tunnel mode audio session id="
-               << ToString(tunnel_mode_audio_session_id_);
+               << "\", tunnel mode audio session id="
+               << ToString(tunnel_mode_audio_session_id_)
+               << ", is_video_frame_tracker_enabled="
+               << ToString(is_video_frame_tracker_enabled_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
