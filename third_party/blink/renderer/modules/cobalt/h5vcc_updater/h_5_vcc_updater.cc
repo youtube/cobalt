@@ -307,18 +307,19 @@ void H5vccUpdater::OnGetUpdateServerUrl(
   resolver->Resolve(result);
 }
 
-void H5vccUpdater::OnSetUpdateServerUrl(ScriptPromiseResolver* resolver) {
+void H5vccUpdater::OnSetUpdateServerUrl(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   resolver->Resolve();
 }
 
 void H5vccUpdater::OnGetRequireNetworkEncryption(
-    ScriptPromiseResolver* resolver,
+    ScriptPromiseResolver<IDLBoolean>* resolver,
     bool result) {
   resolver->Resolve(result);
 }
 
 void H5vccUpdater::OnSetRequireNetworkEncryption(
-    ScriptPromiseResolver* resolver) {
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   resolver->Resolve();
 }
 
