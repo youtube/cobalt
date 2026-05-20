@@ -96,7 +96,9 @@
 #include "third_party/blink/renderer/modules/webaudio/inspector_web_audio_agent.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_context_factory.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/webgpu/gpu_canvas_context.h"
+#endif
 #include "third_party/blink/renderer/modules/worklet/animation_and_paint_worklet_thread.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -212,8 +214,10 @@ void ModulesInitializer::Initialize() {
       WebGLContextFactory::MakeWebGL2());
   HTMLCanvasElement::RegisterRenderingContextFactory(
       std::make_unique<ImageBitmapRenderingContext::Factory>());
+#if !BUILDFLAG(IS_COBALT)
   HTMLCanvasElement::RegisterRenderingContextFactory(
       std::make_unique<GPUCanvasContext::Factory>());
+#endif
 
   // OffscreenCanvas context types must be registered with the OffscreenCanvas.
   OffscreenCanvas::RegisterRenderingContextFactory(
@@ -224,8 +228,10 @@ void ModulesInitializer::Initialize() {
       WebGLContextFactory::MakeWebGL2());
   OffscreenCanvas::RegisterRenderingContextFactory(
       std::make_unique<ImageBitmapRenderingContext::Factory>());
+#if !BUILDFLAG(IS_COBALT)
   OffscreenCanvas::RegisterRenderingContextFactory(
       std::make_unique<GPUCanvasContext::Factory>());
+#endif
 
   V8PerIsolateData::SetTaskAttributionTrackerFactory(
       &scheduler::TaskAttributionTrackerImpl::Create);

@@ -115,7 +115,7 @@ blink_modules_sources("webgpu") {
 
   if (use_dawn) {
     deps += [ "//third_party/dawn/src/dawn/wire" ]
-  } else {
+  } else if (!is_cobalt) {
     # If Dawn is not used, use the proc table. This gives the WebGPU implementation
     # something to link to, though WebGPU won't be supported.
     deps += [ "//third_party/dawn/src/dawn:proc" ]

@@ -42,6 +42,10 @@ component("modules") {
 
   sources += blink_modules_sources_bindings
 
+  if (is_cobalt) {
+    sources += [ "cobalt_modules_stubs.cc" ]
+  }
+
   configs += [
     ":modules_implementation",
 
@@ -172,6 +176,11 @@ component("modules") {
   ]
 
   if (is_cobalt) {
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/ml",
+      "//third_party/blink/renderer/modules/webgpu",
+      "//third_party/blink/renderer/modules/xr",
+    ]
     sub_modules += [
       "//third_party/blink/renderer/modules/cobalt:h_5_vcc",
       "//third_party/blink/renderer/modules/cobalt/crash_log",
