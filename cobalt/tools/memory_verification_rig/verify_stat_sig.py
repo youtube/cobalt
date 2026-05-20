@@ -14,19 +14,15 @@
 # limitations under the License.
 """Statistical significance verification engine for Cobalt."""
 
-# pylint: disable=wrong-import-position,too-many-positional-arguments,too-many-arguments
-
 import argparse
 import json
 import logging
 import os
 import socket
 import subprocess
-import sys
 import tempfile
 import time
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from cuj_definitions import CUJS
 from stats_utils import calculate_stats, permutation_test_p_value
 

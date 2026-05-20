@@ -57,6 +57,8 @@ def run_significance_campaign(args, flag_type, flag_name, results_json):
   ]
   if args.bin_path:
     cmd.append(f"--bin-path={args.bin_path}")
+  if args.enable_granular_memory:
+    cmd.append("--enable-granular-memory")
 
   # Baseline vs Experiment configurations mapping
   if flag_type == "feature":
