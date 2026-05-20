@@ -1,6 +1,11 @@
 name: On Device Test
 description: Runs on-device tests.
 
+inputs:
+  DD_API_KEY:
+    description: 'DataDog API Key'
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -173,7 +178,7 @@ runs:
     - name: Upload to DataDog
       if: always() && env.TEST_TYPE == 'unit_test' && github.event == 'push'
       env:
-        DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
+        DATADOG_API_KEY: ${{ inputs.DD_API_KEY }}
         DATADOG_SITE: us5.datadoghq.com
         DD_ENV: ci
         DD_SERVICE: ${{ github.event.repository.name }}
