@@ -13,47 +13,78 @@ runs:
       run: |
         targets_file="test_targets.json"
 
-        # On-Host Targets & GTest filtering
-        on_host_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
-        echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
-        echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        # On-Host Targets by Subtype
+        on_host_gunit_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests") | not) | select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
+        echo "on_host_gunit_targets=${on_host_gunit_targets}" >> $GITHUB_OUTPUT
+
+        on_host_junit_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests"))) else [] end' "${targets_file}")
+        echo "on_host_junit_targets=${on_host_junit_targets}" >> $GITHUB_OUTPUT
+
+        on_host_browsertest_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
+        echo "on_host_browsertest_targets=${on_host_browsertest_targets}" >> $GITHUB_OUTPUT
 
         on_host_gtest_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests") | not)) else [] end' "${targets_file}")
         echo "on_host_gtest_targets=${on_host_gtest_targets}" >> $GITHUB_OUTPUT
 
+        on_host_targets=$(jq -cr 'if (.executables.on_host | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
+        echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
+        echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+
         on_host_executables=$(jq -cr '(.executables.on_host.gunit_test_executables // []) + (.executables.on_host.junit_test_executables // []) + (.executables.on_host.browser_test_executables // [])' "${targets_file}")
         echo "on_host_executables=${on_host_executables}" >> $GITHUB_OUTPUT
 
-        # On-Device Targets & GTest filtering
-        on_device_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
-        echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
-        echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        # On-Device Targets by Subtype
+        on_device_gunit_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
+        echo "on_device_gunit_targets=${on_device_gunit_targets}" >> $GITHUB_OUTPUT
+
+        on_device_browsertest_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
+        echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
 
         on_device_gtest_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] | map(select(endswith("_junit_tests") | not)) else [] end' "${targets_file}")
         echo "on_device_gtest_targets=${on_device_gtest_targets}" >> $GITHUB_OUTPUT
+
+        on_device_targets=$(jq -cr 'if (.executables.on_device | length) > 0 then .test_targets // [] else [] end' "${targets_file}")
+        echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
+        echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
         on_device_executables=$(jq -cr '(.executables.on_device.gunit_test_executables // []) + (.executables.on_device.browser_test_executables // [])' "${targets_file}")
         echo "on_device_executables=${on_device_executables}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
+  on_host_gunit_targets:
+    description: The on-host GTest unittests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_gunit_targets }}
+  on_host_junit_targets:
+    description: The on-host JUnit targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_junit_targets }}
+  on_host_browsertest_targets:
+    description: The on-host browsertests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_browsertest_targets }}
+  on_host_gtest_targets:
+    description: The GTest XML-compatible host test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_gtest_targets }}
   on_host_targets:
     description: The on-host test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_targets }}
-  on_host_gtest_targets:
-    description: The GTest-only host test targets in a JSON array.
-    value: ${{ steps.parse-json.outputs.on_host_gtest_targets }}
   on_host_executables:
     description: The on-host executables in a JSON array.
     value: ${{ steps.parse-json.outputs.on_host_executables }}
   on_host_count:
     description: The number of on-host test targets.
     value: ${{ steps.parse-json.outputs.on_host_count }}
+
+  on_device_gunit_targets:
+    description: The on-device GTest unittests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_gunit_targets }}
+  on_device_browsertest_targets:
+    description: The on-device browsertests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_browsertest_targets }}
+  on_device_gtest_targets:
+    description: The GTest XML-compatible device test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_gtest_targets }}
   on_device_targets:
     description: The on-device test targets in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_targets }}
-  on_device_gtest_targets:
-    description: The GTest-only device test targets in a JSON array.
-    value: ${{ steps.parse-json.outputs.on_device_gtest_targets }}
   on_device_executables:
     description: The on-device executables in a JSON array.
     value: ${{ steps.parse-json.outputs.on_device_executables }}
