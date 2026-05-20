@@ -79,7 +79,61 @@ python3 verify_stat_sig.py --cuj=watch --enable-granular-memory
 
 ---
 
-## 4. Style & Linter Compliance
+## 4. Manual Local A/B Testing & Custom Flags Cheat Sheet
+
+To run a manual A/B statistical significance experiment on a local device, you configure and pass different arguments to `--baseline-args` and `--experiment-args`.
+
+Here is a cheat sheet of how to format and enable various types of switches and feature flags:
+
+### A. Toggling Standard Chromium/Cobalt CLI Switches
+Standard switches are passed directly (comma-separated).
+*   **Baseline (Standard):** default switches.
+*   **Experiment (Optimized):** appending your switch (e.g., `--disable-gpu-rasterization` or `--enable-threaded-texture-mailboxes`).
+```bash
+python3 verify_stat_sig.py \
+  --cuj=watch \
+  --runs=5 \
+  --baseline-args="--remote-allow-origins=*,--enable-metrics" \
+  --experiment-args="--remote-allow-origins=*,--enable-metrics,--disable-gpu-rasterization"
+```
+
+### B. Toggling C++ BASE_FEATURE Flags (Blink/Content)
+C++ feature flags are toggled using the standard `--enable-features` and `--disable-features` switches.
+*   **Baseline (Disabled):** `--disable-features=FeatureName`
+*   **Experiment (Enabled):** `--enable-features=FeatureName`
+```bash
+python3 verify_stat_sig.py \
+  --cuj=watch \
+  --runs=5 \
+  --baseline-args="--remote-allow-origins=*,--disable-features=SmallerInterestArea" \
+  --experiment-args="--remote-allow-origins=*,--enable-features=SmallerInterestArea"
+```
+
+### C. Toggling V8 Engine & JS flags
+V8 switches are passed inside the `--js-flags` argument wrapper.
+*   **Baseline (Standard):** default JS memory.
+*   **Experiment (Capped V8 Heap):** `--js-flags="--max-old-space-size=128"`
+```bash
+python3 verify_stat_sig.py \
+  --cuj=watch \
+  --runs=5 \
+  --baseline-args="--remote-allow-origins=*" \
+  --experiment-args="--remote-allow-origins=*,--js-flags=--max-old-space-size=128"
+```
+
+### D. Mixing Multiple Custom Configurations
+You can combine switches, features, and V8 options in a single sweep campaign by comma-separating them:
+```bash
+python3 verify_stat_sig.py \
+  --cuj=watch \
+  --runs=5 \
+  --baseline-args="--remote-allow-origins=*,--enable-metrics" \
+  --experiment-args="--remote-allow-origins=*,--enable-metrics,--disable-gpu-rasterization,--enable-features=SmallerInterestArea,--js-flags=--max-old-space-size=128"
+```
+
+---
+
+## 5. Style & Linter Compliance
 
 Run the `pre-commit` linter suite on all files to confirm style correctness before staging and committing:
 ```bash
