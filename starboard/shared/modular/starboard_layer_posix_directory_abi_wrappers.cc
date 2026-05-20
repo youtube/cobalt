@@ -30,28 +30,33 @@ int __abi_wrap_readdir_r(musl_dir* dirp,
     return -1;
   }
 
-  struct dirent entry = {0};  // The type from platform toolchain.
-  struct dirent* result = nullptr;
-  int retval = readdir_r(dirp->dir, &entry, &result);
-  if (retval != 0) {
-    return retval;
+  errno = 0;
+  struct dirent* result_platform = readdir(dirp->dir);
+  if (!result_platform) {
+    if (errno != 0) {
+      return errno;
+    }
+    *musl_result = nullptr;
+    return 0;
   }
-#if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
-  musl_entry->d_ino = entry.d_ino;
-  musl_entry->d_off = entry.d_off;
-#endif
-  musl_entry->d_reclen = entry.d_reclen;
-  musl_entry->d_type = entry.d_type;
 
   memset(musl_entry->d_name, 0, sizeof(musl_entry->d_name));
-  constexpr auto minlen =
-      std::min(sizeof(musl_entry->d_name), sizeof(entry.d_name));
-  memcpy(musl_entry->d_name, entry.d_name, minlen);
-  if (result == nullptr) {
-    *musl_result = nullptr;
-  } else {
-    *musl_result = musl_entry;
+#if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
+  musl_entry->d_ino = result_platform->d_ino;
+  musl_entry->d_off = result_platform->d_off;
+#endif
+  musl_entry->d_reclen = result_platform->d_reclen;
+  musl_entry->d_type = result_platform->d_type;
+
+  if (starboard::strlcpy(musl_entry->d_name, result_platform->d_name,
+                         sizeof(musl_entry->d_name)) >=
+      sizeof(musl_entry->d_name)) {
+    SB_LOG(WARNING) << "Truncated d_name in readdir_r wrapper."
+                    << " src_size=" << sizeof(result_platform->d_name)
+                    << " dst_size=" << sizeof(musl_entry->d_name);
   }
+
+  *musl_result = musl_entry;
   return 0;
 }
 
