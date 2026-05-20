@@ -233,6 +233,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
 #endif  // BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioCaptureFastTrack);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassMojoForMedia);
+// Enable DirectRenderer in Cobalt single-process mode.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingDirectRenderer);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);

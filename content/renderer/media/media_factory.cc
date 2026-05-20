@@ -141,6 +141,8 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"  // nogncheck
+#include "content/public/gpu/content_gpu_client.h"  // nogncheck
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -609,6 +611,22 @@ MediaFactory::CreateRendererFactorySelector(
   media::RendererFactoryTraits renderer_factory_traits;
   GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
   renderer_factory_traits.max_video_capabilities = max_video_capabilities;
+  
+  renderer_factory_traits.get_subscriber_cb = base::BindRepeating([]() {
+    mojo::PendingRemote<cobalt::media::mojom::VideoGeometryChangeSubscriber> remote;
+    auto receiver = remote.InitWithNewPipeAndPassReceiver();
+    
+    auto* gpu_client = content::GetContentClient()->gpu();
+    if (gpu_client) {
+      gpu_client->SetVideoGeometryChangeSubscriberReceiver(mojo::GenericPendingReceiver(std::move(receiver)));
+    } else {
+      LOG(ERROR) << "MediaFactory: ContentGpuClient is null!";
+    }
+
+    auto remote_ptr = std::make_unique<mojo::PendingRemote<cobalt::media::mojom::VideoGeometryChangeSubscriber>>(std::move(remote));
+    return static_cast<void*>(remote_ptr.release());
+  });
+
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,
     std::make_unique<media::StarboardRendererClientFactory>(media_log,

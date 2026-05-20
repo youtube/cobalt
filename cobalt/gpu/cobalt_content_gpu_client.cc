@@ -72,4 +72,18 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
               base::SingleThreadTaskRunner::GetCurrentDefault()));
 }
 
+void CobaltContentGpuClient::SetVideoGeometryChangeSubscriberReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  auto* service = GetVideoGeometrySetterService();
+  if (service && receiver.is_valid()) {
+    service->GetVideoGeometryChangeSubscriber(
+        receiver.As<cobalt::media::mojom::VideoGeometryChangeSubscriber>());
+  }
+}
+
+mojo::GenericPendingReceiver
+CobaltContentGpuClient::TakeVideoGeometryChangeSubscriberReceiver() {
+  return mojo::GenericPendingReceiver();
+}
+
 }  // namespace cobalt

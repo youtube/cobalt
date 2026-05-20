@@ -159,7 +159,7 @@ class StarboardRendererClientTest : public ::testing::Test {
     auto overlay_factory = std::make_unique<VideoOverlayFactory>();
     starboard_renderer_client_ = std::make_unique<StarboardRendererClient>(
         task_environment_.GetMainThreadTaskRunner(), media_log_.Clone(),
-        std::move(mojo_renderer), std::move(overlay_factory),
+        std::move(mojo_renderer), /*use_direct_renderer=*/false, std::move(overlay_factory),
         &mock_video_renderer_sink_,
         std::move(starboard_renderer_extensions_remote),
         std::move(client_extension_receiver),

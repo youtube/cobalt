@@ -27,6 +27,12 @@
 #include "media/starboard/starboard_callbacks.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
+namespace media {
+class VideoGeometrySetterService;
+}
+}  // namespace cobalt
+
 namespace media {
 
 // Customizations for StarboardRendererClientFactory to
@@ -39,8 +45,11 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
   StarboardRendererConfig::ExperimentalFeatures experimental_features;
+  using GetVideoGeometryChangeSubscriberCB = base::RepeatingCallback<void*()>;
+
   gfx::Size viewport_size;
   GetSbWindowHandleCallback get_sb_window_handle_callback;
+  GetVideoGeometryChangeSubscriberCB get_subscriber_cb;
 };
 
 }  // namespace media

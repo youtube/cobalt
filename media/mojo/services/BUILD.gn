@@ -117,6 +117,8 @@ component("services") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
+      "starboard/direct_renderer_service.cc",
+      "starboard/direct_renderer_service.h",
       "starboard/gpu_mojo_media_client_starboard.cc",
       "starboard/starboard_renderer_wrapper.cc",
       "starboard/starboard_renderer_wrapper.h",
@@ -125,6 +127,7 @@ component("services") {
       "//starboard/common",
       "//starboard:starboard_headers_only",
       "//cobalt/media/service",
+      "//media/mojo/clients",
       "//cobalt/media/service/mojom",
     ]
   } else if (is_android) {
