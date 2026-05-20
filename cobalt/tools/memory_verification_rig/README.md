@@ -1,89 +1,88 @@
-# Cobalt Memory Significance Verification Rig
+# Cobalt Memory Significance Verification Rig & Win Hunting Pipeline
 
-This directory contains the Cobalt performance tooling suite for orchestrating automated memory experiments on Linux and Android devices, capturing system PSS/RSS allocations, and mathematically verifying the **statistical significance** of memory footprint optimizations.
+This directory contains the official Cobalt performance tooling suite for orchestrating automated memory profiling experiments, mathematically verifying the **statistical significance** of optimizations, and systematically hunting for memory footprint wins across discovered configuration switches.
 
 ---
 
 ## 1. Tooling Architecture
 
-### 📊 `verify_stat_sig.py`
-The primary significance profiling campaign orchestrator. It runs Baseline (standard flags) and Experiment (optimized flags) configurations sequentially across Critical User Journeys (CUJs), captures sample distributions, and performs non-parametric calculations to calculate statistical significance.
-- **Dynamic Scraper & Reporting:** Automatically scrapes target UMA breakout histograms via Chrome DevTools Protocol (CDP). Supports lazy log formatting and is 100% presubmit-compliant.
-- **Timing & Sync Hardening:** Uses active TCP loopback polling (`wait_for_devtools_port`) instead of fragile timing sleeps to deterministically verify DevTools loopback port connection.
-- **Log-Parsing Fallback:** Line-by-line diagnostics parser that dynamically reads local Linux log files or adb logcat device outputs, formatting them into CDP-scraped CSV lines to ensure graceful CDP connection recovery.
-- **Resource Safety:** Bypasses dangerous shell command injection risks via direct safe list-based execution. Closes Popen file descriptors cleanly using standard context managers to prevent leaks.
+### Harvester (`harvest_flags.py`)
+Dynamically extracts togglable configuration switches and feature flags from both upstream Blink/Chromium and Cobalt-specific C++ source files (`cobalt/browser/switches.cc`, `cobalt/shell/common/shell_switches.cc`, `cobalt/browser/features.cc`, etc.).
+*   **Double-Token Filtering:** Parses both variable names and string values to exclude purely numeric constants (`0`, `1`), constant value lists (containing `_`), and non-hyphenated helpers, guaranteeing zero false-positives in the final stack.
 
-### ⚙️ `cuj_definitions.py`
-Centrally specifies the unified 4-Pillar Cobalt Critical User Journeys:
-*   `browse`: BROWSE CUJ (Randomized UI navigation to `https://www.youtube.com/tv`, automatically launching the D-pad scrolling driver subprocess).
-*   `watch`: WATCH CUJ (Direct video playback to `https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g`).
-*   `baseline`: BASELINE CUJ (Idle `about:blank`).
-*   `combined`: COMBINED CUJ (Direct video playback + randomized D-pad page browsing).
+### Sweeper Orchestrator (`win_hunter.py`)
+The master sweep coordinator. It systematically loops through discovered flags in `scanned_flags.txt`, runs programmatically configured Baseline vs. Experiment campaigns using `verify_stat_sig.py`, and outputs a ranked leaderboard.
+*   **Exploration Sweeps:** Exposes `--shuffle` to randomly sample harvested flags, resolving alphabetical bottlenecks.
+*   **Targeted Scans:** Exposes `--filter` to sweep flags matching specific regex queries (e.g. `--filter "gpu|canvas"`).
+*   **JSON Results Integration:** Reads structured campaign outputs dynamically via JSON, completely avoiding fragile stdout parsing.
 
-### 📜 `stats_utils.py`
-Factored mathematical module containing shared helper functions (`calculate_stats` and non-parametric bootstrap `permutation_test_p_value` using an in-place Knuth shuffle step) shared by both scripts to prevent mathematical code duplication.
+### Primary Runner (`verify_stat_sig.py`)
+The significance campaign runner. It loops over a selected CUJ (or loops sequentially over all 4 CUJs if `--cuj all` is requested), flushes page caches on the target device, and runs A/B resampled statistical calculations.
+*   **100% Linter Compliant:** Features clean imports, zero pylint overrides, specific exception catches, and standard lazy-logging formatted calls.
+*   **Wait-For-Port TCP Polling:** Active socket loops (`wait_for_devtools_port`) deterministically confirm DevTools loopback port initialization, replacing fragile sleeps.
+*   **Leaking & Security Fixes:** Subprocess execution uses secure list command arrays (`shell=False`) and open context managers to cleanly release parent file descriptors.
+*   **Dynamic Logcat Fallback:** Parses diagnostics line-by-line from device adb streams, ensuring graceful CDP connection recovery.
 
-### 🕹️ `scroll_cdp.py`
-Stand-alone automated scroll driver that connects to Cobalt's remote DevTools port over raw TCP sockets and dispatches native D-pad Down Virtual Key events to simulate automated page browsing.
+### Consolidated Math Library (`stats_utils.py`)
+Eliminates mathematical code duplication by providing shared bootstrap `calculate_stats` and non-parametric `permutation_test_p_value` helpers.
 
-### 🔬 `simulate_significance.py`
-The statistical power analyst, simulator, and A/A calibration suite. Uses synthetic normal distribution resampling to verify the engine's precision and false-positive thresholds.
+### Background Scroller Helper (`scroll_cdp.py`)
+Lightweight WebSocket scroller driver that dispatches D-pad Down keyboard events to simulate automated browsing during random navigation CUJ scenarios.
 
 ---
 
-## 2. Operational Guide & Command Line Examples
+## 2. Automated Memory Win Hunting Pipeline (3-Phase Sweep)
 
-### Single CUJ Significance Campaign
-To run a significance campaign comparing baseline vs. experiment configurations specifically on a single named CUJ (e.g., `watch` video playback):
+The rig includes a fully automated pipeline to systematically search the Cobalt codebase for hidden memory optimizations:
+
+### 🛰️ Phase 1: Identify Flags to Experiment With
+Run the Harvester static analyzer to parse the C++ codebase and output discovered configurations to `scanned_flags.txt`:
 ```bash
-python3 verify_stat_sig.py --platform=android --runs=5 --duration=60 --cuj=watch
+python3 harvest_flags.py
 ```
 
-### Exhaustive 4-Pillar Campaign Sweeps
-To execute Baseline vs. Experiment sweeps sequentially over all 4 Critical User Journeys in a single campaign:
+### 🔬 Phase 2: Systematic Sweep Experiments
+Launch the Sweeper Orchestrator to run Baseline vs. Experiment campaigns for each discovered flag. Use `--shuffle` to explore different flags randomly:
 ```bash
-python3 verify_stat_sig.py --platform=android --runs=5 --duration=60 --cuj=all
+python3 win_hunter.py --runs=3 --duration=45 --max-flags=20 --shuffle
+```
+*To execute a targeted sweep on a specific subsystem (e.g. only GPU and Canvas flags):*
+```bash
+python3 win_hunter.py --runs=3 --duration=45 --filter "gpu|canvas" --enable-granular-memory
 ```
 
-### Optional Granular Memory Metrics Collection
-Standard memory optimizations usually do not have granular metrics enabled by default. To enable the scraping and reporting of detailed Cobalt allocation volumes (`Memory.Cobalt.AllocationVolume.*`), pass the optional command-line flag:
+### 📊 Phase 3: Sorted Footprint Reductions Leaderboard
+At the end of the sweeps campaign, the pipeline automatically sorts the results by **Mean Footprint Savings** and writes a ranked markdown report directly to:
+`win_leaderboard.md`
+
+An example generated leaderboard:
+| Rank | Optimization switch / feature | Type | p-value | paired consistency | Status | **Mean Memory savings** |
+| :---: | :--- | :---: | :---: | :---: | :---: | :--- |
+| 1 | `kSmallerInterestArea` | Feature | 0.0024 | PASS | 🟢 SIGNIFICANT | **14.32 MB** |
+| 2 | `--disable-gpu-rasterization` | Switch | 0.0115 | PASS | 🟢 SIGNIFICANT | **8.50 MB** |
+| 3 | `kExperimentConfigExpiration` | Feature | 0.8421 | FAIL | 🔴 NOT SIG | **0.04 MB** |
+
+---
+
+## 3. Stand-alone Significance Campaigns
+
+To run a targeted significance campaign comparing baseline vs. experiment configurations specifically on a single CUJ (e.g., `watch` video playback):
+```bash
+python3 verify_stat_sig.py --runs=5 --duration=60 --cuj=watch
+```
+
+### Optional Granular Memory Breakdowns
+To scrape and report detailed Cobalt internal sub-allocators (`Memory.Cobalt.AllocationVolume.*`):
 ```bash
 python3 verify_stat_sig.py --cuj=watch --enable-granular-memory
 ```
 
 ---
 
-## 3. Mapping named CUJs to specific Feature Flags
+## 4. Style & Linter Compliance
 
-If a specific Critical User Journey requires **specific, hardcoded feature flags** to exercise its target code path, you can map them directly inside the centralized scenario specification in [cuj_definitions.py](file:///usr/local/google/home/avvall/cobalt/src/cobalt/tools/memory_verification_rig/cuj_definitions.py):
-
-#### 1. Append specific launch flags to the CUJ definition:
-```python
-# cuj_definitions.py
-CUJS = {
-    "media_clamp": {
-        "name": "5. MEDIA CLAMP CUJ (Buffer limits verification)",
-        "url": "https://www.youtube.com/tv#/watch?v=ABC123XYZ",
-        "is_random_nav": False,
-        # Feature flags specifically associated with this CUJ to exercise this code path!
-        "baseline_args": "--mse-video-buffer-size-limit-mb=30,--mse-audio-buffer-size-limit-mb=5",
-        "experiment_args": "--mse-video-buffer-size-limit-mb=10,--mse-audio-buffer-size-limit-mb=2",
-    },
-}
-```
-
-#### 2. Execute the scenario cleanly:
+Run the `pre-commit` linter suite on all files to confirm style correctness before staging and committing:
 ```bash
-python3 verify_stat_sig.py --cuj=media_clamp
+pre-commit run --files verify_stat_sig.py stats_utils.py simulate_significance.py scroll_cdp.py cuj_definitions.py harvest_flags.py win_hunter.py
 ```
-The primary orchestrator `verify_stat_sig.py` will automatically merge the CUJ-specific launch flags into your sweep campaign arguments at runtime! If a CUJ does not specify its own launch flags, it seamlessly falls back to the standard global baseline/experiment arguments passed on the command line.
-
----
-
-## 4. Verification & Style Checking
-
-Run the local `pre-commit` linter suite on the modified files to confirm style compliance before staging and committing:
-```bash
-pre-commit run --files verify_stat_sig.py stats_utils.py simulate_significance.py scroll_cdp.py cuj_definitions.py
-```
-pylint and yapf check configurations are strictly checked against the Cobalt/Chromium lazy-logging formatting guides (e.g. using lazy parameters `%s` instead of f-strings inside logging statements). Bypassing logging rules via pylint ignores is forbidden.
+pylint configurations require strict adherence to lazy logging (`logging.info("msg %s", arg)`). Eager f-strings or string concatenations inside logging calls are strictly forbidden.
