@@ -14,9 +14,13 @@
 
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import java.lang.ref.WeakReference;
+import org.chromium.ui.base.WindowAndroid;
 import dev.cobalt.util.Log;
 import org.chromium.base.RequiredCallback;
 import org.chromium.components.navigation_interception.InterceptNavigationDelegate;
@@ -24,15 +28,42 @@ import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.url.GURL;
 
 /**
- * Intercepts navigations to non-standard web schemes (e.g., "nflx://", "intent://")
- * and launches the corresponding external Android applications.
+ * Intercepts navigations in the WebView to handle non-standard web schemes
+ * (e.g., "nflx://", "intent://") and routes them to external Android applications.
+ *
+ * Lifetime and Ownership: This delegate is associated with and owned by the
+ * {@link org.chromium.content_public.browser.WebContents} lifecycle. It is registered
+ * via {@link CobaltContentBrowserClient#associateInterceptNavigationDelegate}.
+ *
+ * Threading Model: This class is UI thread-affine. All methods, including
+ * {@link #shouldIgnoreNavigation}, are expected to be called on the Android UI thread,
+ * as they perform UI-related operations like starting activities.
  */
 public class CobaltInterceptNavigationDelegate extends InterceptNavigationDelegate {
-    private static final String TAG = "CobaltInterceptNav";
-    private final Context mContext;
+    private final Context mApplicationContext;
+    private final WeakReference<Context> mFallbackContextRef;
 
     public CobaltInterceptNavigationDelegate(Context context) {
-        mContext = context;
+        mApplicationContext = context.getApplicationContext();
+        mFallbackContextRef = new WeakReference<>(context);
+    }
+
+    private Context getActiveContext(NavigationHandle navigationHandle) {
+        if (navigationHandle != null && navigationHandle.getWebContents() != null) {
+            WindowAndroid window = navigationHandle.getWebContents().getTopLevelNativeWindow();
+            if (window != null && window.getContext() != null) {
+                Context context = window.getContext().get();
+                if (context != null) {
+                    return context;
+                }
+            }
+        }
+        return mFallbackContextRef.get();
+    }
+
+    private enum OverrideResult {
+        NO_OVERRIDE,
+        OVERRIDE_WITH_EXTERNAL_INTENT
     }
 
     @Override
@@ -44,29 +75,43 @@ public class CobaltInterceptNavigationDelegate extends InterceptNavigationDelega
             boolean shouldRunAsync,
             RequiredCallback<Boolean> resultCallback) {
         String scheme = escapedUrl.getScheme();
+        Context context = getActiveContext(navigationHandle);
 
-        // Let the browser handle standard web schemes.
-        if (scheme.equals("http") || scheme.equals("https")) {
-            if (mContext instanceof CobaltActivity) {
-                CobaltActivity activity = (CobaltActivity) mContext;
-                String startupUrl = activity.getStartupUrl();
-                String startDeepLink = activity.getStartDeepLink();
-                String urlSpec = escapedUrl.getSpec();
-
-                // Allow navigation if navigating to the app's initial startup URL or deep link.
-                if ((startupUrl != null && urlSpec.equals(startupUrl)) ||
-                    (startDeepLink != null && !startDeepLink.isEmpty() && urlSpec.equals(startDeepLink))) {
-                    resultCallback.onResult(false);
-                    return;
-                }
-            }
-            resultCallback.onResult(false);
-            return;
+        // Fallback for Application Context if no Activity context is active
+        if (context == null) {
+            context = mApplicationContext;
         }
 
-        // For any other scheme, try to handle it ourselves and stop the browser from trying to load it.
-        handleExternalURL(mContext, escapedUrl);
-        resultCallback.onResult(true);
+        OverrideResult result = shouldOverrideUrlLoading(context, escapedUrl, scheme);
+        onShouldIgnoreNavigationResult(context, result, escapedUrl, resultCallback);
+    }
+
+    private OverrideResult shouldOverrideUrlLoading(Context context, GURL escapedUrl, String scheme) {
+        if (scheme.equals("http") || scheme.equals("https")) {
+            return OverrideResult.NO_OVERRIDE;
+        }
+
+        return OverrideResult.OVERRIDE_WITH_EXTERNAL_INTENT;
+    }
+
+    private void onShouldIgnoreNavigationResult(
+            Context context,
+            OverrideResult result,
+            GURL escapedUrl,
+            RequiredCallback<Boolean> resultCallback) {
+        boolean shouldIgnore;
+        switch (result) {
+            case OVERRIDE_WITH_EXTERNAL_INTENT:
+                // Synchronous launch
+                handleExternalURL(context, escapedUrl);
+                shouldIgnore = true;
+                break;
+            case NO_OVERRIDE:
+            default:
+                shouldIgnore = false;
+                break;
+        }
+        resultCallback.onResult(shouldIgnore);
     }
 
     public static boolean handleExternalURL(Context context, GURL url) {
