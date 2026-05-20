@@ -3,9 +3,11 @@
   "test_targets": [
     "starboard/nplb:nplb_loader"
   ],
-  "on_device": {
-    "unit_executables": [
-      "out/evergreen-arm-hardfp-raspi_devel/nplb_loader.py"
-    ]
+  "executables": {
+    "on_device": {
+      "gunit_test_executables": [
+        "out/evergreen-arm-hardfp-raspi_devel/nplb_loader.py"
+      ]
+    }
   }
 }

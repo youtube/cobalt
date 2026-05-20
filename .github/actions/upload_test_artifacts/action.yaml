@@ -30,7 +30,7 @@ runs:
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        mapfile -t targets < <(jq -r '(.on_device.unit_executables // []) + (.on_device.browser_executables // []) | .[]' "${TEST_TARGETS_JSON_FILE}")
+        mapfile -t targets < <(jq -r '(.executables.on_device.gunit_test_executables // []) + (.executables.on_device.browser_test_executables // []) | .[]' "${TEST_TARGETS_JSON_FILE}")
         for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done

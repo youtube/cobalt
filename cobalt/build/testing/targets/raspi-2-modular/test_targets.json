@@ -3,9 +3,11 @@
   "test_targets": [
     "starboard/nplb:nplb_loader"
   ],
-  "on_device": {
-    "unit_executables": [
-      "out/raspi-2-modular_devel/nplb_loader"
-    ]
+  "executables": {
+    "on_device": {
+      "gunit_test_executables": [
+        "out/raspi-2-modular_devel/nplb_loader"
+      ]
+    }
   }
 }

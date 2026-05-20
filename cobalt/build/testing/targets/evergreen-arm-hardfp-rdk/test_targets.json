@@ -38,18 +38,20 @@
     "third_party/blink/common:blink_common_unittests_loader",
     "storage:storage_unittests_loader"
   ],
-  "on_device": {
-    "unit_executables": [
-      "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/media_mojo_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/absl_hardening_tests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/wtf_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py",
-      "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py"
-    ]
+  "executables": {
+    "on_device": {
+      "gunit_test_executables": [
+        "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/media_mojo_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/absl_hardening_tests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/wtf_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py",
+        "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py"
+      ]
+    }
   }
 }

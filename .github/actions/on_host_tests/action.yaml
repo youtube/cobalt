@@ -48,7 +48,7 @@ runs:
           fi
 
           # Parse GTest executables (space-separated list)
-          executables=$(jq -cr '.on_host.unit_executables // [] | join(" ")' "${targets_file}")
+          executables=$(jq -cr '.executables.on_host.gunit_test_executables // [] | join(" ")' "${targets_file}")
           echo "executables=${executables}" >> $GITHUB_OUTPUT
         else
           echo "has_junit=false" >> $GITHUB_OUTPUT
