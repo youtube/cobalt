@@ -126,8 +126,8 @@ def resolve_conflicts(unmerged):
     print(
         f"Resolving 'deleted by us' conflicts: {deleted_by_us}",
         file=sys.stderr)
-    for path in deleted_by_us:
-      subprocess.run(['git', 'rm', path], check=True)
+    subprocess.run(
+        ['git', 'rm', '--'] + deleted_by_us, check=True, stdout=sys.stderr)
     return True
 
   return False
