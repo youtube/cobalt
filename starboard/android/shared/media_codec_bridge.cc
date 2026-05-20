@@ -181,7 +181,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
-    bool use_frame_rendered_callback,
+    bool enable_frame_renderer_listener,
     bool require_secured_decoder,
     bool require_software_codec,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -292,8 +292,9 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       max_frame_size ? max_frame_size->height : -1, j_surface_local,
       j_media_crypto_local, j_color_info,
       tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
-      max_video_input_size, enable_output_checker, use_frame_rendered_callback,
-      skip_video_frames_over_60_fps, j_create_media_codec_bridge_result);
+      max_video_input_size, enable_output_checker,
+      enable_frame_renderer_listener, skip_video_frames_over_60_fps,
+      j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(

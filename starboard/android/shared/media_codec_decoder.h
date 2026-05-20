@@ -93,13 +93,13 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       const FrameRenderedCB& frame_rendered_cb,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
+      bool enable_frame_renderer_listener,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
       bool enable_output_checker,
-      bool skip_video_frames_over_60_fps,
-      bool use_frame_rendered_callback);
+      bool skip_video_frames_over_60_fps);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -124,13 +124,13 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       const FrameRenderedCB& frame_rendered_cb,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
+      bool enable_frame_renderer_listener,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
       bool enable_output_checker,
       bool skip_video_frames_over_60_fps,
-      bool use_frame_rendered_callback,
       std::string* error_message);
   ~MediaCodecDecoder();
 
