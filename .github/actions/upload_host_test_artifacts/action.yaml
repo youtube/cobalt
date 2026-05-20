@@ -31,7 +31,7 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
 
-        TARGETS=$(jq -cr '(.on_host.unit_targets // []) + (.on_host.junit_targets // []) + (.on_host.browser_targets // []) | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        TARGETS=$(jq -cr '.test_targets // [] | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         FLAGS="--compression zstd --compression-level=9"
         if [[ "${PLATFORM}" == *android* ]]; then
