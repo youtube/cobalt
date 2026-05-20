@@ -14,27 +14,25 @@
 # limitations under the License.
 """Statistical significance verification engine for Cobalt."""
 
-# pylint: disable=too-many-positional-arguments,too-many-arguments,wrong-import-position,logging-fstring-interpolation,logging-not-lazy
+# pylint: disable=wrong-import-position,too-many-positional-arguments,too-many-arguments,logging-fstring-interpolation,logging-not-lazy
 
 import argparse
-import logging
 import json
-import math
+import logging
 import os
-import random
+import socket
 import subprocess
+import sys
 import tempfile
 import time
 
-import sys
-
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from cuj_definitions import CUJS
+from stats_utils import calculate_stats, permutation_test_p_value
 
 # Dynamic repository root detection
-DEFAULT_REPO_ROOT = (
-    "/usr/local/google/home/avvall/secondary_cobalt_checkout/src")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 
 
 def find_repository_root():
@@ -49,13 +47,6 @@ def find_repository_root():
 
 
 REPO_ROOT = find_repository_root()
-
-GRANULAR_METRICS = [
-    "Media", "Graphics", "Script", "Unknown", "GraphicsCanvas",
-    "GraphicsCompositor", "GraphicsGlyphs", "ScriptHeap", "ScriptJIT",
-    "ScriptBindings", "NetworkLoader", "NetworkCache", "BlinkDOM", "BlinkStyle",
-    "BlinkParser", "PlatformIPC", "PlatformStarboard"
-]
 
 GRANULAR_METRICS = [
     "Media", "Graphics", "Script", "Unknown", "GraphicsCanvas",
@@ -112,19 +103,36 @@ def flush_system_caches(device, platform):
   time.sleep(2)
 
 
+def wait_for_devtools_port(port, timeout_s=15):
+  """Actively checks loopback connection on DevTools TCP port until open."""
+  start_time = time.time()
+  while time.time() - start_time < timeout_s:
+    try:
+      with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+        return True
+    except (OSError, ConnectionRefusedError):
+      time.sleep(0.5)
+  return False
+
+
 def launch_app(device, package, activity, args, platform, url, bin_path=None):
   """Launches Cobalt process on Android (intent) or Linux (binary Popen)."""
   if platform == "android":
-    cmd = (f"adb -s {device} shell \"am start -n {package}/{activity} "
-           f"--esa url '{url}' --esa commandLineArgs '{args}'\"")
-    run_command(cmd, shell=True)
+    cmd = [
+        "adb", "-s", device, "shell", "am", "start", "-n",
+        f"{package}/{activity}", "--esa", "url", url, "--esa",
+        "commandLineArgs", args
+    ]
+    run_command(cmd, shell=False)
   elif platform == "linux":
     flags = args.split()
     cmd = [bin_path] + flags + [package, url]
-    proc_log_f = open("/tmp/cobalt_process.log", "a", encoding="utf-8")  # pylint: disable=consider-using-with
-    # pylint: disable=consider-using-with
-    proc = subprocess.Popen(cmd, stdout=proc_log_f, stderr=proc_log_f)
-    return proc
+    # Use with open context block so descriptor is closed immediately
+    # after Popen returns
+    with open("/tmp/cobalt_process.log", "a", encoding="utf-8") as proc_log_f:
+      # pylint: disable=consider-using-with
+      proc = subprocess.Popen(cmd, stdout=proc_log_f, stderr=proc_log_f)
+      return proc
   return None
 
 
@@ -183,22 +191,16 @@ def parse_uma_sum_metric(json_file, metric_name):
   return None
 
 
-def execute_profiling_run(device,
-                          package,
-                          activity,
-                          args,
-                          duration,
+def execute_profiling_run(args,
                           run_id,
+                          cmd_args,
                           tmp_json,
                           histograms_txt,
-                          platform,
-                          bin_path,
                           url,
-                          port=9222,
                           is_random_nav=False):
   """Performs a single end-to-end benchmark run and scrapes RSS & UMA."""
-  logging.info(f"  [Run {run_id}] Stopping package/process...")
-  force_stop_app(device, package, platform)
+  logging.info("  [Run %s] Stopping package/process...", run_id)
+  force_stop_app(args.device, args.package, args.platform)
 
   if os.path.exists("/tmp/cobalt_process.log"):
     try:
@@ -206,45 +208,51 @@ def execute_profiling_run(device,
     except OSError:
       pass
 
-  logging.info(f"  [Run {run_id}] Flashing system page caches...")
-  flush_system_caches(device, platform)
+  logging.info("  [Run %s] Flashing system page caches...", run_id)
+  flush_system_caches(args.device, args.platform)
 
-  logging.info(f"  [Run {run_id}] Launching Cobalt with experimental flags...")
-  proc = launch_app(device, package, activity, args, platform, url, bin_path)
+  logging.info("  [Run %s] Launching Cobalt with experimental flags...", run_id)
+  proc = launch_app(args.device, args.package, args.activity, cmd_args,
+                    args.platform, url, args.bin_path)
 
-  # Wait 6 seconds for webview and DevTools loopback port to initialize
-  time.sleep(6)
-
-  # Setup loopback forwarder if Android
-  if platform == "android":
+  # Setup loopback forwarder immediately if Android
+  if args.platform == "android":
     run_command([
-        "adb", "-s", device, "forward", f"tcp:{port}",
+        "adb", "-s", args.device, "forward", f"tcp:{args.port}",
         "localabstract:content_shell_devtools_remote"
     ])
-    time.sleep(1)
+
+  # Actively poll DevTools TCP port to confirm loopback accepts connections
+  logging.info("  [Run %s] Waiting for DevTools to initialize...", run_id)
+  if not wait_for_devtools_port(args.port, timeout_s=15):
+    logging.warning(
+        "  ⚠️ Warning: DevTools connection handshake timed out on port %s",
+        args.port)
 
   # Launch background raw-websocket CDP page scroller only if randomized
-  # navigation is required.
+  # navigation is required
   scroll_proc = None
   if is_random_nav:
-    logging.info(
-        f"  [Run {run_id}] Launching background D-pad page scroller...")
+    logging.info("  [Run %s] Launching background D-pad page scroller...",
+                 run_id)
     scroller_path = os.path.join(
         REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_cdp.py")
     scroll_cmd = [
-        "python3", scroller_path, f"--port={port}",
-        f"--duration={duration - 8}", "--interval=1.5"
+        "python3", scroller_path, f"--port={args.port}",
+        f"--duration={args.duration - 8}", "--interval=1.5"
     ]
     try:
       # pylint: disable=consider-using-with
       scroll_proc = subprocess.Popen(
           scroll_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:  # pylint: disable=broad-exception-caught
-      logging.warning(f"  ⚠️ Warning: Failed to start background scroller: {e}")
+      logging.warning("  ⚠️ Warning: Failed to start background scroller: %s",
+                      e)
 
-  logging.info(f"  [Run {run_id}] Actively scrolling page for {duration - 8}s "
-               f"to trigger offscreen thumbnail decodes...")
-  time.sleep(duration - 8)
+  logging.info(
+      "  [Run %s] Actively scrolling page for %ss to trigger "
+      "offscreen decodes...", run_id, args.duration - 8)
+  time.sleep(args.duration - 8)
 
   # Terminate background scroller cleanly
   if scroll_proc:
@@ -255,13 +263,13 @@ def execute_profiling_run(device,
       pass
 
   # 1. Capture system-wide RSS memory
-  logging.info(f"  [Run {run_id}] Dumping system PSS/RSS memory...")
+  logging.info("  [Run %s] Dumping system PSS/RSS memory...", run_id)
   pid = proc.pid if proc else None
-  rss_mb = capture_memory_rss(device, package, platform, pid)
+  rss_mb = capture_memory_rss(args.device, args.package, args.platform, pid)
 
   # 2. Attempt to capture granular UMA breakdown metrics via CDP
   uma_captured = False
-  logging.info(f"  [Run {run_id}] Attempting to pull UMA breakdown metrics...")
+  logging.info("  [Run %s] Attempting to pull UMA breakdown metrics...", run_id)
 
   if os.path.exists("/tmp/uma_scraper.log"):
     try:
@@ -278,10 +286,10 @@ def execute_profiling_run(device,
   scrape_cmd = [
       "python3", "-u",
       f"{REPO_ROOT}/cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py",
-      f"--platform={platform}", f"--device={device}",
-      f"--package-name={package}", "--no-manage-cobalt",
+      f"--platform={args.platform}", f"--device={args.device}",
+      f"--package-name={args.package}", "--no-manage-cobalt",
       f"--histogram-file={histograms_txt}", "--poll-interval-s=2",
-      f"--output-file={tmp_json}", f"--port={port}"
+      f"--output-file={tmp_json}", f"--port={args.port}"
   ]
 
   scrape_proc = None
@@ -289,7 +297,14 @@ def execute_profiling_run(device,
     with open("/tmp/uma_scraper.log", "a", encoding="utf-8") as log_f:
       # pylint: disable=consider-using-with
       scrape_proc = subprocess.Popen(scrape_cmd, stdout=log_f, stderr=log_f)
-      time.sleep(6)
+
+      # Poll securely for output file to be populated
+      start_time = time.time()
+      timeout_limit = 10  # max seconds to wait
+      while time.time() - start_time < timeout_limit:
+        if os.path.exists(tmp_json) and os.path.getsize(tmp_json) > 0:
+          break
+        time.sleep(0.5)
   finally:
     if scrape_proc:
       try:
@@ -311,88 +326,70 @@ def execute_profiling_run(device,
         uma_captured = True
 
   if not uma_captured:
-    # Fallback: Parse C++ process logs directly
-    process_log = "/tmp/cobalt_process.log"
-    if os.path.exists(process_log):
+    # Fallback: Parse C++ process logs directly from Linux log file or
+    # Android logcat
+    lines = []
+    if args.platform == "android":
+      logcat_cmd = ["adb", "-s", args.device, "logcat", "-d"]
+      stdout, _ = run_command(logcat_cmd)
+      if stdout:
+        lines = stdout.splitlines()
+    elif args.platform == "linux":
+      process_log = "/tmp/cobalt_process.log"
+      if os.path.exists(process_log):
+        try:
+          with open(process_log, "r", encoding="utf-8") as lf:
+            lines = lf.readlines()
+        except OSError as e:
+          logging.warning("  ⚠️ Warning: Failed to read C++ process log: %s", e)
+
+    if lines:
       try:
         parsed_uma = {}
-        with open(process_log, "r", encoding="utf-8") as lf:
-          for line in lf:
-            if "[UMA DIAGNOSTIC]" in line:
-              parts = line.split("[UMA DIAGNOSTIC]")[-1].strip().split("|")
-              category = None
-              bytes_val = 0
-              for part in parts:
-                part = part.strip()
-                if part.startswith("Category:"):
-                  category = part.split("Category:")[-1].strip()
-                elif part.startswith("Raw Allocated Bytes:"):
-                  val_str = part.split("Raw Allocated Bytes:")[-1].strip()
-                  bytes_val = int(val_str)
-              if category:
-                parsed_uma[category] = bytes_val
+        for line in lines:
+          if "[UMA DIAGNOSTIC]" in line:
+            parts = line.split("[UMA DIAGNOSTIC]")[-1].strip().split("|")
+            category = None
+            bytes_val = 0
+            for part in parts:
+              part = part.strip()
+              if part.startswith("Category:"):
+                category = part.split("Category:")[-1].strip()
+              elif part.startswith("Raw Allocated Bytes:"):
+                val_str = part.split("Raw Allocated Bytes:")[-1].strip()
+                bytes_val = int(val_str)
+            if category:
+              parsed_uma[category] = bytes_val
 
         if parsed_uma:
           with open(tmp_json, "w", encoding="utf-8") as jf:
             for cat, bytes_val in parsed_uma.items():
               val_kb = bytes_val / 1024.0
-              cdp_json = (f'{{"id": 999, "result": '
-                          f'{{"histogram": {{"sum": {val_kb}}}}}}}')
-              cdp_line = (
-                  f"2026-05-20 05:00:00,Memory.Cobalt.AllocationVolume.{cat},"
-                  f"{cdp_json}\n")
-              jf.write(cdp_line)
+              timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+              cdp_json = (f'{{"id": 999, "result": {{"histogram": '
+                          f'{{"sum": {val_kb}}}}}}}')
+              jf.write(f"{timestamp}, Memory.Cobalt.AllocationVolume.{cat}, "
+                       f"{cdp_json}\n")
           uma_captured = True
       except Exception as e:  # pylint: disable=broad-exception-caught
         logging.warning(
-            f"  ⚠️ Warning: Failed to parse C++ process logs fallback: {e}")
+            "  ⚠️ Warning: Failed to parse C++ process logs fallback: %s", e)
 
-  logging.info(f"  [Run {run_id}] System RSS: {rss_mb:.2f} MB"
-               if rss_mb else f"  [Run {run_id}] System RSS: FAILED")
-  logging.info(
-      f"  [Run {run_id}] Granular UMA Telemetry: ACTIVE" if uma_captured else
-      f"  [Run {run_id}] Granular UMA Telemetry: NOT PRESENT")
+  if rss_mb:
+    logging.info("  [Run %s] System RSS: %s MB", run_id, rss_mb)
+  else:
+    logging.info("  [Run %s] System RSS: FAILED", run_id)
 
-  force_stop_app(device, package, platform, proc)
+  if uma_captured:
+    logging.info("  [Run %s] Granular UMA Telemetry: ACTIVE", run_id)
+  else:
+    logging.info("  [Run %s] Granular UMA Telemetry: NOT PRESENT", run_id)
+
+  force_stop_app(args.device, args.package, args.platform, proc)
   return rss_mb, uma_captured
 
 
 # --- Statistical Calculations Engine ---
-
-
-def calculate_stats(data):
-  """Calculates mean, median, and standard deviation of a numeric array."""
-  n = len(data)
-  if n == 0:
-    return 0.0, 0.0, 0.0
-  mean = sum(data) / n
-  median = sorted(data)[n // 2]
-  variance = sum((x - mean)**2 for x in data) / max(1, n - 1)
-  std_dev = math.sqrt(variance)
-  return mean, median, std_dev
-
-
-def permutation_test_p_value(group1, group2, permutations=10000):
-  """Performs robust non-parametric permutation resampling test for p-value."""
-  n1 = len(group1)
-  n2 = len(group2)
-  if n1 == 0 or n2 == 0:
-    return 1.0
-
-  mean1 = sum(group1) / n1
-  mean2 = sum(group2) / n2
-  observed_diff = abs(mean1 - mean2)
-
-  pooled = group1 + group2
-  count = 0
-  for _ in range(permutations):
-    random.shuffle(pooled)
-    perm_g1 = pooled[:n1]
-    perm_g2 = pooled[n1:]
-    perm_diff = abs((sum(perm_g1) / n1) - (sum(perm_g2) / n2))
-    if perm_diff >= observed_diff:
-      count += 1
-  return count / permutations
 
 
 def check_directional_consistency(baseline, experiment):
@@ -569,11 +566,8 @@ def main():
 
     logging.info("\n====== SECTION 1/2: BASELINE RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, uma_active = execute_profiling_run(args.device, args.package,
-                                              args.activity, b_args,
-                                              args.duration, i, tmp_json,
-                                              histograms_txt, args.platform,
-                                              args.bin_path, cuj_url, args.port,
+      rss, uma_active = execute_profiling_run(args, i, b_args, tmp_json,
+                                              histograms_txt, cuj_url,
                                               cuj_random_nav)
       if rss:
         baseline_rss.append(rss)
@@ -587,11 +581,8 @@ def main():
 
     logging.info("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, uma_active = execute_profiling_run(args.device, args.package,
-                                              args.activity, e_args,
-                                              args.duration, i, tmp_json,
-                                              histograms_txt, args.platform,
-                                              args.bin_path, cuj_url, args.port,
+      rss, uma_active = execute_profiling_run(args, i, e_args, tmp_json,
+                                              histograms_txt, cuj_url,
                                               cuj_random_nav)
       if rss:
         experiment_rss.append(rss)
