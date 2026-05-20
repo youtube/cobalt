@@ -33,6 +33,10 @@ class CommandLinePreprocessor {
 
   const base::CommandLine::StringVector argv() const;
 
+  void SetSkipAddingStartupUrl(bool skip) { skip_adding_startup_url_ = skip; }
+
+  const std::string& startup_url() { return startup_url_; }
+
 #ifdef UNIT_TEST
   const base::CommandLine& get_cmd_line_for_test() const { return cmd_line_; }
   const std::string& get_startup_url_for_test() const { return startup_url_; }
@@ -48,6 +52,12 @@ class CommandLinePreprocessor {
   base::CommandLine cmd_line_;
 
   std::string startup_url_;
+
+  // When true, argv() omits startup_url_ from the reconstructed argument list.
+  // Set on platforms (e.g. tvOS) where the deep link URL can be delivered via
+  // command line and must not be forwarded as a positional argument to the
+  // content.
+  bool skip_adding_startup_url_ = false;
 
 };  // CommandLinePreprocessor
 

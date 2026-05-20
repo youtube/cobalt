@@ -131,9 +131,11 @@ const base::CommandLine::StringVector CommandLinePreprocessor::argv() const {
     out_argv.push_back(switch_str);
   }
 
-  // Only forward the desired startup URL argument to Cobalt.
-  // Note: this is also duplicated in the --url argument.
-  out_argv.push_back(startup_url_);
+  if (!skip_adding_startup_url_) {
+    // Only forward the desired startup URL argument to Cobalt.
+    // Note: this is also duplicated in the --url argument.
+    out_argv.push_back(startup_url_);
+  }
 
   return out_argv;
 }

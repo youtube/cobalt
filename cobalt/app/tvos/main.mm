@@ -40,6 +40,10 @@
 static int g_argc = 0;
 static const char** g_argv = nullptr;
 
+@interface CobaltAppDelegate : UIResponder <UIApplicationDelegate>
+- (std::string)deepLinkFromCommandLine;
+@end
+
 @interface CobaltAppSceneDelegate : UIResponder <UIWindowSceneDelegate>
 @end
 
@@ -54,21 +58,24 @@ static const char** g_argv = nullptr;
   // URLContexts can contain multiple items, but since DeepLinkManager
   // handles one link at a time, only a single context is used.
   UIOpenURLContext* context = URLContexts.anyObject;
-  if (!context) {
-    return;
-  }
-  NSURL* url = context.URL;
-  if (!url) {
-    return;
+
+  GURL parsedURL;
+  if (context && context.URL) {
+    parsedURL = net::GURLWithNSURL(context.URL);
   }
 
-  GURL parsedURL = net::GURLWithNSURL(url);
-
-  if (!parsedURL.is_valid() || parsedURL.scheme().length() == 0) {
-    return;
+  // The deep link can be passed directly on the command line rather
+  // than through the URL context system.
+  if (!parsedURL.is_valid() || parsedURL.scheme().empty()) {
+    CobaltAppDelegate* appDelegate =
+        (CobaltAppDelegate*)UIApplication.sharedApplication.delegate;
+    parsedURL = GURL([appDelegate deepLinkFromCommandLine]);
   }
 
-  cobalt::browser::DeepLinkManager::GetInstance()->OnDeepLink(parsedURL.spec());
+  if (parsedURL.is_valid()) {
+    cobalt::browser::DeepLinkManager::GetInstance()->OnDeepLink(
+        parsedURL.spec());
+  }
 }
 
 - (void)scene:(UIScene*)scene
@@ -145,15 +152,19 @@ static const char** g_argv = nullptr;
 }
 @end
 
-@interface CobaltAppDelegate : UIResponder <UIApplicationDelegate> {
- @private
+@interface CobaltAppDelegate () {
   std::unique_ptr<content::ContentMainRunner> _mainRunner;
   std::unique_ptr<cobalt::CobaltMainDelegate> _mainDelegate;
   std::unique_ptr<starboard::ApplicationDarwin> _starboardApplication;
+  std::string _deepLinkFromCommandLine;
 }
 @end
 
 @implementation CobaltAppDelegate
+
+- (std::string)deepLinkFromCommandLine {
+  return _deepLinkFromCommandLine;
+}
 
 - (UISceneConfiguration*)application:(UIApplication*)application
     configurationForConnectingSceneSession:
@@ -168,7 +179,18 @@ static const char** g_argv = nullptr;
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  const cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
+  cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
+
+  // On tvOS, if the initial URL delivered via the commandline is a valid
+  // deep link, it will be handled by DeepLinkManager, so skip appending
+  // startup_url_ to argv to avoid handling the same URL twice.
+  const std::string start_url = cobalt_cmd_line.startup_url();
+  if (!start_url.empty()) {
+    if ([self loadDeepLinkFromCommandLine:start_url]) {
+      cobalt_cmd_line.SetSkipAddingStartupUrl(true);
+    }
+  }
+
   const base::CommandLine::StringVector& processed_argv =
       cobalt_cmd_line.argv();
 
@@ -214,6 +236,28 @@ static const char** g_argv = nullptr;
     shouldRestoreSecureApplicationState:(NSCoder*)coder {
   // TODO(crbug.com/710329): Make this value configurable in the settings.
   return YES;
+}
+
+- (BOOL)loadDeepLinkFromCommandLine:(std::string)startup_url {
+  NSURL* url =
+      [NSURL URLWithString:[NSString stringWithUTF8String:startup_url.c_str()]];
+  if (!url || !url.scheme) {
+    return NO;
+  }
+
+  // Only treat the URL as a deep link if its scheme matches one of the app's
+  // registered URL schemes declared in CFBundleURLTypes.
+  NSArray* urlTypes =
+      [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleURLTypes"];
+  for (NSDictionary* urlType in urlTypes) {
+    for (NSString* scheme in urlType[@"CFBundleURLSchemes"]) {
+      if ([url.scheme caseInsensitiveCompare:scheme] == NSOrderedSame) {
+        _deepLinkFromCommandLine = startup_url;
+        return YES;
+      }
+    }
+  }
+  return NO;
 }
 
 @end
