@@ -67,7 +67,7 @@
           'action': [
             'python',
             '<(DEPTH)/tools/download_from_gcs.py',
-            '--bucket', 'cobalt-static-storage',
+            '--bucket', 'cobalt-static-storage-public',
             '--sha1', '<(sha_dir)',
             '--output', '<(out_dir)',
           ],
