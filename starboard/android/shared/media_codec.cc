@@ -28,12 +28,18 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 namespace {
-bool ShouldUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
-                            bool require_secured_decoder,
-                            jobject j_media_crypto) {
+
+bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
+                         bool require_secured_decoder,
+                         jobject j_media_crypto) {
+  if (!features::FeatureList::IsEnabled(features::kEnableNdkVideo)) {
+    return false;
+  }
+
   // 1. Critical Usability Checks
   if (require_secured_decoder || j_media_crypto) {
     SB_LOG(INFO) << "[MediaCodec] Secure decoding requested. NDK AMediaCodec "
@@ -136,19 +142,18 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
                      starboard::ToString(!!j_media_crypto).data()));
   }
 
-  if (ShouldUseNdkMediaCodec(tunnel_mode_audio_session_id,
-                             require_secured_decoder, j_media_crypto)) {
+  if (CanUseNdkMediaCodec(tunnel_mode_audio_session_id, require_secured_decoder,
+                          j_media_crypto)) {
     auto ndk_bridge = NdkMediaCodec::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,
         enable_frame_renderer_listener, require_secured_decoder,
         require_software_codec, max_video_input_size, enable_output_checker);
     if (ndk_bridge) {
-      SB_LOG(INFO) << "[MediaCodec] Selected Backend: NDK AMediaCodec.";
       return ndk_bridge;
     }
-    SB_LOG(WARNING) << "[MediaCodec] Failed to create NdkMediaCodec. "
-                       "Falling back to Java MediaCodec.";
+    SB_LOG(WARNING)
+        << "Failed to create NdkMediaCodec. Falling back to Java MediaCodec.";
   }
 
   SB_LOG(INFO) << "[MediaCodec] Selected Backend: Java MediaCodec (JNI).";

@@ -136,27 +136,30 @@ AAudioAudioSink::AAudioAudioSink(PassKey<AAudioAudioSink>,
       job_thread_(JobThread::Create(
           "aaudio_progress",
           ThreadOptions().SetPriority(kSbThreadPriorityRealTime))) {
-  SB_DCHECK(callbacks_.update_source_status);
-  SB_DCHECK(callbacks_.consume_frames);
-  SB_DCHECK(frame_buffer_);
+  SB_CHECK(callbacks_.update_source_status);
+  SB_CHECK(callbacks_.consume_frames);
+  SB_CHECK(frame_buffer_);
 
-  if (stream_) {
-    int32_t buffer_size = aaudio_->stream_getBufferSizeInFrames(stream_);
-    int32_t burst_size = aaudio_->stream_getFramesPerBurst(stream_);
-    SB_LOG(INFO) << "AAudio stream opened successfully in constructor. "
-                 << "Buffer Size: " << buffer_size
-                 << ", Burst Size: " << burst_size;
+  aaudio_->streamBuilder_delete(builder);
 
-    // Initialize the high-priority progress job thread
-    // Schedule the first progress polling job
-    progress_job_token_ =
-        job_thread_->Schedule([this]() { PollProgress(); }, 10'000);
-  } else {
+  if (!stream_) {
     SB_LOG(ERROR) << "Failed to open AAudio stream inside constructor.";
+    return;
   }
 
-  // Clean up builder now that stream is opened
-  aaudio_->streamBuilder_delete(builder);
+  int32_t buffer_size = aaudio_->stream_getBufferSizeInFrames(stream_);
+  int32_t burst_size = aaudio_->stream_getFramesPerBurst(stream_);
+  SB_LOG(INFO) << "AAudio stream opened successfully in constructor. "
+               << "Buffer Size: " << buffer_size
+               << ", Burst Size: " << burst_size;
+
+  // Initialize the high-priority progress job thread
+  // Schedule the first progress polling job
+  progress_job_token_ =
+      job_thread_->Schedule([this]() { PollProgress(); }, 10'000);
+
+  SB_LOG(INFO) << "AAudioAudioSink created: channels=" << channels_
+               << ", sampling_frequency_hz=" << sampling_frequency_hz_;
 }
 
 AAudioAudioSink::~AAudioAudioSink() {

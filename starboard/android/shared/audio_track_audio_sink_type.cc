@@ -108,8 +108,12 @@ bool HasRemoteAudioOutput() {
   return false;
 }
 
-bool ShouldUseAAudio(std::optional<int> tunnel_mode_audio_session_id,
-                     SbMediaAudioSampleType audio_sample_type) {
+bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id,
+                  SbMediaAudioSampleType audio_sample_type) {
+  if (!features::FeatureList::IsEnabled(features::kEnableNdkAudio)) {
+    return false;
+  }
+
   // We can use AAudio when:
   // - AAudio is supported on the device.
   // - Tunnel mode is not enabled. AAudio does not support tunnel mode.
@@ -561,12 +565,11 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
-  if (ShouldUseAAudio(tunnel_mode_audio_session_id, audio_sample_type)) {
+  if (CanUseAAudio(tunnel_mode_audio_session_id, audio_sample_type)) {
     auto native_sink = AAudioAudioSink::Create(
         this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
         frames_per_channel, callbacks, context);
     if (native_sink) {
-      SB_LOG(INFO) << "AAudioSink is created";
       return native_sink.release();
     }
     SB_LOG(WARNING)
