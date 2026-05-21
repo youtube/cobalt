@@ -54,7 +54,7 @@ runs:
         echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
 
         # Combine device targets (GN targets)
-        on_device_targets=$(jq -cr 'if .executables.on_device then .test_targets else [] end' "${targets_file}")
+        on_device_targets=$(jq -cr 'if .executables.on_device then .test_targets // [] | map(select(endswith("_junit_tests") | not)) else [] end' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
 
         # On-Device Executables by Subtype (Exact file paths compiled under .executables)
