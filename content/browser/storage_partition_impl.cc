@@ -52,7 +52,10 @@
 #include "components/variations/net/variations_http_headers.h"
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_impl.h"
+#include "content/browser/attribution_reporting/attribution_manager.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_manager_impl.h"
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -1473,6 +1476,7 @@ void StoragePartitionImpl::Initialize(
 
   bucket_manager_ = std::make_unique<BucketManager>(this);
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(
           attribution_reporting::features::kConversionMeasurement)) {
     // The Conversion Measurement API is not available in Incognito mode, but
@@ -1481,6 +1485,7 @@ void StoragePartitionImpl::Initialize(
     attribution_manager_ = std::make_unique<AttributionManagerImpl>(
         this, path, special_storage_policy_);
   }
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     // Auction worklets on non-Android use dedicated processes; on Android due
@@ -1838,12 +1843,20 @@ StoragePartitionImpl::GetFileSystemAccessManager() {
 
 AttributionManager* StoragePartitionImpl::GetAttributionManager() {
   DCHECK(initialized_);
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return attribution_manager_.get();
+#else
+  return nullptr;
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 AttributionDataModel* StoragePartitionImpl::GetAttributionDataModel() {
   DCHECK(initialized_);
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return attribution_manager_.get();
+#else
+  return nullptr;
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 FontAccessManager* StoragePartitionImpl::GetFontAccessManager() {
@@ -2767,7 +2780,7 @@ void StoragePartitionImpl::ClearDataImpl(
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(), special_storage_policy_.get(),
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-      interest_group_manager_.get(), attribution_manager_.get(),
+      interest_group_manager_.get(), GetAttributionManager(),
       aggregation_service_.get(), private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3553,7 +3566,9 @@ void StoragePartitionImpl::OverrideAggregationServiceForTesting(
 void StoragePartitionImpl::OverrideAttributionManagerForTesting(
     std::unique_ptr<AttributionManager> attribution_manager) {
   DCHECK(initialized_);
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   attribution_manager_ = std::move(attribution_manager);
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StoragePartitionImpl::OverridePrivateAggregationManagerForTesting(

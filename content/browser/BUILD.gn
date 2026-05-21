@@ -2520,7 +2520,19 @@ source_set("browser") {
   ]
 
   if (disable_privacy_sandbox_apis) {
-    _filtered_sources = filter_exclude(sources, [ "browsing_topics/*" ])
+    _filtered_sources = filter_exclude(sources, [
+      "browsing_topics/*",
+      "attribution_reporting/*_sql*.cc",
+      "attribution_reporting/*_sql*.h",
+      "attribution_reporting/*_sender*.cc",
+      "attribution_reporting/*_sender*.h",
+      "attribution_reporting/attribution_manager_impl.cc",
+      "attribution_reporting/attribution_manager_impl.h",
+      "attribution_reporting/rate_limit_table.cc",
+      "attribution_reporting/rate_limit_table.h",
+      "attribution_reporting/os_registrations_table.cc",
+      "attribution_reporting/os_registrations_table.h",
+    ])
     sources = []
     sources = _filtered_sources
     deps -= [ "//components/browsing_topics/common:common" ]
