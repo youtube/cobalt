@@ -1991,6 +1991,10 @@ if (!is_robolectric && enable_java_templates) {
         if (is_cronet_for_aosp_build) {
           defines += [ "_CRONET_FOR_AOSP_BUILD" ]
         }
+      } else if (is_cobalt) {
+        # We remove "cr_" prefix not to break a rapid smoke test.
+        # TODO: b/515406853  - Remove this once cl/918641330 is deployed to prod test.
+        defines += [ "_LOGTAG_PREFIX=" ]
       } else {
         defines += [ "_LOGTAG_PREFIX=cr_" ]
       }
