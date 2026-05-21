@@ -131,6 +131,10 @@ static_library("starboard_platform") {
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "asset_manager.cc",
     # "asset_manager.h",
+    "aaudio_audio_sink.cc",
+    "aaudio_audio_sink.h",
+    "aaudio_loader.cc",
+    "aaudio_loader.h",
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
@@ -184,6 +188,8 @@ static_library("starboard_platform") {
     "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
+    "media_codec.cc",
+    "media_codec.h",
     "media_codec_audio_decoder.cc",
     "media_codec_audio_decoder.h",
     "media_codec_bridge.cc",
@@ -206,6 +212,8 @@ static_library("starboard_platform") {
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
+    "ndk_media_codec.cc",
+    "ndk_media_codec.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -437,7 +445,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
-    "media_codec_bridge.h",
+    "media_codec.h",
     "media_common.h",
     "media_drm_bridge.h",
   ]

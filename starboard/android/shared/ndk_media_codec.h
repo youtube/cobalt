@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,38 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
-#define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
+#ifndef STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_H_
+#define STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_H_
+
+#include <media/NdkMediaCodec.h>
 
 #include <memory>
 #include <optional>
 #include <string>
 
 #include "starboard/android/shared/media_codec.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
-#include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_util.h"
-#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
-const jint CRYPTO_MODE_UNENCRYPTED = 0;
-const jint CRYPTO_MODE_AES_CTR = 1;
-const jint CRYPTO_MODE_AES_CBC = 2;
-class MediaCodecBridge : public MediaCodec {
+// NdkMediaCodec is an implementation of the MediaCodec interface using the
+// Android NDK AMediaCodec API. It uses asynchronous callbacks for buffer
+// availability and is preferred on supported devices (API 28+) for reduced JNI
+// overhead.
+class NdkMediaCodec : public MediaCodec {
  public:
   using Handler = MediaCodec::Handler;
 
-  static std::unique_ptr<MediaCodecBridge> CreateAudioMediaCodec(
-      const AudioStreamInfo& audio_stream_info,
-      Handler* handler,
-      jobject j_media_crypto);
-
-  static NonNullResult<std::unique_ptr<MediaCodecBridge>> CreateVideoMediaCodec(
+  static std::unique_ptr<NdkMediaCodec> Create(
       SbMediaVideoCodec video_codec,
       const std::string& decoder_name,
-      const char* mime,
       const Size& frame_size_hint,
       int fps,
       const std::optional<Size>& max_frame_size,
@@ -54,18 +49,14 @@ class MediaCodecBridge : public MediaCodec {
       bool enable_frame_renderer_listener,
       bool require_secured_decoder,
       bool require_software_codec,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool force_big_endian_hdr_metadata,
       int max_video_input_size,
-      bool enable_output_checker,
-      bool skip_video_frames_over_60_fps);
+      bool enable_output_checker);
 
-  explicit MediaCodecBridge(Handler* handler);
-  ~MediaCodecBridge() override;
+  explicit NdkMediaCodec(PassKey<NdkMediaCodec>,
+                         Handler* handler,
+                         AMediaCodec* codec);
+  ~NdkMediaCodec() override;
 
-  void Initialize(jobject j_media_codec_bridge);
-
-  // MediaCodec implementation
   jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
   void* GetInputBufferAddress(jint index, size_t* capacity) override;
   jint QueueInputBuffer(jint index,
@@ -91,33 +82,18 @@ class MediaCodecBridge : public MediaCodec {
   std::optional<FrameSize> GetOutputSize() override;
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
 
-  // JNI Callbacks from Java MediaCodecBridge
-  void OnMediaCodecError(
-      JNIEnv* env,
-      jboolean is_recoverable,
-      jboolean is_transient,
-      const jni_zero::JavaParamRef<jstring>& diagnostic_info);
-  void OnMediaCodecInputBufferAvailable(JNIEnv* env, jint buffer_index);
-  void OnMediaCodecOutputBufferAvailable(JNIEnv* env,
-                                         jint buffer_index,
-                                         jint flags,
-                                         jint offset,
-                                         jlong presentation_time_us,
-                                         jint size);
-  void OnMediaCodecOutputFormatChanged(JNIEnv* env);
-  void OnMediaCodecFrameRendered(JNIEnv* env,
-                                 jlong presentation_time_us,
-                                 jlong render_at_system_time_ns);
-  void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
+  void OnInputBufferAvailable(int32_t index);
+  void OnOutputBufferAvailable(int32_t index, AMediaCodecBufferInfo* info);
+  void OnFormatChanged(AMediaFormat* format);
+  void OnError(media_status_t error, int32_t actionCode, const char* detail);
+  void OnFrameRendered(int64_t presentation_time_us);
 
  private:
-  MediaCodecBridge(const MediaCodecBridge&) = delete;
-  void operator=(const MediaCodecBridge&) = delete;
-
   Handler* const handler_;
-  jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  AMediaCodec* codec_ = nullptr;
+  bool is_frame_rendered_callback_enabled_ = false;
 };
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
+#endif  // STARBOARD_ANDROID_SHARED_NDK_MEDIA_CODEC_H_

@@ -105,6 +105,14 @@ FEATURE_LIST_START
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
 
+// By default, NDK Audio (AAudio) backend is disabled. Set the following
+// variable to true to enable NDK Audio.
+STARBOARD_FEATURE(kEnableNdkAudio, "EnableNdkAudio", false)
+
+// By default, NDK Video (NDK MediaCodec) backend is disabled. Set the following
+// variable to true to enable NDK Video.
+STARBOARD_FEATURE(kEnableNdkVideo, "EnableNdkVideo", false)
+
 // By default, Cobalt destroys and recreates AudioTrack during Seek().
 // Set the following variable to true to force it to Flush() AudioTrack
 // during Seek().
