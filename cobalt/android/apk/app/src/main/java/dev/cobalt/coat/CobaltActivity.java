@@ -27,6 +27,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
@@ -125,6 +127,14 @@ public abstract class CobaltActivity extends Activity {
   private String mStartDeepLink;
 
   private Object mBackInvokedCallback;
+
+  // Tracks if a physical/hardware back button press is currently in progress.
+  // On Android 13+ (API >= 33) with predictive back gesture enabled, the OS dispatches physical
+  // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
+  // To prevent double-triggering back navigation in the web application (which maps back keys
+  // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
+  // bypass simulated key dispatching.
+  private boolean mPhysicalBackKeyPressed = false;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -355,6 +365,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = true;
+    }
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
@@ -367,6 +380,9 @@ public abstract class CobaltActivity extends Activity {
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
+    }
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = false;
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -847,9 +863,17 @@ public abstract class CobaltActivity extends Activity {
       OnBackInvokedCallback callback = new OnBackInvokedCallback() {
         @Override
         public void onBackInvoked() {
+          if (activity.mPhysicalBackKeyPressed) {
+            return;
+          }
           // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
           activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+          new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+            }
+          }, 100);
         }
       };
       activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
