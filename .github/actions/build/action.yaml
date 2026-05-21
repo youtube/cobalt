@@ -111,7 +111,7 @@ runs:
 
 
           test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '
-            .test_targets // []
+            map(.test_target) // []
           ')
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
 

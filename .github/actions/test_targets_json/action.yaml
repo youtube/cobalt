@@ -22,45 +22,43 @@ runs:
           targets_file="test_targets.json"
         fi
 
-        # On-Host Targets by Subtype (GN Targets compiled under root test_targets)
-        on_host_gunit_targets=$(jq -cr 'if .executables.on_host then .test_targets // [] | map(select(endswith("_junit_tests") | not) | select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
+        # On-Host Targets by Subtype
+        on_host_gunit_targets=$(jq -cr 'map(select(.test_type == "gunit" and .test_env == "on_host") | .test_target) // []' "${targets_file}")
         echo "on_host_gunit_targets=${on_host_gunit_targets}" >> $GITHUB_OUTPUT
 
-        on_host_junit_targets=$(jq -cr 'if .executables.on_host then .test_targets // [] | map(select(endswith("_junit_tests"))) else [] end' "${targets_file}")
+        on_host_junit_targets=$(jq -cr 'map(select(.test_type == "junit" and .test_env == "on_host") | .test_target) // []' "${targets_file}")
         echo "on_host_junit_targets=${on_host_junit_targets}" >> $GITHUB_OUTPUT
 
-        on_host_browsertest_targets=$(jq -cr 'if .executables.on_host then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
+        on_host_browsertest_targets=$(jq -cr 'map(select(.test_type == "browsertest" and .test_env == "on_host") | .test_target) // []' "${targets_file}")
         echo "on_host_browsertest_targets=${on_host_browsertest_targets}" >> $GITHUB_OUTPUT
 
         # Combine host targets (GN targets)
-        on_host_targets=$(jq -cr 'if .executables.on_host then .test_targets else [] end' "${targets_file}")
+        on_host_targets=$(jq -cr 'map(select(.test_env == "on_host") | .test_target) // []' "${targets_file}")
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
 
-        # On-Host Executables by Subtype (Exact file paths compiled under .executables)
-        on_host_gunit_executables=$(jq -cr '.executables.on_host.gunit_test_executables // []' "${targets_file}")
+        # On-Host Executables by Subtype
+        on_host_gunit_executables=$(jq -cr 'map(select(.test_type == "gunit" and .test_env == "on_host") | .executable) // []' "${targets_file}")
         echo "on_host_gunit_executables=${on_host_gunit_executables}" >> $GITHUB_OUTPUT
 
-        on_host_junit_executables=$(jq -cr '.executables.on_host.junit_test_executables // []' "${targets_file}")
+        on_host_junit_executables=$(jq -cr 'map(select(.test_type == "junit" and .test_env == "on_host") | .executable) // []' "${targets_file}")
         echo "on_host_junit_executables=${on_host_junit_executables}" >> $GITHUB_OUTPUT
 
-        on_host_executables=$(jq -cn --argjson a "${on_host_gunit_executables}" --argjson b "${on_host_junit_executables}" '$a + $b')
+        on_host_executables=$(jq -cr 'map(select(.test_env == "on_host") | .executable) // []' "${targets_file}")
         echo "on_host_executables=${on_host_executables}" >> $GITHUB_OUTPUT
 
-        # On-Device Targets by Subtype (GN Targets compiled under root test_targets)
-        on_device_gunit_targets=$(jq -cr 'if .executables.on_device then .test_targets // [] | map(select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
+        # On-Device Targets by Subtype
+        on_device_gunit_targets=$(jq -cr 'map(select(.test_type == "gunit" and .test_env == "on_device") | .test_target) // []' "${targets_file}")
         echo "on_device_gunit_targets=${on_device_gunit_targets}" >> $GITHUB_OUTPUT
 
-        on_device_browsertest_targets=$(jq -cr 'if .executables.on_device then .test_targets // [] | map(select(endswith(":cobalt_browsertests"))) else [] end' "${targets_file}")
+        on_device_browsertest_targets=$(jq -cr 'map(select(.test_type == "browsertest" and .test_env == "on_device") | .test_target) // []' "${targets_file}")
         echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
 
         # Combine device targets (GN targets)
-        on_device_targets=$(jq -cr 'if .executables.on_device then .test_targets // [] | map(select(endswith("_junit_tests") | not)) else [] end' "${targets_file}")
+        on_device_targets=$(jq -cr 'map(select(.test_env == "on_device") | .test_target) // []' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
 
-        # On-Device Executables by Subtype (Exact file paths compiled under .executables)
-        on_device_gunit_executables=$(jq -cr '.executables.on_device.gunit_test_executables // []' "${targets_file}")
-        on_device_browser_executables=$(jq -cr '.executables.on_device.browser_test_executables // []' "${targets_file}")
-        on_device_executables=$(jq -cn --argjson a "${on_device_gunit_executables}" --argjson b "${on_device_browser_executables}" '$a + $b')
+        # On-Device Executables
+        on_device_executables=$(jq -cr 'map(select(.test_env == "on_device") | .executable) // []' "${targets_file}")
         echo "on_device_executables=${on_device_executables}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:

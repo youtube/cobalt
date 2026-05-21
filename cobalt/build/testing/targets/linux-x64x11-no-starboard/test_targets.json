@@ -1,11 +1,8 @@
-{
-  "test_targets": [
-    ":blink_web_tests"
-  ],
-  "executables": {
-    "on_host": {
-      "gunit_test_executables": [
-      ]
-    }
+[
+  {
+    "test_target": ":blink_web_tests",
+    "test_type": "gunit",
+    "executable": "",
+    "test_env": "on_host"
   }
-}
+]
