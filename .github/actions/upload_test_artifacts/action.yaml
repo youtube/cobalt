@@ -93,7 +93,7 @@ runs:
       run: |
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
-        tar -I 'zstd -T0' -cf "${GITHUB_WORKSPACE}/artifacts/cobalt_test_results.tar.zstd" -C "out/${PLATFORM}_${CONFIG}/" test_results
+        tar -I 'zstd -T0' -cf "${GITHUB_WORKSPACE}/artifacts/cobalt_test_results.tar.zstd" -C "out/${{ inputs.platform }}_${{ inputs.config }}/" test_results
       shell: bash
 
     - name: Upload On-Host Test Artifacts Archive
