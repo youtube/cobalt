@@ -515,7 +515,7 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
         with:
-          targets_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          targets_file: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
 
       - name: Upload Host Test Artifacts
         if: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
