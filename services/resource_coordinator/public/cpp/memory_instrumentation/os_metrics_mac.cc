@@ -244,8 +244,11 @@ bool OSMetrics::FillOSMemoryDump(
     mojom::RawOSMemDump* dump,
     base::WeakPtr<DetailedMetricsDelegate> delegate) {
   // This is implemented in os_metrics_linux.cc using Linux-specific concepts
-  // and operations. It is unclear if/what should be measured on tvOS.
-  return false;
+  // and operations.
+  //
+  // On tvOS, just fall back to the original, non-Cobalt function that provides
+  // at least some information.
+  return FillOSMemoryDump(handle, flags, dump);
 }
 #endif
 
