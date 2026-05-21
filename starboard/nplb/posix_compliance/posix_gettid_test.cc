@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#include "starboard/common/gettid.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
