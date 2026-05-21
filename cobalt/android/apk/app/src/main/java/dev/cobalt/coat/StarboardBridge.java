@@ -198,11 +198,12 @@ public class StarboardBridge {
   }
 
   protected void onActivityDestroy(Activity activity) {
+    closeAllCobaltService();
     if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
-      closeAllServices();
+      mTtsHelper.shutdown();
       mAdvertisingId.shutdown();
       System.exit(0);
     } else {
@@ -244,16 +245,10 @@ public class StarboardBridge {
     }
   }
 
-  private void closeAllServices() {
-    mTtsHelper.shutdown();
-    for (CobaltService service : mCobaltServices.values()) {
-      service.afterStopped();
-    }
-  }
-
   protected void afterStopped() {
     mApplicationStopped = true;
-    closeAllServices();
+    mTtsHelper.shutdown();
+    closeAllCobaltService();
     Activity activity = mActivityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
@@ -623,6 +618,7 @@ public class StarboardBridge {
   public void closeCobaltService(String serviceName) {
     CobaltService service = mCobaltServices.remove(serviceName);
     if (service != null) {
+      service.afterStopped();
       service.onClose();
     }
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));

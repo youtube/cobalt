@@ -18,8 +18,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <map>
+#include <tuple>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/common/pointer_arithmetic.h"
 
 namespace starboard {
@@ -215,19 +218,13 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       total_allocated_in_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
-      for (int i = 0; i < static_cast<int>(fallback_allocations_.size()); ++i) {
-        AddFreeBlock(MemoryBlock(i, fallback_allocations_[i].address,
-                                 fallback_allocations_[i].size));
-      }
+      EnumerateFallbackAllocations(
+          [this](intptr_t index, void* address, size_t size) {
+            AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
+          });
 
       if (enable_decommit_on_idle_) {
-        SB_LOG(INFO) << "Batched free triggered idle state, decommitting "
-                     << fallback_allocations_.size()
-                     << " fallback allocations.";
-        for (const auto& fallback_allocation : fallback_allocations_) {
-          fallback_allocator_->Decommit(fallback_allocation.address,
-                                        fallback_allocation.size);
-        }
+        DecommitFallbackAllocations();
       }
     } else {
       for (auto address_to_free : pending_frees_) {
@@ -270,16 +267,15 @@ void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(
     head = head->next;
   }
 
+  size_t capacity = GetCapacity();
   int64_t allocated_percentage =
-      capacity_in_bytes_ == 0
+      capacity == 0
           ? 0
-          : static_cast<int64_t>(total_allocated_in_bytes_) * 100 /
-                capacity_in_bytes_;
+          : static_cast<int64_t>(total_allocated_in_bytes_) * 100 / capacity;
   SB_LOG(INFO) << "Allocated " << total_allocated_in_bytes_ << " bytes ("
                << allocated_percentage << "%) from a pool of capacity "
-               << capacity_in_bytes_ << " bytes.  There are "
-               << capacity_in_bytes_ - total_allocated_in_bytes_
-               << " free bytes.";
+               << capacity << " bytes.  There are "
+               << capacity - total_allocated_in_bytes_ << " free bytes.";
   SB_LOG(INFO) << "Total allocated block: " << total_allocated_blocks_;
 
   int lines = 0;
@@ -342,9 +338,8 @@ bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
 
   BlockMetadata* metadata = static_cast<BlockMetadata*>(memory) - 1;
 
-  if (metadata->signature != this || metadata->fallback_index < 0 ||
-      static_cast<size_t>(metadata->fallback_index) >=
-          fallback_allocations_.size()) {
+  if (metadata->signature != this ||
+      !IsValidFallbackIndex(metadata->fallback_index)) {
     return false;
   }
 
@@ -379,12 +374,7 @@ bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
   --total_allocated_blocks_;
 
   if (enable_decommit_on_idle_ && total_allocated_in_bytes_ == 0) {
-    SB_LOG(INFO) << "Allocator reached idle state, decommitting "
-                 << fallback_allocations_.size() << " fallback allocations.";
-    for (const auto& fallback_allocation : fallback_allocations_) {
-      fallback_allocator_->Decommit(fallback_allocation.address,
-                                    fallback_allocation.size);
-    }
+    DecommitFallbackAllocations();
   }
 
   return true;
@@ -396,9 +386,8 @@ EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
     size_t allocation_increment,
     size_t max_capacity,
     bool enable_decommit_on_idle)
-    : fallback_allocator_(fallback_allocator),
+    : ReuseAllocatorBase(fallback_allocator, max_capacity),
       allocation_increment_(allocation_increment),
-      max_capacity_in_bytes_(max_capacity),
       enable_decommit_on_idle_(enable_decommit_on_idle) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
@@ -418,10 +407,6 @@ EmbeddedMetadataReuseAllocatorBase::~EmbeddedMetadataReuseAllocatorBase() {
   // be the case.
   SB_LOG_IF(ERROR, allocated_block_head_ != nullptr)
       << total_allocated_blocks_ << " blocks still allocated.";
-
-  for (const auto& fallback_allocation : fallback_allocations_) {
-    fallback_allocator_->Free(fallback_allocation.address);
-  }
 }
 
 EmbeddedMetadataReuseAllocatorBase::FreeBlockSet::iterator
@@ -440,32 +425,27 @@ EmbeddedMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
                  << "%).";
   }
 
-  void* ptr = NULL;
+  void* fallback_address = nullptr;
+  intptr_t fallback_index = -1;
   size_t size_to_try = 0;
   // We try to allocate in unit of |allocation_increment_| to minimize
   // fragmentation.
   if (allocation_increment_ > size) {
     size_to_try = allocation_increment_;
-    if (!max_capacity_in_bytes_ ||
-        capacity_in_bytes_ + size_to_try <= max_capacity_in_bytes_) {
-      ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
-    }
+    std::tie(fallback_address, fallback_index) =
+        AllocateFallbackBlock(&size_to_try, alignment);
   }
-  // |ptr| being null indicates the above allocation failed, or in the rare case
-  // |size| is larger than |allocation_increment_|. Try to allocate a block of
-  // |size| instead for both cases.
-  if (ptr == NULL) {
+  // |fallback_address| being null indicates the above allocation failed,
+  // or in the rare case |size| is larger than |allocation_increment_|. Try to
+  // allocate a block of |size| instead for both cases.
+  if (fallback_address == nullptr) {
     size_to_try = size;
-    if (!max_capacity_in_bytes_ ||
-        capacity_in_bytes_ + size_to_try <= max_capacity_in_bytes_) {
-      ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
-    }
+    std::tie(fallback_address, fallback_index) =
+        AllocateFallbackBlock(&size_to_try, alignment);
   }
-  if (ptr != NULL) {
-    fallback_allocations_.emplace_back(ptr, size_to_try);
-    capacity_in_bytes_ += size_to_try;
+  if (fallback_address != nullptr) {
     auto free_block_iter = AddFreeBlock(MemoryBlock(
-        static_cast<int>(fallback_allocations_.size() - 1), ptr, size_to_try));
+        static_cast<int>(fallback_index), fallback_address, size_to_try));
 
     if (ExtraLogLevel() >= 1) {
       int capacity = GetCapacity();
@@ -476,7 +456,7 @@ EmbeddedMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
               : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
 
       SB_LOG(INFO) << "Allocated " << size_to_try
-                   << " bytes from fallback allocator (" << ptr
+                   << " bytes from fallback allocator (" << fallback_address
                    << "), capacity expanded to " << capacity << " with "
                    << capacity - allocated << " bytes free (" << free_percentage
                    << "%)";
@@ -523,21 +503,14 @@ EmbeddedMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
   //                     |           |
   // |free_address + free_size|  |aligned_address|
   size_t size_to_allocate = aligned_address + size - free_address - free_size;
-  if (max_capacity_in_bytes_ &&
-      capacity_in_bytes_ + size_to_allocate > max_capacity_in_bytes_) {
-    SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
-    return free_blocks_.end();
-  }
-  SB_DCHECK_GT(size_to_allocate, 0U);
-  ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
-  if (ptr == NULL) {
+  std::tie(fallback_address, fallback_index) =
+      AllocateFallbackBlock(&size_to_allocate, 1);
+  if (fallback_address == nullptr) {
     return free_blocks_.end();
   }
 
-  fallback_allocations_.emplace_back(ptr, size_to_allocate);
-  capacity_in_bytes_ += size_to_allocate;
-  AddFreeBlock(MemoryBlock(static_cast<int>(fallback_allocations_.size() - 1),
-                           ptr, size_to_allocate));
+  AddFreeBlock(MemoryBlock(static_cast<int>(fallback_index), fallback_address,
+                           size_to_allocate));
   FreeBlockSet::iterator iter = free_blocks_.end();
   --iter;
 
@@ -550,7 +523,7 @@ EmbeddedMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
             : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
 
     SB_LOG(INFO) << "Allocated " << size_to_allocate
-                 << " bytes from fallback allocator (" << ptr
+                 << " bytes from fallback allocator (" << fallback_address
                  << "), capacity expanded to " << capacity << " with "
                  << capacity - allocated << " bytes free (" << free_percentage
                  << "%)";
