@@ -569,6 +569,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onPause() {
+    mPhysicalBackKeyPressed = false;
     CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
   }
@@ -859,18 +860,29 @@ public abstract class CobaltActivity extends Activity {
 
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
+    private static final Handler sHandler = new Handler(Looper.getMainLooper());
+
     static Object register(final CobaltActivity activity) {
       OnBackInvokedCallback callback = new OnBackInvokedCallback() {
         @Override
         public void onBackInvoked() {
           if (activity.mPhysicalBackKeyPressed) {
-            return;
+            return; // Bypassed: physical key events are already driving this navigation
           }
-          // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+
+          // 1. Dispatch keydown to initiate navigation immediately.
           activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-          new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+
+          // 2. Simulate physical key release with a 100ms delay.
+          // This mimics natural user latency and prevents the web page's focus manager
+          // from receiving 'keyup' prematurely during asynchronous page transitions
+          // (which would otherwise disrupt cursor/spatial navigation focus restoration).
+          sHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
+              if (activity.isDestroyed() || activity.isFinishing()) {
+                return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+              }
               activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
             }
           }, 100);
