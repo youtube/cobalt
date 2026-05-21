@@ -15,10 +15,10 @@
 #include "starboard/common/log.h"
 
 #include <pthread.h>
+#include <sys/syscall.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 
 #include <algorithm>
 #include <cstring>
@@ -26,10 +26,10 @@
 #include <map>
 #include <sstream>
 
+#include "starboard/common/gettid.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#include "starboard/common/gettid.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>

@@ -16,8 +16,8 @@
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
 #include <unistd.h>
-#include "starboard/common/gettid.h"
 
+#include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 

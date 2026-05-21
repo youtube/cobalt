@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <unistd.h>
-#include "starboard/common/gettid.h"
 
+#include "starboard/common/gettid.h"
 #include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 

@@ -16,9 +16,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"

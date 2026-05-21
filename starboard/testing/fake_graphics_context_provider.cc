@@ -15,11 +15,11 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 #include <unistd.h>
-#include "starboard/common/gettid.h"
 
 #include <condition_variable>
 #include <mutex>
 
+#include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
 #include "starboard/egl_and_gles/buildflags.h"
 

@@ -51,7 +51,9 @@ TEST(PosixGettidTest, SunnyDayDifferentIds) {
   pthread_t threads[kThreads];
 
   for (int i = 0; i < kThreads; ++i) {
-    EXPECT_EQ(pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr), 0);
+    EXPECT_EQ(
+        pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr),
+        0);
     EXPECT_TRUE(threads[i] != 0);
   }
 
@@ -81,7 +83,9 @@ TEST(PosixGettidTest, SunnyDayDifferentIds) {
   const int kThreads = 4;
   pthread_t threads[kThreads];
   for (int i = 0; i < kThreads; ++i) {
-    EXPECT_EQ(pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr), 0);
+    EXPECT_EQ(
+        pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr),
+        0);
   }
   for (int i = 0; i < kThreads; ++i) {
     void* result = nullptr;
