@@ -18,7 +18,10 @@ x-build-volumes: &build-volumes
 
 x-build-common-definitions: &build-common-definitions
   <<: *common-definitions
-  <<: *build-volumes
+  volumes:
+    - ${COBALT_SRC:-.}:/code/
+    - android-debug-keystore:/root/.android/
+    - ${CCACHE_DIR:-container-ccache}:/root/ccache
   depends_on:
     - build-base
 
@@ -103,7 +106,10 @@ services:
 
   linux-x64x11-xenial:
     <<: *common-definitions
-    <<: *build-volumes
+    volumes:
+      - ${COBALT_SRC:-.}:/code/
+      - android-debug-keystore:/root/.android/
+      - ${CCACHE_DIR:-container-ccache}:/root/ccache
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -116,7 +122,10 @@ services:
 
   linux-x64x11-clang-3-6:
     <<: *common-definitions
-    <<: *build-volumes
+    volumes:
+      - ${COBALT_SRC:-.}:/code/
+      - android-debug-keystore:/root/.android/
+      - ${CCACHE_DIR:-container-ccache}:/root/ccache
     build:
       context: ./docker/linux/
       dockerfile: clang-3-6/Dockerfile
