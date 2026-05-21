@@ -44,6 +44,8 @@ std::ostream& operator<<(
     const StarboardRendererConfig::ExperimentalFeatures& features) {
   return os << "{allow_audio_writing_on_pause="
             << ToString(features.allow_audio_writing_on_pause)
+            << ", bypass_mojo_for_media="
+            << ToString(features.bypass_mojo_for_media)
             << ", disable_low_performance_sw_decoder="
             << ToString(features.disable_low_performance_sw_decoder)
             << ", enable_av1_startup_optimization="

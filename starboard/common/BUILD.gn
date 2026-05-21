@@ -84,6 +84,8 @@ static_library("common") {
     "ref_counted.cc",
     "ref_counted.h",
     "result.h",
+    "reuse_allocator_base.cc",
+    "reuse_allocator_base.h",
     "scoped_timer.cc",
     "scoped_timer.h",
     "semaphore.cc",
