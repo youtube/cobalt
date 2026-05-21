@@ -512,6 +512,7 @@ jobs:
 
 
       - name: Parse Test Target JSON
+        if: ${{ matrix.config == 'devel' }}
         id: test-target-json
         uses: ./.github/actions/test_targets_json
         with:

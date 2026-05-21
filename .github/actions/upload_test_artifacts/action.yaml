@@ -20,7 +20,8 @@ inputs:
     required: true
   test_targets_json:
     description: "JSON array of GN targets to package"
-    required: true
+    required: false
+    default: "[]"
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
     required: false
@@ -49,6 +50,9 @@ runs:
       shell: bash
 
     - name: Archive Test Dependencies
+      if: |
+        (inputs.type == 'on_device' && inputs.upload_on_device_test_artifacts == 'true') ||
+        (inputs.type == 'on_host' && inputs.config == 'devel')
       env:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
@@ -58,7 +62,12 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
 
-        TARGETS=$(echo '${{ inputs.test_targets_json }}' | jq -cr 'join(",")')
+        TARGETS=$(echo '${{ inputs.test_targets_json }}' | jq -cr 'join(",") // empty')
+
+        if [[ -z "${TARGETS}" || "${TARGETS}" == "null" ]]; then
+          echo "No targets to archive dependencies for."
+          exit 0
+        fi
 
         if [[ -n "${TARGETS}" ]]; then
           FLAGS=""
