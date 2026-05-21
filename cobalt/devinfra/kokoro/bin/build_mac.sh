@@ -60,9 +60,6 @@ pipeline () {
     local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
     mkdir -p "${package_dir}"
 
-    # Natively build the static archive
-    autoninja -C "${out_dir}" cobalt_archive
-
     local build_info_path="${out_dir}/gen/build_info.json"
 
     # Create release package.
