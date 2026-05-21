@@ -26,6 +26,7 @@
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
@@ -45,123 +46,12 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
-
 namespace {
 
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
-
-bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
-  if (max_video_capabilities.empty()) {
-    SB_LOG(INFO)
-        << "Use hardware decoder as `max_video_capabilities` is empty.";
-    return false;
-  }
-
-  // `max_video_capabilities` is in the form of mime type attributes, like
-  // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
-  // so it can be parsed by MimeType.
-  auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
-  if (!mime_type) {
-    SB_LOG(INFO) << "Use hardware decoder as `max_video_capabilities` ("
-                 << max_video_capabilities << ") is invalid.";
-    return false;
-  }
-
-  std::string software_decoder_expectation =
-      mime_type->GetParamStringValue("softwaredecoder", "");
-  if (software_decoder_expectation == "required" ||
-      software_decoder_expectation == "preferred") {
-    SB_LOG(INFO) << "Use software decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return true;
-  } else if (software_decoder_expectation == "disallowed" ||
-             software_decoder_expectation == "unpreferred") {
-    SB_LOG(INFO) << "Use hardware decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return false;
-  }
-
-  bool is_low_resolution = mime_type->GetParamIntValue("width", 1920) <= 432 &&
-                           mime_type->GetParamIntValue("height", 1080) <= 240;
-  bool is_low_fps = mime_type->GetParamIntValue("framerate", 30) <= 15;
-
-  if (is_low_resolution && is_low_fps) {
-    // Workaround to be compatible with existing backend implementation.
-    SB_LOG(INFO) << "Use software decoder as `max_video_capabilities` ("
-                 << max_video_capabilities
-                 << ") indicates a low resolution and low fps playback.";
-    return true;
-  }
-
-  SB_LOG(INFO)
-      << "Use hardware decoder as `max_video_capabilities` is set to \""
-      << max_video_capabilities << "\".";
-  return false;
-}
-
-std::optional<Size> ParseMaxResolution(
-    const std::string& max_video_capabilities,
-    const Size& frame_size) {
-  SB_DCHECK_GT(frame_size.width, 0);
-  SB_DCHECK_GT(frame_size.height, 0);
-
-  if (max_video_capabilities.empty()) {
-    SB_LOG(INFO)
-        << "Didn't parse max resolutions as `max_video_capabilities` is empty.";
-    return std::nullopt;
-  }
-
-  SB_LOG(INFO) << "Try to parse max resolutions from `max_video_capabilities` ("
-               << max_video_capabilities << ").";
-
-  // `max_video_capabilities` is in the form of mime type attributes, like
-  // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
-  // so it can be parsed by MimeType.
-  auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
-  if (!mime_type) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as "
-                       "`max_video_capabilities` is invalid.";
-    return std::nullopt;
-  }
-
-  int width = mime_type->GetParamIntValue("width", -1);
-  int height = mime_type->GetParamIntValue("height", -1);
-  if (width <= 0 && height <= 0) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as either width or "
-                       "height isn't set.";
-    return std::nullopt;
-  }
-  if (width != -1 && height != -1) {
-    Size max_size = {width, height};
-    SB_LOG(INFO) << "Parsed max resolution=" << max_size;
-    return max_size;
-  }
-
-  if (frame_size.width <= 0 || frame_size.height <= 0) {
-    // We DCHECK() above, but just be safe.
-    SB_LOG(WARNING)
-        << "Failed to parse max resolutions due to invalid frame resolutions ("
-        << frame_size << ").";
-    return std::nullopt;
-  }
-
-  if (width > 0) {
-    Size max_size = {width, width * frame_size.height / frame_size.width};
-    SB_LOG(INFO) << "Inferred max size=" << max_size
-                 << ", frame resolution=" << frame_size;
-    return max_size;
-  }
-
-  Size max_size = {height * frame_size.width / frame_size.height, height};
-  SB_LOG(INFO) << "Inferred max size=" << max_size
-               << ", frame resolution=" << frame_size;
-  return max_size;
-}
 
 class VideoFrameImpl : public VideoFrame {
  public:
@@ -220,25 +110,21 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-// Convenience HDR mastering metadata.
-const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+std::array<float, 16> GetTransformMatrix(
+    const JavaRef<jobject>& surface_texture) {
+  JNIEnv* env = AttachCurrentThread();
 
-// Determine if two |SbMediaMasteringMetadata|s are equal.
-bool Equal(const SbMediaMasteringMetadata& lhs,
-           const SbMediaMasteringMetadata& rhs) {
-  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
+  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
+                                                       env->NewFloatArray(16));
+  SB_CHECK(java_array);
 
-// TODO: For whatever reason, Cobalt will always pass us this us for
-// color metadata, regardless of whether HDR is on or not.  Find out if this
-// is intentional or not.  It would make more sense if it were NULL.
-// Determine if |color_metadata| is "empty", or "null".
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
+  VideoSurfaceTextureBridge::GetTransformMatrix(
+      env, surface_texture,
+      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
+
+  std::array<float, 16> matrix4x4;
+  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());
+  return matrix4x4;
 }
 
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
@@ -272,6 +158,7 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
 const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
     StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
     StubDrmSessionKeyStatusesChangedFunc};
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -355,7 +242,7 @@ MediaCodecVideoDecoder::Create(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     const std::string& max_video_capabilities,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
     bool force_reset_surface,
     bool force_big_endian_hdr_metadata,
@@ -398,7 +285,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     const std::string& max_video_capabilities,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
     bool force_reset_surface,
     bool force_big_endian_hdr_metadata,
@@ -416,7 +303,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
+      require_software_codec_(
+          IsSoftwareDecoderRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
@@ -434,20 +322,26 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
       enable_output_checker_(experimental_features.enable_codec_output_checker),
-      is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
-                                      tunnel_mode_audio_session_id != -1),
+      skip_video_frames_over_60_fps_(
+          experimental_features.skip_video_frames_over_60_fps),
+      is_video_frame_tracker_enabled_(
+          // OnFrameRenderedListener is available since API 23, but only
+          // reliable for standard playback since API 34. Tunnel mode uses it on
+          // all SDKs.
+          android_get_device_api_level() >= 34 || tunnel_mode_audio_session_id),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
               kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
-      bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
-                  ? std::make_unique<VideoSurfaceTextureBridge>(this)
-                  : nullptr) {
+      surface_texture_bridge_(
+          output_mode_ == kSbPlayerOutputModeDecodeToTexture
+              ? std::make_unique<VideoSurfaceTextureBridge>(this)
+              : nullptr) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
-    SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+    SB_DCHECK(tunnel_mode_audio_session_id_);
     SB_DCHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
@@ -489,13 +383,15 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", preroll count=" << number_of_preroll_frames_
                << ", max pending input size=" << kMaxPendingInputsSize
                << ", max video capabilities=\"" << max_video_capabilities_
-               << "\", and tunnel mode audio session id="
-               << tunnel_mode_audio_session_id_;
+               << "\", tunnel mode audio session id="
+               << ToString(tunnel_mode_audio_session_id_)
+               << ", is_video_frame_tracker_enabled="
+               << ToString(is_video_frame_tracker_enabled_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     // Forces video surface to reset after tunnel mode playbacks. This prevents
     // video distortion on some platforms. For details, see http://b/182610842.
     ClearVideoWindow(/*force_reset_surface=*/true);
@@ -514,7 +410,7 @@ scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
 
 std::unique_ptr<VideoRenderAlgorithm>
 MediaCodecVideoDecoder::GetRenderAlgorithm() {
-  if (tunnel_mode_audio_session_id_ == -1) {
+  if (!tunnel_mode_audio_session_id_) {
     return std::make_unique<VideoRenderAlgorithmAndroid>(
         this, video_frame_tracker_.get());
   }
@@ -547,7 +443,7 @@ void MediaCodecVideoDecoder::Initialize(
 
 size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
   // Tunnel mode uses its own preroll logic.
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     return 0;
   }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
@@ -558,7 +454,7 @@ size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
 
 int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
   // Tunnel mode uses its own preroll logic.
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     return std::numeric_limits<int64_t>::max();
   }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
@@ -685,54 +581,126 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
   media_decoder_->WriteEndOfStream();
 }
 
-void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
-  SB_CHECK(BelongsToCurrentThread());
-
-  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
-  // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
-  // set video_fps_ to 0 will call InitializeCodec(),
-  // which we do not need if flush the codec.
-  if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
-      !media_decoder_->Flush()) {
-    TeardownCodec();
-    if (reset_delay_usec_ > 0) {
-      usleep(reset_delay_usec_);
-    }
-
-    // Note that |input_buffer_written_| may not be strictly accurate after
-    // Flush() since it counts all buffers written since codec initialization.
-    // This is acceptable because it is used to estimate pre-roll frames, and
-    // retaining its accumulated value correctly signals that we are past the
-    // initial pre-roll phase after a Flush().
-    input_buffer_written_ = 0;
-    video_fps_ = 0;
-  }
-  CancelPendingJobs();
-
-  // TODO(b/291959069): After flush |media_decoder_|, the output buffers
-  // may have invalid frames. Reset |output_format_| to null here to skip max
-  // output buffers check.
-  decoded_output_frames_ = 0;
-  output_format_ = std::nullopt;
-
-  tunnel_mode_prerolling_.store(true);
-  tunnel_mode_first_frame_rendered_.store(false);
-  tunnel_mode_prerolled_frames_.store(0);
-  end_of_stream_written_ = false;
-  pending_input_buffers_.clear();
-
-  // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
-  //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
-  //       to update the seek status of |video_frame_tracker_|.  This is
-  //       slightly flaky as it depends on the behavior of the video renderer.
-}
-
 void MediaCodecVideoDecoder::Reset() {
   ResetInternal(/*skip_flush=*/false);
 }
 
 void MediaCodecVideoDecoder::ResetForTeardown() {
   ResetInternal(skip_flush_on_decoder_teardown_);
+}
+
+// When in decode-to-texture mode, this returns the current decoded video frame.
+SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
+  // We must take a lock here since this function can be called from a separate
+  // thread.
+  std::lock_guard lock(decode_target_mutex_);
+  if (decode_target_ != nullptr) {
+    bool has_new_texture = has_new_texture_available_.exchange(false);
+    if (has_new_texture) {
+      VideoSurfaceTextureBridge::UpdateTexImage(
+          AttachCurrentThread(), decode_target_->surface_texture());
+      UpdateDecodeTargetSizeAndContentRegion_Locked();
+
+      if (!first_texture_received_) {
+        first_texture_received_ = true;
+      }
+    }
+
+    if (first_texture_received_) {
+      decode_target_->AddRef();
+      return decode_target_;
+    }
+  }
+  return kSbDecodeTargetInvalid;
+}
+
+void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
+  SB_DCHECK(!frame_sizes_.empty());
+
+  while (!frame_sizes_.empty()) {
+    const auto& frame_size = frame_sizes_.front();
+    if (frame_size.has_crop_values) {
+      auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+      auto [content_region, coded_size] =
+          GetDecodeTargetGeometryFromMatrix(matrix4x4, frame_size.display_size);
+
+      decode_target_->set_dimension(coded_size);
+      decode_target_->set_content_region(content_region);
+
+      // Now we have two crop rectangles, one from the MediaFormat, one from the
+      // transform of the surface texture.  Their sizes should match.
+      // Note that we cannot compare individual corners directly, as the values
+      // retrieving from the surface texture can be flipped.
+      int content_region_width =
+          std::abs(content_region.left - content_region.right);
+      int content_region_height =
+          std::abs(content_region.bottom - content_region.top);
+      // Using 2 as epsilon, as the texture may get clipped by one pixel from
+      // each side.
+      const auto display_size = frame_size.display_size;
+      bool are_crop_values_matching =
+          std::abs(content_region_width - display_size.width) <= 2 &&
+          std::abs(content_region_height - display_size.height) <= 2;
+      if (are_crop_values_matching) {
+        return;
+      }
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+      // If we failed to find any matching clip regions, the crop values
+      // returned from the platform may be inconsistent.
+      // Crash in non-gold mode, and fallback to the old logic in gold mode to
+      // avoid terminating the app in production.
+      SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
+          << frame_size << " - (" << content_region.left << ", "
+          << content_region.top << ", " << content_region.right << ", "
+          << content_region.bottom << ")";
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    } else {
+      SB_LOG(WARNING) << "Crop values not set.";
+    }
+
+    if (frame_sizes_.size() == 1) {
+      SB_LOG(WARNING) << "Setting content region frame width/height failed,"
+                      << " fallback to the legacy logic.";
+      break;
+    }
+
+    frame_sizes_.erase(frame_sizes_.begin());
+  }
+
+  SB_DCHECK(!frame_sizes_.empty());
+  if (frame_sizes_.empty()) {
+    // This should never happen.  Appending a default value so it aligns to the
+    // legacy behavior, where a single value (instead of an std::vector<>) is
+    // used.
+    frame_sizes_.resize(1);
+  }
+
+  // The legacy logic works when the crop rectangle has the same aspect ratio as
+  // the video texture, which is true for most of the playbacks.
+  // Leaving the legacy logic in place in case the new logic above doesn't work
+  // on some devices, so at least the majority of playbacks still work.
+  auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+  auto [content_region, coded_size] = GetDecodeTargetGeometryFromMatrix(
+      matrix4x4, frame_sizes_.back().display_size);
+  decode_target_->set_dimension(coded_size);
+  decode_target_->set_content_region(content_region);
+}
+
+void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
+  if (playback_rate_ == playback_rate) {
+    return;
+  }
+
+  playback_rate_ = playback_rate;
+  if (media_decoder_) {
+    media_decoder_->SetPlaybackRate(playback_rate);
+  }
+}
+
+void MediaCodecVideoDecoder::OnFrameAvailable() {
+  has_new_texture_available_.store(true);
 }
 
 Result<void> MediaCodecVideoDecoder::InitializeCodec(
@@ -789,7 +757,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       // A width and height of (0, 0) is provided here because Android doesn't
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
-      // by texture data until updateTexImage() is called on it.
+      // by texture data until UpdateTexImage() is called on it.
       if (!decode_target_graphics_context_provider_) {
         return Failure("Invalid decode target graphics context provider.");
       }
@@ -801,8 +769,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       j_output_surface = decode_target->surface().obj();
 
       JNIEnv* env = AttachCurrentThread();
-      bridge_->SetOnFrameAvailableListener(env,
-                                           decode_target->surface_texture());
+      surface_texture_bridge_->SetOnFrameAvailableListener(
+          env, decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -839,9 +807,10 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
-      tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      enable_output_checker_);
+      tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
+      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
+      use_dual_threads_, enable_output_checker_,
+      skip_video_frames_over_60_fps_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -881,7 +850,7 @@ void MediaCodecVideoDecoder::TeardownCodec() {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JNIEnv* env = AttachCurrentThread();
-      bridge_->RemoveOnFrameAvailableListener(
+      surface_texture_bridge_->RemoveOnFrameAvailableListener(
           env, decode_target_->surface_texture());
 
       decode_target_to_release = decode_target_;
@@ -903,20 +872,6 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     SbDecodeTargetReleaseInGlesContext(decode_target_graphics_context_provider_,
                                        decode_target_to_release);
   }
-}
-
-void MediaCodecVideoDecoder::OnEndOfStreamWritten(
-    MediaCodecBridge* media_codec_bridge) {
-  if (tunnel_mode_audio_session_id_ == -1) {
-    return;
-  }
-
-  SB_DCHECK(decoder_status_cb_);
-
-  // TODO: Refactor the VideoDecoder and the VideoRendererImpl to improve the
-  //       handling of preroll and EOS for pure punchout decoders.
-  decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
-  sink_->Render();
 }
 
 void MediaCodecVideoDecoder::WriteInputBuffersInternal(
@@ -943,7 +898,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
-  } else if (tunnel_mode_audio_session_id_ != -1) {
+  } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
     // to the renderer again.  Schedule a task to check back.
@@ -953,7 +908,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
         kNeedMoreInputCheckIntervalInTunnelMode);
   }
 
-  if (tunnel_mode_audio_session_id_ != -1 && tunnel_mode_prerolling_.load()) {
+  if (tunnel_mode_audio_session_id_ && tunnel_mode_prerolling_.load()) {
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->timestamp() >= video_frame_tracker_->seek_to_time()) {
         tunnel_mode_prerolled_frames_++;
@@ -997,6 +952,20 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
 }
 
+void MediaCodecVideoDecoder::OnEndOfStreamWritten(
+    MediaCodecBridge* media_codec_bridge) {
+  if (!tunnel_mode_audio_session_id_) {
+    return;
+  }
+
+  SB_DCHECK(decoder_status_cb_);
+
+  // TODO: Refactor the VideoDecoder and the VideoRendererImpl to improve the
+  //       handling of preroll and EOS for pure punchout decoders.
+  decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+  sink_->Render();
+}
+
 void MediaCodecVideoDecoder::RefreshOutputFormat(
     MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
@@ -1016,7 +985,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(*output_size);
 
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_audio_session_id_) {
     return;
   }
   if (first_output_format_changed_) {
@@ -1044,12 +1013,16 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
 bool MediaCodecVideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
-  SB_DCHECK_EQ(tunnel_mode_audio_session_id_, -1);
+  SB_DCHECK(!tunnel_mode_audio_session_id_);
   return sink_->Render();
 }
 
 void MediaCodecVideoDecoder::OnFlushing() {
-  decoder_status_cb_(kReleaseAllFrames, NULL);
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (decoder_status_cb_) {
+    decoder_status_cb_(kReleaseAllFrames, NULL);
+  }
 }
 
 bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
@@ -1060,206 +1033,6 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
   SB_CHECK(video_frame_tracker_);
   return input_buffer->timestamp() < video_frame_tracker_->seek_to_time();
-}
-
-namespace {
-
-void updateTexImage(const JavaRef<jobject>& surface_texture) {
-  JNIEnv* env = AttachCurrentThread();
-
-  VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
-}
-
-void getTransformMatrix(const JavaRef<jobject>& surface_texture,
-                        float* matrix4x4) {
-  JNIEnv* env = AttachCurrentThread();
-
-  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
-                                                       env->NewFloatArray(16));
-  SB_CHECK(java_array);
-
-  VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture,
-      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
-
-  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4);
-}
-
-// Converts a 4x4 matrix representing the texture coordinate transform into
-// an equivalent rectangle representing the region within the texture where
-// the pixel data is valid.  Note that the width and height of this region may
-// be negative to indicate that that axis should be flipped.
-SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
-    const Size& size,
-    const float* matrix4x4) {
-  // Ensure that this matrix contains no rotations or shears.  In other words,
-  // make sure that we can convert it to a decode target content region without
-  // losing any information.
-  SB_DCHECK_EQ(matrix4x4[1], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[2], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[3], 0.0f);
-
-  SB_DCHECK_EQ(matrix4x4[4], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[6], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[7], 0.0f);
-
-  SB_DCHECK_EQ(matrix4x4[8], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[9], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[10], 1.0f);
-  SB_DCHECK_EQ(matrix4x4[11], 0.0f);
-
-  SB_DCHECK_EQ(matrix4x4[14], 0.0f);
-  SB_DCHECK_EQ(matrix4x4[15], 1.0f);
-
-  float origin_x = matrix4x4[12];
-  float origin_y = matrix4x4[13];
-
-  float extent_x = matrix4x4[0] + matrix4x4[12];
-  float extent_y = matrix4x4[5] + matrix4x4[13];
-
-  SB_DCHECK_GE(origin_y, 0.0f);
-  SB_DCHECK_LE(origin_y, 1.0f);
-  SB_DCHECK_GE(origin_x, 0.0f);
-  SB_DCHECK_LE(origin_x, 1.0f);
-  SB_DCHECK_GE(extent_x, 0.0f);
-  SB_DCHECK_LE(extent_x, 1.0f);
-  SB_DCHECK_GE(extent_y, 0.0f);
-  SB_DCHECK_LE(extent_y, 1.0f);
-
-  // Flip the y-axis to match ContentRegion's coordinate system.
-  origin_y = 1.0f - origin_y;
-  extent_y = 1.0f - extent_y;
-
-  SbDecodeTargetInfoContentRegion content_region;
-
-  content_region.left = origin_x * size.width;
-  content_region.right = extent_x * size.width;
-
-  // Note that in GL coordinates, the origin is the bottom and the extent
-  // is the top.
-  content_region.top = extent_y * size.height;
-  content_region.bottom = origin_y * size.height;
-
-  return content_region;
-}
-
-}  // namespace
-
-// When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
-  // We must take a lock here since this function can be called from a separate
-  // thread.
-  std::lock_guard lock(decode_target_mutex_);
-  if (decode_target_ != nullptr) {
-    bool has_new_texture = has_new_texture_available_.exchange(false);
-    if (has_new_texture) {
-      updateTexImage(decode_target_->surface_texture());
-      UpdateDecodeTargetSizeAndContentRegion_Locked();
-
-      if (!first_texture_received_) {
-        first_texture_received_ = true;
-      }
-    }
-
-    if (first_texture_received_) {
-      decode_target_->AddRef();
-      return decode_target_;
-    }
-  }
-  return kSbDecodeTargetInvalid;
-}
-
-void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
-  SB_DCHECK(!frame_sizes_.empty());
-
-  while (!frame_sizes_.empty()) {
-    const auto& frame_size = frame_sizes_.front();
-    if (frame_size.has_crop_values) {
-      decode_target_->set_dimension(frame_size.display_size);
-
-      float matrix4x4[16];
-      getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
-
-      auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          frame_size.display_size, matrix4x4);
-      decode_target_->set_content_region(content_region);
-
-      // Now we have two crop rectangles, one from the MediaFormat, one from the
-      // transform of the surface texture.  Their sizes should match.
-      // Note that we cannot compare individual corners directly, as the values
-      // retrieving from the surface texture can be flipped.
-      int content_region_width =
-          std::abs(content_region.left - content_region.right) + 1;
-      int content_region_height =
-          std::abs(content_region.bottom - content_region.top) + 1;
-      // Using 2 as epsilon, as the texture may get clipped by one pixel from
-      // each side.
-      const auto display_size = frame_size.display_size;
-      bool are_crop_values_matching =
-          std::abs(content_region_width - display_size.width) <= 2 &&
-          std::abs(content_region_height - display_size.height) <= 2;
-      if (are_crop_values_matching) {
-        return;
-      }
-
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-      // If we failed to find any matching clip regions, the crop values
-      // returned from the platform may be inconsistent.
-      // Crash in non-gold mode, and fallback to the old logic in gold mode to
-      // avoid terminating the app in production.
-      SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size << " - (" << content_region.left << ", "
-          << content_region.top << ", " << content_region.right << ", "
-          << content_region.bottom << ")";
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-    } else {
-      SB_LOG(WARNING) << "Crop values not set.";
-    }
-
-    if (frame_sizes_.size() == 1) {
-      SB_LOG(WARNING) << "Setting content region frame width/height failed,"
-                      << " fallback to the legacy logic.";
-      break;
-    }
-
-    frame_sizes_.erase(frame_sizes_.begin());
-  }
-
-  SB_DCHECK(!frame_sizes_.empty());
-  if (frame_sizes_.empty()) {
-    // This should never happen.  Appending a default value so it aligns to the
-    // legacy behavior, where a single value (instead of an std::vector<>) is
-    // used.
-    frame_sizes_.resize(1);
-  }
-
-  // The legacy logic works when the crop rectangle has the same aspect ratio as
-  // the video texture, which is true for most of the playbacks.
-  // Leaving the legacy logic in place in case the new logic above doesn't work
-  // on some devices, so at least the majority of playbacks still work.
-  decode_target_->set_dimension(frame_sizes_.back().display_size);
-
-  float matrix4x4[16];
-  getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
-
-  decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
-      frame_sizes_.back().display_size, matrix4x4));
-}
-
-void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
-  if (playback_rate_ == playback_rate) {
-    return;
-  }
-
-  playback_rate_ = playback_rate;
-  if (media_decoder_) {
-    media_decoder_->SetPlaybackRate(playback_rate);
-  }
-}
-
-void MediaCodecVideoDecoder::OnFrameAvailable() {
-  has_new_texture_available_.store(true);
 }
 
 void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
@@ -1279,10 +1052,6 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
   }
 }
 
-bool MediaCodecVideoDecoder::IsFrameRenderedCallbackEnabled() {
-  return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
-}
-
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
   SB_DCHECK(video_frame_tracker_);
@@ -1291,7 +1060,7 @@ void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
-  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+  SB_DCHECK(tunnel_mode_audio_session_id_);
 
   tunnel_mode_first_frame_rendered_.store(true);
   TryToSignalPrerollForTunnelMode();
@@ -1299,7 +1068,7 @@ void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
 
 void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
+  SB_DCHECK(tunnel_mode_audio_session_id_);
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null
@@ -1357,6 +1126,48 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
+  SB_CHECK(BelongsToCurrentThread());
+
+  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
+  // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
+  // set video_fps_ to 0 will call InitializeCodec(),
+  // which we do not need if flush the codec.
+  if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
+      !media_decoder_->Flush()) {
+    TeardownCodec();
+    if (reset_delay_usec_ > 0) {
+      usleep(reset_delay_usec_);
+    }
+
+    // Note that |input_buffer_written_| may not be strictly accurate after
+    // Flush() since it counts all buffers written since codec initialization.
+    // This is acceptable because it is used to estimate pre-roll frames, and
+    // retaining its accumulated value correctly signals that we are past the
+    // initial pre-roll phase after a Flush().
+    input_buffer_written_ = 0;
+    video_fps_ = 0;
+  }
+  CancelPendingJobs();
+
+  // TODO(b/291959069): After flush |media_decoder_|, the output buffers
+  // may have invalid frames. Reset |output_format_| to null here to skip max
+  // output buffers check.
+  decoded_output_frames_ = 0;
+  output_format_ = std::nullopt;
+
+  tunnel_mode_prerolling_.store(true);
+  tunnel_mode_first_frame_rendered_.store(false);
+  tunnel_mode_prerolled_frames_.store(0);
+  end_of_stream_written_ = false;
+  pending_input_buffers_.clear();
+
+  // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
+  //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
+  //       to update the seek status of |video_frame_tracker_|.  This is
+  //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
 }  // namespace starboard

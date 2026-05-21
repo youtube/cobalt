@@ -87,11 +87,11 @@ std::string GetVideoDecoderTestConfigName(
 }
 
 TEST_P(VideoDecoderTest, PrerollFrameCount) {
-  EXPECT_GT(fixture_.video_decoder()->GetPrerollFrameCount(), 0);
+  EXPECT_GT(fixture_.video_decoder()->GetPrerollFrameCount(), 0u);
 }
 
 TEST_P(VideoDecoderTest, MaxNumberOfCachedFrames) {
-  EXPECT_GT(fixture_.video_decoder()->GetMaxNumberOfCachedFrames(), 1);
+  EXPECT_GT(fixture_.video_decoder()->GetMaxNumberOfCachedFrames(), 1u);
 }
 
 TEST_P(VideoDecoderTest, PrerollTimeout) {
@@ -149,8 +149,6 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               video_components;
 
           for (int i = 0; i < kDecodersToCreate; ++i) {
-            SbMediaAudioSampleInfo dummy_audio_sample_info = {
-                kSbMediaAudioCodecNone};
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
@@ -341,7 +339,7 @@ TEST_P(VideoDecoderTest, ResetAfterInput) {
 TEST_P(VideoDecoderTest, MultipleResets) {
   const size_t max_inputs_to_write =
       std::min<size_t>(fixture_.dmp_reader().number_of_video_buffers(), 10);
-  for (int max_inputs = 1; max_inputs < max_inputs_to_write; ++max_inputs) {
+  for (size_t max_inputs = 1; max_inputs < max_inputs_to_write; ++max_inputs) {
     bool error_occurred = false;
     fixture_.WriteMultipleInputs(
         0, max_inputs, [&](const Event& event, bool* continue_process) {
@@ -392,7 +390,7 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
   if (frames_decoded < number_of_expected_decoded_frames) {
     fixture_.WriteEndOfStream();
     ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-        &error_occurred, [=](const Event& event, bool* continue_process) {
+        &error_occurred, [this](const Event& event, bool* continue_process) {
           // Keep 1 decoded frame, assuming it's used by renderer.
           while (fixture_.GetDecodedFramesCount() > 1) {
             fixture_.PopDecodedFrame();
@@ -422,7 +420,7 @@ TEST_P(VideoDecoderTest, Preroll) {
         }
         if (CurrentMonotonicTime() - start >= preroll_timeout) {
           // After preroll timeout, we should get at least 1 decoded frame.
-          ASSERT_GT(fixture_.GetDecodedFramesCount(), 0);
+          ASSERT_GT(fixture_.GetDecodedFramesCount(), 0u);
           *continue_process = false;
           return;
         }
@@ -454,7 +452,7 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
     return;
   }
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [this](const Event& event, bool* continue_process) {
         *continue_process =
             fixture_.GetDecodedFramesCount() <
             fixture_.video_decoder()->GetMaxNumberOfCachedFrames();
@@ -463,7 +461,7 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
 }
 
 TEST_P(VideoDecoderTest, DecodeFullGOP) {
-  int gop_size = 1;
+  size_t gop_size = 1;
   while (gop_size < fixture_.dmp_reader().number_of_video_buffers()) {
     if (fixture_.GetVideoInputBuffer(gop_size)
             ->video_sample_info()
@@ -491,7 +489,7 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   fixture_.WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [this](const Event& event, bool* continue_process) {
         // Keep 1 decoded frame, assuming it's used by renderer.
         while (fixture_.GetDecodedFramesCount() > 1) {
           fixture_.PopDecodedFrame();
@@ -501,10 +499,10 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   ASSERT_FALSE(error_occurred);
 }
 
-INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
-                        VideoDecoderTest,
-                        Combine(ValuesIn(GetSupportedVideoTests()), Bool()),
-                        GetVideoDecoderTestConfigName);
+INSTANTIATE_TEST_SUITE_P(VideoDecoderTests,
+                         VideoDecoderTest,
+                         Combine(ValuesIn(GetSupportedVideoTests()), Bool()),
+                         GetVideoDecoderTestConfigName);
 
 }  // namespace
 

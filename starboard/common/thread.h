@@ -83,6 +83,8 @@ class Thread {
   void operator=(const Thread&) = delete;
 };
 
+int SbPriorityToNice(SbThreadPriority priority);
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_THREAD_H_

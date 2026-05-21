@@ -1785,6 +1785,10 @@ component("base") {
       "starboard/debugger_starboard.cc",
     ]
 
+    if (is_android) {
+      sources -= [ "process/process_android.cc" ]
+    }
+
     if (is_linux) {
       sources -= [ "process/process_linux.cc" ]
     }
@@ -1816,7 +1820,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.

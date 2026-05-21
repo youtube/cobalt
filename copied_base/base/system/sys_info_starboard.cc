@@ -16,31 +16,48 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include <sys/system_properties.h>
-#elif BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "base/system/sys_info.h"
 #include "starboard/common/system_property.h"
-using starboard::GetSystemPropertyString;
+#elif BUILDFLAG(IS_ANDROID)
+#include <sys/system_properties.h>
 #elif BUILDFLAG(IS_IOS_TVOS)
 #include <map>
 
 #include <sys/utsname.h>
 
 #include "base/containers/contains.h"
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+namespace base {
 
 #if BUILDFLAG(IS_STARBOARD)
-namespace base {
+using ::starboard::GetSystemPropertyString;
+
 std::string SysInfo::HardwareModelName() {
   return GetSystemPropertyString(kSbSystemPropertyModelName);
 }
-}
-#endif // BUILDFLAG(IS_STARBOARD)
-namespace base {
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 namespace starboard {
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_STARBOARD)
+std::string SbSysInfo::OriginalDesignManufacturer() {
+  return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
+}
+
+std::string SbSysInfo::ChipsetModelNumber() {
+  return GetSystemPropertyString(kSbSystemPropertyChipsetModelNumber);
+}
+
+std::string SbSysInfo::ModelYear() {
+  return GetSystemPropertyString(kSbSystemPropertyModelYear);
+}
+
+std::string SbSysInfo::Brand() {
+  return GetSystemPropertyString(kSbSystemPropertyBrandName);
+}
+#elif BUILDFLAG(IS_ANDROID)
 std::string SbSysInfo::OriginalDesignManufacturer() {
   char original_design_manufacturer_str[PROP_VALUE_MAX];
   __system_property_get("ro.product.manufacturer", original_design_manufacturer_str);
@@ -78,23 +95,6 @@ std::string SbSysInfo::Brand() {
   __system_property_get("ro.product.brand", brand_str);
   return std::string(brand_str);
 }
-#elif BUILDFLAG(IS_STARBOARD)
-std::string SbSysInfo::OriginalDesignManufacturer() {
-  return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
-}
-
-std::string SbSysInfo::ChipsetModelNumber() {
-  return GetSystemPropertyString(kSbSystemPropertyChipsetModelNumber);
-}
-
-std::string SbSysInfo::ModelYear() {
-  return GetSystemPropertyString(kSbSystemPropertyModelYear);
-}
-
-std::string SbSysInfo::Brand() {
-  return GetSystemPropertyString(kSbSystemPropertyBrandName);
-}
-
 #elif BUILDFLAG(IS_IOS_TVOS)
 std::string SbSysInfo::OriginalDesignManufacturer() {
   // Cobalt 25: https://github.com/youtube/cobalt/blob/62c2380b7eb0da5889a387c4b9be283656a8575d/starboard/shared/uikit/system_get_property.mm#L126
@@ -152,7 +152,7 @@ std::string SbSysInfo::Brand() {
   return "Apple";
 }
 
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace starboard
 }  // namespace base

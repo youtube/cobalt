@@ -75,18 +75,26 @@ void SetExperimentalFeaturesForCurrentThread(
 
   ExperimentalFeatures experiment_features;
 
+  experiment_features.allow_audio_writing_on_pause =
+      extension_features->allow_audio_writing_on_pause;
   experiment_features.disable_low_performance_sw_decoder =
       extension_features->disable_low_performance_sw_decoder;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
   experiment_features.enable_codec_output_checker =
       extension_features->enable_codec_output_checker;
+  experiment_features.enable_video_renderer_vsp_adjustment =
+      extension_features->enable_video_renderer_vsp_adjustment;
+  experiment_features.flush_audio_track_during_seek =
+      extension_features->flush_audio_track_during_seek;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
   experiment_features.reset_audio_decoder =
       extension_features->reset_audio_decoder;
   experiment_features.skip_flush_on_decoder_teardown =
       extension_features->skip_flush_on_decoder_teardown;
+  experiment_features.skip_video_frames_over_60_fps =
+      extension_features->skip_video_frames_over_60_fps;
   experiment_features.use_dual_threads_for_video =
       FromBoolPointer(extension_features->use_dual_threads_for_video);
   experiment_features.video_decoder_initial_preroll_count =

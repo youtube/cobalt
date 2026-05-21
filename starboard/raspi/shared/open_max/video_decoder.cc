@@ -14,9 +14,11 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -50,7 +52,7 @@ OpenMaxVideoDecoder::~OpenMaxVideoDecoder() {
     }
     pthread_join(*thread_, nullptr);
   }
-  RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(&update_job_token_);
 }
 
 void OpenMaxVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -137,7 +139,7 @@ bool OpenMaxVideoDecoder::TryToDeliverOneFrame() {
 // static
 void* OpenMaxVideoDecoder::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "omx_video_decoder");
-  SbThreadSetPriority(kSbThreadPriorityHigh);
+  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
   OpenMaxVideoDecoder* decoder =
       reinterpret_cast<OpenMaxVideoDecoder*>(context);
   decoder->RunLoop();
