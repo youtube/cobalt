@@ -29,11 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#include "build/build_config.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#define gettid() syscall(SYS_gettid)
-#endif
+#include "starboard/common/gettid.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>

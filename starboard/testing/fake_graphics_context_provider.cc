@@ -15,15 +15,10 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 #include <unistd.h>
-#include "build/build_config.h"
+#include "starboard/common/gettid.h"
 
 #include <condition_variable>
 #include <mutex>
-
-#if !BUILDFLAG(IS_ANDROID)
-#include <sys/syscall.h>
-#define gettid() syscall(SYS_gettid)
-#endif
 
 #include "starboard/common/log.h"
 #include "starboard/egl_and_gles/buildflags.h"

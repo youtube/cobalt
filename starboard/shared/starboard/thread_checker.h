@@ -16,12 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
 #include <unistd.h>
-#include <sys/syscall.h>
-#include "build/build_config.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#define gettid() syscall(SYS_gettid)
-#endif
+#include "starboard/common/gettid.h"
 
 #include "starboard/common/log.h"
 #include "starboard/thread.h"

@@ -13,12 +13,7 @@
 // limitations under the License.
 
 #include <unistd.h>
-#include "build/build_config.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include <sys/syscall.h>
-#define gettid() syscall(SYS_gettid)
-#endif
+#include "starboard/common/gettid.h"
 
 #include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
