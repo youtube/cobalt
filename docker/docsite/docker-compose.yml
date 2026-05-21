@@ -1,7 +1,7 @@
 version: '2.4'
 
 services:
-  docsite:
+  docsite: &docsite-anchor
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,10 +13,9 @@ services:
       # this file is located two directories under the root of the repository.
       - ${COBALT_SRC:-../../}:/cobalt/
   docsite-build-only:
+    <<: *docsite-anchor
     container_name: docsite-build-only
     environment:
       # SITE_DST specifies where the files required to deploy the site should be
       # placed, and by default this is under the "out" directory.
       - SITE_DST=${SITE_DST:-/cobalt/out/deploy/www}
-    extends:
-      service: docsite

@@ -5,6 +5,9 @@ FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian10}:${BASE_OS_T
 ENV PYTHONUNBUFFERED 1
 
 # === Install common dependencies
+RUN echo "deb http://archive.debian.org/debian buster main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list
+
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         python-pip python-setuptools python-wheel \
