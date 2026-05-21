@@ -21,8 +21,12 @@ conflict with future Cobalt source code changes.
 To complete the instructions below, you first need to clone the Cobalt source
 code repository:
 
-```sh
-$ git clone https://cobalt.googlesource.com/cobalt
+```bash
+mkdir ~/cobalt && cd ~/cobalt
+git clone --single-branch https://github.com/youtube/cobalt.git src
+gclient config --name=src https://github.com/youtube/cobalt.git
+cd src
+gclient sync --no-history -r $(git rev-parse @)
 ```
 
 If you prefer, you can instead complete the instructions for
