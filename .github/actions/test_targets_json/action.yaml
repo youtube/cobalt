@@ -1,9 +1,15 @@
 name: Test Targets JSON
 description: Parses test target JSON file
+inputs:
+  targets_file:
+    description: "Optional path to a local test_targets.json file. If omitted, GHA downloads from artifacts."
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
+      if: inputs.targets_file == ''
       uses: actions/download-artifact@v5
       with:
         name: ${{ matrix.platform }}_test_targets_json
@@ -11,7 +17,10 @@ runs:
     - name: Test target count
       id: parse-json
       run: |
-        targets_file="test_targets.json"
+        targets_file="${{ inputs.targets_file }}"
+        if [[ -z "${targets_file}" ]]; then
+          targets_file="test_targets.json"
+        fi
 
         # On-Host Targets by Subtype (GN Targets compiled under root test_targets)
         on_host_gunit_targets=$(jq -cr 'if .executables.on_host then .test_targets // [] | map(select(endswith("_junit_tests") | not) | select(endswith(":cobalt_browsertests") | not)) else [] end' "${targets_file}")
@@ -26,7 +35,6 @@ runs:
         # Combine host targets (GN targets)
         on_host_targets=$(jq -cr 'if .executables.on_host then .test_targets else [] end' "${targets_file}")
         echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
-        echo "on_host_count=$(echo "${on_host_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
         # On-Host Executables by Subtype (Exact file paths compiled under .executables)
         on_host_gunit_executables=$(jq -cr '.executables.on_host.gunit_test_executables // []' "${targets_file}")
@@ -48,7 +56,6 @@ runs:
         # Combine device targets (GN targets)
         on_device_targets=$(jq -cr 'if .executables.on_device then .test_targets else [] end' "${targets_file}")
         echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
-        echo "on_device_count=$(echo "${on_device_targets}" | jq -cr 'length')" >> $GITHUB_OUTPUT
 
         # On-Device Executables by Subtype (Exact file paths compiled under .executables)
         on_device_gunit_executables=$(jq -cr '.executables.on_device.gunit_test_executables // []' "${targets_file}")
@@ -72,9 +79,12 @@ outputs:
   on_host_executables:
     description: All host executables.
     value: ${{ steps.parse-json.outputs.on_host_executables }}
-  on_host_count:
-    description: The number of on-host test targets.
-    value: ${{ steps.parse-json.outputs.on_host_count }}
+  on_host_gunit_executables:
+    description: GTest unittests executables.
+    value: ${{ steps.parse-json.outputs.on_host_gunit_executables }}
+  on_host_junit_executables:
+    description: JUnit test executables.
+    value: ${{ steps.parse-json.outputs.on_host_junit_executables }}
 
   on_device_gunit_targets:
     description: The on-device GTest unittests targets in a JSON array.
@@ -88,6 +98,3 @@ outputs:
   on_device_executables:
     description: All device executables.
     value: ${{ steps.parse-json.outputs.on_device_executables }}
-  on_device_count:
-    description: The number of on-device test targets.
-    value: ${{ steps.parse-json.outputs.on_device_count }}

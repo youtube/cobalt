@@ -511,23 +511,32 @@ jobs:
 
 
 
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./.github/actions/test_targets_json
+        with:
+          targets_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+
       - name: Upload Host Test Artifacts
         if: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
-        uses: ./.github/actions/upload_host_test_artifacts
+        uses: ./.github/actions/upload_test_artifacts
         with:
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
+          type: "on_host"
+          test_targets_json: ${{ steps.test-target-json.outputs.on_host_targets }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
 
       - name: Upload Test Artifacts
         uses: ./.github/actions/upload_test_artifacts
         with:
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
-          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
+          type: "on_device"
+          test_targets_json: ${{ steps.test-target-json.outputs.on_device_targets }}
+          on_device_executables: ${{ steps.test-target-json.outputs.on_device_executables }}
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
@@ -565,7 +574,6 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Run On-Device Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.on_device_count) > 0 }}
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
@@ -778,7 +786,6 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Run On-Host Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.on_host_count) > 0 }}
         uses: ./.github/actions/on_host_tests
         with:
           nightly: ${{ inputs.nightly }}
