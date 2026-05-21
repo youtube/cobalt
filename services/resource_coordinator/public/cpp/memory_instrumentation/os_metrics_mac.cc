@@ -236,6 +236,19 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   return FillOSMemoryDump(current_handle, flags, nullptr, dump);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// static
+bool OSMetrics::FillOSMemoryDump(
+    base::ProcessHandle handle,
+    const MemDumpFlagSet& flags,
+    mojom::RawOSMemDump* dump,
+    base::WeakPtr<DetailedMetricsDelegate> delegate) {
+  // This is implemented in os_metrics_linux.cc using Linux-specific concepts
+  // and operations. It is unclear if/what should be measured on tvOS.
+  return false;
+}
+#endif
+
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
