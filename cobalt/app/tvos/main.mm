@@ -35,6 +35,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "net/base/apple/url_conversions.h"
 #include "starboard/common/command_line.h"
+#include "starboard/common/time.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 static int g_argc = 0;
@@ -187,7 +188,13 @@ static const char** g_argv = nullptr;
   std::ranges::transform(processed_argv, std::back_inserter(char_argv),
                          [](const std::string& arg) { return arg.c_str(); });
 
-  _mainDelegate = std::make_unique<cobalt::CobaltMainDelegate>();
+  // This is similar to base::TimeTicks::Now() and a call to ToInternalValue()
+  // and follows what Starboard platforms measure in
+  // starboard::Application::RunLoop().
+  const int64_t startup_time_in_us = starboard::CurrentMonotonicTime();
+
+  _mainDelegate =
+      std::make_unique<cobalt::CobaltMainDelegate>(startup_time_in_us);
   _mainRunner = content::ContentMainRunner::Create();
   content::ContentMainParams params(_mainDelegate.get());
   params.argc = char_argv.size();
