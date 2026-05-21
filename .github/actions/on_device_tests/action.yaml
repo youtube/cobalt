@@ -1,6 +1,11 @@
 name: On Device Test
 description: Runs on-device tests.
 
+inputs:
+  DD_API_KEY:
+    description: 'DataDog API Key'
+    required: false
+
 runs:
   using: "composite"
   steps:
@@ -159,7 +164,7 @@ runs:
         name: unit-test-results
         path: ${{ env.UNIT_TEST_RESULT_PATH }}/
     - name: Get Datadog CLI
-      if: always() && env.TEST_TYPE == 'unit_test' && github.event == 'push'
+      if: always() && env.TEST_TYPE == 'unit_test' && github.event == 'push' && inputs.DD_API_KEY != ''
       shell: bash
       env:
         DD_VERSION: 'v2.18.0'
@@ -171,9 +176,9 @@ runs:
         echo ${DD_SHA256SUM} | sha256sum --check
         chmod +x datadog-ci
     - name: Upload to DataDog
-      if: always() && env.TEST_TYPE == 'unit_test' && github.event == 'push'
+      if: always() && env.TEST_TYPE == 'unit_test' && github.event == 'push' && inputs.DD_API_KEY != ''
       env:
-        DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
+        DATADOG_API_KEY: ${{ inputs.DD_API_KEY }}
         DATADOG_SITE: us5.datadoghq.com
         DD_ENV: ci
         DD_SERVICE: ${{ github.event.repository.name }}
