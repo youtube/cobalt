@@ -42,6 +42,10 @@ component("modules") {
 
   sources += blink_modules_sources_bindings
 
+  if (is_cobalt) {
+    sources += [ "cobalt_modules_stubs.cc" ]
+  }
+
   configs += [
     ":modules_implementation",
 
@@ -170,6 +174,14 @@ component("modules") {
     "//third_party/blink/renderer/modules/worklet",
     "//third_party/blink/renderer/modules/xr",
   ]
+
+  if (is_cobalt) {
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/ml",
+      "//third_party/blink/renderer/modules/webgpu",
+      "//third_party/blink/renderer/modules/xr",
+    ]
+  }
 
   if (is_cobalt) {
     sub_modules += [
@@ -682,6 +694,14 @@ source_set("unit_tests") {
     "xr/xr_view_test.cc",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "xr/xr_rigid_transform_test.cc",
+      "xr/xr_test_utils.cc",
+      "xr/xr_view_test.cc",
+    ]
+  }
+
   if (enable_compute_pressure) {
     sources += [
       "compute_pressure/pressure_observer_test.cc",
@@ -788,6 +808,13 @@ source_set("unit_tests") {
 
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
+  }
+
+  if (is_cobalt) {
+    deps -= [
+      "//third_party/blink/renderer/modules/ml:unit_tests",
+      "//third_party/blink/renderer/modules/webgpu:unit_tests",
+    ]
   }
 
   if (!use_webrtc_peer_connection) {

@@ -30,7 +30,6 @@ blink_modules_sources("v8") {
     _filtered_sources =
         filter_exclude(sources, cobalt_bindings_exclude_patterns)
     sources = []
-    sources = _filtered_sources
   }
 
   deps = [
