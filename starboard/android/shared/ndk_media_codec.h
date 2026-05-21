@@ -28,6 +28,10 @@
 
 namespace starboard {
 
+// NdkMediaCodec is an implementation of the MediaCodec interface using the
+// Android NDK AMediaCodec API. It uses asynchronous callbacks for buffer
+// availability and is preferred on supported devices (API 28+) for reduced JNI
+// overhead.
 class NdkMediaCodec : public MediaCodec {
  public:
   using Handler = MediaCodec::Handler;

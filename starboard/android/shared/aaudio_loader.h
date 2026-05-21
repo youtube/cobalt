@@ -21,6 +21,10 @@
 
 namespace starboard {
 
+// AAudioLoader is a singleton responsible for dynamically loading libaaudio.so
+// and resolving its symbols at runtime. This allows Cobalt to support AAudio on
+// devices where it is available while maintaining compatibility with older
+// Android versions.
 class AAudioLoader {
  public:
   static AAudioLoader* GetInstance();

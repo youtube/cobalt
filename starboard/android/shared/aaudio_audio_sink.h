@@ -31,6 +31,11 @@
 
 namespace starboard {
 
+// AAudioAudioSink implements the SbAudioSink interface using the Android NDK
+// AAudio API. It is created via AAudioAudioSink::Create and is owned by the
+// SbAudioSinkPrivate wrapper. Audio data is provided via the AAudio data
+// callback, and progress is tracked via a dedicated real-time priority
+// JobThread.
 class AAudioAudioSink : public SbAudioSinkImpl {
  public:
   static std::unique_ptr<AAudioAudioSink> Create(

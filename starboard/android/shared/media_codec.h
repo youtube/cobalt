@@ -85,6 +85,9 @@ struct DequeueOutputResult {
   int32_t num_bytes;
 };
 
+// MediaCodec is an abstract interface for Android MediaCodec functionality,
+// providing a unified API for both JNI-based (MediaCodecBridge) and NDK-based
+// (NdkMediaCodec) implementations. It is typically owned by MediaCodecDecoder.
 class MediaCodec {
  public:
   static constexpr int32_t kBufferFlagCodecConfig = 2;

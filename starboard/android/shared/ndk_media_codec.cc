@@ -14,10 +14,8 @@
 
 #include "starboard/android/shared/ndk_media_codec.h"
 
-#include <android/api-level.h>
 #include <android/native_window_jni.h>
 #include <dlfcn.h>
-#include <media/NdkMediaCrypto.h>
 #include <media/NdkMediaFormat.h>
 
 #include "starboard/android/shared/media_common.h"
@@ -104,11 +102,14 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
                         frame_size_hint.height);
 
   if (max_frame_size) {
-    AMediaFormat_setInt32(format, "max-width", max_frame_size->width);
-    AMediaFormat_setInt32(format, "max-height", max_frame_size->height);
+    AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_WIDTH,
+                          max_frame_size->width);
+    AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_HEIGHT,
+                          max_frame_size->height);
   }
   if (max_video_input_size > 0) {
-    AMediaFormat_setInt32(format, "max-input-size", max_video_input_size);
+    AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE,
+                          max_video_input_size);
   }
 
   ANativeWindow* native_window = nullptr;
@@ -247,8 +248,7 @@ void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
     return;
   }
   AMediaFormat* params = AMediaFormat_new();
-  // "operating-rate" is the C++ equivalent of MediaFormat.KEY_OPERATING_RATE
-  AMediaFormat_setFloat(params, "operating-rate",
+  AMediaFormat_setFloat(params, AMEDIAFORMAT_KEY_OPERATING_RATE,
                         static_cast<float>(playback_rate));
   media_status_t status = AMediaCodec_setParameters(codec_, params);
   AMediaFormat_delete(params);
