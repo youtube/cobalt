@@ -111,19 +111,38 @@ TrustStoreAndroid::MaybeInitializeAndGetImpl() {
   {
     base::AutoLock lock(init_lock_);
     current_generation = generation_.load();
+    
+    // Return if we already have a fully initialized store for this generation.
     if (impl_ && impl_->generation() == current_generation) {
       return impl_;
     }
+    
+    // If another thread is already in the middle of performing the slow
+    // background initialization, return the existing implementation. This is a
+    // non-blocking bypass: we return what we currently have. This could be nullptr
+    // on first init, or the old valid impl_ during a runtime reload to ensure the
+    // network thread never stalls.
     if (is_initializing_) {
       return impl_;
     }
+    
+    // If we are the first thread to detect that the store is out-of-date,
+    // we take responsibility for the initialization. We set `is_initializing_`
+    // to prevent other threads from starting redundant loads, and then 
+    // release the lock so we can perform the init without blocking others.
     is_initializing_ = true;
   }
 
-  SCOPED_UMA_HISTOGRAM_LONG_TIMER("Net.CertVerifier.AndroidTrustStoreInit");
-  auto new_impl = base::MakeRefCounted<TrustStoreAndroid::Impl>(current_generation);
+  // Perform the slow constructor work (including JNI calls to Android system)
+  // OUTSIDE of the lock.
+  scoped_refptr<TrustStoreAndroid::Impl> new_impl;
+  {
+    SCOPED_UMA_HISTOGRAM_LONG_TIMER("Net.CertVerifier.AndroidTrustStoreInit");
+    new_impl = base::MakeRefCounted<TrustStoreAndroid::Impl>(current_generation);
+  }
 
   {
+    // Re-acquire the lock to commit the newly initialized store.
     base::AutoLock lock(init_lock_);
     impl_ = new_impl;
     is_initializing_ = false;

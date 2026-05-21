@@ -64,6 +64,11 @@ class NET_EXPORT TrustStoreAndroid : public PlatformTrustStore,
   base::Lock init_lock_;
   scoped_refptr<Impl> impl_ GUARDED_BY(init_lock_);
 #if BUILDFLAG(IS_COBALT)
+  // Flags whether a thread is currently performing the slow background
+  // initialization outside of the lock in MaybeInitializeAndGetImpl().
+  // Used to prevent multiple threads from triggering redundant slow loads
+  // concurrently, while allowing other threads to fail-fast and return the
+  // existing/old impl_ without blocking.
   bool is_initializing_ GUARDED_BY(init_lock_) = false;
 #endif  // BUILDFLAG(IS_COBALT)
   // Generation number that is incremented whenever the backing Android trust
