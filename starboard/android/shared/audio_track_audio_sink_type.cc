@@ -107,8 +107,7 @@ bool HasRemoteAudioOutput() {
   return false;
 }
 
-bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id,
-                  SbMediaAudioSampleType audio_sample_type) {
+bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id) {
   if (!features::FeatureList::IsEnabled(features::kEnableNdkAudio)) {
     return false;
   }
@@ -566,7 +565,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
-  if (CanUseAAudio(tunnel_mode_audio_session_id, audio_sample_type)) {
+  if (CanUseAAudio(tunnel_mode_audio_session_id)) {
     // TODO: b/428008986 - Implement the AAudio-based audio sink and instantiate
     // it here.
     SB_LOG(WARNING) << "AAudio-based AudioSink is not implemented yet. Falling "
