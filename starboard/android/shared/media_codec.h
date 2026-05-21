@@ -138,7 +138,11 @@ class MediaCodec {
   virtual ~MediaCodec() = default;
 
   virtual jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) = 0;
-  virtual void* GetInputBufferAddress(jint index, size_t* capacity) = 0;
+  struct BufferAddress {
+    void* address = nullptr;
+    size_t capacity = 0;
+  };
+  virtual BufferAddress GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,

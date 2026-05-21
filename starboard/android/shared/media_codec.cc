@@ -39,7 +39,7 @@ bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
     return false;
   }
 
-  // We do not use NDK AMediaCodec for DRM, since it requires an architecture
+  // We do not use NDK AMediaCodec for DRM, since it requires architectural
   // changes.
   if (require_secured_decoder || j_media_crypto) {
     return false;
@@ -128,10 +128,9 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
   }
 
   if (decoder_name.empty()) {
-    return Failure(
-        FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
-                     static_cast<const char*>(mime),
-                     starboard::ToString(!!j_media_crypto).data()));
+    return Failure(FormatString(
+        "Failed to find decoder: mime=%s, mustSupportSecure=%s",
+        static_cast<const char*>(mime), ToString(must_support_secure).data()));
   }
 
   if (CanUseNdkMediaCodec(tunnel_mode_audio_session_id, require_secured_decoder,

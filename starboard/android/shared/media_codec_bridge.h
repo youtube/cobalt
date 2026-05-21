@@ -67,7 +67,7 @@ class MediaCodecBridge : public MediaCodec {
 
   // MediaCodec implementation
   jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
-  void* GetInputBufferAddress(jint index, size_t* capacity) override;
+  BufferAddress GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
