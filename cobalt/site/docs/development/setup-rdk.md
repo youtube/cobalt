@@ -1,90 +1,126 @@
-Project: /youtube/cobalt/_project.yaml
-Book: /youtube/cobalt/_book.yaml
+# Set up your environment - Cobalt 27.lts for RDK
 
-# Set up your environment - RDK
+These instructions explain how to set up the build environment and build Cobalt 27.lts for the RDK platform (`evergreen-arm-hardfp-rdk`). These steps have been verified inside a clean Ubuntu 22.04 environment and on the Amlogic (AH212) reference device.
 
-Starboard for RDK is now integrated into the Cobalt 25.lts.1+ branch. The RDK `loader_app`,
-which includes Starboard, can be built using the Cobalt build mechanism.
-These instructions explain how to build it and update the library on an RDK device.
+Starboard for RDK is now integrated into the Cobalt 27.lts branch. The RDK `loader_app`, which includes Starboard, can be built using the Cobalt build mechanism. These instructions explain how to build it and update the library on an RDK device.
 
 For the RDK Starboard implementation, you can find the source in the [RDK Central repository](https://github.com/rdkcentral/larboard). Cobalt merges and customizes it in [starboard/contrib/rdk](/starboard/contrib/rdk/).
 
 ## Prerequisites
-### Set up your environment
-Go through the [Linux setup instructions](setup-linux.md) and ensure you have finished setting up the
-environment for your workstation. After setting up the build environment, you should be able to use the `ninja` command
-to build `loader_app` or `nplb`.
 
-### Get an RDK device running the correct image
-1. Get an RDK reference device
+These instructions assume you are running on Ubuntu 22.04. Required libraries can differ depending on your Linux distribution and version.
 
-    You need to have a YouTube reference device (Amlogic S905X4 (AH212)) to run the commands.
+### Install Initial Dependencies
+First, install the basic tools required to download the toolchain and manage packages.
 
-    If you don't have one, you can purchase a reference device from
-[rdklogic](https://rdklogic.tv/collections/all-products/products/amlogic-s905x4-developer-box-rdk?variant=43178224484592).
-
-2. Get a detailed overview of the RDK reference port
-
-    Please get the device information from YouTube Partner portal: [AH212](https://developers.google.com/youtube/devices/living-room/compliance/ah212).
-
-    Note: If you do not have access to the page above, please see
-    [Accessing Living Room Partnership Resources.](https://developers.google.com/youtube/devices/living-room/access/accessing-lr-partnership-resources)
-
-    More information about the RDK reference box can be found on RDK Central wiki: [RDK-Google IPSTB profile stack on Amlogic reference board](https://wiki.rdkcentral.com/display/RDK/RDK-Google+IPSTB+profile+stack+on+Amlogic+reference+board).
-
+```sh
+sudo apt update
+sudo apt install -y wget curl git python3-dev xz-utils lsb-release file sudo
+```
 
 ## Build Cobalt Starboard for RDK
 
-Please note that these instructions work on the 25.lts.1+ branch only.
-The related instructions for the main branch will be updated once it is supported.
+### Step 1: Install RDK Toolchain
+
+We need to install the specific RDK toolchain required for building Cobalt.
+
+1.  **Define environment variables**:
+    ```sh
+    export RDK_HOME=$HOME/rdk/toolchain
+    ```
+
+2.  **Create the target directory**:
+    ```sh
+    mkdir -p ${RDK_HOME}
+    ```
+
+3.  **Download and install the toolchain**:
+    ```sh
+    # Download toolchain installer
+    wget https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh
+    
+    # Run the installer
+    sh 20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh -d ${RDK_HOME} -y
+    ```
+
+### Step 2: Clone depot_tools
+
+Chromium and Cobalt use `depot_tools` for package management and code retrieval.
 
 ```sh
-# Step 1: Install toolchain
-# Select your RDK toolchain path
-export RDK_SDK=/workspaces/rdk/toolchain
-export RDK_HOME=${RDK_SDK}
-
-# Download toolchain
-wget https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh
-# Install the toolchain to the $RDK_SDK folder
-sh 20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh -d ${RDK_SDK} -y
-
-# Step 2: Checkout the source code
-# Ensure you checkout the 25.lts.1+ branch and update the code to the latest version
-cd <cobalt_folder>
-git checkout 25.lts.1+
-
-# Step 3: Build RDK Starboard
-# Generate the output folder for RDK
-python cobalt/build/gn.py -p rdk-arm -C devel
-
-# Build the RDK Starboard libraries and executables
-ninja -v -j 32 -C out/rdk-arm_devel loader_app_install native_target/crashpad_handler elf_loader_sandbox_install elf_loader_sandbox_bin loader_app_bin
+git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/depot_tools
+export PATH="$HOME/depot_tools:$PATH"
 ```
 
-Once the build completes successfully, the output library is available at `out/rdk-arm_devel/libloader_app.so`.
+### Step 3: Download Cobalt Source Code
 
-## Update the library and perform a test
-### Kill the Cobalt process if it is running
+Clone the Cobalt source code repository and checkout the `27.lts` branch.
+
 ```sh
-kill -9 $(ps -aux | grep Cobalt | awk '{print $2}')
+mkdir -p ~/chromium
+cd ~/chromium
+git clone --branch 27.lts --single-branch https://github.com/youtube/cobalt.git src
+git -C src remote add _gclient https://github.com/youtube/cobalt.git
 ```
 
-### Copy the library to the device
-If you have a USB type-C cable connected, you can use `adb` to update the file.
+### Step 4: Sync Subprojects
+
+Use `gclient` to fetch all external dependencies required by Cobalt.
+
 ```sh
-adb push libloader_app.so /usr/lib/libloader_app.so
+cd ~/chromium
+gclient config --unmanaged --name=src https://github.com/youtube/cobalt.git
+gclient sync --no-history -r src@$(git -C src rev-parse @)
 ```
 
-Otherwise, you can use `scp` to update the file.
-```sh
-scp -O libloader_app.so root@<device_ip>:/usr/lib/libloader_app.so
+### Step 5: Install Build Dependencies
 
-# The root password is empty. Press the Enter key when prompted.
+Run the installer script provided by Cobalt to install all necessary system libraries.
+
+```sh
+cd ~/chromium/src
+
+# Run installer
+./build/install-build-deps.sh
+
+# Install sysroot for ARM
+python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 ```
 
-### Verify Starboard
-Once `libloader_app.so` is updated, you can launch Cobalt from the UI. The Starboard log is available via `journalctl`.
+### Step 6: Fix Missing Strip Tool
+
+The build system expects a specific name for the strip tool when cross-compiling for ARM. Create a symlink to the tool provided by the RDK SDK.
+
 ```sh
-journalctl -f
+sudo ln -s $HOME/rdk/toolchain/sysroots/x86_64-rdksdk-linux/usr/bin/arm-rdk-linux-gnueabi/arm-rdk-linux-gnueabi-strip /usr/bin/arm-linux-gnueabi-strip
+```
+
+### Step 7: Build RDK Version Simulator
+
+Now you can generate the build files and compile Cobalt.
+
+1.  **Ensure environment variables are set**:
+    ```sh
+    export PATH="$HOME/depot_tools:$PATH"
+    export RDK_HOME=$HOME/rdk/toolchain
+    ```
+
+2.  **Generate build files**:
+    ```sh
+    cobalt/build/gn.py -p evergreen-arm-hardfp-rdk -c qa --no-rbe
+    ```
+
+3.  **Compile targets**:
+    ```sh
+    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader loader_app_rdk_plugin
+    ```
+
+### Step 8: Generate Archive
+
+Bundle the build artifacts into a tarball for deployment.
+
+```sh
+tar -czvf archive.tar.gz -C out/evergreen-arm-hardfp-rdk_qa/ \
+  -T out/evergreen-arm-hardfp-rdk_qa/cobalt_loader.runtime_deps libloader_app.so \
+  -T out/evergreen-arm-hardfp-rdk_qa/nplb_loader.runtime_deps gen/build_info.json
 ```
