@@ -15,11 +15,9 @@
 #include <unistd.h>
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#define get_tid() gettid()
-#else
+#if !BUILDFLAG(IS_ANDROID)
 #include <sys/syscall.h>
-#define get_tid() syscall(SYS_gettid)
+#define gettid() syscall(SYS_gettid)
 #endif
 
 #include "starboard/thread.h"
@@ -31,7 +29,7 @@ namespace {
 // 1. Raw system call / Starboard API
 void BM_ThreadGetId(::benchmark::State& state) {
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(get_tid());
+    ::benchmark::DoNotOptimize(gettid());
   }
 }
 BENCHMARK(BM_ThreadGetId);
@@ -42,7 +40,7 @@ SbThreadId GetThreadId() {
   // doesn't use fork().
   thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
   if (tls_thread_id == kSbThreadInvalidId) {
-    tls_thread_id = get_tid();
+    tls_thread_id = gettid();
   }
   return tls_thread_id;
 }

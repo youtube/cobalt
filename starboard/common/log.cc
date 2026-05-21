@@ -31,6 +31,10 @@
 #include "starboard/thread.h"
 #include "build/build_config.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#define gettid() syscall(SYS_gettid)
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>
 #endif
@@ -191,11 +195,7 @@ void LogMessage::Init(const char* file, int line) {
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
 #endif  // __ANDROID_API__ < 26
   stream_ << '[';
-#if BUILDFLAG(IS_ANDROID)
   stream_ << name << '/' << gettid() << ':';
-#else
-  stream_ << name << '/' << syscall(SYS_gettid) << ':';
-#endif
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm tm_time = {0};
