@@ -198,16 +198,15 @@ public class StarboardBridge {
   }
 
   protected void onActivityDestroy(Activity activity) {
+    closeAllCobaltService();
     if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
-      closeAllServices();
+      mTtsHelper.shutdown();
       mAdvertisingId.shutdown();
       System.exit(0);
     } else {
-      closeAllServices();
-      closeAllCobaltService();
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
   }
@@ -246,16 +245,10 @@ public class StarboardBridge {
     }
   }
 
-  private void closeAllServices() {
-    mTtsHelper.shutdown();
-    for (CobaltService service : mCobaltServices.values()) {
-      service.afterStopped();
-    }
-  }
-
   protected void afterStopped() {
     mApplicationStopped = true;
-    closeAllServices();
+    mTtsHelper.shutdown();
+    closeAllCobaltService();
     Activity activity = mActivityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
@@ -598,10 +591,9 @@ public class StarboardBridge {
   @CalledByNative
   public CobaltService openCobaltService(
       long nativeService, String serviceName) {
-    Log.i(TAG, "[ST] all cobalt services before open " + mCobaltServices.size());
     if (mCobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
-      Log.e(TAG, String.format("[ST] Cannot open already open service %s", serviceName));
+      Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
       return null;
     }
     final CobaltService.Factory factory = mCobaltServiceFactories.get(serviceName);
@@ -613,7 +605,7 @@ public class StarboardBridge {
     if (service != null) {
       service.receiveStarboardBridge(this);
       mCobaltServices.put(serviceName, service);
-      Log.i(TAG, String.format("[ST] Opened platform service %s.", serviceName));
+      Log.i(TAG, String.format("Opened platform service %s.", serviceName));
     }
     return service;
   }
@@ -626,18 +618,17 @@ public class StarboardBridge {
   public void closeCobaltService(String serviceName) {
     CobaltService service = mCobaltServices.remove(serviceName);
     if (service != null) {
+      service.afterStopped();
       service.onClose();
     }
-    Log.i(TAG, String.format("[ST] Closed platform service %s.", serviceName));
+    Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
 
   @CalledByNative
   public void closeAllCobaltService() {
-    Log.i(TAG, "[ST] Closing all cobalt services " + mCobaltServices.size());
     for (String serviceName : new ArrayList<>(mCobaltServices.keySet())) {
       closeCobaltService(serviceName);
     }
-    Log.i(TAG, "[ST] After close " + mCobaltServices.size());
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {
