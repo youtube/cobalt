@@ -328,7 +328,7 @@ void AAudioAudioSink::TrackAndConsumePlayhead() {
   int32_t buffer_size = aaudio_->stream_getBufferSizeInFrames(stream_);
 
   // Compensate for pipeline latency (buffer size) to maintain perfect A/V sync
-  int64_t frame_position = std::max(0LL, frames_read - buffer_size);
+  int64_t frame_position = std::max<int64_t>(0, frames_read - buffer_size);
   int64_t time_nanoseconds = CurrentMonotonicTime() * 1000;
 
   if (frame_position >= last_playback_head_position_) {
