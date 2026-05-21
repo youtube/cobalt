@@ -17,11 +17,16 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+#include <sys/syscall.h>
+#include <unistd.h>
 #if !defined(gettid)
-#define gettid() __abi_wrap_gettid()
+#define gettid() syscall(SYS_gettid)
 #endif
+#elif BUILDFLAG(IS_ANDROID)
+#include <unistd.h>
+#else
+#error "Unsupported platform for gettid"
 #endif
 
 #endif  // STARBOARD_COMMON_GETTID_H_
