@@ -52,6 +52,10 @@ build = common.build {
       value = 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token'
     },
     {
+      key = 'GN_TARGET'
+      value = 'cobalt cobalt_archive'
+    },
+    {
       key = 'TARGET_PLATFORM'
       value = 'tvos-arm64-device'
     },
