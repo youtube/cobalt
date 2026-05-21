@@ -31,9 +31,12 @@ x-build-volumes: &build-volumes
     - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
 
 x-build-common-definitions: &build-common-definitions
-  <<:
-    - *common-definitions
-    - *build-volumes
+  <<: *common-definitions
+  volumes:
+    - ${COBALT_SRC:-.}:/code/
+    - android-debug-keystore:/root/.android/
+    - ${CCACHE_DIR:-container-ccache}:/root/ccache
+    - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
   depends_on:
     - build-base
 
@@ -151,9 +154,12 @@ services:
       CONFIG: ${CONFIG:-debug}
 
   linux-x64x11-xenial:
-    <<:
-      - *common-definitions
-      - *build-volumes
+    <<: *common-definitions
+    volumes:
+      - ${COBALT_SRC:-.}:/code/
+      - android-debug-keystore:/root/.android/
+      - ${CCACHE_DIR:-container-ccache}:/root/ccache
+      - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -165,9 +171,12 @@ services:
     scale: 0
 
   linux-x64x11-clang-3-9:
-    <<:
-      - *common-definitions
-      - *build-volumes
+    <<: *common-definitions
+    volumes:
+      - ${COBALT_SRC:-.}:/code/
+      - android-debug-keystore:/root/.android/
+      - ${CCACHE_DIR:-container-ccache}:/root/ccache
+      - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -180,9 +189,12 @@ services:
       - linux-x64x11-xenial
 
   linux-x64x11-clang-3-9-prebuilt:
-    <<: 
-      - *common-definitions
-      - *build-volumes
+    <<: *common-definitions
+    volumes:
+      - ${COBALT_SRC:-.}:/code/
+      - android-debug-keystore:/root/.android/
+      - ${CCACHE_DIR:-container-ccache}:/root/ccache
+      - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
     image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-9:1.4
     environment:
       <<: *shared-build-env
