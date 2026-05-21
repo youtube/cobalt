@@ -491,6 +491,7 @@ void VideoRendererImpl::WritePendingInputs() {
   if (pending_end_of_stream_ && pending_input_buffers_.empty()) {
     // All pending buffers have been sent to the decoder; now it's safe to
     // send the end-of-stream signal.
+    pending_end_of_stream_ = false;
     WriteEndOfStream();
   }
 }
