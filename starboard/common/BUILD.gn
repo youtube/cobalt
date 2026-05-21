@@ -65,6 +65,7 @@ static_library("common") {
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
     "flat_map.h",
+    "gettid.h",
     "log.cc",
     "media.cc",
     "media.h",

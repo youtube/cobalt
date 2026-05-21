@@ -15,10 +15,13 @@
 #ifndef STARBOARD_COMMON_GETTID_H_
 #define STARBOARD_COMMON_GETTID_H_
 
-#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
+#include "build/build_config.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #if !defined(gettid)
 #define gettid() __abi_wrap_gettid()
+#endif
 #endif
 
 #endif  // STARBOARD_COMMON_GETTID_H_
