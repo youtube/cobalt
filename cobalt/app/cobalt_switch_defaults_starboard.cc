@@ -89,7 +89,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // creation, but egl extension required to support the attribute is
       // missing and causes errors. So Enable it by default.
       {::switches::kEnableFeatures,
-       "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
+       "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation, SmallerInterestArea, ReclaimPrepaintTilesWhenIdle, ReclaimOldPrepaintTiles"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
