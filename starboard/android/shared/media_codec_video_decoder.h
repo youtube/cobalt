@@ -139,7 +139,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const scoped_refptr<InputBuffer>& input_buffer) override;
 
   void TryToSignalPrerollForTunnelMode();
-  bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
