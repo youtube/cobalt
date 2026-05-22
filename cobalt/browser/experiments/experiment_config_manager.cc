@@ -150,9 +150,26 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
                     kDefaultCrashStreakSafeConfigThreshold,
                 "Threshold to use an empty experiment config should be larger "
                 "than to use the safe one.");
+
+  // Helper lambda to log UMA metrics and return the config type.
+  auto log_and_return = [](ExperimentConfigType type,
+                           bool discarded_expiration) {
+    bool config_loaded = (type == ExperimentConfigType::kRegularConfig ||
+                          type == ExperimentConfigType::kSafeConfig);
+    bool safe_mode_triggered = (type == ExperimentConfigType::kSafeConfig);
+
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.ConfigLoaded", config_loaded);
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.SafeModeTriggered",
+                          safe_mode_triggered);
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.ConfigDiscarded.Expiration",
+                          discarded_expiration);
+
+    return type;
+  };
+
   if (num_crashes >= crash_streak_empty_config_threshold) {
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
-    return ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig, false);
   }
 
   ExperimentConfigType config_type;
@@ -177,7 +194,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // treat it as an empty config.
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
-    return ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig, true);
   }
 
   // Check if a rollback happened. If so, apply the empty config.
@@ -193,11 +210,11 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
           VersionComparisonResult::kGreaterThan) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.RollbackDetected", true);
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
-    return ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig, false);
   }
 
   cached_config_type_ = config_type;
-  return config_type;
+  return log_and_return(config_type, false);
 }
 
 void ExperimentConfigManager::StoreSafeConfig() {
