@@ -312,9 +312,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
   network_context_params->accept_language = GetApplicationLocale();
-
-  // Always enable the HTTP cache.
-  network_context_params->http_cache_enabled = true;
+  // Disable the HTTP cache by default.
+  network_context_params->http_cache_enabled = false;
 
   auto cookie_manager_params = network::mojom::CookieManagerParams::New();
   cookie_manager_params->block_third_party_cookies = true;
