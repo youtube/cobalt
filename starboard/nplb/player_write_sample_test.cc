@@ -14,6 +14,7 @@
 
 #include <limits>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -458,6 +459,109 @@ TEST_P(SbPlayerWriteSampleTest, VideoCodecSwitching) {
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
+TEST_P(SbPlayerWriteSampleTest, AudioCodecSwitching) {
+  if (!GetParam().audio_filename || strlen(GetParam().audio_filename) == 0) {
+    GTEST_SKIP() << "Video-only config, skipping audio codec switching test.";
+  }
+
+  const char* initial_audio_filename = GetParam().audio_filename;
+  starboard::VideoDmpReader initial_dmp_reader(
+      initial_audio_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  SbMediaAudioCodec initial_codec = initial_dmp_reader.audio_codec();
+
+  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+  if (GetParam().video_filename && strlen(GetParam().video_filename) > 0) {
+    starboard::VideoDmpReader video_dmp_reader(
+        GetParam().video_filename,
+        starboard::VideoDmpReader::kEnableReadOnDemand);
+    video_codec = video_dmp_reader.video_codec();
+  }
+
+  const char* target_audio_filename = nullptr;
+  for (const char* candidate_filename : GetStereoAudioTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaAudioCodec candidate_codec = candidate_reader.audio_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.audio_mime_type().c_str(),
+              GetParam().key_system) &&
+          IsOutputModeSupported(GetParam().output_mode, candidate_codec,
+                                video_codec, GetParam().key_system)) {
+        target_audio_filename = candidate_filename;
+        break;
+      }
+    }
+  }
+
+  if (!target_audio_filename) {
+    GTEST_SKIP()
+        << "Could not find a supported target audio codec different from "
+        << initial_codec;
+  }
+
+  SB_LOG(INFO) << "Initializing SbPlayerTestFixture...";
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  const int64_t kDurationToPlay = 500'000;  // 0.5 seconds
+  int audio_samples_part1_count =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+
+  ASSERT_GE(initial_dmp_reader.number_of_audio_buffers(),
+            static_cast<size_t>(audio_samples_part1_count + 2));
+
+  GroupedSamples samples_part1;
+  samples_part1.AddAudioSamples(0, audio_samples_part1_count);
+
+  int video_samples_part1_count = 0;
+  if (player_fixture.HasVideo()) {
+    video_samples_part1_count =
+        player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay);
+    samples_part1.AddVideoSamples(0, video_samples_part1_count);
+  }
+
+  SB_LOG(INFO) << "Writing Part 1 (" << audio_samples_part1_count
+               << " audio samples)...";
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part1));
+  SB_LOG(INFO) << "Part 1 written successfully.";
+
+  // Calculate offset before switching.
+  int64_t timestamp_offset =
+      player_fixture.GetAudioSampleTimestamp(audio_samples_part1_count);
+
+  SB_LOG(INFO) << "Switching audio source to: " << target_audio_filename;
+  // Switch audio dmp reader to target audio.
+  player_fixture.SwitchAudioDmp(target_audio_filename);
+
+  // Write second batch of samples and EOS.
+  GroupedSamples samples_part2;
+  int audio_samples_part2_count =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+
+  SB_LOG(INFO) << "Preparing Part 2 (" << audio_samples_part2_count
+               << " audio samples, offset=" << timestamp_offset << ")...";
+  samples_part2.AddAudioSamples(0, audio_samples_part2_count, timestamp_offset,
+                                0, 0);
+  samples_part2.AddAudioEOS();
+
+  if (player_fixture.HasVideo()) {
+    samples_part2.AddVideoSamples(video_samples_part1_count,
+                                  video_samples_part1_count);
+    samples_part2.AddVideoEOS();
+  }
+
+  SB_LOG(INFO) << "Writing Part 2 and EOS...";
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
+  SB_LOG(INFO) << "Part 2 and EOS written. Waiting for EndOfStream...";
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+  SB_LOG(INFO) << "EndOfStream received successfully!";
 }
 
 INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
