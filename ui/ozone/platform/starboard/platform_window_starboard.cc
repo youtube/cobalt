@@ -122,9 +122,6 @@ void PlatformWindowStarboard::ProcessWindowSizeChangedEvent(int width,
 }
 
 void PlatformWindowStarboard::ProcessFocusEvent(bool is_focused) {
-  if (waiting_for_reveal_ack_) {
-    return;
-  }
   if (is_focused) {
     Activate();
   } else {

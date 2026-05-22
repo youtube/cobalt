@@ -49,7 +49,8 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   void AddListener(
       mojo::PendingRemote<mojom::DeepLinkListener> listener) override;
 
-  void PageVisibilityVisible() override;
+  void PageVisibilityChanged() override;
+  void PageBlurred() override;
 
   content::RenderFrameHost& GetRenderFrameHost() const {
     return render_frame_host();

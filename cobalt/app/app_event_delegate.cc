@@ -25,11 +25,14 @@
 #include "base/threading/platform_thread.h"
 #include "cobalt/app/app_event_runner.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
+#include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 
 namespace cobalt {
+
+using h5vcc_runtime::PendingAck;
 
 namespace {
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(5);
@@ -285,9 +288,34 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
     return;
   }
 
+  if (pending_ack_ != PendingAck::kNone) {
+    return;
+  }
+
   ApplicationState next_state;
 
-  if (application_state_ < target_state_) {
+  bool is_activating = application_state_ > target_state_;
+
+  if (is_activating) {
+    switch (application_state_) {
+      case ApplicationState::kFrozen:
+        runner_->OnUnfreeze();
+        next_state = ApplicationState::kConcealed;
+        break;
+      case ApplicationState::kConcealed:
+        runner_->OnReveal();
+        next_state = ApplicationState::kBlurred;
+        break;
+      case ApplicationState::kBlurred:
+        runner_->OnFocus();
+        next_state = ApplicationState::kStarted;
+        break;
+      case ApplicationState::kStarted:
+        NOTREACHED();
+      default:
+        NOTREACHED();
+    }
+  } else {
     switch (application_state_) {
       case ApplicationState::kStarted:
         runner_->OnBlur();
@@ -295,7 +323,9 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
         break;
       case ApplicationState::kBlurred:
         runner_->OnConceal();
-        pending_web_contents_.clear();
+        for (auto* web_contents : runner_->GetWebContents()) {
+          web_contents->WasHidden();
+        }
         next_state = ApplicationState::kConcealed;
         break;
       case ApplicationState::kConcealed:
@@ -307,33 +337,21 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
       default:
         NOTREACHED();
     }
-  } else {
-    switch (application_state_) {
-      case ApplicationState::kStopped:
-        NOTREACHED();
-      case ApplicationState::kFrozen:
-        runner_->OnUnfreeze();
-        next_state = ApplicationState::kConcealed;
-        break;
-      case ApplicationState::kConcealed:
-        runner_->OnReveal();
-        next_state = ApplicationState::kBlurred;
-        break;
-      case ApplicationState::kBlurred:
-        if (runner_->IsWaitingForRevealAck()) {
-          // Pause transition until Reveal ACK is received. Reset flag to allow
-          // interruption by new events (which will use the deactivating
-          // branch).
-          is_transitioning_ = false;
-          return;
-        }
-        runner_->OnFocus();
-        next_state = ApplicationState::kStarted;
-        break;
-      case ApplicationState::kStarted:
-        NOTREACHED();
-      default:
-        NOTREACHED();
+  }
+
+  // Unified ACK handling
+  h5vcc_runtime::PendingAck needed_ack =
+      GetNeededAck(application_state_, is_activating);
+  if (needed_ack != h5vcc_runtime::PendingAck::kNone) {
+    pending_ack_ = needed_ack;
+    pending_web_contents_.clear();
+    for (auto* web_contents : runner_->GetWebContents()) {
+      pending_web_contents_.insert(web_contents);
+      h5vcc_runtime::H5vccRuntimeManager::GetInstance()->StartWaitingForAck(
+          web_contents, needed_ack);
+    }
+    if (pending_web_contents_.empty()) {
+      pending_ack_ = h5vcc_runtime::PendingAck::kNone;
     }
   }
 
@@ -365,19 +383,62 @@ void AppEventDelegate::OnAllFramesVisible(content::WebContents* web_contents) {
   }
 }
 
+void AppEventDelegate::OnAllFramesConcealed(
+    content::WebContents* web_contents) {
+  OnConcealAck(web_contents);
+}
+
 void AppEventDelegate::OnStartWaitingForReveal(
     content::WebContents* web_contents) {
   base::AutoLock lock(lock_);
   pending_web_contents_.insert(web_contents);
+  pending_ack_ = PendingAck::kReveal;
 }
 
 void AppEventDelegate::OnRevealAck() {
   base::AutoLock lock(lock_);
-  if (!runner_->IsWaitingForRevealAck()) {
+  LOG(INFO) << "OnRevealAck called, pending_ack_ = "
+            << static_cast<int>(pending_ack_);
+  if (pending_ack_ != PendingAck::kReveal) {
     return;
   }
+  pending_ack_ = PendingAck::kNone;
   runner_->ClearWaitingForRevealAck();
+  is_transitioning_ = false;
   ExecuteNextStepOnUIThreadLocked(true /* schedule_next_step */);
+}
+
+void AppEventDelegate::OnConcealAck(content::WebContents* web_contents) {
+  base::AutoLock lock(lock_);
+  LOG(INFO) << "OnConcealAck called, pending_ack_ = "
+            << static_cast<int>(pending_ack_);
+  if (pending_ack_ != PendingAck::kConceal) {
+    return;
+  }
+  pending_web_contents_.erase(web_contents);
+  if (pending_web_contents_.empty()) {
+    pending_ack_ = PendingAck::kNone;
+    SetApplicationState(ApplicationState::kConcealed);
+    is_transitioning_ = false;
+    ExecuteNextStepOnUIThreadLocked(true /* schedule_next_step */);
+  }
+}
+
+void AppEventDelegate::OnAllFramesBlurred(content::WebContents* web_contents) {
+  base::AutoLock lock(lock_);
+  LOG(INFO) << "AppEventDelegate::OnAllFramesBlurred called, pending_ack_ = "
+            << static_cast<int>(pending_ack_);
+  if (pending_ack_ != PendingAck::kBlur) {
+    return;
+  }
+  pending_web_contents_.erase(web_contents);
+  LOG(INFO) << "  Pending web contents size: " << pending_web_contents_.size();
+  if (pending_web_contents_.empty()) {
+    pending_ack_ = PendingAck::kNone;
+    is_transitioning_ = false;
+    LOG(INFO) << "  Resuming transition in OnAllFramesBlurred";
+    ExecuteNextStepOnUIThreadLocked(true /* schedule_next_step */);
+  }
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {

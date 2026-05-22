@@ -41,14 +41,16 @@ H5vccRuntimeImpl::H5vccRuntimeImpl(
   DETACH_FROM_THREAD(thread_checker_);
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host);
-  H5vccRuntimeManager::GetInstance()->RegisterFrame(web_contents, this);
+  H5vccRuntimeManager::GetInstance()->RegisterFrame(web_contents,
+                                                    &render_frame_host);
 }
 
 H5vccRuntimeImpl::~H5vccRuntimeImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host());
-  H5vccRuntimeManager::GetInstance()->UnregisterFrame(web_contents, this);
+  H5vccRuntimeManager::GetInstance()->UnregisterFrame(web_contents,
+                                                      &render_frame_host());
 }
 
 void H5vccRuntimeImpl::Create(
@@ -83,12 +85,27 @@ void H5vccRuntimeImpl::AddListener(
   manager->AddListener(std::move(listener_remote));
 }
 
-void H5vccRuntimeImpl::PageVisibilityVisible() {
+void H5vccRuntimeImpl::PageVisibilityChanged() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host());
-  H5vccRuntimeManager::GetInstance()->OnPageVisibilityVisible(web_contents,
-                                                              this);
+  if (web_contents->GetVisibility() == content::Visibility::VISIBLE) {
+    H5vccRuntimeManager::GetInstance()->OnPageVisibilityVisible(
+        web_contents, &render_frame_host());
+  } else {
+    H5vccRuntimeManager::GetInstance()->OnPageVisibilityHidden(
+        web_contents, &render_frame_host());
+  }
+}
+
+void H5vccRuntimeImpl::PageBlurred() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "H5vccRuntimeImpl::PageBlurred called for url = "
+            << render_frame_host().GetLastCommittedURL().spec();
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&render_frame_host());
+  H5vccRuntimeManager::GetInstance()->OnPageBlurred(web_contents,
+                                                    &render_frame_host());
 }
 
 }  // namespace h5vcc_runtime

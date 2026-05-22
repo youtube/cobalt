@@ -29,10 +29,13 @@ interface H5vccRuntime {
   // Register the remote DeepLinkListener.
   AddListener(pending_remote<DeepLinkListener> listener);
 
-  // Notify the browser that the renderer has completed layout, painted the
-  // first frame, and dispatched the visibilityChange event. This callback
-  // helps ensure that focus is sequenced after the visibilityChange event,
-  // since sending focus too early can cause the visibilityChange event to be
-  // discarded by the web app.
-  PageVisibilityVisible();
+  // Notify the browser that the page visibility has changed in the renderer
+  // (e.g. completed layout, painted the first frame, and dispatched the
+  // visibilityChange event). This callback helps ensure that focus is sequenced
+  // after the visibilityChange event, since sending focus too early can cause
+  // the visibilityChange event to be discarded by the web app.
+  PageVisibilityChanged();
+
+  // Notify the browser that the page has lost focus in the renderer.
+  PageBlurred();
 };

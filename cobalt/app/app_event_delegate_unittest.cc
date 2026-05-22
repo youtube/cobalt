@@ -58,6 +58,11 @@ class MockAppEventRunner : public AppEventRunner {
               (const SbEvent* event),
               (override));
 
+  MOCK_METHOD(std::vector<content::WebContents*>,
+              GetWebContents,
+              (),
+              (override));
+
   MOCK_METHOD(bool, IsWaitingForRevealAck, (), (const, override));
   MOCK_METHOD(void, ClearWaitingForRevealAck, (), (override));
 
@@ -107,6 +112,26 @@ class AppEventDelegateTest : public ::testing::Test {
 
   ~AppEventDelegateTest() override { MockCrashHandler::SetInstance(nullptr); }
 
+  void SetApplicationState(AppEventDelegate::ApplicationState state) {
+    delegate_->application_state_ = state;
+  }
+  void SetTargetState(AppEventDelegate::ApplicationState state) {
+    delegate_->target_state_ = state;
+  }
+  void SetPendingAck(h5vcc_runtime::PendingAck ack) {
+    delegate_->pending_ack_ = ack;
+  }
+  void SetIsTransitioning(bool transitioning) {
+    delegate_->is_transitioning_ = transitioning;
+  }
+  AppEventDelegate::ApplicationState GetTargetState() const {
+    return delegate_->target_state_;
+  }
+
+  void CallExecuteNextStepOnUIThread() {
+    delegate_->ExecuteNextStepOnUIThread();
+  }
+
  protected:
   void CreateDelegate(bool nice_runner = false) {
     std::unique_ptr<MockAppEventRunner> runner;
@@ -121,6 +146,8 @@ class AppEventDelegateTest : public ::testing::Test {
     ON_CALL(*runner_, DoStart(_)).WillByDefault(Invoke([this](const SbEvent*) {
       is_running_ = true;
     }));
+    ON_CALL(*runner_, GetWebContents())
+        .WillByDefault(testing::Return(std::vector<content::WebContents*>()));
     ON_CALL(*runner_, DoStop()).WillByDefault(Invoke([this]() {
       is_running_ = false;
     }));
@@ -393,11 +420,19 @@ TEST_F(AppEventDelegateTest, ClearPendingWebContentsOnConceal) {
 
   EXPECT_CALL(*runner_, DoBlur());
   SendEvent(kSbEventTypeBlur);
+  base::RunLoop().RunUntilIdle();
+
+  // Simulate Reveal ACK for wc1 to unblock transition!
+  delegate_->OnAllFramesVisible(wc1);
+  base::RunLoop().RunUntilIdle();
+
   EXPECT_CALL(*runner_, DoConceal());
   SendEvent(kSbEventTypeConceal);
+  base::RunLoop().RunUntilIdle();
 
   EXPECT_CALL(*runner_, DoReveal());
   SendEvent(kSbEventTypeReveal);
+  base::RunLoop().RunUntilIdle();
 
   content::WebContents* wc2 = reinterpret_cast<content::WebContents*>(0x2);
   delegate_->OnStartWaitingForReveal(wc2);
@@ -423,6 +458,9 @@ TEST_F(AppEventDelegateTest, FocusArrivesDuringReveal) {
   EXPECT_CALL(*runner_, DoReveal());
   SendEvent(kSbEventTypeReveal);
 
+  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
+  delegate_->OnStartWaitingForReveal(wc1);
+
   EXPECT_CALL(*runner_, DoFocus()).Times(0);
 
   SendEvent(kSbEventTypeFocus);
@@ -432,7 +470,7 @@ TEST_F(AppEventDelegateTest, FocusArrivesDuringReveal) {
           [&is_waiting_for_reveal]() { is_waiting_for_reveal = false; }));
   EXPECT_CALL(*runner_, DoFocus()).Times(1);
 
-  delegate_->OnAllFramesVisible(reinterpret_cast<content::WebContents*>(0x1));
+  delegate_->OnAllFramesVisible(wc1);
   base::RunLoop().RunUntilIdle();
 }
 

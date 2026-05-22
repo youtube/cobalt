@@ -59,6 +59,9 @@ class AppEventRunner {
   // Clears the waiting for reveal ACK flag.
   virtual void ClearWaitingForRevealAck() = 0;
 
+  // Returns all active WebContents.
+  virtual std::vector<content::WebContents*> GetWebContents() = 0;
+
   // Lifecycle signals called from the application.
   // These functions check and update the running, visible, focused, and frozen
   // state values and call their matching DoFoo() functions for the actual
