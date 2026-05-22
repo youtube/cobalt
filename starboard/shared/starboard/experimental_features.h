@@ -38,6 +38,7 @@ struct ExperimentalFeatures {
   bool reset_audio_decoder = false;
   bool skip_flush_on_decoder_teardown = false;
   bool skip_video_frames_over_60_fps = false;
+  std::optional<bool> enable_trivial_optimizations;
   std::optional<bool> use_dual_threads_for_video;
   std::optional<int> video_decoder_initial_preroll_count;
   std::optional<int> video_renderer_min_decoded_frames;
