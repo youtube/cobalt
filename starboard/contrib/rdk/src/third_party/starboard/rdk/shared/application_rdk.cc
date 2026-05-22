@@ -133,7 +133,7 @@ void ApplicationRdk::Initialize() {
 #endif
 
   SbAudioSinkImpl::Initialize();
-  Initialize();
+  ::starboard::Initialize();
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 
@@ -143,7 +143,7 @@ void ApplicationRdk::Initialize() {
 
 void ApplicationRdk::Teardown() {
   SbAudioSinkImpl::TearDown();
-  Teardown();
+  ::starboard::Teardown();
   TeardownJSONRPCLink();
 
   close(ess_timer_fd_);

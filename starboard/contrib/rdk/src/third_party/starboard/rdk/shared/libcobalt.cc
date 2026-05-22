@@ -26,10 +26,13 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
-using namespace starboard;
-
 namespace
 {
+using ::starboard::Accessibility;
+using ::starboard::AdvertisingId;
+using ::starboard::ApplicationRdk;
+using ::starboard::Semaphore;
+using ::starboard::SystemProperties;
 
 struct APIContext
 {
@@ -40,7 +43,7 @@ struct APIContext
   void OnInitialize()
   {
     std::lock_guard lock(mutex_);
-    SB_CHECK(nullptr != Application::Get());
+    SB_CHECK(ApplicationRdk::Get());
     state_ = kRunning;
     condition_.notify_all();
   }
@@ -55,20 +58,20 @@ struct APIContext
   {
     std::unique_lock lock(mutex_);
     if (WaitForApp(lock) == kRunning) {
-      Application::Get()->Link(link);
+      ApplicationRdk::Get()->Link(link);
     }
   }
 
   void RequestFreeze() {
-    RequestAndWait(&Application::Freeze);
+    RequestAndWait(&ApplicationRdk::Freeze);
   }
 
   void RequestFocus() {
-    RequestAndWait(&Application::Focus);
+    RequestAndWait(&ApplicationRdk::Focus);
   }
 
   void RequestBlur() {
-    RequestAndWait(&Application::Blur);
+    RequestAndWait(&ApplicationRdk::Blur);
   }
 
   void RequestQuit()
@@ -77,7 +80,7 @@ struct APIContext
     stop_request_cb_ = nullptr;
     stop_request_cb_data_ = nullptr;
     if (state_ == kRunning)
-        Application::Get()->Stop(0);
+        ApplicationRdk::Get()->Stop(/*error_level=*/0);
   }
 
   void SetStopRequestHandler(SbRdkCallbackFunc cb, void* user_data)
@@ -132,7 +135,8 @@ struct APIContext
     if (should_invoke_default) {
       std::lock_guard lock(mutex_);
       if (state_ == kRunning) {
-        Application::Get()->Conceal(NULL, NULL);
+        ApplicationRdk::Get()->Conceal(
+            /*context=*/nullptr, /*callback=*/nullptr);
       }
     }
   }
@@ -173,11 +177,13 @@ private:
     return state_;
   }
 
-  void RequestAndWait(void (Application::*action)(void*, Application::EventHandledCallback)) {
+  void RequestAndWait(
+      void (ApplicationRdk::*action)(
+          void*, ApplicationRdk::EventHandledCallback)) {
     std::unique_lock lock(mutex_);
     if (WaitForApp(lock) == kRunning) {
       Semaphore sem;
-      (Application::Get()->*action)(
+      (ApplicationRdk::Get()->*action)(
         &sem,
         [](void* ctx) {
           reinterpret_cast<Semaphore*>(ctx)->Put();

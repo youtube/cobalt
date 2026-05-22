@@ -43,9 +43,12 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-using namespace starboard;
-
 namespace {
+using ::starboard::AdvertisingId;
+using ::starboard::AuthService;
+using ::starboard::DeviceIdentification;
+using ::starboard::DeviceInfo;
+using ::starboard::SystemProperties;
 
 const char kPlatformName[] = "Linux";
 
