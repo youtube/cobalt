@@ -41,16 +41,20 @@ H5vccRuntimeImpl::H5vccRuntimeImpl(
   DETACH_FROM_THREAD(thread_checker_);
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host);
-  H5vccRuntimeManager::GetInstance()->RegisterFrame(web_contents,
-                                                    &render_frame_host);
+  if (web_contents) {
+    H5vccRuntimeManager::GetInstance()->RegisterFrame(web_contents,
+                                                      &render_frame_host);
+  }
 }
 
 H5vccRuntimeImpl::~H5vccRuntimeImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host());
-  H5vccRuntimeManager::GetInstance()->UnregisterFrame(web_contents,
-                                                      &render_frame_host());
+  if (web_contents) {
+    H5vccRuntimeManager::GetInstance()->UnregisterFrame(web_contents,
+                                                        &render_frame_host());
+  }
 }
 
 void H5vccRuntimeImpl::Create(
