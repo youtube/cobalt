@@ -50,7 +50,7 @@ There are two supported approaches to configuring your local Chrobalt ATV checko
 If you are initializing a fresh workspace, you can utilize the automated Cobalt checkout orchestration script located in the repository tools:
 
 ```bash
-python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --internal --github-user "<your_github_username>"
+python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --github-user "<your_github_username>"
 ```
 
 ### Option B: Standard Chromium Checkout (Manual)
