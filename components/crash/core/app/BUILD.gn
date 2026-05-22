@@ -8,6 +8,7 @@ assert(!is_fuchsia)
 import("//base/debug/debug.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//components/gwp_asan/buildflags/buildflags.gni")
+import("//starboard/build/buildflags.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
@@ -259,6 +260,12 @@ if (enable_cobalt_hermetic_hacks) {
       ":crashpad_handler_main",
       "//third_party/crashpad/crashpad/handler",
     ]
+
+    if (is_cobalt && is_androidtv) {
+      # This change is for Cobalt on AndroidTV. It enables crashpad handler
+      # launch with android linker and with java crashpad handler.
+      ldflags = [ "-Wl,--export-dynamic" ]
+    }
 
     if (is_mac && (is_component_build || is_asan || is_ubsan_any)) {
       ldflags = [

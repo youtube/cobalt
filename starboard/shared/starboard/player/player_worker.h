@@ -28,6 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -103,24 +104,27 @@ class PlayerWorker {
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
+    virtual void SetExperimentalFeatures(
+        const ExperimentalFeatures& experimental_features) = 0;
 
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;
   };
 
-  static PlayerWorker* CreateInstance(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      std::unique_ptr<Handler> handler,
-      UpdateMediaInfoCB update_media_info_cb,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      SbPlayer player,
-      void* context);
-
+  PlayerWorker(SbMediaAudioCodec audio_codec,
+               SbMediaVideoCodec video_codec,
+               std::unique_ptr<Handler> handler,
+               UpdateMediaInfoCB update_media_info_cb,
+               SbPlayerDecoderStatusFunc decoder_status_func,
+               SbPlayerStatusFunc player_status_func,
+               SbPlayerErrorFunc player_error_func,
+               SbPlayer player,
+               void* context);
   ~PlayerWorker();
+
+  PlayerWorker(const PlayerWorker&) = delete;
+  PlayerWorker& operator=(const PlayerWorker&) = delete;
 
   void Seek(int64_t seek_to_time, int ticket) {
     job_thread_->Schedule(
@@ -173,19 +177,6 @@ class PlayerWorker {
   }
 
  private:
-  PlayerWorker(SbMediaAudioCodec audio_codec,
-               SbMediaVideoCodec video_codec,
-               std::unique_ptr<Handler> handler,
-               UpdateMediaInfoCB update_media_info_cb,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
-               SbPlayerErrorFunc player_error_func,
-               SbPlayer player,
-               void* context);
-
-  PlayerWorker(const PlayerWorker&) = delete;
-  PlayerWorker& operator=(const PlayerWorker&) = delete;
-
   void UpdateMediaInfo(int64_t time, int dropped_video_frames, bool underflow);
 
   SbPlayerState player_state() const { return player_state_; }
@@ -227,7 +218,8 @@ class PlayerWorker {
   SbPlayerState player_state_;
   InputBuffers pending_audio_buffers_;
   InputBuffers pending_video_buffers_;
-  JobQueue::JobToken write_pending_sample_job_token_;
+  JobQueue::JobToken write_pending_sample_job_token_ =
+      JobQueue::JobToken::kUnscheduled;
 };
 
 }  // namespace starboard

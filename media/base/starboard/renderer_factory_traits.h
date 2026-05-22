@@ -15,12 +15,16 @@
 #ifndef MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 #define MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 
+#include <optional>
+#include <string>
+
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/time/time.h"
 #include "media/base/media_export.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/timestamp_constants.h"
-#include "media/starboard/bind_host_receiver_callback.h"
+#include "media/starboard/starboard_callbacks.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -34,9 +38,9 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
+  StarboardRendererConfig::ExperimentalFeatures experimental_features;
   gfx::Size viewport_size;
   GetSbWindowHandleCallback get_sb_window_handle_callback;
-  BindHostReceiverCallback bind_host_receiver_callback;
 };
 
 }  // namespace media

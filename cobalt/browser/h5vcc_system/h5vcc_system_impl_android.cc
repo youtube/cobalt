@@ -101,4 +101,10 @@ void H5vccSystemImpl::PerformExitStrategy() {
   starboard_bridge->RequestSuspend(env);
 }
 
+void H5vccSystemImpl::HideSplashScreen() {
+  LOG(INFO) << "H5vccSystem HideSplashScreen.";
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->HideSplashScreen(env);
+}
+
 }  // namespace h5vcc_system

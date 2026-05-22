@@ -10,6 +10,7 @@ load("@builtin//runtime.star", "runtime")
 load("@builtin//struct.star", "module")
 load("./backend_config/backend.star", "backend")
 load("./blink_all.star", "blink_all")
+load("./cobalt.star", "cobalt")
 load("./gn_logs.star", "gn_logs")
 load("./linux.star", chromium_linux = "chromium")
 load("./mac.star", chromium_mac = "chromium")
@@ -55,6 +56,7 @@ def init(ctx):
     step_config = mojo.step_config(ctx, step_config)
     step_config = rust.step_config(ctx, step_config)
     step_config = simple.step_config(ctx, step_config)
+    step_config = cobalt.step_config(ctx, step_config)
     if reproxy.enabled(ctx):
         step_config = reproxy.step_config(ctx, step_config)
 
@@ -85,6 +87,7 @@ def init(ctx):
     filegroups.update(host.filegroups(ctx))
     filegroups.update(rust.filegroups(ctx))
     filegroups.update(simple.filegroups(ctx))
+    filegroups.update(cobalt.filegroups(ctx))
 
     handlers = {}
     handlers.update(blink_all.handlers)

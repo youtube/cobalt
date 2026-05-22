@@ -30,6 +30,11 @@
 #include "ui/base/buildflags.h"
 #include "ui/base/ui_base_switches.h"
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/common/command_line.h"             // nogncheck
+#include "starboard/tvos/shared/application_darwin.h"  // nogncheck
+#endif
+
 namespace content {
 
 class ContentBrowserTestSuite : public ContentTestSuiteBase {
@@ -52,7 +57,21 @@ class ContentBrowserTestSuite : public ContentTestSuiteBase {
 #if BUILDFLAG(IS_ANDROID)
     RegisterInProcessThreads();
 #endif
+
+#if BUILDFLAG(IS_IOS_TVOS)
+    // Some tests indirectly invoke starboard::Application::Get(), and on tvOS
+    // the Application instance needs to be created manually from the Cobalt
+    // layer.
+    starboard_application_ = std::make_unique<starboard::ApplicationDarwin>(
+        std::make_unique<starboard::CommandLine>(
+            base::CommandLine::ForCurrentProcess()->argv()));
+#endif
   }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+ private:
+  std::unique_ptr<starboard::ApplicationDarwin> starboard_application_;
+#endif
 };
 
 class ContentTestLauncherDelegate : public TestLauncherDelegate {

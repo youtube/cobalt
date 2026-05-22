@@ -180,6 +180,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
     ]
@@ -190,6 +191,10 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
+  }
+
+  if (!use_webrtc_peer_connection) {
+    sub_modules -= [ "//third_party/blink/renderer/modules/peerconnection" ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
@@ -311,6 +316,12 @@ source_set("modules_testing") {
     "//third_party/blink/renderer/modules",
     "//third_party/blink/renderer/platform:test_support",
   ]
+
+  if (!use_webrtc_peer_connection) {
+    _filtered_sources = filter_exclude(sources, [ "peerconnection/*" ])
+    sources = []
+    sources = _filtered_sources
+  }
 }
 
 group("make_modules_generated") {
@@ -703,6 +714,12 @@ source_set("unit_tests") {
     ]
   }
 
+  if (!use_webrtc_peer_connection) {
+    _filtered_sources = filter_exclude(sources, [ "peerconnection/*" ])
+    sources = []
+    sources = _filtered_sources
+  }
+
   configs += [
     "//third_party/blink/renderer:config",
     "//third_party/blink/renderer:inside_blink",
@@ -771,6 +788,14 @@ source_set("unit_tests") {
 
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
+  }
+
+  if (!use_webrtc_peer_connection) {
+    deps -= [
+      "//third_party/blink/renderer/modules/peerconnection:test_support",
+      "//third_party/webrtc_overrides:logging_test",
+      "//third_party/webrtc_overrides:webrtc_component",
+    ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set

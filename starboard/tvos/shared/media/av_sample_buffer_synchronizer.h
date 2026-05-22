@@ -39,6 +39,10 @@ class AVSBSynchronizer : public MediaTimeProvider, private JobQueue::JobOwner {
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
+  int64_t GetAudioWriteHead() override { return 0; }
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
+    return timestamp;
+  }
 
   void SetRenderer(AVSBAudioRenderer* audio_renderer);
   void SetRenderer(AVSBVideoRenderer* video_renderer);

@@ -1,9 +1,8 @@
 name: evergreen
-permissions: read-all
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, ready_for_review]
     branches:
       - main
       - experimental/*
@@ -20,6 +19,8 @@ on:
         required: true
         type: boolean
         default: false
+
+permissions: read-all
 
 jobs:
   # evergreen-x64 is Evergreen on linux.

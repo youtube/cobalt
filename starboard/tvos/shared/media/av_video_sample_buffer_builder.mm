@@ -18,16 +18,10 @@
 
 #import "starboard/tvos/shared/media/avc_av_video_sample_buffer_builder.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
-
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 #import "starboard/tvos/shared/media/vp9_sw_av_video_sample_buffer_builder.h"  // nogncheck
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
-#if defined(INTERNAL_BUILD)
-// TODO(b/460479616): Update the include path to the correct internal submodule
-// location once the directory structure is finalized. Do not check in the file
-// at this path; it is provided by the internal submodule.
-#import "starboard/tvos/shared/media/vp9_hw_av_video_sample_buffer_builder.h"
+#if defined(COBALT_INTERNAL_BUILD)
+#import "cobalt/internal/starboard/shared/tvos/vp9_hw_av_video_sample_buffer_builder.h"
 #endif
 
 namespace starboard {
@@ -38,14 +32,12 @@ AVVideoSampleBufferBuilder* AVVideoSampleBufferBuilder::CreateBuilder(
   if (video_stream_info.codec == kSbMediaVideoCodecH264) {
     return new AvcAVVideoSampleBufferBuilder();
   } else if (video_stream_info.codec == kSbMediaVideoCodecVp9) {
-#if defined(INTERNAL_BUILD)
+#if defined(COBALT_INTERNAL_BUILD)
     if (PlaybackCapabilities::IsHwVp9Supported()) {
       return new Vp9HwAVVideoSampleBufferBuilder(video_stream_info);
     }
-#endif  // defined(INTERNAL_BUILD)
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+#endif  // defined(COBALT_INTERNAL_BUILD)
     return new Vp9SwAVVideoSampleBufferBuilder(video_stream_info);
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
   }
   SB_NOTREACHED();
   return nullptr;

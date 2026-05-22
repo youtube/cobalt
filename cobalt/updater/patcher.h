@@ -9,9 +9,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "components/update_client/patcher.h"
 
-// TODO(b/174699165): Investigate differential updates later.
-// This is a skeleton class for now.
-
 namespace cobalt {
 namespace updater {
 

@@ -27,15 +27,77 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 
 <enums>
 
+<enum name="Android.MemoryPressureNotification">
+  <int value="0" label="Unknown onTrimMemory() level"/>
+  <int value="1" label="TRIM_MEMORY_COMPLETE"/>
+  <int value="2" label="TRIM_MEMORY_MODERATE"/>
+  <int value="3" label="TRIM_MEMORY_BACKGROUND"/>
+  <int value="4" label="TRIM_MEMORY_UI_HIDDEN"/>
+  <int value="5" label="TRIM_MEMORY_RUNNING_CRITICAL"/>
+  <int value="6" label="TRIM_MEMORY_RUNNING_LOW"/>
+  <int value="7" label="TRIM_MEMORY_RUNNING_MODERATE"/>
+  <int value="8" label="onLowMemory()"/>
+</enum>
+
 <enum name="BooleanHung">
   <int value="0" label="Is not hung"/>
   <int value="1" label="Is hung"/>
+</enum>
+
+<enum name="SplashScreenFetchedState">
+  <int value="0" label="Success: Content from builtin"/>
+  <int value="1" label="Success: Content from cache"/>
+  <int value="2"
+      label="Error: content from cache is empty, fallback to builtin."/>
+  <int value="3"
+      label="Error: Content from cache is too large, fallback to builtin."/>
+  <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
+  <int value="5" label="Error: Builtin resource not found."/>
 </enum>
 
 <enum name="VariationsConfigState">
   <int value="0" label="Config is valid"/>
   <int value="1" label="Config is expired"/>
   <int value="2" label="Config is missing timestamp"/>
+</enum>
+
+<enum name="StorageInjectionResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Error"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<enum name="MigrationOutcome">
+  <int value="0" label="FastPath"/>
+  <int value="1" label="Skipped"/>
+  <int value="2" label="Success"/>
+  <int value="3" label="Failed"/>
+  <int value="4" label="Timeout"/>
+</enum>
+
+<enum name="SentinelWriteResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Path"/>
+  <int value="2" label="Write Failed"/>
+</enum>
+
+<enum name="StorageReadResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Partition key not default"/>
+  <int value="2" label="Record invalid"/>
+  <int value="3" label="Size too small"/>
+  <int value="4" label="Delete failed"/>
+  <int value="5" label="Read mismatch"/>
+  <int value="6" label="Header mismatch"/>
+  <int value="7" label="Parse error"/>
+</enum>
+
+<enum name="LocalStorageDatabaseResetReason">
+  <int value="0" label="Failure to open the database"/>
+  <int value="1" label="Schema version mismatch"/>
+  <int value="2" label="Database corruption or read errors"/>
+  <int value="3" label="Excessive commit errors"/>
+  <int value="4" label="Unknown"/>
 </enum>
 
 </enums>

@@ -67,9 +67,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
     if (video_codec == kSbMediaVideoCodecVp9) {
-#if defined(INTERNAL_BUILD)
-      const bool kEnableHdrWithSoftwareVp9 = false;
-
+#if defined(COBALT_INTERNAL_BUILD)
       if (is_hdr) {
         if (transfer_id == kSbMediaTransferIdSmpteSt2084 ||
             transfer_id == kSbMediaTransferIdAribStdB67) {
@@ -85,12 +83,9 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       if (PlaybackCapabilities::IsHwVp9Supported()) {
         return frame_height <= 2160 && frame_width <= 3840;
       }
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+
       bool experimental_allowed = false;
       if (mime_type) {
-        if (!mime_type->is_valid()) {
-          return false;
-        }
         // This block checks if the "experimental" attribute is explicitly set
         // to "allowed". If the attribute is not present or has an invalid
         // value, `ValidateStringParameter` will cause an early return of
@@ -105,7 +100,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       }
 
       if (experimental_allowed) {
-        if (is_hdr && !kEnableHdrWithSoftwareVp9) {
+        if (is_hdr) {
           return false;
         }
         if (PlaybackCapabilities::IsAppleTV4K()) {
@@ -129,11 +124,10 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         }
         return false;
       }
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 #else
       SB_LOG(INFO) << "Non-internal build, accepting all VP9";
       return true;
-#endif  // defined(INTERNAL_BUILD)
+#endif  // defined(COBALT_INTERNAL_BUILD)
     }
   }  // @autoreleasepool
 

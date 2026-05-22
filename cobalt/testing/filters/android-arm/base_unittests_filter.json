@@ -12,6 +12,7 @@
     "AlternateTestParams.*",
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/0",
     "FilePathWatcherTest.*",
+    "FileTest.GetInfoForCreationTime",
     "FileTest.TouchGetInfo",
     "LapTimer.ThreadTicksUsageExample",
     "LibunwindstackUnwinderAndroidTest.*",

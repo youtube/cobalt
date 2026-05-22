@@ -1,6 +1,16 @@
-// Copyright 2025 The Cobalt Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 #define COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
@@ -11,6 +21,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -28,10 +39,6 @@ namespace media {
 class MediaLog;
 class RendererFactory;
 }  // namespace media
-
-namespace mojo {
-class GenericPendingReceiver;
-}  // namespace mojo
 
 namespace cobalt {
 // This class utilizes embedder API for participating in renderer logic.
@@ -60,18 +67,18 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
       ::media::RendererFactoryTraits* traits) override;
   void PostSandboxInitialized() override;
 
-  // Bind Host Receiver to VideoGeometryChangeSubscriber on Browser thread.
-  // This is called from StarboardRenderer with |BindPostTaskToCurrentDefault|
-  // on media thread to post the task on Renderer thread.
-  void BindHostReceiver(mojo::GenericPendingReceiver receiver);
-
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 
  private:
+  void EnsureH5vccSettingsRemoteInitialized();
   void OnGetSbWindow(uint64_t handle);
 
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
+
+  std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
+                  base::OnTaskRunnerDeleter>
+      h5vcc_settings_remote_;
 
   base::ScopedClosureRunner unregister_thread_closure;
 

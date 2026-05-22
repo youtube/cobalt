@@ -19,11 +19,14 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <ostream>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -46,7 +49,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                     std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-                    scoped_refptr<VideoRendererSink> sink);
+                    scoped_refptr<VideoRendererSink> sink,
+                    const ExperimentalFeatures& experimental_features);
   ~VideoRendererImpl() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -61,6 +65,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void WriteEndOfStream() override;
 
   void Seek(int64_t seek_to_time) override;
+  void SetPlaybackRate(double playback_rate) override;
 
   bool IsEndOfStreamWritten() const override {
     return end_of_stream_written_.load();
@@ -79,11 +84,13 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                        const scoped_refptr<VideoFrame>& frame);
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
   void OnSeekTimeout();
+  void WritePendingInputs();
 
   MediaTimeProvider* const media_time_provider_;
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
+  const ExperimentalFeatures experimental_features_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
@@ -100,7 +107,15 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   std::atomic_bool need_more_input_{true};
   std::atomic_bool seeking_{false};
+  std::atomic<int32_t> input_buffers_sent_{0};
   int64_t seeking_to_time_ = 0;  // microseconds
+
+  // When experiment |enable_video_renderer_vsp_adjustment| is enabled and
+  // playabck rate is not 0.0x or 1.0x. Video renderer vsp adjustment will be
+  // enabled. Once it's enabled, it cannot be reset.
+  bool is_vsp_adjustment_enabled_ = false;
+  InputBuffers pending_input_buffers_;
+  bool pending_end_of_stream_ = false;
 
   // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
   std::atomic<int32_t> number_of_frames_{0};

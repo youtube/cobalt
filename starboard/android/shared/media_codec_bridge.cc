@@ -17,8 +17,12 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_common.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/media/media_util.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
@@ -28,11 +32,11 @@ namespace starboard {
 namespace {
 
 using base::android::ConvertJavaStringToUTF8;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -94,7 +98,7 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os << "{display_size=" << size.display_size
-            << ", has_crop_values=" << to_string(size.has_crop_values) << "}";
+            << ", has_crop_values=" << ToString(size.has_crop_values) << "}";
 }
 
 FrameSize::FrameSize()
@@ -177,15 +181,19 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
+    bool enable_frame_renderer_listener,
     bool require_secured_decoder,
     bool require_software_codec,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
-    int max_video_input_size) {
+    int max_video_input_size,
+    bool enable_output_checker,
+    bool skip_video_frames_over_60_fps) {
   if (max_frame_size) {
     SB_CHECK_GT(max_frame_size->width, 0);
     SB_CHECK_GT(max_frame_size->height, 0);
   }
+
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     return Failure(std::string("Unsupported mime for codec: ") +
@@ -194,7 +202,8 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
 
   const bool must_support_secure = require_secured_decoder;
   const bool must_support_hdr = color_metadata;
-  const bool must_support_tunnel_mode = tunnel_mode_audio_session_id != -1;
+  const bool must_support_tunnel_mode =
+      tunnel_mode_audio_session_id.has_value();
   // On first pass, try to find a decoder with HDR if the color info is
   // non-null.
   std::string decoder_name =
@@ -230,7 +239,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     return Failure(
         FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
                      static_cast<const char*>(mime),
-                     starboard::to_string(!!j_media_crypto).data()));
+                     starboard::ToString(!!j_media_crypto).data()));
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -281,8 +290,11 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       j_decoder_name, frame_size_hint.width, frame_size_hint.height, fps,
       max_frame_size ? max_frame_size->width : -1,
       max_frame_size ? max_frame_size->height : -1, j_surface_local,
-      j_media_crypto_local, j_color_info, tunnel_mode_audio_session_id,
-      max_video_input_size, j_create_media_codec_bridge_result);
+      j_media_crypto_local, j_color_info,
+      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
+      max_video_input_size, enable_output_checker,
+      enable_frame_renderer_listener, skip_video_frames_over_60_fps,
+      j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
@@ -295,17 +307,20 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     return Failure(ConvertJavaStringToUTF8(env, j_error_message));
   }
 
-  SB_LOG(INFO)
-      << __func__ << ": video_codec=" << GetMediaVideoCodecName(video_codec)
-      << ", frame_size_hint=" << frame_size_hint << ", fps=" << fps
-      << ", max_frame_size=" << max_frame_size
-      << ", has_color_metadata=" << to_string(color_metadata)
-      << ", require_secured_decoder=" << to_string(require_secured_decoder)
-      << ", require_software_codec=" << to_string(require_software_codec)
-      << ", tunnel_mode_audio_session_id=" << tunnel_mode_audio_session_id
-      << ", force_big_endian_hdr_metadata="
-      << to_string(force_big_endian_hdr_metadata)
-      << ", max_video_input_size=" << max_video_input_size;
+  SB_LOG(INFO) << __func__
+               << ": video_codec=" << GetMediaVideoCodecName(video_codec)
+               << ", frame_size_hint=" << frame_size_hint << ", fps=" << fps
+               << ", max_frame_size=" << max_frame_size
+               << ", has_color_metadata=" << ToString(!!color_metadata)
+               << ", require_secured_decoder="
+               << ToString(require_secured_decoder)
+               << ", require_software_codec="
+               << ToString(require_software_codec)
+               << ", tunnel_mode_audio_session_id="
+               << ToString(tunnel_mode_audio_session_id)
+               << ", force_big_endian_hdr_metadata="
+               << ToString(force_big_endian_hdr_metadata)
+               << ", max_video_input_size=" << max_video_input_size;
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
@@ -454,7 +469,7 @@ void MediaCodecBridge::OnMediaCodecError(
     JNIEnv* env,
     jboolean is_recoverable,
     jboolean is_transient,
-    const base::android::JavaParamRef<jstring>& diagnostic_info) {
+    const JavaParamRef<jstring>& diagnostic_info) {
   std::string diagnostic_info_in_str =
       ConvertJavaStringToUTF8(env, diagnostic_info);
   handler_->OnMediaCodecError(is_recoverable, is_transient,
@@ -501,12 +516,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JNIEnv* env = AttachCurrentThread();
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
-}
-
-// static
-jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
 }  // namespace starboard

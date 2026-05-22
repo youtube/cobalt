@@ -185,8 +185,14 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
     auto handle = base::Process::Open(pid).Handle();
     mojom::RawOSMemDumpPtr result = mojom::RawOSMemDump::New();
     result->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
-    bool success =
-        OSMetrics::FillOSMemoryDump(handle, args.flags, result.get());
+    bool success = OSMetrics::FillOSMemoryDump(
+        handle, args.flags, result.get()
+#if BUILDFLAG(IS_COBALT)
+	,
+        MemoryInstrumentation::GetInstance()->GetDetailedMetricsDelegate()
+#endif  // BUILDFLAG(IS_COBALT)
+	);
+ 
     if (args.mmap_option != mojom::MemoryMapOption::NONE) {
       success = success && OSMetrics::FillProcessMemoryMaps(
                                handle, args.mmap_option, result.get());

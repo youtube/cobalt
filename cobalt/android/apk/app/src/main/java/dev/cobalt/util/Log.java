@@ -14,115 +14,109 @@
 
 package dev.cobalt.util;
 
-import java.lang.reflect.Method;
-import java.util.Locale;
-
 /**
- * Logging wrapper to allow for better control of Proguard log stripping. Many dependent
- * configurations have rules to strip logs which makes it hard to control from the app.
- *
- * <p>The implementation is using reflection.
+ * Logging wrapper that delegates directly to Chromium's base Log class at compile time.
+ * This proxy completely eliminates JNI reflection overhead, retains optimal ProGuard
+ * dead-code stripping, and restores global usability of Log.d and Log.v.
+ * This class is thread-safe and its methods can be safely called from any thread.
  */
 public final class Log {
   public static final String TAG = "starboard";
 
-  private static Method sLogV;
-  private static Method sLogD;
-  private static Method sLogI;
-  private static Method sLogW;
-  private static Method sLogE;
-
-  static {
-    initLogging();
-  }
-
   private Log() {}
 
-  private static void initLogging() {
-    try {
-      sLogV =
-          android.util.Log.class.getDeclaredMethod(
-              "v", String.class, String.class, Throwable.class);
-      sLogD =
-          android.util.Log.class.getDeclaredMethod(
-              "d", String.class, String.class, Throwable.class);
-      sLogI =
-          android.util.Log.class.getDeclaredMethod(
-              "i", String.class, String.class, Throwable.class);
-      sLogW =
-          android.util.Log.class.getDeclaredMethod(
-              "w", String.class, String.class, Throwable.class);
-      sLogE =
-          android.util.Log.class.getDeclaredMethod(
-              "e", String.class, String.class, Throwable.class);
-    } catch (Throwable e) {
-      // ignore
-    }
+  // ===============================================================================================
+  // VERBOSE (v) & DEBUG (d) Optimized Overloads
+  // ===============================================================================================
+  //
+  // WHY:
+  // Every call to a varargs method like v(tag, template, Object...) forces the Java compiler to
+  // allocate a `new Object[]` array at the call site *before* entering the method.
+  //
+  // If logging is disabled (e.g., in production), this array is immediately discarded, causing
+  // severe Garbage Collection (GC) pressure if the log is located in a hot path (like the video
+  // frame rendering loop).
+  //
+  // By providing these optimized overloads (taking 0 to 4 parameters) and checking `isLoggable`
+  // *before* delegating to the varargs `org.chromium.base.Log`, we completely avoid any array
+  // allocations when logging is disabled.
+  //
+  // WHY ONLY v AND d:
+  // `v` and `d` are verbose/debug logs that are disabled by default in production but might be
+  // left in performance-critical paths. `i`, `w`, and `e` are enabled by default and should
+  // never be placed in hot paths, making their allocation overhead negligible.
+  // ===============================================================================================
+
+  public static void v(String tag, String message) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.VERBOSE)) return;
+    org.chromium.base.Log.v(tag, message);
   }
 
-  private static Throwable getThrowableToLog(Object[] args) {
-    if (args == null || args.length == 0) {
-      return null;
-    }
-    Object lastArg = args[args.length - 1];
-    if (!(lastArg instanceof Throwable)) {
-      return null;
-    }
-    return (Throwable) lastArg;
+  public static void v(String tag, String messageTemplate, Object p1) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.VERBOSE)) return;
+    org.chromium.base.Log.v(tag, messageTemplate, p1);
   }
 
-  /** Returns a formatted log message, using the supplied format and arguments. */
-  private static String formatLog(String messageTemplate, Throwable tr, Object... params) {
-    if ((params != null) && ((tr == null && params.length > 0) || params.length > 1)) {
-      messageTemplate = String.format(Locale.US, messageTemplate, params);
-    }
-    return messageTemplate;
+  public static void v(String tag, String messageTemplate, Object p1, Object p2) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.VERBOSE)) return;
+    org.chromium.base.Log.v(tag, messageTemplate, p1, p2);
   }
 
-  private static int logWithMethod(
-      Method logMethod, String tag, String messageTemplate, Object... args) {
-    try {
-      if (logMethod != null) {
-        Throwable tr = getThrowableToLog(args);
-        String msg = formatLog(messageTemplate, tr, args);
-        return (int) logMethod.invoke(null, tag, msg, tr);
-      }
-    } catch (Throwable e) {
-      // ignore
-    }
-    return 0;
+  public static void v(String tag, String messageTemplate, Object p1, Object p2, Object p3) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.VERBOSE)) return;
+    org.chromium.base.Log.v(tag, messageTemplate, p1, p2, p3);
   }
 
-  public static int v(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.VERBOSE)) {
-      return logWithMethod(sLogV, tag, messageTemplate, args);
-    }
-    return 0;
+  public static void v(String tag, String messageTemplate, Object p1, Object p2, Object p3, Object p4) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.VERBOSE)) return;
+    org.chromium.base.Log.v(tag, messageTemplate, p1, p2, p3, p4);
   }
 
-  public static int d(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
-      return logWithMethod(sLogD, tag, messageTemplate, args);
-    }
-    return 0;
+  // Fallback for 5+ arguments (always allocates array at call site)
+  public static void v(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.v(tag, messageTemplate, args);
   }
 
-  public static int i(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.INFO)) {
-      return logWithMethod(sLogI, tag, messageTemplate, args);
-    }
-    return 0;
+  public static void d(String tag, String message) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.DEBUG)) return;
+    org.chromium.base.Log.d(tag, message);
   }
 
-  public static int w(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(sLogW, tag, messageTemplate, args);
+  public static void d(String tag, String messageTemplate, Object p1) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.DEBUG)) return;
+    org.chromium.base.Log.d(tag, messageTemplate, p1);
   }
 
-  public static int w(String tag, Throwable tr) {
-    return logWithMethod(sLogW, tag, "", tr);
+  public static void d(String tag, String messageTemplate, Object p1, Object p2) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.DEBUG)) return;
+    org.chromium.base.Log.d(tag, messageTemplate, p1, p2);
   }
 
-  public static int e(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(sLogE, tag, messageTemplate, args);
+  public static void d(String tag, String messageTemplate, Object p1, Object p2, Object p3) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.DEBUG)) return;
+    org.chromium.base.Log.d(tag, messageTemplate, p1, p2, p3);
   }
+
+  public static void d(String tag, String messageTemplate, Object p1, Object p2, Object p3, Object p4) {
+    if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.DEBUG)) return;
+    org.chromium.base.Log.d(tag, messageTemplate, p1, p2, p3, p4);
+  }
+
+  // Fallback for 5+ arguments (always allocates array at call site)
+  public static void d(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.d(tag, messageTemplate, args);
+  }
+
+  public static void i(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.i(tag, messageTemplate, args);
+  }
+
+  public static void w(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.w(tag, messageTemplate, args);
+  }
+
+  public static void e(String tag, String messageTemplate, Object... args) {
+    org.chromium.base.Log.e(tag, messageTemplate, args);
+  }
+
 }

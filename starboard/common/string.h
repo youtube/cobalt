@@ -25,6 +25,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -50,6 +52,29 @@ inline std::string FormatString(const char* format, ...) {
   vsnprintf(buffer.data(), buffer.size(), format, arguments);
   va_end(arguments);
   return std::string(buffer.data(), expected_size);
+}
+
+template <typename T>
+std::string ToString(const T& val) {
+  std::stringstream ss;
+  ss << val;
+  return ss.str();
+}
+
+inline std::string ToString(const std::string& val) {
+  return val;
+}
+
+inline std::string ToString(bool val) {
+  return val ? "true" : "false";
+}
+
+template <typename T>
+std::string ToString(const std::optional<T>& val) {
+  if (!val) {
+    return "(nullopt)";
+  }
+  return ToString(*val);
 }
 
 std::string HexEncode(const void* data,

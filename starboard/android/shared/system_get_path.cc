@@ -25,8 +25,8 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "third_party/jni_zero/jni_zero.h"
 
-using ::base::android::ScopedJavaGlobalRef;
 using ::starboard::g_app_assets_dir;
 using ::starboard::g_app_cache_dir;
 using ::starboard::g_app_files_dir;

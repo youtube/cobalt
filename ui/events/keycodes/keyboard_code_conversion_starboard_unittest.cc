@@ -320,8 +320,6 @@ TEST(KeyboardCodeConversionStarboardTest, AllSbKeysAreMappedToDomKey) {
       kSbKeyKbdBrightnessUp,
       kSbKeyDbeSbcschar,
       kSbKeyDbeDbcschar,
-      kSbKeyLast,
-      kSbKeyLaunchThisApplication,
       kSbKeyMouse1,
       kSbKeyMouse2,
       kSbKeyMouse3,
@@ -372,6 +370,10 @@ TEST(KeyboardCodeConversionStarboardTest, AllSbKeysAreMappedToDomCode) {
   // DomCode.
   const std::vector<SbKey> unmapped_dom_codes = {
       kSbKeyUnknown,
+      kSbKeyRed,
+      kSbKeyGreen,
+      kSbKeyYellow,
+      kSbKeyBlue,
       kSbKeyMenu,
       kSbKeyJunja,
       kSbKeyFinal,

@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_SOCKET_ABI_WRAPPERS_H_
 
 #include <ifaddrs.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <stdint.h>
 #include <sys/socket.h>
@@ -78,6 +79,8 @@ extern "C" {
 #define MUSL_EAI_MEMORY -10
 #define MUSL_EAI_SYSTEM -11
 #define MUSL_EAI_OVERFLOW -12
+
+#define MUSL_IF_NAMESIZE 16
 
 // sizeof(sockaddr_in6) = 28
 // This size enables musl_sockaddr to work for both IPv4 and IPv6
@@ -196,6 +199,10 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
 SB_EXPORT void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai);
 
 SB_EXPORT int __abi_wrap_getifaddrs(struct ifaddrs** ifap);
+
+SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname);
+
+SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname);
 
 SB_EXPORT int __abi_wrap_setsockopt(int socket,
                                     int level,

@@ -17,6 +17,7 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -32,23 +33,45 @@
 
 namespace starboard {
 
+int SbPriorityToNice(SbThreadPriority priority) {
+  // Nice value settings are shared between Android and Linux.
+  // They are selected from looking at:
+  // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      return 19;
+    case kSbThreadPriorityLow:
+      return 10;
+    case kSbThreadNoPriority:
+    case kSbThreadPriorityNormal:
+      return 0;
+    case kSbThreadPriorityHigh:
+      return -8;
+    case kSbThreadPriorityHighest:
+      return -16;
+    case kSbThreadPriorityRealTime:
+      return -19;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
+
 struct Thread::Data {
-  std::string name_;
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
 };
 
-Thread::Thread(std::string_view name) : d_(std::make_unique<Data>()) {
-  d_->name_.assign(name);
-}
+Thread::Thread(std::string_view name, const ThreadOptions& options)
+    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
   if (d_->started_.load()) {
     SB_DCHECK(d_->join_called_.load())
-        << "Thread '" << d_->name_ << "' was not joined before destruction.";
+        << "Thread '" << name_ << "' was not joined before destruction.";
   }
 }
 
@@ -91,15 +114,33 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
+
 #if defined(__APPLE__)
-  pthread_setname_np(this_ptr->d_->name_.c_str());
+  pthread_setname_np(this_ptr->name_.c_str());
 #else
-  pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
+  pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
 #endif
+  bool priority_set = false;
+  if (this_ptr->priority_) {
+    // setpriority returns 0 on success and -1 on failure. The default nice
+    // value is 0. See https://linux.die.net/man/2/setpriority
+    priority_set = (setpriority(PRIO_PROCESS, 0,
+                                SbPriorityToNice(*this_ptr->priority_)) == 0);
+    if (!priority_set) {
+      SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
+                         "platform): requested_priority="
+                      << static_cast<int>(*this_ptr->priority_);
+    }
+  }
+  SB_LOG(INFO) << "Thread started: name=" << this_ptr->name_ << ", priority="
+               << (this_ptr->priority_ && priority_set
+                       ? std::to_string(static_cast<int>(*this_ptr->priority_))
+                       : "(default)");
+
   this_ptr->Run();
 
   TerminateOnThread();
-  return NULL;
+  return nullptr;
 }
 
 void Thread::Join() {
@@ -109,7 +150,7 @@ void Thread::Join() {
   d_->join_sema_.Put();
 
   if (!d_->started_.load()) {
-    SB_LOG(WARNING) << "Join() called on thread '" << d_->name_
+    SB_LOG(WARNING) << "Join() called on thread '" << name_
                     << "' which was not started. Ignoring.";
     return;
   }

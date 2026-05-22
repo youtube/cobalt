@@ -43,6 +43,7 @@ RUN apt-get update && apt-get install -y \
     gcc-multilib \
     bzip2 \
     jq \
+    fuse-overlayfs \
     && rm -rf /var/lib/apt/lists/*
 
 ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz

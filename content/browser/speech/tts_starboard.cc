@@ -12,52 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is a stub implementation of the TTS platform for Starboard.
-//
-// TODO: (b/420913744) Properly implement the TtsPlatformImplStarboard
-// and TtsPlatformImplBackgroundWorker classes.
-
-#include "base/no_destructor.h"
-#include "base/task/thread_pool.h"
-#include "base/threading/sequence_bound.h"
-#include "content/public/browser/browser_thread.h"
 #include "content/browser/speech/tts_platform_impl.h"
 
+#include <string>
+#include <vector>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/singleton.h"
+#include "base/memory/weak_ptr.h"
+#include "content/public/browser/tts_controller.h"
+#include "starboard/speech_synthesis.h"
+#include "starboard/system.h"
 
 namespace content {
-
-// A stubbed-out background worker for the TTS platform. All methods are no-ops.
-class TtsPlatformImplBackgroundWorker {
- public:
-  TtsPlatformImplBackgroundWorker() = default;
-  TtsPlatformImplBackgroundWorker(const TtsPlatformImplBackgroundWorker&) =
-      delete;
-  TtsPlatformImplBackgroundWorker& operator=(
-      const TtsPlatformImplBackgroundWorker&) = delete;
-  ~TtsPlatformImplBackgroundWorker() = default;
-
-  void Initialize() {}
-  void ProcessSpeech(int utterance_id,
-                     const std::string& parsed_utterance,
-                     const std::string& lang,
-                     float rate,
-                     float pitch,
-                     base::OnceCallback<void(bool)> on_speak_finished) {
-    // The worker is non-functional, so it immediately reports failure.
-    GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(std::move(on_speak_finished), false));
-  }
-  void Pause() {}
-  void Resume() {}
-  void StopSpeaking() {}
-  void Shutdown() {}
-};
 
 class TtsPlatformImplStarboard : public TtsPlatformImpl {
  public:
   TtsPlatformImplStarboard(const TtsPlatformImplStarboard&) = delete;
   TtsPlatformImplStarboard& operator=(const TtsPlatformImplStarboard&) = delete;
 
+  // TtsPlatformImpl implementation.
   bool PlatformImplSupported() override;
   bool PlatformImplInitialized() override;
   void Speak(int utterance_id,
@@ -71,31 +46,35 @@ class TtsPlatformImplStarboard : public TtsPlatformImpl {
   void Resume() override;
   bool IsSpeaking() override;
   void GetVoices(std::vector<VoiceData>* out_voices) override;
-  void Shutdown() override;
 
   static TtsPlatformImplStarboard* GetInstance();
 
  private:
-  friend base::NoDestructor<TtsPlatformImplStarboard>;
+  friend struct base::DefaultSingletonTraits<TtsPlatformImplStarboard>;
   TtsPlatformImplStarboard();
+  ~TtsPlatformImplStarboard() override;
 
-  base::SequenceBound<TtsPlatformImplBackgroundWorker> worker_;
+  void ProcessSpeech(int utterance_id,
+                     const std::string& lang,
+                     const VoiceData& voice,
+                     const UtteranceContinuousParameters& params,
+                     base::OnceCallback<void(bool)> on_speak_finished,
+                     const std::string& parsed_utterance);
+
+  int utterance_id_ = -1;
+  base::WeakPtrFactory<TtsPlatformImplStarboard> weak_factory_{this};
 };
 
-//
-// TtsPlatformImplStarboard
-//
+TtsPlatformImplStarboard::TtsPlatformImplStarboard() = default;
 
-TtsPlatformImplStarboard::TtsPlatformImplStarboard()
-    // Initialize the worker on a background sequence.
-    : worker_(base::ThreadPool::CreateSequencedTaskRunner({})) {}
+TtsPlatformImplStarboard::~TtsPlatformImplStarboard() = default;
 
 bool TtsPlatformImplStarboard::PlatformImplSupported() {
-  return false;
+  return SbSpeechSynthesisIsSupported();
 }
 
 bool TtsPlatformImplStarboard::PlatformImplInitialized() {
-  return false;
+  return SbSpeechSynthesisIsSupported();
 }
 
 void TtsPlatformImplStarboard::Speak(
@@ -105,39 +84,84 @@ void TtsPlatformImplStarboard::Speak(
     const VoiceData& voice,
     const UtteranceContinuousParameters& params,
     base::OnceCallback<void(bool)> on_speak_finished) {
-  // Although we forward the call to the stubbed worker, the task will fail.
-  worker_.AsyncCall(&TtsPlatformImplBackgroundWorker::ProcessSpeech)
-      .WithArgs(utterance_id, utterance, lang, params.rate, params.pitch,
-                std::move(on_speak_finished));
+  if (!SbSpeechSynthesisIsSupported()) {
+    std::move(on_speak_finished).Run(false);
+    return;
+  }
+
+  // Parse SSML and process speech.
+  TtsController::GetInstance()->StripSSML(
+      utterance, base::BindOnce(&TtsPlatformImplStarboard::ProcessSpeech,
+                                weak_factory_.GetWeakPtr(), utterance_id, lang,
+                                voice, params, std::move(on_speak_finished)));
+}
+
+void TtsPlatformImplStarboard::ProcessSpeech(
+    int utterance_id,
+    const std::string& lang,
+    const VoiceData& voice,
+    const UtteranceContinuousParameters& params,
+    base::OnceCallback<void(bool)> on_speak_finished,
+    const std::string& parsed_utterance) {
+  utterance_id_ = utterance_id;
+
+  SbSpeechSynthesisSpeak(parsed_utterance.c_str());
+
+  std::move(on_speak_finished).Run(true);
+
+  // Starboard API doesn't provide callbacks for when speech starts or ends.
+  // We simulate a start event immediately.
+  TtsController::GetInstance()->OnTtsEvent(
+      utterance_id_, TTS_EVENT_START, 0,
+      static_cast<int>(parsed_utterance.length()), std::string());
+
+  // And we immediately send an end event as we can't track it.
+  TtsController::GetInstance()->OnTtsEvent(
+      utterance_id_, TTS_EVENT_END, static_cast<int>(parsed_utterance.length()),
+      0, std::string());
+
+  utterance_id_ = -1;
 }
 
 bool TtsPlatformImplStarboard::StopSpeaking() {
-  worker_.AsyncCall(&TtsPlatformImplBackgroundWorker::StopSpeaking);
+  if (!SbSpeechSynthesisIsSupported()) {
+    return false;
+  }
+  SbSpeechSynthesisCancel();
+  utterance_id_ = -1;
   return true;
 }
 
 void TtsPlatformImplStarboard::Pause() {
-  worker_.AsyncCall(&TtsPlatformImplBackgroundWorker::Pause);
+  StopSpeaking();
 }
 
-void TtsPlatformImplStarboard::Resume() {
-  worker_.AsyncCall(&TtsPlatformImplBackgroundWorker::Resume);
-}
+void TtsPlatformImplStarboard::Resume() {}
 
 bool TtsPlatformImplStarboard::IsSpeaking() {
-  return false;
+  return utterance_id_ != -1;
 }
 
-void TtsPlatformImplStarboard::GetVoices(std::vector<VoiceData>* out_voices) {}
-
-void TtsPlatformImplStarboard::Shutdown() {
-  worker_.AsyncCall(&TtsPlatformImplBackgroundWorker::Shutdown);
+void TtsPlatformImplStarboard::GetVoices(std::vector<VoiceData>* out_voices) {
+  if (!SbSpeechSynthesisIsSupported()) {
+    return;
+  }
+  out_voices->emplace_back();
+  VoiceData& voice = out_voices->back();
+  voice.native = true;
+  voice.name = "Starboard";
+  // Starboard API dictates language should be the same as
+  // SbSystemGetLocaleId().
+  voice.lang = SbSystemGetLocaleId();
+  voice.events.insert(TTS_EVENT_START);
+  voice.events.insert(TTS_EVENT_END);
 }
 
 // static
 TtsPlatformImplStarboard* TtsPlatformImplStarboard::GetInstance() {
-  static base::NoDestructor<TtsPlatformImplStarboard> tts_platform;
-  return tts_platform.get();
+  return base::Singleton<
+      TtsPlatformImplStarboard,
+      base::LeakySingletonTraits<TtsPlatformImplStarboard>>::get();
 }
 
 // static

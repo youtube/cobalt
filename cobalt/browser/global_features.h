@@ -15,13 +15,17 @@
 #ifndef COBALT_BROWSER_GLOBAL_FEATURES_H_
 #define COBALT_BROWSER_GLOBAL_FEATURES_H_
 
+#include <optional>
+
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "components/prefs/pref_registry_simple.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 class PrefService;
 
@@ -73,6 +77,11 @@ class GlobalFeatures {
   // that would otherwise occur on exit.
   void Shutdown();
 
+  using SettingValue = std::variant<std::string, int64_t>;
+
+  const absl::flat_hash_map<std::string, SettingValue>& GetSettings() const;
+  void SetSettings(const std::string& key, const SettingValue& value);
+
  private:
   friend class base::NoDestructor<GlobalFeatures>;
 
@@ -93,6 +102,11 @@ class GlobalFeatures {
   // Modified config data should only apply to the next app life cycle.
   void InitializeActiveConfigData();
 
+  // Construct a FilePath for a pref file and ensure its parent directory
+  // exists.
+  base::FilePath GetPrefFilePath(const base::FilePath::CharType filename[],
+                                 const char* label);
+
   std::unique_ptr<base::FeatureList::Accessor> accessor_;
 
   // Finch config/state.
@@ -112,6 +126,9 @@ class GlobalFeatures {
   std::unique_ptr<ExperimentConfigManager> experiment_config_manager_;
 
   std::string active_config_data_;
+
+  mutable base::Lock lock_;
+  absl::flat_hash_map<std::string, SettingValue> settings_ GUARDED_BY(lock_);
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

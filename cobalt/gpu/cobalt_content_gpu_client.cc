@@ -18,27 +18,58 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
 
 namespace cobalt {
 
-CobaltContentGpuClient::CobaltContentGpuClient() = default;
+CobaltContentGpuClient::CobaltContentGpuClient()
+    : video_geometry_setter_service_(
+          std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                          base::OnTaskRunnerDeleter>(
+              nullptr,
+              base::OnTaskRunnerDeleter(nullptr))) {}
+
 CobaltContentGpuClient::~CobaltContentGpuClient() = default;
 
 void CobaltContentGpuClient::PostCompositorThreadCreated(
     base::SingleThreadTaskRunner* task_runner) {
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
   // Initialize PendingRemote for VideoGeometrySetter and post it
   // to compositor thread (viz service). This is called on gpu thread
   // right after the compositor thread is created.
   mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
       video_geometry_setter;
-  content::ChildThread::Get()->BindHostReceiver(
-      video_geometry_setter.InitWithNewPipeAndPassReceiver());
+  mojo::PendingReceiver<cobalt::media::mojom::VideoGeometrySetter>
+      pending_receiver = video_geometry_setter.InitWithNewPipeAndPassReceiver();
+  video_geometry_setter_service_->GetVideoGeometrySetter(
+      std::move(pending_receiver));
 
   task_runner->PostTask(FROM_HERE,
                         base::BindOnce(&viz::ConnectVideoGeometrySetter,
                                        std::move(video_geometry_setter)));
+}
+
+media::VideoGeometrySetterService*
+CobaltContentGpuClient::GetVideoGeometrySetterService() {
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
+  return video_geometry_setter_service_.get();
+}
+
+void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
+  DCHECK(!video_geometry_setter_service_);
+  video_geometry_setter_service_ =
+      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                      base::OnTaskRunnerDeleter>(
+          new media::VideoGeometrySetterService,
+          base::OnTaskRunnerDeleter(
+              base::SingleThreadTaskRunner::GetCurrentDefault()));
 }
 
 }  // namespace cobalt

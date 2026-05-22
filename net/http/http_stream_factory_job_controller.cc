@@ -1272,6 +1272,26 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
           url::SchemeHostPort(original_url),
           request_info.network_anonymization_key);
   if (alternative_service_info_vector.empty()) {
+#if BUILDFLAG(IS_COBALT)
+    // This block of code suggests QUIC connection for initial requests to a
+    // new host. This method is proven to provide performance benefit while still
+    // enabling Cobalt network module to fall back on TCP connection when QUIC
+    // fails or is too slow.
+    if (session_->IsQuicEnabled() && session_->UseQuicForUnknownOrigin()) {
+      url::SchemeHostPort origin(original_url);
+#if defined(COBALT_BUILD_TYPE_GOLD)
+      // Do not default to use QUIC for unprivileged ports on release builds.
+      const int kUnrestrictedPort = 1024;
+      if (origin.port() >= kUnrestrictedPort) {
+        return AlternativeServiceInfo();
+      }
+#endif
+      quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
+      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+          AlternativeService(NextProto::kProtoQUIC, origin.host(), origin.port()),
+          base::Time::Max(), versions);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     return AlternativeServiceInfo();
   }
 

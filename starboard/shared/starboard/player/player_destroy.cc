@@ -19,10 +19,6 @@
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-
 void SbPlayerDestroy(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
     return;

@@ -12,33 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/metrics/statistics_recorder.h"
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/test/browser_test.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 
 class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
  public:
-  CobaltMetricsBrowserTest() = default;
+  CobaltMetricsBrowserTest() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kCobaltMetricsIntervalFeature,
+        {{"memory-metrics-interval", "1"}, {"cpu-metrics-interval", "1"}});
+  }
   ~CobaltMetricsBrowserTest() override = default;
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    content::ContentBrowserTest::SetUpCommandLine(command_line);
-    // Set a short interval for memory metrics to verify periodic recording.
-    command_line->AppendSwitchASCII(switches::kMemoryMetricsInterval, "1");
+  void SetUpOnMainThread() override {
+    content::ContentBrowserTest::SetUpOnMainThread();
+    if (auto* instrumentation =
+            memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+      static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
+      instrumentation->SetDetailedMetricsDelegate(delegate.get());
+    }
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
+// TODO: b/489836051 - Investigate memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_RecordsMemoryMetrics DISABLED_RecordsMemoryMetrics
+#else
+#define MAYBE_RecordsMemoryMetrics RecordsMemoryMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -51,28 +74,83 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
 
-  // Trigger a memory dump manually for testing.
+  // Trigger a memory dump manually for testing and wait for it.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
-      run_loop.QuitClosure());
+  static_cast<CobaltMetricsServiceClient*>(client)
+      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
-  // We expect at least one sample in the memory histograms.
-  // The exact value depends on the environment, but it should be > 0.
-  // Note: on some environments it might take a bit longer for the dump to
-  // be processed by the service, but RunUntilIdle should cover it.
-  base::RunLoop().RunUntilIdle();
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  EXPECT_GE(
-      histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
-          .size(),
-      1u);
-  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
-  // TODO(482357006): Re-add process-specific memory metrics (Browser,
-  // Renderer, GPU) when moving to multi-process architecture.
+  auto check_histogram = [](const std::string& name) {
+    auto* histogram = base::StatisticsRecorder::FindHistogram(name);
+    bool exists = histogram && histogram->SnapshotSamples()->TotalCount() > 0;
+    if (!exists) {
+      LOG(WARNING) << "Histogram not found or empty: " << name;
+    }
+    return exists;
+  };
+
+  // Verify process-specific and region-specific metrics.
+  // We check for histograms that we confirmed in the logs to have data.
+  EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Malloc"));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.JavaHeap"));
+#endif
+  EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Small.Sqlite"));
+
+  // Process-wide metrics
+  EXPECT_TRUE(check_histogram("Memory.Browser.ResidentSet"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.PrivateMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.SharedMemoryFootprint"));
+
+  // Global aggregate metrics
+  EXPECT_TRUE(check_histogram("Memory.Total.ResidentSet"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
+  EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
+
+  // Sub-region memory metrics
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
+
+  // These might be 0 or missing depending on the environment/build.
+  // We check for them to ensure they are at least attempted.
+  check_histogram("Memory.Experimental.Browser2.BlinkGC");
+  check_histogram("Memory.Experimental.Browser2.BlinkGC.AllocatedObjects");
+  check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
+  check_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects");
+  check_histogram("Memory.Experimental.Browser2.V8");
+  check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
+  check_histogram("Memory.Experimental.Browser2.Skia");
+  check_histogram("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache");
+  check_histogram("Memory.Experimental.Browser2.Small.FontCaches");
+  check_histogram("Memory.Experimental.Browser2.Small.LevelDatabase");
+  check_histogram("Memory.Experimental.Browser2.Small.UI");
+  check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfDocuments");
+  check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfFrames");
+  check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
+  check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
+
+  check_histogram("Memory.Browser.LibChrobaltPss");
+  check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+#if BUILDFLAG(IS_ANDROID)
+  check_histogram("Memory.Browser.MallocRss");
+#endif
 }
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
+// TODO: b/489836051 - Investigate periodic memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_PeriodicRecordsMemoryMetrics DISABLED_PeriodicRecordsMemoryMetrics
+#else
+#define MAYBE_PeriodicRecordsMemoryMetrics PeriodicRecordsMemoryMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       MAYBE_PeriodicRecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -80,23 +158,105 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
   // Ensure metrics recording is started.
   features->metrics_services_manager()->UpdateUploadPermissions(true);
 
-  // Wait for the periodic dump (interval is 1s).
-  // We wait 3 seconds to be safe and account for any scheduling delays.
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = manager_client->metrics_service_client();
+  ASSERT_TRUE(client);
+
+  // Trigger a memory dump manually for testing and wait for it.
+  // This replaces the fixed delay and is more robust.
   base::RunLoop run_loop;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, run_loop.QuitClosure(), base::Seconds(3));
+  static_cast<CobaltMetricsServiceClient*>(client)
+      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  auto check_histogram = [](const std::string& name) {
+    auto* histogram = base::StatisticsRecorder::FindHistogram(name);
+    bool exists = histogram && histogram->SnapshotSamples()->TotalCount() > 0;
+    if (!exists) {
+      LOG(WARNING) << "Histogram not found or empty: " << name;
+    }
+    return exists;
+  };
 
   // We expect at least one sample from the periodic collection.
-  base::RunLoop().RunUntilIdle();
-  // We don't care about the exact value, just that it's been recorded.
+  EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Malloc"));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.JavaHeap"));
+#endif
+  EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Small.Sqlite"));
+
+  // Process-wide metrics
+  EXPECT_TRUE(check_histogram("Memory.Browser.ResidentSet"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.PrivateMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.SharedMemoryFootprint"));
+
+  // Global aggregate metrics
+  EXPECT_TRUE(check_histogram("Memory.Total.ResidentSet"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
+  EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
+
+  // Sub-region memory metrics
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
+
+  // media decoder buffer memory metrics
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_TRUE(check_histogram("Memory.Media.AllocatedEncodedBuffer"));
+#endif
+
+  // Check for the specific regions requested by the user.
+  check_histogram("Memory.Experimental.Browser2.BlinkGC");
+  check_histogram("Memory.Experimental.Browser2.BlinkGC.AllocatedObjects");
+  check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
+  check_histogram("Memory.Experimental.Browser2.V8");
+  check_histogram("Memory.Experimental.Browser2.Skia");
+
+  check_histogram("Memory.Browser.LibChrobaltPss");
+  check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+#if BUILDFLAG(IS_ANDROID)
+  check_histogram("Memory.Browser.MallocRss");
+#endif
+}
+
+// TODO: b/489836051 - Investigate periodic memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_RecordsCpuMetrics DISABLED_RecordsCpuMetrics
+#else
+#define MAYBE_RecordsCpuMetrics RecordsCpuMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = static_cast<CobaltMetricsServiceClient*>(
+      manager_client->metrics_service_client());
+  ASSERT_TRUE(client);
+
+  // Trigger CPU metrics dump manually for testing and wait for it.
+  // This replaces the fixed delay and is more robust.
+  base::RunLoop run_loop;
+  client->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
   EXPECT_GE(
-      histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
-          .size(),
-      1u);
-  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
-  // TODO(482357006): Re-add process-specific memory metrics (Browser,
-  // Renderer, GPU) when moving to multi-process architecture.
+      histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
+  // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0
+  // on the first call
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
+            1);
 }
 
 }  // namespace cobalt

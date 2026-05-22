@@ -20,6 +20,7 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
+import("//cobalt/testing/browser_tests/cobalt_test_bundle_data.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -46,6 +47,7 @@ if (is_android) {
 }
 
 if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
@@ -98,6 +100,7 @@ static_library("cobalt_browsertests_test_runner") {
     "//base:i18n",
     "//base/test:test_config",
     "//build:chromeos_buildflags",
+    "//cobalt/browser:browser",
     "//cobalt/shell:cobalt_shell_app",
     "//components/network_session_configurator/common:common",
     "//components/services/storage:storage",
@@ -179,21 +182,26 @@ if (is_android) {
 
 copy("cobalt_browsertests_runner_script") {
   testonly = true
-
-  # TODO(433354983): Switch back to the run_browser_tests.py
-  # once the infra supports python.
-  sources = [ "cobalt_browsertests_runner.sh" ]
+  sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
-  deps = [ ":cobalt_browsertests" ]
 }
 
-group("cobalt_browsertests_runner") {
-  testonly = true
-  data_deps = [
-    ":cobalt_browsertests",
-    ":cobalt_browsertests_runner_script",
-  ]
-  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
+if (is_ios) {
+  bundle_data("cobalt_shell_pak_bundle_data") {
+    testonly = true
+    public_deps = [ "//cobalt/shell:pak" ]
+    sources = [ "$root_out_dir/cobalt_shell.pak" ]
+    outputs = [ "{{bundle_resources_dir}}/cobalt_shell.pak" ]
+  }
+  bundle_data_from_filelist("cobalt_test_bundle_data") {
+    testonly = true
+    filelist_name = "cobalt_test_bundle_data_ios.filelist"
+  }
+} else {
+  group("cobalt_test_bundle_data") {
+    testonly = true
+    data = cobalt_test_bundle_data_files
+  }
 }
 
 # Note: Testing on official builds is not currently supported.
@@ -208,7 +216,13 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
+    "//cobalt/browser/h5vcc_runtime_browsertest.cc",
+    "//cobalt/browser/h5vcc_system_browsertest.cc",
+
+    # TODO(b/511244766): separate target for perf test.
+    "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",
@@ -233,6 +247,11 @@ test("cobalt_browsertests") {
 
   if (is_starboard) {
     sources += [ "cobalt_browser_tests_main.cc" ]
+  }
+
+  if (!is_ios) {
+    # This currently tests Linux-specific information and operations.
+    sources += [ "granular_memory_browsertest.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -260,6 +279,7 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/browser:browser",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
@@ -332,6 +352,7 @@ test("cobalt_browsertests") {
     "//services/network:test_support",
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//services/service_manager/public/cpp",
     "//services/tracing:privacy_check",
     "//services/video_capture/public/cpp",
@@ -372,16 +393,20 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
-  data = [
-    "//content/test/data/",
-    "//media/test/data/",
-  ]
-
   data_deps = [
+    ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
+
+  if (is_ios && target_platform == "tvos") {
+    bundle_deps = [
+      ":cobalt_shell_pak_bundle_data",
+      ":cobalt_test_bundle_data",
+    ]
+    deps += [ "//starboard/common:common" ]
+  }
 
   if (is_android) {
     deps += [
@@ -404,7 +429,7 @@ test("cobalt_browsertests") {
 
   if (is_linux) {
     deps += [ "//third_party/libyuv" ]
-    data += [
+    data = [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
@@ -416,6 +441,12 @@ test("cobalt_browsertests") {
       "//content/test:test_support",
       "//starboard:starboard_headers_only",
     ]
+    data_deps += [ ":cobalt_browsertests_runner_script" ]
+
+    # Modular build does not call generate_wrapper().
+    if (!use_custom_libc) {
+      custom_launcher = "$root_out_dir/cobalt_browsertests_runner"
+    }
   }
 
   if (is_posix) {
@@ -466,6 +497,7 @@ static_library("cobalt_shell_test_lib") {
     ":cobalt_browsertests_support",
     ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",

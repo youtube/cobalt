@@ -37,14 +37,10 @@
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
-#include "third_party/jsoncpp/source/include/json/reader.h"
-#include "third_party/jsoncpp/source/include/json/value.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 
 namespace loader_app {
 namespace {
-
-// The max length of Evergreen version string.
-const int kMaxEgVersionLength = 20;
 
 // The max number of installations slots.
 const int kMaxNumInstallations = 2;
@@ -68,23 +64,18 @@ const char kManifestFileName[] = "manifest.json";
 // Deliminator of the Evergreen version string segments.
 const char kEgVersionDeliminator = '.';
 
-// Evergreen version key in the manifest file.
-const char kVersionKey[] = "version";
-
 }  // namespace
 
-// Compares the Evergreen versions v1 and v2. Returns 1 if v1 is newer than v2;
-// returns -1 if v1 is older than v2; returns 0 if v1 is the same as v2, or if
-// either of them is invalid.
-int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
-  if ((*v1)[0] == '\0' || (*v2)[0] == '\0') {
+int CompareEvergreenVersion(const std::vector<char>& v1,
+                            const std::vector<char>& v2) {
+  if ((v1)[0] == '\0' || (v2)[0] == '\0') {
     return 0;
   }
 
   // Split the version strings into segments of numbers
   std::vector<int> n1, n2;
-  std::stringstream s1(std::string(v1->begin(), v1->end()));
-  std::stringstream s2(std::string(v2->begin(), v2->end()));
+  std::stringstream s1(std::string(v1.begin(), v1.end()));
+  std::stringstream s2(std::string(v2.begin(), v2.end()));
   std::string seg;
   while (std::getline(s1, seg, kEgVersionDeliminator)) {
     n1.push_back(std::stoi(seg));
@@ -112,45 +103,9 @@ int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
   return 0;
 }
 
-// Reads the Evergreen version from the manifest file at the
-// |manifest_file_path|, and stores in |version|.
-bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
-                          char* version,
-                          int version_length) {
-  // Check the manifest file exists
-  struct stat info;
-  if (stat(manifest_file_path->data(), &info) != 0) {
-    SB_LOG(WARNING)
-        << "Failed to open the manifest file at the installation path.";
-    return false;
-  }
-
-  starboard::ScopedFile manifest_file(manifest_file_path->data(), O_RDONLY,
-                                      S_IRWXU | S_IRGRP);
-  int64_t file_size = manifest_file.GetSize();
-  std::vector<char> file_data(file_size);
-  int read_size = manifest_file.ReadAll(file_data.data(), file_size);
-  if (read_size < 0) {
-    SB_LOG(WARNING) << "Error while reading from the manifest file.";
-    return false;
-  }
-
-  Json::Reader reader;
-  Json::Value obj;
-  if (!reader.parse(std::string(file_data.data(), file_size), obj) ||
-      !obj[kVersionKey]) {
-    SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
-                       "installation path.";
-    return false;
-  }
-
-  snprintf(version, version_length, "%s", obj[kVersionKey].asString().c_str());
-  return true;
-}
-
 bool GetEvergreenVersionByIndex(int installation_index,
                                 char* version,
-                                int version_length) {
+                                int max_version_size) {
   std::vector<char> installation_path(kSbFileMaxPath);
   if (ImGetInstallationPath(installation_index, installation_path.data(),
                             kSbFileMaxPath) == IM_ERROR) {
@@ -161,7 +116,7 @@ bool GetEvergreenVersionByIndex(int installation_index,
   std::vector<char> manifest_file_path(kSbFileMaxPath);
   snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
            installation_path.data(), kSbFileSepString, kManifestFileName);
-  if (!ReadEvergreenVersion(&manifest_file_path, version, version_length)) {
+  if (!ReadEvergreenVersion(manifest_file_path, version, max_version_size)) {
     SB_LOG(WARNING)
         << "Failed to read the Evergreen version of installation index "
         << installation_index;
@@ -248,6 +203,22 @@ bool AdoptInstallation(int current_installation,
   return true;
 }
 
+void InsertVersionAnnotationFromManifest(int installation_index) {
+  std::vector<char> version_to_load(kMaxEgVersionSize);
+  if (!GetEvergreenVersionByIndex(installation_index, version_to_load.data(),
+                                  kMaxEgVersionSize)) {
+    SB_LOG(WARNING)
+        << "Failed to get the Evergreen version of installation index "
+        << installation_index << ", not adding to Crashpad";
+    return;
+  }
+
+  if (!crashpad::InsertCrashpadAnnotation(crashpad::kCrashpadVersionKey,
+                                          version_to_load.data())) {
+    SB_LOG(WARNING) << "Failed to add ver annotation to Crashpad";
+  }
+}
+
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
                              LibraryLoader* library_loader,
@@ -268,23 +239,22 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
   // Check the system image. If it's newer than the current slot, update to
   // system image immediately.
   if (current_installation != 0) {
-    std::vector<char> current_version(kMaxEgVersionLength);
-    if (!GetEvergreenVersionByIndex(current_installation,
-                                    current_version.data(),
-                                    kMaxEgVersionLength)) {
+    std::vector<char> current_version(kMaxEgVersionSize);
+    if (!GetEvergreenVersionByIndex(
+            current_installation, current_version.data(), kMaxEgVersionSize)) {
       SB_LOG(WARNING)
           << "Failed to get the Evergreen version of installation index "
           << current_installation;
     }
 
-    std::vector<char> system_image_version(kMaxEgVersionLength);
+    std::vector<char> system_image_version(kMaxEgVersionSize);
     if (!GetEvergreenVersionByIndex(0, system_image_version.data(),
-                                    kMaxEgVersionLength)) {
+                                    kMaxEgVersionSize)) {
       SB_LOG(WARNING)
           << "Failed to get the Evergreen version of installation index " << 0;
     }
 
-    if (CompareEvergreenVersion(&system_image_version, &current_version) > 0) {
+    if (CompareEvergreenVersion(system_image_version, current_version) > 0) {
       if (ImRollForward(0) != IM_ERROR) {
         current_installation = 0;
       } else {
@@ -317,6 +287,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     SB_LOG(INFO) << "Try to load the Cobalt binary";
     SB_LOG(INFO) << "current_installation=" << current_installation;
+
+    InsertVersionAnnotationFromManifest(current_installation);
 
     //  Try to load the image. Failures here discard the image.
     std::vector<char> installation_path(kSbFileMaxPath);

@@ -66,29 +66,6 @@ static_library("elf_loader") {
   }
 }
 
-if (current_toolchain == starboard_toolchain) {
-  static_library("elf_loader_sys") {
-    # System loader based on dlopen/dlsym.
-    # Should be used only for debugging/troubleshooting.
-    sources = _elf_loader_sources + [
-                "elf_loader_impl.h",
-                "elf_loader_sys_impl.cc",
-                "elf_loader_sys_impl.h",
-              ]
-
-    configs += [ ":elf_loader_config" ]
-
-    deps = [
-      ":constants",
-      ":evergreen_config",
-      ":evergreen_info",
-      "//starboard:starboard_group",
-      "//starboard/common",
-      "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
-    ]
-  }
-}
-
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
@@ -105,47 +82,6 @@ if (current_toolchain == starboard_toolchain) {
       ":sabi_string",
       "//starboard:starboard_group",
       "//starboard/content/fonts:copy_font_data",
-    ]
-
-    if (sb_is_evergreen_compatible && use_crashpad) {
-      deps += [ "//starboard/crashpad_wrapper" ]
-    } else {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    }
-    if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-      deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
-    }
-  }
-}
-
-if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_final_executable_type, "elf_loader_sys_sandbox") {
-    # To properly function the system loader requires the starboard
-    # symbols to be exported from the binary.
-    # To allow symbols to be exported remove the '-fvisibility=hidden' flag
-    # from your BUILD.gn. For Linux this would be:
-    #   starboard/linux/shared/platform_configuration/BUILD.gn
-    # Example run:
-    # export LD_LIBRARY_PATH=.
-    # ./elf_loader_sys_sandbox --evergreen_library=libcobalt.so --evergreen_content=app/cobalt/content
-    output_dir = root_build_dir
-
-    sources = [ "elf_loader_sandbox.cc" ]
-    configs += [ ":elf_loader_config" ]
-
-    starboard_syms_path =
-        rebase_path("//starboard/starboard.syms", root_build_dir)
-    ldflags = [
-      "-Wl,--dynamic-list=$starboard_syms_path",
-      "-ldl",
-    ]
-
-    deps = [
-      ":constants",
-      ":elf_loader_sys",
-      ":evergreen_info",
-      ":sabi_string",
-      "//starboard:starboard_group",
     ]
 
     if (sb_is_evergreen_compatible && use_crashpad) {

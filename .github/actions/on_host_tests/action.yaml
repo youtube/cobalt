@@ -1,6 +1,9 @@
 name: On Host Tests
 description: Runs on-host tests.
 inputs:
+  nightly:
+    description: "Indicates if this is a nightly job."
+    required: true
   test_artifacts_key:
     description: "Artifact key used to store test artifacts."
     required: true
@@ -13,8 +16,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Set Up Depot Tools
+      uses: ./.github/actions/depot_tools
+      with:
+        run_sync: 'false'
     - name: Download Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: ${{ inputs.test_artifacts_key }}
     - name: Extract Artifacts
@@ -29,6 +36,8 @@ runs:
       shell: bash
       env:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        GTEST_SHARD_INDEX: ${{ matrix.shard }}
+        GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         set -x
         env
@@ -60,11 +69,6 @@ runs:
           filename=$(basename "${test_binary_path}")
           test_binary="${filename%%.*}"
 
-          if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" =~ ^nplb ]]; then
-            # Workaround for nplb not supporting sharding.
-            continue
-          fi
-
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
@@ -78,16 +82,23 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
-          ENTRYPOINT=./"${test_binary_path}"
+          # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
+          # If so, use it as the entrypoint to run tests.
+          wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          if [[ -x "${wrapper_path}" ]]; then
+            ENTRYPOINT="./${wrapper_path}"
+          else
+            ENTRYPOINT="./${test_binary_path}"
+          fi
 
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
-            export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
-            export GTEST_SHARD_INDEX=${{ matrix.shard }}
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
                 --single-process-tests \
+                --gtest_shard_index="${GTEST_SHARD_INDEX}" \
+                --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"

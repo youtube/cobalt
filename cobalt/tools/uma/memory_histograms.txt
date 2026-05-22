@@ -176,8 +176,9 @@ Memory.Experimental.Browser2.SiteStorage
 Memory.Experimental.Browser2.SiteStorage.BlobStorage
 Memory.Experimental.Browser2.Skia
 Memory.Experimental.Browser2.Skia.PurgeableSize
-Memory.Experimental.Browser2.Skia.SkGlyphCache
+Memory.Experimental.Browser2.Skia.Small.SkGlyphCache
 Memory.Experimental.Browser2.Skia.SkResourceCache
+Memory.Experimental.Browser2.Small.FontCaches
 Memory.Experimental.Browser2.Sync
 Memory.Experimental.Browser2.V8
 Memory.Experimental.Browser2.V8.AllocatedObjects
@@ -324,7 +325,7 @@ Memory.Experimental.Extension2.SiteStorage
 Memory.Experimental.Extension2.SiteStorage.BlobStorage
 Memory.Experimental.Extension2.Skia
 Memory.Experimental.Extension2.Skia.PurgeableSize
-Memory.Experimental.Extension2.Skia.SkGlyphCache
+Memory.Experimental.Extension2.Skia.Small.SkGlyphCache
 Memory.Experimental.Extension2.Skia.SkResourceCache
 Memory.Experimental.Extension2.Sync
 Memory.Experimental.Extension2.V8
@@ -518,8 +519,9 @@ Memory.Experimental.Gpu2.SiteStorage
 Memory.Experimental.Gpu2.SiteStorage.BlobStorage
 Memory.Experimental.Gpu2.Skia
 Memory.Experimental.Gpu2.Skia.PurgeableSize
-Memory.Experimental.Gpu2.Skia.SkGlyphCache
+Memory.Experimental.Gpu2.Skia.Small.SkGlyphCache
 Memory.Experimental.Gpu2.Skia.SkResourceCache
+Memory.Experimental.Gpu2.Small.FontCaches
 Memory.Experimental.Gpu2.Sync
 Memory.Experimental.Gpu2.V8
 Memory.Experimental.Gpu2.V8.AllocatedObjects
@@ -668,7 +670,7 @@ Memory.Experimental.NetworkService2.SiteStorage
 Memory.Experimental.NetworkService2.SiteStorage.BlobStorage
 Memory.Experimental.NetworkService2.Skia
 Memory.Experimental.NetworkService2.Skia.PurgeableSize
-Memory.Experimental.NetworkService2.Skia.SkGlyphCache
+Memory.Experimental.NetworkService2.Skia.Small.SkGlyphCache
 Memory.Experimental.NetworkService2.Skia.SkResourceCache
 Memory.Experimental.NetworkService2.Sync
 Memory.Experimental.NetworkService2.V8
@@ -822,8 +824,9 @@ Memory.Experimental.Renderer2.SiteStorage
 Memory.Experimental.Renderer2.SiteStorage.BlobStorage
 Memory.Experimental.Renderer2.Skia
 Memory.Experimental.Renderer2.Skia.PurgeableSize
-Memory.Experimental.Renderer2.Skia.SkGlyphCache
+Memory.Experimental.Renderer2.Skia.Small.SkGlyphCache
 Memory.Experimental.Renderer2.Skia.SkResourceCache
+Memory.Experimental.Renderer2.Small.FontCaches
 Memory.Experimental.Renderer2.Sync
 Memory.Experimental.Renderer2.V8
 Memory.Experimental.Renderer2.V8.AllocatedObjects
@@ -970,7 +973,7 @@ Memory.Experimental.Utility2.SiteStorage
 Memory.Experimental.Utility2.SiteStorage.BlobStorage
 Memory.Experimental.Utility2.Skia
 Memory.Experimental.Utility2.Skia.PurgeableSize
-Memory.Experimental.Utility2.Skia.SkGlyphCache
+Memory.Experimental.Utility2.Skia.Small.SkGlyphCache
 Memory.Experimental.Utility2.Skia.SkResourceCache
 Memory.Experimental.Utility2.Sync
 Memory.Experimental.Utility2.V8

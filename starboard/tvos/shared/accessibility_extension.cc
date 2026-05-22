@@ -17,21 +17,36 @@
 #include "starboard/extension/accessibility.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
+
+namespace {
+
+// The following functions are part of the Starboard API for this extension
+// but are not used anywhere in Chrobalt.
+
+bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
+  return false;
+}
+
+bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
+  return false;
+}
+
+bool SetCaptionsEnabled(bool enabled) {
+  return false;
+}
+
+}  // namespace
 
 const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
     kStarboardExtensionAccessibilityName,
     1,
-    &accessibility::GetTextToSpeechSettings,
-    &accessibility::GetDisplaySettings,
-    &accessibility::GetCaptionSettings,
-    &accessibility::SetCaptionsEnabled};
+    &GetTextToSpeechSettings,
+    &GetDisplaySettings,
+    &GetCaptionSettings,
+    &SetCaptionsEnabled};
 
 const void* GetAccessibilityApi() {
   return &kAccessibilityAPI;
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

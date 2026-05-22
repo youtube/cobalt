@@ -24,7 +24,8 @@
 
 namespace content {
 
-ShellBrowserTestMainParts::ShellBrowserTestMainParts() = default;
+ShellBrowserTestMainParts::ShellBrowserTestMainParts()
+    : ShellBrowserMainParts(std::string(), true) {}
 
 ShellBrowserTestMainParts::~ShellBrowserTestMainParts() = default;
 

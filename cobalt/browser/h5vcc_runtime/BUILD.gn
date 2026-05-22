@@ -18,10 +18,13 @@ source_set("h5vcc_runtime") {
     "h5vcc_runtime_impl.h",
   ]
 
-  deps = [
+  public_deps = [
     ":deep_link_manager",
-    "//base",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
+  ]
+
+  deps = [
+    "//base",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",

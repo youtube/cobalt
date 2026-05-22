@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 
+#include <memory>
 #include <string>
 
 #include "starboard/common/check_op.h"
@@ -100,25 +101,19 @@ const bool g_registered =
 }  // namespace
 
 FfmpegVideoDecoderImpl<FFMPEG>::FfmpegVideoDecoderImpl(
+    starboard::PassKey<FfmpegVideoDecoderImpl<FFMPEG>>,
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider)
-    : video_codec_(video_codec),
-      codec_context_(NULL),
-      av_frame_(NULL),
-      stream_ended_(false),
-      error_occurred_(false),
+    : ffmpeg_(FFMPEGDispatch::GetInstance()),
+      video_codec_(video_codec),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
-  ffmpeg_ = FFMPEGDispatch::GetInstance();
-  SB_DCHECK(ffmpeg_);
-  if ((ffmpeg_->specialization_version()) == FFMPEG) {
-    InitializeCodec();
-  }
+  SB_CHECK(ffmpeg_);
 }
 
 FfmpegVideoDecoderImpl<FFMPEG>::~FfmpegVideoDecoderImpl() {
@@ -127,13 +122,18 @@ FfmpegVideoDecoderImpl<FFMPEG>::~FfmpegVideoDecoderImpl() {
 }
 
 // static
-FfmpegVideoDecoder* FfmpegVideoDecoderImpl<FFMPEG>::Create(
+std::unique_ptr<FfmpegVideoDecoder> FfmpegVideoDecoderImpl<FFMPEG>::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider) {
-  return new FfmpegVideoDecoderImpl<FFMPEG>(
-      video_codec, output_mode, decode_target_graphics_context_provider);
+  auto decoder = std::make_unique<FfmpegVideoDecoderImpl<FFMPEG>>(
+      starboard::PassKey<FfmpegVideoDecoderImpl<FFMPEG>>(), video_codec,
+      output_mode, decode_target_graphics_context_provider);
+  if (!decoder->InitializeCodec()) {
+    return nullptr;
+  }
+  return decoder;
 }
 
 void FfmpegVideoDecoderImpl<FFMPEG>::Initialize(
@@ -208,10 +208,6 @@ void FfmpegVideoDecoderImpl<FFMPEG>::Reset() {
   std::lock_guard lock(decode_target_and_frames_mutex_);
   decltype(frames_) frames;
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
-}
-
-bool FfmpegVideoDecoderImpl<FFMPEG>::is_valid() const {
-  return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
 }
 
 void FfmpegVideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
@@ -379,12 +375,12 @@ void FfmpegVideoDecoderImpl<FFMPEG>::UpdateDecodeTarget_Locked(
   }
 }
 
-void FfmpegVideoDecoderImpl<FFMPEG>::InitializeCodec() {
+bool FfmpegVideoDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_ = ffmpeg_->avcodec_alloc_context3(NULL);
 
   if (codec_context_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate ffmpeg codec context";
-    return;
+    return false;
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_VIDEO;
@@ -415,14 +411,14 @@ void FfmpegVideoDecoderImpl<FFMPEG>::InitializeCodec() {
   if (codec == NULL) {
     SB_LOG(ERROR) << "Unable to allocate ffmpeg codec context";
     TeardownCodec();
-    return;
+    return false;
   }
 
   int rv = ffmpeg_->OpenCodec(codec_context_, codec);
   if (rv < 0) {
     SB_LOG(ERROR) << "Unable to open codec";
     TeardownCodec();
-    return;
+    return false;
   }
 
 #if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
@@ -431,9 +427,11 @@ void FfmpegVideoDecoderImpl<FFMPEG>::InitializeCodec() {
   av_frame_ = ffmpeg_->avcodec_alloc_frame();
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   if (av_frame_ == NULL) {
-    SB_LOG(ERROR) << "Unable to allocate audio frame";
+    SB_LOG(ERROR) << "Unable to allocate video frame";
     TeardownCodec();
+    return false;
   }
+  return true;
 }
 
 void FfmpegVideoDecoderImpl<FFMPEG>::TeardownCodec() {

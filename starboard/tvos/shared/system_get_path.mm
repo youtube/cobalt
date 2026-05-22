@@ -14,6 +14,7 @@
 
 #import <Foundation/Foundation.h>
 
+#include "base/numerics/safe_conversions.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -66,7 +67,8 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     }
 
     const char* path_cstring = [path cStringUsingEncoding:NSUTF8StringEncoding];
-    if (!path_cstring || path_size < strlen(path_cstring) + 1) {
+    if (!path_cstring ||
+        base::saturated_cast<size_t>(path_size) < strlen(path_cstring) + 1) {
       return false;
     }
     starboard::strlcpy(out_path, path_cstring, path_size);

@@ -193,13 +193,7 @@ void ShellContentRendererTestClient::DidInitializeWorkerContextOnWorkerThread(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void ShellContentRendererTestClient::GetStarboardRendererFactoryTraits(
-    media::RendererFactoryTraits* renderer_factory_traits) {
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating([](mojo::GenericPendingReceiver receiver) {
-            content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
-          }));
-}
+    media::RendererFactoryTraits* renderer_factory_traits) {}
 #endif
 
 }  // namespace content

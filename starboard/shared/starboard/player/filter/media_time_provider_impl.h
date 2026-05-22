@@ -48,6 +48,10 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
+  int64_t GetAudioWriteHead() override { return 0; }
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
+    return timestamp;
+  }
 
  private:
   // When not NULL, |current_time| will be set to the current monotonic time

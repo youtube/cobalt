@@ -100,7 +100,14 @@ void DownloadComplete(
     scoped_refptr<CrxDownloader> crx_downloader,
     scoped_refptr<Cancellation> cancellation,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+#if defined(IN_MEMORY_UPDATES)
+    const std::string* crx_str,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback,
     const CrxDownloader::Result& download_result) {
   cancellation->Clear();
@@ -121,7 +128,9 @@ void DownloadComplete(
   }
 
   if (download_result.error) {
+#if !defined(IN_MEMORY_UPDATES)
     CHECK(download_result.response.empty());
+#endif
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback),
                                   base::unexpected<CategorizedError>(
@@ -130,8 +139,21 @@ void DownloadComplete(
                                        .extra = download_result.extra_code1})));
     return;
   }
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult result;
+#if defined(IN_MEMORY_UPDATES)
+  result.installation_dir = download_result.installation_dir;
+  result.crx_str = crx_str;
+#else
+  result.response = download_result.response;
+#endif
+  result.installation_index = download_result.installation_index;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), result));
+#else
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), download_result.response));
+#endif
 }
 
 void HandleAvailableSpace(
@@ -143,7 +165,14 @@ void HandleAvailableSpace(
     const std::string& hash,
     CrxDownloader::ProgressCallback progress_callback,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback,
     int64_t available_bytes) {
   if (available_bytes / 2 <= size) {
@@ -169,8 +198,15 @@ void HandleAvailableSpace(
   crx_downloader->set_progress_callback(progress_callback);
   cancellation->OnCancel(crx_downloader->StartDownload(
       urls, hash,
+#if defined(IN_MEMORY_UPDATES)
+      crx_str,
+#endif
       base::BindOnce(&DownloadComplete, crx_downloader, cancellation,
+#if defined(IN_MEMORY_UPDATES)
+                     event_adder, crx_str, std::move(callback))));
+#else
                      event_adder, std::move(callback))));
+#endif
 }
 
 }  // namespace
@@ -184,9 +220,17 @@ base::OnceClosure DownloadOperation(
     const std::string& hash,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
     CrxDownloader::ProgressCallback progress_callback,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& file,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback) {
   state_tracker.Run(ComponentState::kDownloading);
   auto cancellation = base::MakeRefCounted<Cancellation>();
@@ -204,6 +248,9 @@ base::OnceClosure DownloadOperation(
           get_available_space),
       base::BindOnce(&HandleAvailableSpace, config, cancellation, is_foreground,
                      urls, size, hash, progress_callback, event_adder,
+#if defined(IN_MEMORY_UPDATES)
+                     crx_str,
+#endif
                      std::move(callback)));
   return base::BindOnce(&Cancellation::Cancel, cancellation);
 }

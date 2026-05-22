@@ -39,6 +39,7 @@ class VideoRenderer {
 
   // |seek_to_time| is microseconds.
   virtual void Seek(int64_t seek_to_time) = 0;
+  virtual void SetPlaybackRate(double playback_rate) = 0;
 
   virtual bool IsEndOfStreamWritten() const = 0;
   virtual bool CanAcceptMoreData() const = 0;

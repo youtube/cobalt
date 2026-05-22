@@ -1,6 +1,5 @@
 name: Diff from Chromium branches
-permissions:
-  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -19,6 +18,10 @@ on:
       - main
       - experimental/*
       - feature/*
+
+permissions:
+  contents: read
+
 jobs:
   initialize:
     runs-on: ubuntu-latest
@@ -27,6 +30,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
       - name: Set upstream branches
         id: set-upstream-branches
         env:
@@ -38,16 +44,16 @@ jobs:
           # If upstream branches are provided as input, we are manually triggered
           if [[ -n "${UPSTREAM_BRANCHES}" ]]; then
             # If manually triggered, get branches from comma-separated branches from inputs
-            export DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -r -R '[split(",") | map(trim)] | map("\"" + . + "\"") | join(",")')
+            DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -r -R '[split(",") | map(trim)] | map("\"" + . + "\"") | join(",")')
           else
             # If label or synchronize Get the upstream branches from labels prefixed with $DIFF_PREFIX
-            DIFF_PREFIX=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -r '.diff_label_prefix')
-            export DIFF_LABELS=$(echo "$PR_LABELS" | jq -c -r --arg prefix "$DIFF_PREFIX" '[.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")] | map("\"" + . + "\"") | join(",")')
+            DIFF_PREFIX=$(jq -r '.diff_label_prefix' "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json")
+            DIFF_LABELS=$(echo "$PR_LABELS" | jq -c -r --arg prefix "$DIFF_PREFIX" '[.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")] | map("\"" + . + "\"") | join(",")')
           fi
           # Selected all branches objects in the chromium_diffing.json that match the diff labels
           JQ_QUERY="[.stable_branches[] | select(.milestone | IN($DIFF_LABELS))]"
-          export UPSTREAM_BRANCHES=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c "${JQ_QUERY}")
-          echo "upstream_branches=${UPSTREAM_BRANCHES}" >> $GITHUB_OUTPUT
+          UPSTREAM_BRANCHES=$(jq -c "${JQ_QUERY}" "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json")
+          echo "upstream_branches=${UPSTREAM_BRANCHES}" >> "$GITHUB_OUTPUT"
       - name: Set downstream branch
         id: set-downstream-branch
         env:
@@ -63,14 +69,14 @@ jobs:
             # Get the downstream branch from the labelled PR
             DOWNSTREAM_BRANCH="${{ github.ref }}"
           fi
-          echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> $GITHUB_OUTPUT
+          echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> "$GITHUB_OUTPUT"
       - name: Set code ownership
         id: set-code-ownership
         shell: bash
         run: |
           set -eux
-          CODE_OWNERSHIP=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c .code_ownership)
-          echo "code_ownership=${CODE_OWNERSHIP}" >> $GITHUB_OUTPUT
+          CODE_OWNERSHIP=$(jq -c .code_ownership "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json")
+          echo "code_ownership=${CODE_OWNERSHIP}" >> "$GITHUB_OUTPUT"
     outputs:
       upstream_branches: ${{ steps.set-upstream-branches.outputs.upstream_branches }}
       downstream_branch: ${{ steps.set-downstream-branch.outputs.downstream_branch }}
@@ -88,6 +94,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: chromium/${{ matrix.upstream_branch.milestone }}
+          filter: blob:none
       - name: Calculate main diff (excluding cobalt-owned folders)
         env:
           DOWNSTREAM_REF: ${{ needs.initialize.outputs.downstream_branch }}
@@ -123,7 +130,7 @@ jobs:
             | .[]
           ')
           readarray -t PATHS_TO_CHECK_ARRAY <<< "$DOWNSTREAM_OWNED_FOLDER_TO_CHECK"
-          git diff --diff-filter=D HEAD..FETCH_HEAD -- ${PATHS_TO_CHECK_ARRAY[@]} > downstream_removal.diff
+          git diff --diff-filter=D HEAD..FETCH_HEAD -- "${PATHS_TO_CHECK_ARRAY[@]}" > downstream_removal.diff
       - name: Report Diffs
         run: |
           echo "This is will be replaced with proper logging later"

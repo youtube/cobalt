@@ -145,6 +145,7 @@ class MediaServiceTest : public testing::Test {
                                  base::Microseconds(0),
                                  base::Microseconds(0),
                                  "width=1920; height=1080; framerate=15;",
+                                 StarboardRendererConfig::ExperimentalFeatures{},
                                  gfx::Size(1920, 1080));
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),

@@ -1,15 +1,6 @@
 {
-  "_comment": "TODO: b/467701409 - Investigate failing langinfo tests.",
   "failing_tests": [
     "PosixTimeClockTests.ClockIncreasesOverTime",
-    "Posix/NlLanginfoTest.AllItems/as_IN",
-    "Posix/NlLanginfoTest.AllItems/be_BY",
-    "Posix/NlLanginfoTest.AllItems/bs_BA",
-    "Posix/NlLanginfoTest.AllItems/or_IN",
-    "Posix/NlLanginfoLTest.AllItems/as_IN",
-    "Posix/NlLanginfoLTest.AllItems/be_BY",
-    "Posix/NlLanginfoLTest.AllItems/bs_BA",
-    "Posix/NlLanginfoLTest.AllItems/or_IN",
 
     "FileTempTest.MkdtempNonExistentPath",
     "FileTempTest.MkostempNonExistentPath",
@@ -20,7 +11,9 @@
     "PosixThreadDetachTest.SunnyDay",
     "PosixTimeClockTests.ClockReturnsNonNegative",
     "SbAudioSinkTest.UpdateStatusCalled",
-    "SbLogFlushTest.DontCrashMeBro"
+    "SbLogFlushTest.DontCrashMeBro",
+    "PosixSocketSendTest.RainyDaySendToClosedSocket",
+    "PosixSocketSendtoTest.RainyDaySendToClosedSocket"
   ],
   "_filtered_b/467135717": [
     "FileTempTest.MkdtempNonExistentPath",

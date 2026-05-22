@@ -63,6 +63,7 @@ public:
 
 class NetworkInfo {
 public:
+  static void Initialize();
   static bool IsConnectionTypeWireless();
   static bool IsDisconnected();
 };
