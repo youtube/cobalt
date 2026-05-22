@@ -199,6 +199,9 @@ class CONTENT_EXPORT SharedStorageRuntimeManager {
 
 }  // namespace content
 
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
+
 namespace base {
 
 template <>
@@ -209,13 +212,17 @@ struct ScopedObservationTraits<
       content::SharedStorageRuntimeManager* source,
       content::SharedStorageRuntimeManager::SharedStorageObserverInterface*
           observer) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     source->AddSharedStorageObserver(observer);
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
   static void RemoveObserver(
       content::SharedStorageRuntimeManager* source,
       content::SharedStorageRuntimeManager::SharedStorageObserverInterface*
           observer) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     source->RemoveSharedStorageObserver(observer);
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 };
 
