@@ -102,7 +102,11 @@ runs:
       run: |
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
-        tar -I 'zstd -T0' -cf "${GITHUB_WORKSPACE}/artifacts/cobalt_test_results.tar.zstd" -C "out/${{ inputs.platform }}_${{ inputs.config }}/" test_results
+        if [[ -d "out/${{ inputs.platform }}_${{ inputs.config }}/test_results" ]]; then
+          tar -I 'zstd -T0' -cf "${GITHUB_WORKSPACE}/artifacts/cobalt_test_results.tar.zstd" -C "out/${{ inputs.platform }}_${{ inputs.config }}/" test_results
+        else
+          echo "No test_results directory found in out/${{ inputs.platform }}_${{ inputs.config }}/, skipping results archiving."
+        fi
       shell: bash
 
     - name: Upload On-Host Test Artifacts Archive
