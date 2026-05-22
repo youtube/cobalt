@@ -1,3 +1,5 @@
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
 # Set up your environment - Cobalt 27.lts for RDK
 
 These instructions explain how to set up the build environment and build Cobalt 27.lts for the RDK platform (`evergreen-arm-hardfp-rdk`). These steps have been verified inside a clean Ubuntu 22.04 environment and on the Amlogic (AH212) reference device.
@@ -18,9 +20,16 @@ sudo apt update
 sudo apt install -y wget curl git python3-dev xz-utils lsb-release file sudo
 ```
 
+### Get an RDK device running the correct image
+You need to have a YouTube reference device (Amlogic S905X4 (AH212)) to run the commands.
+
+Please get the device information from the YouTube Partner portal: [AH212](https://developers.google.com/youtube/devices/living-room/compliance/ah212). Note that if you do not have access to the page above, please see [Accessing Living Room Partnership Resources](https://developers.google.com/youtube/devices/living-room/access/accessing-lr-partnership-resources).
+
+More information about the RDK reference box can be found on the RDK Central wiki: [RDK-Google IPSTB profile stack on Amlogic reference board](https://wiki.rdkcentral.com/display/RDK/RDK-Google+IPSTB+profile+stack+on+Amlogic+reference+board).
+
 ## Build Cobalt Starboard for RDK
 
-### Step 1: Install RDK Toolchain
+### Install RDK Toolchain
 
 We need to install the specific RDK toolchain required for building Cobalt.
 
@@ -43,7 +52,7 @@ We need to install the specific RDK toolchain required for building Cobalt.
     sh 20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh -d ${RDK_HOME} -y
     ```
 
-### Step 2: Clone depot_tools
+### Clone depot_tools
 
 Chromium and Cobalt use `depot_tools` for package management and code retrieval.
 
@@ -52,7 +61,7 @@ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/dep
 export PATH="$HOME/depot_tools:$PATH"
 ```
 
-### Step 3: Download Cobalt Source Code
+### Download Cobalt Source Code
 
 Clone the Cobalt source code repository and checkout the `27.lts` branch.
 
@@ -63,7 +72,7 @@ git clone --branch 27.lts --single-branch https://github.com/youtube/cobalt.git 
 git -C src remote add _gclient https://github.com/youtube/cobalt.git
 ```
 
-### Step 4: Sync Subprojects
+### Sync Subprojects
 
 Use `gclient` to fetch all external dependencies required by Cobalt.
 
@@ -73,7 +82,7 @@ gclient config --unmanaged --name=src https://github.com/youtube/cobalt.git
 gclient sync --no-history -r src@$(git -C src rev-parse @)
 ```
 
-### Step 5: Install Build Dependencies
+### Install Build Dependencies
 
 Run the installer script provided by Cobalt to install all necessary system libraries.
 
@@ -87,15 +96,7 @@ cd ~/chromium/src
 python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 ```
 
-### Step 6: Fix Missing Strip Tool
-
-The build system expects a specific name for the strip tool when cross-compiling for ARM. Create a symlink to the tool provided by the RDK SDK.
-
-```sh
-sudo ln -s $HOME/rdk/toolchain/sysroots/x86_64-rdksdk-linux/usr/bin/arm-rdk-linux-gnueabi/arm-rdk-linux-gnueabi-strip /usr/bin/arm-linux-gnueabi-strip
-```
-
-### Step 7: Build RDK Version Simulator
+### Build RDK Version Simulator
 
 Now you can generate the build files and compile Cobalt.
 
@@ -115,7 +116,7 @@ Now you can generate the build files and compile Cobalt.
     autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader loader_app_rdk_plugin
     ```
 
-### Step 8: Generate Archive
+### Generate Archive
 
 Bundle the build artifacts into a tarball for deployment.
 
