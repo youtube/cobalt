@@ -31,6 +31,8 @@ bundle_data_xcassets("resources") {
   ]
 
   # Official builds use different assets for the app icon and top shelf image.
+  # See //cobalt/doc/build_flavours.md: qa and gold builds have
+  # is_official_build set to true and will not include the assets below.
   if (!is_official_build) {
     sources += [
       "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Back.imagestacklayer/Content.imageset/Contents.json",
