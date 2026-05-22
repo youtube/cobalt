@@ -58,11 +58,10 @@ struct SbPlayerPrivate {
   ~SbPlayerPrivate() {}
 
   int MaxNumberOfSamplesPerWrite() const {
-    using Player;
-    return Player::MaxNumberOfSamplesPerWrite();
+    return starboard::Player::MaxNumberOfSamplesPerWrite();
   }
 
-  std::unique_ptr<Player> player_;
+  std::unique_ptr<starboard::Player> player_;
 };
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_PLAYER_PLAYER_INTERNAL_H_
