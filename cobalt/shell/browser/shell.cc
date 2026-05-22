@@ -1111,7 +1111,7 @@ void Shell::Focus() {
   // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
   // the focus until the WebContents signals it has become visible.
   if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
-    web_contents_->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+    web_contents_->Focus();
     pending_focus_ = false;
   } else {
     pending_focus_ = true;

@@ -18,6 +18,7 @@
 #include <map>
 #include <set>
 
+#include "base/containers/small_map.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
@@ -68,6 +69,10 @@ class H5vccRuntimeObserver {
 // until all registered frames have completed layout and are visible after a
 // reveal transition. This prevents "early focus" bugs where focus events are
 // processed before the page is ready.
+//
+// Note: "Reveal" refers to the Starboard lifecycle concept where the
+// application becomes visible to the user (e.g., after being concealed), while
+// "Focus" refers to the standard window/input focus.
 //
 // It takes WebContents* to scope the tracking per window/tab. This ensures that
 // a background tab failing to become visible does not block the reveal and
@@ -153,17 +158,22 @@ class H5vccRuntimeManager {
     H5vccRuntimeManager* manager_;
   };
 
-  std::map<content::WebContents*, content::RenderFrameHost*> main_frames_;
-  std::map<content::WebContents*, std::set<content::RenderFrameHost*>> frames_;
+  base::small_map<std::map<content::WebContents*, content::RenderFrameHost*>>
+      main_frames_;
+  base::small_map<
+      std::map<content::WebContents*, std::set<content::RenderFrameHost*>>>
+      frames_;
 
   // The single set of frames we are waiting for an ACK from.
-  std::map<content::WebContents*, std::set<content::RenderFrameHost*>>
+  base::small_map<
+      std::map<content::WebContents*, std::set<content::RenderFrameHost*>>>
       pending_ack_frames_;
 
   // What we are waiting for per WebContents.
-  std::map<content::WebContents*, PendingAck> pending_acks_;
+  base::small_map<std::map<content::WebContents*, PendingAck>> pending_acks_;
 
-  std::map<content::WebContents*, std::unique_ptr<WebContentsTracker>>
+  base::small_map<
+      std::map<content::WebContents*, std::unique_ptr<WebContentsTracker>>>
       trackers_;
 
   base::ObserverList<H5vccRuntimeObserver>::Unchecked observers_;

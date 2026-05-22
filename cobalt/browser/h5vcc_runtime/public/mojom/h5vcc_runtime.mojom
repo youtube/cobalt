@@ -33,7 +33,8 @@ interface H5vccRuntime {
   // (e.g. completed layout, painted the first frame, and dispatched the
   // visibilityChange event). This callback helps ensure that focus is sequenced
   // after the visibilityChange event, since sending focus too early can cause
-  // the visibilityChange event to be discarded by the web app.
+  // it to be ignored by the browser (which may drop focus events if it thinks
+  // the page is not yet visible).
   PageVisibilityChanged();
 
   // Notify the browser that the page has lost focus in the renderer.
