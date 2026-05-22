@@ -19,7 +19,9 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/viz/public/mojom/gpu.mojom.h"
-#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"  //nogncheck
+#endif  // #if !BUILDFLAG(IS_COBALT)
 
 namespace viz {
 
@@ -53,8 +55,10 @@ class VIZ_HOST_EXPORT GpuClient : public mojom::Gpu {
   void RemoveDiskCacheHandles();
 
   base::WeakPtr<GpuClient> GetWeakPtr();
+#if !BUILDFLAG(IS_COBALT)
   void BindWebNNContextProvider(
       mojo::PendingReceiver<webnn::mojom::WebNNContextProvider> receiver);
+#endif  // #if !BUILDFLAG(IS_COBALT)
 
   void EstablishGpuChannel(EstablishGpuChannelCallback callback) override;
 
