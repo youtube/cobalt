@@ -85,6 +85,8 @@ const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
     "Media.SkipFlushOnDecoderTeardown";
 const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
     "Media.SkipVideoFramesOver60Fps";
+const char kH5vccSettingsKeyMediaUseDirectRenderer[] =
+    "Media.UseDirectRenderer";
 const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
     "Media.UseDualThreadsForVideo";
 
@@ -260,6 +262,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
     parsed.skip_video_frames_over_60_fps = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaUseDirectRenderer)) {
+    parsed.use_direct_renderer = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {

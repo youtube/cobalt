@@ -14,6 +14,10 @@
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/mojo_decryptor_service.h"
 #include "media/mojo/services/mojo_media_client.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/direct_renderer_service_factory.h"
+#include "media/mojo/services/starboard/direct_renderer_service.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_MOJO_AUDIO_DECODER)
 #include "base/sequence_checker.h"
@@ -140,6 +144,11 @@ InterfaceFactoryImpl::InterfaceFactoryImpl(
   DCHECK(mojo_media_client_);
 
   SetReceiverDisconnectHandler();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SetCreateDirectRendererServiceCallback(
+      base::BindRepeating(&DirectRendererService::Create));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 InterfaceFactoryImpl::~InterfaceFactoryImpl() {
@@ -297,6 +306,10 @@ void InterfaceFactoryImpl::CreateStarboardRenderer(
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote) {
   DVLOG(2) << __func__;
+  
+  SetCreateDirectRendererServiceCallback(
+      base::BindRepeating(&DirectRendererService::Create));
+      
   auto renderer = mojo_media_client_->CreateStarboardRenderer(
       frame_interfaces_.get(),
       base::SingleThreadTaskRunner::GetCurrentDefault(),

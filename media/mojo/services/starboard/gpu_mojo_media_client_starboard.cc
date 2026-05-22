@@ -20,6 +20,7 @@
 #include "media/base/media_log.h"
 #include "media/base/video_decoder.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
+#include "media/mojo/services/starboard/direct_renderer_service.h"
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 #include "media/starboard/starboard_cdm_factory.h"
 

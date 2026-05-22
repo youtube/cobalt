@@ -21,6 +21,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/timer/timer.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
@@ -46,7 +47,7 @@ class VideoOverlayFactory;
 // (Media thread) talks to the StarboardRenderer living in the
 // Chrome_InProcGpuThread, using `mojo_renderer_` and `renderer_extension_`.
 class MEDIA_EXPORT StarboardRendererClient
-    : public MojoRendererWrapper,
+    : public Renderer,
       public RendererClient,
       public mojom::StarboardRendererClientExtension,
       public VideoRendererSink::RenderCallback {
@@ -57,7 +58,8 @@ class MEDIA_EXPORT StarboardRendererClient
   StarboardRendererClient(
       const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
       std::unique_ptr<MediaLog> media_log,
-      std::unique_ptr<MojoRenderer> mojo_renderer,
+      std::unique_ptr<media::Renderer> renderer,
+      bool use_direct_renderer,
       std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
       VideoRendererSink* video_renderer_sink,
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
@@ -75,11 +77,19 @@ class MEDIA_EXPORT StarboardRendererClient
 
   ~StarboardRendererClient() override;
 
-  // MojoRendererWrapper overrides.
+  base::WeakPtr<StarboardRendererClient> GetWeakPtr();
+
+  // Renderer implementation.
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) override;
+  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override;
+  void Flush(base::OnceClosure flush_cb) override;
   void StartPlayingFrom(base::TimeDelta time) override;
+  void SetPlaybackRate(double playback_rate) override;
+  void SetVolume(float volume) override;
+  base::TimeDelta GetMediaTime() override;
   RendererType GetRendererType() override;
 
   // RendererClient implementation.
@@ -140,6 +150,8 @@ class MEDIA_EXPORT StarboardRendererClient
   void StartVideoRendererSink();
   void StopVideoRendererSink();
 
+  std::unique_ptr<media::Renderer> renderer_;
+  bool use_direct_renderer_ = false;
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   std::unique_ptr<MediaLog> media_log_;
   std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;

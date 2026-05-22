@@ -12,6 +12,9 @@
 #include "content/public/common/content_client.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace cobalt::media {
@@ -70,6 +73,8 @@ class CONTENT_EXPORT ContentGpuClient {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual cobalt::media::VideoGeometrySetterService* GetVideoGeometrySetterService();
+  virtual void SetVideoGeometryChangeSubscriberReceiver(mojo::GenericPendingReceiver receiver) {}
+  virtual mojo::GenericPendingReceiver TakeVideoGeometryChangeSubscriberReceiver() { return mojo::GenericPendingReceiver(); }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

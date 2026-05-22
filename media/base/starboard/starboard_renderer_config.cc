@@ -66,6 +66,8 @@ std::ostream& operator<<(
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", skip_video_frames_over_60_fps="
             << ToString(features.skip_video_frames_over_60_fps)
+            << ", use_direct_renderer="
+            << ToString(features.use_direct_renderer)
             << ", use_dual_threads_for_video="
             << ToString(features.use_dual_threads_for_video)
             << ", max_samples_per_write="

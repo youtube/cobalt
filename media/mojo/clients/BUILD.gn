@@ -133,6 +133,8 @@ source_set("clients") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
+      "starboard/direct_renderer.cc",
+      "starboard/direct_renderer.h",
       "starboard/starboard_renderer_client.cc",
       "starboard/starboard_renderer_client.h",
       "starboard/starboard_renderer_client_factory.cc",

@@ -76,6 +76,7 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   const gfx::Size viewport_size_;
   const GetSbWindowHandleCallback get_sb_window_handle_callback_;
+  RendererFactoryTraits::GetVideoGeometryChangeSubscriberCB get_subscriber_cb_;
 };
 
 }  // namespace media
