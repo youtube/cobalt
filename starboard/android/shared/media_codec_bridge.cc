@@ -14,6 +14,10 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <android/api-level.h>
+
+#include <limits>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -21,6 +25,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -94,6 +99,30 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   }
 }
 
+bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
+                         bool require_secured_decoder,
+                         jobject j_media_crypto) {
+  if (!features::FeatureList::IsEnabled(features::kEnableNdkVideo)) {
+    return false;
+  }
+
+  // We do not use NDK AMediaCodec for DRM, since it requires architectural
+  // changes.
+  if (require_secured_decoder || j_media_crypto) {
+    return false;
+  }
+  // NDK AMediaCodec does not support tunnel mode.
+  if (tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // NDK AMediaCodec requires API level >= 28.
+  if (android_get_device_api_level() < 28) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
@@ -143,8 +172,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
                         audio_stream_info.audio_specific_config.size()));
   }
 
-  std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
-      new MediaCodecBridge(handler));
+  auto native_media_codec_bridge =
+      std::make_unique<JniMediaCodecBridge>(handler);
   ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
   ScopedJavaLocalRef<jstring> j_decoder_name(
       env, env->NewStringUTF(decoder_name.c_str()));
@@ -279,8 +308,16 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
   ScopedJavaLocalRef<jobject> j_create_media_codec_bridge_result(
       Java_CreateMediaCodecBridgeResult_Constructor(env));
 
-  std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
-      new MediaCodecBridge(handler));
+  if (CanUseNdkMediaCodec(tunnel_mode_audio_session_id, require_secured_decoder,
+                          j_media_crypto)) {
+    // TODO: b/515461431 - Implement the NDK-based MediaCodec video decoder and
+    // instantiate it here.
+    SB_LOG(WARNING) << "NDK Video (AMediaCodec) is not implemented yet. "
+                       "Falling back to Java MediaCodec (JNI).";
+  }
+
+  auto native_media_codec_bridge =
+      std::make_unique<JniMediaCodecBridge>(handler);
   ScopedJavaLocalRef<jobject> j_surface_local(env, env->NewLocalRef(j_surface));
   ScopedJavaLocalRef<jobject> j_media_crypto_local(
       env, env->NewLocalRef(j_media_crypto));
@@ -326,7 +363,9 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
   return native_media_codec_bridge;
 }
 
-MediaCodecBridge::~MediaCodecBridge() {
+MediaCodecBridge::~MediaCodecBridge() = default;
+
+JniMediaCodecBridge::~JniMediaCodecBridge() {
   if (!j_media_codec_bridge_) {
     return;
   }
@@ -335,26 +374,42 @@ MediaCodecBridge::~MediaCodecBridge() {
   Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
-ScopedJavaLocalRef<jobject> MediaCodecBridge::GetInputBuffer(jint index) {
+ScopedJavaLocalRef<jobject> JniMediaCodecBridge::GetInputBuffer(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_,
                                               index);
 }
 
-jint MediaCodecBridge::QueueInputBuffer(jint index,
-                                        jint offset,
-                                        jint size,
-                                        jlong presentation_time_microseconds,
-                                        jint flags,
-                                        jboolean is_decode_only) {
+MediaCodecBridge::BufferAddress JniMediaCodecBridge::GetInputBufferAddress(
+    jint index) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> buffer = GetInputBuffer(index);
+  if (!buffer) {
+    return {nullptr, 0};
+  }
+  void* address = env->GetDirectBufferAddress(buffer.obj());
+  jlong capacity = env->GetDirectBufferCapacity(buffer.obj());
+  if (address == nullptr || capacity < 0 ||
+      capacity > std::numeric_limits<int>::max()) {
+    return {nullptr, 0};
+  }
+  return {address, static_cast<int>(capacity)};
+}
+
+jint JniMediaCodecBridge::QueueInputBuffer(jint index,
+                                           jint offset,
+                                           jint size,
+                                           jlong presentation_time_microseconds,
+                                           jint flags,
+                                           jboolean is_decode_only) {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
       presentation_time_microseconds, flags, is_decode_only);
 }
 
-jint MediaCodecBridge::QueueSecureInputBuffer(
+jint JniMediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
@@ -400,20 +455,20 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
+ScopedJavaLocalRef<jobject> JniMediaCodecBridge::GetOutputBuffer(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_,
                                                index);
 }
 
-void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
+void JniMediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
   JNIEnv* env = AttachCurrentThread();
   Java_MediaCodecBridge_releaseOutputBuffer(env, j_media_codec_bridge_, index,
                                             render);
 }
 
-void MediaCodecBridge::ReleaseOutputBufferAtTimestamp(
+void JniMediaCodecBridge::ReleaseOutputBufferAtTimestamp(
     jint index,
     jlong render_timestamp_ns) {
   JNIEnv* env = AttachCurrentThread();
@@ -421,23 +476,23 @@ void MediaCodecBridge::ReleaseOutputBufferAtTimestamp(
       env, j_media_codec_bridge_, index, render_timestamp_ns);
 }
 
-void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
+void JniMediaCodecBridge::SetPlaybackRate(double playback_rate) {
   JNIEnv* env = AttachCurrentThread();
   Java_MediaCodecBridge_setPlaybackRate(env, j_media_codec_bridge_,
                                         playback_rate);
 }
 
-bool MediaCodecBridge::Restart() {
+bool JniMediaCodecBridge::Restart() {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_restart(env, j_media_codec_bridge_) == JNI_TRUE;
 }
 
-jint MediaCodecBridge::Flush() {
+jint JniMediaCodecBridge::Flush() {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
 }
 
-std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
+std::optional<FrameSize> JniMediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result(
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
@@ -451,7 +506,7 @@ std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
 }
 
 std::optional<AudioOutputFormatResult>
-MediaCodecBridge::GetAudioOutputFormat() {
+JniMediaCodecBridge::GetAudioOutputFormat() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result(
       Java_MediaCodecBridge_getOutputFormat(env, j_media_codec_bridge_));
@@ -465,7 +520,7 @@ MediaCodecBridge::GetAudioOutputFormat() {
   };
 }
 
-void MediaCodecBridge::OnMediaCodecError(
+void JniMediaCodecBridge::OnMediaCodecError(
     JNIEnv* env,
     jboolean is_recoverable,
     jboolean is_transient,
@@ -476,12 +531,12 @@ void MediaCodecBridge::OnMediaCodecError(
                               diagnostic_info_in_str);
 }
 
-void MediaCodecBridge::OnMediaCodecInputBufferAvailable(JNIEnv* env,
-                                                        jint buffer_index) {
+void JniMediaCodecBridge::OnMediaCodecInputBufferAvailable(JNIEnv* env,
+                                                           jint buffer_index) {
   handler_->OnMediaCodecInputBufferAvailable(buffer_index);
 }
 
-void MediaCodecBridge::OnMediaCodecOutputBufferAvailable(
+void JniMediaCodecBridge::OnMediaCodecOutputBufferAvailable(
     JNIEnv* env,
     jint buffer_index,
     jint flags,
@@ -492,26 +547,26 @@ void MediaCodecBridge::OnMediaCodecOutputBufferAvailable(
                                               presentation_time_us, size);
 }
 
-void MediaCodecBridge::OnMediaCodecOutputFormatChanged(JNIEnv* env) {
+void JniMediaCodecBridge::OnMediaCodecOutputFormatChanged(JNIEnv* env) {
   handler_->OnMediaCodecOutputFormatChanged();
 }
 
-void MediaCodecBridge::OnMediaCodecFrameRendered(
+void JniMediaCodecBridge::OnMediaCodecFrameRendered(
     JNIEnv* env,
     jlong presentation_time_us,
     jlong render_at_system_time_ns) {
   handler_->OnMediaCodecFrameRendered(presentation_time_us);
 }
 
-void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
+void JniMediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
-MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
+JniMediaCodecBridge::JniMediaCodecBridge(Handler* handler) : handler_(handler) {
   SB_CHECK(handler_);
 }
 
-void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
+void JniMediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   SB_DCHECK(j_media_codec_bridge);
 
   JNIEnv* env = AttachCurrentThread();

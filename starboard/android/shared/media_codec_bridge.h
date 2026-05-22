@@ -81,6 +81,12 @@ struct AudioOutputFormatResult {
   jint channel_count;
 };
 
+// MediaCodecBridge is an abstract interface for Android MediaCodec
+// functionality, providing a unified API for both JNI-based
+// (JniMediaCodecBridge) and NDK-based (NdkMediaCodecBridge) implementations. It
+// is typically owned by MediaCodecDecoder.
+//
+// This class is not thread-safe.
 class MediaCodecBridge {
  public:
   // The methods are called on the default Looper.  They won't get called after
@@ -137,34 +143,82 @@ class MediaCodecBridge {
       bool enable_output_checker,
       bool skip_video_frames_over_60_fps);
 
-  ~MediaCodecBridge();
+  virtual ~MediaCodecBridge();
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
+  virtual jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) = 0;
+
+  struct BufferAddress {
+    void* address = nullptr;
+    int capacity = 0;
+  };
+  virtual BufferAddress GetInputBufferAddress(jint index) = 0;
+
+  virtual jint QueueInputBuffer(jint index,
+                                jint offset,
+                                jint size,
+                                jlong presentation_time_microseconds,
+                                jint flags,
+                                jboolean is_decode_only) = 0;
+  virtual jint QueueSecureInputBuffer(jint index,
+                                      jint offset,
+                                      const SbDrmSampleInfo& drm_sample_info,
+                                      jlong presentation_time_microseconds,
+                                      jboolean is_decode_only) = 0;
+
+  // It is the responsibility of the client to manage the lifetime of the
+  // jobject that |GetOutputBuffer| returns.
+  virtual jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) = 0;
+  virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
+  virtual void ReleaseOutputBufferAtTimestamp(jint index,
+                                              jlong render_timestamp_ns) = 0;
+
+  virtual void SetPlaybackRate(double playback_rate) = 0;
+  virtual bool Restart() = 0;
+  virtual jint Flush() = 0;
+  virtual std::optional<FrameSize> GetOutputSize() = 0;
+  virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
+};
+
+// JniMediaCodecBridge is an implementation of MediaCodecBridge that interacts
+// with the Android MediaCodec Java API through JNI.
+// It is created by the factory methods in MediaCodecBridge and is owned by
+// the caller (typically a decoder).
+//
+// This class is not thread-safe.
+class JniMediaCodecBridge : public MediaCodecBridge {
+ public:
+  explicit JniMediaCodecBridge(Handler* handler);
+  ~JniMediaCodecBridge() override;
+
+  void Initialize(jobject j_media_codec_bridge);
+
+  // MediaCodecBridge implementation
+  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
+  BufferAddress GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
                         jlong presentation_time_microseconds,
                         jint flags,
-                        jboolean is_decode_only);
+                        jboolean is_decode_only) override;
   jint QueueSecureInputBuffer(jint index,
                               jint offset,
                               const SbDrmSampleInfo& drm_sample_info,
                               jlong presentation_time_microseconds,
-                              jboolean is_decode_only);
+                              jboolean is_decode_only) override;
 
-  // It is the responsibility of the client to manage the lifetime of the
-  // jobject that |GetOutputBuffer| returns.
-  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
-  void ReleaseOutputBuffer(jint index, jboolean render);
-  void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
+  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) override;
+  void ReleaseOutputBuffer(jint index, jboolean render) override;
+  void ReleaseOutputBufferAtTimestamp(jint index,
+                                      jlong render_timestamp_ns) override;
 
-  void SetPlaybackRate(double playback_rate);
-  bool Restart();
-  jint Flush();
-  std::optional<FrameSize> GetOutputSize();
-  std::optional<AudioOutputFormatResult> GetAudioOutputFormat();
+  void SetPlaybackRate(double playback_rate) override;
+  bool Restart() override;
+  jint Flush() override;
+  std::optional<FrameSize> GetOutputSize() override;
+  std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
 
   void OnMediaCodecError(
       JNIEnv* env,
@@ -185,15 +239,11 @@ class MediaCodecBridge {
   void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
 
  private:
-  // |MediaCodecBridge|s must only be created through its factory methods.
-  explicit MediaCodecBridge(Handler* handler);
-  void Initialize(jobject j_media_codec_bridge);
-
   Handler* const handler_;
   jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
-  MediaCodecBridge(const MediaCodecBridge&) = delete;
-  void operator=(const MediaCodecBridge&) = delete;
+  JniMediaCodecBridge(const JniMediaCodecBridge&) = delete;
+  void operator=(const JniMediaCodecBridge&) = delete;
 };
 
 }  // namespace starboard
