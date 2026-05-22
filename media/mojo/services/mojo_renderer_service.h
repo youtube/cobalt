@@ -64,6 +64,14 @@ class MEDIA_MOJO_EXPORT MojoRendererService final : public mojom::Renderer,
       std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>
           streams,
       InitializeCallback callback) final;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void InitializeWithStreamPointers(
+      mojo::PendingAssociatedRemote<mojom::RendererClient> client,
+      const std::optional<std::vector<uint64_t>>& stream_pointers,
+      uint64_t client_pointer,
+      uint64_t task_runner_pointer,
+      InitializeWithStreamPointersCallback callback) final;
+#endif
   void Flush(FlushCallback callback) final;
   void StartPlayingFrom(base::TimeDelta time_delta) final;
   void SetPlaybackRate(double playback_rate) final;
@@ -126,6 +134,11 @@ class MEDIA_MOJO_EXPORT MojoRendererService final : public mojom::Renderer,
 
   base::RepeatingTimer time_update_timer_;
   base::TimeDelta last_media_time_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  uint64_t client_pointer_ = 0;
+  scoped_refptr<base::SequencedTaskRunner> client_task_runner_;
+#endif
 
   mojo::AssociatedRemote<mojom::RendererClient> client_;
 
