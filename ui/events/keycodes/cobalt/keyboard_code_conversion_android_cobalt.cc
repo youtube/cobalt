@@ -48,6 +48,10 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
       return VKEY_INFO;
     case AKEYCODE_GUIDE:
       return VKEY_GUIDE;
+    case 188:  // AKEYCODE_BUTTON_1 (YouTube)
+      return VKEY_LAUNCH_THIS_APPLICATION;
+    case 231:  // AKEYCODE_VOICE_ASSIST
+      return VKEY_ASSISTANT;
     case AKEYCODE_MEDIA_AUDIO_TRACK:
       return VKEY_MEDIA_AUDIO_TRACK;
     // End of Cobalt keycode mappings

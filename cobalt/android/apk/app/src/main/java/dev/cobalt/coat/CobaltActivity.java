@@ -364,6 +364,14 @@ public abstract class CobaltActivity extends Activity {
   }
 
   @Override
+  public boolean dispatchKeyEvent(KeyEvent event) {
+    int keyCode = event.getKeyCode();
+    Log.i(TAG, String.format("Charley: dispatchKeyEvent: keyCode=%d, action=%d, scanCode=%d, metaState=%d",
+        keyCode, event.getAction(), event.getScanCode(), event.getMetaState()));
+    return super.dispatchKeyEvent(event);
+  }
+
+  @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mPhysicalBackKeyPressed = true;
@@ -446,6 +454,16 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    Log.i(TAG, "Charley: onCreate: " + getIntent());
+    if (getIntent() != null) {
+      Log.i(TAG, "Charley: onCreate Action: " + getIntent().getAction());
+      Log.i(TAG, "Charley: onCreate Data: " + getIntent().getDataString());
+      if (getIntent().getExtras() != null) {
+        for (String key : getIntent().getExtras().keySet()) {
+          Log.i(TAG, "Charley onCreate Extra: " + key + " = " + getIntent().getExtras().get(key));
+        }
+      }
+    }
     // Record the application start timestamp.
     mTimeInNanoseconds = System.nanoTime();
 
@@ -485,6 +503,7 @@ public abstract class CobaltActivity extends Activity {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
     }
+    handleIntent(getIntent());
   }
 
   /**
@@ -726,8 +745,67 @@ public abstract class CobaltActivity extends Activity {
     return StarboardBridge.isDevelopmentBuild();
   }
 
+  protected void handleIntent(Intent intent) {
+    if (intent == null) return;
+
+    if (isYouTubeButtonIntent(intent)) {
+      Log.i(TAG, "Charley: YouTube button Intent detected. Injecting synthetic key event...");
+      injectSyntheticYouTubeButtonKey();
+    }
+  }
+
+  protected boolean isYouTubeButtonIntent(Intent intent) {
+    if (intent.getBooleanExtra("launched_from_youtube_button", false)) {
+      return true;
+    }
+
+    if (intent.getBooleanExtra("yt_remote_button", false)) {
+      return true;
+    }
+
+    String data = intent.getDataString();
+    if (data != null && data.contains("launch=button")) {
+      return true;
+    }
+
+    if ("com.google.android.youtube.action.LAUNCH_BUTTON".equals(intent.getAction())) {
+      return true;
+    }
+
+    if ("dev.cobalt.coat.action.TEST_YOUTUBE_BUTTON".equals(intent.getAction())) {
+      return true;
+    }
+
+    return false;
+  }
+
+  protected void injectSyntheticYouTubeButtonKey() {
+    final int keyCode = KeyEvent.KEYCODE_BUTTON_1;
+
+    runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        Log.i(TAG, "Charley: Directly dispatching synthetic key to IME for BUTTON_1");
+        boolean downResult = dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN);
+        boolean upResult = dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP);
+        Log.i(TAG, "Charley: Synthetic key dispatch results: down=" + downResult + ", up=" + upResult);
+      }
+    });
+  }
+
   @Override
   protected void onNewIntent(Intent intent) {
+    Log.i(TAG, "Charley: onNewIntent: " + intent);
+    if (intent != null) {
+      Log.i(TAG, "Charley: onNewIntent Action: " + intent.getAction());
+      Log.i(TAG, "Charley: onNewIntent Data: " + intent.getDataString());
+      if (intent.getExtras() != null) {
+        for (String key : intent.getExtras().keySet()) {
+          Log.i(TAG, "Charley onNewIntent Extra: " + key + " = " + intent.getExtras().get(key));
+        }
+      }
+    }
+    handleIntent(intent);
     getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
   }
 

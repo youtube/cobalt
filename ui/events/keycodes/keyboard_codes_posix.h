@@ -293,6 +293,7 @@ enum KeyboardCode : unsigned short {
 
   // Custom Cobalt Key Events
 #if BUILDFLAG(IS_COBALT)
+  VKEY_LAUNCH_THIS_APPLICATION = 0x3000,
   // Key codes from the DTV Application Software Environment,
   //   http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf
   VKEY_RED = 0x193,
