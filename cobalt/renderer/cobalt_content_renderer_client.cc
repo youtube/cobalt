@@ -67,6 +67,8 @@ const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaEnableTrivialOptimizations[] =
+    "Media.EnableTrivialOptimizations";
 const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
     "Media.EnableVideoRendererVspAdjustment";
 const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
@@ -240,6 +242,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableTrivialOptimizations)) {
+    parsed.enable_trivial_optimizations = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
