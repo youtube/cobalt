@@ -128,7 +128,9 @@ void DownloadComplete(
   }
 
   if (download_result.error) {
+#if !defined(IN_MEMORY_UPDATES)
     CHECK(download_result.response.empty());
+#endif
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback),
                                   base::unexpected<CategorizedError>(
