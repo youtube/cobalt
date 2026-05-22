@@ -60,6 +60,7 @@ void WebGLTexture::SetTarget(GLenum target) {
 
 #if BUILDFLAG(IS_COBALT)
 void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
+                                          const gpu::Mailbox& mailbox,
                                           bool has_shared_image_access) {
   if (Object()) {
     if (has_shared_image_access_) {
@@ -69,6 +70,7 @@ void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
     ResetUnownedObject();
   }
   SetObject(new_object);
+  mailbox_ = mailbox;
   has_shared_image_access_ = has_shared_image_access;
 }
 #endif

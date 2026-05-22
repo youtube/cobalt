@@ -23,6 +23,14 @@ namespace blink {
 class ExceptionState;
 class HTMLVideoElement;
 
+// Implements the Blink-side WebGL extension OES_EGL_image_external,
+// enabling JavaScript to bind video frames from HTMLVideoElement to
+// GL_TEXTURE_EXTERNAL_OES targets.
+//
+// Lifetime: Lifecycle is tied directly to the parent WebGLRenderingContextBase
+// that instantiated it. Managed via Blink's Garbage Collector (oilpan).
+//
+// Threading: Main-thread bound (Blink execution context thread).
 class OESEGLImageExternal final : public WebGLExtension {
   DEFINE_WRAPPERTYPEINFO();
 

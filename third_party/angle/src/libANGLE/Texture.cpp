@@ -677,7 +677,7 @@ GLint ImageDesc::getMemorySize() const
 
 const ImageDesc &TextureState::getImageDesc(TextureTarget target, size_t level) const
 {
-#if defined(STARBOARD) && defined(__ANDROID__)
+#if defined(STARBOARD)
     // For external textures on Android Starboard, the actual dimensions and format
     // are managed by the external image sibling (SbDecodeTarget). ANGLE might not
     // have these details immediately in its TextureState. Returning a 1x1

@@ -658,7 +658,7 @@ ANGLE_INLINE bool ValidateBindTexture(const Context *context,
     if (!context->getState().isBindGeneratesResourceEnabled() &&
         !context->isTextureGenerated(texture))
     {
-#if defined(STARBOARD) && defined(__ANDROID__)
+#if defined(STARBOARD)
         if (target != TextureType::External)
 #endif
         {
