@@ -51,6 +51,8 @@ const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
 const char kH5vccSettingsKeyMediaAllowAudioWritingOnPause[] =
     "Media.AllowAudioWritingOnPause";
+const char kH5vccSettingsKeyMediaBypassMojoForMedia[] =
+    "Media.BypassMojoForMedia";
 const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
     "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
@@ -213,6 +215,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaAllowAudioWritingOnPause)) {
     parsed.allow_audio_writing_on_pause = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaBypassMojoForMedia)) {
+    parsed.bypass_mojo_for_media = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings,

@@ -516,6 +516,10 @@ BASE_FEATURE(kCobaltUsingAndroidOverlay,
 BASE_FEATURE(kCobaltAudioCaptureFastTrack,
              "CobaltAudioCaptureFastTrack",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// Bypass Mojo for media pipeline in Cobalt single-process mode.
+BASE_FEATURE(kCobaltBypassMojoForMedia,
+             "CobaltBypassMojoForMedia",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

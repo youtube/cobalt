@@ -6,6 +6,12 @@
 
 #include <utility>
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/command_line.h"
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -27,10 +33,18 @@ MojoRenderer::MojoRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
     VideoRendererSink* video_renderer_sink,
-    mojo::PendingRemote<mojom::Renderer> remote_renderer)
+    mojo::PendingRemote<mojom::Renderer> remote_renderer
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    ,
+    bool bypass_mojo_for_media
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+)
     : task_runner_(task_runner),
       video_overlay_factory_(std::move(video_overlay_factory)),
       video_renderer_sink_(video_renderer_sink),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      bypass_mojo_for_media_(bypass_mojo_for_media),
+#endif
       remote_renderer_pending_remote_(std::move(remote_renderer)),
       media_time_interpolator_(base::DefaultTickClock::GetInstance()) {
   DVLOG(1) << __func__;
@@ -59,6 +73,31 @@ void MojoRenderer::Initialize(MediaResource* media_resource,
 
   media_resource_ = media_resource;
   init_cb_ = std::move(init_cb);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if ((base::FeatureList::IsEnabled(kCobaltBypassMojoForMedia) || bypass_mojo_for_media_) &&
+      base::CommandLine::ForCurrentProcess()->HasSwitch("single-process")) {
+    std::vector<DemuxerStream*> streams = media_resource_->GetAllStreams();
+    std::vector<uint64_t> stream_pointers;
+    for (media::DemuxerStream* stream : streams) {
+      stream_pointers.push_back(reinterpret_cast<uint64_t>(stream));
+    }
+    
+    BindRemoteRendererIfNeeded();
+    
+    // Pass 'this' as a raw pointer (cast to uint64_t) to bypass Mojo for
+    // high-frequency callbacks like OnStatisticsUpdate and OnTimeUpdate.
+    // This is safe in single-process mode because MojoRenderer outlives
+    // MojoRendererService (guaranteed by Mojo SelfOwnedReceiver).
+    remote_renderer_->InitializeWithStreamPointers(client_receiver_.BindNewEndpointAndPassRemote(),
+                                                   std::move(stream_pointers),
+                                                   reinterpret_cast<uint64_t>(static_cast<mojom::RendererClient*>(this)),
+                                                   reinterpret_cast<uint64_t>(task_runner_.get()),
+                                                   base::BindOnce(&MojoRenderer::OnInitialized,
+                                                                  base::Unretained(this), client));
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Create mojom::DemuxerStream for each demuxer stream and bind its lifetime
   // to the pipe.

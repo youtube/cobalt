@@ -127,6 +127,7 @@ MediaCodecDecoder::CreateForVideo(
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
+    bool enable_frame_renderer_listener,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -139,9 +140,9 @@ MediaCodecDecoder::CreateForVideo(
       frame_size_hint, max_frame_size, fps, j_output_surface, drm_system,
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      use_dual_threads, enable_output_checker, skip_video_frames_over_60_fps,
-      &error_message);
+      enable_frame_renderer_listener, force_big_endian_hdr_metadata,
+      max_video_input_size, flush_delay_usec, use_dual_threads,
+      enable_output_checker, skip_video_frames_over_60_fps, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -200,6 +201,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
+    bool enable_frame_renderer_listener,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -229,7 +231,8 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(!drm_system_ || j_media_crypto);
   auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
-      j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
+      j_output_surface, j_media_crypto, color_metadata,
+      enable_frame_renderer_listener, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size,
       enable_output_checker, skip_video_frames_over_60_fps);

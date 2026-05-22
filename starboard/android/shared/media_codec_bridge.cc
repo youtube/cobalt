@@ -181,6 +181,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
+    bool enable_frame_renderer_listener,
     bool require_secured_decoder,
     bool require_software_codec,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -292,7 +293,8 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       j_media_crypto_local, j_color_info,
       tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       max_video_input_size, enable_output_checker,
-      skip_video_frames_over_60_fps, j_create_media_codec_bridge_result);
+      enable_frame_renderer_listener, skip_video_frames_over_60_fps,
+      j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
@@ -503,12 +505,6 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(
 
 void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
-}
-
-// static
-jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
