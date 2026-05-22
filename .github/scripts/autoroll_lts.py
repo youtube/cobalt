@@ -60,7 +60,7 @@ def get_pr_set(branch, exclude_branch):
   cmd = ['git', 'log', '--reverse', '--format=%s', branch, f'^{exclude_branch}']
   subjects = get_out(cmd).splitlines()
   for subject in subjects:
-    match = re.match(r"^(Revert\s+['\"]?)?Cherry pick PR #(\d+):", subject)
+    match = re.match(r"""^(Revert\s+['"]?)?Cherry pick PR #(\d+):""", subject)
     if match:
       revert, pr_num = match.groups()
       if revert:
@@ -186,9 +186,6 @@ def main():
   p.add_argument('--origin-branch', default='main')
   p.add_argument('--max-commits', type=int, default=1000)
   args = p.parse_args()
-
-  if not args.start_commit:
-    args.start_commit = _DEFAULT_START_COMMIT
 
   links = []
   target_prs = get_pr_set(args.target_branch, args.origin_branch)

@@ -177,8 +177,7 @@ class TestAutorollLtsMain(unittest.TestCase):
     with patch('sys.stderr'):
       autoroll_lts.main()
 
-    mock_get_commits.assert_called_once_with(
-        'main', '27.lts', '2079b05a9fee4de18abd188fa4a6aceb01a77d7e')
+    mock_get_commits.assert_called_once_with('main', '27.lts', '')
 
   @patch('autoroll_lts.get_pr_set')
   @patch('autoroll_lts.get_commits')

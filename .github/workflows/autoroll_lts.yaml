@@ -76,10 +76,14 @@ jobs:
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
-          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
-            --target-branch "${TARGET_BRANCH}" \
-            --start-commit "${START_COMMIT}" \
-            --max-commits "${MAX_COMMITS}")
+          args=(
+            --target-branch "${TARGET_BRANCH}"
+            --max-commits "${MAX_COMMITS}"
+          )
+          if [[ -n "${START_COMMIT}" ]]; then
+            args+=(--start-commit "${START_COMMIT}")
+          fi
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" "${args[@]}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"
