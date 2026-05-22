@@ -44,10 +44,7 @@
 #include <linux/input.h>
 #include <cstring>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -513,7 +510,4 @@ void EssInput::OnKeyReleased(unsigned int key) {
   OnKeyboardKey(key, kSbInputEventTypeUnpress);
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

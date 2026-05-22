@@ -26,7 +26,7 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
-using namespace third_party::starboard::rdk::shared;
+using namespace starboard;
 
 namespace
 {
@@ -176,11 +176,11 @@ private:
   void RequestAndWait(void (Application::*action)(void*, Application::EventHandledCallback)) {
     std::unique_lock lock(mutex_);
     if (WaitForApp(lock) == kRunning) {
-      starboard::Semaphore sem;
+      Semaphore sem;
       (Application::Get()->*action)(
         &sem,
         [](void* ctx) {
-          reinterpret_cast<starboard::Semaphore*>(ctx)->Put();
+          reinterpret_cast<Semaphore*>(ctx)->Put();
         });
       lock.unlock();
       sem.Take();
@@ -204,12 +204,7 @@ SB_ONCE_INITIALIZE_FUNCTION(APIContext, GetContext);
 
 }  // namespace
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace libcobalt_api {
-
 void Initialize()
 {
   GetContext()->OnInitialize();
@@ -220,11 +215,7 @@ void Teardown()
   GetContext()->OnTeardown();
 }
 
-}  // namespace libcobalt_api
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 extern "C" {
 

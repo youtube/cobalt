@@ -52,19 +52,12 @@
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
-namespace libcobalt_api {
 void Initialize();
 void Teardown();
-}
 
-namespace player {
 void ForceStop();
-}  // namespace player
 
 EssTerminateListener Application::terminateListener = {
   //terminated
@@ -100,8 +93,6 @@ static void setTimerInterval(int fd, microseconds time) {
     SB_LOG(ERROR) << "Failed to set timer interval, error: " << errno << " ("<< strerror(errno) << ')';
   }
 }
-
-using ::starboard::SbAudioSinkImpl;
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
@@ -142,9 +133,7 @@ void Application::Initialize() {
 #endif
 
   SbAudioSinkImpl::Initialize();
-  libcobalt_api::Initialize();
-  using ::starboard::KeySystemSupportabilityCache;
-  using ::starboard::MimeSupportabilityCache;
+  Initialize();
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 
@@ -154,7 +143,7 @@ void Application::Initialize() {
 
 void Application::Teardown() {
   SbAudioSinkImpl::TearDown();
-  libcobalt_api::Teardown();
+  Teardown();
   TeardownJSONRPCLink();
 
   close(ess_timer_fd_);
@@ -168,7 +157,7 @@ bool Application::MayHaveSystemEvents() {
   return true;
 }
 
-::starboard::Application::Event*
+Application::Event*
 Application::PollNextSystemEvent() {
   auto now = steady_clock::now();
   if ((now - ess_loop_last_ts_) > kEssRunLoopPeriod) {
@@ -178,7 +167,7 @@ Application::PollNextSystemEvent() {
   return NULL;
 }
 
-::starboard::Application::Event*
+Application::Event*
 Application::WaitForSystemEventWithTimeout(int64_t time) {
   struct timespec timeout;
   struct pollfd fds[3];
@@ -265,7 +254,7 @@ void Application::InjectInputEvent(SbInputData* data) {
 
 void Application::Inject(Event* e) {
   if (e && e->event && e->event->type == kSbEventTypeFreeze) {
-    player::ForceStop();
+    ForceStop();
   }
 
   QueueApplication::Inject(e);
@@ -451,7 +440,4 @@ void Application::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
                    &Application::DeleteDestructor<bool>));
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

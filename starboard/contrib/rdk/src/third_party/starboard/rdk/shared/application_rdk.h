@@ -46,19 +46,15 @@
 #include <essos-app.h>
 #include <chrono>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
-class Application : public ::starboard::QueueApplication {
+class Application : public QueueApplication {
  public:
   explicit Application(SbEventHandleCallback sb_event_handle_callback);
   ~Application() override;
 
-  static third_party::starboard::rdk::shared::Application* Get() {
-    return static_cast<third_party::starboard::rdk::shared::Application*>(
-        ::starboard::Application::Get());
+  static Application* Get() {
+    return static_cast<Application*>(Application::Get());
   }
 
   SbWindow CreateSbWindow(const SbWindowOptions* options);
@@ -127,9 +123,6 @@ class Application : public ::starboard::QueueApplication {
   std::unique_ptr<HangMonitor> hang_monitor_ { nullptr };
 };
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_APPLICATION_RDK_H_

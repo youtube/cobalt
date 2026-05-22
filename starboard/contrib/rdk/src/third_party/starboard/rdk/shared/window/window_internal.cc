@@ -33,7 +33,7 @@
 #include "third_party/starboard/rdk/shared/window/window_internal.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
-using namespace third_party::starboard::rdk::shared;
+using namespace starboard;
 
 SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /* options */) { }
 

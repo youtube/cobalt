@@ -44,7 +44,7 @@ bool SbAccessibilityGetTextToSpeechSettings(
   }
   out_setting->has_text_to_speech_setting = true;
   out_setting->is_text_to_speech_enabled =
-      third_party::starboard::rdk::shared::TextToSpeech::IsEnabled();
+      starboard::TextToSpeech::IsEnabled();
   return true;
 }
 #endif
