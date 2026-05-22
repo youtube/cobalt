@@ -209,9 +209,6 @@ sk_sp<SkFontStyleSet> SkFontMgr_Cobalt::onCreateStyleSet(int index) const {
 
 sk_sp<SkFontStyleSet> SkFontMgr_Cobalt::onMatchFamily(
     const char family_name[]) const {
-  LOG(INFO) << "JetskiFontLog: onMatchFamily - family_name: "
-            << (family_name ? family_name : "NULL");
-  std::fflush(stderr);
   if (family_name == NULL) {
     return NULL;
   }
@@ -230,11 +227,6 @@ sk_sp<SkFontStyleSet> SkFontMgr_Cobalt::onMatchFamily(
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyle(
     const char family_name[],
     const SkFontStyle& style) const {
-  LOG(INFO) << "JetskiFontLog: onMatchFamilyStyle - family_name: "
-            << (family_name ? family_name : "NULL") << ", style: ("
-            << style.weight() << ", " << style.width() << ", "
-            << static_cast<int>(style.slant()) << ")";
-  std::fflush(stderr);
   sk_sp<SkTypeface> typeface = NULL;
 
   if (family_name != NULL) {
@@ -270,10 +262,6 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
     const char* bcp47[],
     int bcp47_count,
     SkUnichar character) const {
-  LOG(INFO) << "JetskiFontLog: onMatchFamilyStyleCharacter - family_name: "
-            << (family_name ? family_name : "NULL")
-            << ", character: " << character;
-  std::fflush(stderr);
   // Remove const from the manager. SkFontMgr_Cobalt modifies its internals
   // within FindFamilyStyleCharacter().
   SkFontMgr_Cobalt* font_manager = const_cast<SkFontMgr_Cobalt*>(this);

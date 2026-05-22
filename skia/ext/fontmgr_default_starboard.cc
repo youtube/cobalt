@@ -16,7 +16,6 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
@@ -28,26 +27,12 @@ SK_API sk_sp<SkFontMgr> CreateDefaultSkFontMgr() {
   cobalt_font_directory =
       cobalt_font_directory.Append(FILE_PATH_LITERAL("fonts"));
 
-  base::FilePath system_font_files_directory;
-  if (!base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory) ||
-      system_font_files_directory.empty() ||
-      !base::DirectoryExists(system_font_files_directory)) {
-    // Fallback: resolve relative to executable file!
-    base::FilePath exe_path;
-    if (base::PathService::Get(base::FILE_EXE, &exe_path)) {
-      system_font_files_directory = exe_path.DirName().Append(FILE_PATH_LITERAL("fonts"));
-      LOG(INFO) << "FontManager: Fallback system_font_files_directory to: " << system_font_files_directory.value();
-    }
-  }
-
   base::FilePath system_font_config_directory;
-  if (!base::PathService::Get(base::DIR_SYSTEM_FONTS_CONFIGURATION, &system_font_config_directory) ||
-      system_font_config_directory.empty() ||
-      !base::PathExists(system_font_config_directory.Append(FILE_PATH_LITERAL("fonts.xml")))) {
-    // Fallback to same as files directory!
-    system_font_config_directory = system_font_files_directory;
-    LOG(INFO) << "FontManager: Fallback system_font_config_directory to: " << system_font_config_directory.value();
-  }
+  base::PathService::Get(base::DIR_SYSTEM_FONTS_CONFIGURATION,
+                         &system_font_config_directory);
+
+  base::FilePath system_font_files_directory;
+  base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
 
   skia_private::TArray<SkString, true> default_families;
   default_families.push_back(SkString("sans-serif"));
