@@ -69,10 +69,32 @@ class MediaCodecBridge {
   private MediaCodec.Callback mCallback;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
+  private double mOperatingRate = mPlaybackRate * mFps;
+  private boolean mSkipVideoFramesOver60Fps = false;
   private final boolean mIsTunnelingPlayback;
+  private final boolean mEnableFrameRendererListener;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
+
+  private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
+    final double kMaxAcceptedOperatingRate = 60.0;
+    if (isDecodeOnly) {
+      return true;
+    }
+    // |mOperatingRate| won't be 0, but to be cautious we still add a check here.
+    if (!mSkipVideoFramesOver60Fps || mOperatingRate <= kMaxAcceptedOperatingRate || mOperatingRate == 0) {
+      return false;
+    }
+    // Deterministically downsample to 60fps by picking one frame per 1/60s interval.
+    // Some visual jitter may occur briefly when the playback rate changes.
+    double frameIntervalUs = 1_000_000.0 / mOperatingRate;
+    if (Math.floor(presentationTimeUs * kMaxAcceptedOperatingRate / 1_000_000.0)
+        == Math.floor((presentationTimeUs - frameIntervalUs) * kMaxAcceptedOperatingRate / 1_000_000.0)) {
+      return true;
+    }
+    return false;
+  }
 
   public static final class MimeTypes {
     public static final String VIDEO_H264 = "video/avc";
@@ -297,13 +319,17 @@ class MediaCodecBridge {
   }
 
   public MediaCodecBridge(
-      long nativeMediaCodecBridge, MediaCodec mediaCodec, int tunnelModeAudioSessionId) {
+      long nativeMediaCodecBridge,
+      MediaCodec mediaCodec,
+      int tunnelModeAudioSessionId,
+      boolean enableFrameRendererListener) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
+    mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
+    mEnableFrameRendererListener = enableFrameRendererListener;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -381,7 +407,7 @@ class MediaCodecBridge {
         };
     mMediaCodec.get().setCallback(mCallback);
 
-    if (isFrameRenderedCallbackEnabled() || mIsTunnelingPlayback) {
+    if (mEnableFrameRendererListener) {
       mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
@@ -403,13 +429,6 @@ class MediaCodecBridge {
       setupTunnelingPlayback();
     }
     mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
-  }
-
-  @CalledByNative
-  public static boolean isFrameRenderedCallbackEnabled() {
-    // Starting with Android 14, onFrameRendered should be called accurately for each rendered
-    // frame.
-    return Build.VERSION.SDK_INT >= 34;
   }
 
   private boolean isDecodeOnlyFlagEnabled() {
@@ -439,6 +458,8 @@ class MediaCodecBridge {
       int tunnelModeAudioSessionId,
       int maxVideoInputSize,
       boolean enableOutputChecker,
+      boolean enableFrameRendererListener,
+      boolean skipVideoFramesOver60Fps,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -488,7 +509,12 @@ class MediaCodecBridge {
     }
 
     MediaCodecBridge bridge =
-        new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge,
+            mediaCodec,
+            tunnelModeAudioSessionId,
+            enableFrameRendererListener);
+    bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
@@ -506,7 +532,7 @@ class MediaCodecBridge {
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
     }
 
-    if (tunnelModeAudioSessionId != -1) {
+    if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
@@ -693,6 +719,11 @@ class MediaCodecBridge {
       return;
     }
     double operatingRate = mPlaybackRate * mFps;
+    if (mOperatingRate == operatingRate) {
+      return;
+    }
+
+    mOperatingRate = operatingRate;
     Bundle b = new Bundle();
     b.putFloat(MediaFormat.KEY_OPERATING_RATE, (float) operatingRate);
     try {
@@ -801,8 +832,8 @@ class MediaCodecBridge {
       int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
     try {
       if (isDecodeOnlyFlagEnabled()
-          && isDecodeOnly
-          && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
+          && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0
+          && shouldSkipVideoFrame(presentationTimeUs, isDecodeOnly)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
       if ((flags & MediaCodec.BUFFER_FLAG_DECODE_ONLY) == 0) {
@@ -849,7 +880,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && isDecodeOnly) {
+      if (isDecodeOnlyFlagEnabled() && shouldSkipVideoFrame(presentationTimeUs, isDecodeOnly)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       } else {
         mOutputChecker.addInputTimestamp(presentationTimeUs);

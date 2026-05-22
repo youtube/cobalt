@@ -114,19 +114,6 @@ void De265VideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void De265VideoDecoder::UpdateDecodeTarget_Locked(
-    const scoped_refptr<CpuVideoFrame>& frame) {
-  SbDecodeTarget decode_target = DecodeTargetCreate(
-      decode_target_graphics_context_provider_, frame, decode_target_);
-
-  // Lock only after the post to the renderer thread, to prevent deadlock.
-  decode_target_ = decode_target;
-
-  if (!SbDecodeTargetIsValid(decode_target)) {
-    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
-  }
-}
-
 void De265VideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
@@ -302,6 +289,19 @@ SbDecodeTarget De265VideoDecoder::GetCurrentDecodeTarget() {
     return DecodeTargetCopy(decode_target_);
   } else {
     return kSbDecodeTargetInvalid;
+  }
+}
+
+void De265VideoDecoder::UpdateDecodeTarget_Locked(
+    const scoped_refptr<CpuVideoFrame>& frame) {
+  SbDecodeTarget decode_target = DecodeTargetCreate(
+      decode_target_graphics_context_provider_, frame, decode_target_);
+
+  // Lock only after the post to the renderer thread, to prevent deadlock.
+  decode_target_ = decode_target;
+
+  if (!SbDecodeTargetIsValid(decode_target)) {
+    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
   }
 }
 

@@ -1766,7 +1766,7 @@ component("base") {
       "//starboard/common",
     ]
 
-    # TODO(crbug.com/495203133): Android is the only platform whose starboard
+    # TODO(crbug.com/509811765): Android is the only platform whose starboard
     # library depends on //base. On AOSP, `is_starboard` is true, so this leads
     # to a circular dependency.
     if (is_android) {
@@ -1784,6 +1784,10 @@ component("base") {
       "process/process_stubs.cc",
       "starboard/debugger_starboard.cc",
     ]
+
+    if (is_android) {
+      sources -= [ "process/process_android.cc" ]
+    }
 
     if (is_linux) {
       sources -= [ "process/process_linux.cc" ]
@@ -1816,7 +1820,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.

@@ -74,7 +74,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void Write(Handle handle, const void* data, size_t size) override;
 
   int GetBufferAlignment() const override;
-  int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.

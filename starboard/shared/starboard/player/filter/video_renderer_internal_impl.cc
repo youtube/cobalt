@@ -94,6 +94,7 @@ VideoRendererImpl::~VideoRendererImpl() {
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
+  pending_input_buffers_.clear();
 
   decoder_.reset();
 }
@@ -119,6 +120,7 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
 
 void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(pending_input_buffers_.empty());
   SB_DCHECK(!input_buffers.empty());
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -143,21 +145,78 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   }
 
-  SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
 
-  input_buffers_sent_.fetch_add(static_cast<int32_t>(input_buffers.size()));
-  decoder_->WriteInputBuffers(input_buffers);
+  auto write_to_decoder = [&](const InputBuffers& buffers) {
+    input_buffers_sent_.fetch_add(static_cast<int32_t>(buffers.size()));
+    decoder_->WriteInputBuffers(buffers);
+  };
+
+  if (!experimental_features_.enable_video_renderer_vsp_adjustment ||
+      (!is_vsp_adjustment_enabled_ && seeking_)) {
+    write_to_decoder(input_buffers);
+    return;
+  }
+
+  // When the |enable_video_renderer_vsp_adjustment| feature is enabled and
+  // after playback is prerolled, we hold video frames until the audio head
+  // reaches their presentation time to ensure a smooth playback rate change.
+  int64_t audio_write_head = media_time_provider_->GetAudioWriteHead();
+  auto first_input_after_audio_head_it = input_buffers.end();
+  for (auto it = input_buffers.begin(); it != input_buffers.end(); ++it) {
+    if ((*it)->timestamp() > audio_write_head) {
+      first_input_after_audio_head_it = it;
+      break;
+    } else if (is_vsp_adjustment_enabled_) {
+      // Adjust timestamps of frames that will be sent to the decoder.
+      int64_t adjusted_timestamp =
+          media_time_provider_->AdjustTimestampToAudioClock((*it)->timestamp());
+      SB_CHECK_GE(adjusted_timestamp, 0)
+          << "Failed to adjust frame at " << (*it)->timestamp();
+      (*it)->SetTimestamp(adjusted_timestamp);
+    }
+  }
+
+  if (first_input_after_audio_head_it == input_buffers.end()) {
+    write_to_decoder(input_buffers);
+    return;
+  }
+
+  // Split the input buffers into those ready to be written and those that
+  // need to be delayed.
+  InputBuffers buffers_to_write(input_buffers.begin(),
+                                first_input_after_audio_head_it);
+  pending_input_buffers_.insert(pending_input_buffers_.end(),
+                                first_input_after_audio_head_it,
+                                input_buffers.end());
+  if (!buffers_to_write.empty()) {
+    write_to_decoder(buffers_to_write);
+  }
+  if (!pending_input_buffers_.empty()) {
+    // Check again in 5ms to see if more frames can be sent to the decoder.
+    const int64_t kWritePendingInputsDelay = 5'000;
+    Schedule(std::bind(&VideoRendererImpl::WritePendingInputs, this),
+             kWritePendingInputsDelay);
+  }
 }
 
 void VideoRendererImpl::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
 
-  SB_LOG_IF(WARNING, end_of_stream_written_.load())
-      << "Try to write EOS after EOS is reached";
-  if (end_of_stream_written_.load()) {
+  if (end_of_stream_written_.load() || pending_end_of_stream_) {
+    SB_LOG(WARNING) << "Try to write EOS after EOS is reached";
     return;
   }
+
+  if (!pending_input_buffers_.empty()) {
+    // If a playback only have a few video samples, WriteEndOfStream() might
+    // be called very early, even before audio is prerolled. When there're
+    // pending inputs, we need to write eos after all inputs are written into
+    // the decoder.
+    pending_end_of_stream_ = true;
+    return;
+  }
+
   end_of_stream_written_.store(true);
   if (!first_input_written_) {
     first_input_written_ = true;
@@ -185,6 +244,8 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   need_more_input_.store(true);
 
   CancelPendingJobs();
+  pending_input_buffers_.clear();
+  pending_end_of_stream_ = false;
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
   if (preroll_timeout != std::numeric_limits<int64_t>::max()) {
@@ -209,8 +270,21 @@ void VideoRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(playback_rate, 0);
 
+  if (experimental_features_.enable_video_renderer_vsp_adjustment &&
+      playback_rate != 0.0 && playback_rate != 1.0) {
+    // Start vsp adjustment of video input presentation timepstamps in video
+    // renderer after we see a none 0.0x or 1.0x playback rate.
+    is_vsp_adjustment_enabled_ = true;
+  }
+
   if (sink_) {
-    sink_->SetPlaybackRate(playback_rate);
+    if (is_vsp_adjustment_enabled_) {
+      // Force video sink playback rate to be 0.0x or 1.0x when video renderer
+      // vsp adjustment is enabled.
+      sink_->SetPlaybackRate(playback_rate > 0 ? 1.0 : 0.0);
+    } else {
+      sink_->SetPlaybackRate(playback_rate);
+    }
   }
 }
 
@@ -219,7 +293,8 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   bool can_accept_more_data =
       number_of_frames_.load() <
           static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
-      !end_of_stream_written_.load() && need_more_input_.load();
+      !end_of_stream_written_.load() && need_more_input_.load() &&
+      pending_input_buffers_.empty() && !pending_end_of_stream_;
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   if (can_accept_more_data) {
     last_can_accept_more_data = CurrentMonotonicTime();
@@ -406,6 +481,18 @@ void VideoRendererImpl::OnSeekTimeout() {
   } else if (seeking_.load()) {
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              kSeekTimeoutRetryInterval);
+  }
+}
+
+void VideoRendererImpl::WritePendingInputs() {
+  SB_CHECK(BelongsToCurrentThread());
+  InputBuffers input_buffers = std::move(pending_input_buffers_);
+  WriteSamples(input_buffers);
+  if (pending_end_of_stream_ && pending_input_buffers_.empty()) {
+    // All pending buffers have been sent to the decoder; now it's safe to
+    // send the end-of-stream signal.
+    pending_end_of_stream_ = false;
+    WriteEndOfStream();
   }
 }
 

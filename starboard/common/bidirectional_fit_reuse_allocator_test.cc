@@ -20,10 +20,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/fixed_no_free_allocator.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
 #include "starboard/common/pointer_arithmetic.h"
-#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -46,7 +46,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     MockDecommitAllocator(void* memory_start, size_t memory_size)
         : FixedNoFreeAllocator(memory_start, memory_size), decommit_count(0) {}
 
-    void* Allocate(std::size_t size) override {
+    void* Allocate(size_t size) override {
       void* ptr = FixedNoFreeAllocator::Allocate(size);
       if (ptr) {
         active_allocations_[ptr] = size;
@@ -54,7 +54,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       return ptr;
     }
 
-    void* Allocate(std::size_t size, std::size_t alignment) override {
+    void* Allocate(size_t size, size_t alignment) override {
       void* ptr = FixedNoFreeAllocator::Allocate(size, alignment);
       if (ptr) {
         active_allocations_[ptr] = size;
@@ -62,8 +62,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       return ptr;
     }
 
-    void* AllocateForAlignment(std::size_t* size,
-                               std::size_t alignment) override {
+    void* AllocateForAlignment(size_t* size, size_t alignment) override {
       void* ptr = FixedNoFreeAllocator::AllocateForAlignment(size, alignment);
       if (ptr) {
         active_allocations_[ptr] = *size;
@@ -113,9 +112,9 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     std::map<void*, size_t> active_allocations_;
   };
 
-  void ResetAllocator(std::size_t initial_capacity = 0,
-                      std::size_t small_allocation_threshold = 0,
-                      std::size_t allocation_increment = 0) {
+  void ResetAllocator(size_t initial_capacity = 0,
+                      size_t small_allocation_threshold = 0,
+                      size_t allocation_increment = 0) {
     void* tmp = nullptr;
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
@@ -153,19 +152,21 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       allocator_;
 };
 
-typedef ::testing::Types<starboard::InPlaceReuseAllocatorBase,
-                         starboard::ReuseAllocatorBase>
+typedef ::testing::Types<starboard::EmbeddedMetadataReuseAllocatorBase,
+                         starboard::ExternalMetadataReuseAllocatorBase>
     Implementations;
 
 class ClassNameGenerator {
  public:
   template <typename T>
   static std::string GetName(int) {
-    if constexpr (std::is_same_v<T, starboard::InPlaceReuseAllocatorBase>) {
-      return "InPlaceReuseAllocatorBase";
+    if constexpr (std::is_same_v<
+                      T, starboard::EmbeddedMetadataReuseAllocatorBase>) {
+      return "EmbeddedMetadataReuseAllocatorBase";
     }
-    if constexpr (std::is_same_v<T, starboard::ReuseAllocatorBase>) {
-      return "ReuseAllocatorBase";
+    if constexpr (std::is_same_v<
+                      T, starboard::ExternalMetadataReuseAllocatorBase>) {
+      return "ExternalMetadataReuseAllocatorBase";
     }
   }
 };
@@ -175,8 +176,8 @@ TYPED_TEST_SUITE(BidirectionalFitReuseAllocatorTest,
                  ClassNameGenerator);
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, SunnyDay) {
-  const std::size_t kAlignment = sizeof(void*);
-  const std::size_t kBlockSizes[] = {4, 97, 256, 65201};
+  const size_t kAlignment = sizeof(void*);
+  const size_t kBlockSizes[] = {4, 97, 256, 65201};
 
   for (size_t j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
     void* p = this->allocator_->Allocate(kBlockSizes[j], kAlignment);
@@ -187,7 +188,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, SunnyDay) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromFront) {
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAlignment = sizeof(void*);
 
   for (int loop = 0; loop < 2; ++loop) {
     void* p[3];
@@ -203,7 +204,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromFront) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromBack) {
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAlignment = sizeof(void*);
 
   for (int loop = 0; loop < 2; ++loop) {
     void* p[3];
@@ -220,7 +221,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromBack) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromMiddle) {
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAlignment = sizeof(void*);
 
   for (int loop = 0; loop < 2; ++loop) {
     void* p[3];
@@ -237,8 +238,8 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromMiddle) {
 
 // Check that the reuse allocator actually merges adjacent free blocks.
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeBlockMergingLeft) {
-  const std::size_t kBlockSizes[] = {156, 16475};
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kBlockSizes[] = {156, 16475};
+  const size_t kAlignment = sizeof(void*);
   void* blocks[] = {NULL, NULL};
   blocks[0] = this->allocator_->Allocate(kBlockSizes[0], kAlignment);
   blocks[1] = this->allocator_->Allocate(kBlockSizes[1], kAlignment);
@@ -255,8 +256,8 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeBlockMergingLeft) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeBlockMergingRight) {
-  const std::size_t kBlockSizes[] = {156, 202, 354};
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kBlockSizes[] = {156, 202, 354};
+  const size_t kAlignment = sizeof(void*);
   void* blocks[] = {NULL, NULL, NULL};
   blocks[0] = this->allocator_->Allocate(kBlockSizes[0], kAlignment);
   blocks[1] = this->allocator_->Allocate(kBlockSizes[1], kAlignment);
@@ -275,14 +276,14 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeBlockMergingRight) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, InitialCapacity) {
-  const std::size_t kInitialCapacity = kBufferSize / 2;
+  const size_t kInitialCapacity = kBufferSize / 2;
   this->ResetAllocator(kInitialCapacity);
   EXPECT_GE(this->fallback_allocator_->GetAllocated(), kInitialCapacity);
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationIncrement) {
-  const std::size_t kAllocationIncrement = kBufferSize / 2;
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAllocationIncrement = kBufferSize / 2;
+  const size_t kAlignment = sizeof(void*);
   this->ResetAllocator(0, 0, kAllocationIncrement);
   void* p = this->allocator_->Allocate(1, kAlignment);
   EXPECT_TRUE(p != NULL);
@@ -291,7 +292,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationIncrement) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, FallbackBlockMerge) {
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAlignment = sizeof(void*);
   void* p = this->allocator_->Allocate(kBufferSize / 2, kAlignment);
   EXPECT_TRUE(p != NULL);
   this->allocator_->Free(p);
@@ -308,8 +309,8 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FallbackBlockMerge) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
-  const std::size_t kSmallAllocationThreshold = 1024;
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kSmallAllocationThreshold = 1024;
+  const size_t kAlignment = sizeof(void*);
 
   this->ResetAllocator(kBufferSize, kSmallAllocationThreshold, 0);
 
@@ -344,7 +345,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAlignment = sizeof(void*);
 
   this->ResetAllocatorWithDecommitSupport();
 
@@ -371,10 +372,10 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2);
 
   // They might be decommitted in any order, so check if both exist.
-  // Note: For InPlaceReuseAllocatorBase, `block1` and `block2` are offset from
-  // the raw fallback memory pointer by `sizeof(BlockMetadata)`. Thus, we check
-  // if the original fallback block `contains` the user pointer, rather than
-  // checking for exact pointer equality.
+  // Note: For EmbeddedMetadataReuseAllocatorBase, `block1` and `block2` are
+  // offset from the raw fallback memory pointer by `sizeof(BlockMetadata)`.
+  // Thus, we check if the original fallback block `contains` the user pointer,
+  // rather than checking for exact pointer equality.
   bool found_block1 = false;
   bool found_block2 = false;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
@@ -398,7 +399,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
-  const std::size_t kAlignment = sizeof(void*);
+  const size_t kAlignment = sizeof(void*);
   const size_t kBlockSize = 1024;
   const int kNumBlocks = 4096;
 
@@ -419,8 +420,8 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
     this->allocator_->Free(block);
   }
 
-  // InPlaceReuseAllocatorBase batches frees and processes them all at once when
-  // idle.
+  // EmbeddedMetadataReuseAllocatorBase batches frees and processes them all at
+  // once when idle.
   EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0);
 
   size_t total_decommitted_size = 0;

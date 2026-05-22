@@ -15,6 +15,8 @@
 #ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 #define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 
+#include <cstddef>
+
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"
@@ -25,35 +27,34 @@ template <typename ReuseAllocatorBase>
 class BidirectionalFitDecoderBufferAllocatorStrategy
     : public DecoderBufferAllocator::Strategy {
  public:
-  BidirectionalFitDecoderBufferAllocatorStrategy(
-      std::size_t initial_capacity,
-      std::size_t allocation_increment,
-      bool enable_decommit_on_idle)
+  BidirectionalFitDecoderBufferAllocatorStrategy(size_t initial_capacity,
+                                                 size_t allocation_increment,
+                                                 bool enable_decommit_on_idle)
       : fallback_allocator_(enable_decommit_on_idle),
-        birectional_fit_allocator_(&fallback_allocator_,
-                                   initial_capacity,
-                                   kSmallAllocationThreshold,
-                                   allocation_increment,
-                                   enable_decommit_on_idle) {}
+        bidirectional_fit_allocator_(&fallback_allocator_,
+                                     initial_capacity,
+                                     kSmallAllocationThreshold,
+                                     allocation_increment,
+                                     enable_decommit_on_idle) {}
 
   void* Allocate(DemuxerStream::Type type,
                  size_t size,
                  size_t alignment) override {
-    return birectional_fit_allocator_.Allocate(size, alignment);
+    return bidirectional_fit_allocator_.Allocate(size, alignment);
   }
   void Free(DemuxerStream::Type type, void* p) override {
-    birectional_fit_allocator_.Free(p);
+    bidirectional_fit_allocator_.Free(p);
   }
   void Write(void* p, const void* data, size_t size) override {
     memcpy(p, data, size);
   }
 
   size_t GetCapacity() const override {
-    return birectional_fit_allocator_.GetCapacity();
+    return bidirectional_fit_allocator_.GetCapacity();
   }
 
   size_t GetAllocated() const override {
-    return birectional_fit_allocator_.GetAllocated();
+    return bidirectional_fit_allocator_.GetAllocated();
   }
 
  private:
@@ -63,7 +64,7 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
 
   StarboardMemoryAllocator fallback_allocator_;
   starboard::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
-      birectional_fit_allocator_;
+      bidirectional_fit_allocator_;
 };
 
 }  // namespace media

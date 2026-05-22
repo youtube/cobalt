@@ -58,14 +58,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           [job_queue](const AudioStreamInfo& audio_stream_info,
                       SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          auto opus_audio_decoder =
-              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
-          if (opus_audio_decoder->is_valid()) {
-            return opus_audio_decoder;
-          } else {
-            SB_LOG(ERROR) << "Failed to create audio decoder for codec "
-                          << GetMediaAudioCodecName(audio_stream_info.codec);
-          }
+          return OpusAudioDecoder::Create(job_queue, audio_stream_info);
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
                    audio_stream_info.number_of_channels <=
                        FdkAacAudioDecoder::kMaxChannels &&
@@ -77,13 +70,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               FfmpegAudioDecoder::Create(job_queue, audio_stream_info);
           if (ffmpeg_audio_decoder) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
-            return ffmpeg_audio_decoder;
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
                           << GetMediaAudioCodecName(audio_stream_info.codec);
           }
+          return ffmpeg_audio_decoder;
         }
-        return nullptr;
+        SB_NOTREACHED();
       };
 
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(

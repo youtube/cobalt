@@ -170,8 +170,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           return std::make_unique<TvosAudioDecoder>(job_queue,
                                                     audio_stream_info);
         } else if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          return std::make_unique<OpusAudioDecoder>(job_queue,
-                                                    audio_stream_info);
+          return OpusAudioDecoder::Create(job_queue, audio_stream_info);
         } else {
           SB_NOTREACHED();
         }

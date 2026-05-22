@@ -47,42 +47,25 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     int channels,
     int sampling_frequency_hz,
     int preferred_buffer_size_in_bytes,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
 
     // TODO: Support query if platform supports float type for tunnel mode.
-    if (tunnel_mode_audio_session_id != -1) {
+    if (tunnel_mode_audio_session_id) {
       SB_DCHECK_EQ(sample_type.value(), kSbMediaAudioSampleTypeInt16Deprecated);
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||
               coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus);
     // TODO: Support passthrough under tunnel mode.
-    SB_DCHECK_EQ(tunnel_mode_audio_session_id, -1);
+    SB_DCHECK(!tunnel_mode_audio_session_id);
     // TODO: |sample_type| is not used in passthrough mode, we should make this
     // explicit.
   }
 
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_audio_track_bridge =
-      AudioOutputManager::GetInstance()->CreateAudioTrackBridge(
-          env, GetAudioFormatSampleType(coding_type, sample_type),
-          sampling_frequency_hz, channels, preferred_buffer_size_in_bytes,
-          tunnel_mode_audio_session_id, is_web_audio);
-
-  if (j_audio_track_bridge.is_null()) {
-    // One of the cases that this may hit is when output happened to be switched
-    // to a device that doesn't support tunnel mode.
-    // TODO: Find a way to exclude the device from tunnel mode playback, to
-    //       avoid infinite loop in creating the audio sink on a device
-    //       claims to support tunnel mode but fails to create the audio sink.
-    // TODO: Currently this will be reported as a general decode error,
-    //       investigate if this can be reported as a capability changed error.
-    SB_LOG(WARNING) << "Failed to create |j_audio_track_bridge|.";
-    return nullptr;
-  }
 
   int max_samples_per_write = 0;
   ScopedJavaGlobalRef<jobject> j_audio_data;
@@ -106,6 +89,24 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
 
   if (j_audio_data.is_null()) {
     SB_LOG(WARNING) << "Failed to allocate |j_audio_data_|";
+    return nullptr;
+  }
+
+  ScopedJavaLocalRef<jobject> j_audio_track_bridge =
+      AudioOutputManager::GetInstance()->CreateAudioTrackBridge(
+          env, GetAudioFormatSampleType(coding_type, sample_type),
+          sampling_frequency_hz, channels, preferred_buffer_size_in_bytes,
+          tunnel_mode_audio_session_id, is_web_audio);
+
+  if (j_audio_track_bridge.is_null()) {
+    // One of the cases that this may hit is when output happened to be switched
+    // to a device that doesn't support tunnel mode.
+    // TODO: Find a way to exclude the device from tunnel mode playback, to
+    //       avoid infinite loop in creating the audio sink on a device
+    //       claims to support tunnel mode but fails to create the audio sink.
+    // TODO: Currently this will be reported as a general decode error,
+    //       investigate if this can be reported as a capability changed error.
+    SB_LOG(WARNING) << "Failed to create |j_audio_track_bridge|.";
     return nullptr;
   }
 
