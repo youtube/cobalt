@@ -146,19 +146,24 @@
             <font weight="400" style="normal" font_name="Droid Sans Mono" postscript_name="DroidSansMono">DroidSansMono.woff2</font>
         </family>
         <alias name="sans-serif-monospace" to="monospace" />
+        <alias name="Droid Sans Mono" to="monospace" />
         <family name="serif-monospace">
             <font weight="400" style="normal" font_name="Cutive Mono" postscript_name="CutiveMono-Regular">CutiveMono.woff2</font>
         </family>
+        <alias name="Cutive Mono" to="serif-monospace" />
         <family name="casual">
             <font weight="400" style="normal" font_name="Coming Soon" postscript_name="ComingSoon">ComingSoon.woff2</font>
         </family>
+        <alias name="Coming Soon" to="casual" />
         <family name="cursive">
             <font weight="400" style="normal" font_name="Dancing Script" postscript_name="DancingScript">DancingScript-Regular.woff2</font>
             <font weight="700" style="normal" font_name="Dancing Script Bold" postscript_name="DancingScript-Bold">DancingScript-Bold.woff2</font>
         </family>
+        <alias name="Dancing Script" to="cursive" />
         <family name="sans-serif-smallcaps">
             <font weight="400" style="normal" font_name="Carrois Gothic SC" postscript_name="CarroisGothicSC-Regular">CarroisGothicSC-Regular.woff2</font>
         </family>
+        <alias name="Carrois Gothic SC" to="sans-serif-smallcaps" />
     </package>
 
     <!-- fallback fonts -->
