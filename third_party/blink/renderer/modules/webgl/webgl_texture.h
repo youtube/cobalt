@@ -30,6 +30,7 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_object.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #endif
 
@@ -55,7 +56,7 @@ class WebGLTexture : public WebGLObject {
   virtual bool IsOpaqueTexture() const { return false; }
 
 #if BUILDFLAG(IS_COBALT)
-  void UpdateUnderlyingObject(GLuint new_object, const gpu::Mailbox& mailbox, bool has_shared_image_access);
+  void UpdateUnderlyingObject(GLuint new_object, scoped_refptr<gpu::ClientSharedImage> shared_image, bool has_shared_image_access);
   const gpu::Mailbox& GetMailbox() const { return mailbox_; }
 #endif
 
@@ -76,6 +77,7 @@ class WebGLTexture : public WebGLObject {
 #if BUILDFLAG(IS_COBALT)
   bool has_shared_image_access_ = false;
   gpu::Mailbox mailbox_;
+  scoped_refptr<gpu::ClientSharedImage> shared_image_;
 #endif
 };
 

@@ -124,6 +124,24 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
+  static const GLenum kParametersToPreserve[] = {
+      GL_TEXTURE_MIN_FILTER,
+      GL_TEXTURE_MAG_FILTER,
+      GL_TEXTURE_WRAP_S,
+      GL_TEXTURE_WRAP_T,
+  };
+
+  std::vector<std::pair<GLenum, GLint>> preserved_params;
+
+  if (texture->Object()) {
+    gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, texture->Object());
+    for (GLenum param : kParametersToPreserve) {
+      GLint value = 0;
+      gl->GetTexParameteriv(GL_TEXTURE_EXTERNAL_OES, param, &value);
+      preserved_params.push_back({param, value});
+    }
+  }
+
   gl->WaitSyncTokenCHROMIUM(
       media_video_frame->acquire_sync_token().GetConstData());
 
@@ -141,7 +159,11 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
 
   gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, new_texture_id);
 
-  texture->UpdateUnderlyingObject(new_texture_id, client_shared_image->mailbox(),
+  for (const auto& [param, value] : preserved_params) {
+    gl->TexParameteri(GL_TEXTURE_EXTERNAL_OES, param, value);
+  }
+
+  texture->UpdateUnderlyingObject(new_texture_id, media_video_frame->shared_image(),
                                   /*has_shared_image_access=*/true);
 }
 
