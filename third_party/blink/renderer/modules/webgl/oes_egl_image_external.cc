@@ -14,6 +14,8 @@
 
 #include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
 
+#include "build/build_config.h"
+
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "media/base/video_frame.h"
@@ -37,7 +39,11 @@ WebGLExtensionName OESEGLImageExternal::GetName() const {
 }
 
 bool OESEGLImageExternal::Supported(WebGLRenderingContextBase* context) {
+#if BUILDFLAG(IS_ANDROID)
   return context->ExtensionsUtil()->SupportsExtension("GL_OES_EGL_image_external");
+#else
+  return false;
+#endif
 }
 
 const char* OESEGLImageExternal::ExtensionName() {
@@ -103,7 +109,20 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
+  viz::SharedImageFormat format = client_shared_image->format();
+  if (format.is_multi_plane() && !format.PrefersExternalSampler()) {
+    context->SynthesizeGLError(GL_INVALID_OPERATION,
+                               "EGLImageTargetTexture2DOES",
+                               "video frame format is not compatible with external texture");
+    return;
+  }
+
   gpu::gles2::GLES2Interface* gl = context->ContextGL();
+
+  if (texture->GetMailbox() == client_shared_image->mailbox()) {
+    gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, texture->Object());
+    return;
+  }
 
   gl->WaitSyncTokenCHROMIUM(
       media_video_frame->acquire_sync_token().GetConstData());
@@ -122,7 +141,7 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
 
   gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, new_texture_id);
 
-  texture->UpdateUnderlyingObject(new_texture_id,
+  texture->UpdateUnderlyingObject(new_texture_id, client_shared_image->mailbox(),
                                   /*has_shared_image_access=*/true);
 }
 

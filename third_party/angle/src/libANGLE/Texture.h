@@ -294,7 +294,7 @@ class TextureState final : private angle::NonCopyable
     // GL_EXT_texture_storage_compression
     GLenum mCompressionFixedRate;
 
-#if defined(STARBOARD) && defined(__ANDROID__)
+#if defined(STARBOARD)
     mutable ImageDesc mPlaceholderExternalDesc;
 #endif
 };

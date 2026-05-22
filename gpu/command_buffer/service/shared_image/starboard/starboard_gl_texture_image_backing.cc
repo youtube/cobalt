@@ -33,6 +33,16 @@
 
 namespace gpu {
 
+// Wraps Starboard-specific GL textures (from SbDecodeTarget) to expose them as
+// standard (non-passthrough) GLTextureImageRepresentation for WebGL client
+// consumption.
+//
+// Lifetime: Created by ProduceGLTexture and owned by the WebGL client's
+// representation tracker. Disposed of when the client releases access.
+//
+// Threading: Accessed primarily on the GPU main thread. Integrates Android's
+// DrDc lock (RefCountedLockHelperDrDc) to synchronize cross-thread access
+// when operating on Android TV.
 class StarboardGLTextureBacking::GLTextureStarboardImageRepresentation
     : public GLTextureImageRepresentation
 #if BUILDFLAG(IS_ANDROID)
@@ -160,7 +170,8 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
     SharedImageUsageSet usage,
     std::vector<GLuint> texture_ids,
     std::vector<uint32_t> texture_targets,
-    uint64_t decode_target
+    uint64_t decode_target,
+    const GLFormatCaps& gl_format_caps
 #if BUILDFLAG(IS_ANDROID)
     ,
     scoped_refptr<gpu::RefCountedLock> drdc_lock
@@ -184,7 +195,7 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
 
     auto* texture = gpu::gles2::CreateGLES2TextureWithLightRef(
         texture_ids[i], texture_targets[i]);
-    GLFormatDesc format_desc = GLFormatCaps().ToGLFormatDesc(format, 0);
+    GLFormatDesc format_desc = gl_format_caps.ToGLFormatDesc(format, 0);
     texture->SetLevelInfo(texture_targets[i], 0,
                           format_desc.image_internal_format, size.width(),
                           size.height(), 1, 0, format_desc.data_format,
