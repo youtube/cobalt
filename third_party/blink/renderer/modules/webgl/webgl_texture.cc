@@ -60,7 +60,7 @@ void WebGLTexture::SetTarget(GLenum target) {
 
 #if BUILDFLAG(IS_COBALT)
 void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
-                                          const gpu::Mailbox& mailbox,
+                                          scoped_refptr<gpu::ClientSharedImage> shared_image,
                                           bool has_shared_image_access) {
   if (Object()) {
     if (has_shared_image_access_) {
@@ -70,7 +70,8 @@ void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
     ResetUnownedObject();
   }
   SetObject(new_object);
-  mailbox_ = mailbox;
+  mailbox_ = shared_image ? shared_image->mailbox() : gpu::Mailbox();
+  shared_image_ = std::move(shared_image);
   has_shared_image_access_ = has_shared_image_access;
 }
 #endif
