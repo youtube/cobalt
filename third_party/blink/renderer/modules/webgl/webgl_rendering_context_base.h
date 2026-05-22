@@ -622,7 +622,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
     Member<WebGLTexture> texture3d_binding_;
     Member<WebGLTexture> texture2d_array_binding_;
     Member<WebGLTexture> texture_video_image_binding_;
+#if BUILDFLAG(IS_COBALT)
     Member<WebGLTexture> texture_external_oes_binding_;
+#endif
     Member<WebGLTexture> texture_rectangle_arb_binding_;
 
     void Trace(Visitor*) const;
