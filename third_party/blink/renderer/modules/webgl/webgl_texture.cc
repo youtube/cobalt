@@ -66,7 +66,8 @@ void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
     if (has_shared_image_access_) {
       Context()->ContextGL()->EndSharedImageAccessDirectCHROMIUM(Object());
     }
-    Context()->ContextGL()->DeleteTextures(1, &Object());
+    GLuint texture_id = Object();
+    Context()->ContextGL()->DeleteTextures(1, &texture_id);
     ResetUnownedObject();
   }
   SetObject(new_object);
@@ -83,7 +84,8 @@ void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
     has_shared_image_access_ = false;
   }
 #endif
-  gl->DeleteTextures(1, &Object());
+  GLuint texture_id = Object();
+  gl->DeleteTextures(1, &texture_id);
 }
 
 int WebGLTexture::MapTargetToIndex(GLenum target) const {
