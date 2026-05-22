@@ -424,7 +424,7 @@ void EssInput::CreateKey(unsigned int key, SbInputEventType type, unsigned int m
   data->key_location = KeyCodeToSbKeyLocation(key);
   data->key_modifiers = modifiers;
 
-  Application::Get()->InjectInputEvent(data);
+  ApplicationRdk::Get()->InjectInputEvent(data);
 
   DeleteRepeatKey();
 
