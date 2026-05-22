@@ -42,6 +42,9 @@ class HistogramFetcher {
                               metrics::MetricsServiceClient* service_client);
 
  private:
+  // Returns the estimated memory usage of `last_histogram_samples_` in bytes.
+  size_t GetEstimatedMemoryUsage() const;
+
   // Stores the last snapshot of histogram samples.
   std::map<uint64_t, std::unique_ptr<base::HistogramSamples>>
       last_histogram_samples_;

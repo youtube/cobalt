@@ -14,9 +14,13 @@
 
 #include "cobalt/browser/h5vcc_metrics/histogram_fetcher.h"
 
+#include <unordered_map>
+
 #include "base/base64url.h"
 #include "base/logging.h"
+#include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/sample_map.h"
 #include "base/metrics/sample_vector.h"
 #include "base/metrics/statistics_recorder.h"
 #include "components/metrics/metrics_log.h"
@@ -94,7 +98,65 @@ std::string HistogramFetcher::FetchHistograms(
   base::Base64UrlEncode(serialized_proto,
                         base::Base64UrlEncodePolicy::INCLUDE_PADDING,
                         &base64_encoded_proto);
+
+  LOG(INFO) << "[UMA Memory Footprint] last_histogram_samples_ size: "
+            << last_histogram_samples_.size() << " entries, "
+            << GetEstimatedMemoryUsage() << " bytes allocated.";
+
   return base64_encoded_proto;
+}
+
+size_t HistogramFetcher::GetEstimatedMemoryUsage() const {
+  size_t total_bytes = 0;
+
+  // Overhead of the std::map last_histogram_samples_ itself (approx. 48 bytes
+  // per node)
+  total_bytes += last_histogram_samples_.size() * 48;
+
+  // Build a map of name_hash to HistogramBase* to look up bucket counts safely
+  std::unordered_map<uint64_t, const base::HistogramBase*> histogram_map;
+  for (const base::HistogramBase* const histogram :
+       base::StatisticsRecorder::GetHistograms()) {
+    histogram_map[histogram->name_hash()] = histogram;
+  }
+
+  for (const auto& [hash, samples] : last_histogram_samples_) {
+    if (!samples) {
+      continue;
+    }
+
+    // base::HistogramSamples instance overhead
+    total_bytes += sizeof(*samples);
+
+    // Look up the corresponding histogram
+    auto it = histogram_map.find(hash);
+    if (it != histogram_map.end()) {
+      const base::HistogramBase* histogram = it->second;
+      base::HistogramType type = histogram->GetHistogramType();
+
+      if (type == base::HISTOGRAM || type == base::LINEAR_HISTOGRAM ||
+          type == base::BOOLEAN_HISTOGRAM || type == base::CUSTOM_HISTOGRAM) {
+        // Safe RTTI-free static_cast based on the type check
+        const base::Histogram* linear_histogram =
+            static_cast<const base::Histogram*>(histogram);
+        // Dynamic counts array (4 bytes per bucket count)
+        total_bytes += linear_histogram->bucket_count() *
+                       sizeof(base::HistogramBase::AtomicCount);
+      } else {
+        // Otherwise, it's a SPARSE_HISTOGRAM (uses std::map)
+        size_t entries_count = 0;
+        std::unique_ptr<base::SampleCountIterator> sample_it =
+            samples->Iterator();
+        while (!sample_it->Done()) {
+          entries_count++;
+          sample_it->Next();
+        }
+        // std::map node overhead (approx. 48 bytes per entry)
+        total_bytes += entries_count * 48;
+      }
+    }
+  }
+  return total_bytes;
 }
 
 }  // namespace h5vcc_metrics
