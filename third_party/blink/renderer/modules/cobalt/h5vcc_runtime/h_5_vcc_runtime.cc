@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.h"
 
@@ -26,6 +27,7 @@ namespace blink {
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       PageVisibilityObserver(window.GetFrame()->GetPage()),
+      FocusChangedObserver(window.GetFrame()->GetPage()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
       deep_link_receiver_(this, window.GetExecutionContext()) {
   EnsureRemoteIsBound();
@@ -33,15 +35,34 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
   LOG(INFO) << "H5vccRuntime initial DeepLink: " << initial_deep_link_;
 }
 
+H5vccRuntime::~H5vccRuntime() = default;
+
+void H5vccRuntime::OnMojoDisconnect() {}
+
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
   deep_link_receiver_.reset();
 }
 
 void H5vccRuntime::PageVisibilityChanged() {
-  if (GetPage() && GetPage()->IsPageVisible()) {
-    EnsureRemoteIsBound();
-    remote_h5vcc_runtime_->PageVisibilityVisible();
+  EnsureRemoteIsBound();
+  remote_h5vcc_runtime_->PageVisibilityChanged();
+}
+
+void H5vccRuntime::FocusedFrameChanged() {
+  auto* context = GetExecutionContext();
+  // Defensive check: The context may be null if this observer outlives the
+  // ExecutionContext and receives events during or after teardown.
+  DCHECK(context);
+  if (!context) {
+    return;
+  }
+  if (GetPage()) {
+    bool is_focused = GetPage()->GetFocusController().IsFocused();
+    if (!is_focused) {
+      EnsureRemoteIsBound();
+      remote_h5vcc_runtime_->PageBlurred();
+    }
   }
 }
 
@@ -68,6 +89,9 @@ void H5vccRuntime::EnsureRemoteIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_runtime_.BindNewPipeAndPassReceiver(task_runner));
+
+  remote_h5vcc_runtime_.set_disconnect_handler(
+      WTF::BindOnce(&H5vccRuntime::OnMojoDisconnect, WrapWeakPersistent(this)));
 }
 
 void H5vccRuntime::NotifyDeepLink(const WTF::String& deeplink) {
@@ -93,6 +117,7 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTarget::Trace(visitor);
   PageVisibilityObserver::Trace(visitor);
+  FocusChangedObserver::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
   visitor->Trace(deep_link_receiver_);
 }

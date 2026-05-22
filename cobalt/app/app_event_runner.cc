@@ -97,6 +97,14 @@ class AppEventRunnerImpl : public AppEventRunner {
     }
   }
 
+  std::vector<content::WebContents*> GetWebContents() override {
+    std::vector<content::WebContents*> result;
+    for (auto* shell : content::Shell::windows()) {
+      result.push_back(shell->web_contents());
+    }
+    return result;
+  }
+
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
     return content_main_delegate_.get();
   }

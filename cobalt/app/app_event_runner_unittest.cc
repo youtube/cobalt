@@ -142,7 +142,7 @@ TEST_F(AppEventRunnerTest, OnReveal) {
             content::Visibility::HIDDEN);
 
   // Simulate Reveal ACK from the frame via Mojo.
-  remote->PageVisibilityVisible();
+  remote->PageVisibilityChanged();
 
   // Wait for Mojo message to be processed.
   base::RunLoop().RunUntilIdle();

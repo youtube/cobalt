@@ -78,10 +78,6 @@ void ShellPlatformDelegate::OnBlur() {
 }
 
 void ShellPlatformDelegate::OnFocus() {
-  if (waiting_for_reveal_ack_) {
-    deferred_focus_ = true;
-    return;
-  }
   if (!IsVisible()) {
     return;
   }
@@ -123,8 +119,7 @@ void ShellPlatformDelegate::OnReveal() {
         h5vcc_runtime::H5vccRuntimeManager::GetInstance()->AddObserver(this);
         started_waiting = true;
       }
-      h5vcc_runtime::H5vccRuntimeManager::GetInstance()->StartWaitingForReveal(
-          shell->web_contents());
+
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
       auto* platform_window = GetPlatformWindowStarboard(shell);
       if (platform_window) {
@@ -179,9 +174,6 @@ bool ShellPlatformDelegate::ShouldAllowRunningInsecureContent(Shell* shell) {
 }
 
 void ShellPlatformDelegate::OnPageVisibilityVisible(Shell* shell) {
-  if (!IsWaitingForRevealAck()) {
-    return;
-  }
   waiting_for_reveal_ack_ = false;
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   auto* platform_window = GetPlatformWindowStarboard(shell);

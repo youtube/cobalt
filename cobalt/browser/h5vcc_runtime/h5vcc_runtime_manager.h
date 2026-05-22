@@ -21,14 +21,23 @@
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
+#include "content/public/browser/web_contents_observer.h"
 
 namespace content {
 class WebContents;
-}
+class RenderFrameHost;
+}  // namespace content
 
 namespace h5vcc_runtime {
 
 class H5vccRuntimeImpl;
+
+enum class PendingAck {
+  kNone,
+  kReveal,
+  kConceal,
+  kBlur,
+};
 
 class H5vccRuntimeObserver {
  public:
@@ -43,6 +52,12 @@ class H5vccRuntimeObserver {
   // a corresponding OnAllFramesVisible call later, and thus should defer
   // focus if it arrives too early.
   virtual void OnStartWaitingForReveal(content::WebContents* web_contents) {}
+
+  // Called when a WebContents has completed conceal (hidden).
+  virtual void OnAllFramesConcealed(content::WebContents* web_contents) {}
+
+  // Called when a WebContents has completed blur.
+  virtual void OnAllFramesBlurred(content::WebContents* web_contents) {}
 
  protected:
   virtual ~H5vccRuntimeObserver() = default;
@@ -81,18 +96,24 @@ class H5vccRuntimeManager {
   // Called when a new document is created and H5vccRuntimeImpl is bound to it.
   // Registers the frame with the manager to track its visibility.
   void RegisterFrame(content::WebContents* web_contents,
-                     H5vccRuntimeImpl* frame);
+                     content::RenderFrameHost* frame);
 
   // Called when a document is destroyed or navigated away.
   // Removes the frame from tracking.
   void UnregisterFrame(content::WebContents* web_contents,
-                       H5vccRuntimeImpl* frame);
+                       content::RenderFrameHost* frame);
 
   // Called when the renderer signals that a frame is visible (Reveal ACK).
-  // This can come from JS calling H5vccRuntime.onAllFramesVisible() or
-  // automatically from Blink on resume.
   void OnPageVisibilityVisible(content::WebContents* web_contents,
-                               H5vccRuntimeImpl* frame);
+                               content::RenderFrameHost* frame);
+
+  // Called when the renderer signals that a frame is hidden (Conceal ACK).
+  void OnPageVisibilityHidden(content::WebContents* web_contents,
+                              content::RenderFrameHost* frame);
+
+  // Called when the renderer signals that a frame has lost focus (Blur ACK).
+  void OnPageBlurred(content::WebContents* web_contents,
+                     content::RenderFrameHost* frame);
 
   // Observers are notified when all frames of a WebContents become visible.
   // Supported observers:
@@ -101,10 +122,9 @@ class H5vccRuntimeManager {
   void AddObserver(H5vccRuntimeObserver* observer);
   void RemoveObserver(H5vccRuntimeObserver* observer);
 
-  // Called when the application is revealed (resumed or started).
-  // Puts the manager in a waiting state for the specified WebContents,
-  // expecting Reveal ACKs from all registered frames.
-  void StartWaitingForReveal(content::WebContents* web_contents);
+  // Called to start waiting for a specific ACK type.
+  void StartWaitingForAck(content::WebContents* web_contents,
+                          PendingAck ack_type);
 
  private:
   friend class base::NoDestructor<H5vccRuntimeManager>;
@@ -115,15 +135,38 @@ class H5vccRuntimeManager {
   void CheckCompletion(content::WebContents* web_contents);
   void NotifyStartWaitingForReveal(
       base::WeakPtr<content::WebContents> web_contents);
+  void OnAckTimeout(base::WeakPtr<content::WebContents> web_contents,
+                    PendingAck ack_type);
+  void OnWebContentsDestroyed(content::WebContents* web_contents);
 
-  std::map<content::WebContents*, H5vccRuntimeImpl*> main_frames_;
-  std::map<content::WebContents*, std::set<H5vccRuntimeImpl*>> frames_;
-  std::map<content::WebContents*, std::set<H5vccRuntimeImpl*>>
-      pending_reveal_frames_;
+  class WebContentsTracker : public content::WebContentsObserver {
+   public:
+    WebContentsTracker(content::WebContents* web_contents,
+                       H5vccRuntimeManager* manager);
+    ~WebContentsTracker() override;
+
+    void RenderFrameDeleted(
+        content::RenderFrameHost* render_frame_host) override;
+    void WebContentsDestroyed() override;
+
+   private:
+    H5vccRuntimeManager* manager_;
+  };
+
+  std::map<content::WebContents*, content::RenderFrameHost*> main_frames_;
+  std::map<content::WebContents*, std::set<content::RenderFrameHost*>> frames_;
+
+  // The single set of frames we are waiting for an ACK from.
+  std::map<content::WebContents*, std::set<content::RenderFrameHost*>>
+      pending_ack_frames_;
+
+  // What we are waiting for per WebContents.
+  std::map<content::WebContents*, PendingAck> pending_acks_;
+
+  std::map<content::WebContents*, std::unique_ptr<WebContentsTracker>>
+      trackers_;
+
   base::ObserverList<H5vccRuntimeObserver>::Unchecked observers_;
-
-  // Track waiting state per WebContents.
-  std::set<content::WebContents*> waiting_for_reveal_;
 
   base::WeakPtrFactory<H5vccRuntimeManager> weak_factory_{this};
 };

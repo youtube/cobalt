@@ -86,7 +86,7 @@ TEST_F(H5vccRuntimeManagerTest, ScopedWaiting) {
   EXPECT_CALL(observer, OnAllFramesVisible(contents2.get())).Times(0);
 
   // Frame 1 reports visible via Mojo.
-  remote1->PageVisibilityVisible();
+  remote1->PageVisibilityChanged();
 
   // Wait for Mojo message.
   base::RunLoop().RunUntilIdle();
@@ -97,7 +97,7 @@ TEST_F(H5vccRuntimeManagerTest, ScopedWaiting) {
   EXPECT_CALL(observer, OnAllFramesVisible(contents2.get())).Times(1);
 
   // Frame 2 reports visible.
-  remote2->PageVisibilityVisible();
+  remote2->PageVisibilityChanged();
 
   base::RunLoop().RunUntilIdle();
 

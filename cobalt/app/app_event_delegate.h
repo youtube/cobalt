@@ -96,9 +96,14 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   void OnRevealAck();
   void OnRevealTimeout();
 
+  // Called when the renderer acknowledges conceal.
+  void OnConcealAck(content::WebContents* web_contents);
+
   // h5vcc_runtime::H5vccRuntimeObserver implementation.
   void OnAllFramesVisible(content::WebContents* web_contents) override;
   void OnStartWaitingForReveal(content::WebContents* web_contents) override;
+  void OnAllFramesConcealed(content::WebContents* web_contents) override;
+  void OnAllFramesBlurred(content::WebContents* web_contents) override;
 
   bool IsRunning() const;
   bool IsVisible() const;
@@ -126,6 +131,25 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   void ExecuteNextStepOnUIThread();
   void ExecuteNextStepOnUIThreadLocked(bool schedule_next_step);
 
+  h5vcc_runtime::PendingAck GetNeededAck(ApplicationState current_state,
+                                         bool is_activating) const {
+    if (is_activating) {
+      if (current_state == ApplicationState::kConcealed) {
+        return h5vcc_runtime::PendingAck::kReveal;
+      }
+      return h5vcc_runtime::PendingAck::kNone;
+    } else {
+      switch (current_state) {
+        case ApplicationState::kStarted:
+          return h5vcc_runtime::PendingAck::kBlur;
+        case ApplicationState::kBlurred:
+          return h5vcc_runtime::PendingAck::kConceal;
+        default:
+          return h5vcc_runtime::PendingAck::kNone;
+      }
+    }
+  }
+
   bool IsRunningLocked() const;
   bool IsVisibleLocked() const;
   bool IsFocusedLocked() const;
@@ -142,6 +166,8 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   bool is_transitioning_ = false;
 
   base::OnceClosure transition_quit_closure_;
+
+  h5vcc_runtime::PendingAck pending_ack_ = h5vcc_runtime::PendingAck::kNone;
 
   // Set of WebContents that are currently waiting for reveal acknowledgment
   // from the renderer (Reveal ACK). Focus transitions are deferred until all
