@@ -1107,7 +1107,7 @@ class PlayerImpl : public Player {
   void Seek(int64_t seek_to_timestamp, int ticket) override;
   bool SetRate(double rate) override;
   void GetInfo(SbPlayerInfo* info) override;
-  void SetBounds(int zindex, int x, int y, int w, int h) override;
+  void SetBounds(int zindex, const ::starboard::Rect& rect) override;
 
   GstElement* GetPipeline() const { return pipeline_;  }
   bool IsValid() const { return playback_thread_.joinable(); }
@@ -1192,14 +1192,10 @@ class PlayerImpl : public Player {
   };
 
   struct PendingBounds {
-    PendingBounds() : x{0}, y{0}, w{0}, h{0} {}
-    PendingBounds(int ix, int iy, int iw, int ih)
-        : x{ix}, y{iy}, w{iw}, h{ih} {}
-    bool IsEmpty() { return w == 0 && h == 0; }
-    int x;
-    int y;
-    int w;
-    int h;
+    PendingBounds() : rect{} {}
+    PendingBounds(const ::starboard::Rect& irect) : rect{irect} {}
+    bool IsEmpty() { return rect.size == ::starboard::Size(); }
+    ::starboard::Rect rect;
   };
 
   using PendingSamples = std::vector<PendingSample>;
@@ -1687,7 +1683,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
           if (video_codec_ != kSbMediaVideoCodecNone && !pending_bounds_.IsEmpty()) {
             PendingBounds bounds = pending_bounds_;
             pending_bounds_ = {};
-            SetBounds(0, bounds.x, bounds.y, bounds.w, bounds.h);
+            SetBounds(0, bounds.rect);
           }
 
           if (is_rate_pending && GST_STATE(pipeline_) == GST_STATE_PLAYING) {
@@ -2604,17 +2600,17 @@ void PlayerImpl::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->playback_rate = rate_;
 }
 
-void PlayerImpl::SetBounds(int zindex, int x, int y, int w, int h) {
-  GST_TRACE_OBJECT(pipeline_, "Set Bounds: %d %d %d %d %d", zindex, x, y, w, h);
+void PlayerImpl::SetBounds(int zindex, const ::starboard::Rect& rect) {
+  GST_TRACE_OBJECT(pipeline_, "Set Bounds: %d %d %d %d %d", zindex, rect.x, rect.y, rect.size.width, rect.size.height);
   GstElement* vid_sink = nullptr;
   g_object_get(pipeline_, "video-sink", &vid_sink, nullptr);
   if (vid_sink && g_object_class_find_property(G_OBJECT_GET_CLASS(vid_sink),
                                                "rectangle")) {
-    gchar* rect = g_strdup_printf("%d,%d,%d,%d", x, y, w, h);
-    g_object_set(vid_sink, "rectangle", rect, nullptr);
-    g_free(rect);
+    gchar* rect_str = g_strdup_printf("%d,%d,%d,%d", rect.x, rect.y, rect.size.width, rect.size.height);
+    g_object_set(vid_sink, "rectangle", rect_str, nullptr);
+    g_free(rect_str);
   } else {
-    pending_bounds_ = PendingBounds{x, y, w, h};
+    pending_bounds_ = PendingBounds{rect};
   }
   if (vid_sink)
     gst_object_unref(GST_OBJECT(vid_sink));

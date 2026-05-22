@@ -33,8 +33,8 @@ VideoRendererSinkImpl::VideoRendererSinkImpl(JobQueue* job_queue,
 VideoRendererSinkImpl::~VideoRendererSinkImpl() {
   SB_CHECK(BelongsToCurrentThread());
 
-  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
-                                  0, 0, 0);
+  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(),
+                                  /*z_index=*/0, Rect::kEmpty);
 }
 
 void VideoRendererSinkImpl::SetRenderCB(RenderCB render_cb) {
@@ -46,18 +46,11 @@ void VideoRendererSinkImpl::SetRenderCB(RenderCB render_cb) {
   Schedule(std::bind(&VideoRendererSinkImpl::Update, this));
 }
 
-void VideoRendererSinkImpl::SetBounds(int z_index,
-                                      int x,
-                                      int y,
-                                      int width,
-                                      int height) {
+void VideoRendererSinkImpl::SetBounds(int z_index, const Rect& rect) {
   std::lock_guard lock(mutex_);
 
   z_index_ = z_index;
-  x_ = x;
-  y_ = y;
-  width_ = width;
-  height_ = height;
+  rect_ = rect;
 }
 
 void VideoRendererSinkImpl::Update() {
@@ -73,8 +66,7 @@ VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
-  Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
-                                  height_);
+  Application::Get()->HandleFrame(player_, frame, z_index_, rect_);
   return kNotReleased;
 }
 
