@@ -1,7 +1,6 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-
 # Chrobalt ATV: Engineering Setup & Development Guide
 
 Welcome to **Chrobalt ATV**! This guide is designed to onboard new software engineers to development on Cobalt for Android TV (ATV) running on the Chromium browser engine.
@@ -11,7 +10,8 @@ Welcome to **Chrobalt ATV**! This guide is designed to onboard new software engi
 ## 1. Welcome & Architectural Overview
 
 ### What is Chrobalt?
-**Chrobalt** is the project codename for Cobalt versions 26 and later. Starting with v26, Cobalt transitioned from a standalone repository structure to running directly inside the upstream Chromium repository architecture. 
+
+**Chrobalt** is the project codename for Cobalt versions 26 and later. Starting with v26, Cobalt transitioned from a standalone repository structure to running directly inside the upstream Chromium repository architecture.
 
 * **Chrobalt ATV** is built natively using Chromium’s `GN` and `Ninja` build systems.
 * **Shared Engine Implementation**: The core browser engine and Starboard media adaptations are compiled into a single shared library named `libchrobalt.so`.
@@ -46,6 +46,7 @@ export PATH="$PATH:$HOME/depot_tools"
 There are two supported approaches to configuring your local Chrobalt ATV checkout.
 
 ### Option A: Automated Checkout Setup (Recommended)
+
 If you are initializing a fresh workspace, you can utilize the automated Cobalt checkout orchestration script located in the repository tools:
 
 ```bash
@@ -53,6 +54,7 @@ python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-i
 ```
 
 ### Option B: Standard Chromium Checkout (Manual)
+
 If you prefer managing the checkout manually or are converting an existing Linux Chromium checkout:
 
 1. **Fetch the Android Source Tree**:
@@ -90,6 +92,7 @@ If you prefer managing the checkout manually or are converting an existing Linux
 Chrobalt ATV uses `GN` to generate build files. You can maintain multiple build directories (e.g., `out/android-arm_qa/`).
 
 ### Core Build Variables
+
 When configuring your build environment, Chrobalt ATV relies on several crucial GN variables defined in `//cobalt/build/configs/`:
 
 | GN Variable | Chrobalt ATV Value | Purpose |
@@ -97,11 +100,12 @@ When configuring your build environment, Chrobalt ATV relies on several crucial 
 | `target_os` | `"android"` | Sets the target operating system to Android. |
 | `is_cobalt` | `true` | Enables Cobalt-specific browser and runtime overrides. |
 | `is_androidtv` | `true` | Optimizes UI, input, and media pipelines for Android TV. |
-| `use_starboard_media`| `true` | Integrates Starboard hardware decoding & DRM pipelines. |
+| `use_starboard_media` | `true` | Integrates Starboard hardware decoding & DRM pipelines. |
 | `is_starboard` | `false` | Disables legacy standalone Starboard OS wrappers. |
 | `use_evergreen` | `false` | Disables Cobalt Evergreen binary updaters (native APK build). |
 
 ### Build Flavors
+
 Choose your target optimization level via `build_type`:
 
 * **`debug`** (`is_debug=true`, `is_official_build=false`): Full unstripped debug symbols, zero optimization. Best for step-by-step C++ debugging.
@@ -110,6 +114,7 @@ Choose your target optimization level via `build_type`:
 * **`gold`** (`is_debug=false`, `is_official_build=true`): Production release build.
 
 ### Initializing a Build Directory
+
 To generate your Ninja configuration, execute `gn args`:
 
 ```bash
@@ -136,6 +141,7 @@ build_type = "qa"       # Options: "debug", "devel", "qa", "gold"
 Chrobalt ATV packages its implementation into `Cobalt.apk` defined in `//cobalt/android/BUILD.gn`.
 
 ### Building the Application APK
+
 Use `autoninja` (which automatically optimizes core utilization) to build the target:
 
 ```bash
@@ -151,7 +157,8 @@ out/android-arm_qa/apks/Cobalt.apk
 
 ## 6. Device Deployment & Execution
 
-### 1. Device Setup
+### Device Setup
+
 1. On your Android TV / Google TV device, navigate to **Settings > System > About**.
 2. Highlight **Android TV OS build** and click the select button 7 times until the "You are now a developer" toast appears.
 3. Go back to **Settings > System > Developer options** and enable **USB debugging**.
@@ -160,14 +167,16 @@ out/android-arm_qa/apks/Cobalt.apk
    adb devices
    ```
 
-### 2. Installing the APK
+### Installing the APK
+
 You can install the compiled APK directly via `adb`:
 
 ```bash
 adb install -r out/android-arm_qa/apks/Cobalt.apk
 ```
 
-### 3. Launching with Command-Line Arguments
+### Launching with Command-Line Arguments
+
 Chrobalt ATV uses a unified string array parameter `--esa commandLineArgs` to pass configuration switches and feature flags directly to the runtime.
 
 **Basic Launch**:
@@ -193,17 +202,17 @@ adb shell am force-stop dev.cobalt.coat
 
 ---
 
-## Debugging, Logging & Testing
+## 7. Debugging, Logging & Testing
 
 ### Viewing Logs (Logcat)
+
 Cobalt logs output to standard Android logcat. To monitor execution and filter specifically for Cobalt/Starboard events:
 
 ```bash
 adb logcat -s "starboard:*" "Cobalt:*" "chromium:*"
 ```
 
-
-## Environment Cleanup
+## 8. Environment Cleanup
 
 If you ever need to completely reset your Android build environment, remove signing keys, or purge cached SDK/NDK toolchains:
 
