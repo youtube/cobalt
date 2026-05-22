@@ -39,24 +39,25 @@ public final class Log {
   private Log() {}
 
   private static void initLogging() {
-    sLogV = getLogMethod("v");
-    sLogD = getLogMethod("d");
-    sLogI = getLogMethod("i");
-    sLogW = getLogMethod("w");
-    sLogE = getLogMethod("e");
-  }
-
-  private static Method getLogMethod(String methodName) {
     try {
-      return org.chromium.base.Log.class.getDeclaredMethod(
-          methodName, String.class, String.class, Throwable.class);
+      sLogV =
+          org.chromium.base.Log.class.getDeclaredMethod(
+              "v", String.class, String.class, Throwable.class);
+      sLogD =
+          org.chromium.base.Log.class.getDeclaredMethod(
+              "d", String.class, String.class, Throwable.class);
+      sLogI =
+          org.chromium.base.Log.class.getDeclaredMethod(
+              "i", String.class, String.class, Throwable.class);
+      sLogW =
+          org.chromium.base.Log.class.getDeclaredMethod(
+              "w", String.class, String.class, Throwable.class);
+      sLogE =
+          org.chromium.base.Log.class.getDeclaredMethod(
+              "e", String.class, String.class, Throwable.class);
     } catch (Throwable e) {
-      // We catch Throwable to handle NoClassDefFoundError if the R8 compiler
-      // completely strips the org.chromium.base.Log class, preventing a startup crash.
-      // This failure is safely ignorable as logging is a non-critical helper feature
-      // and the application should still boot normally even if logging is disabled.
+      // ignore
     }
-    return null;
   }
 
   private static Throwable getThrowableToLog(Object[] args) {
