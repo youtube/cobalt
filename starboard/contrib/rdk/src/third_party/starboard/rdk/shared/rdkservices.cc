@@ -409,9 +409,9 @@ public:
       notify_on_change &= (is_voice_guidance_enabled_ != enabled);
       is_voice_guidance_enabled_ = enabled;
     }
-    if (notify_on_change && Application::Get()) {
+    if (notify_on_change && ApplicationRdk::Get()) {
       SB_LOG(INFO) << "Accessibility voice guidance setting changed, enabled = " << enabled;
-      Application::Get()->InjectAccessibilityTextToSpeechSettingsChanged(enabled);
+      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged(enabled);
     }
   }
 
@@ -1005,7 +1005,7 @@ void DisplayInfoImpl::OnUpdated(const Core::JSON::String&) {
     SbEventSchedule([](void* data) {
       // Clear mime cache until display info is updated
       MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-      Application::Get()->DisplayInfoChanged();
+      ApplicationRdk::Get()->DisplayInfoChanged();
     }, nullptr, 0);
   }
 }
@@ -1122,9 +1122,9 @@ private:
       if (is_connected_.load() != has_connected_interface) {
         is_connected_.store(has_connected_interface);
         if (has_connected_interface)
-          Application::Get()->InjectOsNetworkConnectedEvent();
+          ApplicationRdk::Get()->InjectOsNetworkConnectedEvent();
         else
-          Application::Get()->InjectOsNetworkDisconnectedEvent();
+          ApplicationRdk::Get()->InjectOsNetworkDisconnectedEvent();
       }
     }
 

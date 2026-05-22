@@ -1513,7 +1513,6 @@ PlayerImpl::PlayerImpl(SbPlayer player,
 
   if (drm_system_) {
 #if defined(HAS_OCDM)
-    using DrmSystemOcdm;
     reinterpret_cast<DrmSystemOcdm*>( drm_system_ )->AddRef();
 #endif
     GstContext* context = gst_context_new("cobalt-drm-system", FALSE);
@@ -1579,7 +1578,6 @@ PlayerImpl::~PlayerImpl() {
   g_object_unref(pipeline_);
   if (drm_system_) {
 #if defined(HAS_OCDM)
-    using DrmSystemOcdm;
     reinterpret_cast<DrmSystemOcdm*>( drm_system_ )->Release();
 #endif
   }

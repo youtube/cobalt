@@ -48,13 +48,13 @@
 
 namespace starboard {
 
-class Application : public QueueApplication {
+class ApplicationRdk : public QueueApplication {
  public:
-  explicit Application(SbEventHandleCallback sb_event_handle_callback);
-  ~Application() override;
+  explicit ApplicationRdk(SbEventHandleCallback sb_event_handle_callback);
+  ~ApplicationRdk() override;
 
-  static Application* Get() {
-    return static_cast<Application*>(Application::Get());
+  static ApplicationRdk* Get() {
+    return static_cast<ApplicationRdk*>(Application::Get());
   }
 
   SbWindow CreateSbWindow(const SbWindowOptions* options);

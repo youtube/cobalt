@@ -632,8 +632,7 @@ void DrmSystemOcdm::UpdateServerCertificate(int ticket,
       "Error");
 }
 
-SbDrmSystemPrivate::DecryptStatus DrmSystemOcdm::Decrypt(
-    InputBuffer* buffer) {
+SbDrmSystemPrivate::DecryptStatus DrmSystemOcdm::Decrypt(InputBuffer* buffer) {
   SB_NOTREACHED();
   return kFailure;
 }

@@ -81,20 +81,20 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   stack_size.rlim_cur = 2 * 1024 * 1024;
   setrlimit(RLIMIT_STACK, &stack_size);
 
-  InstallSuspendSignalHandlers();
-  InstallStopSignalHandlers();
+  starboard::InstallSuspendSignalHandlers();
+  starboard::InstallStopSignalHandlers();
 
   GError* error = NULL;
   gst_init_check(NULL, NULL, &error);
   g_free(error);
 
-  Application application(callback);
+  starboard::ApplicationRdk application(callback);
   int result = application.Run(argc, argv);
 
   gst_deinit();
 
-  UninstallStopSignalHandlers();
-  UninstallSuspendSignalHandlers();
+  starboard::UninstallStopSignalHandlers();
+  starboard::UninstallSuspendSignalHandlers();
 
   return result;
 }
