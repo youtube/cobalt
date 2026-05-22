@@ -9,9 +9,8 @@
 #include "content/public/common/buildflags.h"
 
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138 || BUILDFLAG(ENABLE_INTEREST_GROUPS)
-#include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"
+#include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"  // nogncheck
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138 || BUILDFLAG(ENABLE_INTEREST_GROUPS)
-#include "content/browser/interest_group/ad_auction_url_loader_interceptor.h"
 #if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/interest_group/ad_auction_url_loader_interceptor.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)

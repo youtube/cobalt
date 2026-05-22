@@ -58,7 +58,9 @@
 #include "content/web_test/browser/web_test_fedcm_manager.h"
 #include "content/web_test/browser/web_test_origin_trial_throttle.h"
 #include "content/web_test/browser/web_test_permission_manager.h"
-#include "content/web_test/browser/web_test_privacy_sandbox.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/web_test/browser/web_test_privacy_sandbox.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/web_test/browser/web_test_sensor_provider_manager.h"
 #include "content/web_test/browser/web_test_storage_access_manager.h"
 #include "content/web_test/browser/web_test_tts_platform.h"
@@ -579,9 +581,11 @@ void WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<blink::test::mojom::WebSensorProviderAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebSensorProviderAutomation,
       base::Unretained(this)));
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   map->Add<blink::test::mojom::WebPrivacySandboxAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebPrivacySandboxAutomation,
       base::Unretained(this)));
+#endif
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
   map->Add<blink::test::mojom::WebPressureManagerAutomation>(
@@ -677,6 +681,7 @@ void WebTestContentBrowserClient::ResetWebSensorProviderAutomation() {
   sensor_provider_manager_.reset();
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 void WebTestContentBrowserClient::BindWebPrivacySandboxAutomation(
     RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<blink::test::mojom::WebPrivacySandboxAutomation>
@@ -685,6 +690,7 @@ void WebTestContentBrowserClient::BindWebPrivacySandboxAutomation(
       WebContents::FromRenderFrameHost(render_frame_host))
       ->Bind(std::move(receiver));
 }
+#endif
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
 void WebTestContentBrowserClient::BindWebPressureManagerAutomation(

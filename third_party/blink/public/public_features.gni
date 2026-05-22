@@ -17,6 +17,7 @@ declare_args() {
   use_webrtc_peer_connection = !is_cobalt
 
   # If true, enables the Interest Groups (Ad Auction) module.
+  # TODO(b/460501344): consider picking a different gn arg name.
   enable_interest_groups = !is_cobalt
 }
 

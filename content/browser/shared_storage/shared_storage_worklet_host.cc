@@ -27,7 +27,7 @@
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 #include "third_party/blink/public/common/buildflags.h"
 #if BUILDFLAG(ENABLE_INTEREST_GROUPS)
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"

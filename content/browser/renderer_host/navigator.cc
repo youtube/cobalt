@@ -17,7 +17,7 @@
 #include "base/types/optional_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)  // nogncheck
 #include "content/browser/interest_group/interest_group_features.h"
 #endif
 #include "content/browser/process_lock.h"

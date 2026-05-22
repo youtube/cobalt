@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "content/web_test/common/fake_bluetooth_chooser.mojom-forward.h"
 #include "content/web_test/common/web_test.mojom-forward.h"
@@ -196,10 +197,12 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       mojo::PendingReceiver<blink::test::mojom::WebPressureManagerAutomation>
           receiver);
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   void BindWebPrivacySandboxAutomation(
       RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<blink::test::mojom::WebPrivacySandboxAutomation>
           receiver);
+#endif
 
   void BindWebTestControlHost(
       int render_process_id,
