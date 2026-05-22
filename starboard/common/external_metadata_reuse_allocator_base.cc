@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2014 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/in_place_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <tuple>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/common/pointer_arithmetic.h"
 
 namespace starboard {
 
 namespace {
+
+// Minimum block size to avoid extremely small blocks inside the block list and
+// to ensure that a zero sized allocation will return a non-zero sized block.
+const size_t kMinBlockSizeBytes = 16;
 
 int ceil_power_2(int i) {
   SB_DCHECK_GE(i, 0);
@@ -41,7 +47,8 @@ int ceil_power_2(int i) {
 
 }  // namespace
 
-bool InPlaceReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
+bool ExternalMetadataReuseAllocatorBase::MemoryBlock::Merge(
+    const MemoryBlock& other) {
   SB_DCHECK_GE(fallback_allocation_index_, 0);
   SB_DCHECK_GE(other.fallback_allocation_index_, 0);
 
@@ -62,7 +69,7 @@ bool InPlaceReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
   return false;
 }
 
-bool InPlaceReuseAllocatorBase::MemoryBlock::CanFulfill(
+bool ExternalMetadataReuseAllocatorBase::MemoryBlock::CanFulfill(
     size_t request_size,
     size_t alignment) const {
   SB_DCHECK_GE(fallback_allocation_index_, 0);
@@ -73,21 +80,16 @@ bool InPlaceReuseAllocatorBase::MemoryBlock::CanFulfill(
   return size_ >= aligned_size;
 }
 
-void InPlaceReuseAllocatorBase::MemoryBlock::Allocate(size_t request_size,
-                                                      size_t alignment,
-                                                      bool allocate_from_front,
-                                                      MemoryBlock* allocated,
-                                                      MemoryBlock* free) const {
+void ExternalMetadataReuseAllocatorBase::MemoryBlock::Allocate(
+    size_t request_size,
+    size_t alignment,
+    bool allocate_from_front,
+    MemoryBlock* allocated,
+    MemoryBlock* free) const {
   SB_DCHECK_GE(fallback_allocation_index_, 0);
   SB_DCHECK(allocated);
   SB_DCHECK(free);
   SB_DCHECK(CanFulfill(request_size, alignment));
-
-  // Minimum block size to avoid extremely small blocks inside the block list
-  // and to ensure that a zero sized allocation will return a non-zero sized
-  // block.
-  // TODO: b/399430536 - Cobalt: Tune this for a better value.
-  const size_t kMinBlockSizeBytes = 16 + sizeof(BlockMetadata);
 
   // First we assume that the block is just enough to fulfill the allocation and
   // leaves no free block.
@@ -134,23 +136,13 @@ void InPlaceReuseAllocatorBase::MemoryBlock::Allocate(size_t request_size,
   }
 }
 
-void* InPlaceReuseAllocatorBase::Allocate(size_t size) {
+void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size) {
   return Allocate(size, 1);
 }
 
-void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
-  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
-
-  if (!pending_frees_.empty()) {
-    for (auto address_to_free : pending_frees_) {
-      bool freed = TryFree(address_to_free);
-      SB_DCHECK(freed);
-    }
-    pending_frees_.clear();
-  }
-
-  size = AlignUp(std::max(size, kMinAlignment), kMinAlignment) +
-         sizeof(BlockMetadata);
+void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
+                                                   size_t alignment) {
+  size = AlignUp(std::max(size, kMinAlignment), kMinAlignment);
   alignment = AlignUp(std::max<size_t>(alignment, 1), kMinAlignment);
 
   bool allocate_from_front;
@@ -180,63 +172,18 @@ void* InPlaceReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
     SB_DCHECK(free_block.address());
     AddFreeBlock(free_block);
   }
-
-  SB_DCHECK_EQ(
-      reinterpret_cast<intptr_t>(allocated_block.address()) % alignment, 0U);
-  SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
-
-  void* user_address =
-      static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
-
-  AddAllocatedBlock(allocated_block);
+  void* user_address = AlignUp(allocated_block.address(), alignment);
+  AddAllocatedBlock(user_address, allocated_block);
 
   return user_address;
 }
 
-void InPlaceReuseAllocatorBase::Free(void* memory) {
-  if (memory == nullptr) {
-    return;
-  }
-
-  pending_frees_.push_back(memory);
-
-  if (pending_frees_.size() == total_allocated_blocks_) {
-    if (total_allocated_blocks_ > 32) {
-      SB_LOG_IF(INFO, total_allocated_blocks_ > 2048)
-          << "Batched free triggered for " << total_allocated_blocks_
-          << " blocks.";
-      allocated_block_head_ = nullptr;
-      free_blocks_.clear();
-      pending_frees_.clear();
-
-      total_allocated_in_bytes_ = 0;
-      total_allocated_blocks_ = 0;
-
-      for (int i = 0; i < static_cast<int>(fallback_allocations_.size()); ++i) {
-        AddFreeBlock(MemoryBlock(i, fallback_allocations_[i].address,
-                                 fallback_allocations_[i].size));
-      }
-
-      if (enable_decommit_on_idle_) {
-        SB_LOG(INFO) << "Batched free triggered idle state, decommitting "
-                     << fallback_allocations_.size()
-                     << " fallback allocations.";
-        for (const auto& fallback_allocation : fallback_allocations_) {
-          fallback_allocator_->Decommit(fallback_allocation.address,
-                                        fallback_allocation.size);
-        }
-      }
-    } else {
-      for (auto address_to_free : pending_frees_) {
-        bool freed = TryFree(address_to_free);
-        SB_DCHECK(freed);
-      }
-      pending_frees_.clear();
-    }
-  }
+void ExternalMetadataReuseAllocatorBase::Free(void* memory) {
+  bool result = TryFree(memory);
+  SB_DCHECK(result);
 }
 
-void InPlaceReuseAllocatorBase::PrintAllocations(
+void ExternalMetadataReuseAllocatorBase::PrintAllocations(
     bool align_allocated_size,
     int max_allocations_to_print) const {
   struct HistogramEntry {
@@ -252,10 +199,8 @@ void InPlaceReuseAllocatorBase::PrintAllocations(
   max_allocations_to_print = std::max(max_allocations_to_print, 1);
 
   // Logging the allocated blocks
-  BlockMetadata* head = allocated_block_head_;
-
-  while (head != nullptr) {
-    size_t size = head->size;
+  for (auto&& block : allocated_blocks_) {
+    size_t size = block.second.size();
     size_t size_as_key = align_allocated_size ? ceil_power_2(size) : size;
     HistogramEntry& entry = allocated_histogram[size_as_key];
 
@@ -263,32 +208,28 @@ void InPlaceReuseAllocatorBase::PrintAllocations(
     entry.min = std::min(entry.min, size);
     entry.max = std::max(entry.max, size);
     entry.total += size;
-
-    head = head->next;
   }
 
+  size_t capacity = GetCapacity();
   int64_t allocated_percentage =
-      capacity_in_bytes_ == 0
-          ? 0
-          : static_cast<int64_t>(total_allocated_in_bytes_) * 100 /
-                capacity_in_bytes_;
-  SB_LOG(INFO) << "Allocated " << total_allocated_in_bytes_ << " bytes ("
+      capacity == 0 ? 0
+                    : static_cast<int64_t>(total_allocated_) * 100 / capacity;
+  SB_LOG(INFO) << "Allocated " << total_allocated_ << " bytes ("
                << allocated_percentage << "%) from a pool of capacity "
-               << capacity_in_bytes_ << " bytes.  There are "
-               << capacity_in_bytes_ - total_allocated_in_bytes_
-               << " free bytes.";
-  SB_LOG(INFO) << "Total allocated block: " << total_allocated_blocks_;
+               << capacity << " bytes.  There are "
+               << capacity - total_allocated_ << " free bytes.";
+  SB_LOG(INFO) << "Total allocated block: " << allocated_blocks_.size();
 
   int lines = 0;
   size_t accumulated_blocks = 0;
 
   for (auto&& iter : allocated_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        static_cast<int>(allocated_histogram.size()) >
-            max_allocations_to_print) {
+        allocated_histogram.size() >
+            static_cast<size_t>(max_allocations_to_print)) {
       SB_LOG(INFO) << "\t[" << allocated_histogram.rbegin()->second.min << ", "
                    << iter.second.max
-                   << "] : " << total_allocated_blocks_ - accumulated_blocks;
+                   << "] : " << allocated_blocks_.size() - accumulated_blocks;
       break;
     }
 
@@ -319,7 +260,7 @@ void InPlaceReuseAllocatorBase::PrintAllocations(
 
   for (auto&& iter : free_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        static_cast<int>(free_histogram.size()) > max_allocations_to_print) {
+        free_histogram.size() > static_cast<size_t>(max_allocations_to_print)) {
       SB_LOG(INFO) << "\t[" << free_histogram.rbegin()->first << ", "
                    << iter.first
                    << "] : " << free_blocks_.size() - accumulated_blocks;
@@ -332,80 +273,48 @@ void InPlaceReuseAllocatorBase::PrintAllocations(
   }
 }
 
-bool InPlaceReuseAllocatorBase::TryFree(void* memory) {
+bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
   if (!memory) {
     return true;
   }
 
-  BlockMetadata* metadata = static_cast<BlockMetadata*>(memory) - 1;
-
-  if (metadata->signature != this || metadata->fallback_index < 0 ||
-      static_cast<size_t>(metadata->fallback_index) >=
-          fallback_allocations_.size()) {
+  AllocatedBlockMap::iterator it = allocated_blocks_.find(memory);
+  if (it == allocated_blocks_.end()) {
     return false;
   }
 
-  // Detach the node from the linked list
-  if (metadata->previous != nullptr) {
-    SB_DCHECK_EQ(metadata->previous->next, metadata);
-    metadata->previous->next = metadata->next;
-  }
-  if (metadata->next != nullptr) {
-    SB_DCHECK_EQ(metadata->next->previous, metadata);
-    metadata->next->previous = metadata->previous;
-  }
-
-  // Update the head, if the node is the head.
-  if (metadata->previous == nullptr) {
-    SB_DCHECK_EQ(metadata, allocated_block_head_);
-
-    allocated_block_head_ = metadata->next;
-
-    if (metadata->next) {
-      // It should have been updated during detaching above.
-      SB_DCHECK_EQ(metadata->next->previous, nullptr);
-    }
-  }
-
-  // Mark this block as free and update the allocated data accordingly.
-  MemoryBlock block(metadata->fallback_index, metadata, metadata->size);
+  // Mark this block as free and remove it from the allocated set.
+  const MemoryBlock& block = (*it).second;
   AddFreeBlock(block);
 
-  SB_DCHECK_LE(block.size(), total_allocated_in_bytes_);
-  total_allocated_in_bytes_ -= block.size();
-  --total_allocated_blocks_;
+  SB_DCHECK_LE(block.size(), total_allocated_);
+  total_allocated_ -= block.size();
 
-  if (enable_decommit_on_idle_ && total_allocated_in_bytes_ == 0) {
-    SB_LOG(INFO) << "Allocator reached idle state, decommitting "
-                 << fallback_allocations_.size() << " fallback allocations.";
-    for (const auto& fallback_allocation : fallback_allocations_) {
-      fallback_allocator_->Decommit(fallback_allocation.address,
-                                    fallback_allocation.size);
-    }
+  allocated_blocks_.erase(it);
+
+  if (enable_decommit_on_idle_ && total_allocated_ == 0) {
+    DecommitFallbackAllocations();
   }
 
   return true;
 }
 
-InPlaceReuseAllocatorBase::InPlaceReuseAllocatorBase(
+ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
     Allocator* fallback_allocator,
     size_t initial_capacity,
     size_t allocation_increment,
     size_t max_capacity,
     bool enable_decommit_on_idle)
-    : fallback_allocator_(fallback_allocator),
+    : ReuseAllocatorBase(fallback_allocator, max_capacity),
       allocation_increment_(allocation_increment),
-      max_capacity_in_bytes_(max_capacity),
       enable_decommit_on_idle_(enable_decommit_on_idle) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
     SB_DCHECK(iter != free_blocks_.end());
   }
-
-  pending_frees_.reserve(16 * 1024);
 }
 
-InPlaceReuseAllocatorBase::~InPlaceReuseAllocatorBase() {
+ExternalMetadataReuseAllocatorBase::~ExternalMetadataReuseAllocatorBase() {
   if (ExtraLogLevel() >= 1) {
     SB_LOG(INFO) << "Destroying reuse allocator ...";
     PrintAllocations(true, 16);
@@ -413,16 +322,12 @@ InPlaceReuseAllocatorBase::~InPlaceReuseAllocatorBase() {
 
   // Check that everything was freed.  Note that in some unit tests this may not
   // be the case.
-  SB_LOG_IF(ERROR, allocated_block_head_ != nullptr)
-      << total_allocated_blocks_ << " blocks still allocated.";
-
-  for (const auto& fallback_allocation : fallback_allocations_) {
-    fallback_allocator_->Free(fallback_allocation.address);
-  }
+  SB_LOG_IF(ERROR, allocated_blocks_.size() != 0)
+      << allocated_blocks_.size() << " blocks still allocated.";
 }
 
-InPlaceReuseAllocatorBase::FreeBlockSet::iterator
-InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
+ExternalMetadataReuseAllocatorBase::FreeBlockSet::iterator
+ExternalMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
   if (ExtraLogLevel() >= 1) {
     int capacity = GetCapacity();
     int allocated = GetAllocated();
@@ -437,32 +342,27 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
                  << "%).";
   }
 
-  void* ptr = NULL;
+  void* fallback_address = nullptr;
+  intptr_t fallback_index = -1;
   size_t size_to_try = 0;
   // We try to allocate in unit of |allocation_increment_| to minimize
   // fragmentation.
   if (allocation_increment_ > size) {
     size_to_try = allocation_increment_;
-    if (!max_capacity_in_bytes_ ||
-        capacity_in_bytes_ + size_to_try <= max_capacity_in_bytes_) {
-      ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
-    }
+    std::tie(fallback_address, fallback_index) =
+        AllocateFallbackBlock(&size_to_try, alignment);
   }
-  // |ptr| being null indicates the above allocation failed, or in the rare case
-  // |size| is larger than |allocation_increment_|. Try to allocate a block of
-  // |size| instead for both cases.
-  if (ptr == NULL) {
+  // |fallback_address| being null indicates the above allocation failed,
+  // or in the rare case |size| is larger than |allocation_increment_|. Try to
+  // allocate a block of |size| instead for both cases.
+  if (fallback_address == nullptr) {
     size_to_try = size;
-    if (!max_capacity_in_bytes_ ||
-        capacity_in_bytes_ + size_to_try <= max_capacity_in_bytes_) {
-      ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
-    }
+    std::tie(fallback_address, fallback_index) =
+        AllocateFallbackBlock(&size_to_try, alignment);
   }
-  if (ptr != NULL) {
-    fallback_allocations_.emplace_back(ptr, size_to_try);
-    capacity_in_bytes_ += size_to_try;
+  if (fallback_address != nullptr) {
     auto free_block_iter = AddFreeBlock(MemoryBlock(
-        static_cast<int>(fallback_allocations_.size() - 1), ptr, size_to_try));
+        static_cast<int>(fallback_index), fallback_address, size_to_try));
 
     if (ExtraLogLevel() >= 1) {
       int capacity = GetCapacity();
@@ -473,7 +373,7 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
               : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
 
       SB_LOG(INFO) << "Allocated " << size_to_try
-                   << " bytes from fallback allocator (" << ptr
+                   << " bytes from fallback allocator (" << fallback_address
                    << "), capacity expanded to " << capacity << " with "
                    << capacity - allocated << " bytes free (" << free_percentage
                    << "%)";
@@ -520,21 +420,14 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
   //                     |           |
   // |free_address + free_size|  |aligned_address|
   size_t size_to_allocate = aligned_address + size - free_address - free_size;
-  if (max_capacity_in_bytes_ &&
-      capacity_in_bytes_ + size_to_allocate > max_capacity_in_bytes_) {
-    SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
-    return free_blocks_.end();
-  }
-  SB_DCHECK_GT(size_to_allocate, 0U);
-  ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
-  if (ptr == NULL) {
+  std::tie(fallback_address, fallback_index) =
+      AllocateFallbackBlock(&size_to_allocate, 1);
+  if (fallback_address == nullptr) {
     return free_blocks_.end();
   }
 
-  fallback_allocations_.emplace_back(ptr, size_to_allocate);
-  capacity_in_bytes_ += size_to_allocate;
-  AddFreeBlock(MemoryBlock(static_cast<int>(fallback_allocations_.size() - 1),
-                           ptr, size_to_allocate));
+  AddFreeBlock(MemoryBlock(static_cast<int>(fallback_index), fallback_address,
+                           size_to_allocate));
   FreeBlockSet::iterator iter = free_blocks_.end();
   --iter;
 
@@ -547,7 +440,7 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
             : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
 
     SB_LOG(INFO) << "Allocated " << size_to_allocate
-                 << " bytes from fallback allocator (" << ptr
+                 << " bytes from fallback allocator (" << fallback_address
                  << "), capacity expanded to " << capacity << " with "
                  << capacity - allocated << " bytes free (" << free_percentage
                  << "%)";
@@ -563,33 +456,16 @@ InPlaceReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
   }
 }
 
-void InPlaceReuseAllocatorBase::AddAllocatedBlock(const MemoryBlock& block) {
-  BlockMetadata* metadata = static_cast<BlockMetadata*>(block.address());
-
-  metadata->signature = this;
-  metadata->fallback_index = block.fallback_allocation_index();
-  metadata->size = block.size();
-
-  // The node will be the new head, so let the existing head be its next node.
-  if (allocated_block_head_) {
-    SB_DCHECK_EQ(allocated_block_head_->previous, nullptr);
-
-    allocated_block_head_->previous = metadata;
-    metadata->next = allocated_block_head_;
-  } else {
-    metadata->next = nullptr;
-  }
-
-  // Now set it to the new head
-  metadata->previous = nullptr;
-  allocated_block_head_ = metadata;
-
-  total_allocated_in_bytes_ += block.size();
-  ++total_allocated_blocks_;
+void ExternalMetadataReuseAllocatorBase::AddAllocatedBlock(
+    void* address,
+    const MemoryBlock& block) {
+  SB_DCHECK(allocated_blocks_.find(address) == allocated_blocks_.end());
+  allocated_blocks_[address] = block;
+  total_allocated_ += block.size();
 }
 
-InPlaceReuseAllocatorBase::FreeBlockSet::iterator
-InPlaceReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
+ExternalMetadataReuseAllocatorBase::FreeBlockSet::iterator
+ExternalMetadataReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
   if (free_blocks_.size() == 0) {
     return free_blocks_.insert(block_to_add).first;
   }
@@ -600,7 +476,6 @@ InPlaceReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
   // if one exists.
   FreeBlockSet::iterator right_to_erase = free_blocks_.end();
   FreeBlockSet::iterator left_to_erase = free_blocks_.end();
-  FreeBlockSet::iterator insert_hint = it;
 
   if (it != free_blocks_.end()) {
     MemoryBlock right_block = *it;
@@ -620,18 +495,17 @@ InPlaceReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
   }
 
   if (right_to_erase != free_blocks_.end()) {
-    insert_hint = right_to_erase;
-    ++insert_hint;
     free_blocks_.erase(right_to_erase);
   }
   if (left_to_erase != free_blocks_.end()) {
     free_blocks_.erase(left_to_erase);
   }
 
-  return free_blocks_.insert(insert_hint, block_to_add);
+  return free_blocks_.insert(block_to_add).first;
 }
 
-void InPlaceReuseAllocatorBase::RemoveFreeBlock(FreeBlockSet::iterator it) {
+void ExternalMetadataReuseAllocatorBase::RemoveFreeBlock(
+    FreeBlockSet::iterator it) {
   free_blocks_.erase(it);
 }
 

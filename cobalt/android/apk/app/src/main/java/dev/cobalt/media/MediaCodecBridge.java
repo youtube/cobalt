@@ -72,6 +72,7 @@ class MediaCodecBridge {
   private double mOperatingRate = mPlaybackRate * mFps;
   private boolean mSkipVideoFramesOver60Fps = false;
   private final boolean mIsTunnelingPlayback;
+  private final boolean mEnableFrameRendererListener;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
@@ -318,13 +319,17 @@ class MediaCodecBridge {
   }
 
   public MediaCodecBridge(
-      long nativeMediaCodecBridge, MediaCodec mediaCodec, int tunnelModeAudioSessionId) {
+      long nativeMediaCodecBridge,
+      MediaCodec mediaCodec,
+      int tunnelModeAudioSessionId,
+      boolean enableFrameRendererListener) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
+    mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
+    mEnableFrameRendererListener = enableFrameRendererListener;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -402,7 +407,7 @@ class MediaCodecBridge {
         };
     mMediaCodec.get().setCallback(mCallback);
 
-    if (isFrameRenderedCallbackEnabled() || mIsTunnelingPlayback) {
+    if (mEnableFrameRendererListener) {
       mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
@@ -424,13 +429,6 @@ class MediaCodecBridge {
       setupTunnelingPlayback();
     }
     mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
-  }
-
-  @CalledByNative
-  public static boolean isFrameRenderedCallbackEnabled() {
-    // Starting with Android 14, onFrameRendered should be called accurately for each rendered
-    // frame.
-    return Build.VERSION.SDK_INT >= 34;
   }
 
   private boolean isDecodeOnlyFlagEnabled() {
@@ -460,6 +458,7 @@ class MediaCodecBridge {
       int tunnelModeAudioSessionId,
       int maxVideoInputSize,
       boolean enableOutputChecker,
+      boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
@@ -510,7 +509,11 @@ class MediaCodecBridge {
     }
 
     MediaCodecBridge bridge =
-        new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge,
+            mediaCodec,
+            tunnelModeAudioSessionId,
+            enableFrameRendererListener);
     bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
@@ -529,7 +532,7 @@ class MediaCodecBridge {
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
     }
 
-    if (tunnelModeAudioSessionId != -1) {
+    if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
