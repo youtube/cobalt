@@ -67,20 +67,20 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 </enum>
 
 <enum name="SlotSelectionStatus">
-  <summary>Possible status of slot selection by the Loader App</summary>
-  <int value="0" label="UNKNOWN"/>
-  <int value="1" label="CURRENT_SLOT"/>
-  <int value="2" label="ROLL_FORWARD"/>
-  <int value="3" label="ROLL_BACK_OUT_OF_RETRIES"/>
-  <int value="4" label="ROLL_BACK_NO_LIB_FILE"/>
-  <int value="5" label="ROLL_BACK_BAD_APP_KEY_FILE"/>
-  <int value="6" label="ROLL_BACK_SLOT_DRAINING"/>
-  <int value="7" label="ROLL_BACK_FAILED_TO_ADOPT"/>
-  <int value="8" label="ROLL_BACK_FAILED_TO_LOAD_COBALT"/>
-  <int value="9" label="ROLL_BACK_FAILED_TO_CHECK_SABI"/>
-  <int value="10" label="ROLL_BACK_FAILED_TO_LOOK_UP_SYMBOLS"/>
-  <int value="11" label="EVERGREEN_LITE"/>
-  <int value="12" label="LOAD_SYS_IMG_FAILED_TO_INIT_INSTALLATION_MANAGER"/>
+  <summary>Possible status of slot selection by the Loader App.</summary>
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Current slot"/>
+  <int value="2" label="Roll forward"/>
+  <int value="3" label="Roll back: Out of retries"/>
+  <int value="4" label="Roll back: No library file"/>
+  <int value="5" label="Roll back: Bad app key file"/>
+  <int value="6" label="Roll back: Slot draining"/>
+  <int value="7" label="Roll back: Failed to adopt"/>
+  <int value="8" label="Roll back: Failed to load Cobalt"/>
+  <int value="9" label="Roll back: Failed to check SABI"/>
+  <int value="10" label="Roll back: Failed to look up symbols"/>
+  <int value="11" label="Evergreen Lite"/>
+  <int value="12" label="Load system image: Failed to initialize installation manager"/>
 </enum>
 
 <enum name="SplashScreenFetchedState">
