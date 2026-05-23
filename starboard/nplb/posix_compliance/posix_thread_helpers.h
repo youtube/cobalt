@@ -189,8 +189,6 @@ class AbstractTestThread {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   }
 
-  pthread_t GetThread() { return thread_; }
-
  private:
   void Join() {
     if (pthread_join(thread_, NULL) != 0) {
