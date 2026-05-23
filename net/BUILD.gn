@@ -3064,6 +3064,9 @@ target(_test_target_type, "net_unittests") {
       "proxy_resolution/proxy_config_service_android_unittest.cc",
       "ssl/ssl_platform_key_android_unittest.cc",
     ]
+    if (is_cobalt) {
+      sources += [ "cert/internal/trust_store_android_unittest.cc" ]
+    }
   }
 
   if (is_chromeos && use_nss_certs) {
