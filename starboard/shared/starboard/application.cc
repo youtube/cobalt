@@ -68,12 +68,14 @@ volatile SbAtomic32 g_next_event_id = 0;
 Application* Application::g_instance = NULL;
 
 #if SB_API_VERSION >= 15
-Application::Application(SbEventHandleCallback sb_event_handle_callback)
+Application::Application(SbEventHandleCallback sb_event_handle_callback,
+                         bool blocking)
     : error_level_(0),
       thread_(pthread_self()),
       start_link_(NULL),
       state_(kStateUnstarted),
-      sb_event_handle_callback_(sb_event_handle_callback) {
+      sb_event_handle_callback_(sb_event_handle_callback),
+      m_blocking(blocking) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
 #else
@@ -109,7 +111,11 @@ int Application::Run(CommandLine command_line, const char* link_data) {
     SetStartLink(link_data);
   }
 
-  return RunLoop();
+  if (m_blocking) {
+    return RunLoop();
+  } else {
+    return 0;
+  }
 }
 
 int Application::Run(CommandLine command_line) {
@@ -134,7 +140,11 @@ int Application::Run(CommandLine command_line) {
 #endif
   }
 
-  return RunLoop();
+  if (m_blocking) {
+    return RunLoop();
+  } else {
+    return 0;
+  }
 }
 
 const CommandLine* Application::GetCommandLine() {
@@ -509,6 +519,24 @@ int Application::RunLoop() {
     }
   }
 
+  CallTeardownCallbacks();
+  Teardown();
+  return error_level_;
+}
+
+int Application::RunLoop_Part0() {
+  SB_DCHECK(command_line_);
+  if (IsPreloadImmediate()) {
+    DispatchPreload(CurrentMonotonicTime());
+  } else if (IsStartImmediate()) {
+    DispatchStart(CurrentMonotonicTime());
+  }
+  return 0;
+}
+bool Application::RunLoop_Part1() {
+  return DispatchNextEvent();
+}
+int Application::RunLoop_Part2() {
   CallTeardownCallbacks();
   Teardown();
   return error_level_;
