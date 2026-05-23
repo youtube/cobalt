@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//content/public/common/features.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("locks") {
@@ -14,4 +15,8 @@ blink_modules_sources("locks") {
 
   deps =
       [ "//third_party/blink/renderer/modules/shared_storage:shared_storage" ]
+
+  if (disable_privacy_sandbox_apis) {
+    deps -= [ "//third_party/blink/renderer/modules/shared_storage:shared_storage" ]
+  }
 }
