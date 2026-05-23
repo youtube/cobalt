@@ -32,7 +32,7 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
                                    const uint8_t* data, const math::Size& size,
                                    GLenum format, int pitch_in_bytes,
                                    bool bgra_supported) {
-  GLuint texture_handle;
+  GLuint texture_handle = 0;
 
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context);
 

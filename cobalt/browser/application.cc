@@ -89,6 +89,10 @@
 #include "starboard/system.h"
 #include "url/gurl.h"
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+#include "starboard/common/gles_reporter.h"
+#endif
+
 #if SB_IS(EVERGREEN)
 #include "chrome/updater/util.h"
 #endif
@@ -177,7 +181,7 @@ int GetRemoteDebuggingPort() {
       << switches::kWaitForWebDebugger << " switch can't be used when "
       << switches::kRemoteDebuggingPort << " is 0 (disabled).";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-  return uint16_t(remote_debugging_port);
+  return static_cast<uint16_t>(remote_debugging_port);
 }
 #endif  // ENABLE_DEBUGGER
 
@@ -1261,6 +1265,9 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+      starboard::common::gles_tracker::DumpTotalGpuMem();
+#endif
       DLOG(INFO) << "Finished reducing memory usage.";
       break;
     // All of the remaining event types are unexpected:
@@ -1405,6 +1412,15 @@ Application::CValStats::CValStats()
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
                       "Total CPU memory allocated via the app's allocators."),
+      tracked_gpu_buffer_bytes("Memory.GPU.BufferBytes", 0,
+                               "Currently allocated GPU memory estimate, "
+                               "allocated to buffer objects."),
+      tracked_gpu_texture_bytes("Memory.GPU.TextureBytes", 0,
+                                "Currently allocated GPU memory estimate, "
+                                "allocated to texture objects."),
+      tracked_gpu_renderbuffer_bytes("Memory.GPU.RenderBufferBytes", 0,
+                                     "Currently allocated GPU memory estimate, "
+                                     "allocated to renderbuffer objects."),
       app_start_time("Time.Cobalt.Start",
                      base::StartupTimer::StartTime().ToInternalValue(),
                      "Start time of the application in microseconds."),
@@ -1451,6 +1467,14 @@ void Application::UpdatePeriodicStats() {
       static_cast<ssize_t>(SbSystemGetTotalCPUMemory() - used_cpu_memory);
   c_val_stats_.free_cpu_memory = available_memory_;
   c_val_stats_.used_cpu_memory = used_cpu_memory;
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  size_t buffers, textures, renderbuffers;
+  starboard::common::gles_tracker::GetTotalGpuMem(&buffers, &textures,
+                                                  &renderbuffers);
+  c_val_stats_.tracked_gpu_buffer_bytes = buffers;
+  c_val_stats_.tracked_gpu_texture_bytes = textures;
+  c_val_stats_.tracked_gpu_renderbuffer_bytes = renderbuffers;
+#endif
 
   if (used_gpu_memory) {
     *c_val_stats_.free_gpu_memory =
