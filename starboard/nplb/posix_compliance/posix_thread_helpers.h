@@ -20,9 +20,14 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "build/build_config.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/run_in_background_thread_and_wait.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace nplb {
 
@@ -172,15 +177,27 @@ class AbstractTestThread {
     return;
   }
 
+  // A wrapper for Join() that, on tvOS, invokes it on a background GCD queue.
+  // This must be done to avoid a deadlock when the main thread is blocked on
+  // Join() and the worker thread is blocked attempting to invoke code in the
+  // main thread (in AVSBVideoRenderer).
+  void WaitForFinish() {
+#if BUILDFLAG(IS_IOS_TVOS)
+    RunInBackgroundThreadAndWait([this] { Join(); });
+#else
+    Join();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  }
+
+  pthread_t GetThread() { return thread_; }
+
+ private:
   void Join() {
     if (pthread_join(thread_, NULL) != 0) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
     }
   }
 
-  pthread_t GetThread() { return thread_; }
-
- private:
   static void* ThreadEntryPoint(void* ptr) {
 #if defined(__APPLE__)
     pthread_setname_np("AbstractTestThread");
