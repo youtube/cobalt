@@ -44,12 +44,14 @@ std::unique_ptr<uint8_t[]> SoftwareImageData::PassPixelData() {
 }
 
 SoftwareImage::SoftwareImage(std::unique_ptr<SoftwareImageData> source_data) {
+  LOG(WARNING) << "SoftwareImage::SoftwareImage (SoftwareImageData)";
   owned_pixel_data_ = source_data->PassPixelData();
   Initialize(owned_pixel_data_.get(), source_data->GetDescriptor());
 }
 
 SoftwareImage::SoftwareImage(
     uint8_t* source_data, const render_tree::ImageDataDescriptor& descriptor) {
+  LOG(WARNING) << "SoftwareImage::SoftwareImage (ImageDataDescriptor)";
   Initialize(source_data, descriptor);
 }
 

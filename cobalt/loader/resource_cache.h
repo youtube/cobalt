@@ -949,7 +949,7 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
     // Log a warning if we're still over |bytes_to_reclaim_down_to| after
     // attempting to reclaim memory. This can occur validly when the size of
     // the referenced images exceeds the target size.
-    DLOG_IF(WARNING, memory_size_in_bytes_ > bytes_to_reclaim_down_to)
+    LOG_IF(WARNING, memory_size_in_bytes_ > bytes_to_reclaim_down_to)
         << "cached size: " << memory_size_in_bytes_
         << ", target size: " << bytes_to_reclaim_down_to;
   }

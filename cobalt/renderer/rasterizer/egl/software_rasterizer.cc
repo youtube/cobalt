@@ -85,6 +85,7 @@ void SoftwareRasterizer::Submit(
   // The rasterized pixels are still on the CPU, ship them off to the GPU
   // for output to the display.  We must first create a backend GPU texture
   // with the data so that it is visible to the GPU.
+  LOG(WARNING) << "SoftwareRasterizer::Submit creating Texture";
   std::unique_ptr<backend::TextureEGL> output_texture =
       context_->CreateTexture(std::move(bitmap_pixels));
 

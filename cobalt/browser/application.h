@@ -155,6 +155,12 @@ class Application {
 
     base::CVal<base::cval::SizeInBytes, base::CValPublic> free_cpu_memory;
     base::CVal<base::cval::SizeInBytes, base::CValPublic> used_cpu_memory;
+    base::CVal<base::cval::SizeInBytes, base::CValPublic>
+        tracked_gpu_buffer_bytes;
+    base::CVal<base::cval::SizeInBytes, base::CValPublic>
+        tracked_gpu_texture_bytes;
+    base::CVal<base::cval::SizeInBytes, base::CValPublic>
+        tracked_gpu_renderbuffer_bytes;
 
     // GPU memory stats are not always available, so we put them behind
     // base::optional so that we can enable them at runtime depending on system

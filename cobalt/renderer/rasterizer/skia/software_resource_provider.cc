@@ -89,6 +89,7 @@ scoped_refptr<render_tree::Image> SoftwareResourceProvider::CreateImage(
   std::unique_ptr<SoftwareImageData> skia_source_data(
       base::polymorphic_downcast<SoftwareImageData*>(source_data.release()));
 
+  LOG(WARNING) << "SoftwareResourceProvider::CreateImage making SoftwareImage";
   return scoped_refptr<render_tree::Image>(
       new SoftwareImage(std::move(skia_source_data)));
 }
