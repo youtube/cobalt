@@ -20,6 +20,7 @@ import logging
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -116,10 +117,15 @@ def launch_app(args, cmd_args, url):
   if args.platform == "android":
     cmd = [
         "adb", "-s", args.device, "shell", "am", "start", "-n",
-        f"{args.package}/{args.activity}", "--esa", "url", url, "--esa",
+        f"{args.package}/{args.activity}", "-d", f"'{url}'", "--esa",
         "commandLineArgs", cmd_args
     ]
-    run_command(cmd, shell=False)
+    logging.info("  ℹ️ Running CMD: %s", " ".join(cmd))
+    stdout, stderr = run_command(cmd, shell=False)
+    if stderr:
+      logging.warning("  ⚠️ Warning: am start stderr: %s", stderr)
+    if stdout:
+      logging.info("  ℹ️ am start stdout: %s", stdout)
   elif args.platform == "linux":
     flags = cmd_args.split()
     cmd = [args.bin_path] + flags + [args.package, url]
@@ -467,7 +473,7 @@ def main():
       choices=["android", "linux"],
       help="Target platform to profile (android or linux)")
   parser.add_argument(
-      "--device", default="localhost:38879", help="ADB device serial ID")
+      "--device", default="auto", help="ADB device serial ID (or 'auto')")
   parser.add_argument(
       "--bin-path",
       default="./out/linux-x64x11_qa/cobalt",
@@ -513,6 +519,20 @@ def main():
       help="Experiment launch arguments comma-separated list")
 
   args = parser.parse_args()
+
+  if args.platform == "android" and args.device == "auto":
+    # Auto-detect device
+    stdout, _ = run_command(["adb", "devices"])
+    devices = []
+    for line in stdout.split("\n")[1:]:  # skip header
+      line = line.strip()
+      if line and "device" in line:
+        devices.append(line.split()[0])
+    if not devices:
+      logging.error("  ❌ Error: No ADB devices found.")
+      sys.exit(1)
+    args.device = devices[0]
+    logging.info("  ℹ️ Auto-detected ADB device: %s", args.device)
 
   if args.runs < 3:
     logging.warning("⚠️ Warning: N < 3 runs is statistically too small "
@@ -576,10 +596,14 @@ def main():
       f.write("Playback.DroppedFrames\n")
 
     # Format space-separated flags and append remote-debugging-port dynamically
-    b_args_clean = args.baseline_args.replace(",", " ")
-    e_args_clean = args.experiment_args.replace(",", " ")
-    b_args = f"{b_args_clean} --remote-debugging-port={args.port}"
-    e_args = f"{e_args_clean} --remote-debugging-port={args.port}"
+    if args.platform == "android":
+      b_args = f"{args.baseline_args},--remote-debugging-port={args.port}"
+      e_args = f"{args.experiment_args},--remote-debugging-port={args.port}"
+    else:
+      b_args_clean = args.baseline_args.replace(",", " ")
+      e_args_clean = args.experiment_args.replace(",", " ")
+      b_args = f"{b_args_clean} --remote-debugging-port={args.port}"
+      e_args = f"{e_args_clean} --remote-debugging-port={args.port}"
 
     baseline_sweep_config = {
         "cmd_args": b_args,

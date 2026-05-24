@@ -21,7 +21,7 @@ CUJS = {
     },
     "watch": {
         "name": "WATCH CUJ (Direct Video Playback)",
-        "url": "https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g",
+        "url": "https://www.youtube.com/tv?v=nxcKFjP5QrE",
         "is_random_nav": False,
     },
     "baseline": {
@@ -31,7 +31,7 @@ CUJS = {
     },
     "combined": {
         "name": "COMBINED CUJ (Watch Playback + UI Browse)",
-        "url": "https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g",
+        "url": "https://www.youtube.com/tv?v=nxcKFjP5QrE",
         "is_random_nav": True,
     },
 }
