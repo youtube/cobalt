@@ -487,6 +487,9 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 // |sample_infos|: A pointer to an array of SbPlayerSampleInfo with
 // |number_of_sample_infos| elements, each holds the data for an sample, i.e.
 // a sequence of whole NAL Units for video, or a complete audio frame.
+// The media configuration (such as codec or MIME type) specified in
+// |sample_infos| may differ from the configuration used to initialize
+// |player|; it is valid for this configuration to change between writes.
 // |sample_infos| cannot be assumed to live past the call into
 // SbPlayerWriteSamples(), so it must be copied if its content will be used
 // after SbPlayerWriteSamples() returns.
