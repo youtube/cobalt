@@ -52,6 +52,8 @@ GRANULAR_METRICS = [
     "BlinkParser", "PlatformIPC", "PlatformStarboard"
 ]
 
+CORE_GC_HISTOGRAMS = ["BlinkGC.MemoryAllocated", "BlinkGC.MemoryUsed"]
+
 
 def run_command(cmd, shell=False, timeout=30):
   """Executes a shell command synchronously with safety timeout limits."""
@@ -139,23 +141,39 @@ def launch_app(args, cmd_args, url):
 
 
 def capture_memory_rss(device, package, platform, pid=None):
-  """Extracts Resident Set Size (RSS) footprint in MB from dumpsys or procfs."""
+  """Extracts RSS footprint in MB and native fragmentation."""
+  total_rss_mb = None
+  native_frag_pct = None
+
   if platform == "android":
     stdout, stderr = run_command(
         ["adb", "-s", device, "shell", "dumpsys", "meminfo", package])
     if not stdout:
       if stderr:
         logging.warning("  ⚠️ Warning: dumpsys meminfo failed: %s", stderr)
-      return None
+      return None, None
 
     for line in stdout.split("\n"):
       line = line.strip()
+      if line.startswith("Native Heap"):
+        parts = line.split()
+        if len(parts) >= 10:
+          try:
+            heap_size = int(parts[7])
+            heap_free = int(parts[9])
+            if heap_size > 0:
+              native_frag_pct = (heap_free / heap_size) * 100
+          except ValueError:
+            pass
+
       if "TOTAL:" in line or "TOTAL" in line:
         parts = [p for p in line.split() if p.isdigit()]
         if parts:
           val_kb = int(parts[0])
-          val_mb = val_kb / 1024.0
-          return val_mb
+          total_rss_mb = val_kb / 1024.0
+
+    return total_rss_mb, native_frag_pct
+
   elif platform == "linux" and pid:
     try:
       with open(f"/proc/{pid}/status", "r", encoding="utf-8") as f:
@@ -163,10 +181,11 @@ def capture_memory_rss(device, package, platform, pid=None):
           if "VmRSS:" in line:
             parts = line.split()
             if len(parts) > 1:
-              return float(parts[1]) / 1024.0  # Convert KB to MB!
+              total_rss_mb = float(parts[1]) / 1024.0  # Convert KB to MB!
+              return total_rss_mb, None
     except FileNotFoundError:
       pass
-  return None
+  return None, None
 
 
 def parse_uma_sum_metric(json_file, metric_name):
@@ -267,7 +286,8 @@ def execute_profiling_run(args, run_id, sweep_config):
   # 1. Capture system-wide RSS memory
   logging.info("  [Run %s] Dumping system PSS/RSS memory...", run_id)
   pid = proc.pid if proc else None
-  rss_mb = capture_memory_rss(args.device, args.package, args.platform, pid)
+  rss_mb, native_frag_pct = capture_memory_rss(args.device, args.package,
+                                               args.platform, pid)
 
   # 2. Attempt to capture granular UMA breakdown metrics via CDP
   uma_captured = False
@@ -288,10 +308,9 @@ def execute_profiling_run(args, run_id, sweep_config):
   scrape_cmd = [
       "python3", "-u",
       f"{REPO_ROOT}/cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py",
-      f"--platform={args.platform}", f"--device={args.device}",
-      f"--package-name={args.package}", "--no-manage-cobalt",
-      f"--histogram-file={histograms_txt}", "--poll-interval-s=2",
-      f"--output-file={tmp_json}", f"--port={args.port}"
+      f"--platform={args.platform}", f"--package-name={args.package}",
+      "--no-manage-cobalt", f"--histogram-file={histograms_txt}",
+      "--poll-interval-s=2", f"--output-file={tmp_json}", f"--port={args.port}"
   ]
 
   scrape_proc = None
@@ -382,13 +401,17 @@ def execute_profiling_run(args, run_id, sweep_config):
   else:
     logging.info("  [Run %s] System RSS: FAILED", run_id)
 
+  if native_frag_pct is not None:
+    logging.info("  [Run %s] Native Heap Fragmentation: %.1f%%", run_id,
+                 native_frag_pct)
+
   if uma_captured:
     logging.info("  [Run %s] Granular UMA Telemetry: ACTIVE", run_id)
   else:
     logging.info("  [Run %s] Granular UMA Telemetry: NOT PRESENT", run_id)
 
   force_stop_app(args.device, args.package, args.platform, proc)
-  return rss_mb, uma_captured
+  return rss_mb, native_frag_pct, uma_captured
 
 
 # --- Statistical Calculations Engine ---
@@ -427,7 +450,9 @@ def analyze_and_report_metric(metric_name,
   is_memory = ("Memory" in metric_name or "Malloc" in metric_name or "Heap"
                in metric_name or "GC" in metric_name or "Skia" in metric_name or
                "PartitionAlloc" in metric_name) and "Reason" not in metric_name
-  unit = "MB" if is_memory else "Units"
+  is_pct = ("Fragmentation" in metric_name or "Ratio" in metric_name or
+            "Percent" in metric_name)
+  unit = "%" if is_pct else ("MB" if is_memory else "Units")
 
   p_val = permutation_test_p_value(baseline, experiment)
   directional_sig = check_directional_consistency(baseline, experiment)
@@ -573,6 +598,16 @@ def main():
 
     baseline_rss = []
     experiment_rss = []
+    baseline_frag = []
+    experiment_frag = []
+
+    baseline_gc = {}
+    experiment_gc = {}
+    baseline_gc_frag = []
+    experiment_gc_frag = []
+    if args.enable_granular_memory:
+      baseline_gc = {hist: [] for hist in CORE_GC_HISTOGRAMS}
+      experiment_gc = {hist: [] for hist in CORE_GC_HISTOGRAMS}
 
     # Granular UMA databases dynamically populated depending on flag
     monitored_categories = []
@@ -593,6 +628,9 @@ def main():
     with os.fdopen(histograms_fd, "w", encoding="utf-8") as f:
       for cat in monitored_categories:
         f.write(f"Memory.Cobalt.AllocationVolume.{cat}\n")
+      if args.enable_granular_memory:
+        for hist in CORE_GC_HISTOGRAMS:
+          f.write(f"{hist}\n")
       f.write("Playback.DroppedFrames\n")
 
     # Format space-separated flags and append remote-debugging-port dynamically
@@ -622,28 +660,66 @@ def main():
 
     logging.info("\n====== SECTION 1/2: BASELINE RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, uma_active = execute_profiling_run(args, i, baseline_sweep_config)
+      rss, frag, uma_active = execute_profiling_run(args, i,
+                                                    baseline_sweep_config)
       if rss:
         baseline_rss.append(rss)
+      if frag is not None:
+        baseline_frag.append(frag)
       if uma_active:
         for cat, value_list in baseline_uma.items():
           val = parse_uma_sum_metric(tmp_json,
                                      f"Memory.Cobalt.AllocationVolume.{cat}")
           if val is not None:
             value_list.append(val)
+        # Parse Core GC histograms
+        for hist in CORE_GC_HISTOGRAMS:
+          val = parse_uma_sum_metric(tmp_json, hist)
+          if val is not None:
+            baseline_gc[hist].append(val)
+        # Calculate Blink GC Fragmentation
+        if len(baseline_gc["BlinkGC.MemoryAllocated"]) > len(
+            baseline_gc_frag) and len(
+                baseline_gc["BlinkGC.MemoryUsed"]) > len(baseline_gc_frag):
+          allocated = baseline_gc["BlinkGC.MemoryAllocated"][-1]
+          used = baseline_gc["BlinkGC.MemoryUsed"][-1]
+          if allocated > 0:
+            frag_ratio = ((allocated - used) / allocated) * 100.0
+            baseline_gc_frag.append(frag_ratio)
+            logging.info("  [Run %s] Blink GC Fragmentation: %.1f%%", i,
+                         frag_ratio)
       time.sleep(3)
 
     logging.info("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, uma_active = execute_profiling_run(args, i, experiment_sweep_config)
+      rss, frag, uma_active = execute_profiling_run(args, i,
+                                                    experiment_sweep_config)
       if rss:
         experiment_rss.append(rss)
+      if frag is not None:
+        experiment_frag.append(frag)
       if uma_active:
         for cat, value_list in experiment_uma.items():
           val = parse_uma_sum_metric(tmp_json,
                                      f"Memory.Cobalt.AllocationVolume.{cat}")
           if val is not None:
             value_list.append(val)
+        # Parse Core GC histograms
+        for hist in CORE_GC_HISTOGRAMS:
+          val = parse_uma_sum_metric(tmp_json, hist)
+          if val is not None:
+            experiment_gc[hist].append(val)
+        # Calculate Blink GC Fragmentation
+        if len(experiment_gc["BlinkGC.MemoryAllocated"]) > len(
+            experiment_gc_frag) and len(
+                experiment_gc["BlinkGC.MemoryUsed"]) > len(experiment_gc_frag):
+          allocated = experiment_gc["BlinkGC.MemoryAllocated"][-1]
+          used = experiment_gc["BlinkGC.MemoryUsed"][-1]
+          if allocated > 0:
+            frag_ratio = ((allocated - used) / allocated) * 100.0
+            experiment_gc_frag.append(frag_ratio)
+            logging.info("  [Run %s] Blink GC Fragmentation: %.1f%%", i,
+                         frag_ratio)
       time.sleep(3)
 
     # Cleanup temporary workspace files
@@ -668,6 +744,24 @@ def main():
     else:
       logging.error("❌ Error: Insufficient System RSS data points captured "
                     "to run significance engine.")
+
+    # 2. Evaluate Native Heap Fragmentation
+    if len(baseline_frag) >= 2 and len(experiment_frag) >= 2:
+      res_frag = analyze_and_report_metric("Native Heap Fragmentation Ratio",
+                                           baseline_frag, experiment_frag)
+      if res_frag:
+        res_frag["cuj"] = cuj_name
+
+    # 3. Evaluate Blink GC Fragmentation
+    if args.enable_granular_memory and len(baseline_gc_frag) >= 2 and len(
+        experiment_gc_frag) >= 2:
+      res_gc_frag = analyze_and_report_metric("Blink GC Fragmentation Ratio",
+                                              baseline_gc_frag,
+                                              experiment_gc_frag)
+      if res_gc_frag:
+        res_gc_frag["cuj"] = cuj_name
+        # We can choose to append to campaign_results or not.
+        # Let's keep it separate for now.
 
     # 2. Auto-detect and evaluate Granular UMA categories dynamically
     for cat, value_list in baseline_uma.items():
