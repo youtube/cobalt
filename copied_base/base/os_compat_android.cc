@@ -23,6 +23,7 @@
 #include "base/strings/string_piece.h"
 
 extern "C" {
+#if __ANDROID_API__ < 26
 // There is no futimes() avaiable in Bionic, so we provide our own
 // implementation until it is there.
 int futimes(int fd, const struct timeval tv[2]) {
@@ -43,6 +44,7 @@ int futimes(int fd, const struct timeval tv[2]) {
   ts[1].tv_nsec = tv[1].tv_usec * 1000;
   return base::checked_cast<int>(syscall(__NR_utimensat, fd, NULL, ts, 0));
 }
+#endif // __ANDROID_API__ < 26
 
 #if !defined(__LP64__)
 // 32-bit Android has only timegm64() and not timegm().
