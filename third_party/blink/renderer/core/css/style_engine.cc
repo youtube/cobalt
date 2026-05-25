@@ -32,6 +32,9 @@
 #include <algorithm>
 
 #include "base/auto_reset.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/containers/adapters.h"
 #include "base/hash/hash.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
@@ -123,6 +126,10 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 namespace blink {
 
@@ -3858,6 +3865,9 @@ StyleRulePositionTry* StyleEngine::GetPositionTryRule(
 
 void StyleEngine::RecalcStyle(StyleRecalcChange change,
                               const StyleRecalcContext& style_recalc_context) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   DCHECK(GetDocument().documentElement());
   ScriptForbiddenScope forbid_script;
   SkipStyleRecalcScope skip_scope(*this);
@@ -3919,6 +3929,9 @@ void StyleEngine::RebuildTransitionPseudoLayoutTrees() {
 }
 
 void StyleEngine::RecalcStyle() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   RecalcStyle(
       {}, StyleRecalcContext::FromAncestors(style_recalc_root_.RootElement()));
   RecalcTransitionPseudoStyle();
@@ -4033,6 +4046,10 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
     UpdateViewportSize();
     NthIndexCache nth_index_cache(GetDocument());
     if (NeedsStyleRecalc()) {
+#if BUILDFLAG(IS_COBALT)
+      base::memory::ScopedMemoryContext scoped_context(
+          base::memory::MemoryContext::kBlinkStyle);
+#endif
       TRACE_EVENT0("blink,blink_style", "Document::recalcStyle");
       SCOPED_BLINK_UMA_HISTOGRAM_TIMER_HIGHRES("Style.RecalcTime");
       Element* viewport_defining = GetDocument().ViewportDefiningElement();

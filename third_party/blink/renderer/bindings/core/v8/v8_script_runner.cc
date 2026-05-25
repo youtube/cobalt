@@ -69,6 +69,10 @@
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace blink {
 
 namespace {
@@ -318,6 +322,10 @@ v8::MaybeLocal<v8::Script> V8ScriptRunner::CompileScript(
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason,
     bool can_use_crowdsourced_compile_hints) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
   v8::Isolate* isolate = script_state->GetIsolate();
   if (classic_script.SourceText().length() >= v8::String::kMaxLength) {
     V8ThrowException::ThrowError(isolate, "Source file too large.");
@@ -364,6 +372,10 @@ v8::MaybeLocal<v8::Module> V8ScriptRunner::CompileModule(
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason,
     const ReferrerScriptInfo& referrer_info) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
   const String file_name = params.SourceURL();
   constexpr const char* kTraceEventCategoryGroup = "v8,devtools.timeline";
   TRACE_EVENT_BEGIN1(kTraceEventCategoryGroup, "v8.compileModule", "fileName",
@@ -474,6 +486,11 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
     v8::Local<v8::Data> host_defined_options,
     ExecutionContext* context) {
   DCHECK(!script.IsEmpty());
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
 
   v8::Local<v8::Value> script_name =
       script->GetUnboundScript()->GetScriptName();
@@ -897,6 +914,11 @@ ScriptEvaluationResult V8ScriptRunner::EvaluateModule(
   if (!execution_context->CanExecuteScripts(kAboutToExecuteScript)) {
     return ScriptEvaluationResult::FromModuleNotRun();
   }
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
 
   // <spec step="4">Prepare to run script given settings.</spec>
   //

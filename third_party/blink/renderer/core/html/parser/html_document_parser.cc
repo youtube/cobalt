@@ -29,6 +29,9 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
@@ -82,6 +85,10 @@
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 namespace blink {
 
@@ -684,6 +691,10 @@ void HTMLDocumentParser::ForcePlaintextForTextDocument() {
 }
 
 bool HTMLDocumentParser::PumpTokenizer() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkParser);
+#endif
   DCHECK(!GetDocument()->IsPrefetchOnly());
   DCHECK(!IsStopped());
 
@@ -947,6 +958,9 @@ bool HTMLDocumentParser::HasInsertionPoint() {
 }
 
 void HTMLDocumentParser::insert(const String& source) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kDOM);
+#endif
   // No need to do any processing if the supplied text is empty.
   if (IsStopped() || source.empty())
     return;
@@ -983,6 +997,9 @@ void HTMLDocumentParser::insert(const String& source) {
 }
 
 void HTMLDocumentParser::Append(const String& input_source) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kDOM);
+#endif
   TRACE_EVENT_WITH_FLOW2("blink", "HTMLDocumentParser::append",
                          TRACE_ID_LOCAL(this),
                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
@@ -1406,6 +1423,9 @@ void HTMLDocumentParser::ParseDocumentFragment(
 }
 
 void HTMLDocumentParser::AppendBytes(base::span<const uint8_t> data) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kDOM);
+#endif
   TRACE_EVENT_WITH_FLOW2(
       "blink", "HTMLDocumentParser::appendBytes", TRACE_ID_LOCAL(this),
       TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "size",

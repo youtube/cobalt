@@ -398,6 +398,10 @@
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding_registry.h"
 #include "third_party/blink/renderer/platform/wtf/text/utf16.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace blink {
 
 namespace {
@@ -1361,6 +1365,10 @@ Element* TreeScope::createElementNS(
 Element* TreeScope::CreateElement(const QualifiedName& q_name,
                                   const CreateElementFlags flags,
                                   const AtomicString& is) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kDOM);
+#endif
   CustomElementDefinition* definition = nullptr;
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
@@ -1382,6 +1390,10 @@ DocumentFragment* Document::createDocumentFragment() {
 }
 
 Text* Document::createTextNode(const String& data) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kDOM);
+#endif
   return Text::Create(*this, data);
 }
 
@@ -2879,6 +2891,9 @@ void Document::MarkHasFindInPageBeforematchExpandedHiddenMatchable() {
 }
 
 void Document::UpdateStyleAndLayout(DocumentUpdateReason reason) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   DCHECK(IsMainThread());
   // TODO(paint-dev): LifecyclePostponed() and
   // LocalFrameView::IsUpdatingLifecycle() overlap in functionality, but with

@@ -110,6 +110,10 @@ static_library("common") {
   if (!is_android) {
     sources += [ "thread_platform_base.cc" ]
   }
+
+  if (sb_is_modular && !sb_is_evergreen && !is_android) {
+    sources += [ "//copied_base/base/memory/cobalt_memory_context.cc" ]
+  }
 }
 
 static_library("file_wrapper") {

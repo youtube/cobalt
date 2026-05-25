@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,12 @@
 import argparse
 import json
 import os
-import sys
-import time
-import threading
-import requests
+
+os.environ['no_proxy'] = '*'
+import sys  # pylint: disable=wrong-import-position
+import time  # pylint: disable=wrong-import-position
+import threading  # pylint: disable=wrong-import-position
+import requests  # pylint: disable=wrong-import-position
 
 REPOSITORY_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../'))
@@ -55,10 +57,19 @@ def _print_q(message: str, quiet: bool):
     print(message)
 
 
-def is_package_running_android(package_name: str) -> bool:
+def is_package_running_android(package_name: str,
+                               device_id: str = None) -> bool:
   """Checks if a given Android package is currently running."""
-  stdout, _ = run_adb_command(['adb', 'shell', 'pidof', package_name])
-  return bool(stdout and stdout.strip().isdigit())
+  cmd = ['adb']
+  if device_id:
+    cmd += ['-s', device_id]
+  cmd += ['shell', 'pidof', package_name]
+  for _ in range(3):
+    stdout, _ = run_adb_command(cmd)
+    if stdout and stdout.strip().isdigit():
+      return True
+    time.sleep(1)
+  return False
 
 
 def is_cobalt_running_linux(process_name: str = 'cobalt') -> bool:
@@ -71,11 +82,14 @@ def is_cobalt_running_linux(process_name: str = 'cobalt') -> bool:
     return False
 
 
-def stop_package(package_name: str, quiet: bool) -> bool:
+def stop_package(package_name: str, quiet: bool, device_id: str = None) -> bool:
   """Attempts to force-stop an Android package."""
   _print_q(f'Attempting to stop package \'{package_name}\'...', quiet)
-  _, stderr = run_adb_command(
-      ['adb', 'shell', 'am', 'force-stop', package_name])
+  cmd = ['adb']
+  if device_id:
+    cmd += ['-s', device_id]
+  cmd += ['shell', 'am', 'force-stop', package_name]
+  _, stderr = run_adb_command(cmd)
   if stderr:
     _print_q(f'Error stopping package \'{package_name}\': {stderr}', quiet)
     return False
@@ -84,13 +98,20 @@ def stop_package(package_name: str, quiet: bool) -> bool:
   return True
 
 
-def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
+def launch_cobalt(package_name: str,
+                  activity_name: str,
+                  url: str,
+                  quiet: bool,
+                  device_id: str = None):
   """Launches the Cobalt application with a specified URL.
        Returns True on success and False upon failure."""
-  command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'--remote-allow-origins=*,'
-                 f'--url=\"{url}\"\'')
-  stdout, stderr = run_adb_command(command_str, shell=True)
+  cmd = 'adb '
+  if device_id:
+    cmd += f'-s {device_id} '
+  cmd += (f'shell am start -n {package_name}/{activity_name} '
+          f'--esa commandLineArgs \'--remote-allow-origins=*,'
+          f'--url=\"{url}\"\'')
+  stdout, stderr = run_adb_command(cmd, shell=True)
   if stderr:
     _print_q(f'Error launching Cobalt: {stderr}', quiet)
     return False
@@ -101,93 +122,58 @@ def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
     return True
 
 
-def get_websocket_url(platform: str, port: int, quiet: bool):
-  """
-    Connects to the Cobalt DevTools Protocol endpoint to get the WebSocket URL.
-    """
-  if platform == 'android':
-    for i in range(MAX_WEBSOCKET_RETRIES):
-      try:
-        devs = list(device_utils.DeviceUtils.HealthyDevices())
-        if not devs:
-          _print_q('Error: No healthy Android devices found.', quiet)
-          return None
-        dev = devs[0]
-        dev.adb.Forward(
-            f'tcp:{port}',
-            'localabstract:content_shell_devtools_remote',
-            allow_rebind=True)
-        response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
-        response.raise_for_status()
-        targets = response.json()
-
-        for target in targets:
-          if target.get('type') == 'page' and target.get(
-              'webSocketDebuggerUrl'):
-            _print_q(
-                'Found existing tab: ' + target['title'] + ' - ' +
-                target['webSocketDebuggerUrl'], quiet)
-            return target['webSocketDebuggerUrl']
-
-        _print_q(
-            'No suitable existing page found, trying to create a new tab...',
-            quiet)
-        new_tab_url = f'http://{CDP_HOST}:{port}/json/new'
-        new_tab_response = requests.get(new_tab_url, timeout=5)
-        new_tab_response.raise_for_status()
-        new_tab_data = new_tab_response.json()
-        if new_tab_data.get('webSocketDebuggerUrl'):
-          _print_q(
-              'Created new tab: ' + new_tab_data['title'] + ' - ' +
-              new_tab_data['webSocketDebuggerUrl'], quiet)
-          return new_tab_data['webSocketDebuggerUrl']
-
-        raise RuntimeError(
-            'Could not find or create a suitable WebSocket debugger URL.')
-
-      except requests.exceptions.ConnectionError:
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: ' +
-            f'Connection error to Cobalt on {CDP_HOST}:{port}. Retrying...',
-            quiet)
-      except RuntimeError as e:
-        _print_q(
-            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An error occurred ' +
-            f'while getting WebSocket URL: {e}. Retrying...', quiet)
-      time.sleep(WEBSOCKET_RETRY_DELAY_S)
-    _print_q('Failed to get WebSocket URL after multiple retries.', quiet)
-    return None
-  elif platform == 'linux':
+def get_websocket_url(platform: str,
+                      port: int,
+                      quiet: bool,
+                      device_id: str = None,
+                      setup_forward: bool = False):
+  """Connects to DevTools Protocol to get Browser WebSocket URL."""
+  if platform == 'android' and setup_forward:
     try:
-      response = requests.get(f'http://127.0.0.1:{port}/json', timeout=5)
+      devs = list(device_utils.DeviceUtils.HealthyDevices())
+      if not devs:
+        _print_q('Error: No healthy Android devices found.', quiet)
+        return None
+      dev = None
+      if device_id:
+        for d in devs:
+          if d.serial == device_id:
+            dev = d
+            break
+      if not dev:
+        dev = devs[0]
+      dev.adb.Forward(
+          f'tcp:{port}',
+          'localabstract:content_shell_devtools_remote',
+          allow_rebind=True)
+      time.sleep(2)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      _print_q(f'Error setting up ADB forward: {e}', quiet)
+      return None
+
+  for i in range(MAX_WEBSOCKET_RETRIES):
+    try:
+      version_url = f'http://{CDP_HOST}:{port}/json/version'
+      response = requests.get(version_url, timeout=5)
       response.raise_for_status()
-      targets = response.json()
-
-      browser_target = next((t for t in targets if t['type'] == 'browser'),
-                            None)
-      if not browser_target and targets:
-        browser_target = next((t for t in targets if t['type'] == 'page'),
-                              targets[0])
-
-      if browser_target and 'webSocketDebuggerUrl' in browser_target:
-        ws_url = browser_target['webSocketDebuggerUrl']
-        _print_q(f'Found CDP websocket URL: {ws_url}', quiet)
+      data = response.json()
+      if data.get('webSocketDebuggerUrl'):
+        ws_url = data['webSocketDebuggerUrl']
+        _print_q(f'Found Browser Target CDP websocket URL: {ws_url}', quiet)
         return ws_url
       else:
-        _print_q('Could not find a suitable CDP target.', quiet)
-        if targets:
-          _print_q(f'Available targets: {json.dumps(targets, indent=2)}', quiet)
-        return None
+        _print_q('webSocketDebuggerUrl not found in /json/version.', quiet)
     except requests.exceptions.ConnectionError:
-      _print_q(f"Error: Could not connect to Cobalt's DevTools on port {port}.",
-               quiet)
       _print_q(
-          'Please ensure Cobalt is running with the remote debugging port '
-          'enabled.', quiet)
-      return None
+          f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: ' +
+          f'Connection error to Cobalt on {CDP_HOST}:{port}. Retrying...',
+          quiet)
     except Exception as e:  # pylint: disable=broad-exception-caught
-      _print_q(f'An unexpected error occurred: {e}', quiet)
-      return None
+      _print_q(
+          f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An unexpected error ' +
+          f'occurred while getting WebSocket URL: {e}. Retrying...', quiet)
+    time.sleep(WEBSOCKET_RETRY_DELAY_S)
+  _print_q('Failed to get Browser WebSocket URL after multiple retries.', quiet)
   return None
 
 
@@ -215,6 +201,19 @@ def _get_cobalt_resident_memory_metrics() -> list:
   ]
 
 
+def _send_and_recv(ws, command, quiet):
+  ws.send(json.dumps(command))
+  while True:
+    res = json.loads(ws.recv())
+    if res.get('id') == command['id']:
+      return res
+    elif res.get('method') == 'Inspector.detached':
+      method_name = command['method']
+      _print_q(f'Target detached while waiting for response to {method_name}',
+               quiet)
+      return res
+
+
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
                                   output_file, quiet: bool):
   """Prints histogram data to the console and writes it to a file."""
@@ -227,9 +226,13 @@ def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
             'query': metric
         }
     }
-    ws.send(json.dumps(command))
-    response = json.loads(ws.recv())
+    response = _send_and_recv(ws, command, quiet)
     message_id += 1
+    if response.get('method') == 'Inspector.detached':
+      _print_q(
+          f'Target detached while pulling {metric}. '
+          'Aborting histogram pull for this cycle.', quiet)
+      break
     _print_q(f'\nMetric - {metric}:\n{response}\n', quiet)
     if output_file:
       timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
@@ -253,8 +256,9 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
             'timeDomain': 'threadTicks'
         }
     }
-    ws.send(json.dumps(command))
-    response = json.loads(ws.recv())
+    response = _send_and_recv(ws, command, quiet)
+    if response.get('method') == 'Inspector.detached':
+      return
     _print_q('Enabled Performance domain (ID: ' + str(response['id']) + ')',
              quiet)
     message_id += 1
@@ -264,8 +268,9 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
         'method': 'Performance.getMetrics',
         'params': {}
     }
-    ws.send(json.dumps(command))
-    response = json.loads(ws.recv())
+    response = _send_and_recv(ws, command, quiet)
+    if response.get('method') == 'Inspector.detached':
+      return
     message_id += 1
 
     if 'result' in response and 'metrics' in response['result']:
@@ -285,7 +290,7 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
       _print_q('WebSocket connection closed.', quiet)
 
 
-def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
+def loop(stop_event, histograms: list, args, output_file):
   """Runs the data polling loop in a dedicated thread."""
   _print_q('Starting data polling thread', args.quiet)
   iteration = 0
@@ -296,13 +301,24 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
 
     app_is_running = False
     if args.platform == 'android':
-      app_is_running = is_package_running_android(args.package_name)
+      app_is_running = is_package_running_android(args.package_name,
+                                                  args.device)
     elif args.platform == 'linux':
       app_is_running = is_cobalt_running_linux()
 
     if app_is_running:
-      _interact_via_cdp(websocket_url, histograms, output_file, args.url,
-                        args.quiet)
+      fresh_ws_url = get_websocket_url(
+          args.platform,
+          args.port,
+          args.quiet,
+          args.device,
+          setup_forward=False)
+      if fresh_ws_url:
+        _interact_via_cdp(fresh_ws_url, histograms, output_file, args.url,
+                          args.quiet)
+      else:
+        _print_q(f'{header_prefix} Failed to get fresh WebSocket URL.',
+                 args.quiet)
     elif iteration % 5 == 0:
       _print_q(f'{header_prefix} App not running.', args.quiet)
 
@@ -324,16 +340,17 @@ def _run_main(args, output_file):
   stop_event = threading.Event()
 
   if args.platform == 'android' and not args.no_manage_cobalt:
-    if not is_package_running_android(args.package_name):
+    if not is_package_running_android(args.package_name, args.device):
       launch_cobalt(
           package_name=args.package_name,
           activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
           url=args.url,
-          quiet=args.quiet)
+          quiet=args.quiet,
+          device_id=args.device)
       _print_q(f'Waiting for {args.package_name} to start...', args.quiet)
       started = False
       for _ in range(5):  # Poll for 5 seconds
-        if is_package_running_android(args.package_name):
+        if is_package_running_android(args.package_name, args.device):
           started = True
           _print_q(f'{args.package_name} has started.', args.quiet)
           break
@@ -348,16 +365,20 @@ def _run_main(args, output_file):
   time.sleep(1)
 
   websocket_url = get_websocket_url(
-      platform=args.platform, port=args.port, quiet=args.quiet)
+      platform=args.platform,
+      port=args.port,
+      quiet=args.quiet,
+      device_id=args.device,
+      setup_forward=False)
   if not websocket_url:
     _print_q('Websocket not found. Exiting...', args.quiet)
     if args.platform == 'android' and not args.no_manage_cobalt:
-      stop_package(args.package_name, args.quiet)
+      stop_package(args.package_name, args.quiet, args.device)
     return
 
   polling_thread = threading.Thread(
       target=loop,
-      args=(websocket_url, stop_event, histograms, args, output_file),
+      args=(stop_event, histograms, args, output_file),
       daemon=True,
   )
   polling_thread.start()
@@ -377,7 +398,7 @@ def _run_main(args, output_file):
   finally:
     stop_event.set()
     if args.platform == 'android' and not args.no_manage_cobalt:
-      stop_package(args.package_name, args.quiet)
+      stop_package(args.package_name, args.quiet, args.device)
   _print_q('\nDONE!!!\n', args.quiet)
 
 
@@ -416,6 +437,8 @@ def main():
       '--url',
       default=TARGET_URL,
       help='The target URL for Cobalt to navigate to on launch.')
+  parser.add_argument(
+      '--device', help='Optional ADB device ID (e.g. localhost:42863)')
   parser.add_argument(
       '-q',
       '--quiet',
