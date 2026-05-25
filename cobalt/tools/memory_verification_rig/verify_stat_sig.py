@@ -64,6 +64,7 @@ def run_command(cmd, shell=False, timeout=30):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        errors="replace",
         timeout=timeout,
         check=True)
     return res.stdout.strip(), None
@@ -140,39 +141,110 @@ def launch_app(args, cmd_args, url):
   return None
 
 
+def calculate_vas_fragmentation(maps_stdout):
+  """Parses maps file and calculates VAS fragmentation and largest block."""
+  ranges = []
+  for line in maps_stdout.split("\n"):
+    line = line.strip()
+    if not line:
+      continue
+    parts = line.split()
+    if not parts:
+      continue
+    try:
+      addr_range = parts[0]
+      start_str, end_str = addr_range.split("-")
+      start = int(start_str, 16)
+      end = int(end_str, 16)
+      ranges.append((start, end))
+    except ValueError:
+      continue
+
+  if not ranges:
+    return None, None
+
+  ranges.sort(key=lambda x: x[0])
+
+  # User space limit on 32-bit Android (3 GB)
+  user_space_limit = 0xC0000000
+
+  gaps = []
+  # 1. Gap from 0x00010000 to first range
+  if ranges[0][0] > 0x00010000:
+    gaps.append(ranges[0][0] - 0x00010000)
+
+  # 2. Gaps between mapped ranges
+  for i in range(len(ranges) - 1):
+    end_curr = ranges[i][1]
+    start_next = ranges[i + 1][0]
+    if start_next > end_curr:
+      gaps.append(start_next - end_curr)
+
+  # 3. Gap from last range to user space limit
+  last_end = ranges[-1][1]
+  if last_end < user_space_limit:
+    gaps.append(user_space_limit - last_end)
+
+  if not gaps:
+    return 0.0, 0.0
+
+  total_free_bytes = sum(gaps)
+  largest_free_bytes = max(gaps)
+
+  largest_free_mb = largest_free_bytes / (1024.0 * 1024.0)
+
+  vas_frag_ratio = (1.0 - (largest_free_bytes / total_free_bytes)) * 100.0
+  return vas_frag_ratio, largest_free_mb
+
+
 def capture_memory_rss(device, package, platform, pid=None):
-  """Extracts RSS footprint in MB and native fragmentation."""
+  """Extracts Resident Set Size (RSS) footprint, native frag, and VAS frag."""
   total_rss_mb = None
   native_frag_pct = None
+  vas_frag_ratio = None
+  largest_free_vas_mb = None
 
   if platform == "android":
-    stdout, stderr = run_command(
+    # 1. Find PID dynamically if not provided
+    if not pid:
+      stdout, _ = run_command(["adb", "-s", device, "shell", "pidof", package])
+      if stdout:
+        pid = stdout.strip()
+
+    # 2. Capture standard PSS and Native fragmentation
+    stdout, _ = run_command(
         ["adb", "-s", device, "shell", "dumpsys", "meminfo", package])
-    if not stdout:
-      if stderr:
-        logging.warning("  ⚠️ Warning: dumpsys meminfo failed: %s", stderr)
-      return None, None
+    if stdout:
+      for line in stdout.split("\n"):
+        line = line.strip()
+        if line.startswith("Native Heap"):
+          parts = line.split()
+          if len(parts) >= 10:
+            try:
+              heap_size = int(parts[7])
+              heap_free = int(parts[9])
+              if heap_size > 0:
+                native_frag_pct = (heap_free / heap_size) * 100
+            except ValueError:
+              pass
 
-    for line in stdout.split("\n"):
-      line = line.strip()
-      if line.startswith("Native Heap"):
-        parts = line.split()
-        if len(parts) >= 10:
-          try:
-            heap_size = int(parts[7])
-            heap_free = int(parts[9])
-            if heap_size > 0:
-              native_frag_pct = (heap_free / heap_size) * 100
-          except ValueError:
-            pass
+        if "TOTAL:" in line or "TOTAL" in line:
+          parts = [p for p in line.split() if p.isdigit()]
+          if parts:
+            val_kb = int(parts[0])
+            total_rss_mb = val_kb / 1024.0
 
-      if "TOTAL:" in line or "TOTAL" in line:
-        parts = [p for p in line.split() if p.isdigit()]
-        if parts:
-          val_kb = int(parts[0])
-          total_rss_mb = val_kb / 1024.0
+    # 3. Capture VAS maps via run-as and calculate fragmentation
+    if pid:
+      maps_stdout, _ = run_command([
+          "adb", "-s", device, "shell", "run-as", package, "cat",
+          f"/proc/{pid}/maps"
+      ])
+      if maps_stdout and "Permission denied" not in maps_stdout:
+        vas_frag_ratio, largest_free_vas_mb = calculate_vas_fragmentation(
+            maps_stdout)
 
-    return total_rss_mb, native_frag_pct
+    return total_rss_mb, native_frag_pct, vas_frag_ratio, largest_free_vas_mb
 
   elif platform == "linux" and pid:
     try:
@@ -182,10 +254,10 @@ def capture_memory_rss(device, package, platform, pid=None):
             parts = line.split()
             if len(parts) > 1:
               total_rss_mb = float(parts[1]) / 1024.0  # Convert KB to MB!
-              return total_rss_mb, None
+              return total_rss_mb, None, None, None
     except FileNotFoundError:
       pass
-  return None, None
+  return None, None, None, None
 
 
 def parse_uma_sum_metric(json_file, metric_name):
@@ -256,12 +328,20 @@ def execute_profiling_run(args, run_id, sweep_config):
   if is_random_nav:
     logging.info("  [Run %s] Launching background D-pad page scroller...",
                  run_id)
-    scroller_path = os.path.join(
-        REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_cdp.py")
-    scroll_cmd = [
-        "python3", scroller_path, f"--port={args.port}",
-        f"--duration={args.duration - 8}", "--interval=1.5"
-    ]
+    if args.platform == "android":
+      scroller_path = os.path.join(
+          REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_adb.py")
+      scroll_cmd = [
+          "python3", scroller_path, args.device,
+          str(args.duration - 8), "1.5"
+      ]
+    else:
+      scroller_path = os.path.join(
+          REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_cdp.py")
+      scroll_cmd = [
+          "python3", scroller_path, f"--port={args.port}",
+          f"--duration={args.duration - 8}", "--interval=1.5"
+      ]
     try:
       # pylint: disable=consider-using-with
       scroll_proc = subprocess.Popen(
@@ -286,8 +366,9 @@ def execute_profiling_run(args, run_id, sweep_config):
   # 1. Capture system-wide RSS memory
   logging.info("  [Run %s] Dumping system PSS/RSS memory...", run_id)
   pid = proc.pid if proc else None
-  rss_mb, native_frag_pct = capture_memory_rss(args.device, args.package,
-                                               args.platform, pid)
+  (rss_mb, native_frag_pct, vas_frag_ratio,
+   largest_free_vas_mb) = capture_memory_rss(args.device, args.package,
+                                             args.platform, pid)
 
   # 2. Attempt to capture granular UMA breakdown metrics via CDP
   uma_captured = False
@@ -405,13 +486,19 @@ def execute_profiling_run(args, run_id, sweep_config):
     logging.info("  [Run %s] Native Heap Fragmentation: %.1f%%", run_id,
                  native_frag_pct)
 
+  if vas_frag_ratio is not None:
+    logging.info(
+        "  [Run %s] VAS Fragmentation: %.1f%% (Largest Free Block: %.1f MB)",
+        run_id, vas_frag_ratio, largest_free_vas_mb)
+
   if uma_captured:
     logging.info("  [Run %s] Granular UMA Telemetry: ACTIVE", run_id)
   else:
     logging.info("  [Run %s] Granular UMA Telemetry: NOT PRESENT", run_id)
 
   force_stop_app(args.device, args.package, args.platform, proc)
-  return rss_mb, native_frag_pct, uma_captured
+  return (rss_mb, native_frag_pct, vas_frag_ratio, largest_free_vas_mb,
+          uma_captured)
 
 
 # --- Statistical Calculations Engine ---
@@ -600,6 +687,10 @@ def main():
     experiment_rss = []
     baseline_frag = []
     experiment_frag = []
+    baseline_vas_frag = []
+    experiment_vas_frag = []
+    baseline_vas_max = []
+    experiment_vas_max = []
 
     baseline_gc = {}
     experiment_gc = {}
@@ -660,12 +751,16 @@ def main():
 
     logging.info("\n====== SECTION 1/2: BASELINE RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, frag, uma_active = execute_profiling_run(args, i,
-                                                    baseline_sweep_config)
+      rss, frag, vas_frag, vas_max, uma_active = execute_profiling_run(
+          args, i, baseline_sweep_config)
       if rss:
         baseline_rss.append(rss)
       if frag is not None:
         baseline_frag.append(frag)
+      if vas_frag is not None:
+        baseline_vas_frag.append(vas_frag)
+      if vas_max is not None:
+        baseline_vas_max.append(vas_max)
       if uma_active:
         for cat, value_list in baseline_uma.items():
           val = parse_uma_sum_metric(tmp_json,
@@ -692,12 +787,16 @@ def main():
 
     logging.info("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, frag, uma_active = execute_profiling_run(args, i,
-                                                    experiment_sweep_config)
+      rss, frag, vas_frag, vas_max, uma_active = execute_profiling_run(
+          args, i, experiment_sweep_config)
       if rss:
         experiment_rss.append(rss)
       if frag is not None:
         experiment_frag.append(frag)
+      if vas_frag is not None:
+        experiment_vas_frag.append(vas_frag)
+      if vas_max is not None:
+        experiment_vas_max.append(vas_max)
       if uma_active:
         for cat, value_list in experiment_uma.items():
           val = parse_uma_sum_metric(tmp_json,
@@ -751,6 +850,22 @@ def main():
                                            baseline_frag, experiment_frag)
       if res_frag:
         res_frag["cuj"] = cuj_name
+
+    # 3. Evaluate VAS Fragmentation
+    if len(baseline_vas_frag) >= 2 and len(experiment_vas_frag) >= 2:
+      res_vas_frag = analyze_and_report_metric(
+          "Virtual Address Space (VAS) Fragmentation Ratio", baseline_vas_frag,
+          experiment_vas_frag)
+      if res_vas_frag:
+        res_vas_frag["cuj"] = cuj_name
+
+    # 4. Evaluate Largest Free VAS Memory Block
+    if len(baseline_vas_max) >= 2 and len(experiment_vas_max) >= 2:
+      res_vas_max = analyze_and_report_metric(
+          "Largest Contiguous Free VAS Memory Block", baseline_vas_max,
+          experiment_vas_max)
+      if res_vas_max:
+        res_vas_max["cuj"] = cuj_name
 
     # 3. Evaluate Blink GC Fragmentation
     if args.enable_granular_memory and len(baseline_gc_frag) >= 2 and len(
