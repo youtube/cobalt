@@ -60,6 +60,8 @@ std::ostream& operator<<(
             << ToString(features.flush_audio_track_during_seek)
             << ", force_decode_to_texture="
             << ToString(features.force_decode_to_texture)
+            << ", ignore_mediacodec_callbacks_during_flushing="
+            << ToString(features.ignore_mediacodec_callbacks_during_flushing)
             << ", skip_flush_on_decoder_teardown="
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", skip_video_frames_over_60_fps="

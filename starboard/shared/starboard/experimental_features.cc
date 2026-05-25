@@ -87,6 +87,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->flush_audio_track_during_seek;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
+  experiment_features.ignore_mediacodec_callbacks_during_flushing =
+      extension_features->ignore_mediacodec_callbacks_during_flushing;
   experiment_features.reset_audio_decoder =
       extension_features->reset_audio_decoder;
   experiment_features.skip_flush_on_decoder_teardown =
