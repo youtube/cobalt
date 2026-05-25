@@ -22,6 +22,7 @@ config("platform_configuration") {
 config("no_pedantic_warnings") {
   cflags = [
     "-Wno-missing-braces",
-    "-Wno-vla-cxx-extension"
+    "-Wno-vla-cxx-extension",
+    "-Wno-unreachable-code-return",
   ]
 }
