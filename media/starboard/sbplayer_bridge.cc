@@ -687,7 +687,6 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-
 #if BUILDFLAG(IS_ANDROID)
   const StarboardExtensionPlayerSetVideoSurfaceViewApi*
       player_set_video_surface_view_extension =
@@ -720,8 +719,6 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.disable_low_performance_sw_decoder;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
-    extension_features.enable_codec_output_checker =
-        experimental_features_.enable_codec_output_checker;
     extension_features.enable_video_renderer_vsp_adjustment =
         experimental_features_.enable_video_renderer_vsp_adjustment;
     extension_features.flush_decoder_during_reset =
