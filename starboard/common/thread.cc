@@ -55,6 +55,7 @@ float SbThreadPriorityToRelativeSchedPriority(SbThreadPriority priority) {
     case kSbThreadPriorityRealTime:
       return 0.99f;
   }
+  SB_NOTREACHED();
 }
 #endif  // defined(__APPLE__)
 
