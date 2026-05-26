@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <iomanip>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -853,34 +852,27 @@ void SbPlayerBridge::WriteBuffersInternal(
   const bool enable_trivial_optimizations =
       experimental_features_.enable_trivial_optimizations.value_or(false);
 
-  std::optional<std::vector<SbPlayerSampleInfo>> local_sample_infos;
-  std::optional<std::vector<SbDrmSampleInfo>> local_drm_infos;
-  std::optional<std::vector<SbDrmSubSampleMapping>> local_subsample_mappings;
-  std::optional<std::vector<SbPlayerSampleSideData>> local_side_data;
-
-  if (!enable_trivial_optimizations) {
-    local_sample_infos.emplace();
-    local_drm_infos.emplace();
-    local_subsample_mappings.emplace();
-    local_side_data.emplace();
-  }
+  std::vector<SbPlayerSampleInfo> local_sample_infos;
+  std::vector<SbDrmSampleInfo> local_drm_infos;
+  std::vector<SbDrmSubSampleMapping> local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData> local_side_data;
 
   std::vector<SbPlayerSampleInfo>& gathered_sbplayer_sample_infos =
       enable_trivial_optimizations ? gathered_sbplayer_sample_infos_
-                                   : *local_sample_infos;
+                                   : local_sample_infos;
   std::vector<SbDrmSampleInfo>& gathered_sbplayer_sample_infos_drm_info =
       enable_trivial_optimizations ? gathered_sbplayer_sample_infos_drm_info_
-                                   : *local_drm_infos;
+                                   : local_drm_infos;
   std::vector<SbDrmSubSampleMapping>&
       gathered_sbplayer_sample_infos_subsample_mapping =
           enable_trivial_optimizations
               ? gathered_sbplayer_sample_infos_subsample_mapping_
-              : *local_subsample_mappings;
+              : local_subsample_mappings;
   std::vector<SbPlayerSampleSideData>&
       gathered_sbplayer_sample_infos_side_data =
           enable_trivial_optimizations
               ? gathered_sbplayer_sample_infos_side_data_
-              : *local_side_data;
+              : local_side_data;
 
   ScopedVectorClearer<SbPlayerSampleInfo> clearer_info{
       gathered_sbplayer_sample_infos};
