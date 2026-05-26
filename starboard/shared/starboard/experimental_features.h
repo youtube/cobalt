@@ -31,13 +31,13 @@ struct ExperimentalFeatures {
   bool allow_audio_writing_on_pause = false;
   bool disable_low_performance_sw_decoder = false;
   bool enable_av1_startup_optimization = false;
-  bool enable_codec_output_checker = false;
   bool enable_video_renderer_vsp_adjustment = false;
   bool flush_audio_track_during_seek = false;
   bool flush_decoder_during_reset = false;
   bool reset_audio_decoder = false;
   bool skip_flush_on_decoder_teardown = false;
   bool skip_video_frames_over_60_fps = false;
+  std::optional<bool> enable_trivial_optimizations;
   std::optional<bool> use_dual_threads_for_video;
   std::optional<int> video_decoder_initial_preroll_count;
   std::optional<int> video_renderer_min_decoded_frames;

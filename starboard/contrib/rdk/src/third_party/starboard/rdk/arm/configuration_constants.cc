@@ -59,10 +59,6 @@ const bool kSbHasAc3Audio = true;
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = true;
 
-// On default Linux desktop, you must be a superuser in order to set real time
-// scheduling on threads.
-const bool kSbHasThreadPrioritySupport = false;
-
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
@@ -106,11 +102,6 @@ const size_t kSbMemoryPageSize = 4096;
 // platforms require sharing thread handles with other kinds of system handles,
 // like mutexes, so we want to keep this managable.
 const uint32_t kSbMaxThreads = 90;
-
-// Specifies the preferred byte order of color channels in a pixel. Refer to
-// starboard/configuration.h for the possible values. EGL/GLES platforms should
-// generally prefer a byte order of RGBA, regardless of endianness.
-const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 
 #if SB_API_VERSION < 16
 // The maximum number of users that can be signed in at the same time.

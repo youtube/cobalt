@@ -55,6 +55,14 @@ class FakeMojomRenderer : public mojom::Renderer {
       InitializeCallback cb) override {
     std::move(cb).Run(true);
   }
+  void InitializeWithStreamPointers(
+      mojo::PendingAssociatedRemote<mojom::RendererClient>,
+      const std::optional<std::vector<uint64_t>>& stream_pointers,
+      uint64_t client_pointer,
+      uint64_t task_runner_pointer,
+      InitializeWithStreamPointersCallback cb) override {
+    std::move(cb).Run(true);
+  }
   MOCK_METHOD1(Flush, void(FlushCallback));
   void StartPlayingFrom(base::TimeDelta time) override {}
   MOCK_METHOD1(SetPlaybackRate, void(double));
