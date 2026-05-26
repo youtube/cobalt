@@ -64,12 +64,12 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d_state.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/identifiability_study_helper.h"
 #include "third_party/blink/renderer/modules/canvas/htmlcanvas/canvas_context_creation_attributes_helpers.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"  // nogncheck
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"  // nogncheck
 #include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"  // nogncheck
 #include "third_party/blink/renderer/modules/webgpu/gpu.h"  // nogncheck
 #include "third_party/blink/renderer/modules/webgpu/gpu_device.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
@@ -832,9 +832,7 @@ void BaseRenderingContext2D::Trace(Visitor* visitor) const {
   visitor->Trace(dispatch_context_lost_event_timer_);
   visitor->Trace(dispatch_context_restored_event_timer_);
   visitor->Trace(try_restore_context_event_timer_);
-#if !BUILDFLAG(IS_COBALT)
   visitor->Trace(webgpu_access_texture_);
-#endif  // !BUILDFLAG(IS_COBALT)
   CanvasRenderingContext::Trace(visitor);
   Canvas2DRecorderContext::Trace(visitor);
 }
