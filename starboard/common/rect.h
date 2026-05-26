@@ -26,6 +26,9 @@ namespace starboard {
 //
 // This struct follows the conventions of Chromium's `gfx::Rect` by grouping the
 // origin and dimensions, allowing unified boundary representation.
+//
+// This is a trivially copyable value type with no ownership constraints and is
+// safe to use across any thread.
 struct Rect {
   constexpr Rect() : x(0), y(0), size() {}
   constexpr Rect(int x, int y, int width, int height)

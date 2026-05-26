@@ -391,9 +391,8 @@ Result<void> FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
   SB_CHECK(BelongsToCurrentThread());
 
   if (bounds_ != bounds) {
-    // |z_index| is changed quite frequently.  Assign |z_index| first, so we
-    // only log when the other members of |bounds| have been changed to avoid
-    // spamming the log.
+    // |z_index| is changed quite frequently. Only log when the rect has been
+    // changed to avoid spamming the log.
     bool rect_changed = bounds_.rect != bounds.rect;
     SB_LOG_IF(INFO, rect_changed)
         << "Set bounds to " << bounds.rect << ", z_index: " << bounds.z_index;

@@ -1194,7 +1194,7 @@ class PlayerImpl : public Player {
   struct PendingBounds {
     PendingBounds() : rect{} {}
     PendingBounds(const ::starboard::Rect& irect) : rect{irect} {}
-    bool IsEmpty() { return rect.size == ::starboard::Size(); }
+    bool IsEmpty() const { return rect.size == ::starboard::Size(); }
     ::starboard::Rect rect;
   };
 
