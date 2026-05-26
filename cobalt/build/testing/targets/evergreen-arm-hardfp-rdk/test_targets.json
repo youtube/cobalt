@@ -19,7 +19,6 @@
       "gl:ozone_gl_unittests_loader",
       "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
       "third_party/ipcz/src:ipcz_tests_loader",
-      "third_party/opus:test_opus_decode_loader",
       "third_party/opus:test_opus_padding_loader"
     ]
   },
@@ -86,5 +85,9 @@
   {
     "target": "third_party/opus:test_opus_encode_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_encode_loader.py"
+  },
+  {
+    "target": "third_party/opus:test_opus_decode_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_decode_loader.py"
   }
 ]
