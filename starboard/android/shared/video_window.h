@@ -18,12 +18,18 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include <chrono>
+
 namespace starboard {
 
 class VideoSurfaceHolder {
  public:
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
+
+  // Suspends the thread until the surface is available, or timeout occurs.
+  // Returns true if surface became available, false on timeout.
+  static bool WaitForVideoSurface(std::chrono::milliseconds timeout);
 
   // OnSurfaceDestroyed() will be invoked when surface is destroyed. When this
   // function is called, the decoder no longer owns the surface. Calling

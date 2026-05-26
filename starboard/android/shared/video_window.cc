@@ -20,6 +20,8 @@
 #include <android/native_window_jni.h>
 #include <jni.h>
 
+#include <chrono>
+#include <condition_variable>
 #include <mutex>
 
 #include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
@@ -38,6 +40,8 @@ namespace {
 
 // Global video surface pointer mutex.
 SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
+// Global condition variable to notify waiters when surface becomes available.
+SB_ONCE_INITIALIZE_FUNCTION(std::condition_variable, GetViewSurfaceCondVar)
 // Global pointer to the single video surface.
 jobject g_j_video_surface = NULL;
 // Global pointer to the single video window.
@@ -53,22 +57,27 @@ bool g_reset_surface_on_clear_window = false;
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder) {
-    g_video_surface_holder->OnSurfaceDestroyed();
-    g_video_surface_holder = NULL;
-  }
-  if (g_j_video_surface) {
-    env->DeleteGlobalRef(g_j_video_surface);
-    g_j_video_surface = NULL;
-  }
-  if (g_native_video_window) {
-    ANativeWindow_release(g_native_video_window);
-    g_native_video_window = NULL;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder) {
+      g_video_surface_holder->OnSurfaceDestroyed();
+      g_video_surface_holder = NULL;
+    }
+    if (g_j_video_surface) {
+      env->DeleteGlobalRef(g_j_video_surface);
+      g_j_video_surface = NULL;
+    }
+    if (g_native_video_window) {
+      ANativeWindow_release(g_native_video_window);
+      g_native_video_window = NULL;
+    }
+    if (surface) {
+      g_j_video_surface = env->NewGlobalRef(surface.obj());
+      g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    }
   }
   if (surface) {
-    g_j_video_surface = env->NewGlobalRef(surface.obj());
-    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    GetViewSurfaceCondVar()->notify_all();
   }
 }
 
@@ -81,8 +90,19 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
   // surface and it is not held by any decoder, i.e.
   // g_video_surface_holder is NULL.
-  std::lock_guard lock(*GetViewSurfaceMutex());
+  std::lock_guard<std::mutex> lock(*GetViewSurfaceMutex());
   return !g_video_surface_holder && g_j_video_surface;
+}
+
+// static
+bool VideoSurfaceHolder::WaitForVideoSurface(
+    std::chrono::milliseconds timeout) {
+  std::unique_lock<std::mutex> lock(*GetViewSurfaceMutex());
+  if (g_j_video_surface) {
+    return true;
+  }
+  return GetViewSurfaceCondVar()->wait_for(
+      lock, timeout, [] { return g_j_video_surface != nullptr; });
 }
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
