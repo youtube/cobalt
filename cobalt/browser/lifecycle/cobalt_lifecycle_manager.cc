@@ -44,24 +44,20 @@ void CobaltLifecycleManager::ResetForTesting() {
   frames_.clear();
   pending_ack_frames_.clear();
   pending_acks_.clear();
+  observers_.Clear();
 }
 
 void CobaltLifecycleManager::BindReceiver(
     content::RenderFrameHost* frame,
     mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver) {
-  receivers_.Add(this, std::move(receiver), frame);
+  receivers_.Add(this, std::move(receiver),
+                 {content::WebContents::FromRenderFrameHost(frame), frame});
 }
 
 void CobaltLifecycleManager::OnMojoDisconnect() {
-  content::RenderFrameHost* frame = receivers_.current_context();
-  if (!frame) {
-    return;
-  }
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(frame);
-
-  if (web_contents) {
-    UnregisterFrame(web_contents, frame);
+  FrameContext context = receivers_.current_context();
+  if (context.web_contents) {
+    UnregisterFrame(context.web_contents, context.frame);
   }
 }
 
@@ -86,7 +82,7 @@ void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
   // communication channel needed for lifecycle ACKs.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
   manager_->receivers_.Add(manager_, observer.InitWithNewPipeAndPassReceiver(),
-                           render_frame_host);
+                           {web_contents(), render_frame_host});
   controller->SetObserver(std::move(observer));
 
   controllers_[render_frame_host] = std::move(controller);
@@ -189,7 +185,7 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
   // Re-register the browser as an observer after re-binding the interface.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
   manager_->receivers_.Add(manager_, observer.InitWithNewPipeAndPassReceiver(),
-                           frame);
+                           {web_contents(), frame});
   controller->SetObserver(std::move(observer));
 
   controllers_[frame] = std::move(controller);
@@ -255,17 +251,16 @@ void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
   if (frames_[web_contents].empty()) {
     frames_.erase(web_contents);
     pending_ack_frames_.erase(web_contents);
-    pending_acks_.erase(web_contents);
     // Do NOT erase tracker here, as this might be called from the tracker
-    // itself!
+    // itself.
   }
   CheckCompletion(web_contents);
 }
 
 void CobaltLifecycleManager::PageVisibilityChanged(bool visible) {
-  content::RenderFrameHost* frame = receivers_.current_context();
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(frame);
+  FrameContext context = receivers_.current_context();
+  content::RenderFrameHost* frame = context.frame;
+  content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -280,9 +275,9 @@ void CobaltLifecycleManager::PageVisibilityChanged(bool visible) {
 }
 
 void CobaltLifecycleManager::PageBlurred() {
-  content::RenderFrameHost* frame = receivers_.current_context();
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(frame);
+  FrameContext context = receivers_.current_context();
+  content::RenderFrameHost* frame = context.frame;
+  content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -296,9 +291,9 @@ void CobaltLifecycleManager::PageBlurred() {
 }
 
 void CobaltLifecycleManager::PageFocused() {
-  content::RenderFrameHost* frame = receivers_.current_context();
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(frame);
+  FrameContext context = receivers_.current_context();
+  content::RenderFrameHost* frame = context.frame;
+  content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -307,10 +302,9 @@ void CobaltLifecycleManager::PageFocused() {
 }
 
 void CobaltLifecycleManager::PageResumed() {
-  content::RenderFrameHost* frame =
-      *receivers_.GetContext(receivers_.current_receiver());
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(frame);
+  FrameContext context = receivers_.current_context();
+  content::RenderFrameHost* frame = context.frame;
+  content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -324,17 +318,12 @@ void CobaltLifecycleManager::PageResumed() {
 }
 
 void CobaltLifecycleManager::FrameReady() {
-  content::RenderFrameHost* frame =
-      *receivers_.GetContext(receivers_.current_receiver());
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(frame);
+  FrameContext context = receivers_.current_context();
+  content::RenderFrameHost* frame = context.frame;
+  content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
     RegisterFrame(web_contents, frame);
-
-    if (pending_acks_[web_contents] == PendingAck::kUnfreeze) {
-      pending_ack_frames_[web_contents].insert(frame);
-    }
   }
 }
 
@@ -360,7 +349,7 @@ void CobaltLifecycleManager::StartWaitingForAck(
     if (main_frame) {
       pending_ack_frames_[web_contents].insert(main_frame);
     }
-    content::GetUIThreadTaskRunner({})->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&CobaltLifecycleManager::NotifyStartWaitingForReveal,
                        base::Unretained(this), web_contents->GetWeakPtr()));
@@ -385,6 +374,11 @@ void CobaltLifecycleManager::StartWaitingForAck(
       // before we can expect any ACKs.
       LOG(WARNING) << "StartWaitingForAck: No connected frames during "
                       "Unfreeze! Waiting for FrameReady...";
+      return;
+    } else if (ack_type == PendingAck::kCookieFlush) {
+      // For Freeze, cookie flush is handled asynchronously by AppEventDelegate.
+      // We do not complete it immediately here, letting it wait cleanly for the
+      // asynchronous OnCookieFlushAck callback.
       return;
     } else {
       // If there are no connected frames (e.g., during startup before any
@@ -421,6 +415,9 @@ void CobaltLifecycleManager::StartWaitingForAck(
 void CobaltLifecycleManager::CompleteAckImmediately(
     content::WebContents* web_contents,
     PendingAck ack_type) {
+  if (pending_acks_[web_contents] != ack_type) {
+    return;
+  }
   pending_acks_[web_contents] = PendingAck::kNone;
   pending_ack_frames_.erase(web_contents);
 
@@ -520,6 +517,10 @@ void CobaltLifecycleManager::OnAckTimeout(
 void CobaltLifecycleManager::OnWebContentsDestroyed(
     content::WebContents* web_contents) {
   trackers_.erase(web_contents);
+  main_frames_.erase(web_contents);
+  frames_.erase(web_contents);
+  pending_ack_frames_.erase(web_contents);
+  pending_acks_.erase(web_contents);
 }
 
 }  // namespace h5vcc_runtime

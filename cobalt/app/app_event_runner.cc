@@ -198,9 +198,19 @@ class AppEventRunnerImpl : public AppEventRunner {
     content::Shell::OnFocus();
   }
 
-  void DoConceal() override { content::Shell::OnConceal(); }
+  void DoConceal() override {
+    content::Shell::OnConceal();
+    for (auto* web_contents : GetWebContents()) {
+      web_contents->WasHidden();
+    }
+  }
 
-  void DoReveal() override { content::Shell::OnReveal(); }
+  void DoReveal() override {
+    content::Shell::OnReveal();
+    for (auto* web_contents : GetWebContents()) {
+      web_contents->WasShown();
+    }
+  }
 
   void DoFreeze(base::OnceClosure callback) override {
     content::Shell::OnFreeze();

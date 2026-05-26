@@ -465,7 +465,6 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 #endif
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
-  LOG(INFO) << "Shell::CreateNewWindow: is_visible=" << is_visible;
   create_params.initially_hidden = !is_visible;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {

@@ -72,7 +72,7 @@ CobaltLifecycleController::CobaltLifecycleController(
       PageVisibilityObserver(window.GetFrame()->GetPage()),
       FocusChangedObserver(window.GetFrame()->GetPage()),
       Supplement<LocalDOMWindow>(window),
-      receiver_(this),
+      receiver_(this, &window),
       remote_observer_(&window) {
   UpdateStateIfNeeded();
   if (receiver.is_valid()) {
@@ -96,7 +96,11 @@ void CobaltLifecycleController::SetObserver(
       std::move(observer),
       GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault));
 
-  // Query initial state now that we have the observer!
+  if (!remote_observer_.is_bound()) {
+    return;
+  }
+
+  // Query initial state now that we have the observer.
   if (GetPage()) {
     bool visible = GetPage()->IsPageVisible();
     remote_observer_->PageVisibilityChanged(visible);
@@ -145,6 +149,7 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
 }
 
 void CobaltLifecycleController::Trace(Visitor* visitor) const {
+  visitor->Trace(receiver_);
   visitor->Trace(remote_observer_);
   ExecutionContextLifecycleStateObserver::Trace(visitor);
   PageVisibilityObserver::Trace(visitor);

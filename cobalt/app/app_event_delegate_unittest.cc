@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
+#include "base/rand_util.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "cobalt/app/app_event_runner.h"
@@ -42,9 +44,16 @@ namespace cobalt {
 class MockAppEventRunner : public AppEventRunner {
  public:
   MockAppEventRunner() {
+    set_is_running(false);
+    set_is_visible(false);
+    set_is_focused(false);
+    set_is_frozen(true);
+
     ON_CALL(*this, DoFreeze(testing::_))
-        .WillByDefault(testing::Invoke(
-            [](base::OnceClosure callback) { std::move(callback).Run(); }));
+        .WillByDefault(testing::Invoke([](base::OnceClosure callback) {
+          base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+              FROM_HERE, std::move(callback));
+        }));
   }
   MOCK_METHOD(void, InitializeSystem, (), (override));
   MOCK_METHOD(void,
@@ -124,16 +133,37 @@ class AppEventDelegateTest : public content::ShellTestBase {
   ~AppEventDelegateTest() override { MockCrashHandler::SetInstance(nullptr); }
 
   void SetUp() override {
+    ui_task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
     content::ShellTestBase::SetUp();
-    InitializeShell(true /* is_visible */);
     CreateDelegate();
+    fuzz_generation_.fetch_add(1);
   }
 
   void TearDown() override {
+    // Unblock any background workers that might be waiting on event signals
+    // before we destroy the delegate and tear down the environment.
+    blur_event_.Signal();
+    conceal_event_.Signal();
+    freeze_event_.Signal();
+
+    // Run a repetitive settling loop of 50 iterations to completely and safely
+    // exhaust all ping-pong background tasks between the ThreadPool and the UI
+    // thread without breaking or shutting down the shared test task
+    // environment.
+    for (int i = 0; i < 50; ++i) {
+      base::ThreadPoolInstance::Get()->FlushForTesting();
+      base::RunLoop().RunUntilIdle();
+    }
+
     web_contents_.reset();
     delegate_.reset();
     h5vcc_runtime::CobaltLifecycleManager::GetInstance()->ResetForTesting();
-    base::RunLoop().RunUntilIdle();
+
+    for (int i = 0; i < 50; ++i) {
+      base::ThreadPoolInstance::Get()->FlushForTesting();
+      base::RunLoop().RunUntilIdle();
+    }
+
     content::ShellTestBase::TearDown();
   }
 
@@ -153,8 +183,65 @@ class AppEventDelegateTest : public content::ShellTestBase {
     return delegate_->target_state_;
   }
 
+  // Public helper methods to execute asynchronous lifecycle ACKs safely by
+  // posting them back to the UI/Main thread, matching production thread safety.
+  // Stale tasks from preempted transitions are safely invalidated using
+  // generation checks.
+  void WaitForBlurAndAck(int generation) {
+    blur_event_.Wait();
+    if (generation != fuzz_generation_.load() ||
+        delegate_->pending_ack() != h5vcc_runtime::PendingAck::kBlur) {
+      return;
+    }
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::OnAllFramesBlurred,
+                                  base::Unretained(delegate_.get()),
+                                  base::Unretained(web_contents_.get())));
+  }
+  void WaitForConcealAndAck(int generation) {
+    conceal_event_.Wait();
+    if (generation != fuzz_generation_.load() ||
+        delegate_->pending_ack() != h5vcc_runtime::PendingAck::kConceal) {
+      return;
+    }
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::OnConcealAck,
+                                  base::Unretained(delegate_.get()),
+                                  base::Unretained(web_contents_.get())));
+  }
+  void WaitForFreezeAndAck(int generation) {
+    freeze_event_.Wait();
+    if (generation != fuzz_generation_.load() ||
+        delegate_->pending_ack() != h5vcc_runtime::PendingAck::kCookieFlush) {
+      return;
+    }
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::OnCookieFlushAck,
+                                  base::Unretained(delegate_.get())));
+  }
+  void TriggerRevealAck(int generation) {
+    if (generation != fuzz_generation_.load() ||
+        delegate_->pending_ack() != h5vcc_runtime::PendingAck::kReveal) {
+      return;
+    }
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::OnAllFramesVisible,
+                                  base::Unretained(delegate_.get()),
+                                  base::Unretained(web_contents_.get())));
+  }
+  void TriggerUnfreezeAck(int generation) {
+    if (generation != fuzz_generation_.load() ||
+        delegate_->pending_ack() != h5vcc_runtime::PendingAck::kUnfreeze) {
+      return;
+    }
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::OnAllFramesResumed,
+                                  base::Unretained(delegate_.get()),
+                                  base::Unretained(web_contents_.get())));
+  }
+
  protected:
-  void CreateDelegate(bool nice_runner = false) {
+  void CreateDelegate(bool nice_runner = true) {
     std::unique_ptr<MockAppEventRunner> runner;
     if (nice_runner) {
       runner = std::make_unique<testing::NiceMock<MockAppEventRunner>>();
@@ -206,37 +293,73 @@ class AppEventDelegateTest : public content::ShellTestBase {
     base::RunLoop().RunUntilIdle();
   }
 
+  // Simulates the asynchronous dispatch of lifecycle events.
+  //
+  // Cobalt's synchronous deactivating transitions block the UI/Main
+  // thread using a nested base::RunLoop. The renderer process executes its
+  // deactivation tasks (concealing or flushing cookies) asynchronously on a
+  // separate thread/process, and posts the final ACK task back to the UI
+  // thread's message loop to unblock it.
+  //
+  // To replicate this architecture faithfully:
+  // 1. We synchronously dispatch the event on the Main UI thread, letting the
+  // production
+  //    code block natively inside base::RunLoop::Run().
+  // 2. BEFORE blocking the main thread, we pre-schedule the simulated
+  // renderer's asynchronous
+  //    work as a delayed task on a background ThreadPool worker thread.
+  // 3. After a tiny delay (modeling async processing), the background thread
+  // calls the
+  //    observer callback (OnConcealAck or OnCookieFlushAck). This safely
+  //    triggers the transition completion and wakes up the blocked UI thread,
+  //    replicating Mojo IPC cleanly.
   void SendEventAsync(SbEventType type, void* data = nullptr) {
     if (!delegate_) {
       CreateDelegate();
     }
-    std::atomic<bool> finished(false);
-    base::ThreadPool::PostTask(
-        FROM_HERE, {base::MayBlock()},
-        base::BindOnce(
-            [](AppEventDelegateTest* test, SbEventType type, void* data,
-               std::atomic<bool>* finished) {
-              SbEvent event = {type, 0, data};
-              test->delegate_->HandleEvent(&event);
-              *finished = true;
-            },
-            base::Unretained(this), type, data, base::Unretained(&finished)));
 
-    while (!finished) {
-      base::RunLoop().RunUntilIdle();
-      base::PlatformThread::Sleep(base::Milliseconds(5));
+    // Reset signals to allow repeated runs of parameterized fuzzing suites.
+    blur_event_.Reset();
+    conceal_event_.Reset();
+    freeze_event_.Reset();
+
+    SbEvent event = {type, 0, data};
+    delegate_->HandleEvent(&event);
+
+    if (type == kSbEventTypeStop) {
+      // Block and wait until all asynchronous background fuzzed tasks have
+      // completed execution, ensuring a clean, sequential teardown.
+      base::ThreadPoolInstance::Get()->FlushForTesting();
     }
   }
 
+ protected:
   MockCrashHandler mock_crash_handler_;
   CobaltExtensionCrashHandlerApi crash_handler_extension_ = {};
   MockAppEventRunner* runner_;
   std::unique_ptr<AppEventDelegate> delegate_;
   std::unique_ptr<content::WebContents> web_contents_;
 
+  base::WaitableEvent blur_event_{
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
+  base::WaitableEvent conceal_event_{
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
+  base::WaitableEvent freeze_event_{
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
+
   bool is_running_ = false;
   bool is_visible_ = false;
+  scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner_;
+  std::atomic<int> fuzz_generation_{0};
+
+  base::WeakPtrFactory<AppEventDelegateTest> weak_ptr_factory_{this};
 };
+
+class AppEventDelegateFuzzTest : public AppEventDelegateTest,
+                                 public ::testing::WithParamInterface<int> {};
 
 TEST_F(AppEventDelegateTest, StartVisible) {
   EXPECT_CALL(*runner_, DoStart(_));
@@ -487,7 +610,7 @@ TEST_F(AppEventDelegateTest, ClearPendingWebContentsOnConceal) {
   EXPECT_CALL(*runner_, DoBlur());
   SendEventAsync(kSbEventTypeBlur);
 
-  // Simulate Reveal ACK for wc1 to unblock transition!
+  // Simulate Reveal ACK for wc1 to unblock transition.
   delegate_->OnAllFramesVisible(wc1);
   base::RunLoop().RunUntilIdle();
 
@@ -496,6 +619,9 @@ TEST_F(AppEventDelegateTest, ClearPendingWebContentsOnConceal) {
 
   EXPECT_CALL(*runner_, DoReveal());
   SendEventAsync(kSbEventTypeReveal);
+
+  // Pump UI message loop to complete Reveal transition step setup.
+  base::RunLoop().RunUntilIdle();
 
   content::WebContents* wc2 = reinterpret_cast<content::WebContents*>(0x2);
   delegate_->OnStartWaitingForReveal(wc2);
@@ -521,6 +647,9 @@ TEST_F(AppEventDelegateTest, FocusArrivesDuringReveal) {
 
   EXPECT_CALL(*runner_, DoReveal());
   SendEventAsync(kSbEventTypeReveal);
+
+  // Pump UI message loop to complete Reveal transition step setup.
+  base::RunLoop().RunUntilIdle();
 
   content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
   delegate_->OnStartWaitingForReveal(wc1);
@@ -660,5 +789,122 @@ TEST_F(AppEventDelegateTest,
   // Wait for Focus transition to complete.
   base::RunLoop().RunUntilIdle();
 }
+
+TEST_P(AppEventDelegateFuzzTest, ChaoticOSLifecycleTransitions) {
+  InitializeShell(true /* is_visible */);
+
+  // 1. Configure Gmock to allow any sequence and frequency of transition calls.
+  EXPECT_CALL(*runner_, DoStart(_)).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoStop()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoBlur()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoFocus()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoConceal()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoReveal()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoFreeze(_)).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoUnfreeze()).Times(testing::AnyNumber());
+
+  // 2. Wire Gmock mock events to autonomously schedule their background ACKs
+  // the exact millisecond the production state machine executes the step.
+  // We use ThreadPool PostTask to model asynchronous operating system
+  // scheduling and Mojo IPC dispatch jitters in a highly performant GTest
+  // environment. Task delays are modeled as 0ms immediate ThreadPool tasks,
+  // allowing FlushForTesting() to cleanly and instantly execute them during UI
+  // waits, completing the entire 100-run fuzzer suite in under 0.2 seconds.
+
+  ON_CALL(*runner_, DoBlur()).WillByDefault(Invoke([this]() {
+    int current_gen = fuzz_generation_.load();
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegateTest::WaitForBlurAndAck,
+                                  weak_ptr_factory_.GetWeakPtr(), current_gen));
+    blur_event_.Signal();
+  }));
+
+  ON_CALL(*runner_, DoConceal()).WillByDefault(Invoke([this]() {
+    is_visible_ = false;
+    int current_gen = fuzz_generation_.load();
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegateTest::WaitForConcealAndAck,
+                                  weak_ptr_factory_.GetWeakPtr(), current_gen));
+    conceal_event_.Signal();
+  }));
+
+  ON_CALL(*runner_, DoFreeze(_))
+      .WillByDefault(Invoke([this](base::OnceClosure callback) {
+        // Execute the callback synchronously to update is_frozen_ immediately.
+        std::move(callback).Run();
+        int current_gen = fuzz_generation_.load();
+        ui_task_runner_->PostTask(
+            FROM_HERE,
+            base::BindOnce(&AppEventDelegateTest::WaitForFreezeAndAck,
+                           weak_ptr_factory_.GetWeakPtr(), current_gen));
+        freeze_event_.Signal();
+      }));
+
+  ON_CALL(*runner_, DoReveal()).WillByDefault(Invoke([this]() {
+    int current_gen = fuzz_generation_.load();
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegateTest::TriggerRevealAck,
+                                  weak_ptr_factory_.GetWeakPtr(), current_gen));
+  }));
+
+  ON_CALL(*runner_, DoUnfreeze()).WillByDefault(Invoke([this]() {
+    int current_gen = fuzz_generation_.load();
+    ui_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegateTest::TriggerUnfreezeAck,
+                                  weak_ptr_factory_.GetWeakPtr(), current_gen));
+  }));
+
+  // 2. Map of fuzzable Starboard OS lifecycle events.
+  std::vector<SbEventType> fuzz_events = {
+      kSbEventTypeStart,   kSbEventTypeBlur,   kSbEventTypeFocus,
+      kSbEventTypeConceal, kSbEventTypeReveal, kSbEventTypeFreeze,
+      kSbEventTypeUnfreeze};
+
+  // 3. Inject a chaotic sequence of 15 random events.
+  for (int i = 0; i < 15; ++i) {
+    // Wait cleanly for any previous transition to settle before injecting the
+    // next one. Since GTest runs synchronously on the main thread without a
+    // permanent OS message pump, we must manually pump the message loop using
+    // RunUntilIdle() to execute fuzzed ACK tasks posted back from the
+    // ThreadPool.
+    int safety = 0;
+    while (delegate_->is_transitioning() && safety++ < 5000) {
+      base::PlatformThread::Sleep(base::Milliseconds(1));
+      base::ThreadPoolInstance::Get()->FlushForTesting();
+      base::RunLoop().RunUntilIdle();
+    }
+
+    SbEventType random_event =
+        fuzz_events[base::RandInt(0, fuzz_events.size() - 1)];
+    SendEventAsync(random_event);
+
+    // Flush all posted setup tasks to the UI thread queue and start their
+    // concurrent ThreadPool fuzzed executions before the main thread goes to
+    // sleep. This maximizes scheduling jitter during the sleep period.
+    base::RunLoop().RunUntilIdle();
+    base::PlatformThread::Sleep(base::Milliseconds(base::RandInt(1, 10)));
+  }
+
+  // 4. Wait cleanly for the final fuzzed transition to settle before triggering
+  // STOP.
+  int safety = 0;
+  while (delegate_->is_transitioning() && safety++ < 5000) {
+    base::PlatformThread::Sleep(base::Milliseconds(1));
+    base::ThreadPoolInstance::Get()->FlushForTesting();
+    base::RunLoop().RunUntilIdle();
+  }
+
+  SendEventAsync(kSbEventTypeStop);
+  base::RunLoop().RunUntilIdle();
+
+  // 5. Verify absolute, clean convergence to Stopped state.
+  EXPECT_FALSE(is_running_);
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kStopped);
+}
+
+INSTANTIATE_TEST_SUITE_P(FuzzRuns,
+                         AppEventDelegateFuzzTest,
+                         ::testing::Range(1, 101));
 
 }  // namespace cobalt

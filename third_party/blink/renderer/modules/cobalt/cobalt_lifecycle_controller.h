@@ -17,17 +17,29 @@
 
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-blink.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom-blink.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/page/focus_changed_observer.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
+// CobaltLifecycleController is a document-associated supplement that monitors
+// and coordinates renderer-side lifecycle state changes (such as visibility,
+// focus, and freeze/resume transitions) for a LocalDOMWindow. It bridges these
+// events to the browser-side CobaltLifecycleManager via Mojo.
+//
+// Lifetime and Ownership:
+// It is owned by the LocalDOMWindow as a Supplement, and its lifetime is bound
+// to the lifetime of the document's execution context.
+//
+// Threading Model:
+// This class is thread-affine and must only be used on the main thread of the
+// renderer process (the Blink main thread).
 class CobaltLifecycleController
     : public GarbageCollected<CobaltLifecycleController>,
       public cobalt::mojom::blink::CobaltLifecycleController,
@@ -78,7 +90,9 @@ class CobaltLifecycleController
  private:
   void EnsureRemoteIsBound();
 
-  mojo::Receiver<cobalt::mojom::blink::CobaltLifecycleController> receiver_;
+  HeapMojoReceiver<cobalt::mojom::blink::CobaltLifecycleController,
+                   CobaltLifecycleController>
+      receiver_;
   HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>
       remote_observer_;
 };

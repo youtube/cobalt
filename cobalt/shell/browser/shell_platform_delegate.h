@@ -23,7 +23,6 @@
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
-#include "starboard/event.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 

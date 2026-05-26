@@ -37,6 +37,11 @@ namespace h5vcc_runtime {
 
 class H5vccRuntimeImpl;
 
+struct FrameContext {
+  content::WebContents* web_contents;
+  content::RenderFrameHost* frame;
+};
+
 enum class PendingAck {
   kNone,
   kReveal,
@@ -73,11 +78,13 @@ class CobaltLifecycleManagerObserver {
   virtual ~CobaltLifecycleManagerObserver() = default;
 };
 
-// CobaltLifecycleManager coordinates the Reveal ACK process across multiple
-// frames. It is used to ensure that focus is not granted to the application
-// until all registered frames have completed layout and are visible after a
-// reveal transition. This prevents "early focus" bugs where focus events are
-// processed before the page is ready.
+// CobaltLifecycleManager coordinates all renderer-side asynchronous lifecycle
+// ACKs (such as Reveal, Blur, Conceal, and Freeze/Unfreeze transitions) across
+// multiple frames. It ensures that browser-side state changes are safely
+// blocked or deferred until the renderers have acknowledged completion,
+// preventing race conditions and ensuring a predictable transition sequence
+// (e.g., preventing "early focus" bugs before layout is complete, or executing
+// Conceal checks before the thread is frozen).
 //
 // Note: "Reveal" refers to the Starboard lifecycle concept where the
 // application becomes visible to the user (e.g., after being concealed), while
@@ -95,6 +102,10 @@ class CobaltLifecycleManagerObserver {
 //
 // It is a global singleton to avoid layering violations between cobalt/app
 // and cobalt/shell.
+//
+// Threading Model:
+// This class is thread-affine and must only be accessed on the Browser UI
+// thread.
 class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
  public:
   // Returns the singleton instance.
@@ -243,8 +254,7 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
 
   base::ObserverList<CobaltLifecycleManagerObserver>::Unchecked observers_;
 
-  mojo::ReceiverSet<cobalt::mojom::CobaltLifecycleObserver,
-                    content::RenderFrameHost*>
+  mojo::ReceiverSet<cobalt::mojom::CobaltLifecycleObserver, FrameContext>
       receivers_;
 
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};

@@ -46,20 +46,23 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
     : content::WebContentsObserver(web_contents) {
   timeout_timer_ = std::make_unique<base::OneShotTimer>();
 
-  // Check if main frame is already created!
-  content::RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
-  if (main_frame && main_frame->IsRenderFrameLive()) {
-    mojo::Remote<cobalt::mojom::CobaltLifecycleController> controller;
-    main_frame->GetRemoteInterfaces()->GetInterface(
-        controller.BindNewPipeAndPassReceiver());
+  // Check if main frame is already created.
+  if (web_contents) {
+    content::RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
+    if (main_frame && main_frame->IsRenderFrameLive()) {
+      mojo::Remote<cobalt::mojom::CobaltLifecycleController> controller;
+      main_frame->GetRemoteInterfaces()->GetInterface(
+          controller.BindNewPipeAndPassReceiver());
 
-    // Create observer and pass to renderer!
-    mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer_remote;
-    h5vcc_runtime::CobaltLifecycleManager::GetInstance()->BindReceiver(
-        main_frame, observer_remote.InitWithNewPipeAndPassReceiver());
-    controller->SetObserver(std::move(observer_remote));
+      // Create observer and pass to renderer.
+      mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver>
+          observer_remote;
+      h5vcc_runtime::CobaltLifecycleManager::GetInstance()->BindReceiver(
+          main_frame, observer_remote.InitWithNewPipeAndPassReceiver());
+      controller->SetObserver(std::move(observer_remote));
 
-    controllers_[main_frame] = std::move(controller);
+      controllers_[main_frame] = std::move(controller);
+    }
   }
 }
 
