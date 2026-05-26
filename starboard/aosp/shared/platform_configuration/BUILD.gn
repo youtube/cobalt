@@ -24,5 +24,6 @@ config("no_pedantic_warnings") {
     "-Wno-missing-braces",
     "-Wno-vla-cxx-extension",
     "-Wno-unreachable-code-return",
+    "-Wno-unused-function",
   ]
 }
