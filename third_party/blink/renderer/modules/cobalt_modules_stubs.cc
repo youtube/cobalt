@@ -170,6 +170,11 @@ STUB_V8_WRAPPER(V8XRWebGLContext)
 // --- WebGPU C++ Stubs ---
 
 const WrapperTypeInfo& GPUTexture::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& GPU::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& GPUDevice::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& GPUAdapter::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& GPUAdapterInfo::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& GPUBuffer::wrapper_type_info_ = g_dummy_wrapper_type_info;
 
 DawnObjectBase::DawnObjectBase(
     scoped_refptr<DawnControlClientHolder> dawn_control_client,
