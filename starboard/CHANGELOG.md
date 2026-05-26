@@ -9,6 +9,12 @@ since the version previous to it.
 
 ## Version 18
 
+### Cleanup starboard/configuration.h
+Removed deprecated feature macros and derived configurations, including
+`SB_STRINGIFY`, `SB_PREFERRED_RGBA_BYTE_ORDER_*`, `SB_RESTRICT`, `SB_LIKELY`,
+`SB_UNLIKELY`, `SB_HAS_64_BIT_ATOMICS`, `SB_C_INLINE`.
+
+
 ### Removed SbThreadSetPriority
 The `SbThreadSetPriority` API is no longer used. Instead, the standard POSIX
 `setpriority` API should be used directly.
@@ -46,6 +52,7 @@ This prepares Cobalt for future AV2 playback support.
 ### Removed unused configuration constants
 The following configuration constants were removed as they are no longer used by Cobalt core:
 * `kSbFileMaxOpen`
+* `kSbHasThreadPrioritySupport`
 * `kSbMaxThreadLocalKeys`
 * `kSbMaxThreadNameLength`
 * `kSbNetworkReceiveBufferSize`

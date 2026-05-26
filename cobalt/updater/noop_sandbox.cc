@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_
-#define STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_
+// This is a test app for Evergreen that does nothing.
 
-#include "starboard/shared/internal_only.h"
+#include <unistd.h>
 
-namespace {
-// A simple helper to test success results.
-inline bool IsSuccess(int result_code) {
-  return result_code == 0;
+#include "base/time/time.h"
+#include "starboard/event.h"
+#include "starboard/system.h"
+
+void SbEventHandle(const SbEvent* /*event*/) {
+  // No-op app. Exit after 1s.
+  usleep(1 * base::Time::kMicrosecondsPerSecond);
+  SbSystemRequestStop(0);
 }
-}  // namespace
-
-#endif  // STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_

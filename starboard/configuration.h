@@ -104,18 +104,6 @@ struct CompileAssert {};
   extern char _COMPILE_ASSERT_##msg[(expr) ? 1 : -1]
 #endif
 
-// Standard CPP trick to stringify an evaluated macro definition.
-#define SB_STRINGIFY(x) SB_STRINGIFY2(x)
-#define SB_STRINGIFY2(x) #x
-
-// An enumeration of values for the kSbPreferredByteOrder configuration
-// variable.  Setting this up properly means avoiding slow color swizzles when
-// passing pixel data from one library to another.  Note that these definitions
-// are in byte-order and so are endianness-independent.
-#define SB_PREFERRED_RGBA_BYTE_ORDER_RGBA 1
-#define SB_PREFERRED_RGBA_BYTE_ORDER_BGRA 2
-#define SB_PREFERRED_RGBA_BYTE_ORDER_ARGB 3
-
 // --- Platform Configuration ------------------------------------------------
 
 // Include the platform-specific configuration. This macro is set by GN in
@@ -126,22 +114,6 @@ struct CompileAssert {};
 // --- Overridable Helper Macros ---------------------------------------------
 
 // The following macros can be overridden in STARBOARD_CONFIGURATION_INCLUDE
-
-// Makes a pointer-typed parameter restricted so that the compiler can make
-// certain optimizations because it knows the pointers are unique.
-#if !defined(SB_RESTRICT)
-#if defined(__cplusplus)
-#if SB_IS(COMPILER_MSVC)
-#define SB_RESTRICT __restrict
-#elif SB_IS(COMPILER_GCC)
-#define SB_RESTRICT __restrict__
-#else  // COMPILER
-#define SB_RESTRICT
-#endif  // COMPILER
-#else   // __cplusplus
-#define SB_RESTRICT __restrict
-#endif  // __cplusplus
-#endif  // SB_RESTRICT
 
 // Tells the compiler a function is using a printf-style format string.
 // |format_param| is the one-based index of the format string parameter;
@@ -198,28 +170,6 @@ struct CompileAssert {};
 #define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
 #endif  // SB_INT64_C
-
-// Macro for hinting that an expression is likely to be true.
-#if !defined(SB_LIKELY)
-#if SB_IS(COMPILER_GCC)
-#define SB_LIKELY(x) __builtin_expect(!!(x), 1)
-#elif SB_IS(COMPILER_MSVC)
-#define SB_LIKELY(x) (x)
-#else
-#define SB_LIKELY(x) (x)
-#endif  // SB_IS(COMPILER_MSVC)
-#endif  // !defined(SB_LIKELY)
-
-// Macro for hinting that an expression is likely to be false.
-#if !defined(SB_UNLIKELY)
-#if SB_IS(COMPILER_GCC)
-#define SB_UNLIKELY(x) __builtin_expect(!!(x), 0)
-#elif SB_IS(COMPILER_MSVC)
-#define SB_UNLIKELY(x) (x)
-#else
-#define SB_UNLIKELY(x) (x)
-#endif  // SB_IS(COMPILER_MSVC)
-#endif  // !defined(SB_UNLIKELY)
 
 // SB_DEPRECATED(int Foo(int bar));
 //   Annotates the function as deprecated, which will trigger a compiler
@@ -339,14 +289,7 @@ struct CompileAssert {};
 #endif
 #endif  // defined(SB_C_FORCE_INLINE)
 
-#if defined(SB_C_INLINE)
-#error "Your platform should not define SB_C_INLINE, it is deprecated."
-#else
-#define SB_C_INLINE inline
-#endif
-
-// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries. //
-// SB_API_VERSION >= 16
+// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
 #if !defined(SB_EXPORT_PLATFORM)  // auto-configure
 #if SB_IS(COMPILER_GCC)
 #define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
@@ -357,8 +300,7 @@ struct CompileAssert {};
 #endif
 #endif  // !defined(SB_EXPORT_PLATFORM)
 
-// SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries. //
-// SB_API_VERSION >= 16
+// SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries.
 #if !defined(SB_IMPORT_PLATFORM)  // auto-configure
 #if SB_IS(COMPILER_GCC)
 #define SB_IMPORT_PLATFORM
@@ -369,28 +311,11 @@ struct CompileAssert {};
 #endif
 #endif  // !defined(SB_IMPORT_PLATFORM)
 
-// --- Derived Configuration -------------------------------------------------
-
-// Whether the current platform has 64-bit atomic operations.
-#if SB_IS(64_BIT)
-#define SB_HAS_64_BIT_ATOMICS 1
-#else
-#define SB_HAS_64_BIT_ATOMICS 0
-#endif
-
 // Whether we use __PRETTY_FUNCTION__ or __FUNCTION__ for logging.
 #if SB_IS(COMPILER_GCC)
 #define SB_FUNCTION __PRETTY_FUNCTION__
 #else
 #define SB_FUNCTION __FUNCTION__
 #endif
-
-// --- Deprecated Feature Macros -----------------------------------------------
-
-// Deprecated feature macros are no longer referenced by application code, and
-// will be removed in a later Starboard API version. Any Starboard
-// implementation that supports any of these macros should be modified to no
-// longer rely on them, and operate with the assumption that their values are
-// always 1.
 
 #endif  // STARBOARD_CONFIGURATION_H_

@@ -26,10 +26,7 @@ struct SbAccessibilityCaptionSettings;
 struct SbAccessibilityDisplaySettings;
 struct SbMediaAudioConfiguration;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 struct ResolutionInfo {
   ResolutionInfo() {}
@@ -120,9 +117,6 @@ public:
 
 void TeardownJSONRPCLink();
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_RDKSERVICES_H_

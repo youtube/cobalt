@@ -32,12 +32,6 @@ const char kSbFileSepChar = '/';
 // The string form of SB_FILE_SEP_CHAR.
 const char* kSbFileSepString = "/";
 
-// On the current version of Raspbian, real time thread scheduling seems to be
-// broken in that higher priority threads do not always have priority over lower
-// priority threads.  It looks like the thread created last will always have the
-// highest priority.
-const bool kSbHasThreadPrioritySupport = true;
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
