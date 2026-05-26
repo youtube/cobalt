@@ -827,11 +827,33 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
-  std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
-  std::vector<SbDrmSubSampleMapping>
-      gathered_sbplayer_sample_infos_subsample_mapping;
-  std::vector<SbPlayerSampleSideData> gathered_sbplayer_sample_infos_side_data;
+  std::vector<SbPlayerSampleInfo> local_sample_infos;
+  std::vector<SbDrmSampleInfo> local_drm_infos;
+  std::vector<SbDrmSubSampleMapping> local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData> local_side_data;
+
+  const bool enable_trivial_optimizations =
+      experimental_features_.enable_trivial_optimizations.value_or(false);
+
+  std::vector<SbPlayerSampleInfo>& gathered_sbplayer_sample_infos =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_
+                                   : local_sample_infos;
+  std::vector<SbDrmSampleInfo>& gathered_sbplayer_sample_infos_drm_info =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_drm_info_
+                                   : local_drm_infos;
+  std::vector<SbDrmSubSampleMapping>& gathered_sbplayer_sample_infos_subsample_mapping =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_subsample_mapping_
+                                   : local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData>& gathered_sbplayer_sample_infos_side_data =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_side_data_
+                                   : local_side_data;
+
+  if (enable_trivial_optimizations) {
+    gathered_sbplayer_sample_infos.clear();
+    gathered_sbplayer_sample_infos_drm_info.clear();
+    gathered_sbplayer_sample_infos_subsample_mapping.clear();
+    gathered_sbplayer_sample_infos_side_data.clear();
+  }
 
   gathered_sbplayer_sample_infos.reserve(buffers.size());
   gathered_sbplayer_sample_infos_drm_info.reserve(buffers.size());
