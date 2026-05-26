@@ -15,6 +15,13 @@
       "third_party/zlib:zlib_unittests_loader"
     ],
     "TODO(b/486053350): Crashes on missing SbEventHandle": [
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
+  },
+  {
+    "target": "ui/views/examples:views_examples_unittests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py"
       "gl:gl_unittests_loader",
       "gl:ozone_gl_unittests_loader",
       "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
@@ -91,17 +98,12 @@
   {
     "target": "ui/views/examples:views_examples_unittests_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
-    "target": "third_party/boringssl:boringssl_pki_tests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py"
-  },
-  {
-    "target": "ui/compositor:compositor_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py"
-  },
-  {
-    "target": "third_party/opus:opus_tests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/opus_tests_loader.py"
+    "target": "ui/views/examples:views_examples_unittests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py"
   }
 ]
