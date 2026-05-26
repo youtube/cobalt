@@ -34,4 +34,10 @@ CUJS = {
         "url": "https://www.youtube.com/tv?v=nxcKFjP5QrE",
         "is_random_nav": True,
     },
+    "multi_watch": {
+        "name": "MULTI-WATCH CUJ (Dynamic Video Hopping)",
+        "url": "https://www.youtube.com/tv?v=nxcKFjP5QrE",
+        "is_random_nav": False,
+        "is_playlist": True,
+    },
 }

@@ -141,6 +141,37 @@ def launch_app(args, cmd_args, url):
   return None
 
 
+def capture_lightweight_rss(device, platform, pid):
+  """Reads /proc/{pid}/statm cheaply and returns VmRSS in MB."""
+  if not pid:
+    return None
+
+  if platform == "android":
+    stdout, _ = run_command(
+        ["adb", "-s", device, "shell", "cat", f"/proc/{pid}/statm"])
+    if stdout:
+      parts = stdout.split()
+      if parts and len(parts) >= 2:
+        try:
+          resident_pages = int(parts[1])
+          # Android TV page size is always 4096 bytes
+          return (resident_pages * 4096) / (1024.0 * 1024.0)
+        except ValueError:
+          pass
+  elif platform == "linux":
+    try:
+      with open(f"/proc/{pid}/statm", "r", encoding="utf-8") as f:
+        content = f.read().strip()
+        parts = content.split()
+        if parts and len(parts) >= 2:
+          resident_pages = int(parts[1])
+          page_size = os.sysconf("SC_PAGE_SIZE")
+          return (resident_pages * page_size) / (1024.0 * 1024.0)
+    except (FileNotFoundError, ValueError, OSError):
+      pass
+  return None
+
+
 def calculate_vas_fragmentation(maps_stdout):
   """Parses maps file and calculates VAS fragmentation and largest block."""
   ranges = []
@@ -322,13 +353,21 @@ def execute_profiling_run(args, run_id, sweep_config):
         "  ⚠️ Warning: DevTools connection handshake timed out on port %s",
         args.port)
 
-  # Launch background raw-websocket CDP page scroller only if randomized
-  # navigation is required
+  is_playlist = sweep_config.get("is_playlist", False)
   scroll_proc = None
-  if is_random_nav:
-    logging.info("  [Run %s] Launching background D-pad page scroller...",
-                 run_id)
-    if args.platform == "android":
+  if is_random_nav or is_playlist:
+    if is_playlist:
+      logging.info("  [Run %s] Launching background playlist video hopper...",
+                   run_id)
+      scroller_path = os.path.join(
+          REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_playlist.py")
+      scroll_cmd = [
+          "python3", scroller_path, args.device,
+          str(args.duration - 8)
+      ]
+    elif args.platform == "android":
+      logging.info("  [Run %s] Launching background D-pad page scroller...",
+                   run_id)
       scroller_path = os.path.join(
           REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_adb.py")
       scroll_cmd = [
@@ -336,6 +375,8 @@ def execute_profiling_run(args, run_id, sweep_config):
           str(args.duration - 8), "1.5"
       ]
     else:
+      logging.info("  [Run %s] Launching background D-pad page scroller...",
+                   run_id)
       scroller_path = os.path.join(
           REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_cdp.py")
       scroll_cmd = [
@@ -350,10 +391,48 @@ def execute_profiling_run(args, run_id, sweep_config):
       logging.warning("  ⚠️ Warning: Failed to start background scroller: %s",
                       e)
 
-  logging.info(
-      "  [Run %s] Actively scrolling page for %ss to trigger "
-      "offscreen decodes...", run_id, args.duration - 8)
-  time.sleep(args.duration - 8)
+  if is_playlist:
+    logging.info("  [Run %s] Actively watching & hopping videos for %ss...",
+                 run_id, args.duration - 8)
+  else:
+    logging.info(
+        "  [Run %s] Actively scrolling page for %ss to trigger "
+        "offscreen decodes...", run_id, args.duration - 8)
+  # Dynamic VmRSS memory polling loop (every 10 seconds)
+  active_duration = args.duration - 8
+  poll_interval = 10.0
+  elapsed = 0.0
+  rss_samples = []
+
+  # Resolve PID dynamically if not provided to start polling
+  pid = proc.pid if proc else None
+  if args.platform == "android" and not pid:
+    stdout_pid, _ = run_command(
+        ["adb", "-s", args.device, "shell", "pidof", args.package])
+    if stdout_pid:
+      pid = stdout_pid.strip()
+      logging.info("  [Run %s] Resolved target PID: %s", run_id, pid)
+
+  while elapsed < active_duration:
+    sleep_time = min(poll_interval, active_duration - elapsed)
+    time.sleep(sleep_time)
+    elapsed += sleep_time
+
+    # Self-healing PID resolution if still None
+    if not pid:
+      stdout_pid, _ = run_command(
+          ["adb", "-s", args.device, "shell", "pidof", args.package])
+      if stdout_pid:
+        pid = stdout_pid.strip()
+        logging.info("  [Run %s] Resolved target PID dynamically: %s", run_id,
+                     pid)
+
+    # Poll lightweight RSS cheaply
+    if pid:
+      rss_val = capture_lightweight_rss(args.device, args.platform, pid)
+      if rss_val is not None:
+        rss_samples.append(rss_val)
+        logging.info("  [Run %s] Dynamic VmRSS Poll: %.1f MB", run_id, rss_val)
 
   # Terminate background scroller cleanly
   if scroll_proc:
@@ -363,12 +442,19 @@ def execute_profiling_run(args, run_id, sweep_config):
     except OSError:
       pass
 
-  # 1. Capture system-wide RSS memory
+  # Calculate dynamic mean and peak memory from samples
+  dynamic_mean_rss = (
+      sum(rss_samples) / len(rss_samples) if rss_samples else None)
+  peak_rss = max(rss_samples) if rss_samples else None
+
+  # 1. Capture system-wide RSS memory (final snapshot)
   logging.info("  [Run %s] Dumping system PSS/RSS memory...", run_id)
-  pid = proc.pid if proc else None
-  (rss_mb, native_frag_pct, vas_frag_ratio,
+  (final_rss_mb, native_frag_pct, vas_frag_ratio,
    largest_free_vas_mb) = capture_memory_rss(args.device, args.package,
                                              args.platform, pid)
+
+  # Fallback to final snapshot if polling failed
+  rss_mb = dynamic_mean_rss if dynamic_mean_rss is not None else final_rss_mb
 
   # 2. Attempt to capture granular UMA breakdown metrics via CDP
   uma_captured = False
@@ -477,8 +563,12 @@ def execute_profiling_run(args, run_id, sweep_config):
         logging.warning(
             "  ⚠️ Warning: Failed to parse C++ process logs fallback: %s", e)
 
-  if rss_mb:
-    logging.info("  [Run %s] System RSS: %s MB", run_id, rss_mb)
+  if dynamic_mean_rss is not None:
+    logging.info(
+        "  [Run %s] System RSS (Dynamic Mean): %.1f MB (Peak: %.1f MB)", run_id,
+        dynamic_mean_rss, peak_rss)
+  elif rss_mb:
+    logging.info("  [Run %s] System RSS: %.1f MB", run_id, rss_mb)
   else:
     logging.info("  [Run %s] System RSS: FAILED", run_id)
 
@@ -497,8 +587,8 @@ def execute_profiling_run(args, run_id, sweep_config):
     logging.info("  [Run %s] Granular UMA Telemetry: NOT PRESENT", run_id)
 
   force_stop_app(args.device, args.package, args.platform, proc)
-  return (rss_mb, native_frag_pct, vas_frag_ratio, largest_free_vas_mb,
-          uma_captured)
+  return (rss_mb, peak_rss, native_frag_pct, vas_frag_ratio,
+          largest_free_vas_mb, uma_captured)
 
 
 # --- Statistical Calculations Engine ---
@@ -616,7 +706,7 @@ def main():
   parser.add_argument(
       "--cuj",
       default="watch",
-      choices=["all", "browse", "watch", "baseline", "combined"],
+      choices=["all", "browse", "watch", "baseline", "combined", "multi_watch"],
       help="Specific CUJ to run profiling campaigns on (default: watch)")
 
   parser.add_argument(
@@ -685,6 +775,8 @@ def main():
 
     baseline_rss = []
     experiment_rss = []
+    baseline_peak = []
+    experiment_peak = []
     baseline_frag = []
     experiment_frag = []
     baseline_vas_frag = []
@@ -739,22 +831,26 @@ def main():
         "tmp_json": tmp_json,
         "histograms_txt": histograms_txt,
         "url": cuj_url,
-        "is_random_nav": cuj_random_nav
+        "is_random_nav": cuj_random_nav,
+        "is_playlist": cuj_key == "multi_watch"
     }
     experiment_sweep_config = {
         "cmd_args": e_args,
         "tmp_json": tmp_json,
         "histograms_txt": histograms_txt,
         "url": cuj_url,
-        "is_random_nav": cuj_random_nav
+        "is_random_nav": cuj_random_nav,
+        "is_playlist": cuj_key == "multi_watch"
     }
 
     logging.info("\n====== SECTION 1/2: BASELINE RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, frag, vas_frag, vas_max, uma_active = execute_profiling_run(
-          args, i, baseline_sweep_config)
+      (rss, peak, frag, vas_frag, vas_max,
+       uma_active) = execute_profiling_run(args, i, baseline_sweep_config)
       if rss:
         baseline_rss.append(rss)
+      if peak is not None:
+        baseline_peak.append(peak)
       if frag is not None:
         baseline_frag.append(frag)
       if vas_frag is not None:
@@ -787,10 +883,12 @@ def main():
 
     logging.info("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
     for i in range(1, args.runs + 1):
-      rss, frag, vas_frag, vas_max, uma_active = execute_profiling_run(
-          args, i, experiment_sweep_config)
+      (rss, peak, frag, vas_frag, vas_max,
+       uma_active) = execute_profiling_run(args, i, experiment_sweep_config)
       if rss:
         experiment_rss.append(rss)
+      if peak is not None:
+        experiment_peak.append(peak)
       if frag is not None:
         experiment_frag.append(frag)
       if vas_frag is not None:
@@ -833,13 +931,21 @@ def main():
     logging.info("📊 STATISTICAL EVALUATION REPORT: %s", cuj_name)
     logging.info("%s", "=" * 60)
 
-    # 1. Always evaluate System RSS
+    # 1. Evaluate System RSS (Dynamic Mean VmRSS)
     if len(baseline_rss) >= 2 and len(experiment_rss) >= 2:
-      res = analyze_and_report_metric("System RSS Memory (VmRSS/meminfo)",
-                                      baseline_rss, experiment_rss)
-      if res:
-        res["cuj"] = cuj_name
-        campaign_results.append(res)
+      res_rss = analyze_and_report_metric("System RSS Memory (VmRSS/meminfo)",
+                                          baseline_rss, experiment_rss)
+      if res_rss:
+        res_rss["cuj"] = cuj_name
+        campaign_results.append(res_rss)
+
+    # 1b. Evaluate Peak RSS Memory
+    if len(baseline_peak) >= 2 and len(experiment_peak) >= 2:
+      res_peak = analyze_and_report_metric(
+          "Peak Process VmRSS Memory Footprint", baseline_peak, experiment_peak)
+      if res_peak:
+        res_peak["cuj"] = cuj_name
+        campaign_results.append(res_peak)
     else:
       logging.error("❌ Error: Insufficient System RSS data points captured "
                     "to run significance engine.")
