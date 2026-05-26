@@ -55,15 +55,28 @@ using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
 
+// Reason for existence: Guarantees automatic clearing of an underlying vector
+// upon exiting a scoped execution block, preventing stale or dangling pointers.
+//
+// Expected lifetime and ownership: Instantiated locally on the stack within a
+// function body. Destruction occurs automatically at scope exit.
+//
+// Threading model: Strictly single-threaded execution on the invoking thread.
 template <typename T>
-struct ScopedVectorClearer {
+class ScopedVectorClearer {
+ public:
+  ScopedVectorClearer(bool enable, std::vector<T>& vec)
+      : enable_(enable), vec_(vec) {}
+
   ~ScopedVectorClearer() {
-    if (enable) {
-      vec.clear();
+    if (enable_) {
+      vec_.clear();
     }
   }
-  bool enable;
-  std::vector<T>& vec;
+
+ private:
+  const bool enable_;
+  std::vector<T>& vec_;
 };
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
