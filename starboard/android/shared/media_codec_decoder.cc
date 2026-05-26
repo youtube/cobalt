@@ -31,9 +31,6 @@
 namespace starboard {
 namespace {
 
-using jni_zero::AttachCurrentThread;
-using jni_zero::ScopedJavaLocalRef;
-
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
 const jint kNoBufferFlags = 0;
@@ -752,11 +749,10 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   // were called and had it stored in |pending_input_to_retry_|.
   if (!input_buffer_already_written &&
       pending_input.type != PendingInput::kWriteEndOfStream) {
-    ScopedJavaLocalRef<jobject> byte_buffer(
-        media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.is_null()) {
-      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer, |byte_buffer| is"
-                    << " null.";
+    const auto [address, capacity] =
+        media_codec_bridge_->GetInputBufferAddress(dequeue_input_result.index);
+    if (!address) {
+      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer address.";
       // There could be dirty callbacks right after flush, thus the
       // MediaCodec.InputBuffer could be unavailable. In that case, we should
       // re-write the input buffer with a different MediaCodec.InputBuffer.
@@ -765,13 +761,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
       return false;
     }
 
-    JNIEnv* env = AttachCurrentThread();
-    jint capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
     if (capacity < size) {
       auto error_message = FormatString(
           "Unable to write to MediaCodec buffer, input buffer size (%d) is"
-          " greater than |byte_buffer.capacity()| (%d).",
-          size, static_cast<int>(capacity));
+          " greater than buffer capacity (%d).",
+          size, capacity);
       SB_LOG(ERROR) << error_message;
       ReportError(kSbPlayerErrorDecode, error_message);
       return false;
@@ -779,7 +773,6 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
 
     SB_DCHECK_GE(size, 0);
     SB_DCHECK_LE(size, capacity);
-    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
 
     using ::starboard::experimental::IsPointerAnnotated;
     using ::starboard::experimental::UnannotatePointer;
