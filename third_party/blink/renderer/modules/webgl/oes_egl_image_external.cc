@@ -133,6 +133,8 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     gl->WaitSyncTokenCHROMIUM(
         media_video_frame->acquire_sync_token().GetConstData());
     gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, texture->Object());
+    texture->UpdateUnderlyingObject(texture->Object(), media_video_frame,
+                                    /*has_shared_image_access=*/true);
     return;
   }
 

@@ -62,7 +62,7 @@ void WebGLTexture::SetTarget(GLenum target) {
 void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
                                           scoped_refptr<media::VideoFrame> video_frame,
                                           bool has_shared_image_access) {
-  if (Object()) {
+  if (Object() && Object() != new_object) {
     if (has_shared_image_access_) {
       Context()->ContextGL()->EndSharedImageAccessDirectCHROMIUM(Object());
     }

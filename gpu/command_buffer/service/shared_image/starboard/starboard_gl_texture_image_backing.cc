@@ -193,10 +193,12 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
         texture_ids[i], texture_targets[i]);
     if (texture) {
       GLFormatDesc format_desc = gl_format_caps.ToGLFormatDesc(format, i);
+      gfx::Size plane_size = format.GetPlaneSize(i, size);
       texture->SetLevelInfo(texture_targets[i], 0,
-                            format_desc.image_internal_format, size.width(),
-                            size.height(), 1, 0, format_desc.data_format,
-                            format_desc.data_type, gfx::Rect(size));
+                            format_desc.image_internal_format,
+                            plane_size.width(), plane_size.height(), 1, 0,
+                            format_desc.data_format, format_desc.data_type,
+                            gfx::Rect(plane_size));
       texture->SetImmutable(true, false);
     }
     textures_.push_back(texture);
