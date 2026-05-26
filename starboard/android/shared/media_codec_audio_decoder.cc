@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -230,7 +231,7 @@ Result<void> MediaCodecAudioDecoder::InitializeCodec() {
 }
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
-    MediaCodecBridge* media_codec_bridge,
+    MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
@@ -282,7 +283,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
   }
 
   // BUFFER_FLAG_END_OF_STREAM may come with the last valid output buffer.
-  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+  if (dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream) {
     {
       std::lock_guard lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
@@ -295,7 +296,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
 }
 
 void MediaCodecAudioDecoder::RefreshOutputFormat(
-    MediaCodecBridge* media_codec_bridge) {
+    MediaCodec* media_codec_bridge) {
   std::optional<AudioOutputFormatResult> output_format =
       media_codec_bridge->GetAudioOutputFormat();
   if (!output_format) {

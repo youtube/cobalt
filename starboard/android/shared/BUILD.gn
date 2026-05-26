@@ -184,6 +184,8 @@ static_library("starboard_platform") {
     "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
+    "media_codec.cc",
+    "media_codec.h",
     "media_codec_audio_decoder.cc",
     "media_codec_audio_decoder.h",
     "media_codec_bridge.cc",
@@ -437,7 +439,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
-    "media_codec_bridge.h",
+    "media_codec.h",
     "media_common.h",
     "media_drm_bridge.h",
   ]

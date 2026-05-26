@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/thread.h"
@@ -39,10 +39,11 @@ namespace starboard {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaCodecDecoder final : private MediaCodecBridge::Handler,
+class MediaCodecDecoder final : private MediaCodec::Handler,
                                 protected JobQueue::JobOwner {
  public:
   using FrameRenderedCB = std::function<void(int64_t)>;
+  MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
   // This class should be implemented by the users of MediaCodecDecoder to
@@ -51,15 +52,15 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // TODO: Replace this with std::function<> based callbacks.
   class Host {
    public:
-    virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
+    virtual void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
-    virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
-    virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
+    virtual void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) = 0;
+    virtual void RefreshOutputFormat(MediaCodec* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the
     // Host a chance to process when the MediaCodecDecoder is decoding.
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
-    virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
+    virtual bool Tick(MediaCodec* media_codec_bridge) = 0;
     // This function gets called before calling Flush() on the contained
     // MediaCodecBridge so the host can have a chance to do necessary cleanups
     // before the MediaCodecBridge is flushed.
@@ -270,7 +271,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // Only used when |use_dual_threads_| is true.
   std::unique_ptr<Thread> video_output_thread_;
 
-  std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+  std::unique_ptr<MediaCodec> media_codec_bridge_;
 };
 
 }  // namespace starboard
