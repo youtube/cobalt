@@ -11,9 +11,5 @@ config build = common.build {
       key = 'CONFIG'
       value = 'gold'
     },
-    {
-      key = 'TARGET'
-      value = 'default'
-    },
   ]
 }

@@ -18,12 +18,11 @@
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -31,8 +30,8 @@ SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
                             RuntimeResourceOverlay::GetInstance)
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  base::android::ScopedJavaLocalRef<jobject> resource_overlay =
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  jni_zero::ScopedJavaLocalRef<jobject> resource_overlay =
       StarboardBridge::GetInstance()->GetResourceOverlay(env);
 
   // Retrieve all Runtime Resource Overlay variables during initialization, so

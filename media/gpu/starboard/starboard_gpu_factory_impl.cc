@@ -15,8 +15,11 @@
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 
 #include "base/memory/scoped_refptr.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
+#include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
+#include "gpu/ipc/service/shared_image_stub.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
@@ -58,11 +61,61 @@ void StarboardGpuFactoryImpl::RunSbDecodeTargetFunctionOnGpu(
     void* target_function_context,
     base::WaitableEvent* done_event) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (MakeContextCurrent(stub_)) {
+    target_function(target_function_context);
+  }
+  done_event->Signal();
+}
+
+void StarboardGpuFactoryImpl::RunCallbackOnGpu(
+    base::OnceCallback<void()> callback,
+    base::WaitableEvent* done_event) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (MakeContextCurrent(stub_)) {
+    std::move(callback).Run();
+  }
+  done_event->Signal();
+}
+
+void StarboardGpuFactoryImpl::PostCallbackToGpu(
+    base::OnceCallback<void()> callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!MakeContextCurrent(stub_)) {
-    done_event->Signal();
     return;
   }
-  target_function(target_function_context);
+  std::move(callback).Run();
+}
+
+void StarboardGpuFactoryImpl::CreateImageOnGpu(
+    const gfx::Size& coded_size,
+    const gfx::ColorSpace& color_space,
+    viz::SharedImageFormat format,
+    scoped_refptr<gpu::ClientSharedImage>& shared_image,
+    const std::vector<uint32_t>& texture_service_ids,
+    const std::vector<uint32_t>& texture_targets,
+    uint64_t decode_target,
+#if BUILDFLAG(IS_ANDROID)
+    scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+    base::WaitableEvent* done_event) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (MakeContextCurrent(stub_)) {
+    DCHECK_EQ(texture_service_ids.size(), texture_targets.size());
+
+    scoped_refptr<gpu::GpuChannelSharedImageInterface>
+        gpu_channel_shared_image_interface =
+            stub_->channel()->shared_image_stub()->shared_image_interface();
+
+    shared_image = gpu_channel_shared_image_interface
+                       ->CreateSharedImageForStarboardGLTexture(
+                           format, coded_size, color_space, texture_service_ids,
+                           texture_targets, decode_target
+#if BUILDFLAG(IS_ANDROID)
+                           ,
+                           std::move(drdc_lock)
+#endif
+                       );
+  }
   done_event->Signal();
 }
 

@@ -8,6 +8,7 @@ on:
       start_commit:
         description: 'The commit to start rolling from, should point to the last release chore'
         type: string
+        default: '217cc0c75ae4620743cd57d436f5f3a7e10cd289'
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
@@ -42,15 +43,16 @@ jobs:
       - name: Prepare Cherry Pick Branch
         env:
           TARGET_BRANCH: 27.lts
+          FETCH_DEPTH: 1000
         run: |
           set -x
 
           # Copy the script from the main branch before switching branches.
           cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
 
-          # Unshallow the repository to ensure all history for all branches is fetched.
+          # The autoroller will only ever operate on the lower limit (1k commits).
           # Fetch enough history for target branch to find merge base.
-          git fetch --depth=1000 --no-recurse-submodules --filter=blob:none origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules --filter=blob:none origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from the target branch.
           if git fetch --no-recurse-submodules --filter=blob:none origin "autoroll-to-${TARGET_BRANCH}"; then
@@ -60,7 +62,9 @@ jobs:
           fi
 
           # Ensure latest main with enough history.
-          git fetch --depth=1000 --no-recurse-submodules --filter=blob:none origin main:main
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules --filter=blob:none origin main:main
+
+
 
       - name: Cherry Pick Merged PRs
         id: autoroll
@@ -72,10 +76,14 @@ jobs:
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
-          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
-            --target-branch "${TARGET_BRANCH}" \
-            --start-commit "${START_COMMIT}" \
-            --max-commits "${MAX_COMMITS}")
+          args=(
+            --target-branch "${TARGET_BRANCH}"
+            --max-commits "${MAX_COMMITS}"
+          )
+          if [[ -n "${START_COMMIT}" ]]; then
+            args+=(--start-commit "${START_COMMIT}")
+          fi
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" "${args[@]}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

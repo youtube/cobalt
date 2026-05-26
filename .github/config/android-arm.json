@@ -12,7 +12,6 @@
   "test_browser": true,
   "test_yts_wpt": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
-  "test_attempts": "3",
   "e2e_test_targets": [
     {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",

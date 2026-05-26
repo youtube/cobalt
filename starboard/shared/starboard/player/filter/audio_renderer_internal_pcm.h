@@ -95,6 +95,8 @@ class AudioRendererPcm : public AudioRenderer,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
+  int64_t GetAudioWriteHead() override;
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override;
 
  private:
   enum EOSState {
@@ -172,7 +174,8 @@ class AudioRendererPcm : public AudioRenderer,
   int32_t pending_decoder_outputs_ = 0;
 
   bool can_accept_more_data_ = true;
-  JobQueue::JobToken process_audio_data_job_token_;
+  JobQueue::JobToken process_audio_data_job_token_ =
+      JobQueue::JobToken::kUnscheduled;
   std::function<void()> process_audio_data_job_;
 
   // Our owner will attempt to seek to time 0 when playback begins.  In

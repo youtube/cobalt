@@ -15,6 +15,10 @@
 import("//cobalt/build/configs/hacks.gni")
 import("//testing/test.gni")
 
+if (is_ios && target_platform == "tvos" && is_internal_build) {
+  import("//cobalt/internal/starboard/shared/tvos/tvos.gni")
+}
+
 declare_args() {
   sb_enable_cast_codec_tests = false
 }
@@ -80,6 +84,10 @@ test("nplb") {
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
+
+    # These helper files are used by the player tests.
+    "posix_compliance/posix_thread_helpers.cc",
+    "posix_compliance/posix_thread_helpers.h",
   ]
 
   # All platforms use the Starboard Media functionality.
@@ -181,6 +189,7 @@ test("nplb") {
       "posix_compliance/posix_mutex_create_test.cc",
       "posix_compliance/posix_mutex_destroy_test.cc",
       "posix_compliance/posix_nanosleep_test.cc",
+      "posix_compliance/posix_net_if_test.cc",
       "posix_compliance/posix_once_test.cc",
       "posix_compliance/posix_pipe_test.cc",
       "posix_compliance/posix_poll_test.cc",
@@ -237,8 +246,6 @@ test("nplb") {
       "posix_compliance/posix_thread_detach_test.cc",
       "posix_compliance/posix_thread_get_current_test.cc",
       "posix_compliance/posix_thread_get_name_test.cc",
-      "posix_compliance/posix_thread_helpers.cc",
-      "posix_compliance/posix_thread_helpers.h",
       "posix_compliance/posix_thread_is_equal_test.cc",
       "posix_compliance/posix_thread_join_test.cc",
       "posix_compliance/posix_thread_kill_test.cc",
@@ -307,7 +314,6 @@ test("nplb") {
       "system_sign_with_certification_secret_key_test.cc",
       "system_symbolize_test.cc",
       "thread_get_id_test.cc",
-      "thread_priority_test.cc",
       "thread_test.cc",
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",
@@ -380,5 +386,9 @@ test("nplb") {
       "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
     ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
+  }
+
+  if (is_ios && target_platform == "tvos" && is_internal_build) {
+    sources += internal_tvos_test_sources
   }
 }

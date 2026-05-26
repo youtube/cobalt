@@ -17,11 +17,9 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/graphics.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
-
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
 
 namespace {
 
@@ -71,7 +69,7 @@ bool DefaultGetRenderRootTransform(float* m00,
 }
 
 void ReportFullyDrawn() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   StarboardBridge::GetInstance()->ReportFullyDrawn(env);
 }
 

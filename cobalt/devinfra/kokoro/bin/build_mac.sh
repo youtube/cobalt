@@ -47,26 +47,23 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3
+    --script-executable=/usr/bin/python3 --no-rbe
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done
   # Build Cobalt.
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
-  autoninja -C "${out_dir}" ${TARGET}  # TARGET may expand to multiple args
+  autoninja -C "${out_dir}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Package and upload nightly release archive.
   if is_release_build && is_release_config; then
     local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
     mkdir -p "${package_dir}"
 
-    # TODO(b/294130306): Move build_info to gn packaging.
     local build_info_path="${out_dir}/gen/build_info.json"
-    cp "${build_info_path}" "${package_dir}/"
 
     # Create release package.
-    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/simple_packager.py" \
-      "${WORKSPACE_COBALT}" \
+    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/tvos_packager.py" \
       "${out_dir}" \
       "${package_dir}" \
       "${build_info_path}"

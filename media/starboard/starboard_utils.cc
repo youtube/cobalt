@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
+#include "media/starboard/buildflags.h"
 #include "starboard/common/media.h"
 #include "starboard/configuration.h"
 
@@ -97,6 +98,10 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecH265;
     case VideoCodec::kAV1:
       return kSbMediaVideoCodecAv1;
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_AV2_SUPPORT)
+    case VideoCodec::kAV2:
+      return kSbMediaVideoCodecAv2;
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_AV2_SUPPORT)
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
       LOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);

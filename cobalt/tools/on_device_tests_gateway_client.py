@@ -213,8 +213,12 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.gcs_result_path:
     params.append(f'gcs_result_path={args.gcs_result_path}')
   if args.test_attempts:
-    # Must delete existing results when retries are enabled.
-    params.append('gcs_delete_before_upload=true')
+    try:
+      if int(args.test_attempts) > 1:
+        # Must delete existing results when retries are enabled.
+        params.append('gcs_delete_before_upload=true')
+    except ValueError:
+      logging.warning('Invalid test_attempts value: %s', args.test_attempts)
 
   return params
 
@@ -358,6 +362,7 @@ def main() -> int:
   trigger_args.add_argument(
       '--test_attempts',
       type=str,
+      default='0',
       help='The maximum number of times a test can retry.',
   )
   trigger_args.add_argument(

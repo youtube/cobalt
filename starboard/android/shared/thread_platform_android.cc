@@ -16,12 +16,12 @@
 
 #include "starboard/common/thread_platform.h"
 
-#include "base/android/jni_android.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 void TerminateOnThread() {
-  base::android::DetachFromVM();
+  jni_zero::DetachFromVM();
 }
 
 }  // namespace starboard

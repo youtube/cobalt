@@ -57,21 +57,6 @@ AudioRendererSinkImpl::~AudioRendererSinkImpl() {
   Stop();
 }
 
-bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
-    SbMediaAudioSampleType audio_sample_type) const {
-  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
-}
-
-bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type) const {
-  return SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type);
-}
-
-int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
-    int sampling_frequency_hz) const {
-  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
-}
-
 void AudioRendererSinkImpl::GetAudioRendererParams(
     const AudioStreamInfo& audio_stream_info,
     int* max_cached_frames,
@@ -137,6 +122,21 @@ void AudioRendererSinkImpl::Start(
   // support play/pause.
   audio_sink_->SetPlaybackRate(playback_rate_);
   audio_sink_->SetVolume(volume_);
+}
+
+bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
+    SbMediaAudioSampleType audio_sample_type) const {
+  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
+}
+
+bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
+    SbMediaAudioFrameStorageType audio_frame_storage_type) const {
+  return SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type);
+}
+
+int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
+    int sampling_frequency_hz) const {
+  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
 }
 
 void AudioRendererSinkImpl::Stop() {

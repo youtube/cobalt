@@ -26,7 +26,7 @@ on:
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
-  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ inputs.platform }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 env:
@@ -444,6 +444,7 @@ jobs:
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
+          use_gcloud: true
 
       - name: Runner Cache Hot
         if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
@@ -468,6 +469,8 @@ jobs:
       - name: Set Up Depot Tools
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
+        with:
+          use_gcloud: true
 
       - name: Build Cobalt
         id: build
@@ -680,6 +683,7 @@ jobs:
           test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
     outputs:
       # Browser tests are fixed to a single target.
       test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'

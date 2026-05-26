@@ -16,6 +16,7 @@
 
 #include <android/looper.h>
 #include <android/native_activity.h>
+#include <jni.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -24,7 +25,6 @@
 #include <string>
 #include <vector>
 
-#include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
 #include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
@@ -39,14 +39,16 @@
 #include "starboard/key.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
@@ -75,14 +77,14 @@ ApplicationAndroid::ApplicationAndroid(
   // class.
   RuntimeResourceOverlay::GetInstance();
 
-  JNIEnv* jni_env = base::android::AttachCurrentThread();
+  JNIEnv* jni_env = AttachCurrentThread();
   app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp(jni_env);
 
   starboard_bridge_->ApplicationStarted(jni_env);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
 }
 

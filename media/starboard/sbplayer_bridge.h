@@ -366,6 +366,14 @@ class SbPlayerBridge {
   std::string pipeline_identifier_;
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
 
+  // Pre-allocated vectors for WriteBuffersInternal to avoid allocations when
+  // enable_trivial_optimizations is enabled.
+  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos_;
+  std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info_;
+  std::vector<SbDrmSubSampleMapping>
+      gathered_sbplayer_sample_infos_subsample_mapping_;
+  std::vector<SbPlayerSampleSideData> gathered_sbplayer_sample_infos_side_data_;
+
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
   // See base/memory/weak_ptr.h.

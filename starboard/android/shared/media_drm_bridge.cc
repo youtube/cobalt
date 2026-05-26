@@ -24,6 +24,7 @@
 #include "base/memory/raw_ref.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
@@ -31,13 +32,13 @@
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaByteArrayToString;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 using DrmOperationResult = MediaDrmBridge::OperationResult;
 
@@ -98,7 +99,7 @@ SbDrmKeyStatus ToSbDrmKeyStatus(jint status_code) {
 
 std::string JavaByteArrayToString(
     JNIEnv* env,
-    const base::android::JavaRef<jbyteArray>& j_byte_array) {
+    const jni_zero::JavaRef<jbyteArray>& j_byte_array) {
   std::string out;
   JavaByteArrayToString(env, j_byte_array, &out);
   return out;
@@ -151,35 +152,6 @@ std::unique_ptr<MediaDrmBridge> MediaDrmBridge::Create(
 MediaDrmBridge::MediaDrmBridge(PassKey<MediaDrmBridge>,
                                base::raw_ref<MediaDrmBridge::Host> host)
     : host_(host) {}
-
-bool MediaDrmBridge::Initialize(std::string_view key_system,
-                                bool enable_app_provisioning) {
-  JNIEnv* env = AttachCurrentThread();
-
-  ScopedJavaLocalRef<jstring> j_key_system(
-      ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
-      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
-                                 reinterpret_cast<jlong>(this)));
-
-  if (j_media_drm_bridge.is_null()) {
-    SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
-    return false;
-  }
-
-  ScopedJavaLocalRef<jobject> j_media_crypto(
-      Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge));
-
-  if (j_media_crypto.is_null()) {
-    SB_LOG(ERROR) << "Failed to create MediaCrypto.";
-    return false;
-  }
-
-  j_media_drm_bridge_.Reset(env, j_media_drm_bridge.obj());
-  j_media_crypto_.Reset(env, j_media_crypto.obj());
-
-  return true;
-}
 
 MediaDrmBridge::~MediaDrmBridge() {
   if (!j_media_drm_bridge_.is_null()) {
@@ -336,6 +308,35 @@ bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
 // static
 bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
+}
+
+bool MediaDrmBridge::Initialize(std::string_view key_system,
+                                bool enable_app_provisioning) {
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jstring> j_key_system(
+      ConvertUTF8ToJavaString(env, key_system));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
+      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
+                                 reinterpret_cast<jlong>(this)));
+
+  if (j_media_drm_bridge.is_null()) {
+    SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
+    return false;
+  }
+
+  ScopedJavaLocalRef<jobject> j_media_crypto(
+      Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge));
+
+  if (j_media_crypto.is_null()) {
+    SB_LOG(ERROR) << "Failed to create MediaCrypto.";
+    return false;
+  }
+
+  j_media_drm_bridge_.Reset(env, j_media_drm_bridge.obj());
+  j_media_crypto_.Reset(env, j_media_crypto.obj());
+
+  return true;
 }
 
 std::ostream& operator<<(std::ostream& os, DrmOperationStatus status) {

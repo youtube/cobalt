@@ -24,7 +24,6 @@
 
 namespace starboard {
 
-// TODO: add unit tests for ParsedMimeInfo
 class ParsedMimeInfo {
  public:
   struct AudioCodecInfo {
@@ -48,12 +47,9 @@ class ParsedMimeInfo {
     bool decode_to_texture_required;
   };
 
-  ParsedMimeInfo() : mime_type_("") {}
-  explicit ParsedMimeInfo(const std::string& mime_string);
+  static std::optional<ParsedMimeInfo> Create(const std::string& mime_string);
 
   const MimeType& mime_type() const { return mime_type_; }
-
-  bool is_valid() const { return is_valid_; }
 
   // A switch in the mime string to disable caches.
   bool disable_cache() const { return disable_cache_; }
@@ -78,22 +74,22 @@ class ParsedMimeInfo {
     return video_info_;
   }
 
-  // Allow to overwrite the bitrate.
-  void SetBitrate(int bitrate);
+  // Returns a new ParsedMimeInfo with the bitrate updated.
+  ParsedMimeInfo WithBitrate(int bitrate) const;
 
  private:
-  void ParseMimeInfo();
-  bool ParseAudioInfo(const std::string& codec);
-  bool ParseVideoInfo(const std::string& codec);
+  ParsedMimeInfo(MimeType mime_type,
+                 bool disable_cache,
+                 AudioCodecInfo audio_info,
+                 VideoCodecInfo video_info);
 
-  void ResetCodecInfos();
-
-  MimeType mime_type_;
-  bool is_valid_ = true;
-  bool disable_cache_ = false;
-  AudioCodecInfo audio_info_;
-  VideoCodecInfo video_info_;
+  const MimeType mime_type_;
+  const bool disable_cache_;
+  const AudioCodecInfo audio_info_;
+  const VideoCodecInfo video_info_;
 };
+
+std::ostream& operator<<(std::ostream& os, const ParsedMimeInfo& mime_info);
 
 }  // namespace starboard
 
