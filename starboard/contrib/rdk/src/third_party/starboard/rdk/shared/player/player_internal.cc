@@ -57,12 +57,7 @@
 #endif
 #include "third_party/starboard/rdk/shared/player/elements/gst_audio_clipping.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace player {
-
 static constexpr int kMaxNumberOfSamplesPerWrite = 1;
 static const char kCustomInstantRateChangeEventName[] = "custom-instant-rate-change";
 static const char kDidReceiveFirstSegmentMsgName[] = "did-receive-first-segment";
@@ -72,9 +67,6 @@ static const char kDidReachBufferingTargetMsgName[] = "did-reach-buffering-targe
 int Player::MaxNumberOfSamplesPerWrite() {
   return kMaxNumberOfSamplesPerWrite;
 }
-
-using third_party::starboard::rdk::shared::drm::CreateDecryptorElement;
-using third_party::starboard::rdk::shared::media::CodecToGstCaps;
 
 // **************************** GST/GLIB Helpers **************************** //
 
@@ -1515,13 +1507,12 @@ PlayerImpl::PlayerImpl(SbPlayer player,
   }
 
   if (audio_codec_ == kSbMediaAudioCodecPcm) {
-    GstElement* filter = elements::CreateAudioClippingElement(nullptr);
+    GstElement* filter = CreateAudioClippingElement(nullptr);
     g_object_set(pipeline_, "audio-filter", filter, nullptr);
   }
 
   if (drm_system_) {
 #if defined(HAS_OCDM)
-    using third_party::starboard::rdk::shared::drm::DrmSystemOcdm;
     reinterpret_cast<DrmSystemOcdm*>( drm_system_ )->AddRef();
 #endif
     GstContext* context = gst_context_new("cobalt-drm-system", FALSE);
@@ -1587,7 +1578,6 @@ PlayerImpl::~PlayerImpl() {
   g_object_unref(pipeline_);
   if (drm_system_) {
 #if defined(HAS_OCDM)
-    using third_party::starboard::rdk::shared::drm::DrmSystemOcdm;
     reinterpret_cast<DrmSystemOcdm*>( drm_system_ )->Release();
 #endif
   }
@@ -1791,7 +1781,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
 
 // static
 void* PlayerImpl::ThreadEntryPoint(void* context) {
-  setpriority(PRIO_PROCESS, 0, ::starboard::SbPriorityToNice(kSbThreadPriorityRealTime));
+  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityRealTime));
   SB_DCHECK(context);
   GST_TRACE("%d", SbThreadGetId());
 
@@ -3158,22 +3148,16 @@ void PlayerImpl::AudioConfigurationChanged() {
 }  // namespace
 
 void ForceStop() {
-  using third_party::starboard::rdk::shared::player::GetPlayerRegistry;
   GetPlayerRegistry()->ForceStop();
 }
 
 void AudioConfigurationChanged() {
-  using third_party::starboard::rdk::shared::player::GetPlayerRegistry;
   GetPlayerRegistry()->AudioConfigurationChanged();
 }
 
-}  // namespace player
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
-using third_party::starboard::rdk::shared::player::PlayerImpl;
+using ::starboard::PlayerImpl;
 
 SbPlayerPrivate::SbPlayerPrivate(
     SbWindow window,
@@ -3189,7 +3173,7 @@ SbPlayerPrivate::SbPlayerPrivate(
     void* context,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* provider) {
-  if ( third_party::starboard::rdk::shared::player::GetPlayerRegistry()->CanCreate(max_video_capabilities) ) {
+  if (starboard::GetPlayerRegistry()->CanCreate(max_video_capabilities)) {
     player_.reset(
       new PlayerImpl(this,
                      window,

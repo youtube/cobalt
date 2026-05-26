@@ -41,8 +41,7 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const MimeType* content_type,
                              int64_t bitrate) {
     return bitrate < kSbMediaMaxAudioBitrateInBitsPerSecond &&
-         third_party::starboard::rdk::shared::media::
-             GstRegistryHasElementForMediaType(audio_codec);
+           GstRegistryHasElementForMediaType(audio_codec);
 }
 
 }  // namespace starboard
