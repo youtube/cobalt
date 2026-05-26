@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_MANAGER_H_
-#define COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_MANAGER_H_
+#ifndef COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
+#define COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 
 #include <map>
 #include <set>
 
+#include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
+#include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace content {
 class WebContents;
@@ -38,9 +42,11 @@ enum class PendingAck {
   kReveal,
   kConceal,
   kBlur,
+  kUnfreeze,
+  kCookieFlush,
 };
 
-class H5vccRuntimeObserver {
+class CobaltLifecycleManagerObserver {
  public:
   // Called when all frames of a specific WebContents have completed reveal.
   virtual void OnAllFramesVisible(content::WebContents* web_contents) = 0;
@@ -60,11 +66,14 @@ class H5vccRuntimeObserver {
   // Called when a WebContents has completed blur.
   virtual void OnAllFramesBlurred(content::WebContents* web_contents) {}
 
+  // Called when all frames of a specific WebContents have completed resume.
+  virtual void OnAllFramesResumed(content::WebContents* web_contents) {}
+
  protected:
-  virtual ~H5vccRuntimeObserver() = default;
+  virtual ~CobaltLifecycleManagerObserver() = default;
 };
 
-// H5vccRuntimeManager coordinates the Reveal ACK process across multiple
+// CobaltLifecycleManager coordinates the Reveal ACK process across multiple
 // frames. It is used to ensure that focus is not granted to the application
 // until all registered frames have completed layout and are visible after a
 // reveal transition. This prevents "early focus" bugs where focus events are
@@ -86,17 +95,25 @@ class H5vccRuntimeObserver {
 //
 // It is a global singleton to avoid layering violations between cobalt/app
 // and cobalt/shell.
-class H5vccRuntimeManager {
+class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
  public:
   // Returns the singleton instance.
   // This is a global singleton rather than being owned by content::Shell
   // to avoid a layering violation: AppEventDelegate (in cobalt/app) needs
   // to observe reveal ACKs, but it cannot depend on content::Shell
   // (in cobalt/shell).
-  static H5vccRuntimeManager* GetInstance();
+  static CobaltLifecycleManager* GetInstance();
 
-  H5vccRuntimeManager(const H5vccRuntimeManager&) = delete;
-  H5vccRuntimeManager& operator=(const H5vccRuntimeManager&) = delete;
+  // Resets the singleton instance for testing.
+  void ResetForTesting();
+
+  CobaltLifecycleManager(const CobaltLifecycleManager&) = delete;
+  CobaltLifecycleManager& operator=(const CobaltLifecycleManager&) = delete;
+
+  // Note: The following methods take raw WebContents* because they are called
+  // synchronously from H5vccRuntimeImpl (which is scoped to the frame's
+  // lifetime). Therefore, the WebContents* is guaranteed to be valid during the
+  // call.
 
   // Called when a new document is created and H5vccRuntimeImpl is bound to it.
   // Registers the frame with the manager to track its visibility.
@@ -108,34 +125,38 @@ class H5vccRuntimeManager {
   void UnregisterFrame(content::WebContents* web_contents,
                        content::RenderFrameHost* frame);
 
-  // Called when the renderer signals that a frame is visible (Reveal ACK).
-  void OnPageVisibilityVisible(content::WebContents* web_contents,
-                               content::RenderFrameHost* frame);
+  void BindReceiver(
+      content::RenderFrameHost* frame,
+      mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver);
 
-  // Called when the renderer signals that a frame is hidden (Conceal ACK).
-  void OnPageVisibilityHidden(content::WebContents* web_contents,
-                              content::RenderFrameHost* frame);
-
-  // Called when the renderer signals that a frame has lost focus (Blur ACK).
-  void OnPageBlurred(content::WebContents* web_contents,
-                     content::RenderFrameHost* frame);
+  // cobalt::mojom::CobaltLifecycleObserver impl.
+  void PageVisibilityChanged(bool visible) override;
+  void PageBlurred() override;
+  void PageFocused() override;
+  void PageResumed() override;
+  void FrameReady() override;
 
   // Observers are notified when all frames of a WebContents become visible.
   // Supported observers:
   // - ShellPlatformDelegate: to unblock native window focus.
   // - AppEventDelegate: to unblock lifecycle transitions.
-  void AddObserver(H5vccRuntimeObserver* observer);
-  void RemoveObserver(H5vccRuntimeObserver* observer);
+  void AddObserver(CobaltLifecycleManagerObserver* observer);
+  void RemoveObserver(CobaltLifecycleManagerObserver* observer);
 
   // Called to start waiting for a specific ACK type.
   void StartWaitingForAck(content::WebContents* web_contents,
                           PendingAck ack_type);
 
  private:
-  friend class base::NoDestructor<H5vccRuntimeManager>;
+  friend class base::NoDestructor<CobaltLifecycleManager>;
 
-  H5vccRuntimeManager();
-  ~H5vccRuntimeManager();
+  CobaltLifecycleManager();
+  ~CobaltLifecycleManager();
+
+  void OnMojoDisconnect();
+
+  void CompleteAckImmediately(content::WebContents* web_contents,
+                              PendingAck ack_type);
 
   void CheckCompletion(content::WebContents* web_contents);
   void NotifyStartWaitingForReveal(
@@ -144,20 +165,64 @@ class H5vccRuntimeManager {
                     PendingAck ack_type);
   void OnWebContentsDestroyed(content::WebContents* web_contents);
 
+  // WebContentsTracker tracks the lifecycle state of all frames within a
+  // specific WebContents. It maintains the state reported by the renderer via
+  // Mojo, allowing the manager to check if a requested ACK condition has
+  // already been met by early-arriving messages.
   class WebContentsTracker : public content::WebContentsObserver {
    public:
     WebContentsTracker(content::WebContents* web_contents,
-                       H5vccRuntimeManager* manager);
+                       CobaltLifecycleManager* manager);
     ~WebContentsTracker() override;
 
+    // content::WebContentsObserver overrides.
+    void RenderFrameCreated(
+        content::RenderFrameHost* render_frame_host) override;
     void RenderFrameDeleted(
         content::RenderFrameHost* render_frame_host) override;
     void WebContentsDestroyed() override;
 
+    // Methods to update the tracked state of a specific frame.
+    void SetResumed(content::RenderFrameHost* frame);
+    void SetVisible(content::RenderFrameHost* frame, bool visible);
+    void SetFocused(content::RenderFrameHost* frame, bool focused);
+
+    bool IsComplete(PendingAck ack_type) const;
+
+    // Checks if the remote controller for the specified frame is bound and
+    // connected.
+    bool IsConnected(content::RenderFrameHost* frame) const;
+
+    // Proactively re-binds the remote controller for the specified frame.
+    void Rebind(content::RenderFrameHost* frame);
+
+    // Called when the remote controller for a frame disconnects.
+    void OnControllerDisconnect(content::RenderFrameHost* frame);
+
    private:
-    H5vccRuntimeManager* manager_;
+    CobaltLifecycleManager* manager_;
+
+    // Map of active frames to their remote controllers.
+    std::map<content::RenderFrameHost*,
+             mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
+        controllers_;
+
+    // Sets to track the current state of each frame. A frame is considered
+    // to have achieved the state if it is present in the corresponding set.
+    base::flat_set<content::RenderFrameHost*> resumed_frames_;
+    base::flat_set<content::RenderFrameHost*> visible_frames_;
+    base::flat_set<content::RenderFrameHost*> focused_frames_;
   };
 
+  WebContentsTracker* GetOrCreateTracker(content::WebContents* web_contents);
+
+  // Note: We use raw WebContents* as keys here instead of WeakPtr<WebContents>
+  // because base::WeakPtr does not implement operator< in this version of base,
+  // making it unusable as a std::map key without a custom comparator. A custom
+  // comparator comparing raw pointers would be unsafe because once the
+  // WebContents is destroyed, all WeakPtrs pointing to it become null and
+  // compare equal, violating strict weak ordering. We rely on
+  // OnWebContentsDestroyed for cleanup.
   base::small_map<std::map<content::WebContents*, content::RenderFrameHost*>>
       main_frames_;
   base::small_map<
@@ -176,11 +241,15 @@ class H5vccRuntimeManager {
       std::map<content::WebContents*, std::unique_ptr<WebContentsTracker>>>
       trackers_;
 
-  base::ObserverList<H5vccRuntimeObserver>::Unchecked observers_;
+  base::ObserverList<CobaltLifecycleManagerObserver>::Unchecked observers_;
 
-  base::WeakPtrFactory<H5vccRuntimeManager> weak_factory_{this};
+  mojo::ReceiverSet<cobalt::mojom::CobaltLifecycleObserver,
+                    content::RenderFrameHost*>
+      receivers_;
+
+  base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
 };
 
 }  // namespace h5vcc_runtime
 
-#endif  // COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_MANAGER_H_
+#endif  // COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_

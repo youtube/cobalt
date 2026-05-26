@@ -35,9 +35,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+#include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -465,6 +465,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 #endif
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
+  LOG(INFO) << "Shell::CreateNewWindow: is_visible=" << is_visible;
   create_params.initially_hidden = !is_visible;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {

@@ -20,8 +20,10 @@
 #include <string>
 
 #include "base/containers/flat_map.h"
-#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
+#include "starboard/event.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -35,7 +37,7 @@ class ViewsDelegate;
 #include "ui/display/screen.h"
 #endif
 
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 
 class GURL;
 
@@ -47,7 +49,8 @@ class ShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
-class ShellPlatformDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
+class ShellPlatformDelegate
+    : public h5vcc_runtime::CobaltLifecycleManagerObserver {
  public:
   enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
 

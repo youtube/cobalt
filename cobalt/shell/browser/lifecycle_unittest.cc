@@ -90,7 +90,9 @@ TEST_F(LifecycleTest, Reveal) {
   EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
     platform_->ShellPlatformDelegate::OnReveal();
   });
-  EXPECT_CALL(*platform_, RevealShell(shell_));
+  EXPECT_CALL(*platform_, RevealShell(shell_))
+      .WillOnce(
+          [](content::Shell* shell) { shell->web_contents()->WasShown(); });
   Shell::OnReveal();
 
   EXPECT_TRUE(platform_->IsVisible());

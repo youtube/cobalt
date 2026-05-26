@@ -27,6 +27,7 @@
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
+#include "base/run_loop.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
@@ -138,6 +139,8 @@ class AppEventRunnerImpl : public AppEventRunner {
 
     content::Shell::Shutdown();
 
+    base::RunLoop().RunUntilIdle();
+
     if (content_main_delegate_) {
       content_main_delegate_->Shutdown();
     }
@@ -199,11 +202,13 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoReveal() override { content::Shell::OnReveal(); }
 
-  void DoFreeze() override {
+  void DoFreeze(base::OnceClosure callback) override {
     content::Shell::OnFreeze();
     auto* client = cobalt::CobaltContentBrowserClient::Get();
     if (client) {
-      client->FlushCookiesAndLocalStorage(base::DoNothing());
+      client->FlushCookiesAndLocalStorage(std::move(callback));
+    } else {
+      std::move(callback).Run();
     }
   }
 
@@ -424,15 +429,18 @@ void AppEventRunner::OnReveal() {
   set_is_visible(true);
 }
 
-void AppEventRunner::OnFreeze() {
+void AppEventRunner::OnFreeze(base::OnceClosure callback) {
   CHECK(is_running());
   CHECK(!is_visible());
   CHECK(!is_focused());
   CHECK(!is_frozen());
 
-  DoFreeze();
-
-  set_is_frozen(true);
+  DoFreeze(base::BindOnce(
+      [](base::OnceClosure cb, AppEventRunner* runner) {
+        runner->set_is_frozen(true);
+        std::move(cb).Run();
+      },
+      std::move(callback), base::Unretained(this)));
 }
 
 void AppEventRunner::OnUnfreeze() {

@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_main.h"
@@ -72,7 +73,7 @@ class AppEventRunner {
   void OnFocus();
   void OnConceal();
   void OnReveal();
-  void OnFreeze();
+  void OnFreeze(base::OnceClosure callback = base::DoNothing());
   void OnUnfreeze();
 
   // Handlers for non-lifecycle SbEventType events
@@ -104,7 +105,7 @@ class AppEventRunner {
   virtual void DoFocus() = 0;
   virtual void DoConceal() = 0;
   virtual void DoReveal() = 0;
-  virtual void DoFreeze() = 0;
+  virtual void DoFreeze(base::OnceClosure callback) = 0;
   virtual void DoUnfreeze() = 0;
 
   std::atomic<bool> is_running_{false};

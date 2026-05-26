@@ -27,7 +27,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
 
@@ -58,7 +58,7 @@ namespace cobalt {
 // Each box corresponds to an AppEventDelegate::ApplicationState. The ↔ arrows
 // represent bidirectional transitions handled via TransitionToLifeCycleState,
 // which ensures all intermediate states are traversed.
-class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
+class AppEventDelegate : public h5vcc_runtime::CobaltLifecycleManagerObserver {
  public:
   // ApplicationState defines the lifecycle states of the application.
   // The order of these states is critical: TransitionToLifeCycleState relies on
@@ -98,12 +98,15 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
 
   // Called when the renderer acknowledges conceal.
   void OnConcealAck(content::WebContents* web_contents);
+  void OnCookieFlushAck();
+  void DoTeardown();
 
   // h5vcc_runtime::H5vccRuntimeObserver implementation.
   void OnAllFramesVisible(content::WebContents* web_contents) override;
   void OnStartWaitingForReveal(content::WebContents* web_contents) override;
   void OnAllFramesConcealed(content::WebContents* web_contents) override;
   void OnAllFramesBlurred(content::WebContents* web_contents) override;
+  void OnAllFramesResumed(content::WebContents* web_contents) override;
 
   bool IsRunning() const;
   bool IsVisible() const;
@@ -114,9 +117,11 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
 
  private:
   static const char* GetStateString(ApplicationState state);
+  static void TeardownCallback(void* data);
 
   void HandleEventLocked(const SbEvent* event);
-  void TransitionToLifeCycleState(ApplicationState state);
+  void TransitionToLifeCycleState(ApplicationState state)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Wrapper that sets |application_state_| with the side effect of recording
   // this new state as a crash annotation.
@@ -126,14 +131,21 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   void SetApplicationState(ApplicationState state);
   void SetApplicationStateAnnotation(ApplicationState state);
 
-  // Helper that executes a single lifecycle step on the UI thread and then
-  // schedules the next step if the target state has not yet been reached.
-  void ExecuteNextStepOnUIThread();
-  void ExecuteNextStepOnUIThreadLocked(bool schedule_next_step);
+  // Helper that executes a single lifecycle step asynchronously.
+  void ExecuteNextStepLocked();
+  void ExecuteStepOnUIThread(ApplicationState next_state, bool is_activating);
+
+  // Helpers to reduce duplication.
+  ApplicationState GetNextState(ApplicationState current_state,
+                                bool is_activating) const;
+  void ExecuteStepContent(ApplicationState next_state, bool is_activating);
 
   h5vcc_runtime::PendingAck GetNeededAck(ApplicationState current_state,
                                          bool is_activating) const {
     if (is_activating) {
+      if (current_state == ApplicationState::kFrozen) {
+        return h5vcc_runtime::PendingAck::kUnfreeze;
+      }
       if (current_state == ApplicationState::kConcealed) {
         return h5vcc_runtime::PendingAck::kReveal;
       }
@@ -144,6 +156,8 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
           return h5vcc_runtime::PendingAck::kBlur;
         case ApplicationState::kBlurred:
           return h5vcc_runtime::PendingAck::kConceal;
+        case ApplicationState::kConcealed:
+          return h5vcc_runtime::PendingAck::kCookieFlush;
         default:
           return h5vcc_runtime::PendingAck::kNone;
       }
@@ -164,8 +178,6 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   ApplicationState application_state_ = ApplicationState::kInitial;
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
-
-  base::OnceClosure transition_quit_closure_;
 
   h5vcc_runtime::PendingAck pending_ack_ = h5vcc_runtime::PendingAck::kNone;
 

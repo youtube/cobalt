@@ -125,31 +125,29 @@ TEST_F(AppEventRunnerTest, OnReveal) {
   // trigger WasShown().
   platform_->AddPreviouslyVisibleWebContentsForTesting(shell_->web_contents());
 
-  // Create a H5vccRuntimeImpl to register a frame.
-  mojo::Remote<h5vcc_runtime::mojom::H5vccRuntime> remote;
-  h5vcc_runtime::H5vccRuntimeImpl::Create(
+  // Bind a mock renderer to CobaltLifecycleManager.
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  h5vcc_runtime::CobaltLifecycleManager::GetInstance()->BindReceiver(
       shell_->web_contents()->GetPrimaryMainFrame(),
       remote.BindNewPipeAndPassReceiver());
 
   EXPECT_CALL(*platform_, OnReveal());
-  EXPECT_CALL(*platform_, RevealShell(shell_));
+  EXPECT_CALL(*platform_, RevealShell(shell_))
+      .WillOnce(
+          [](content::Shell* shell) { shell->web_contents()->WasShown(); });
   runner_->OnReveal();
 
   EXPECT_TRUE(runner_->is_visible());
-  // Visibility should still be HIDDEN because we are waiting for the frame to
-  // reveal.
-  EXPECT_EQ(shell_->web_contents()->GetVisibility(),
-            content::Visibility::HIDDEN);
-
-  // Simulate Reveal ACK from the frame via Mojo.
-  remote->PageVisibilityChanged();
-
-  // Wait for Mojo message to be processed.
-  base::RunLoop().RunUntilIdle();
-
-  // Now visibility should be VISIBLE.
+  // Visibility should be VISIBLE because we called WasShown() in RevealShell
+  // to unblock the renderer.
   EXPECT_EQ(shell_->web_contents()->GetVisibility(),
             content::Visibility::VISIBLE);
+  // Simulate Reveal ACK from the frame via Mojo to complete transition.
+  remote->PageVisibilityChanged(true);
+  base::RunLoop().RunUntilIdle();
+
+  remote.reset();
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventRunnerTest, OnFreeze) {

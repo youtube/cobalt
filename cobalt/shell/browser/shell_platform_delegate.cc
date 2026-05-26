@@ -15,9 +15,9 @@
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
 #include "base/logging.h"
-#include "base/notreached.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -116,7 +116,8 @@ void ShellPlatformDelegate::OnReveal() {
     if (previously_visible_web_contents_.count(shell->web_contents())) {
       if (!started_waiting) {
         waiting_for_reveal_ack_ = true;
-        h5vcc_runtime::H5vccRuntimeManager::GetInstance()->AddObserver(this);
+        h5vcc_runtime::CobaltLifecycleManager::GetInstance()->AddObserver(
+            static_cast<h5vcc_runtime::CobaltLifecycleManagerObserver*>(this));
         started_waiting = true;
       }
 
@@ -231,9 +232,9 @@ void ShellPlatformDelegate::ClearWaitingForRevealAck() {
 
 void ShellPlatformDelegate::OnAllFramesVisible(
     content::WebContents* web_contents) {
-  // Called by H5vccRuntimeManager when all frames in the specified WebContents
-  // have completed layout and are visible. This breaks the wait initiated in
-  // OnReveal.
+  // Called by CobaltLifecycleManager when all frames in the specified
+  // WebContents have completed layout and are visible. This breaks the wait
+  // initiated in OnReveal.
   ClearWaitingForRevealAck();
   is_visible_ = true;
 
@@ -247,7 +248,8 @@ void ShellPlatformDelegate::OnAllFramesVisible(
   }
 
   // Stop observing as we only need one notification per reveal.
-  h5vcc_runtime::H5vccRuntimeManager::GetInstance()->RemoveObserver(this);
+  h5vcc_runtime::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+      static_cast<h5vcc_runtime::CobaltLifecycleManagerObserver*>(this));
 }
 
 }  // namespace content

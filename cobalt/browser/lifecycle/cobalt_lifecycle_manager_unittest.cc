@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
@@ -27,7 +27,7 @@
 
 namespace h5vcc_runtime {
 
-class MockH5vccRuntimeObserver : public H5vccRuntimeObserver {
+class MockCobaltLifecycleObserver : public CobaltLifecycleManagerObserver {
  public:
   MOCK_METHOD(void, OnAllFramesVisible, (content::WebContents*), (override));
   MOCK_METHOD(void,
@@ -36,12 +36,12 @@ class MockH5vccRuntimeObserver : public H5vccRuntimeObserver {
               (override));
 };
 
-class H5vccRuntimeManagerTest : public content::ShellTestBase {
+class CobaltLifecycleManagerTest : public content::ShellTestBase {
  protected:
   void SetUp() override {
     content::ShellTestBase::SetUp();
     InitializeShell(true /* is_visible */);
-    manager_ = H5vccRuntimeManager::GetInstance();
+    manager_ = CobaltLifecycleManager::GetInstance();
   }
 
   std::unique_ptr<content::WebContents> CreateScopedTestWebContents() {
@@ -58,106 +58,151 @@ class H5vccRuntimeManagerTest : public content::ShellTestBase {
     return child_rfh;
   }
 
-  H5vccRuntimeManager* manager_;
+  CobaltLifecycleManager* manager_;
 };
 
-TEST_F(H5vccRuntimeManagerTest, ScopedWaiting) {
+TEST_F(CobaltLifecycleManagerTest, ScopedWaiting) {
   std::unique_ptr<content::WebContents> contents1 =
       CreateScopedTestWebContents();
+  content::RenderFrameHostTester::For(contents1->GetPrimaryMainFrame())
+      ->InitializeRenderFrameIfNeeded();
+
   std::unique_ptr<content::WebContents> contents2 =
       CreateScopedTestWebContents();
+  content::RenderFrameHostTester::For(contents2->GetPrimaryMainFrame())
+      ->InitializeRenderFrameIfNeeded();
 
-  mojo::Remote<mojom::H5vccRuntime> remote1;
-  H5vccRuntimeImpl::Create(contents1->GetPrimaryMainFrame(),
-                           remote1.BindNewPipeAndPassReceiver());
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote1;
+  manager_->BindReceiver(contents1->GetPrimaryMainFrame(),
+                         remote1.BindNewPipeAndPassReceiver());
+  remote1->FrameReady();
 
-  mojo::Remote<mojom::H5vccRuntime> remote2;
-  H5vccRuntimeImpl::Create(contents2->GetPrimaryMainFrame(),
-                           remote2.BindNewPipeAndPassReceiver());
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote2;
+  manager_->BindReceiver(contents2->GetPrimaryMainFrame(),
+                         remote2.BindNewPipeAndPassReceiver());
+  remote2->FrameReady();
 
-  MockH5vccRuntimeObserver observer;
+  // Establish Mojo connections and register frames.
+  base::RunLoop().RunUntilIdle();
+
+  MockCobaltLifecycleObserver observer;
   manager_->AddObserver(&observer);
 
   // Start waiting for contents1.
-  manager_->StartWaitingForReveal(contents1.get());
+  manager_->StartWaitingForAck(contents1.get(), PendingAck::kReveal);
 
   // We expect OnAllFramesVisible to be called ONLY for contents1.
   EXPECT_CALL(observer, OnAllFramesVisible(contents1.get())).Times(1);
   EXPECT_CALL(observer, OnAllFramesVisible(contents2.get())).Times(0);
 
   // Frame 1 reports visible via Mojo.
-  remote1->PageVisibilityChanged();
+  remote1->PageVisibilityChanged(true);
 
   // Wait for Mojo message.
   base::RunLoop().RunUntilIdle();
 
   // Start waiting for contents2.
-  manager_->StartWaitingForReveal(contents2.get());
+  manager_->StartWaitingForAck(contents2.get(), PendingAck::kReveal);
 
   EXPECT_CALL(observer, OnAllFramesVisible(contents2.get())).Times(1);
 
   // Frame 2 reports visible.
-  remote2->PageVisibilityChanged();
+  remote2->PageVisibilityChanged(true);
 
   base::RunLoop().RunUntilIdle();
-
   manager_->RemoveObserver(&observer);
+
+  remote1.reset();
+  remote2.reset();
+  base::RunLoop().RunUntilIdle();
 }
 
-TEST_F(H5vccRuntimeManagerTest, ObserverNotificationIsDeferred) {
+TEST_F(CobaltLifecycleManagerTest, ObserverNotificationIsDeferred) {
   std::unique_ptr<content::WebContents> contents =
       CreateScopedTestWebContents();
+  content::RenderFrameHostTester::For(contents->GetPrimaryMainFrame())
+      ->InitializeRenderFrameIfNeeded();
 
-  MockH5vccRuntimeObserver observer;
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  manager_->BindReceiver(contents->GetPrimaryMainFrame(),
+                         remote.BindNewPipeAndPassReceiver());
+  remote->FrameReady();
+  base::RunLoop().RunUntilIdle();
+
+  MockCobaltLifecycleObserver observer;
   manager_->AddObserver(&observer);
 
   // Verify that notification is NOT synchronous.
   EXPECT_CALL(observer, OnStartWaitingForReveal(contents.get())).Times(0);
-  manager_->StartWaitingForReveal(contents.get());
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kReveal);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  // Verify that notification is delivered after running tasks.
+  // Verify that notification is delivered asynchronously.
   EXPECT_CALL(observer, OnStartWaitingForReveal(contents.get())).Times(1);
   base::RunLoop().RunUntilIdle();
-
   manager_->RemoveObserver(&observer);
+
+  remote.reset();
+  base::RunLoop().RunUntilIdle();
 }
 
-TEST_F(H5vccRuntimeManagerTest, MainFrameUnregistrationWhileWaiting) {
+TEST_F(CobaltLifecycleManagerTest, MainFrameUnregistrationWhileWaiting) {
   std::unique_ptr<content::WebContents> contents =
       CreateScopedTestWebContents();
+  content::RenderFrameHostTester::For(contents->GetPrimaryMainFrame())
+      ->InitializeRenderFrameIfNeeded();
 
-  mojo::Remote<mojom::H5vccRuntime> remote;
-  H5vccRuntimeImpl::Create(contents->GetPrimaryMainFrame(),
-                           remote.BindNewPipeAndPassReceiver());
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  manager_->BindReceiver(contents->GetPrimaryMainFrame(),
+                         remote.BindNewPipeAndPassReceiver());
+  remote->FrameReady();
+  base::RunLoop().RunUntilIdle();
 
-  MockH5vccRuntimeObserver observer;
+  MockCobaltLifecycleObserver observer;
   manager_->AddObserver(&observer);
 
-  manager_->StartWaitingForReveal(contents.get());
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kReveal);
 
   // Expect OnAllFramesVisible to be called when MAIN frame is UNREGISTERED.
   EXPECT_CALL(observer, OnAllFramesVisible(contents.get())).Times(1);
 
-  // Resetting the remote destroys the DocumentService, which unregisters the
-  // frame.
+  // Resetting the remote destroys the receiver, which unregisters the frame.
   remote.reset();
   base::RunLoop().RunUntilIdle();
 
   manager_->RemoveObserver(&observer);
 }
 
-TEST_F(H5vccRuntimeManagerTest, ImmediateCompletion) {
+TEST_F(CobaltLifecycleManagerTest, ImmediateCompletion) {
   std::unique_ptr<content::WebContents> contents =
       CreateScopedTestWebContents();
 
-  MockH5vccRuntimeObserver observer;
+  MockCobaltLifecycleObserver observer;
   manager_->AddObserver(&observer);
 
   // Expect immediate call.
   EXPECT_CALL(observer, OnAllFramesVisible(contents.get())).Times(1);
 
-  manager_->StartWaitingForReveal(contents.get());
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kReveal);
+  base::RunLoop().RunUntilIdle();
+
+  manager_->RemoveObserver(&observer);
+}
+
+TEST_F(CobaltLifecycleManagerTest, DISABLED_RevealTimeout) {
+  std::unique_ptr<content::WebContents> contents =
+      CreateScopedTestWebContents();
+
+  MockCobaltLifecycleObserver observer;
+  manager_->AddObserver(&observer);
+
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kReveal);
+
+  // Expect OnAllFramesVisible to be called when TIMEOUT fires.
+  EXPECT_CALL(observer, OnAllFramesVisible(contents.get())).Times(1);
+
+  // Fast forward time by 2 seconds.
+  task_environment()->FastForwardBy(base::Seconds(2));
 
   manager_->RemoveObserver(&observer);
 }
