@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
+#include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/xb1_get_type.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
@@ -172,6 +173,51 @@ void ExtendedResourcesManager::ReleaseExtendedResources() {
       acquisition_condition_.Wait();
     }
   }
+}
+
+void ExtendedResourcesManager::OnDeviceLost() {
+  auto xbtype = ::starboard::shared::uwp::GetXboxType();
+  if (xbtype == ::starboard::shared::uwp::kXboxOneS ||
+      xbtype == ::starboard::shared::uwp::kXboxOneBase) {
+    // Currently bugged: After device lost handling XboxOneS may reboot on use
+    // of MFT decoder.
+    return;
+  }
+  SB_LOG(WARNING) << "The D3DX device was removed. Attempting to recover.";
+  ScopedLock scoped_lock(mutex_);
+#if defined(INTERNAL_BUILD)
+  if (is_av1_shader_compiled_) {
+    Dav1dVideoDecoder::ReleaseShaders();
+  }
+
+  if (is_vp9_shader_compiled_) {
+    VpxVideoDecoder::ReleaseShaders();
+  }
+  is_av1_shader_compiled_ = false;
+  is_vp9_shader_compiled_ = false;
+  GpuVideoDecoderBase::ClearFrameBuffersPool();
+#endif  // defined(INTERNAL_BUILD)
+
+  if (d3d12queue_) {
+    d3d12queue_.Reset();
+  }
+
+  if (d3d12FrameBuffersHeap_) {
+    d3d12FrameBuffersHeap_.Reset();
+  }
+
+  if (d3d12device_) {
+    d3d12device_.Reset();
+  }
+
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+  auto app = ApplicationUwp::Get();
+  app->Inject(new ApplicationUwp::Event(kSbEventTypeBlur, NULL, NULL));
+  app->Inject(new ApplicationUwp::Event(kSbEventTypeConceal, NULL, NULL));
+  app->Inject(new ApplicationUwp::Event(kSbEventTypeFreeze, NULL, NULL));
+  app->Inject(new ApplicationUwp::Event(kSbEventTypeUnfreeze, NULL, NULL));
+  app->Inject(new ApplicationUwp::Event(kSbEventTypeReveal, NULL, NULL));
+  app->Inject(new ApplicationUwp::Event(kSbEventTypeFocus, NULL, NULL));
 }
 
 void ExtendedResourcesManager::Quit() {
