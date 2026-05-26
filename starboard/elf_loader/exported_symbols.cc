@@ -104,7 +104,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
-  REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
   REGISTER_SYMBOL(kSbMaxThreads);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
