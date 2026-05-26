@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,9 @@ class ScopedVectorClearer {
   explicit ScopedVectorClearer(std::vector<T>& vec) : vec_(vec) {}
 
   ~ScopedVectorClearer() { vec_.clear(); }
+
+  ScopedVectorClearer(const ScopedVectorClearer&) = delete;
+  ScopedVectorClearer& operator=(const ScopedVectorClearer&) = delete;
 
  private:
   std::vector<T>& vec_;
@@ -834,6 +838,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
     const SbMediaAudioStreamInfo* audio_stream_info,
     const SbMediaVideoStreamInfo* video_stream_info) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -845,30 +850,37 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<SbPlayerSampleInfo> local_sample_infos;
-  std::vector<SbDrmSampleInfo> local_drm_infos;
-  std::vector<SbDrmSubSampleMapping> local_subsample_mappings;
-  std::vector<SbPlayerSampleSideData> local_side_data;
-
   const bool enable_trivial_optimizations =
       experimental_features_.enable_trivial_optimizations.value_or(false);
 
+  std::optional<std::vector<SbPlayerSampleInfo>> local_sample_infos;
+  std::optional<std::vector<SbDrmSampleInfo>> local_drm_infos;
+  std::optional<std::vector<SbDrmSubSampleMapping>> local_subsample_mappings;
+  std::optional<std::vector<SbPlayerSampleSideData>> local_side_data;
+
+  if (!enable_trivial_optimizations) {
+    local_sample_infos.emplace();
+    local_drm_infos.emplace();
+    local_subsample_mappings.emplace();
+    local_side_data.emplace();
+  }
+
   std::vector<SbPlayerSampleInfo>& gathered_sbplayer_sample_infos =
       enable_trivial_optimizations ? gathered_sbplayer_sample_infos_
-                                   : local_sample_infos;
+                                   : *local_sample_infos;
   std::vector<SbDrmSampleInfo>& gathered_sbplayer_sample_infos_drm_info =
       enable_trivial_optimizations ? gathered_sbplayer_sample_infos_drm_info_
-                                   : local_drm_infos;
+                                   : *local_drm_infos;
   std::vector<SbDrmSubSampleMapping>&
       gathered_sbplayer_sample_infos_subsample_mapping =
           enable_trivial_optimizations
               ? gathered_sbplayer_sample_infos_subsample_mapping_
-              : local_subsample_mappings;
+              : *local_subsample_mappings;
   std::vector<SbPlayerSampleSideData>&
       gathered_sbplayer_sample_infos_side_data =
           enable_trivial_optimizations
               ? gathered_sbplayer_sample_infos_side_data_
-              : local_side_data;
+              : *local_side_data;
 
   ScopedVectorClearer<SbPlayerSampleInfo> clearer_info{
       gathered_sbplayer_sample_infos};
