@@ -45,6 +45,9 @@ component("memory_instrumentation") {
   }
 
   defines = [ "IS_RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION_IMPL" ]
+  if (is_cobalt) {
+    defines += [ "ENABLE_BUILDFLAG_IS_COBALT" ]
+  }
 
   deps = []
   if (is_win) {
