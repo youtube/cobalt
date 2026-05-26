@@ -47,13 +47,13 @@ typedef struct CobaltExtensionPlatformServicePrivate {
   CobaltExtensionPlatformServicePrivate(void* context, ReceiveMessageCallback receive_callback)
     : context(context), receive_callback(receive_callback) {};
   virtual ~CobaltExtensionPlatformServicePrivate() = default;
-  virtual void* Send(void* data, uint64_t data_length, uint64_t* output_length, bool* invalid_state) = 0;
+  virtual void* Send(const void* data,
+                     uint64_t data_length,
+                     uint64_t* output_length,
+                     bool* invalid_state) = 0;
 } CobaltExtensionPlatformServicePrivate;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -63,7 +63,10 @@ struct ContentEntitlementCobaltExtensionPlatformService : public CobaltExtension
     : CobaltExtensionPlatformServicePrivate(context, callback) {
   }
 
-  void* Send(void* data, uint64_t length, uint64_t* output_length, bool* invalid_state) override {
+  void* Send(const void* data,
+             uint64_t length,
+             uint64_t* output_length,
+             bool* invalid_state) override {
     bool result = false;
     bool* ptr = reinterpret_cast<bool*>(malloc(sizeof(bool)));
     *ptr = result;
@@ -105,7 +108,7 @@ void Close(CobaltExtensionPlatformService service) {
 }
 
 void* Send(CobaltExtensionPlatformService service,
-           void* data,
+           const void* data,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {
@@ -132,7 +135,4 @@ const void* GetPlatformServiceApi() {
   return &kPlatformServiceApi;
 }
 
-}  // namespace thirdpary
 }  // namespace starboard
-}  // namespace rdk
-}  // namespace shared

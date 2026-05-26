@@ -15,28 +15,29 @@
 #ifndef STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_
 #define STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
+#include <jni.h>
+
 #include "base/memory/singleton.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
-class CobaltTextToSpeechHelper {
+class TextToSpeechHelper {
  public:
   // Return the singleton.
-  static CobaltTextToSpeechHelper* GetInstance();
+  static TextToSpeechHelper* GetInstance();
   void Initialize(JNIEnv* env);
 
   bool IsTextToSpeechEnabled(JNIEnv* env) const;
   void SendTextToSpeechChangeEvent(bool enabled) const;
 
  private:
-  friend struct base::DefaultSingletonTraits<CobaltTextToSpeechHelper>;
+  friend struct base::DefaultSingletonTraits<TextToSpeechHelper>;
   // Java CobaltTextToSpeechHelper instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_text_to_speech_helper_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_text_to_speech_helper_;
 
-  CobaltTextToSpeechHelper() = default;
-  ~CobaltTextToSpeechHelper() = default;
+  TextToSpeechHelper() = default;
+  ~TextToSpeechHelper() = default;
 };
 
 }  // namespace starboard

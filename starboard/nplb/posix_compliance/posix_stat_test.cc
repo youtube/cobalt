@@ -39,13 +39,11 @@ constexpr char kTestFileContent[] = "Hello, stat!";
 class PosixStatTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    char template_name[] = "/tmp/stat_test_XXXXXX";
-    char* dir_name = mkdtemp(template_name);
-    ASSERT_NE(dir_name, nullptr) << "mkdtemp failed: " << strerror(errno);
-    test_dir_ = dir_name;
+    ASSERT_TRUE(temp_dir_.IsValid())
+        << "ScopedTempDir failed to create directory";
 
     // Create a file within the test directory.
-    file_path_ = test_dir_ + "/the_file.txt";
+    file_path_ = temp_dir_.path() + "/the_file.txt";
     int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, kUserRw);
     ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
     ssize_t write_res = write(fd, kTestFileContent, strlen(kTestFileContent));
@@ -53,17 +51,13 @@ class PosixStatTest : public ::testing::Test {
     ASSERT_EQ(0, close(fd));
 
     // Create a symbolic link to the file.
-    symlink_path_ = test_dir_ + "/the_symlink";
+    symlink_path_ = temp_dir_.path() + "/the_symlink";
     ASSERT_EQ(symlink(file_path_.c_str(), symlink_path_.c_str()), 0);
   }
 
-  void TearDown() override {
-    if (!test_dir_.empty()) {
-      RemoveFileOrDirectoryRecursively(test_dir_.c_str());
-    }
-  }
+  void TearDown() override {}
 
-  std::string test_dir_;
+  ScopedTempDir temp_dir_;
   std::string file_path_;
   std::string symlink_path_;
 };
@@ -82,7 +76,7 @@ TEST_F(PosixStatTest, SuccessForFile) {
 TEST_F(PosixStatTest, SuccessForDirectory) {
   struct stat statbuf;
   errno = 0;
-  ASSERT_EQ(stat(test_dir_.c_str(), &statbuf), 0)
+  ASSERT_EQ(stat(temp_dir_.path().c_str(), &statbuf), 0)
       << "stat failed: " << strerror(errno);
 
   EXPECT_TRUE(S_ISDIR(statbuf.st_mode));
@@ -113,7 +107,7 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
 
   // Get parent directory info to compare device ID.
   struct stat parent_statbuf;
-  ASSERT_EQ(stat(test_dir_.c_str(), &parent_statbuf), 0);
+  ASSERT_EQ(stat(temp_dir_.path().c_str(), &parent_statbuf), 0);
 
   // Check device and inode numbers.
   EXPECT_GT(statbuf.st_dev, 0u);
@@ -155,7 +149,7 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
 
 TEST_F(PosixStatTest, NonExistentPathFails) {
   struct stat statbuf;
-  std::string non_existent_path = test_dir_ + "/does_not_exist";
+  std::string non_existent_path = temp_dir_.path() + "/does_not_exist";
   errno = 0;
   EXPECT_EQ(stat(non_existent_path.c_str(), &statbuf), -1);
   EXPECT_EQ(errno, ENOENT);
@@ -184,7 +178,7 @@ TEST_F(PosixStatTest, PermissionDeniedFails) {
   }
 
   struct stat statbuf;
-  std::string protected_dir = test_dir_ + "/protected";
+  std::string protected_dir = temp_dir_.path() + "/protected";
   ASSERT_EQ(mkdir(protected_dir.c_str(), kUserRwx), 0);
 
   std::string file_in_protected = protected_dir + "/inner_file";
@@ -206,7 +200,7 @@ TEST_F(PosixStatTest, PermissionDeniedFails) {
 TEST_F(PosixStatTest, PathTooLongFails) {
   struct stat statbuf;
   std::string long_name(kSbFileMaxPath + 1, 'c');
-  std::string long_path = test_dir_ + "/" + long_name;
+  std::string long_path = temp_dir_.path() + "/" + long_name;
 
   errno = 0;
   EXPECT_EQ(stat(long_path.c_str(), &statbuf), -1);
@@ -215,8 +209,8 @@ TEST_F(PosixStatTest, PathTooLongFails) {
 
 TEST_F(PosixStatTest, SymlinkLoopFails) {
   struct stat statbuf;
-  std::string link_a_path = test_dir_ + "/link_a";
-  std::string link_b_path = test_dir_ + "/link_b";
+  std::string link_a_path = temp_dir_.path() + "/link_a";
+  std::string link_b_path = temp_dir_.path() + "/link_b";
 
   ASSERT_EQ(symlink(link_b_path.c_str(), link_a_path.c_str()), 0);
   ASSERT_EQ(symlink(link_a_path.c_str(), link_b_path.c_str()), 0);

@@ -1319,21 +1319,12 @@ component("net") {
 
   if (is_linux) {
     sources += [
-      "base/network_change_notifier_linux.cc",
-      "base/network_change_notifier_linux.h",
       "proxy_resolution/proxy_config_service_linux.cc",
       "proxy_resolution/proxy_config_service_linux.h",
     ]
     if (use_glib) {
       deps += [ "//ui/base/glib" ]
     }
-  }
-
-  if (is_cobalt_hermetic_build) {
-    sources -= [
-      "base/network_change_notifier_linux.cc",
-      "base/network_change_notifier_linux.h",
-    ]
   }
 
   if ((is_linux || is_chromeos || is_android) && !is_cobalt_hermetic_build) {
@@ -1352,6 +1343,8 @@ component("net") {
     sources += [
       "base/address_map_cache_linux.cc",
       "base/address_map_cache_linux.h",
+      "base/network_change_notifier_linux.cc",
+      "base/network_change_notifier_linux.h",
     ]
   }
 
@@ -1485,7 +1478,7 @@ component("net") {
     }
   }
 
-  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build) {
+  if (is_android || is_chromeos || is_linux || is_starboard) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -1813,14 +1806,6 @@ component("net") {
     sources += [
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
-      "base/network_change_notifier_starboard.h",
-      "base/network_change_notifier_passive_starboard_stub.cc",
-    ]
-  }
-  if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
-    sources -= [
-      #  # TODO: b/413491685 - Cobalt: Fix errors building host tools.
-      "base/network_change_notifier_passive.cc",
     ]
   }
 }
@@ -3079,6 +3064,9 @@ target(_test_target_type, "net_unittests") {
       "proxy_resolution/proxy_config_service_android_unittest.cc",
       "ssl/ssl_platform_key_android_unittest.cc",
     ]
+    if (is_cobalt) {
+      sources += [ "cert/internal/trust_store_android_unittest.cc" ]
+    }
   }
 
   if (is_chromeos && use_nss_certs) {
@@ -3206,7 +3194,7 @@ target(_test_target_type, "net_unittests") {
     sources += [ "base/sockaddr_util_posix_unittest.cc" ]
   }
 
-  if (is_android || is_chromeos) {
+  if (is_android || is_chromeos || is_starboard) {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 

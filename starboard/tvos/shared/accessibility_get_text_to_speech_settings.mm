@@ -12,35 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 #include "starboard/common/memory.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
-#import "starboard/tvos/shared/speech_synthesizer.h"
-#import "starboard/tvos/shared/starboard_application.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
-
-namespace accessibility {
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
-      !starboard::common::MemoryIsZero(
-          out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
+      !MemoryIsZero(out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
     return false;
   }
 
-  @autoreleasepool {
-    out_setting->has_text_to_speech_setting = true;
-    out_setting->is_text_to_speech_enabled =
-        SBDGetApplication().speechSynthesizer.screenReaderActive;
-  }
+  out_setting->has_text_to_speech_setting = true;
+  out_setting->is_text_to_speech_enabled = UIAccessibilityIsVoiceOverRunning();
+
   return true;
 }
 
-}  // namespace accessibility
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

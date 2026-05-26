@@ -39,6 +39,11 @@
 
 class GURL;
 
+namespace cobalt {
+class AppEventDelegateTest;
+class AppEventRunnerTest;
+}  // namespace cobalt
+
 namespace content {
 class BrowserContext;
 class JavaScriptDialogManager;
@@ -47,7 +52,7 @@ class SiteInstance;
 class WebContents;
 class RenderFrameHost;
 
-// This represents one window of the Content Shell, i.e. all the UI including
+// This represents one window of Cobalt, i.e. all the UI including
 // buttons and url bar, as well as the web content area.
 class Shell : public WebContentsDelegate, public WebContentsObserver {
  public:
@@ -83,7 +88,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
   // will be released.
-  static void Initialize(std::unique_ptr<ShellPlatformDelegate> platform);
+  static void Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
+                         bool is_visible);
 
   // Closes all windows, pumps teardown tasks and signal the main message loop
   // to quit.
@@ -91,13 +97,21 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static ShellPlatformDelegate* GetPlatform();
 
+  static void OnBlur();
+  static void OnFocus();
+  static void OnConceal();
+  static void OnReveal();
+  static void OnFreeze();
+  static void OnUnfreeze();
+  static void OnStop();
+
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
       const GURL& url,
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size,
       const bool create_splash_screen_web_contents = false,
-      const std::string& topic = "");
+      const std::string& deep_link = "");
 
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);
@@ -120,6 +134,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static bool ShouldHideToolbar();
 
   WebContents* web_contents() const { return web_contents_.get(); }
+
+  void Focus();
 
   WebContents* splash_screen_web_contents() const {
     return splash_screen_web_contents_.get();
@@ -198,15 +214,14 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
 
- protected:
-  // Finishes initialization of a new shell window.
-  static void FinishShellInitialization(Shell* shell);
-
  private:
   class DevToolsWebContentsObserver;
 
   friend class TestShell;
   friend class SplashScreenTest;
+  friend class LifecycleTest;
+  friend class cobalt::AppEventDelegateTest;
+  friend class cobalt::AppEventRunnerTest;
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -214,12 +229,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     STATE_SPLASH_SCREEN_STARTED,      // Start Splash Screen WebContents.
     STATE_SPLASH_SCREEN_ENDED         // End Splash Screen WebContents.
   };
-
-  Shell(std::unique_ptr<WebContents> web_contents,
-        std::unique_ptr<WebContents> splash_screen_web_contents,
-        bool should_set_delegate,
-        const std::string& topic = "",
-        bool skip_for_testing = false);
 
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(
@@ -243,18 +252,33 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   void ToggleFullscreenModeForTab(WebContents* web_contents,
                                   bool enter_fullscreen);
+
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> splash_screen_web_contents,
+        bool should_set_delegate,
+        const std::string& topic = "",
+        bool skip_for_testing = false);
+
+  static void FinishShellInitialization(Shell* shell);
+
   // WebContentsObserver
+  void OnVisibilityChanged(Visibility visibility) override;
   void LoadProgressChanged(double progress) override;
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
   void PrimaryMainDocumentElementAvailable() override;
+  void DidFinishLoad(RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+  void DidStartNavigation(NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void DidStartLoading() override;
   void DidStopLoading() override;
 
   void RegisterInjectedJavaScript();
   void SwitchToMainWebContents();
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
+  void OnSplashScreenLoadComplete();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -263,6 +287,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   State splash_state_;
   const std::string splash_topic_;
   bool skip_for_testing_;
+  bool is_video_splash_screen_;
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;
@@ -271,6 +296,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   bool is_fullscreen_ = false;
   gfx::Size content_size_;
+
+  // Set to true if Focus() is requested while the WebContents is not yet
+  // visible. This handles a race condition in the Cobalt Reveal -> Focus
+  // sequence where Aura ignores focus requests for hidden windows. The focus
+  // will be applied as soon as the visibility changes to VISIBLE.
+  bool pending_focus_ = false;
 
   bool delay_popup_contents_delegate_for_testing_ = false;
 

@@ -14,6 +14,10 @@
 
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
+if (is_internal_build) {
+  import("//cobalt/internal/starboard/shared/tvos/tvos.gni")
+}
+
 static_library("test_support") {
   testonly = true
 
@@ -63,21 +67,21 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/media/media_get_audio_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_get_audio_configuration.cc",
     "//starboard/shared/starboard/media/media_get_audio_output_count_single_audio_output.cc",
-    "//starboard/shared/starboard/media/media_get_buffer_alignment.cc",
     "//starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc",
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
-    "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
     "//starboard/shared/starboard/media/media_get_initial_buffer_capacity.cc",
-    "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
-    "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/storage_write_record.cc",
     "//starboard/shared/stub/system_symbolize.cc",
+    "accessibility_extension.cc",
+    "accessibility_extension.h",
+    "accessibility_get_text_to_speech_settings.mm",
     "application_darwin.h",
     "application_darwin.mm",
     "configuration_constants.cc",
@@ -109,7 +113,6 @@ static_library("starboard_platform") {
     "media/drm_manager.h",
     "media/drm_manager.mm",
     "media/drm_system_platform.h",
-    "media/drm_system_platform.mm",
     "media/playback_capabilities.h",
     "media/playback_capabilities.mm",
     "media/player_components_factory.mm",
@@ -141,44 +144,17 @@ static_library("starboard_platform") {
     "storage_internal.mm",
     "storage_open_record.mm",
     "storage_read_record.mm",
+    "system_get_extensions.cc",
     "system_get_number_of_processors.mm",
     "system_get_path.mm",
     "system_get_property.mm",
     "system_request_conceal.mm",
-    "thread_create_priority.cc",
     "thread_get_id.cc",
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
   ]
 
-  if (is_internal_build) {
-    # TODO(b/460479616): Update the source paths to the correct internal
-    # submodule location once the directory structure is finalized. These files
-    # are provided by the internal submodule and should not be checked in here.
-    sources += [
-      "media/vp9_hw_av_video_sample_buffer_builder.h",
-      "media/vp9_hw_av_video_sample_buffer_builder.mm",
-    ]
-  }
-
   sources += common_player_sources
-
-  sources += [
-    # TODO: b/469333751, b/460479616 - the tvOS versions depend on internal
-    # files.
-    "//starboard/shared/stub/drm_close_session.cc",
-    "//starboard/shared/stub/drm_create_system.cc",
-    "//starboard/shared/stub/drm_destroy_system.cc",
-    "//starboard/shared/stub/drm_generate_session_update_request.cc",
-    "//starboard/shared/stub/drm_get_metrics.cc",
-    "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
-    "//starboard/shared/stub/drm_update_server_certificate.cc",
-    "//starboard/shared/stub/drm_update_session.cc",
-
-    # TODO: b/470021310 - get the tvOS version of this file to build.
-    "//starboard/shared/stub/system_get_extensions.cc",
-  ]
-
   sources -= [
     # Exclude these files from common_player_sources, because they are not used
     # by tvOS.
@@ -192,12 +168,11 @@ static_library("starboard_platform") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
-  deps = [
-    "//base",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//third_party/angle:includes",
-    "//third_party/libvpx",
-    "//third_party/opus",
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
   frameworks = [
@@ -210,10 +185,52 @@ static_library("starboard_platform") {
     "VideoToolbox.framework",
   ]
 
-  public_deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+  deps = [
+    "//base",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//third_party/angle:includes",
+    "//third_party/libvpx",
+    "//third_party/opus",
   ]
+
+  if (is_internal_build) {
+    sources += [
+      "//starboard/shared/widevine/drm_system_widevine.cc",
+      "//starboard/shared/widevine/drm_system_widevine.h",
+      "//starboard/shared/widevine/widevine_storage.cc",
+      "//starboard/shared/widevine/widevine_storage.h",
+      "//starboard/shared/widevine/widevine_timer.cc",
+      "//starboard/shared/widevine/widevine_timer.h",
+      "media/drm_close_session.mm",
+      "media/drm_create_system.mm",
+      "media/drm_destroy_system.mm",
+      "media/drm_generate_session_update_request.mm",
+      "media/drm_get_metrics.mm",
+      "media/drm_is_server_certificate_updatable.mm",
+      "media/drm_update_server_certificate.mm",
+      "media/drm_update_session.mm",
+      "media/oemcrypto_engine_device_properties_uikit.h",
+      "media/oemcrypto_engine_device_properties_uikit.mm",
+    ]
+
+    sources += internal_tvos_sources
+
+    deps += [
+      "//starboard/shared/widevine:oemcrypto",
+      "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
+      "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
+    ]
+  } else {
+    sources += [
+      "//starboard/shared/stub/drm_close_session.cc",
+      "//starboard/shared/stub/drm_create_system.cc",
+      "//starboard/shared/stub/drm_destroy_system.cc",
+      "//starboard/shared/stub/drm_generate_session_update_request.cc",
+      "//starboard/shared/stub/drm_get_metrics.cc",
+      "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
+      "//starboard/shared/stub/drm_update_server_certificate.cc",
+      "//starboard/shared/stub/drm_update_session.cc",
+      "media/drm_system_platform.mm",
+    ]
+  }
 }

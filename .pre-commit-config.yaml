@@ -9,6 +9,7 @@ files: |
     (?x)^(
         (.*/)?cobalt/.*|
         (.*/)?starboard/.*|
+        .agent/.*|
         .github/.*|
         .pre-commit-config.yaml|
         .pylintrc|
@@ -23,17 +24,22 @@ exclude: |
     )
 
 repos:
+-   repo: https://github.com/google/keep-sorted
+    rev: ac58172d1655aa47a6f806e56ff0f269d6dbe637  # v0.8.0
+    hooks:
+    -   id: keep-sorted
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
     rev: v5.0.0
     hooks:
     -   id: check-case-conflict
+    -   id: check-json
+    -   id: check-merge-conflict
     -   id: check-xml
         exclude: |
             (?x)^(
                 cobalt/shell/android/javatests/AndroidManifest.xml
             )
     -   id: check-yaml
-    -   id: check-json
     -   id: end-of-file-fixer
     -   id: mixed-line-ending
     -   id: trailing-whitespace

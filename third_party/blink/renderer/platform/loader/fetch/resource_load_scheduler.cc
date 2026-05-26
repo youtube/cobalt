@@ -14,6 +14,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/default_clock.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -261,6 +262,10 @@ void ResourceLoadScheduler::SetOutstandingLimitForTesting(
 }
 
 bool ResourceLoadScheduler::IsClientDelayable(ThrottleOption option) const {
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt is a single tab app, all requests should not be throttled.
+  return false;
+#else
   switch (frame_scheduler_lifecycle_state_) {
     case scheduler::SchedulingLifecycleState::kNotThrottled:
     case scheduler::SchedulingLifecycleState::kHidden:
@@ -269,6 +274,7 @@ bool ResourceLoadScheduler::IsClientDelayable(ThrottleOption option) const {
     case scheduler::SchedulingLifecycleState::kStopped:
       return option != ThrottleOption::kCanNotBeStoppedOrThrottled;
   }
+#endif
 }
 
 void ResourceLoadScheduler::OnLifecycleStateChanged(

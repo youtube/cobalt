@@ -254,7 +254,10 @@ ShellContentBrowserClient* ShellContentBrowserClient::Get() {
   return instances.empty() ? nullptr : instances.back();
 }
 
-ShellContentBrowserClient::ShellContentBrowserClient() {
+ShellContentBrowserClient::ShellContentBrowserClient(
+    const std::string& deep_link,
+    bool is_visible)
+    : deep_link_(deep_link), is_visible_(is_visible) {
   GetShellContentBrowserClientInstancesImpl().push_back(this);
 }
 
@@ -265,7 +268,8 @@ ShellContentBrowserClient::~ShellContentBrowserClient() {
 std::unique_ptr<BrowserMainParts>
 ShellContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
-  auto browser_main_parts = std::make_unique<ShellBrowserMainParts>();
+  auto browser_main_parts =
+      std::make_unique<ShellBrowserMainParts>(deep_link_, is_visible_);
   DCHECK(!GetSharedState().shell_browser_main_parts);
   GetSharedState().shell_browser_main_parts = browser_main_parts.get();
   return browser_main_parts;

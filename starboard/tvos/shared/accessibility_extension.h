@@ -18,25 +18,11 @@
 #include "starboard/extension/accessibility.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
-
-namespace accessibility {
-
-bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings);
-
-bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting);
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting);
 
-bool SetCaptionsEnabled(bool enabled);
-
-}  // namespace accessibility
-
 const void* GetAccessibilityApi();
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_ACCESSIBILITY_EXTENSION_H_

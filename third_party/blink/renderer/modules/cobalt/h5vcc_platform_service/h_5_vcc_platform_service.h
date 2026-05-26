@@ -60,7 +60,7 @@ class MODULES_EXPORT H5vccPlatformService final
   void ContextDestroyed() override;
 
   // Renderer implementation for cobalt::mojom::blink::PlatformServiceObserver
-  void OnDataReceived(const WTF::Vector<uint8_t>& data) override;
+  void OnDataReceived(base::span<const uint8_t> data) override;
 
   void Trace(Visitor* visitor) const override;
 

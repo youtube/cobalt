@@ -27,5 +27,10 @@ declare_args() {
   sb_is_evergreen_compatible = is_starboard
 }
 
+if (is_cobalt) {
+  # Differentiates our 1P ATV platform from 3P AOSP.
+  is_androidtv = is_android && !is_starboard
+}
+
 # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
 is_cobalt_hermetic_build = is_starboard && use_custom_libc

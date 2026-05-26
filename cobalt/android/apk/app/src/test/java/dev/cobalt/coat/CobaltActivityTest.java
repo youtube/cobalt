@@ -59,55 +59,71 @@ public class CobaltActivityTest {
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_NullMetaData() {
+  public void testAppendArgsFromMetaData_NullMetaData() {
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(/*metaData=*/null, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(/*metaData=*/null, args);
     assertArrayEquals(args, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_EmptyMetaData() {
+  public void testAppendArgsFromMetaData_EmptyMetaData() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(args, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_EmptyStringFeature() {
+  public void testAppendArgsFromMetaData_EmptyStringFeature() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("");
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(args, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_WithFeature() {
+  public void testAppendArgsFromMetaData_WithFeature() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA"}, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_WithMultipleFeatures() {
+  public void testAppendArgsFromMetaData_WithMultipleFeatures() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA;FeatureB");
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA;FeatureB"}, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_NullArgs() {
+  public void testAppendArgsFromMetaData_NullArgs() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, /*commandLineArgs=*/null);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, /*commandLineArgs=*/null);
     assertArrayEquals(new String[] {"--enable-features=FeatureA"}, result);
   }
+
+  @Test
+  public void testAppendArgsFromMetaData_DisableSplashScreen() {
+    Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(false);
+    when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
+    String[] args = new String[] {"--arg1"};
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
+    assertArrayEquals(new String[] {"--arg1", "--disable-splash-screen"}, result);
+  }
+
 
   @Test
   public void testAppendUrlParamsToUrl_NoUrlArg() {

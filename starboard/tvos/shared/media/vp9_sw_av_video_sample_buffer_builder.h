@@ -54,7 +54,7 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
    public:
     VpxImageWrapper(const scoped_refptr<InputBuffer>& input_buffer,
                     const vpx_image_t& vpx_image);
-    ~VpxImageWrapper();
+    ~VpxImageWrapper() = default;
     const scoped_refptr<InputBuffer>& input_buffer() const {
       return input_buffer_;
     }

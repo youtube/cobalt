@@ -23,6 +23,10 @@ if (enable_base_tracing) {
   import("//third_party/perfetto/gn/perfetto_cc_proto_descriptor.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 static_library("test_config") {
   testonly = true
   sources = [
@@ -49,6 +53,12 @@ rust_static_library("test_rust_logger_consumer") {
   cxx_bindings = [ "logging/test_rust_logger_consumer.rs" ]
 }
 
+if (is_cobalt && is_partner_toolchain) {
+  group("test_support") {
+    testonly = true
+    public_deps = [ "//copied_base/base/test:test_support" ]
+  }
+} else {
 static_library("test_support") {
   testonly = true
   sources = [
@@ -380,6 +390,7 @@ static_library("test_support") {
       "trace_to_file.h",
     ]
   }
+}
 }
 
 component("proto_test_support") {

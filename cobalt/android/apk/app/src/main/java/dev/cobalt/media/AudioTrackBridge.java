@@ -20,6 +20,7 @@ import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.PlaybackParams;
 import android.os.Build;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.RequiresApi;
@@ -79,7 +80,7 @@ public class AudioTrackBridge {
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
 
-    mTunnelModeEnabled = tunnelModeAudioSessionId != -1;
+    mTunnelModeEnabled = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -227,13 +228,45 @@ public class AudioTrackBridge {
     mAvSyncPacketBytesRemaining = 0;
   }
 
+
+  @CalledByNative
+  public boolean setPlaybackRate(float playbackRate) {
+    if (mAudioTrack == null) {
+      Log.e(TAG, "Unable to setPlaybackRate with NULL audio track.");
+      return false;
+    }
+    if (!mTunnelModeEnabled) {
+      Log.i(TAG, "Skip SetPlaybackRate for non tunnel mode tracks.");
+      return true;
+    }
+
+    try {
+      PlaybackParams params = mAudioTrack.getPlaybackParams();
+      params.setSpeed(playbackRate);
+      mAudioTrack.setPlaybackParams(params);
+    } catch (IllegalArgumentException | IllegalStateException e) {
+      Log.e(TAG, String.format("Unable to setPlaybackRate, error: %s", e.toString()));
+      return false;
+    }
+    return true;
+  }
+
   @CalledByNative
   public int setVolume(float gain) {
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to setVolume with NULL audio track.");
-      return 0;
+      return AudioTrack.ERROR_INVALID_OPERATION;
     }
     return mAudioTrack.setVolume(gain);
+  }
+
+  @CalledByNative
+  public int getPlayState() {
+    if (mAudioTrack == null) {
+      Log.e(TAG, "Unable to getPlayState with NULL audio track.");
+      return AudioTrack.PLAYSTATE_STOPPED;
+    }
+    return mAudioTrack.getPlayState();
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
@@ -391,7 +424,14 @@ public class AudioTrackBridge {
     // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (mPositionLock) {
-      if (mAudioTrack.getTimestamp(mRawAudioTimestamp)) {
+      boolean success = false;
+      try {
+        success = mAudioTrack.getTimestamp(mRawAudioTimestamp);
+      } catch (Exception | OutOfMemoryError e) {
+        Log.e(TAG, "Failed to getAudioTimestamp", e);
+      }
+
+      if (success) {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition

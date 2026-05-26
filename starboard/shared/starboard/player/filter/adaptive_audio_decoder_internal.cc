@@ -212,20 +212,6 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   first_input_written_ = false;
 }
 
-void AdaptiveAudioDecoder::ResetInternal() {
-  CancelPendingJobs();
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_input_buffers_.clear();
-  pending_consumed_cb_ = nullptr;
-  flushing_ = false;
-  stream_ended_ = false;
-  first_output_received_ = false;
-  first_input_written_ = false;
-  output_format_checked_ = false;
-}
-
 void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (!BelongsToCurrentThread()) {
     Schedule(std::bind(&AdaptiveAudioDecoder::OnDecoderOutput, this));
@@ -318,6 +304,20 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     decoded_audios_.push(decoded_audio);
     Schedule(output_cb_);
   }
+}
+
+void AdaptiveAudioDecoder::ResetInternal() {
+  CancelPendingJobs();
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_input_buffers_.clear();
+  pending_consumed_cb_ = nullptr;
+  flushing_ = false;
+  stream_ended_ = false;
+  first_output_received_ = false;
+  first_input_written_ = false;
+  output_format_checked_ = false;
 }
 
 }  // namespace starboard

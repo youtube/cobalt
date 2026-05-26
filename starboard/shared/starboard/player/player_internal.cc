@@ -24,17 +24,8 @@
 #include "starboard/common/media.h"
 #include "starboard/common/time.h"
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-
 namespace starboard {
 namespace {
-
-using std::placeholders::_1;
-using std::placeholders::_2;
-using std::placeholders::_3;
-using std::placeholders::_4;
 
 int64_t CalculateMediaTime(int64_t media_time,
                            int64_t media_time_update_time,
@@ -58,38 +49,22 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
-      media_time_updated_at_(CurrentMonotonicTime()) {
-  worker_ = std::unique_ptr<PlayerWorker>(PlayerWorker::CreateInstance(
-      audio_codec, video_codec, std::move(player_worker_handler),
-      std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4),
-      decoder_status_func, player_status_func, player_error_func, this,
-      context));
-
+      media_time_updated_at_(CurrentMonotonicTime()),
+      worker_(std::make_unique<PlayerWorker>(
+          audio_codec,
+          video_codec,
+          std::move(player_worker_handler),
+          [this](auto&&... args) {
+            UpdateMediaInfo(std::forward<decltype(args)>(args)...);
+          },
+          decoder_status_func,
+          player_status_func,
+          player_error_func,
+          /*player=*/this,
+          context)) {
   ++number_of_players_;
   SB_LOG(INFO) << "Creating SbPlayerPrivateImpl. There are "
                << number_of_players_ << " players.";
-}
-
-// static
-SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
-    SbMediaAudioCodec audio_codec,
-    SbMediaVideoCodec video_codec,
-    SbPlayerDeallocateSampleFunc sample_deallocate_func,
-    SbPlayerDecoderStatusFunc decoder_status_func,
-    SbPlayerStatusFunc player_status_func,
-    SbPlayerErrorFunc player_error_func,
-    void* context,
-    std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
-  SbPlayerPrivateImpl* ret = new SbPlayerPrivateImpl(
-      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context,
-      std::move(player_worker_handler));
-
-  if (ret && ret->worker_) {
-    return ret;
-  }
-  delete ret;
-  return nullptr;
 }
 
 void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
@@ -180,20 +155,6 @@ void SbPlayerPrivateImpl::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
-                                          int dropped_video_frames,
-                                          int ticket,
-                                          bool is_progressing) {
-  std::lock_guard lock(mutex_);
-  if (ticket_ != ticket) {
-    return;
-  }
-  media_time_ = media_time;
-  is_progressing_ = is_progressing;
-  media_time_updated_at_ = CurrentMonotonicTime();
-  dropped_video_frames_ = dropped_video_frames;
-}
-
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
   return worker_->GetCurrentDecodeTarget();
 }
@@ -253,6 +214,20 @@ SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
   --number_of_players_;
   SB_LOG(INFO) << "Destroying SbPlayerPrivateImpl. There are "
                << number_of_players_ << " players.";
+}
+
+void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
+                                          int dropped_video_frames,
+                                          int ticket,
+                                          bool is_progressing) {
+  std::lock_guard lock(mutex_);
+  if (ticket_ != ticket) {
+    return;
+  }
+  media_time_ = media_time;
+  is_progressing_ = is_progressing;
+  media_time_updated_at_ = CurrentMonotonicTime();
+  dropped_video_frames_ = dropped_video_frames;
 }
 
 }  // namespace starboard

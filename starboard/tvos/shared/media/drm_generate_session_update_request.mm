@@ -34,7 +34,7 @@ namespace {
  */
 NSArray<NSData*>* unpackData(NSData* input) {
   NSMutableArray<NSData*>* unpackedData = [NSMutableArray array];
-  NSInteger offset = 0;
+  NSUInteger offset = 0;
   UInt32 recordSize;
   for (NSInteger i = 0; i < 3; i++) {
     if (offset + sizeof(recordSize) > input.length) {

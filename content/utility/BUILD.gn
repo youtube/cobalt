@@ -80,6 +80,14 @@ source_set("utility") {
     "//url",
   ]
 
+  if (is_cobalt) {
+    deps -= [
+      "//services/on_device_model:on_device_model_service",
+      "//services/on_device_model/public/cpp",
+      "//services/on_device_model/public/mojom",
+    ]
+  }
+
   if (enable_video_effects) {
     deps += [ "//services/video_effects:service" ]
 

@@ -337,6 +337,9 @@ class GpuMojoMediaClientWin;
 class MailboxVideoFrameConverter;
 class MojoVideoEncodeAccelerator;
 class PaintCanvasVideoRenderer;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 class V4L2DevicePoller;  // TODO(crbug.com/41486289): remove this.
 }  // namespace media
 namespace memory_instrumentation {
@@ -779,6 +782,9 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
             WorkerStatus StatusWork>
   friend class media::CodecWorkerImpl;
   friend class media::MojoVideoEncodeAccelerator;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class media::StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class mojo::core::ScopedIPCSupport;
   friend class net::MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
   friend class rlz_lib::FinancialPing;
@@ -864,6 +870,9 @@ class BASE_EXPORT
   friend class media::AudioOutputDevice;
   friend class media::MailboxVideoFrameConverter;
   friend class media::PaintCanvasVideoRenderer;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class media::StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class media::V4L2DevicePoller;  // TODO(crbug.com/41486289): remove
                                          // this.
   friend class mojo::SyncCallRestrictions;

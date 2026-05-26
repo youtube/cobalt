@@ -19,10 +19,8 @@
 #include <mutex>
 #include <utility>
 
-#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "base/android/scoped_java_ref.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
@@ -31,19 +29,22 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using features::FeatureList;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
 const jint HDR_TYPE_DOLBY_VISION = 1;
@@ -69,7 +70,7 @@ Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
 
 template <typename GetRangeFunc>
 Range GetRange(JNIEnv* env,
-               const base::android::JavaRef<jobject>& j_capabilities,
+               const jni_zero::JavaRef<jobject>& j_capabilities,
                GetRangeFunc get_range_func) {
   SB_CHECK(env);
   SB_CHECK(j_capabilities);
@@ -283,7 +284,7 @@ VideoCodecCapability::VideoCodecCapability(
     bool is_tunnel_sup,
     bool is_software_decoder,
     bool is_hdr_capable,
-    base::android::ScopedJavaGlobalRef<jobject> j_video_cap,
+    ScopedJavaGlobalRef<jobject> j_video_cap,
     Range supported_widths,
     Range supported_heights,
     Range supported_bitrates,
@@ -335,18 +336,6 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
                             MediaCapabilitiesCache::GetInstance)
 
-MediaCapabilitiesCache::MediaCapabilitiesCache()
-    : MediaCapabilitiesCache(
-          std::make_unique<MediaCapabilitiesProviderImpl>()) {}
-
-MediaCapabilitiesCache::MediaCapabilitiesCache(
-    std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider)
-    : media_capabilities_provider_(std::move(media_capabilities_provider)) {
-  // Enable mime and key system caches.
-  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
-  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
-}
-
 bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
     return media_capabilities_provider_->GetIsWidevineSupported();
@@ -394,6 +383,21 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
       media_capabilities_provider_->GetIsPassthroughSupported(codec);
   passthrough_supportabilities_[codec] = supported;
   return supported;
+}
+
+bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
+  if (!is_enabled_) {
+    // When the cache is not enabled, always checks video fps.
+    return true;
+  }
+
+  const bool enable_av1_startup_optimization =
+      FeatureList::IsEnabled(features::kEnableAv1StartupOptimization);
+  if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
+    return true;
+  }
+
+  return is_av1_8k_capped_at_30_;
 }
 
 bool MediaCapabilitiesCache::GetAudioConfiguration(
@@ -504,17 +508,27 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     if (require_software_codec && !video_capability->is_software_decoder()) {
       continue;
     }
+    // Reject low performance software codec if software codec is not required.
+    const bool reject_low_performance_software_decoder =
+        FeatureList::IsEnabled(features::kRejectLowPerformanceSoftwareDecoder);
+    if ((reject_low_performance_software_decoder || !is_sw_decoder_enabled_) &&
+        !require_software_codec && video_capability->is_software_decoder()) {
+      const int kMinimumWidth = 1920;
+      const int kMinimumHeight = 1080;
+      if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
+                                                           kMinimumHeight, 0)) {
+        continue;
+      }
+    }
     // Reject if hdr is required but codec doesn't support it.
     if (must_support_hdr && !video_capability->is_hdr_capable()) {
       continue;
     }
-
     // Reject if resolution or frame rate is not supported.
     if (!video_capability->AreResolutionAndRateSupported(frame_width,
                                                          frame_height, fps)) {
       continue;
     }
-
     // Reject if bitrate is not supported.
     if (bitrate != 0 && !video_capability->IsBitrateSupported(bitrate)) {
       continue;
@@ -529,6 +543,18 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   }
 
   return "";
+}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache()
+    : MediaCapabilitiesCache(
+          std::make_unique<MediaCapabilitiesProviderImpl>()) {}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache(
+    std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider)
+    : media_capabilities_provider_(std::move(media_capabilities_provider)) {
+  // Enable mime and key system caches.
+  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
@@ -550,6 +576,7 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   media_capabilities_provider_->GetCodecCapabilities(
       audio_codec_capabilities_map_, video_codec_capabilities_map_);
   LoadAudioConfigurations_Locked();
+  LoadIsAv18kCappedAt30_Locked();
 }
 
 void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
@@ -564,6 +591,23 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
          media_capabilities_provider_->GetAudioConfiguration(
              static_cast<int>(audio_configurations_.size()), &configuration)) {
     audio_configurations_.push_back(configuration);
+  }
+}
+
+void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
+  is_av1_8k_capped_at_30_ = false;
+  for (const auto& video_capability :
+       video_codec_capabilities_map_[SupportedVideoCodecToMimeType(
+           kSbMediaVideoCodecAv1)]) {
+    constexpr int kWidth8K = 7680;
+    constexpr int kHeight8K = 4320;
+    if (video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+                                                        /*fps=*/0) &&
+        !video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+                                                         /*fps=*/60)) {
+      is_av1_8k_capped_at_30_ = true;
+      break;
+    }
   }
 }
 

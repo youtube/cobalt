@@ -15,12 +15,12 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
+import dev.cobalt.shell.ContentViewRenderView;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
@@ -108,20 +108,20 @@ public class ShellManager {
      */
     public void launchShell(String url) {
         // Calls the overloaded method with a null listener.
-        launchShell(url, /* topic= */ "", /* listener= */ null);
+        launchShell(url, /* deepLinkUrl= */ "", /* listener= */ null);
     }
 
     /**
      * Creates a new shell pointing to the specified URL.
      * @param url The URL the shell should load upon creation.
-     * @param topic The topic URL from the DeepLink URL.
+     * @param deepLinkUrl The URL from the DeepLink URL.
      * @param listener The listener to be notified when WebContents is ready.
      */
-    public void launchShell(String url, String topic, Shell.OnWebContentsReadyListener listener) {
+    public void launchShell(String url, String deepLinkUrl, Shell.OnWebContentsReadyListener listener) {
         ThreadUtils.assertOnUiThread();
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
-        sNatives.launchShell(url, topic);
+        sNatives.launchShell(url, deepLinkUrl);
         if (previousShell != null) previousShell.close();
     }
 
@@ -203,8 +203,14 @@ public class ShellManager {
         /**
          * Creates a new shell pointing to the specified URL.
          * @param url The URL the shell should load upon creation.
-         * @param topic The topic URL from the DeepLink URL.
+         * @param deepLinkUrl The topic URL from the DeepLink URL.
          */
-        void launchShell(String url, String topic);
+        void launchShell(String url, String deepLinkUrl);
+        /**
+         * Appends the migration status parameter to the given URL.
+         * @param url The URL to append the migration status to.
+         * @return The updated URL.
+         */
+        String appendMigrationStatus(String url);
     }
 }

@@ -29,9 +29,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -41,11 +43,19 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
                   private Thread {
  public:
-  DrmSystem(std::string_view key_system,
+  struct Callbacks {
+    SbDrmSessionUpdateRequestFunc update_request;
+    SbDrmSessionUpdatedFunc session_updated;
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
+  };
+  static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
+                                           void* context,
+                                           Callbacks callbacks);
+
+  DrmSystem(PassKey<DrmSystem>,
+            std::string_view key_system,
             void* context,
-            SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback,
-            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+            Callbacks callbacks);
 
   ~DrmSystem() override;
   // SbDrmSystemPrivate override begins
@@ -83,7 +93,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void OnInsufficientOutputProtection();
 
-  bool is_valid() const { return media_drm_bridge_->is_valid(); }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
   }
@@ -127,11 +136,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   const std::string key_system_;
   const bool enable_app_provisioning_;
-  void* context_;
-  SbDrmSessionUpdateRequestFunc update_request_callback_;
-  SbDrmSessionUpdatedFunc session_updated_callback_;
-  // TODO: Update key statuses to Cobalt.
-  SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const raw_ptr<void> context_;
+  const Callbacks callbacks_;
 
   std::mutex mutex_;
 
@@ -141,10 +147,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
-
-  std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
-
-  ThreadChecker thread_checker_;
 
   // Manages the mapping between the EME session ID in the C++ layer and the
   // MediaDrm session ID in the Java layer. Most of the time, we can use the
@@ -156,6 +158,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // session ID to interact with the Cobalt CDM module.
   const std::unique_ptr<DrmSessionIdMapper>
       session_id_mapper_;  //  Guarded by |mutex_|.
+
+  // Guaranteed to be non-null for any instance returned by the factory method.
+  // However, it can be null during destruction if the factory method fails
+  // to create the bridge and destroys the instance.
+  const std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard

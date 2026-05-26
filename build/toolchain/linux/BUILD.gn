@@ -10,7 +10,7 @@ import("//build/toolchain/gcc_toolchain.gni")
 
 if (is_cobalt_hermetic_build && is_official_build &&
     current_toolchain == default_toolchain) {
-  import("//starboard/build/toolchain/linux/strip.gni")
+  import("//cobalt/build/toolchain/linux/strip.gni")
 }
 
 clang_toolchain("clang_ppc64") {

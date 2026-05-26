@@ -40,6 +40,9 @@ const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 // Hides toolbar from content_shell's host window.
 const char kContentShellHideToolbar[] = "content-shell-hide-toolbar";
 
+// Forces the display of a video as the splash screen.
+const char kForceVideoSplashScreen[] = "force-video-splash-screen";
+
 // Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
 // comma-separated list of origins.
 const char kIsolatedContextOrigins[] = "isolated-context-origins";

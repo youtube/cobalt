@@ -22,6 +22,10 @@ import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -247,9 +251,7 @@ assert(!(llvm_force_head_revision && use_remoteexec && host_os != "linux"),
 # source root and might have conflicting versions of some headers) can remove
 # this and specify their own include paths.
 config("default_include_dirs") {
-  if (is_cobalt &&
-      ((is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) ||
-       current_toolchain == native_target)) {
+  if (is_cobalt && is_partner_toolchain) {
     include_dirs = [
       "//copied_base",
       "//",

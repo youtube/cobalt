@@ -36,9 +36,6 @@ namespace starboard {
 
 namespace {
 
-const int kAudioSinkFramesAlignment = 256;
-const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
@@ -74,10 +71,6 @@ class PlayerComponentsImpl : public PlayerComponents {
   std::unique_ptr<VideoRendererImpl> video_renderer_;
 };
 
-int AlignUp(int value, int alignment) {
-  return (value + alignment - 1) / alignment * alignment;
-}
-
 }  // namespace
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
@@ -85,6 +78,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     JobQueue* job_queue,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info),
+      experimental_features_(ExperimentalFeatures{}),
       job_queue_(job_queue),
       drm_system_(drm_system) {
   SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
@@ -96,6 +90,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    const ExperimentalFeatures& experimental_features,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -105,6 +100,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      experimental_features_(experimental_features),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -122,6 +118,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    const ExperimentalFeatures& experimental_features,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -132,6 +129,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      experimental_features_(experimental_features),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -199,14 +197,15 @@ PlayerComponents::Factory::CreateComponents(
     SB_DCHECK(components.audio.renderer_sink);
 
     int max_cached_frames, min_frames_per_append;
-    GetAudioRendererParams(creation_parameters, &max_cached_frames,
-                           &min_frames_per_append);
+    components.audio.renderer_sink->GetAudioRendererParams(
+        creation_parameters.audio_stream_info(), &max_cached_frames,
+        &min_frames_per_append);
 
     audio_renderer = std::make_unique<AudioRendererPcm>(
         creation_parameters.job_queue(), std::move(components.audio.decoder),
         std::move(components.audio.renderer_sink),
         creation_parameters.audio_stream_info(), max_cached_frames,
-        min_frames_per_append);
+        min_frames_per_append, creation_parameters.experimental_features());
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -222,10 +221,12 @@ PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
+
     video_renderer = std::make_unique<VideoRendererImpl>(
         creation_parameters.job_queue(), std::move(components.video.decoder),
         media_time_provider, std::move(components.video.render_algorithm),
-        std::move(components.video.renderer_sink));
+        std::move(components.video.renderer_sink),
+        creation_parameters.experimental_features());
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
@@ -263,32 +264,6 @@ PlayerComponents::Factory::CreateStubVideoComponents(
   components.renderer_sink = make_scoped_refptr<PunchoutVideoRendererSink>(
       creation_parameters.player(), kVideoSinkRenderIntervalUsec);
   return components;
-}
-
-void PlayerComponents::Factory::GetAudioRendererParams(
-    const CreationParameters& creation_parameters,
-    int* max_cached_frames,
-    int* min_frames_per_append) const {
-  SB_CHECK(max_cached_frames);
-  SB_CHECK(min_frames_per_append);
-  SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
-            0);
-  *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
-  // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
-  // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
-  int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-      creation_parameters.audio_stream_info().number_of_channels,
-      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
-          ? kSbMediaAudioSampleTypeFloat32
-          : kSbMediaAudioSampleTypeInt16Deprecated,
-      creation_parameters.audio_stream_info().samples_per_second);
-  // Audio renderer would sleep for a while if it thinks there're enough
-  // frames in the sink. The sleeping time is 1/4 of |max_cached_frames|. So, to
-  // maintain required min buffer size of audio sink, the |max_cached_frames|
-  // need to be larger than |min_frames_required| * 4/3.
-  *max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
-                       kDefaultAudioSinkMinFramesPerAppend;
-  *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
 }  // namespace starboard

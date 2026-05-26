@@ -13,17 +13,21 @@
 #include "base/strings/stringprintf.h"
 #include "base/types/pass_key.h"
 #include "media/base/subsample_entry.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
+
 DecoderBuffer::Allocator* s_allocator = nullptr;
+
 }  // namespace
 
 // static
-DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-  DCHECK(s_allocator);
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::Get() {
   return s_allocator;
 }
 
@@ -35,6 +39,7 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
 }
+
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -57,44 +62,60 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 }  // namespace
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-
 // --- Starboard-specific Constructor Implementations ---
-DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
-  if (size_ >= 0) {
-    Initialize(DemuxerStream::UNKNOWN);
-  }
-}
+DecoderBuffer::DecoderBuffer(size_t size)
+    : DecoderBuffer(DemuxerStream::UNKNOWN, size) {}
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
                              size_t size)
-    : size_(size) {
+    : DecoderBuffer(type, size) {
   if (!data) {
-    CHECK_EQ(size_, 0u);
+    CHECK_EQ(size, 0u);
     return;
   }
-  Initialize(type);
-  memcpy(data_, data, size_);
+
+  if (size > 0) {
+    s_allocator->Write(allocator_data_->handle, data, size);
+  }
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              base::span<const uint8_t> data)
-    : size_(data.size()) {
+    : DecoderBuffer(type, data.size()) {
   if (data.empty()) {
     return;
   }
-  Initialize(type);
-  memcpy(data_, data.data(), data.size());
+
+  memcpy(writable_data(), data.data(), data.size());
 }
 
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : DecoderBuffer(DemuxerStream::UNKNOWN, data) {}
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
-    : DecoderBuffer(DemuxerStream::UNKNOWN, base::span<const uint8_t>(data)) {}
+    : DecoderBuffer(DemuxerStream::UNKNOWN, data.size()) {
+  if (data.empty()) {
+    return;
+  }
+
+  memcpy(writable_data(), data.data(), data.size());
+}
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : DecoderBuffer(DemuxerStream::UNKNOWN, external_memory->Span()) {}
+
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
+    : allocator_data_([&]() -> std::optional<AllocatorData> {
+        if (size == 0) {
+          return std::nullopt;
+        }
+        CHECK(s_allocator);
+        return AllocatorData(type,
+                             s_allocator->Allocate(
+                                 type, size, s_allocator->GetBufferAlignment()),
+                             size);
+      }()) {}
 
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -144,26 +165,14 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() {
-  DCHECK(s_allocator);
-  s_allocator->Free(data_, allocated_size_);
+  if (allocator_data_) {
+    CHECK(s_allocator);
+    s_allocator->Free(allocator_data_->stream_type_, allocator_data_->handle,
+                      allocator_data_->size);
+  }
 }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() = default;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void DecoderBuffer::Initialize(DemuxerStream::Type type) {
-  DCHECK(s_allocator);
-  DCHECK(!data_);
-
-  int alignment = s_allocator->GetBufferAlignment();
-  int padding = s_allocator->GetBufferPadding();
-  allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
-                                                      allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
-}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static

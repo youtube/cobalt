@@ -14,7 +14,12 @@
 
 #include "cobalt/app/cobalt_switch_defaults.h"
 
+#include <algorithm>
+#include <string>
+
 #include "base/base_switches.h"
+#include "base/check.h"
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -105,9 +110,10 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
       // The warning indicates that `--url` will be ignored.
       LOG(WARNING) << "Overriding initial URL with first argument";
       cmd_line_.AppendSwitchNative(cobalt::switches::kInitialURL, first_arg);
-      startup_url_ = std::string(first_arg);
     }
+    startup_url_ = std::string(first_arg);
   }
+  CHECK(!startup_url_.empty());
 }
 
 const base::CommandLine::StringVector CommandLinePreprocessor::argv() const {

@@ -98,7 +98,7 @@ std::string extractJsonValue(const std::string& jsonLikeString,
 }
 
 void* Send(PlatformServiceImpl* service,
-           void* data,
+           const void* data,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {

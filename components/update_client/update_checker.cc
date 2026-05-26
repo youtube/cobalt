@@ -44,6 +44,8 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/cobalt_slot_management.h"
 #include "starboard/extension/free_space.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"  // nogncheck
 #endif
 
 namespace update_client {
@@ -62,7 +64,7 @@ class UpdateCheckerImpl : public UpdateChecker {
       const base::flat_map<std::string, std::string>& additional_attributes,
       UpdateCheckCallback update_check_callback) override;
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   PersistedData* GetPersistedData() override { return config_->GetPersistedData(); }
   void Cancel() override;
   bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override;
@@ -227,7 +229,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     for (auto i = range.first; i != range.second; i++) {
       cached_hashes.push_back(i->second);
     }
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
     base::Version current_version = crx_component->version;
 
     // Check if there is an available update already for quick roll-forward
@@ -278,7 +280,11 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 // with update check.
 #endif
     apps.push_back(MakeProtocolApp(
+#if BUILDFLAG(IS_STARBOARD)
+        app_id, current_version, crx_component->ap, crx_component->brand,
+#else
         app_id, crx_component->version, crx_component->ap, crx_component->brand,
+#endif
         active_ids.find(app_id) != active_ids.end()
             ? metadata->GetInstallId(app_id)
             : "",
@@ -349,7 +355,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 #endif
 }
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
 void UpdateCheckerImpl::Cancel() {
   // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "UpdateCheckerImpl::Cancel";

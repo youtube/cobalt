@@ -690,6 +690,10 @@ musl_uid_t __abi_wrap_geteuid() {
   return static_cast<musl_uid_t>(geteuid());
 }
 
+musl_uid_t __abi_wrap_getuid() {
+  return static_cast<musl_uid_t>(getuid());
+}
+
 musl_pid_t __abi_wrap_getpid() {
   return static_cast<musl_pid_t>(getpid());
 }

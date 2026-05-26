@@ -110,6 +110,8 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
   std::move(callback).Run(GetUserOnExitStrategyInternal());
 }
 
+void H5vccSystemImpl::HideSplashScreen() {}
+
 void H5vccSystemImpl::PerformExitStrategy() {
   auto strategy = GetUserOnExitStrategyInternal();
   switch (strategy) {

@@ -16,9 +16,13 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_IAMF_UTIL_H_
 
 #include <limits>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/result.h"
+#include "starboard/shared/internal_only.h"
 
 namespace starboard {
 
@@ -41,30 +45,31 @@ constexpr uint32_t kIamfProfileMax = 255;
 // Always check is_valid() before calling the getter functions.
 class IamfMimeUtil {
  public:
-  explicit IamfMimeUtil(const std::string& mime_type);
+  struct IamfProfileInfo {
+    uint8_t primary_profile;
+    uint8_t additional_profile;
+  };
 
-  bool is_valid() const {
-    return primary_profile_ <= kIamfProfileMax &&
-           additional_profile_ <= kIamfProfileMax &&
-           substream_codec_ != kIamfSubstreamCodecUnknown;
-  }
-  uint32_t primary_profile() const {
-    SB_DCHECK(is_valid());
-    return primary_profile_;
-  }
-  uint32_t additional_profile() const {
-    SB_DCHECK(is_valid());
-    return additional_profile_;
-  }
-  IamfSubstreamCodec substream_codec() const {
-    SB_DCHECK(is_valid());
-    return substream_codec_;
-  }
+  static std::optional<IamfMimeUtil> Create(const std::string& mime_type);
+
+  // Parses IAMF Config OBUs for the primary and additional profiles,
+  // based on IAMF specification v1.0.0-errata.
+  // https://aomediacodec.github.io/iamf/v1.1.0.html#codecsparameter.
+  static Result<IamfProfileInfo> ParseIamfSequenceHeaderObu(
+      const std::vector<uint8_t>& data);
+
+  uint32_t primary_profile() const { return primary_profile_; }
+  uint32_t additional_profile() const { return additional_profile_; }
+  IamfSubstreamCodec substream_codec() const { return substream_codec_; }
 
  private:
-  uint32_t primary_profile_ = std::numeric_limits<uint32_t>::max();
-  uint32_t additional_profile_ = std::numeric_limits<uint32_t>::max();
-  IamfSubstreamCodec substream_codec_ = kIamfSubstreamCodecUnknown;
+  IamfMimeUtil(uint32_t primary_profile,
+               uint32_t additional_profile,
+               IamfSubstreamCodec substream_codec);
+
+  const uint32_t primary_profile_;
+  const uint32_t additional_profile_;
+  const IamfSubstreamCodec substream_codec_;
 };
 
 }  // namespace starboard

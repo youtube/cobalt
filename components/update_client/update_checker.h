@@ -50,7 +50,7 @@ class UpdateChecker {
       const base::flat_map<std::string, std::string>& additional_attributes,
       UpdateCheckCallback update_check_callback) = 0;
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   virtual void Cancel() = 0;
   virtual bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) = 0;
 #endif
@@ -58,7 +58,7 @@ class UpdateChecker {
   static std::unique_ptr<UpdateChecker> Create(
       scoped_refptr<Configurator> config);
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   virtual PersistedData* GetPersistedData() = 0;
 #endif
  protected:

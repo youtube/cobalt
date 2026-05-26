@@ -30,11 +30,7 @@
 
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace drm {
 namespace {
 
 static pthread_mutex_t g_session_dtor_mutex_ = PTHREAD_MUTEX_INITIALIZER;
@@ -60,13 +56,15 @@ using OcdmGstSessionDecryptBufferFn =
 using OcdmGetMetricSystemDataFn =
   OpenCDMError(*)(struct OpenCDMSystem* system, uint32_t* bufferLength, uint8_t* buffer);
 
+using OcdmGetMetricsFn =
+  OpenCDMError(*)(struct OpenCDMSystem* system, std::string& buffer);
+
 static OcdmGstSessionDecryptExFn g_ocdmGstSessionDecryptEx { nullptr };
 static OcdmGstSessionDecryptBufferFn g_ocdmGstSessionDecryptBuffer { nullptr };
 static OcdmGetMetricSystemDataFn g_ocdmGetMetricSystemData { nullptr };
+static OcdmGetMetricsFn g_ocdmGetMetrics { nullptr };
 
 }  // namespace
-
-namespace session {
 
 SbDrmKeyStatus KeyStatus2DrmKeyStatus(KeyStatus status) {
   switch (status) {
@@ -146,7 +144,7 @@ class Session {
     kUpdate,
   };
 
-  ::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
   Operation operation_{Operation::kNone};
   int ticket_{0};
   DrmSystemOcdm* drm_system_;
@@ -509,10 +507,6 @@ void Session::OnError(struct OpenCDMSession* /*ocdm_session*/,
   }
 }
 
-}  // namespace session
-
-using session::Session;
-
 DrmSystemOcdm::DrmSystemOcdm(
     const char* key_system,
     void* context,
@@ -551,6 +545,14 @@ DrmSystemOcdm::DrmSystemOcdm(
         SB_LOG(INFO) << "Has opencdm_get_metric_system_data";
     } else {
       SB_LOG(INFO) << "No opencdm_get_metric_system_data.";
+    }
+
+    g_ocdmGetMetrics = reinterpret_cast<OcdmGetMetricsFn>(
+        dlsym(RTLD_DEFAULT, "opencdm_get_metrics"));
+    if (g_ocdmGetMetrics) {
+      SB_LOG(INFO) << "Has opencdm_get_metrics";
+    } else {
+      SB_LOG(INFO) << "No opencdm_get_metrics.";
     }
   });
 }
@@ -630,8 +632,7 @@ void DrmSystemOcdm::UpdateServerCertificate(int ticket,
       "Error");
 }
 
-SbDrmSystemPrivate::DecryptStatus DrmSystemOcdm::Decrypt(
-    ::starboard::InputBuffer* buffer) {
+SbDrmSystemPrivate::DecryptStatus DrmSystemOcdm::Decrypt(InputBuffer* buffer) {
   SB_NOTREACHED();
   return kFailure;
 }
@@ -754,20 +755,21 @@ int DrmSystemOcdm::Decrypt(const std::string& id,
                             _GstBuffer* iv,
                             _GstBuffer* key,
                             _GstCaps* caps) {
-  session::Session* session = GetSessionById(id);
+  Session* session = GetSessionById(id);
   if (!session)
     return ERROR_INVALID_SESSION;
   return session->Decrypt(buffer, sub_sample, sub_sample_count, iv, key, caps);
 }
 
 const void* DrmSystemOcdm::GetMetrics(int* size) {
-  if ( !g_ocdmGetMetricSystemData )
-    return nullptr;
 
   SB_CHECK(ocdm_system_ != nullptr);
 
   const int kMaxRetry = 5;
   for (int i = 0; i < kMaxRetry; ++i) {
+    if ( !g_ocdmGetMetricSystemData )
+      break;
+
     uint32_t buffer_length =  ( 1 << i ) * 4 * 1024;
 
     std::vector<uint8_t> tmp;
@@ -792,14 +794,28 @@ const void* DrmSystemOcdm::GetMetrics(int* size) {
     break;
   }
 
+  // Use `opencdm_get_metrics` when `opencdm_get_metric_system_data` fails to
+  // get mertics data. This is observed in RDK/Amlogic where
+  // `opencdm_get_metric_system_data` returns with error code
+  // `INTERFACE_NOT_IMPLEMENTED`.
+  if (g_ocdmGetMetrics && metrics_.size() == 0) {
+    std::string buffer;
+    auto rc = g_ocdmGetMetrics(ocdm_system_, buffer);
+    if (rc == ERROR_NONE) {
+      uint16_t buffer_length = buffer.size();
+      uint16_t out_length = (((buffer_length * 8) / 6) + 4) * sizeof(TCHAR);
+      metrics_.resize(out_length, '\0');
+      out_length = WPEFramework::Core::URL::Base64Encode(
+          reinterpret_cast<const uint8_t*>(buffer.data()), buffer_length,
+          reinterpret_cast<char*>(metrics_.data()), out_length, false);
+      metrics_.resize(out_length);
+    }
+  }
+
   *size = static_cast<int>(metrics_.size());
   return metrics_.data();
 }
 
-}  // namespace drm
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // defined(HAS_OCDM)

@@ -75,7 +75,15 @@ static_library("gtest") {
 # into //third_party/googletest.
 source_set("gtest_main") {
   testonly = true
-  deps = [ "//third_party/googletest:gtest_main" ]
+  if (is_starboard) {
+    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [
+      ":gtest",
+      "//starboard:starboard_group",
+    ]
+  } else {
+    deps = [ "//third_party/googletest:gtest_main" ]
+  }
 }
 
 if (is_ios) {

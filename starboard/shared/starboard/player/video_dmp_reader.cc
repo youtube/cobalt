@@ -16,8 +16,10 @@
 
 #include <algorithm>
 #include <functional>
+#include <iomanip>
 
 #include "starboard/common/check_op.h"
+#include "starboard/shared/starboard/media/iamf_util.h"
 
 namespace starboard {
 
@@ -157,7 +159,14 @@ std::string VideoDmpReader::audio_mime_type() const {
       ss << "audio/wav; codecs=\"1\";";
       break;
     case kSbMediaAudioCodecIamf:
-      ss << "audio/mp4; codecs=\"iamf\";";
+      SB_CHECK(dmp_info_.iamf_primary_profile.has_value());
+      // Only Opus IAMF substreams are currently supported.
+      ss << "audio/mp4; codecs=\"iamf.";
+      ss << std::setw(3) << std::setfill('0') << std::hex
+         << static_cast<int>(*dmp_info_.iamf_primary_profile) << "."
+         << std::setw(3) << std::setfill('0') << std::hex
+         << static_cast<int>(dmp_info_.iamf_additional_profile.value_or(0))
+         << ".Opus\";";
       break;
     default:
       SB_NOTREACHED() << "Unsupported audio codec: " << dmp_info_.audio_codec;
@@ -303,6 +312,15 @@ void VideoDmpReader::Parse() {
   }
 
   while (ParseOneRecord()) {
+  }
+
+  if (dmp_info_.audio_codec == kSbMediaAudioCodecIamf &&
+      !dmp_info_.iamf_primary_profile.has_value()) {
+    auto result =
+        IamfMimeUtil::ParseIamfSequenceHeaderObu(audio_access_units_[0].data());
+    SB_CHECK(result) << result.error();
+    dmp_info_.iamf_primary_profile = result->primary_profile;
+    dmp_info_.iamf_additional_profile = result->additional_profile;
   }
 
   dmp_info_.audio_access_units_size = audio_access_units_.size();

@@ -29,6 +29,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
+      ":read_evergreen_version",
       ":record_loader_app_status",
       ":reset_evergreen_update",
       ":slot_management",
@@ -47,45 +48,6 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   }
 }
 
-if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
-    current_toolchain == starboard_toolchain) {
-  copy("copy_loader_app_content") {
-    install_content = true
-    if (target_cpu == "arm" && arm_float_abi == "softfp") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
-    } else if (target_cpu == "arm64") {
-      sources =
-          [ "$root_out_dir/../evergreen-${target_cpu}_$build_type/content" ]
-    } else {
-      sources = []
-    }
-    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content" ]
-  }
-  copy("copy_loader_app_manifest") {
-    install_content = true
-    if (target_cpu == "arm" && arm_float_abi == "softfp") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
-    } else if (target_cpu == "arm64") {
-      sources = [
-        "$root_out_dir/../evergreen-${target_cpu}_$build_type/manifest.json",
-      ]
-    } else {
-      sources = []
-    }
-    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/manifest.json" ]
-  }
-
-  # This trick to name the Crashpad handler executable as a shared library, so
-  # that the Package Manager extracts it to the file system on install, is
-  # borrowed from Chrome on Android.
-  copy("copy_crashpad_handler_named_as_so") {
-    install_content = true
-    sources = [ "$root_out_dir/native_target/crashpad_handler" ]
-    outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
-    deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
-  }
-}
-
 static_library("record_loader_app_status") {
   sources = [
     "record_loader_app_status.cc",
@@ -95,57 +57,25 @@ static_library("record_loader_app_status") {
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  source_set("loader_app_sources") {
+    sources = _common_loader_app_sources
+    deps = [
+      ":common_loader_app_dependencies",
+      "//starboard:starboard_with_main",
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/elf_loader",
+    ]
+  }
+
   target(starboard_level_final_executable_type, "loader_app") {
     output_dir = root_build_dir
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-      sources = _common_loader_app_sources
-      deps = [
-        ":common_loader_app_dependencies",
-        "//starboard:starboard_with_main",
-        "//starboard/content/fonts:copy_font_data",
-        "//starboard/elf_loader",
-      ]
+      deps = [ ":loader_app_sources" ]
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-      if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-        data_deps += [
-          ":copy_crashpad_handler_named_as_so",
-          ":copy_loader_app_content",
-          ":copy_loader_app_manifest",
-          "//cobalt/browser:copy_loader_app_libcobalt",
-        ]
-        deps += [
-          ":copy_crashpad_handler_named_as_so",
-          ":copy_loader_app_content",
-          ":copy_loader_app_manifest",
-          "//cobalt/browser:copy_loader_app_libcobalt",
-        ]
-      }
     }
   }
 } else {
   not_needed([ "_common_loader_app_sources" ])
-}
-
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  # TODO: b/261635039 enable this target on Android
-  target(starboard_level_final_executable_type, "loader_app_sys") {
-    if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
-        target_os != "android") {
-      sources = _common_loader_app_sources
-
-      starboard_syms_path =
-          rebase_path("//starboard/starboard.syms", root_build_dir)
-      ldflags = [
-        "-Wl,--dynamic-list=$starboard_syms_path",
-        "-ldl",
-      ]
-      deps = [
-        ":common_loader_app_dependencies",
-        "//starboard/content/fonts:copy_font_data",
-        "//starboard/elf_loader:elf_loader_sys",
-      ]
-    }
-  }
 }
 
 static_library("app_key_files") {
@@ -227,6 +157,31 @@ source_set("drain_file_test") {
   ]
 }
 
+static_library("read_evergreen_version") {
+  sources = [
+    "read_evergreen_version.cc",
+    "read_evergreen_version.h",
+  ]
+  deps = [
+    "//starboard/common",
+    "//third_party/jsoncpp",
+  ]
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+
+source_set("read_evergreen_version_test") {
+  testonly = true
+  sources = [ "read_evergreen_version_test.cc" ]
+  deps = [
+    ":read_evergreen_version",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/jsoncpp",
+  ]
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+
 proto_library("installation_store_proto") {
   sources = [ "installation_store.proto" ]
   generate_python = false
@@ -271,8 +226,6 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   }
 }
 
-## NOTE: This target is shared between Evergreen and EG platform code
-## It needs to be built with both Starboard and Cobalt toolchains
 static_library("slot_management") {
   sources = [
     "slot_management.cc",
@@ -282,12 +235,12 @@ static_library("slot_management") {
     ":app_key_files",
     ":drain_file",
     ":installation_manager",
+    ":read_evergreen_version",
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/elf_loader",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
-    "//third_party/jsoncpp:jsoncpp",
   ]
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
@@ -296,10 +249,8 @@ static_library("slot_management") {
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
   }
-
-  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
-if (sb_is_evergreen && current_toolchain == starboard_toolchain) {
+if (current_toolchain == starboard_toolchain) {
   source_set("slot_management_test") {
     testonly = true
 
@@ -309,15 +260,14 @@ if (sb_is_evergreen && current_toolchain == starboard_toolchain) {
       ":drain_file",
       ":installation_manager",
       ":installation_store_proto",
+      ":read_evergreen_version",
       ":slot_management",
       "//starboard:starboard_with_main",
       "//starboard/common",
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",
-      "//third_party/jsoncpp:jsoncpp",
     ]
-    configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
   }
 }
 
@@ -350,7 +300,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
     deps = [
       "//starboard:starboard_group",
-      "//starboard/common:common",
+      "//starboard/common",
     ]
   }
 

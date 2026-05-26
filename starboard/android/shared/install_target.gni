@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//starboard/android/apk/apk_sources.gni")
-import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/build/config/install.gni")
 
 declare_args() {

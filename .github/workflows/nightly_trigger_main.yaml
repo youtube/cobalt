@@ -3,8 +3,13 @@ name: nightly_trigger_main
 on:
   schedule:
     # GMT timezone.
-    - cron: '0 10 * * *'
+    - cron: '0 10,12,14 * * *'
   workflow_dispatch:
+
+permissions: {}
+
+env:
+  GITHUB_REPO: ${{ github.repository }}
 
 jobs:
   trigger_main:
@@ -12,16 +17,10 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: main
-          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run android --ref main -f nightly=true
-          gh workflow run linux --ref main -f nightly=true
+          gh workflow run android --ref main -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run linux --ref main -f nightly=true --repo "${GITHUB_REPO}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

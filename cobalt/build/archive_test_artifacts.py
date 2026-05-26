@@ -43,7 +43,10 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     compression_flag = f'zstd -T0 -{compression_level}'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
-  tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
+  tar_cmd = [
+      'tar', '--owner=0', '--group=0', '--numeric-owner', '-I',
+      compression_flag, '-cvf', archive_path
+  ]
   tmp_files = []
   for file_list, base_dir in file_lists:
     if not file_list:
@@ -76,7 +79,7 @@ def _handle_browsertests(
   collect_script = os.path.join(source_dir, 'cobalt', 'testing',
                                 'browser_tests', 'tools',
                                 'collect_test_artifacts.py')
-  output_name = f'cobalt_browsertests_artifacts.tar.{compression}'
+  output_name = f'cobalt_browsertests_deps.tar.{compression}'
   cmd = [
       sys.executable, collect_script, out_dir, '-o', output_name,
       '--output_dir', destination_dir, '--compression', compression

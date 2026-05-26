@@ -17,8 +17,9 @@
 
 import unittest
 from unittest.mock import mock_open, patch
+import logging
 
-from cobalt.tools.junit_mini_parser import find_failing_tests
+from cobalt.tools.junit_mini_parser import find_failing_tests, main
 
 
 class TestFindFailingTests(unittest.TestCase):
@@ -50,7 +51,7 @@ class TestFindFailingTests(unittest.TestCase):
     """
     with patch('builtins.open', mock_open(read_data=xml_content)):
       failing_tests = find_failing_tests(['report.xml'])
-      expected = {'report.xml': ['TestSuiteA.test_fail']}
+      expected = {'report.xml': [('TestSuiteA.test_fail', 'Assertion failed')]}
       self.assertEqual(failing_tests, expected)
 
   def test_multiple_failing_tests_in_single_file(self):
@@ -71,9 +72,9 @@ class TestFindFailingTests(unittest.TestCase):
     with patch('builtins.open', mock_open(read_data=xml_content)):
       failing_tests = find_failing_tests(['results.xml'])
       expected = {
-          'results.xml': [
-              'UnitTests.test_two_failed', 'UnitTests.test_three_errored'
-          ]
+          'results.xml': [('UnitTests.test_two_failed', 'Something went wrong'),
+                          ('UnitTests.test_three_errored',
+                           'An exception occurred')]
       }
       self.assertEqual(failing_tests, expected)
 
@@ -83,7 +84,7 @@ class TestFindFailingTests(unittest.TestCase):
       <testsuite name="ModuleA">
         <testcase name="test_alpha_ok"/>
         <testcase name="test_beta_fail">
-          <failure>...</failure>
+          <failure message="Failure A">...</failure>
         </testcase>
       </testsuite>
     </testsuites>
@@ -92,7 +93,7 @@ class TestFindFailingTests(unittest.TestCase):
     <testsuites>
       <testsuite name="ModuleB">
         <testcase name="test_gamma_error">
-          <error>...</error>
+          <error message="Error B">...</error>
         </testcase>
         <testcase name="test_delta_ok"/>
       </testsuite>
@@ -106,8 +107,8 @@ class TestFindFailingTests(unittest.TestCase):
         ]):
       failing_tests = find_failing_tests(['report1.xml', 'report2.xml'])
       expected = {
-          'report1.xml': ['ModuleA.test_beta_fail'],
-          'report2.xml': ['ModuleB.test_gamma_error']
+          'report1.xml': [('ModuleA.test_beta_fail', 'Failure A')],
+          'report2.xml': [('ModuleB.test_gamma_error', 'Error B')]
       }
       self.assertEqual(failing_tests, expected)
 
@@ -116,15 +117,40 @@ class TestFindFailingTests(unittest.TestCase):
     <testsuites>
       <testsuite>
         <testcase name="test_one_failed">
-          <failure>...</failure>
+          <failure message="Fail msg">...</failure>
         </testcase>
       </testsuite>
     </testsuites>
     """
     with patch('builtins.open', mock_open(read_data=xml_content)):
       failing_tests = find_failing_tests(['empty_name.xml'])
-      expected = {'empty_name.xml': ['empty_name.xml.test_one_failed']}
+      expected = {
+          'empty_name.xml': [('empty_name.xml.test_one_failed', 'Fail msg')]
+      }
       self.assertEqual(failing_tests, expected)
+
+
+class TestMain(unittest.TestCase):
+  """Test cases for main function in junit_mini_parser."""
+
+  def setUp(self):
+    logging.disable(logging.CRITICAL)
+
+  def tearDown(self):
+    logging.disable(logging.NOTSET)
+
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  def test_main_success(self, mock_find):
+    mock_find.return_value = {}
+    self.assertEqual(main(['results.xml']), 0)
+
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  def test_main_failure(self, mock_find):
+    mock_find.return_value = {'results.xml': [('Test.fail', 'msg')]}
+    self.assertEqual(main(['results.xml']), 1)
+
+  def test_main_no_files(self):
+    self.assertEqual(main([]), 0)
 
 
 if __name__ == '__main__':

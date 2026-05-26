@@ -81,8 +81,6 @@ std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
   return out << "(nullopt)";
 }
 
-std::string_view to_string(bool val);
-
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
 const SbLogPriority SB_LOG_ERROR = kSbLogPriorityError;
