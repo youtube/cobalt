@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/browser/renderer_host/navigation_request.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <memory>
 #include <optional>
@@ -2063,12 +2064,14 @@ NavigationRequest::NavigationRequest(
     }
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
             *frame_tree_node_, url::Origin::Create(common_params_->url))) {
       ad_auction_headers_eligible_ = true;
       headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   }
 
   begin_params_->headers = headers.ToString();
@@ -5802,11 +5805,13 @@ void NavigationRequest::OnRedirectChecksComplete(
   }
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
     ad_auction_headers_eligible_ = false;
     removed_headers.push_back(kAdAuctionRequestHeaderKey);
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   if (shared_storage_writable_opted_in_) {
     // On a redirect, the PermissionsPolicy may change the status of this
@@ -6436,12 +6441,14 @@ void NavigationRequest::CommitNavigation() {
   }
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
                                     response() ? response()->headers : nullptr);
   } else if (has_ad_auction_headers_attribute_) {
     RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();

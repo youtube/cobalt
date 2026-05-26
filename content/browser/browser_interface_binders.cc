@@ -42,7 +42,9 @@
 #include "content/browser/image_capture/image_capture_impl.h"
 #include "content/browser/indexed_db/indexed_db_internals.mojom.h"
 #include "content/browser/indexed_db/indexed_db_internals_ui.h"
-#include "content/browser/interest_group/ad_auction_service_impl.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/ad_auction_service_impl.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/keyboard_lock/keyboard_lock_service_impl.h"
 #include "content/browser/loader/content_security_notifier.h"
 #include "content/browser/media/media_web_contents_observer.h"
@@ -203,6 +205,7 @@
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host_factory.mojom.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_connector.mojom.h"
 #include "third_party/blink/public/public_buildflags.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1232,10 +1235,12 @@ void PopulateBinderMapWithContext(
       base::BindRepeating(&ContentIndexServiceImpl::CreateForFrame));
   map->Add<blink::mojom::KeyboardLockService>(
       base::BindRepeating(&KeyboardLockServiceImpl::CreateMojoService));
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     map->Add<blink::mojom::AdAuctionService>(
         base::BindRepeating(&AdAuctionServiceImpl::CreateMojoService));
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   map->Add<blink::mojom::MediaSessionService>(
       base::BindRepeating(&MediaSessionServiceImpl::Create));
   map->Add<blink::mojom::PictureInPictureService>(

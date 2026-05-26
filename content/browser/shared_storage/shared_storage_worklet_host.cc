@@ -25,7 +25,10 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/shared_storage_worklet_devtools_manager.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/interest_group/interest_group_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/renderer_host/page_impl.h"
@@ -1250,6 +1253,7 @@ void SharedStorageWorkletHost::SharedStorageRemainingBudget(
 
 void SharedStorageWorkletHost::GetInterestGroups(
     GetInterestGroupsCallback callback) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   InterestGroupManagerImpl* interest_group_manager =
       static_cast<InterestGroupManagerImpl*>(
           storage_partition_->GetInterestGroupManager());
@@ -1303,6 +1307,11 @@ void SharedStorageWorkletHost::GetInterestGroups(
                     std::move(mojom_groups)));
           },
           base::ElapsedTimer(), std::move(callback)));
+#else
+  std::move(callback).Run(
+      blink::mojom::GetInterestGroupsResult::NewErrorMessage(
+          "InterestGroups are disabled."));
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 void SharedStorageWorkletHost::DidAddMessageToConsole(

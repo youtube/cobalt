@@ -66,6 +66,7 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 namespace content {
 namespace devtools_instrumentation {
@@ -1663,6 +1664,7 @@ void OnAuctionWorkletNetworkRequestComplete(
                    status);
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id) {
   FrameTreeNode* ftn = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
   if (!ftn) {
@@ -1703,6 +1705,7 @@ void OnInterestGroupAuctionNetworkRequestCreated(
                        NotifyInterestGroupAuctionNetworkRequestCreated,
                    type, request_id, devtools_auction_ids);
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {

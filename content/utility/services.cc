@@ -19,8 +19,11 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/utility/content_utility_client.h"
 #include "content/public/utility/utility_thread.h"
-#include "content/services/auction_worklet/auction_worklet_service_impl.h"
-#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/services/auction_worklet/auction_worklet_service_impl.h"  // nogncheck
+#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "device/vr/buildflags/buildflags.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
@@ -198,14 +201,14 @@ auto RunNetworkService(
       /*delay_initialization_until_set_client=*/true);
 }
 
-#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 auto RunAuctionWorkletService(
     mojo::PendingReceiver<auction_worklet::mojom::AuctionWorkletService>
         receiver) {
   return auction_worklet::AuctionWorkletServiceImpl::CreateForService(
       std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
 #if BUILDFLAG(IS_MAC)
@@ -427,9 +430,9 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
 }
 
 void RegisterMainThreadServices(mojo::ServiceFactory& services) {
-#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   services.Add(RunAuctionWorkletService);
-#endif  // !BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   services.Add(RunAudio);
 
 #if !BUILDFLAG(IS_COBALT)

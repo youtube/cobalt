@@ -10,6 +10,7 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/protobuf/proto_library.gni")
+import("//third_party/blink/public/public_features.gni")
 
 if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
@@ -490,6 +491,12 @@ source_set("common_unittests_sources") {
       "font_unique_name_lookup/icu_fold_case_util_unittest.cc",
     ]
   }
+
+  if (!enable_interest_groups) {
+    _filtered_sources = filter_exclude(sources, [ "interest_group/*" ])
+    sources = []
+    sources = _filtered_sources
+  }
 }
 
 group("common_unittests_data") {
@@ -522,6 +529,12 @@ static_library("test_support") {
     ":common_unittests_sources",
     "//third_party/blink/public:test_support",
   ]
+
+  if (!enable_interest_groups) {
+    _filtered_sources = filter_exclude(sources, [ "interest_group/*" ])
+    sources = []
+    sources = _filtered_sources
+  }
 }
 
 if (use_fuzzing_engine_with_lpm) {

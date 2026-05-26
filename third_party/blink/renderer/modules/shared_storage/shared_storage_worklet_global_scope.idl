@@ -29,12 +29,6 @@ interface SharedStorageWorkletGlobalScope : WorkletGlobalScope {
   readonly attribute Crypto crypto;
 
   [
-    RuntimeEnabled=InterestGroupsInSharedStorageWorklet,
-    CallWith=ScriptState,
-    RaisesException
-  ] Promise<sequence<StorageInterestGroup>> interestGroups();
-
-  [
     // This avoids naming conflict with the overloaded
     // WorkerOrWorkletGlobalScope::navigator() method.
     ImplementedAs=Navigator,

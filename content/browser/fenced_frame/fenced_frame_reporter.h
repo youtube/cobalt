@@ -24,7 +24,10 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/privacy_sandbox_invoking_api.h"
 #include "content/public/browser/render_frame_host.h"
-#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "net/url_request/referrer_policy.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
@@ -87,8 +90,10 @@ class CONTENT_EXPORT FencedFrameReporter
 
   using ReportingMacros = std::vector<std::pair<std::string, std::string>>;
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   using FinalizedPrivateAggregationRequests = std::vector<
       auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr>;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   using DestinationVariant = std::
       variant<DestinationEnumEvent, DestinationURLEvent, AutomaticBeaconEvent>;
@@ -154,6 +159,7 @@ class CONTENT_EXPORT FencedFrameReporter
   // `allowed_reporting_origins` is the winning ad's allowedReportingOrigins. If
   //  any macro report is attempted to an unlisted origin, all further reports
   //  after it will be cancelled.
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   static scoped_refptr<FencedFrameReporter> CreateForFledge(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       BrowserContext* browser_context,
@@ -164,6 +170,7 @@ class CONTENT_EXPORT FencedFrameReporter
       const std::optional<url::Origin>& winner_aggregation_coordinator_origin,
       const std::optional<std::vector<url::Origin>>& allowed_reporting_origins =
           std::nullopt);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // Don't use this constructor directly, but use factory methods instead.
   // See factory methods for details.
@@ -274,6 +281,7 @@ class CONTENT_EXPORT FencedFrameReporter
   // corresponding private aggregation request in
   // `private_aggregation_event_map` if it has a matching key. Any future
   // reports of that type will be immediately sent using the provided map.
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   void OnForEventPrivateAggregationRequestsReceived(
       std::map<std::string, FinalizedPrivateAggregationRequests>
           private_aggregation_event_map);
@@ -283,6 +291,7 @@ class CONTENT_EXPORT FencedFrameReporter
   // private aggregation requests associated with this event may be received and
   // need to be sent after this is called.
   void SendPrivateAggregationRequestsForEvent(const std::string& pa_event_type);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // Returns a list of reporting destinations that have at least 1 URL
   // registered with them.
@@ -312,6 +321,7 @@ class CONTENT_EXPORT FencedFrameReporter
   base::flat_map<blink::FencedFrame::ReportingDestination, ReportingMacros>
   GetAdMacrosForTesting();
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // Returns `received_pa_events_`, so that it can be validated in tests. Should
   // only be called from tests.
   std::set<std::string> GetReceivedPaEventsForTesting() const;
@@ -320,6 +330,7 @@ class CONTENT_EXPORT FencedFrameReporter
   // validated in tests. Should only be called from tests.
   std::map<std::string, FinalizedPrivateAggregationRequests>
   GetPrivateAggregationEventMapForTesting();
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
  private:
   friend class base::RefCounted<FencedFrameReporter>;
@@ -466,6 +477,7 @@ class CONTENT_EXPORT FencedFrameReporter
   // about a user in binary with its choices of allowed/disallowed origins.
   bool attempted_custom_url_report_to_disallowed_origin_ = false;
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // Private aggregation requests for non-reserved event types registered in
   // bidder worklets, keyed by event type.
   // OnForEventPrivateAggregationRequestsReceived() builds this map up.
@@ -477,6 +489,7 @@ class CONTENT_EXPORT FencedFrameReporter
   // requests are sent, because more requests associated with this event might
   // be received and need to be sent later.
   std::set<std::string> received_pa_events_;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // Which API created this fenced frame reporter instance.
   PrivacySandboxInvokingAPI invoking_api_;

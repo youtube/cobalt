@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/browser/devtools/protocol/storage_handler.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <stdint.h>
 
@@ -62,7 +63,9 @@
 #include "content/browser/devtools/protocol/network.h"
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -77,7 +80,9 @@
 #include "storage/browser/quota/quota_manager_observer.mojom-forward.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/browser/quota/quota_override_handle.h"
-#include "third_party/blink/public/common/interest_group/devtools_serialization.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "third_party/blink/public/common/interest_group/devtools_serialization.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/buckets/bucket_manager_host.mojom-shared.h"
 #include "third_party/blink/public/mojom/quota/quota_types.mojom.h"
@@ -436,12 +441,14 @@ void StorageHandler::SetRenderer(int process_host_id,
   RenderProcessHost* process = RenderProcessHost::FromID(process_host_id);
   StoragePartition* new_storage_partition =
       process ? process->GetStoragePartition() : nullptr;
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (interest_group_tracking_enabled_) {
     // Transfer observer registration from old frame's StoragePartition to new;
     // SetInterestGroupTrackingInternal() will handle any nulls.
     SetInterestGroupTrackingInternal(storage_partition_, false);
     SetInterestGroupTrackingInternal(new_storage_partition, true);
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   storage_partition_ = new_storage_partition;
   frame_host_ = frame_host;
 }
@@ -1055,6 +1062,7 @@ void StorageHandler::ClearTrustTokens(
       base::BindOnce(&SendClearTrustTokensStatus, std::move(callback)));
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 void StorageHandler::OnInterestGroupAccessed(
     base::optional_ref<const std::string> auction_id,
     base::Time access_time,
@@ -1111,7 +1119,9 @@ void StorageHandler::OnInterestGroupAccessed(
           : std::nullopt,
       bid, bid_currency.CopyAsOptional(), auction_id.CopyAsOptional());
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 namespace {
 void SendGetInterestGroup(
     std::unique_ptr<StorageHandler::GetInterestGroupDetailsCallback> callback,
@@ -1133,11 +1143,13 @@ void SendGetInterestGroup(
 }
 
 }  // namespace
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 void StorageHandler::GetInterestGroupDetails(
     const std::string& owner_origin_string,
     const std::string& name,
     std::unique_ptr<GetInterestGroupDetailsCallback> callback) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (!storage_partition_) {
     callback->sendFailure(Response::InternalError());
     return;
@@ -1162,13 +1174,21 @@ void StorageHandler::GetInterestGroupDetails(
   manager->GetInterestGroup(
       owner_origin, name,
       base::BindOnce(&SendGetInterestGroup, std::move(callback)));
+#else
+  callback->sendFailure(Response::ServerError("Interest Groups are disabled"));
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 Response StorageHandler::SetInterestGroupTracking(bool enable) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   interest_group_tracking_enabled_ = enable;
   return SetInterestGroupTrackingInternal(storage_partition_, enable);
+#else
+  return Response::ServerError("Interest Groups are disabled");
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 Response StorageHandler::SetInterestGroupTrackingInternal(
     StoragePartition* storage_partition,
     bool enable) {
@@ -1195,10 +1215,15 @@ Response StorageHandler::SetInterestGroupTrackingInternal(
   }
   return Response::Success();
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 Response StorageHandler::SetInterestGroupAuctionTracking(bool enable) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   interest_group_auction_tracking_enabled_ = enable;
   return Response::Success();
+#else
+  return Response::ServerError("Interest Groups are disabled");
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 namespace {
@@ -2483,6 +2508,7 @@ Response StorageHandler::SetAttributionReportingTracking(bool enable) {
   return Response::Success();
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 void StorageHandler::NotifyInterestGroupAuctionEventOccurred(
     base::Time event_time,
     content::InterestGroupAuctionEventType type,
@@ -2506,7 +2532,9 @@ void StorageHandler::NotifyInterestGroupAuctionEventOccurred(
       parent_auction_id.CopyAsOptional(),
       std::make_unique<base::Value::Dict>(auction_config.Clone()));
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 void StorageHandler::NotifyInterestGroupAuctionNetworkRequestCreated(
     content::InterestGroupAuctionFetchType type,
     const std::string& request_id,
@@ -2538,11 +2566,13 @@ void StorageHandler::NotifyInterestGroupAuctionNetworkRequestCreated(
       type_enum, request_id,
       std::make_unique<std::vector<std::string>>(devtools_auction_ids));
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 Response StorageHandler::SetProtectedAudienceKAnonymity(
     const std::string& in_owner_origin,
     const std::string& in_group_name,
     std::unique_ptr<std::vector<Binary>> in_hashes) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   url::Origin owner_origin = url::Origin::Create(GURL(in_owner_origin));
 
   // Ensure we are in "test" mode.
@@ -2567,6 +2597,9 @@ Response StorageHandler::SetProtectedAudienceKAnonymity(
       /*update_time=*/base::Time::Now(),
       /*replace_existing_values=*/true);
   return Response::Success();
+#else
+  return Response::ServerError("Protected Audience is disabled");
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 }  // namespace protocol

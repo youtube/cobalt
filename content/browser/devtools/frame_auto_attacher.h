@@ -9,7 +9,10 @@
 #include "content/browser/devtools/protocol/target_auto_attacher.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
 #include "content/browser/devtools/shared_storage_worklet_devtools_manager.h"
-#include "content/browser/interest_group/debuggable_auction_worklet_tracker.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/debuggable_auction_worklet_tracker.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 namespace content {
 
@@ -21,7 +24,9 @@ class ServiceWorkerDevToolsAgentHost;
 
 class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
                           public ServiceWorkerDevToolsManager::Observer,
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
                           public DebuggableAuctionWorkletTracker::Observer,
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
                           public SharedStorageWorkletDevToolsManager::Observer {
  public:
   explicit FrameAutoAttacher(DevToolsRendererChannel* renderer_channel);
@@ -40,9 +45,11 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
                      bool* should_pause_on_start) override;
   void WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) override;
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // DebuggableAuctionWorkletTracker::Observer implementation.
   void AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                              bool& should_pause_on_start) override;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // SharedStorageWorkletDevToolsManager::Observer implementation.
   void SharedStorageWorkletCreated(SharedStorageWorkletDevToolsAgentHost* host,
@@ -56,7 +63,9 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
  private:
   raw_ptr<RenderFrameHostImpl> render_frame_host_ = nullptr;
   bool observing_service_workers_ = false;
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   bool observing_auction_worklets_ = false;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   bool observing_shared_storage_worklets_ = false;
 };
 

@@ -6,7 +6,10 @@
 
 #include "base/containers/contains.h"
 #include "base/time/time.h"
-#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
@@ -191,10 +194,12 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       // This is similar to frames and pages above.
       ReattachServiceWorkers();
     }
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
     if (render_frame_host_ && !observing_auction_worklets_) {
       observing_auction_worklets_ = true;
       DebuggableAuctionWorkletTracker::GetInstance()->AddObserver(this);
     }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
     if (render_frame_host_ && !observing_shared_storage_worklets_) {
       observing_shared_storage_worklets_ = true;
       SharedStorageWorkletDevToolsManager::GetInstance()->AddObserver(this);
@@ -204,10 +209,12 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       ServiceWorkerDevToolsManager::GetInstance()->RemoveObserver(this);
       observing_service_workers_ = false;
     }
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
     if (observing_auction_worklets_) {
       DebuggableAuctionWorkletTracker::GetInstance()->RemoveObserver(this);
       observing_auction_worklets_ = false;
     }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
     if (observing_shared_storage_worklets_) {
       SharedStorageWorkletDevToolsManager::GetInstance()->RemoveObserver(this);
       observing_shared_storage_worklets_ = false;
@@ -236,6 +243,7 @@ void FrameAutoAttacher::WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) {
   ReattachServiceWorkers();
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                                               bool& should_pause_on_start) {
   if (!render_frame_host_)
@@ -250,6 +258,7 @@ void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                          .get(),
                      should_pause_on_start);
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 void FrameAutoAttacher::SharedStorageWorkletCreated(
     SharedStorageWorkletDevToolsAgentHost* host,
@@ -293,7 +302,9 @@ void FrameAutoAttacher::UpdateFrames() {
   DCHECK(auto_attach());
 
   Hosts new_hosts;
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   DevToolsAgentHost::List new_auction_worklet_hosts;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   DevToolsAgentHost::List new_shared_storage_worklet_hosts;
   if (render_frame_host_) {
     render_frame_host_->ForEachRenderFrameHostImplWithAction(
@@ -320,18 +331,22 @@ void FrameAutoAttacher::UpdateFrames() {
           return RenderFrameHost::FrameIterationAction::kSkipChildren;
         });
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
     AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAllForFrame(
         render_frame_host_, &new_auction_worklet_hosts);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
     SharedStorageWorkletDevToolsManager::GetInstance()->GetAllForFrame(
         render_frame_host_, &new_shared_storage_worklet_hosts);
   }
 
   DispatchSetAttachedTargetsOfType(new_hosts, DevToolsAgentHost::kTypeFrame);
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   DispatchSetAttachedTargetsOfType(
       TargetAutoAttacher::Hosts(new_auction_worklet_hosts.begin(),
                                 new_auction_worklet_hosts.end()),
       DevToolsAgentHost::kTypeAuctionWorklet);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   DispatchSetAttachedTargetsOfType(
       TargetAutoAttacher::Hosts(new_shared_storage_worklet_hosts.begin(),
                                 new_shared_storage_worklet_hosts.end()),

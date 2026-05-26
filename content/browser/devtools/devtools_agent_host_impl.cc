@@ -16,7 +16,10 @@
 #include "base/observer_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
-#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/devtools/auction_worklet_devtools_agent_host.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_http_handler.h"
 #include "content/browser/devtools/devtools_manager.h"
@@ -185,7 +188,9 @@ DevToolsAgentHost::List DevToolsAgentHost::GetOrCreateAll() {
   RenderFrameDevToolsAgentHost::AddAllAgentHosts(&result);
   WebContentsDevToolsAgentHost::AddAllAgentHosts(&result);
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAll(&result);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   MojomDevToolsAgentHost::GetAll(&result);
 
 #if DCHECK_IS_ON()
