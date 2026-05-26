@@ -7,8 +7,6 @@
 #include <stddef.h>
 #include <sys/prctl.h>
 
-
-
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_utils.h"
@@ -74,8 +72,6 @@ void PrepareClassLoaders(JNIEnv* env) {
 }
 #endif  // !BUILDFLAG(IS_ROBOLECTRIC)
 
-
-
 }  // namespace
 
 LogFatalCallback g_log_fatal_callback_for_testing = nullptr;
@@ -118,8 +114,6 @@ void CheckException(JNIEnv* env) {
   if (!jni_zero::HasException(env)) {
     return;
   }
-
-
 
   static thread_local bool g_reentering = false;
   if (g_reentering) {

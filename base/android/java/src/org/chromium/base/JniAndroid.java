@@ -65,7 +65,8 @@ public final class JniAndroid {
             StackTraceElement[] frames = uncaughtException.getStackTrace();
             if (frames != null && frames.length > 0) {
                 StackTraceElement top = frames[0];
-                return top.getFileName() + ":" + top.getLineNumber();
+                String fileName = top.getFileName();
+                return (fileName != null ? fileName : "UnknownSource") + ":" + top.getLineNumber();
             }
             return "UnknownSource";
         }
