@@ -191,12 +191,14 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
 
     auto* texture = gpu::gles2::CreateGLES2TextureWithLightRef(
         texture_ids[i], texture_targets[i]);
-    GLFormatDesc format_desc = gl_format_caps.ToGLFormatDesc(format, i);
-    texture->SetLevelInfo(texture_targets[i], 0,
-                          format_desc.image_internal_format, size.width(),
-                          size.height(), 1, 0, format_desc.data_format,
-                          format_desc.data_type, gfx::Rect(size));
-    texture->SetImmutable(true, false);
+    if (texture) {
+      GLFormatDesc format_desc = gl_format_caps.ToGLFormatDesc(format, i);
+      texture->SetLevelInfo(texture_targets[i], 0,
+                            format_desc.image_internal_format, size.width(),
+                            size.height(), 1, 0, format_desc.data_format,
+                            format_desc.data_type, gfx::Rect(size));
+      texture->SetImmutable(true, false);
+    }
     textures_.push_back(texture);
   }
 #if BUILDFLAG(IS_ANDROID)

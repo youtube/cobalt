@@ -84,6 +84,9 @@ void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
     gl->EndSharedImageAccessDirectCHROMIUM(Object());
     has_shared_image_access_ = false;
   }
+  video_frame_ = nullptr;
+  shared_image_ = nullptr;
+  mailbox_ = gpu::Mailbox();
 #endif
   GLuint texture_id = Object();
   gl->DeleteTextures(1, &texture_id);

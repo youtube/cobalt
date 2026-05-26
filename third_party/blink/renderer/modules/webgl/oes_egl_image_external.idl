@@ -22,5 +22,5 @@
     const GLenum TEXTURE_BINDING_EXTERNAL_OES     = 0x8D67;
     const GLenum REQUIRED_TEXTURE_IMAGE_UNITS_OES = 0x8D68;
 
-    [RaisesException] void EGLImageTargetTexture2DOES(GLenum target, HTMLVideoElement video);
+    [RaisesException] void EGLImageTargetTexture2DOES(GLenum target, HTMLVideoElement? video);
 };
