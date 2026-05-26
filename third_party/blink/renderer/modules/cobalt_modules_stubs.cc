@@ -14,6 +14,19 @@
 
 #include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"  // nogncheck
 #include "third_party/blink/renderer/modules/webgpu/gpu_device.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_adapter.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_supported_features.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_memory_heap_info.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_subgroup_matrix_config.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_queue.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_device_lost_info.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_buffer.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webgpu/gpu_external_texture.h"  // nogncheck
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
+#include "third_party/blink/renderer/modules/webcodecs/video_frame.h"
+#include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"  // nogncheck
 #include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"  // nogncheck
 #include "third_party/blink/renderer/modules/webgpu/gpu.h"  // nogncheck
@@ -185,6 +198,27 @@ void DawnObjectImpl::Trace(Visitor* visitor) const {
   visitor->Trace(device_);
   ScriptWrappable::Trace(visitor);
 }
+void GPUAdapter::Trace(Visitor* visitor) const {
+  visitor->Trace(gpu_);
+  visitor->Trace(limits_);
+  visitor->Trace(features_);
+  visitor->Trace(info_);
+  ScriptWrappable::Trace(visitor);
+}
+
+void GPUAdapterInfo::Trace(Visitor* visitor) const {
+  visitor->Trace(memory_heaps_);
+  visitor->Trace(subgroup_matrix_configs_);
+  ScriptWrappable::Trace(visitor);
+}
+
+void GPU::Trace(Visitor* visitor) const {
+  visitor->Trace(wgsl_language_features_);
+  visitor->Trace(mappable_buffers_);
+  ScriptWrappable::Trace(visitor);
+  Supplement<NavigatorBase>::Trace(visitor);
+  ExecutionContextLifecycleObserver::Trace(visitor);
+}
 
 void GPUDevice::Trace(Visitor* visitor) const {
   visitor->Trace(adapter_);
@@ -198,7 +232,6 @@ void GPUDevice::Trace(Visitor* visitor) const {
   visitor->Trace(external_texture_cache_);
   EventTarget::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
-  DawnObject<wgpu::Device>::Trace(visitor);
 }
 
 GPUTexture::GPUTexture(GPUDevice* device,
@@ -309,6 +342,24 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
 
 void BaseRenderingContext2D::transferBackFromGPUTexture(
     ExceptionState& exception_state) {
+}
+
+// --- GC Trace Stubs for incomplete types ---
+
+class GPUMappedDOMArrayBuffer : public DOMArrayBuffer {
+  // dummy
+};
+
+void GPUBuffer::Trace(Visitor* visitor) const {
+  visitor->Trace(mapped_array_buffers_);
+  DawnObjectImpl::Trace(visitor);
+}
+
+void ExternalTextureCache::Trace(Visitor* visitor) const {
+  visitor->Trace(from_html_video_element_);
+  visitor->Trace(from_video_frame_);
+  visitor->Trace(expire_set_);
+  visitor->Trace(device_);
 }
 
 V8GPUTextureFormat BaseRenderingContext2D::getTextureFormat() const {
