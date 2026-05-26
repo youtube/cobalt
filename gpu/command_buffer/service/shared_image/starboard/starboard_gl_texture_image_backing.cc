@@ -213,7 +213,7 @@ StarboardGLTextureBacking::~StarboardGLTextureBacking() {
   // SbDecodeTargetRelease below, since Starboard owns the texture resources.
   for (auto* texture : textures_) {
     if (texture) {
-      texture->RemoveLightweightRef(have_context());
+      texture->RemoveLightweightRef(/*have_context=*/false);
     }
   }
   for (auto& passthrough_texture : passthrough_textures_) {

@@ -120,6 +120,13 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
+  if (client_shared_image->GetTextureTarget() != GL_TEXTURE_EXTERNAL_OES) {
+    context->SynthesizeGLError(GL_INVALID_OPERATION,
+                               "EGLImageTargetTexture2DOES",
+                               "video frame is not an external texture");
+    return;
+  }
+
   gpu::gles2::GLES2Interface* gl = context->ContextGL();
 
   if (texture->GetMailbox() == client_shared_image->mailbox()) {
