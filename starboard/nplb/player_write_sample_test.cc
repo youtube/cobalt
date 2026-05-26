@@ -389,8 +389,8 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   primary_player_thread.Start();
   secondary_player_thread.Start();
 
-  primary_player_thread.Join();
-  secondary_player_thread.Join();
+  primary_player_thread.WaitForFinish();
+  secondary_player_thread.WaitForFinish();
 }
 
 INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
