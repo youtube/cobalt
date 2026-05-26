@@ -65,17 +65,11 @@ using starboard::GetPlayerOutputModeName;
 template <typename T>
 class ScopedVectorClearer {
  public:
-  ScopedVectorClearer(bool enable, std::vector<T>& vec)
-      : enable_(enable), vec_(vec) {}
+  explicit ScopedVectorClearer(std::vector<T>& vec) : vec_(vec) {}
 
-  ~ScopedVectorClearer() {
-    if (enable_) {
-      vec_.clear();
-    }
-  }
+  ~ScopedVectorClearer() { vec_.clear(); }
 
  private:
-  const bool enable_;
   std::vector<T>& vec_;
 };
 
@@ -877,14 +871,13 @@ void SbPlayerBridge::WriteBuffersInternal(
               : local_side_data;
 
   ScopedVectorClearer<SbPlayerSampleInfo> clearer_info{
-      enable_trivial_optimizations, gathered_sbplayer_sample_infos};
+      gathered_sbplayer_sample_infos};
   ScopedVectorClearer<SbDrmSampleInfo> clearer_drm{
-      enable_trivial_optimizations, gathered_sbplayer_sample_infos_drm_info};
+      gathered_sbplayer_sample_infos_drm_info};
   ScopedVectorClearer<SbDrmSubSampleMapping> clearer_mapping{
-      enable_trivial_optimizations,
       gathered_sbplayer_sample_infos_subsample_mapping};
   ScopedVectorClearer<SbPlayerSampleSideData> clearer_side_data{
-      enable_trivial_optimizations, gathered_sbplayer_sample_infos_side_data};
+      gathered_sbplayer_sample_infos_side_data};
 
   gathered_sbplayer_sample_infos.reserve(buffers.size());
   gathered_sbplayer_sample_infos_drm_info.reserve(buffers.size());
