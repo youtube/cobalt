@@ -26,6 +26,7 @@ buildflag_header("buildflags") {
     "ENABLE_DEVTOOLS_FRONTEND=$enable_devtools_frontend",
     "ENABLE_SCREEN_CAPTURE=$enable_screen_capture",
     "LOAD_WEBUI_FROM_DISK=$load_webui_from_disk",
+    "DISABLE_PRIVACY_SANDBOX_APIS=$disable_privacy_sandbox_apis",
   ]
 }
 
