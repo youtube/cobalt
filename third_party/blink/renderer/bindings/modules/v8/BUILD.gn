@@ -34,19 +34,10 @@ blink_modules_sources("v8") {
   }
 
   if (is_cobalt) {
-    _excludes = [
-      "*v8_canvas_2d_gpu_*",
-      "*v8_gpu.*",
-      "*v8_gpu_*",
-      "*v8_ml.*",
-      "*v8_ml_*",
-      "*v8_xr.*",
-      "*v8_xr_*",
-      "*v8_union_*gpu*",
-    ]
-    _filtered = filter_exclude(sources, _excludes)
+    _filtered_cobalt_sources =
+        filter_exclude(sources, cobalt_webgpu_exclude_patterns)
     sources = []
-    sources = _filtered
+    sources = _filtered_cobalt_sources
   }
 
   deps = [

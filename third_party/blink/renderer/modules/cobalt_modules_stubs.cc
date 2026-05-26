@@ -187,7 +187,18 @@ void DawnObjectImpl::Trace(Visitor* visitor) const {
 }
 
 void GPUDevice::Trace(Visitor* visitor) const {
-  ScriptWrappable::Trace(visitor);
+  visitor->Trace(adapter_);
+  visitor->Trace(features_);
+  visitor->Trace(limits_);
+  visitor->Trace(adapter_info_);
+  visitor->Trace(queue_);
+  visitor->Trace(lost_property_);
+  visitor->Trace(textures_with_mailbox_);
+  visitor->Trace(mappable_buffers_);
+  visitor->Trace(external_texture_cache_);
+  EventTarget::Trace(visitor);
+  ExecutionContextClient::Trace(visitor);
+  DawnObject<wgpu::Device>::Trace(visitor);
 }
 
 GPUTexture::GPUTexture(GPUDevice* device,
@@ -195,7 +206,7 @@ GPUTexture::GPUTexture(GPUDevice* device,
                        wgpu::TextureUsage usage,
                        scoped_refptr<WebGPUMailboxTexture> mailbox_texture,
                        const String& label)
-    : DawnObject<wgpu::Texture>(device, mailbox_texture->GetTexture(), label),
+    : DawnObject<wgpu::Texture>(device, mailbox_texture ? mailbox_texture->GetTexture() : nullptr, label),
       dimension_(wgpu::TextureDimension::e2D),
       format_(format),
       usage_(usage),
@@ -266,6 +277,7 @@ void XRSession::ScheduleVideoFrameCallbacksExecution(ExecuteVfcCallback callback
 Canvas2dGPUTransferOption::Canvas2dGPUTransferOption(v8::Isolate* isolate) {}
 
 void Canvas2dGPUTransferOption::Trace(Visitor* visitor) const {
+  visitor->Trace(member_device_);
   bindings::InputDictionaryBase::Trace(visitor);
 }
 
