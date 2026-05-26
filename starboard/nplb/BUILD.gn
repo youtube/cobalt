@@ -84,6 +84,9 @@ test("nplb") {
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
+    # These helper files are used by the player tests.
+    "posix_compliance/posix_thread_helpers.cc",
+    "posix_compliance/posix_thread_helpers.h",
   ]
 
   # All platforms use the Starboard Media functionality.
@@ -242,8 +245,6 @@ test("nplb") {
       "posix_compliance/posix_thread_detach_test.cc",
       "posix_compliance/posix_thread_get_current_test.cc",
       "posix_compliance/posix_thread_get_name_test.cc",
-      "posix_compliance/posix_thread_helpers.cc",
-      "posix_compliance/posix_thread_helpers.h",
       "posix_compliance/posix_thread_is_equal_test.cc",
       "posix_compliance/posix_thread_join_test.cc",
       "posix_compliance/posix_thread_kill_test.cc",
