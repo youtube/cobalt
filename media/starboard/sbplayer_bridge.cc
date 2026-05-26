@@ -841,19 +841,35 @@ void SbPlayerBridge::WriteBuffersInternal(
   std::vector<SbDrmSampleInfo>& gathered_sbplayer_sample_infos_drm_info =
       enable_trivial_optimizations ? gathered_sbplayer_sample_infos_drm_info_
                                    : local_drm_infos;
-  std::vector<SbDrmSubSampleMapping>& gathered_sbplayer_sample_infos_subsample_mapping =
-      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_subsample_mapping_
-                                   : local_subsample_mappings;
-  std::vector<SbPlayerSampleSideData>& gathered_sbplayer_sample_infos_side_data =
-      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_side_data_
-                                   : local_side_data;
+  std::vector<SbDrmSubSampleMapping>&
+      gathered_sbplayer_sample_infos_subsample_mapping =
+          enable_trivial_optimizations
+              ? gathered_sbplayer_sample_infos_subsample_mapping_
+              : local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData>&
+      gathered_sbplayer_sample_infos_side_data =
+          enable_trivial_optimizations
+              ? gathered_sbplayer_sample_infos_side_data_
+              : local_side_data;
 
-  if (enable_trivial_optimizations) {
-    gathered_sbplayer_sample_infos.clear();
-    gathered_sbplayer_sample_infos_drm_info.clear();
-    gathered_sbplayer_sample_infos_subsample_mapping.clear();
-    gathered_sbplayer_sample_infos_side_data.clear();
-  }
+  struct ScopedClearer {
+    ~ScopedClearer() {
+      if (enable) {
+        infos.clear();
+        drms.clear();
+        mappings.clear();
+        sides.clear();
+      }
+    }
+    bool enable;
+    std::vector<SbPlayerSampleInfo>& infos;
+    std::vector<SbDrmSampleInfo>& drms;
+    std::vector<SbDrmSubSampleMapping>& mappings;
+    std::vector<SbPlayerSampleSideData>& sides;
+  } clearer{enable_trivial_optimizations, gathered_sbplayer_sample_infos,
+            gathered_sbplayer_sample_infos_drm_info,
+            gathered_sbplayer_sample_infos_subsample_mapping,
+            gathered_sbplayer_sample_infos_side_data};
 
   gathered_sbplayer_sample_infos.reserve(buffers.size());
   gathered_sbplayer_sample_infos_drm_info.reserve(buffers.size());
