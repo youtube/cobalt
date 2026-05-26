@@ -39,9 +39,7 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.List;
 import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -63,8 +61,6 @@ class MediaCodecBridge {
 
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
-
-  private final OutputChecker mOutputChecker = new OutputChecker();
 
   private MediaCodec.Callback mCallback;
   private double mPlaybackRate = 1.0;
@@ -246,56 +242,6 @@ class MediaCodecBridge {
     }
   }
 
-  private static class OutputChecker {
-    private static final int MAX_INPUT_TIMESTAMPS = 16;
-    private static final int MAX_INVALID_OUTPUTS = 8;
-
-    private boolean mIsEnabled = false;
-    private final List<Long> mInputTimestamps = new ArrayList<>();
-    private boolean mValidateOutputAfterFlush = false;
-    private int mInvalidOutputs = 0;
-
-    public synchronized void setEnabled(boolean enabled) {
-      mIsEnabled = enabled;
-    }
-
-    public synchronized void addInputTimestamp(long presentationTimeUs) {
-      if (!mValidateOutputAfterFlush || mInputTimestamps.size() >= MAX_INPUT_TIMESTAMPS) {
-        return;
-      }
-      mInputTimestamps.add(presentationTimeUs);
-    }
-
-    public synchronized boolean validateOutputTimestamp(long presentationTimeUs) {
-      if (!mValidateOutputAfterFlush) {
-        return true;
-      }
-      if (mInputTimestamps.remove(presentationTimeUs)) {
-        // Stop the checker after receiving one valid output. The dirty callbacks before
-        // flush() should be already filtered.
-        mValidateOutputAfterFlush = false;
-        return true;
-      }
-      if (++mInvalidOutputs >= MAX_INVALID_OUTPUTS) {
-        // There should not be that much dirty callbacks. Stop the checker in case the
-        // platform decoder outputs don't have exact same presentation timestamps.
-        Log.w(TAG, "Received too many invalid outputs, stopping the checker.");
-        mValidateOutputAfterFlush = false;
-        return true;
-      }
-      return false;
-    }
-
-    public synchronized void flush() {
-      if (!mIsEnabled) {
-        return;
-      }
-      mValidateOutputAfterFlush = true;
-      mInvalidOutputs = 0;
-      mInputTimestamps.clear();
-    }
-  }
-
   private static class CreateMediaCodecBridgeResult {
     private MediaCodecBridge mMediaCodecBridge;
     // Contains the error message when mMediaCodecBridge is null.
@@ -363,16 +309,6 @@ class MediaCodecBridge {
               MediaCodec codec, int index, MediaCodec.BufferInfo info) {
             synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
-                return;
-              }
-              if (info.size > 0
-                  && (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0
-                  && !mOutputChecker.validateOutputTimestamp(info.presentationTimeUs)) {
-                Log.w(
-                    TAG,
-                    "Ignoring output buffer with invalid timestamp: %d",
-                    info.presentationTimeUs);
-                releaseOutputBuffer(index, false);
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -457,7 +393,6 @@ class MediaCodecBridge {
       ColorInfo colorInfo,
       int tunnelModeAudioSessionId,
       int maxVideoInputSize,
-      boolean enableOutputChecker,
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
@@ -638,10 +573,6 @@ class MediaCodecBridge {
         Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
       }
     }
-    if (enableOutputChecker) {
-      bridge.enableOutputChecker();
-    }
-
     if (!bridge.configureVideo(
         mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
@@ -743,7 +674,6 @@ class MediaCodecBridge {
       return MediaCodecStatus.ERROR;
     } finally {
       mActiveOutputBuffers.set(0);
-      mOutputChecker.flush();
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
@@ -836,9 +766,6 @@ class MediaCodecBridge {
           && shouldSkipVideoFrame(presentationTimeUs, isDecodeOnly)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
-      if ((flags & MediaCodec.BUFFER_FLAG_DECODE_ONLY) == 0) {
-        mOutputChecker.addInputTimestamp(presentationTimeUs);
-      }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
@@ -882,8 +809,6 @@ class MediaCodecBridge {
       int flags = 0;
       if (isDecodeOnlyFlagEnabled() && shouldSkipVideoFrame(presentationTimeUs, isDecodeOnly)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
-      } else {
-        mOutputChecker.addInputTimestamp(presentationTimeUs);
       }
 
       mMediaCodec
@@ -1116,10 +1041,6 @@ class MediaCodecBridge {
               + " version="
               + Build.VERSION.SDK_INT);
     }
-  }
-
-  private void enableOutputChecker() {
-    mOutputChecker.setEnabled(true);
   }
 
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {

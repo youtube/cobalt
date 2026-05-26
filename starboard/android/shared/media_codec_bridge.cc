@@ -187,13 +187,11 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     std::optional<int> tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
-    bool enable_output_checker,
     bool skip_video_frames_over_60_fps) {
   if (max_frame_size) {
     SB_CHECK_GT(max_frame_size->width, 0);
     SB_CHECK_GT(max_frame_size->height, 0);
   }
-
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     return Failure(std::string("Unsupported mime for codec: ") +
@@ -292,9 +290,8 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       max_frame_size ? max_frame_size->height : -1, j_surface_local,
       j_media_crypto_local, j_color_info,
       tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
-      max_video_input_size, enable_output_checker,
-      enable_frame_renderer_listener, skip_video_frames_over_60_fps,
-      j_create_media_codec_bridge_result);
+      max_video_input_size, enable_frame_renderer_listener,
+      skip_video_frames_over_60_fps, j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
