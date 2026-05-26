@@ -164,6 +164,12 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // useful for decryptors that decrypts an encrypted stream to a clear stream.
   void SetIsEncrypted(bool is_encrypted);
 
+  void set_from_changeType(bool value) { from_changeType_ = value; }
+  bool from_changeType() const { return from_changeType_; }
+
+  void set_mime_type(const std::string& mime_type) { mime_type_ = mime_type; }
+  const std::string& mime_type() const { return mime_type_; }
+
  private:
   VideoCodec codec_ = VideoCodec::kUnknown;
   VideoCodecProfile profile_ = VIDEO_CODEC_PROFILE_UNKNOWN;
@@ -189,6 +195,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   VideoColorSpace color_space_info_;
   std::optional<gfx::HDRMetadata> hdr_metadata_;
+
+  bool from_changeType_ = false;
+  std::string mime_type_ = "";
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is

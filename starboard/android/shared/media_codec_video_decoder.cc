@@ -718,11 +718,6 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 
   if (input_buffer_written_ > 0 && new_codec != video_codec_ &&
       !draining_codec_) {
-    SB_LOG(INFO) << "TEST: Mid-stream Codec Change Detected internally "
-                    "(initiating draining): "
-                 << GetMediaVideoCodecName(video_codec_) << " -> "
-                 << GetMediaVideoCodecName(new_codec);
-
     draining_codec_ = true;
     pending_video_codec_ = new_codec;
     pending_video_stream_info_ = input_buffers.front()->video_stream_info();
@@ -735,7 +730,6 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   }
 
   if (draining_codec_) {
-    SB_LOG(INFO) << "TEST: Queueing new samples during draining...";
     pending_input_buffers_.insert(pending_input_buffers_.end(),
                                   input_buffers.begin(), input_buffers.end());
     return;

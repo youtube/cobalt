@@ -122,6 +122,12 @@ class MEDIA_EXPORT AudioDecoderConfig {
     return target_output_sample_format_;
   }
 
+  void set_from_changeType(bool value) { from_changeType_ = value; }
+  bool from_changeType() const { return from_changeType_; }
+
+  void set_mime_type(const std::string& mime_type) { mime_type_ = mime_type; }
+  const std::string& mime_type() const { return mime_type_; }
+
  private:
   // WARNING: When modifying or adding any parameters, update the following:
   // - AudioDecoderConfig::AsHumanReadableString()
@@ -170,6 +176,9 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // Count of channels. By default derived from `channel_layout_`, but can also
   // be manually set in `SetChannelsForDiscrete()`;
   int channels_ = 0;
+
+  bool from_changeType_ = false;
+  std::string mime_type_ = "";
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is

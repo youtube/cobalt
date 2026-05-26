@@ -81,6 +81,14 @@ struct StructTraits<media::mojom::VideoDecoderConfigDataView,
     return input.level();
   }
 
+  static bool from_changeType(const media::VideoDecoderConfig& input) {
+    return input.from_changeType();
+  }
+
+  static const std::string& mime_type(const media::VideoDecoderConfig& input) {
+    return input.mime_type();
+  }
+
   static bool Read(media::mojom::VideoDecoderConfigDataView input,
                    media::VideoDecoderConfig* output);
 };

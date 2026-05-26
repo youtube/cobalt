@@ -50,9 +50,15 @@ bool StructTraits<media::mojom::AudioDecoderConfigDataView,
   if (!input.ReadTargetOutputSampleFormat(&target_output_sample_format))
     return false;
 
+  std::string mime_type;
+  if (!input.ReadMimeType(&mime_type))
+    return false;
+
   output->Initialize(codec, sample_format, channel_layout,
                      input.samples_per_second(), std::move(extra_data),
                      encryption_scheme, seek_preroll, input.codec_delay());
+  output->set_from_changeType(input.from_changeType());
+  output->set_mime_type(mime_type);
   output->set_profile(profile);
   output->set_target_output_channel_layout(target_output_channel_layout);
   output->set_target_output_sample_format(target_output_sample_format);

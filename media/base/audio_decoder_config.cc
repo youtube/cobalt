@@ -58,6 +58,10 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
   bytes_per_frame_ = channels_ * bytes_per_channel_;
 
   should_discard_decoder_delay_ = true;
+
+  // Cleanup dynamic stamps during standard in-place re-initialization
+  from_changeType_ = false;
+  mime_type_ = "";
 }
 
 AudioDecoderConfig::~AudioDecoderConfig() = default;
@@ -89,7 +93,9 @@ bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
        config.should_discard_decoder_delay()) &&
       (target_output_channel_layout() ==
        config.target_output_channel_layout()) &&
-      (target_output_sample_format() == config.target_output_sample_format()));
+      (target_output_sample_format() == config.target_output_sample_format()) &&
+      (from_changeType() == config.from_changeType()) &&
+      (mime_type() == config.mime_type()));
 }
 
 std::string AudioDecoderConfig::AsHumanReadableString() const {
@@ -111,7 +117,8 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << ", target_output_channel_layout: "
     << ChannelLayoutToString(target_output_channel_layout())
     << ", target_output_sample_format: "
-    << SampleFormatToString(target_output_sample_format());
+    << SampleFormatToString(target_output_sample_format())
+    << ", mime: \"" << mime_type() << "\"";
   return s.str();
 }
 

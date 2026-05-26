@@ -678,6 +678,12 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
+      if (state_ == PENDING_PARSER_RECONFIG) {
+        audio_config.set_from_changeType(true);
+      }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_config.set_mime_type(stream->mime_type());
+#endif
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
@@ -763,6 +769,12 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
+      if (state_ == PENDING_PARSER_RECONFIG) {
+        video_config.set_from_changeType(true);
+      }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      video_config.set_mime_type(stream->mime_type());
+#endif
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
     } else {

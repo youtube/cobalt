@@ -70,6 +70,14 @@ struct StructTraits<media::mojom::AudioDecoderConfigDataView,
     return input.should_discard_decoder_delay();
   }
 
+  static bool from_changeType(const media::AudioDecoderConfig& input) {
+    return input.from_changeType();
+  }
+
+  static const std::string& mime_type(const media::AudioDecoderConfig& input) {
+    return input.mime_type();
+  }
+
   static bool Read(media::mojom::AudioDecoderConfigDataView input,
                    media::AudioDecoderConfig* output);
 };
