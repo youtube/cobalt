@@ -131,14 +131,13 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
       GL_TEXTURE_WRAP_T,
   };
 
-  std::vector<std::pair<GLenum, GLint>> preserved_params;
+  GLint preserved_values[4];
+  const bool has_object = texture->Object() != 0;
 
-  if (texture->Object()) {
+  if (has_object) {
     gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, texture->Object());
-    for (GLenum param : kParametersToPreserve) {
-      GLint value = 0;
-      gl->GetTexParameteriv(GL_TEXTURE_EXTERNAL_OES, param, &value);
-      preserved_params.push_back({param, value});
+    for (size_t i = 0; i < 4; ++i) {
+      gl->GetTexParameteriv(GL_TEXTURE_EXTERNAL_OES, kParametersToPreserve[i], &preserved_values[i]);
     }
   }
 
@@ -159,8 +158,10 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
 
   gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, new_texture_id);
 
-  for (const auto& [param, value] : preserved_params) {
-    gl->TexParameteri(GL_TEXTURE_EXTERNAL_OES, param, value);
+  if (has_object) {
+    for (size_t i = 0; i < 4; ++i) {
+      gl->TexParameteri(GL_TEXTURE_EXTERNAL_OES, kParametersToPreserve[i], preserved_values[i]);
+    }
   }
 
   texture->UpdateUnderlyingObject(new_texture_id, media_video_frame->shared_image(),

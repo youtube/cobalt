@@ -686,11 +686,8 @@ const ImageDesc &TextureState::getImageDesc(TextureTarget target, size_t level) 
     size_t descIndex = GetImageDescIndex(target, level);
     if (mType == TextureType::External && (descIndex >= mImageDescs.size() || mImageDescs[descIndex].size.empty()))
     {
-        if (mPlaceholderExternalDesc.size.empty())
-        {
-            mPlaceholderExternalDesc = ImageDesc(Extents(1, 1, 1), Format(GL_RGBA, GL_UNSIGNED_BYTE), InitState::Initialized);
-        }
-        return mPlaceholderExternalDesc;
+        static const ImageDesc kPlaceholderExternalDesc(Extents(1, 1, 1), Format(GL_RGBA, GL_UNSIGNED_BYTE), InitState::Initialized);
+        return kPlaceholderExternalDesc;
     }
     ASSERT(descIndex < mImageDescs.size());
     return mImageDescs[descIndex];

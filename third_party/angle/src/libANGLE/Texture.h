@@ -294,9 +294,7 @@ class TextureState final : private angle::NonCopyable
     // GL_EXT_texture_storage_compression
     GLenum mCompressionFixedRate;
 
-#if defined(STARBOARD)
-    mutable ImageDesc mPlaceholderExternalDesc;
-#endif
+
 };
 
 bool operator==(const TextureState &a, const TextureState &b);
