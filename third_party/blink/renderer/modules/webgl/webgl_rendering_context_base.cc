@@ -9047,7 +9047,9 @@ void WebGLRenderingContextBase::TextureUnitState::Trace(
   visitor->Trace(texture3d_binding_);
   visitor->Trace(texture2d_array_binding_);
   visitor->Trace(texture_video_image_binding_);
+#if BUILDFLAG(IS_COBALT)
   visitor->Trace(texture_external_oes_binding_);
+#endif
   visitor->Trace(texture_rectangle_arb_binding_);
 }
 

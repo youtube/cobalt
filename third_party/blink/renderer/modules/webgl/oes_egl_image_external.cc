@@ -123,6 +123,8 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
   gpu::gles2::GLES2Interface* gl = context->ContextGL();
 
   if (texture->GetMailbox() == client_shared_image->mailbox()) {
+    gl->WaitSyncTokenCHROMIUM(
+        media_video_frame->acquire_sync_token().GetConstData());
     gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, texture->Object());
     return;
   }
