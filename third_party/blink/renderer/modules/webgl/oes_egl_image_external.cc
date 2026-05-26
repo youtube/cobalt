@@ -101,6 +101,9 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
   }
 
   if (!media_video_frame->HasSharedImage()) {
+    context->SynthesizeGLError(GL_INVALID_OPERATION,
+                               "EGLImageTargetTexture2DOES",
+                               "video frame does not have a shared image");
     return;
   }
 
@@ -164,7 +167,7 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     }
   }
 
-  texture->UpdateUnderlyingObject(new_texture_id, media_video_frame->shared_image(),
+  texture->UpdateUnderlyingObject(new_texture_id, media_video_frame,
                                   /*has_shared_image_access=*/true);
 }
 

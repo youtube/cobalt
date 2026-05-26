@@ -51,31 +51,30 @@ class StarboardGLTextureBacking::GLTextureStarboardImageRepresentation
 #endif
 {
  public:
-  GLTextureStarboardImageRepresentation(
-      SharedImageManager* manager,
-      StarboardGLTextureBacking* backing,
-      MemoryTypeTracker* tracker,
-      std::vector<gpu::gles2::Texture*> textures
+  GLTextureStarboardImageRepresentation(SharedImageManager* manager,
+                                        StarboardGLTextureBacking* backing,
+                                        MemoryTypeTracker* tracker
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      scoped_refptr<RefCountedLock> drdc_lock
+                                        ,
+                                        scoped_refptr<RefCountedLock> drdc_lock
 #endif
-      )
-      : GLTextureImageRepresentation(manager, backing, tracker),
+                                        )
+      : GLTextureImageRepresentation(manager, backing, tracker)
 #if BUILDFLAG(IS_ANDROID)
-        RefCountedLockHelperDrDc(std::move(drdc_lock)),
+        ,
+        RefCountedLockHelperDrDc(std::move(drdc_lock))
 #endif
-        textures_(std::move(textures)) {
-    for (auto* texture : textures_) {
-      CHECK(texture);
-    }
+  {
   }
 
   ~GLTextureStarboardImageRepresentation() override = default;
 
   gpu::gles2::Texture* GetTexture(int plane_index) override {
-    CHECK_LT(static_cast<size_t>(plane_index), textures_.size());
-    return textures_[plane_index];
+    auto* starboard_backing =
+        static_cast<StarboardGLTextureBacking*>(backing());
+    CHECK_LT(static_cast<size_t>(plane_index),
+             starboard_backing->textures_.size());
+    return starboard_backing->textures_[plane_index];
   }
 
   bool BeginAccess(GLenum mode) override NO_THREAD_SAFETY_ANALYSIS {
@@ -95,9 +94,6 @@ class StarboardGLTextureBacking::GLTextureStarboardImageRepresentation
     }
 #endif
   }
-
- private:
-  std::vector<gpu::gles2::Texture*> textures_;
 };
 
 class StarboardGLTextureBacking::
@@ -195,7 +191,7 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
 
     auto* texture = gpu::gles2::CreateGLES2TextureWithLightRef(
         texture_ids[i], texture_targets[i]);
-    GLFormatDesc format_desc = gl_format_caps.ToGLFormatDesc(format, 0);
+    GLFormatDesc format_desc = gl_format_caps.ToGLFormatDesc(format, i);
     texture->SetLevelInfo(texture_targets[i], 0,
                           format_desc.image_internal_format, size.width(),
                           size.height(), 1, 0, format_desc.data_format,
@@ -238,11 +234,11 @@ void StarboardGLTextureBacking::Update(
 std::unique_ptr<GLTextureImageRepresentation>
 StarboardGLTextureBacking::ProduceGLTexture(SharedImageManager* manager,
                                             MemoryTypeTracker* tracker) {
-  return std::make_unique<GLTextureStarboardImageRepresentation>(
-      manager, this, tracker, textures_
+  return std::make_unique<GLTextureStarboardImageRepresentation>(manager, this,
+                                                                 tracker
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      drdc_lock_
+                                                                 ,
+                                                                 drdc_lock_
 #endif
   );
 }
