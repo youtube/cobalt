@@ -295,7 +295,10 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
+                // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
+                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }
