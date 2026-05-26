@@ -50,7 +50,6 @@ void UpdateStrategyWithCreationCounter(DecoderBufferAllocator* allocator,
 
 TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   DecoderBufferAllocator allocator;
-  const size_t alignment = allocator.GetBufferAlignment();
 
   int creation_count_a = 0;
   int creation_count_b = 0;
@@ -58,7 +57,7 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   UpdateStrategyWithCreationCounter(&allocator, &creation_count_a);
 
   // Allocate and free to ensure a strategy is created and then idle.
-  auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count_a, 1);
   EXPECT_EQ(creation_count_b, 0);
@@ -70,7 +69,7 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   UpdateStrategyWithCreationCounter(&allocator, &creation_count_b);
 
   // Next allocation should recreate the strategy (Strategy B).
-  handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  handle = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count_a, 1);
   EXPECT_EQ(creation_count_b, 1);
@@ -80,7 +79,6 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
 
 TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyPendingWhenBusy) {
   DecoderBufferAllocator allocator;
-  const size_t alignment = allocator.GetBufferAlignment();
 
   int creation_count_a = 0;
   int creation_count_b = 0;
@@ -89,7 +87,7 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyPendingWhenBusy) {
   UpdateStrategyWithCreationCounter(&allocator, &creation_count_a);
 
   // Allocate to make it busy.
-  auto handle_1 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle_1 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle_1, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count_a, 1);
   EXPECT_EQ(creation_count_b, 0);
@@ -98,7 +96,7 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyPendingWhenBusy) {
   // is busy.
   UpdateStrategyWithCreationCounter(&allocator, &creation_count_b);
 
-  auto handle_2 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle_2 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle_2, DecoderBuffer::Allocator::kInvalidHandle);
   // Still on Strategy A
   EXPECT_EQ(creation_count_a, 1);
@@ -110,7 +108,7 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyPendingWhenBusy) {
 
   // Strategy should have switched to Strategy B.
   // Next allocation should recreate a strategy.
-  auto handle_3 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle_3 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle_3, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count_a, 1);
   EXPECT_EQ(creation_count_b, 1);
@@ -120,14 +118,13 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyPendingWhenBusy) {
 
 TEST(DecoderBufferAllocatorStrategyTest, RepeatedEnableDoesNothing) {
   DecoderBufferAllocator allocator;
-  const size_t alignment = allocator.GetBufferAlignment();
 
   int creation_count_a = 0;
   int creation_count_b = 0;
 
   // 1. Start with Strategy A
   UpdateStrategyWithCreationCounter(&allocator, &creation_count_a);
-  auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count_a, 1);
   EXPECT_EQ(creation_count_b, 0);
@@ -144,7 +141,7 @@ TEST(DecoderBufferAllocatorStrategyTest, RepeatedEnableDoesNothing) {
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
 
   // Next allocation should recreate the strategy (Strategy B)
-  handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  handle = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
 
   // creation_count_a remains 1, creation_count_b becomes 1
@@ -157,7 +154,6 @@ TEST(DecoderBufferAllocatorStrategyTest, RepeatedEnableDoesNothing) {
 TEST(DecoderBufferAllocatorStrategyTest,
      FallbackToDefaultWhenStrategyCreateCBReturnsNull) {
   DecoderBufferAllocator allocator;
-  const size_t alignment = allocator.GetBufferAlignment();
 
   // Inject a strategy callback that always returns nullptr.
   allocator.UpdateAllocatorStrategy(base::BindRepeating(
@@ -168,7 +164,7 @@ TEST(DecoderBufferAllocatorStrategyTest,
 
   // This should not crash, it should log a warning and fallback to the
   // default strategy.
-  auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
 
   // The fallback strategies
@@ -184,20 +180,19 @@ TEST(DecoderBufferAllocatorStrategyTest,
   constexpr bool kIsAllocatedOnDemand = true;
   DecoderBufferAllocator allocator(kIsAllocatedOnDemand, 10 * 1024 * 1024,
                                    512 * 1024);
-  const size_t alignment = allocator.GetBufferAlignment();
 
   int creation_count = 0;
   UpdateStrategyWithCreationCounter(&allocator, &creation_count);
 
   EXPECT_EQ(creation_count, 0);
 
-  auto handle1 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle1 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle1, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count, 1);
 
   allocator.Free(DemuxerStream::VIDEO, handle1, 1024);
 
-  auto handle2 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle2 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle2, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count, 2);
 
@@ -209,18 +204,17 @@ TEST(DecoderBufferAllocatorStrategyTest,
   constexpr bool kIsAllocatedOnDemand = false;
   DecoderBufferAllocator allocator(kIsAllocatedOnDemand, 10 * 1024 * 1024,
                                    512 * 1024);
-  const size_t alignment = allocator.GetBufferAlignment();
 
   int creation_count = 0;
   UpdateStrategyWithCreationCounter(&allocator, &creation_count);
 
-  auto handle1 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle1 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle1, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count, 1);
 
   allocator.Free(DemuxerStream::VIDEO, handle1, 1024);
 
-  auto handle2 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
+  auto handle2 = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle2, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count, 1);
 

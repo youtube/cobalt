@@ -112,20 +112,18 @@ void DecoderBufferAllocator::Resume() {
 
 DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
-    size_t size,
-    size_t alignment) {
+    size_t size) {
   base::AutoLock scoped_lock(mutex_);
 
   EnsureStrategyIsCreated();
 
-  void* p = strategy_->Allocate(type, size, alignment);
+  void* p = strategy_->Allocate(type, size);
   CHECK(p);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
-    pending_allocation_operations_ << " a " << p << " " << type << " " << size
-                                   << " " << alignment;
+    pending_allocation_operations_ << " a " << p << " " << type << " " << size;
     TryFlushAllocationLog_Locked();
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -187,10 +185,6 @@ void DecoderBufferAllocator::Write(Handle handle,
   base::AutoLock scoped_lock(mutex_);
   DCHECK(strategy_);
   strategy_->Write(reinterpret_cast<void*>(handle), data, size);
-}
-
-int DecoderBufferAllocator::GetBufferAlignment() const {
-  return sizeof(void*);
 }
 
 base::TimeDelta

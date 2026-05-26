@@ -48,10 +48,9 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
 
 void* MediaBufferPoolDecoderBufferAllocatorStrategy::Allocate(
     DemuxerStream::Type type,
-    size_t size,
-    size_t alignment) {
+    size_t size) {
   if (type == DemuxerStream::AUDIO) {
-    return audio_allocator_.Allocate(size, alignment);
+    return audio_allocator_.Allocate(size);
   }
 
 #if !defined(OFFICIAL_BUILD)
@@ -59,7 +58,7 @@ void* MediaBufferPoolDecoderBufferAllocatorStrategy::Allocate(
 #endif  // !defined(OFFICIAL_BUILD)
 
   // The MediaBufferPoolMemoryAllocator handles pool expansion.
-  return video_allocator_->Allocate(size, alignment);
+  return video_allocator_->Allocate(size);
 }
 
 void MediaBufferPoolDecoderBufferAllocatorStrategy::Free(
