@@ -55,6 +55,27 @@ using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
 
+// Reason for existence: Guarantees automatic clearing of an underlying vector
+// upon exiting a scoped execution block, preventing stale or dangling pointers.
+//
+// Expected lifetime and ownership: Instantiated locally on the stack within a
+// function body. Destruction occurs automatically at scope exit.
+//
+// Threading model: Strictly single-threaded execution on the invoking thread.
+template <typename T>
+class ScopedVectorClearer {
+ public:
+  explicit ScopedVectorClearer(std::vector<T>& vec) : vec_(vec) {}
+
+  ~ScopedVectorClearer() { vec_.clear(); }
+
+  ScopedVectorClearer(const ScopedVectorClearer&) = delete;
+  ScopedVectorClearer& operator=(const ScopedVectorClearer&) = delete;
+
+ private:
+  std::vector<T>& vec_;
+};
+
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 class StatisticsWrapper {
  public:
@@ -816,6 +837,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
     const SbMediaAudioStreamInfo* audio_stream_info,
     const SbMediaVideoStreamInfo* video_stream_info) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -827,11 +849,39 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
-  std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
-  std::vector<SbDrmSubSampleMapping>
-      gathered_sbplayer_sample_infos_subsample_mapping;
-  std::vector<SbPlayerSampleSideData> gathered_sbplayer_sample_infos_side_data;
+  const bool enable_trivial_optimizations =
+      experimental_features_.enable_trivial_optimizations.value_or(false);
+
+  std::vector<SbPlayerSampleInfo> local_sample_infos;
+  std::vector<SbDrmSampleInfo> local_drm_infos;
+  std::vector<SbDrmSubSampleMapping> local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData> local_side_data;
+
+  std::vector<SbPlayerSampleInfo>& gathered_sbplayer_sample_infos =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_
+                                   : local_sample_infos;
+  std::vector<SbDrmSampleInfo>& gathered_sbplayer_sample_infos_drm_info =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_drm_info_
+                                   : local_drm_infos;
+  std::vector<SbDrmSubSampleMapping>&
+      gathered_sbplayer_sample_infos_subsample_mapping =
+          enable_trivial_optimizations
+              ? gathered_sbplayer_sample_infos_subsample_mapping_
+              : local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData>&
+      gathered_sbplayer_sample_infos_side_data =
+          enable_trivial_optimizations
+              ? gathered_sbplayer_sample_infos_side_data_
+              : local_side_data;
+
+  ScopedVectorClearer<SbPlayerSampleInfo> clearer_info{
+      gathered_sbplayer_sample_infos};
+  ScopedVectorClearer<SbDrmSampleInfo> clearer_drm{
+      gathered_sbplayer_sample_infos_drm_info};
+  ScopedVectorClearer<SbDrmSubSampleMapping> clearer_mapping{
+      gathered_sbplayer_sample_infos_subsample_mapping};
+  ScopedVectorClearer<SbPlayerSampleSideData> clearer_side_data{
+      gathered_sbplayer_sample_infos_side_data};
 
   gathered_sbplayer_sample_infos.reserve(buffers.size());
   gathered_sbplayer_sample_infos_drm_info.reserve(buffers.size());
