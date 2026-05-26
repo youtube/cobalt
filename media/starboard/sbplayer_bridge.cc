@@ -55,6 +55,17 @@ using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
 
+template <typename T>
+struct ScopedVectorClearer {
+  ~ScopedVectorClearer() {
+    if (enable) {
+      vec.clear();
+    }
+  }
+  bool enable;
+  std::vector<T>& vec;
+};
+
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 class StatisticsWrapper {
  public:
@@ -852,24 +863,15 @@ void SbPlayerBridge::WriteBuffersInternal(
               ? gathered_sbplayer_sample_infos_side_data_
               : local_side_data;
 
-  struct ScopedClearer {
-    ~ScopedClearer() {
-      if (enable) {
-        infos.clear();
-        drms.clear();
-        mappings.clear();
-        sides.clear();
-      }
-    }
-    bool enable;
-    std::vector<SbPlayerSampleInfo>& infos;
-    std::vector<SbDrmSampleInfo>& drms;
-    std::vector<SbDrmSubSampleMapping>& mappings;
-    std::vector<SbPlayerSampleSideData>& sides;
-  } clearer{enable_trivial_optimizations, gathered_sbplayer_sample_infos,
-            gathered_sbplayer_sample_infos_drm_info,
-            gathered_sbplayer_sample_infos_subsample_mapping,
-            gathered_sbplayer_sample_infos_side_data};
+  ScopedVectorClearer<SbPlayerSampleInfo> clearer_info{
+      enable_trivial_optimizations, gathered_sbplayer_sample_infos};
+  ScopedVectorClearer<SbDrmSampleInfo> clearer_drm{
+      enable_trivial_optimizations, gathered_sbplayer_sample_infos_drm_info};
+  ScopedVectorClearer<SbDrmSubSampleMapping> clearer_mapping{
+      enable_trivial_optimizations,
+      gathered_sbplayer_sample_infos_subsample_mapping};
+  ScopedVectorClearer<SbPlayerSampleSideData> clearer_side_data{
+      enable_trivial_optimizations, gathered_sbplayer_sample_infos_side_data};
 
   gathered_sbplayer_sample_infos.reserve(buffers.size());
   gathered_sbplayer_sample_infos_drm_info.reserve(buffers.size());
