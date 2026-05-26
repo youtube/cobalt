@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Partial Audio Switch</title>
+  <style>
+    body {
+      background-color: white;
+    }
+    /* .playback-area {
+      border: 3px solid blue;
+      text-align: center;
+    } */
+    .chosen-codec {
+      border: 3px solid blue;
+      width: 14%;
+    }
+    .test-video {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .current-video {
+      border: 5px solid rgb(255, 84, 71);
+    }
+    video {
+      height: 480px;
+      width: 640px;
+    }
+  </style>
+</head>
+<body>
+  <script type="text/javascript" src="stream-switch-demo.js"></script>
+  <div id="codec-selection-area">
+    <h1>Choose an audio codec and select enter to begin</h1>
+    <h2 id="opus" class="chosen-codec">Opus</h2>
+    <h2 id="aac" >AAC</h2>
+    <h2 id="ac3" >AC3</h2>
+  </div>
+  <div id="videos" hidden>
+    <video id="video-1" class="test-video"></video>
+    <video id="video-2" class="test-video"></video>
+  </div>
+</body>
+</html>
