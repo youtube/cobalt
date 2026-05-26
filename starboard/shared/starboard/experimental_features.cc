@@ -81,8 +81,6 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->disable_low_performance_sw_decoder;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
-  experiment_features.enable_codec_output_checker =
-      extension_features->enable_codec_output_checker;
   experiment_features.enable_video_renderer_vsp_adjustment =
       extension_features->enable_video_renderer_vsp_adjustment;
   experiment_features.flush_audio_track_during_seek =
