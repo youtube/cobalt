@@ -2612,7 +2612,7 @@ void PlayerImpl::SetBounds(int zindex, int x, int y, int w, int h) {
                                                "rectangle")) {
     gchar* rect = g_strdup_printf("%d,%d,%d,%d", x, y, w, h);
     g_object_set(vid_sink, "rectangle", rect, nullptr);
-    free(rect);
+    g_free(rect);
   } else {
     pending_bounds_ = PendingBounds{x, y, w, h};
   }
