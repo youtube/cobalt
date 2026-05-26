@@ -31,7 +31,6 @@ struct ExperimentalFeatures {
   bool allow_audio_writing_on_pause = false;
   bool disable_low_performance_sw_decoder = false;
   bool enable_av1_startup_optimization = false;
-  bool enable_codec_output_checker = false;
   bool enable_video_renderer_vsp_adjustment = false;
   bool flush_audio_track_during_seek = false;
   bool flush_decoder_during_reset = false;
