@@ -614,6 +614,10 @@ TEST(IsCodecSupportedOnAndroidTest, EncryptedCodecBehavior) {
           case MimeUtil::AV1:
             EXPECT_EQ(BUILDFLAG(ENABLE_AV1_DECODER), result);
             break;
+
+          case MimeUtil::IAMF:
+            EXPECT_EQ(HasIamfSupport(), result);
+            break;
         }
       });
 }
@@ -676,6 +680,10 @@ TEST(IsCodecSupportedOnAndroidTest, ClearCodecBehavior) {
 
           case MimeUtil::AV1:
             EXPECT_EQ(BUILDFLAG(ENABLE_AV1_DECODER), result);
+            break;
+
+          case MimeUtil::IAMF:
+            EXPECT_EQ(HasIamfSupport(), result);
             break;
         }
       });

@@ -113,7 +113,7 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   }
 #endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
-  if (strncmp(codec, "iamf.", 5) == 0) {
+  if (strcmp(codec, "iamf") == 0 || strncmp(codec, "iamf.", 5) == 0) {
     return kSbMediaAudioCodecIamf;
   }
 #endif  // SB_API_VERSION >= 15
