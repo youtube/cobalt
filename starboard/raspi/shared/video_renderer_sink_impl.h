@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <mutex>
 
+#include "starboard/common/rect.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
@@ -33,7 +34,7 @@ class VideoRendererSinkImpl : public VideoRendererSink,
 
  private:
   void SetRenderCB(RenderCB render_cb) override;
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void SetBounds(int z_index, const Rect& rect) override;
   void Update();
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
@@ -44,10 +45,7 @@ class VideoRendererSinkImpl : public VideoRendererSink,
 
   std::mutex mutex_;
   int z_index_ = 0;
-  int x_ = 0;
-  int y_ = 0;
-  int width_ = 0;
-  int height_ = 0;
+  Rect rect_;
 };
 
 }  // namespace starboard
