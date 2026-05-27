@@ -45,6 +45,8 @@ STUB_V8_WRAPPER(V8MLGraph)
 STUB_V8_WRAPPER(V8MLGraphBuilder)
 STUB_V8_WRAPPER(V8MLOperand)
 
+#undef STUB_V8_WRAPPER
+
 // --- WebNN C++ Stubs ---
 
 ML* NavigatorML::ml(NavigatorBase& navigator) {
