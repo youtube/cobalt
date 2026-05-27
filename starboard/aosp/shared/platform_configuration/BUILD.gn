@@ -24,6 +24,7 @@ config("no_pedantic_warnings") {
     "-Wno-implicit-fallthrough",
     "-Wno-missing-braces",
     "-Wno-return-type",
+    "-Wno-sometimes-uninitialized",
     "-Wno-vla-cxx-extension",
     "-Wno-unreachable-code-return",
     "-Wno-unused-function",
