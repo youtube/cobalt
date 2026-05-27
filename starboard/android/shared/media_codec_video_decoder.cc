@@ -132,7 +132,19 @@ const int kNonInitialPrerollFrameCount = 1;
 // rendered, the rest of the playback should play without frame drops. So,
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
-const int kMaxPendingInputsSize = 128;
+// The maximum number of pending inputs allowed in the decoder queue.
+// We set this to 512 frames (approx 8.5 seconds of 60fps video or 17 seconds
+// of 30fps video) to provide a robust buffer safety cushion that survives
+// V8 JavaScript main-thread congestion (which typically lasts 2-5 seconds
+// during app startup or heavy page transitions) without video starvation,
+// while keeping C++ heap memory usage extremely low (~25MB for 4K streams).
+constexpr int kMaxPendingInputsSize = 512;
+
+// VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
+// codec, and renderer). We set its capacity to accommodate the maximum input
+// queue size (512) plus a margin of 100 frames for frames in the codec and
+// renderer.
+constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -407,7 +419,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
+        std::make_unique<VideoFrameTracker>(kVideoFrameTrackerCapacity);
   }
 
   if (require_software_codec_) {
@@ -954,9 +966,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
-    decoder_status_cb_(kNeedMoreInput, NULL);
-  } else if (tunnel_mode_audio_session_id_) {
+  bool need_more_input_signaled = SignalIfNeedMoreInput();
+  if (!need_more_input_signaled && tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
     // to the renderer again.  Schedule a task to check back.
@@ -1003,11 +1014,17 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       }
     }
   }
-  decoder_status_cb_(
-      is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(
-          dequeue_output_result, media_codec_bridge,
-          std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+  auto video_frame = make_scoped_refptr<VideoFrameImpl>(
+      dequeue_output_result, media_codec_bridge,
+      std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this));
+
+  bool need_more_input_signaled = false;
+  if (!is_end_of_stream) {
+    need_more_input_signaled = SignalIfNeedMoreInput(video_frame);
+  }
+  if (!need_more_input_signaled) {
+    decoder_status_cb_(kBufferFull, std::move(video_frame));
+  }
 }
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(
@@ -1137,8 +1154,7 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
-    decoder_status_cb_(kNeedMoreInput, NULL);
+  if (SignalIfNeedMoreInput()) {
     return;
   }
 
@@ -1210,6 +1226,23 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+bool MediaCodecVideoDecoder::SignalIfNeedMoreInput(
+    scoped_refptr<VideoFrame> frame) {
+  if (!decoder_status_cb_) {
+    return false;
+  }
+  if (!media_decoder_) {
+    return false;
+  }
+
+  bool need_more_input =
+      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+  if (need_more_input) {
+    decoder_status_cb_(kNeedMoreInput, std::move(frame));
+  }
+  return need_more_input;
 }
 
 }  // namespace starboard
