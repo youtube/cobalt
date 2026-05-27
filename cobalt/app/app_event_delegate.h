@@ -58,7 +58,7 @@ namespace cobalt {
 // Each box corresponds to an AppEventDelegate::ApplicationState. The ↔ arrows
 // represent bidirectional transitions handled via TransitionToLifeCycleState,
 // which ensures all intermediate states are traversed.
-class AppEventDelegate : public h5vcc_runtime::CobaltLifecycleManagerObserver {
+class AppEventDelegate : public CobaltLifecycleManagerObserver {
  public:
   // ApplicationState defines the lifecycle states of the application.
   // The order of these states is critical: TransitionToLifeCycleState relies on
@@ -117,7 +117,7 @@ class AppEventDelegate : public h5vcc_runtime::CobaltLifecycleManagerObserver {
     base::AutoLock lock(lock_);
     return is_transitioning_;
   }
-  h5vcc_runtime::PendingAck pending_ack() const {
+  PendingAck pending_ack() const {
     base::AutoLock lock(lock_);
     return pending_ack_;
   }
@@ -164,8 +164,8 @@ class AppEventDelegate : public h5vcc_runtime::CobaltLifecycleManagerObserver {
   ApplicationState GetNextState(ApplicationState current_state,
                                 bool is_activating) const;
   void ExecuteEventRunner(ApplicationState next_state, bool is_activating);
-  h5vcc_runtime::PendingAck GetNeededAck(ApplicationState current_state,
-                                         bool is_activating) const;
+  PendingAck GetNeededAck(ApplicationState current_state,
+                          bool is_activating) const;
 
   bool IsRunningLocked() const;
   bool IsVisibleLocked() const;
@@ -183,7 +183,7 @@ class AppEventDelegate : public h5vcc_runtime::CobaltLifecycleManagerObserver {
   bool is_transitioning_ = false;
   base::OnceClosure quit_closure_;
 
-  h5vcc_runtime::PendingAck pending_ack_ = h5vcc_runtime::PendingAck::kNone;
+  PendingAck pending_ack_ = PendingAck::kNone;
 
   // Set of WebContents that are currently waiting for reveal acknowledgment
   // from the renderer (Reveal ACK). Focus transitions are deferred until all

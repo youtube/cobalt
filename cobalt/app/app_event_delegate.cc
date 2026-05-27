@@ -33,8 +33,6 @@
 
 namespace cobalt {
 
-using h5vcc_runtime::PendingAck;
-
 namespace {
 
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(5);
@@ -93,11 +91,11 @@ AppEventDelegate::AppEventDelegate(
   // CookieFlush ACKs). This allows the high-level OS application lifecycle to
   // coordinate synchronously and asynchronously with the renderer's
   // document/frame state transitions.
-  h5vcc_runtime::CobaltLifecycleManager::GetInstance()->AddObserver(this);
+  CobaltLifecycleManager::GetInstance()->AddObserver(this);
 }
 
 AppEventDelegate::~AppEventDelegate() {
-  h5vcc_runtime::CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
+  CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
 }
 
 bool AppEventDelegate::IsRunning() const {
@@ -411,10 +409,10 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
     SetApplicationState(next_state);
   }
 
-  if (pending_ack_ != h5vcc_runtime::PendingAck::kNone) {
+  if (pending_ack_ != PendingAck::kNone) {
     for (auto* web_contents : runner_->GetWebContents()) {
-      h5vcc_runtime::CobaltLifecycleManager::GetInstance()->StartWaitingForAck(
-          web_contents, pending_ack_);
+      CobaltLifecycleManager::GetInstance()->StartWaitingForAck(web_contents,
+                                                                pending_ack_);
     }
   } else {
     ExecuteNextStepLocked();

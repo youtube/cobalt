@@ -33,7 +33,7 @@ class WebContents;
 class RenderFrameHost;
 }  // namespace content
 
-namespace h5vcc_runtime {
+namespace cobalt {
 
 class H5vccRuntimeImpl;
 
@@ -260,6 +260,6 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
 };
 
-}  // namespace h5vcc_runtime
+}  // namespace cobalt
 
 #endif  // COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_

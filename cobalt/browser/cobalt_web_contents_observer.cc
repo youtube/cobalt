@@ -57,7 +57,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
       // Create observer and pass to renderer.
       mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver>
           observer_remote;
-      h5vcc_runtime::CobaltLifecycleManager::GetInstance()->BindReceiver(
+      CobaltLifecycleManager::GetInstance()->BindReceiver(
           main_frame, observer_remote.InitWithNewPipeAndPassReceiver());
       controller->SetObserver(std::move(observer_remote));
 

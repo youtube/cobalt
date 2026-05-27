@@ -25,7 +25,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace h5vcc_runtime {
+namespace cobalt {
 
 class MockCobaltLifecycleObserver : public CobaltLifecycleManagerObserver {
  public:
@@ -207,4 +207,4 @@ TEST_F(CobaltLifecycleManagerTest, DISABLED_RevealTimeout) {
   manager_->RemoveObserver(&observer);
 }
 
-}  // namespace h5vcc_runtime
+}  // namespace cobalt

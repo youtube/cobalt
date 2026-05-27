@@ -116,8 +116,8 @@ void ShellPlatformDelegate::OnReveal() {
     if (previously_visible_web_contents_.count(shell->web_contents())) {
       if (!started_waiting) {
         waiting_for_reveal_ack_ = true;
-        h5vcc_runtime::CobaltLifecycleManager::GetInstance()->AddObserver(
-            static_cast<h5vcc_runtime::CobaltLifecycleManagerObserver*>(this));
+        CobaltLifecycleManager::GetInstance()->AddObserver(
+            static_cast<CobaltLifecycleManagerObserver*>(this));
         started_waiting = true;
       }
 
@@ -248,8 +248,8 @@ void ShellPlatformDelegate::OnAllFramesVisible(
   }
 
   // Stop observing as we only need one notification per reveal.
-  h5vcc_runtime::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-      static_cast<h5vcc_runtime::CobaltLifecycleManagerObserver*>(this));
+  CobaltLifecycleManager::GetInstance()->RemoveObserver(
+      static_cast<CobaltLifecycleManagerObserver*>(this));
 }
 
 }  // namespace content

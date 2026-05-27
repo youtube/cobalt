@@ -23,7 +23,7 @@
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "url/gurl.h"
 
-namespace h5vcc_runtime {
+namespace cobalt {
 
 // static
 CobaltLifecycleManager* CobaltLifecycleManager::GetInstance() {
@@ -523,4 +523,4 @@ void CobaltLifecycleManager::OnWebContentsDestroyed(
   pending_acks_.erase(web_contents);
 }
 
-}  // namespace h5vcc_runtime
+}  // namespace cobalt
