@@ -34,9 +34,10 @@
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #include <atomic>
 
 #include "base/containers/contains.h"
@@ -61,7 +62,7 @@ namespace {
 using mojom::VmRegion;
 using mojom::VmRegionPtr;
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 FILE* g_proc_smaps_rollup_for_testing = nullptr;
 const size_t kPssValidationThresholdKb = 30720;
 
@@ -83,7 +84,7 @@ base::FilePath GetProcPidDir(base::ProcessId pid) {
       pid == base::kNullProcessId ? "self" : base::NumberToString(pid));
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 void GetSmapsRollup(base::ProcessHandle handle,
                     size_t* pss,
                     size_t* swap_pss) {
@@ -126,7 +127,7 @@ void GetSmapsRollup(base::ProcessHandle handle,
   *pss = value->pss;
   *swap_pss = value->swap_pss;
 }
-#else   // !BUILDFLAG(IS_COBALT)
+#else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
   auto value = base::debug::ReadAndParseSmapsRollup();
   if (!value) {
@@ -137,9 +138,9 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
   *pss = value->pss;
   *swap_pss = value->swap_pss;
 }
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 bool ResetPeakRSSIfPossible(base::ProcessId pid) {
   static std::atomic<bool> is_peak_rss_resettable{true};
   if (!is_peak_rss_resettable.load(std::memory_order_relaxed)) {
@@ -156,7 +157,7 @@ bool ResetPeakRSSIfPossible(base::ProcessId pid) {
   }
   return success;
 }
-#else   // !BUILDFLAG(IS_COBALT)
+#else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 bool ResetPeakRSSIfPossible(base::ProcessId pid) {
   static bool is_peak_rss_resettable = true;
   if (!is_peak_rss_resettable)
@@ -168,7 +169,7 @@ bool ResetPeakRSSIfPossible(base::ProcessId pid) {
       base::WriteFileDescriptor(clear_refs_fd.get(), kClearPeakRssCommand);
   return is_peak_rss_resettable;
 }
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 
 struct ModuleData {
   std::string path;
@@ -197,7 +198,7 @@ ModuleData GetMainModuleData() {
   return module_data;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 bool ParseSmapsHeader(std::string_view header_line,
                       const ModuleData& main_module_data,
                       VmRegion* region) {
@@ -308,7 +309,7 @@ uint32_t ParseSmapsCounter(std::string_view counter_line, VmRegion* region) {
   }
   return 1;
 }
-#else   // !BUILDFLAG(IS_COBALT)
+#else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 bool ParseSmapsHeader(const char* header_line,
                       const ModuleData& main_module_data,
                       VmRegion* region) {
@@ -399,9 +400,9 @@ uint32_t ParseSmapsCounter(char* counter_line, VmRegion* region) {
 
   return res;
 }
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 uint32_t ReadLinuxProcSmapsFile(FILE* smaps_file,
                                 std::vector<VmRegionPtr>* maps) {
   if (!smaps_file)
@@ -439,7 +440,7 @@ uint32_t ReadLinuxProcSmapsFile(FILE* smaps_file,
   }
   return num_valid_regions;
 }
-#endif  // !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 
 // RAII class making the current process dumpable via prctl(PR_SET_DUMPABLE, 1),
 // in case it is not currently dumpable as described in proc(5) and prctl(2).
@@ -523,7 +524,7 @@ uint32_t CountMappings(base::ProcessId pid) {
   return newline_characters;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #if !BUILDFLAG(IS_ANDROID)
 struct LibChrobaltMem {
   uint32_t pss_kb = 0;
@@ -782,20 +783,20 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
   dump->last_detailed_dump_time = base::TimeTicks::Now();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 }  // namespace
 
 FILE* g_proc_smaps_for_testing = nullptr;
 
 // static
 void OSMetrics::SetProcSmapsForTesting(FILE* f) {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   base::AutoLock lock(GetTestingGlobalsLock());
 #endif
   g_proc_smaps_for_testing = f;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // static
 void OSMetrics::SetSmapsRollupForTesting(FILE* f) {
   base::AutoLock lock(GetTestingGlobalsLock());
@@ -803,7 +804,7 @@ void OSMetrics::SetSmapsRollupForTesting(FILE* f) {
 }
 #endif
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // static
 base::File OSMetrics::GetSmapsFileForScanning() {
   base::AutoLock testing_lock(GetTestingGlobalsLock());
@@ -837,7 +838,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   dump->vm_size_kb =
       base::saturated_cast<uint32_t>(info->vm_size_bytes / 1024);
   // TODO(cleanup): Remove this legacy code when appropriate.
@@ -852,12 +853,12 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->detailed_stats_kb = std::move(detailed_stats);
   dump->last_detailed_dump_time = base::TimeTicks::Now();
 #endif  // BUILDFLAG(IS_LINUX)
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     size_t pss, swap_pss;
     GetSmapsRollup(handle, &pss, &swap_pss);
     dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
@@ -901,7 +902,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   return true;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
                                  mojom::RawOSMemDump* dump,
@@ -922,7 +923,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 }
 #endif
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // static
 std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
     base::ProcessHandle handle) {
@@ -986,7 +987,7 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
   }
   return maps;
 }
-#else   // !BUILDFLAG(IS_COBALT)
+#else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // static
 std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
     base::ProcessHandle handle) {
@@ -1009,9 +1010,9 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
 
   return maps;
 }
-#endif  // !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // static
 bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
                                     const MemDumpFlagSet& flags,

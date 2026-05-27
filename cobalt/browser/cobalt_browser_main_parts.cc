@@ -18,12 +18,14 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -35,6 +37,7 @@
 #include "content/public/browser/resource_coordinator_service.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -119,6 +122,17 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+  static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
+  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    memory_instrumentation::MemoryInstrumentation::GetInstance()
+        ->SetDetailedMetricsDelegate(delegate.get());
+  } else {
+    LOG(WARNING) << "MemoryInstrumentation instance not available in "
+                    "PreMainMessageLoopRun!";
+  }
+#endif
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();

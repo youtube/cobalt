@@ -7,8 +7,9 @@
 #pragma allow_unsafe_buffers
 #endif
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool.h"
 #include "base/test/task_environment.h"
@@ -182,7 +183,7 @@ TEST(OSMetricsTest, GivesNonZeroResults) {
 #elif BUILDFLAG(IS_APPLE)
   EXPECT_GT(dump.platform_private_footprint->internal_bytes, 0u);
 #endif
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   EXPECT_GT(dump.vm_size_kb, 0u);
 #endif
 }
@@ -457,7 +458,7 @@ TEST(OSMetricsTest, DISABLED_TestMachOReading) {
 }
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 namespace {
 class SimpleDetailedMetricsDelegate : public DetailedMetricsDelegate {
  public:
@@ -690,5 +691,5 @@ TEST(OSMetricsTest, DetailedMetricsConcurrency) {
   OSMetrics::SetProcSmapsForTesting(nullptr);
   OSMetrics::SetSmapsRollupForTesting(nullptr);
 }
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 }  // namespace memory_instrumentation

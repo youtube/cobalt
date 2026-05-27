@@ -62,6 +62,10 @@ void CobaltDetailedMetricsDelegate::OnSmapsEntry(
 
   if (name.empty()) {
     label = "anonymous_other";
+    // On Linux monolithic builds, the main executable mapping is named
+    // "/cobalt" rather than "libchrobalt.so" or "libcobalt.so".
+  } else if (absl::EndsWith(name, "/cobalt")) {
+    label = "lib_chrobalt";
   } else {
     for (const auto& cp : kCobaltPatterns) {
       if (cp.is_prefix) {
