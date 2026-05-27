@@ -41,7 +41,7 @@ class CpuVideoFrame : public VideoFrame {
   };
 
   struct Plane {
-    Plane(const Size& size, int pitch_in_bytes, const uint8_t* data)
+    Plane(Size size, int pitch_in_bytes, const uint8_t* data)
         : size(size),
           width(size.width),
           height(size.height),
@@ -68,7 +68,7 @@ class CpuVideoFrame : public VideoFrame {
 
   static scoped_refptr<CpuVideoFrame> CreateYV12Frame(
       int bit_depth,
-      const Size& size,
+      Size size,
       int source_y_pitch_in_bytes,
       int source_uv_pitch_in_bytes,
       int64_t timestamp,  // microseconds

@@ -307,7 +307,7 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
 
-bool VideoCodecCapability::AreResolutionAndRateSupported(const Size& size,
+bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
                                                          int fps) const {
   if (!(j_video_capabilities_.is_null())) {
     JNIEnv* env = AttachCurrentThread();
@@ -427,7 +427,7 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
                                                 bool must_support_secure,
                                                 bool must_support_hdr,
                                                 bool must_support_tunnel_mode,
-                                                const Size& frame_size,
+                                                Size frame_size,
                                                 int bitrate,
                                                 int fps) {
   return !FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
@@ -487,7 +487,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     bool must_support_hdr,
     bool require_software_codec,
     bool must_support_tunnel_mode,
-    const Size& frame_size,
+    Size frame_size,
     int bitrate,
     int fps) {
   if (!is_enabled_) {
