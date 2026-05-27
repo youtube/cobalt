@@ -25,6 +25,7 @@ import java.util.StringJoiner;
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -57,6 +58,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
       extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--disable-http-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_DECOMMIT_POOLED_PAGES)) {
