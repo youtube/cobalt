@@ -21,7 +21,9 @@ config("platform_configuration") {
 
 config("no_pedantic_warnings") {
   cflags = [
+    "-Wno-implicit-fallthrough",
     "-Wno-missing-braces",
+    "-Wno-return-type",
     "-Wno-vla-cxx-extension",
     "-Wno-unreachable-code-return",
     "-Wno-unused-function",
