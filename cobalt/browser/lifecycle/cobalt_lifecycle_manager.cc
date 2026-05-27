@@ -153,9 +153,16 @@ bool CobaltLifecycleManager::WebContentsTracker::IsComplete(
         }
       }
       return true;
-    case PendingAck::kBlur:
+    case PendingAck::kConceal:
       for (auto* frame : all_frames) {
         if (visible_frames_.find(frame) != visible_frames_.end()) {
+          return false;
+        }
+      }
+      return true;
+    case PendingAck::kBlur:
+      for (auto* frame : all_frames) {
+        if (focused_frames_.find(frame) != focused_frames_.end()) {
           return false;
         }
       }
@@ -267,7 +274,7 @@ void CobaltLifecycleManager::PageVisibilityChanged(bool visible) {
     tracker->SetVisible(frame, visible);
 
     if ((pending_acks_[web_contents] == PendingAck::kReveal && visible) ||
-        (pending_acks_[web_contents] == PendingAck::kBlur && !visible)) {
+        (pending_acks_[web_contents] == PendingAck::kConceal && !visible)) {
       pending_ack_frames_[web_contents].erase(frame);
     }
     CheckCompletion(web_contents);
@@ -455,34 +462,10 @@ void CobaltLifecycleManager::CheckCompletion(
   }
 
   if (pending_ack_frames_[web_contents].empty()) {
-    pending_acks_[web_contents] = PendingAck::kNone;
-    pending_ack_frames_.erase(web_contents);
-
-    switch (pending_ack) {
-      case PendingAck::kUnfreeze:
-        for (auto& observer : observers_) {
-          observer.OnAllFramesResumed(web_contents);
-        }
-        break;
-      case PendingAck::kReveal:
-        web_contents->WasShown();
-        for (auto& observer : observers_) {
-          observer.OnAllFramesVisible(web_contents);
-        }
-        break;
-      case PendingAck::kConceal:
-        for (auto& observer : observers_) {
-          observer.OnAllFramesConcealed(web_contents);
-        }
-        break;
-      case PendingAck::kBlur:
-        for (auto& observer : observers_) {
-          observer.OnAllFramesBlurred(web_contents);
-        }
-        break;
-      default:
-        break;
+    if (pending_ack == PendingAck::kReveal) {
+      web_contents->WasShown();
     }
+    CompleteAckImmediately(web_contents, pending_ack);
   }
 }
 
