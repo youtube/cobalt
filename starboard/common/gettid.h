@@ -47,8 +47,9 @@ inline pid_t gettid() {
 // gettid().
 #define gettid() syscall(SYS_gettid)
 #else
-#error "SYS_gettid is not defined on this Starboard platform."
-#endif
+#error \
+    "gettid() fallback requires SYS_gettid or __NR_gettid to be defined in <sys/syscall.h>. Please ensure your platform sysroot headers define either of these macros, or natively implement gettid() in <unistd.h>."
+#endif  // defined(SYS_gettid)
 
 #endif  // !BUILDFLAG(IS_IOS_TVOS)
 

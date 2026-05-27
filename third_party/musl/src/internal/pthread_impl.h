@@ -17,7 +17,6 @@
 // Implement a macro to allow '__pthread_self()->tid' to
 // be used unchanged from musl internal code.
 
-// Include necessary headers.
 #include <unistd.h>
 #include "starboard/thread.h"
 

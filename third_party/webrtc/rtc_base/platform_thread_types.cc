@@ -36,7 +36,6 @@ typedef HRESULT(WINAPI* RTC_SetThreadDescription)(HANDLE hThread,
 
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
-#include <unistd.h>
 #include "starboard/common/gettid.h"  // nogncheck
 #endif
 

@@ -15,10 +15,8 @@
 #include "starboard/common/log.h"
 
 #include <pthread.h>
-#include <sys/syscall.h>
 #include <sys/time.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <cstring>
