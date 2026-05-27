@@ -38,12 +38,12 @@ class FileCacheReaderTest : public ::testing::Test {
 };
 
 TEST_F(FileCacheReaderTest, FileCacheReader) {
+  const int kTestSize = 5 * 1024 * 1024;
   const std::vector<int> sizes_to_read = {0, 1, 2, 3, 4, 0, 5, 8, 13};
 
   std::vector<char> true_contents;
   {
     // Use a 5MB snippet from the true file to compare against.
-    const size_t kTestSize = 5 * 1024 * 1024;
     ScopedFile file(file_cache_reader_.GetAbsolutePathName().c_str(), 0);
     true_contents.resize(kTestSize);
     int bytes_read = file.ReadAll(true_contents.data(), kTestSize);
@@ -55,10 +55,9 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
 
   int true_offset = 0;
   int size_index = 0;
-  while (true_offset < true_contents.size()) {
+  while (true_offset < kTestSize) {
     auto size_to_read =
-        std::min(sizes_to_read[size_index],
-                 static_cast<int>(true_contents.size()) - true_offset);
+        std::min(sizes_to_read[size_index], kTestSize - true_offset);
     size_index = (size_index + 1) % sizes_to_read.size();
 
     read_contents.resize(size_to_read);
@@ -73,7 +72,7 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
     ASSERT_EQ(0, result);
     true_offset += bytes_read;
   }
-  EXPECT_EQ(true_offset, true_contents.size());
+  EXPECT_EQ(true_offset, kTestSize);
 }
 
 }  // namespace

@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <malloc.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <poll.h>
 #include <sched.h>
@@ -100,21 +101,14 @@ namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbFileMaxName);
-  REGISTER_SYMBOL(kSbFileMaxOpen);
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
-  REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
-  REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
-  REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMemoryPageSize);
-  REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
-  REGISTER_SYMBOL(kSbPathSepChar);
-  REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
   REGISTER_SYMBOL(SbAudioSinkCreate);
@@ -150,15 +144,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
-  REGISTER_SYMBOL(SbMediaGetBufferAlignment);
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
-  REGISTER_SYMBOL(SbMediaGetBufferPadding);
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
-  REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -219,8 +209,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadGetId);
-  REGISTER_SYMBOL(SbThreadGetPriority);
-  REGISTER_SYMBOL(SbThreadSetPriority);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -332,6 +320,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);
   REGISTER_WRAPPER(getrlimit);
+  REGISTER_WRAPPER(if_indextoname);
+  REGISTER_WRAPPER(if_nametoindex);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);

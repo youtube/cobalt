@@ -27,6 +27,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
@@ -64,6 +66,8 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
+import org.chromium.base.memory.MemoryPressureUma;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -121,6 +125,16 @@ public abstract class CobaltActivity extends Activity {
 
   private boolean mEnableSplashScreen;
   private String mStartDeepLink;
+
+  private Object mBackInvokedCallback;
+
+  // Tracks if a physical/hardware back button press is currently in progress.
+  // On Android 13+ (API >= 33) with predictive back gesture enabled, the OS dispatches physical
+  // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
+  // To prevent double-triggering back navigation in the web application (which maps back keys
+  // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
+  // bypass simulated key dispatching.
+  private boolean mPhysicalBackKeyPressed = false;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -221,10 +235,14 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
+      RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
+      if (savedInstanceState == null) {
+        RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", false);
+      }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
     StartupGuard.getInstance().setStartupMilestone(7);
@@ -277,7 +295,10 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
+                // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
+                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }
@@ -347,6 +368,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = true;
+    }
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
@@ -359,6 +383,9 @@ public abstract class CobaltActivity extends Activity {
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
+    }
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = false;
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -445,6 +472,7 @@ public abstract class CobaltActivity extends Activity {
 
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+    MemoryPressureUma.initializeForBrowser();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
@@ -458,7 +486,7 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(9);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      OnBackInvokedHelper.register(this);
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
     }
   }
 
@@ -544,6 +572,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onPause() {
+    mPhysicalBackKeyPressed = false;
     CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
   }
@@ -591,6 +620,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -830,18 +863,47 @@ public abstract class CobaltActivity extends Activity {
 
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
-    static void register(final CobaltActivity activity) {
-      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-          new OnBackInvokedCallback() {
+    private static final Handler sHandler = new Handler(Looper.getMainLooper());
+
+    static Object register(final CobaltActivity activity) {
+      OnBackInvokedCallback callback = new OnBackInvokedCallback() {
+        @Override
+        public void onBackInvoked() {
+          if (activity.mPhysicalBackKeyPressed) {
+            return; // Bypassed: physical key events are already driving this navigation
+          }
+
+          // 1. Dispatch keydown to initiate navigation immediately.
+          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+
+          // 2. Simulate physical key release with a 100ms delay.
+          // This mimics natural user latency and prevents the web page's focus manager
+          // from receiving 'keyup' prematurely during asynchronous page transitions
+          // (which would otherwise disrupt cursor/spatial navigation focus restoration).
+          sHandler.postDelayed(new Runnable() {
             @Override
-            public void onBackInvoked() {
-              // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
-              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+            public void run() {
+              if (activity.isDestroyed() || activity.isFinishing()) {
+                return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+              }
               activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
             }
-          }
+          }, 100);
+        }
+      };
+      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+          callback
       );
+      return callback;
+    }
+
+    static void unregister(CobaltActivity activity, Object callback) {
+      if (callback instanceof OnBackInvokedCallback) {
+        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+            (OnBackInvokedCallback) callback
+        );
+      }
     }
   }
 }

@@ -16,10 +16,12 @@
 #define STARBOARD_NPLB_AUDIO_SINK_HELPERS_H_
 
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <vector>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/media.h"
 
 namespace nplb {
@@ -66,11 +68,12 @@ class AudioSinkTestEnvironment {
  public:
   static const int kSampleRateCD = 44100;
 
-  explicit AudioSinkTestEnvironment(
+  static std::unique_ptr<AudioSinkTestEnvironment> Create(
       const AudioSinkTestFrameBuffers& frame_buffers);
-  ~AudioSinkTestEnvironment();
 
-  bool is_valid() const { return SbAudioSinkIsValid(sink_); }
+  AudioSinkTestEnvironment(starboard::PassKey<AudioSinkTestEnvironment>,
+                           const AudioSinkTestFrameBuffers& frame_buffers);
+  ~AudioSinkTestEnvironment();
 
   static int sample_rate() {
     return SbAudioSinkGetNearestSupportedSampleFrequency(kSampleRateCD);

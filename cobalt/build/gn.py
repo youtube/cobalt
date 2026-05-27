@@ -72,6 +72,7 @@ _COBALT_ANDROID_PLATFORMS = [
     'android-arm',
     'android-arm64',
     'android-x86',
+    'aosp-arm',
 ]
 _COBALT_TVOS_PLATFORMS = [
     'tvos-arm64-device',

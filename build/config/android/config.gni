@@ -81,7 +81,12 @@ if (is_android) {
       default_min_sdk_version = 29
     }
     if (is_cobalt) {
-      default_min_sdk_version = 26
+      # Cobalt maintains backward compatibility with Android 7.0 (API 24), consistent
+      # with Cobalt 25 and 26 releases. Setting this to 24 ensures the Android
+      # platform config compiles cleanly targeting API 24, while advanced system
+      # APIs (such as AAudio and AImageReader) are excluded from linking and safely
+      # disabled at runtime. See b/508072838, b/422247849.
+      default_min_sdk_version = 24
     }
 
     # Static analysis can be either "on" or "off" or "build_server". This

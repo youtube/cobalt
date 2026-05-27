@@ -17,8 +17,8 @@
 #include <algorithm>
 #include <utility>
 
-#include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_decoder_passthrough.h"
+#include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"
@@ -35,8 +35,6 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
-// TODO: Enable passthrough with tunnel mode.
-constexpr int kTunnelModeAudioSessionId = -1;
 
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
@@ -402,7 +400,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   SB_DCHECK(error_cb_);
 
   if (audio_track_bridge_) {
-    SB_DCHECK(!update_status_and_write_data_token_.is_valid());
+    SB_DCHECK(!update_status_and_write_data_token_);
     AudioTrackState initial_state;
     update_status_and_write_data_token_ = audio_track_thread_->Schedule(
         std::bind(&AudioRendererPassthrough::UpdateStatusAndWriteData, this,
@@ -419,7 +417,8 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
           /*sample_type=*/std::nullopt,  // Not required in passthrough mode
           audio_stream_info_.number_of_channels,
           audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-          kTunnelModeAudioSessionId, /*is_web_audio=*/false);
+          /*tunnel_mode_audio_session_id=*/std::nullopt,
+          /*is_web_audio=*/false);
 
   if (!audio_track_bridge) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
@@ -460,9 +459,8 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   }
   seek_to_time_ = seek_to_time;
   paused_ = true;
-  if (update_status_and_write_data_token_.is_valid()) {
-    audio_track_thread_->RemoveJobByToken(update_status_and_write_data_token_);
-    update_status_and_write_data_token_.ResetToInvalid();
+  if (update_status_and_write_data_token_) {
+    audio_track_thread_->RemoveJobByToken(&update_status_and_write_data_token_);
   }
 }
 

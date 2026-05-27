@@ -27,7 +27,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "media/mojo/clients/mojo_renderer_wrapper.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
-#include "media/starboard/bind_host_receiver_callback.h"
+#include "media/starboard/starboard_callbacks.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
