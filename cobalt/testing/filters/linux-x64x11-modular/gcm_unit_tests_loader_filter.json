@@ -1,6 +1,4 @@
 {
   "failing_tests": [
-    "GCMStoreImplTest.*",
-    "MCSClientTest.*"
   ]
 }
