@@ -34,5 +34,5 @@
 void SbSpeechSynthesisSpeak(const char* text) {
   if (!text)
     return;
-  third_party::starboard::rdk::shared::TextToSpeech::Speak(text);
+  starboard::TextToSpeech::Speak(text);
 }

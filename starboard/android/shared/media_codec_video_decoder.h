@@ -139,7 +139,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const scoped_refptr<InputBuffer>& input_buffer) override;
 
   void TryToSignalPrerollForTunnelMode();
-  bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
@@ -192,9 +191,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
   const bool needs_fps_to_initialize_codec_;
-  // Enable MediaCodec OutputChecker to elminate dirty output callbacks after
-  // flush.
-  const bool enable_output_checker_;
   // Workaround for b/506257255, which skips some video frames to make the
   // effective frame rate no more than 60 fps. This is only used for tunnel
   // mode.

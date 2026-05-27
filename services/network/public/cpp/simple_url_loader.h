@@ -92,8 +92,15 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   };
 
   // The maximum size DownloadToString will accept.
-  static constexpr size_t kMaxBoundedStringDownloadSize = 5 * 1024 * 1024;
-
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/465213840): Check with upstream authors regarding the 20MB limit
+  // and establish a robust process for managing hardcoded download limits
+  // across release versions.
+  // The existing packages are as big as 64MB, so setting the limit to 80MB for now.
+  static constexpr size_t kMaxBoundedStringDownloadSize = 80 * 1024 * 1024;
+#else
+  static constexpr size_t kMaxBoundedStringDownloadSize = 20 * 1024 * 1024;
+#endif
   // Maximum upload body size to send as a block to the URLLoaderFactory. This
   // data may appear in memory twice for a while, in the retry case, and there
   // may briefly be 3 to 5 copies as it's copied over the Mojo pipe:  This

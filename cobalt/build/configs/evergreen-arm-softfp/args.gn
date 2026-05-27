@@ -3,7 +3,3 @@ import("//cobalt/build/configs/evergreen_common.gn")
 target_cpu = "arm"
 starboard_path = "starboard/no_platform"
 arm_float_abi = "softfp"
-
-# TODO: b/453022760 - Investigate if this should be true and fix build failures
-# if so.
-arm_use_neon = false
