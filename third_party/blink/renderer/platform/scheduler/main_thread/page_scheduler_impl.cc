@@ -50,6 +50,10 @@ constexpr double kDefaultMaxBackgroundThrottlingDelayInSeconds = 0;
 constexpr base::TimeDelta kThrottlingDelayAfterBackgrounding =
     base::Seconds(10);
 
+// Delay for background throttling of wake ups and lifecycle state changes.
+constexpr base::TimeDelta kBackgroundThrottlingGracePeriod =
+    base::Milliseconds(1500);
+
 // The amount of time to wait before suspending shared timers, and loading
 // etc. after the renderer has been backgrounded. This is used only if
 // background suspension is enabled.
@@ -182,6 +186,9 @@ PageSchedulerImpl::PageSchedulerImpl(
       &PageSchedulerImpl::DoThrottleCPUTime, base::Unretained(this)));
   do_intensively_throttle_wake_ups_callback_.Reset(
       base::BindRepeating(&PageSchedulerImpl::DoIntensivelyThrottleWakeUps,
+                          base::Unretained(this)));
+  do_background_throttling_callback_.Reset(
+      base::BindRepeating(&PageSchedulerImpl::DoBackgroundThrottling,
                           base::Unretained(this)));
   reset_had_recent_title_or_favicon_update_.Reset(base::BindRepeating(
       &PageSchedulerImpl::ResetHadRecentTitleOrFaviconUpdate,
@@ -660,6 +667,8 @@ void PageSchedulerImpl::UpdatePolicyOnVisibilityChange(
 
     are_wake_ups_intensively_throttled_ = false;
     do_intensively_throttle_wake_ups_callback_.Cancel();
+
+    do_background_throttling_callback_.Cancel();
   } else {
     if (cpu_time_budget_pool_) {
       main_thread_scheduler_->ControlTaskRunner()->PostDelayedTask(
@@ -669,6 +678,12 @@ void PageSchedulerImpl::UpdatePolicyOnVisibilityChange(
     main_thread_scheduler_->ControlTaskRunner()->PostDelayedTask(
         FROM_HERE, do_intensively_throttle_wake_ups_callback_.GetCallback(),
         GetIntensiveWakeUpThrottlingGracePeriod(IsLoading()));
+
+    if (!IsBackgrounded()) {
+      main_thread_scheduler_->ControlTaskRunner()->PostDelayedTask(
+          FROM_HERE, do_background_throttling_callback_.GetCallback(),
+          kBackgroundThrottlingGracePeriod);
+    }
   }
 
   if (ShouldFreezePage()) {
@@ -699,6 +714,19 @@ void PageSchedulerImpl::DoIntensivelyThrottleWakeUps() {
   base::LazyNow lazy_now(main_thread_scheduler_->GetTickClock());
   UpdateWakeUpBudgetPools(&lazy_now);
   NotifyFrames();
+}
+
+void PageSchedulerImpl::DoBackgroundThrottling() {
+  do_background_throttling_callback_.Cancel();
+  if (IsPageVisible())
+    return;
+
+  // By now IsBackgrounded() should return true as the grace period has passed.
+  DCHECK(IsBackgrounded());
+
+  SetPageLifecycleState(PageLifecycleState::kHiddenBackgrounded);
+  MoveTaskQueuesToCorrectWakeUpBudgetPoolAndUpdate();
+  UpdatePolicyOnVisibilityChange(NotificationPolicy::kNotifyFrames);
 }
 
 void PageSchedulerImpl::UpdateCPUTimeBudgetPool(base::LazyNow* lazy_now) {
@@ -797,8 +825,12 @@ bool PageSchedulerImpl::IsBackgrounded() const {
   // expire immediately when a page is backgrounded, which is undesirable in
   // headless mode. To prevent that, a page is never considerer backgrounded
   // when virtual time is enabled.
-  return !IsPageVisible() && !IsAudioPlaying() &&
-         !main_thread_scheduler_->IsVirtualTimeEnabled();
+  if (IsPageVisible() || IsAudioPlaying() ||
+      main_thread_scheduler_->IsVirtualTimeEnabled()) {
+    return false;
+  }
+  return main_thread_scheduler_->NowTicks() - page_visibility_changed_time_ >=
+         kBackgroundThrottlingGracePeriod;
 }
 
 bool PageSchedulerImpl::ShouldFreezePage() const {
