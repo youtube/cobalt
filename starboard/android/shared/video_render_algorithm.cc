@@ -91,7 +91,8 @@ void VideoRenderAlgorithm::Render(
       }
     }
 
-    jlong early_us = frames->front()->timestamp() - playback_time;
+    jlong early_us = (frames->front()->timestamp() - playback_time) /
+                     (playback_rate != 0 ? playback_rate : 1);
 
     auto system_time_ns = GetSystemNanoTime();
     auto unadjusted_frame_release_time_ns =
@@ -99,7 +100,8 @@ void VideoRenderAlgorithm::Render(
 
     auto adjusted_release_time_ns =
         video_frame_release_time_helper_.AdjustReleaseTime(
-            frames->front()->timestamp(), unadjusted_frame_release_time_ns);
+            frames->front()->timestamp(), unadjusted_frame_release_time_ns,
+            playback_rate);
 
     early_us = (adjusted_release_time_ns - system_time_ns) /
                kSbTimeNanosecondsPerMicrosecond;
@@ -151,12 +153,13 @@ VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
 
 jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
     jlong frame_presentation_time_us,
-    jlong unadjusted_release_time_ns) {
+    jlong unadjusted_release_time_ns,
+    double playback_rate) {
   SB_DCHECK(j_video_frame_release_time_helper_);
   auto* env = JniEnvExt::Get();
   return env->CallLongMethodOrAbort(
-      j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJ)J",
-      frame_presentation_time_us, unadjusted_release_time_ns);
+      j_video_frame_release_time_helper_, "adjustReleaseTime", "(JJD)J",
+      frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }
 
 }  // namespace shared
