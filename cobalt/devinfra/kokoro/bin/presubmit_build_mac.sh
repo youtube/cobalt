@@ -96,7 +96,8 @@ EOF
      -d "Apple TV 4K (3rd generation)" \
      -v \
      -i \
-     -c "--gtest_filter=ContentMainRunnerImplBrowserTest.* --gtest_output=xml:${xml_dir}/sponge_log.xml" \
+     -c "--gtest_filter=ContentMainRunnerImplBrowserTest.*" \
+     -c "--gtest_output=xml:${xml_dir}/sponge_log.xml" \
      "${out_dir}"/cobalt_browsertests.app
   fi
 
