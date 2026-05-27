@@ -35,6 +35,8 @@ struct Rect {
       : x(x), y(y), size(width, height) {}
   constexpr Rect(int x, int y, const Size& size) : x(x), y(y), size(size) {}
 
+  constexpr bool IsEmpty() const { return size.width <= 0 || size.height <= 0; }
+
   constexpr bool operator==(const Rect& other) const {
     return x == other.x && y == other.y && size == other.size;
   }
@@ -45,11 +47,7 @@ struct Rect {
   int x;
   int y;
   Size size;
-
-  static const Rect kEmpty;
 };
-
-constexpr Rect Rect::kEmpty = Rect();
 
 std::ostream& operator<<(std::ostream& os, const Rect& rect);
 

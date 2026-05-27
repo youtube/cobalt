@@ -83,13 +83,14 @@ TEST(RectTest, StreamInsertion) {
   EXPECT_EQ("{x=10, y=20, size=1920x1080}", ss.str());
 }
 
-TEST(RectTest, EmptyConstant) {
-  constexpr Rect rect = Rect::kEmpty;
-
-  EXPECT_EQ(0, rect.x);
-  EXPECT_EQ(0, rect.y);
-  EXPECT_EQ(0, rect.size.width);
-  EXPECT_EQ(0, rect.size.height);
+TEST(RectTest, IsEmpty) {
+  EXPECT_TRUE(Rect().IsEmpty());
+  EXPECT_TRUE(Rect(0, 0, 0, 0).IsEmpty());
+  EXPECT_TRUE(Rect(10, 20, 0, 1080).IsEmpty());
+  EXPECT_TRUE(Rect(10, 20, 1920, 0).IsEmpty());
+  EXPECT_TRUE(Rect(10, 20, -10, 1080).IsEmpty());
+  EXPECT_TRUE(Rect(10, 20, 1920, -10).IsEmpty());
+  EXPECT_FALSE(Rect(10, 20, 1920, 1080).IsEmpty());
 }
 
 }  // namespace

@@ -63,7 +63,7 @@ void PunchoutVideoRendererSink::RunLoop() {
   }
   std::lock_guard lock(mutex_);
   Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(),
-                                  /*z_index=*/0, Rect::kEmpty);
+                                  /*z_index=*/0, Rect());
 }
 
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(

@@ -34,7 +34,7 @@ VideoRendererSinkImpl::~VideoRendererSinkImpl() {
   SB_CHECK(BelongsToCurrentThread());
 
   Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(),
-                                  /*z_index=*/0, Rect::kEmpty);
+                                  /*z_index=*/0, Rect());
 }
 
 void VideoRendererSinkImpl::SetRenderCB(RenderCB render_cb) {

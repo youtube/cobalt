@@ -1191,12 +1191,7 @@ class PlayerImpl : public Player {
     GstClockTime timestamp_;
   };
 
-  struct PendingBounds {
-    PendingBounds() : rect{} {}
-    PendingBounds(const ::starboard::Rect& irect) : rect{irect} {}
-    bool IsEmpty() const { return rect.size == ::starboard::Size(); }
-    ::starboard::Rect rect;
-  };
+
 
   using PendingSamples = std::vector<PendingSample>;
   using SamplesPendingKey = std::map<std::string, PendingSamples>;
@@ -1310,7 +1305,7 @@ class PlayerImpl : public Player {
   State state_{State::kNull};
   PendingSamples pending_samples_;
   mutable GstClockTime cached_position_ns_{GST_CLOCK_TIME_NONE};
-  PendingBounds pending_bounds_;
+  ::starboard::Rect pending_bounds_;
   SbMediaColorMetadata color_metadata_{};
   bool force_stop_ { false };
   uint64_t samples_serial_[kMediaNumber] { 0 };
@@ -1681,9 +1676,9 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
           }
 
           if (video_codec_ != kSbMediaVideoCodecNone && !pending_bounds_.IsEmpty()) {
-            PendingBounds bounds = pending_bounds_;
+            ::starboard::Rect bounds = pending_bounds_;
             pending_bounds_ = {};
-            SetBounds(0, bounds.rect);
+            SetBounds(0, bounds);
           }
 
           if (is_rate_pending && GST_STATE(pipeline_) == GST_STATE_PLAYING) {
@@ -2610,7 +2605,7 @@ void PlayerImpl::SetBounds(int zindex, const ::starboard::Rect& rect) {
     g_object_set(vid_sink, "rectangle", rect_str, nullptr);
     g_free(rect_str);
   } else {
-    pending_bounds_ = PendingBounds{rect};
+    pending_bounds_ = rect;
   }
   if (vid_sink)
     gst_object_unref(GST_OBJECT(vid_sink));
