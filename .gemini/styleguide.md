@@ -44,3 +44,15 @@ For changes involving Web IDL, refer to the following guides for API design prin
 *   **Chromium IDL Extended Attributes**: /third_party/blink/renderer/bindings/IDLExtendedAttributes.md
 *   **Web IDL Interfaces**: /docs/website/site/developers/web-idl-interfaces/index.md
 
+# Class comments
+
+Every new added class should have a meaningful class comment, in particular
+that should explain:
+* The reason for its existence (the "why").
+* The expected lifetime and ownership.
+* The threading model, in particular whether objects of the class can be used
+from any Thread/TaskRunner, or if it's Thread/TaskRunner-affine.
+
+# Feature Gating & Removal (Binary Size Optimization)
+
+When reviewing pull requests that surgically remove, disable, or gate any web API or feature in Cobalt/Chrobalt to optimize binary size, the changes **must** strictly observe the surgical feature removal pipeline and guidelines documented in the project's single source of truth: **[Surgical Feature Removal Guide (SKILL.md)](/cobalt/tools/binary_size/SKILL.md)**.

@@ -173,7 +173,7 @@ class PlayerComponentsTest
     video_index_ = 0;
     // Find the closest key frame prior to |seek_to_time|.
     if (GetAudioRenderer()) {
-      for (int index = 1; index < audio_reader_->number_of_audio_buffers();
+      for (size_t index = 1; index < audio_reader_->number_of_audio_buffers();
            index++) {
         SbPlayerSampleInfo sample_info =
             audio_reader_->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
@@ -184,7 +184,7 @@ class PlayerComponentsTest
       }
     }
     if (GetVideoRenderer()) {
-      for (int index = 1; index < video_reader_->number_of_video_buffers();
+      for (size_t index = 1; index < video_reader_->number_of_video_buffers();
            index++) {
         SbPlayerSampleInfo sample_info =
             video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, index);
@@ -485,8 +485,8 @@ class PlayerComponentsTest
   unique_ptr<VideoDmpReader> video_reader_;
   unique_ptr<PlayerComponents> player_components_;
   double playback_rate_ = 1.0;
-  int audio_index_ = 0;
-  int video_index_ = 0;
+  size_t audio_index_ = 0;
+  size_t video_index_ = 0;
   bool has_error_ = false;
   bool audio_prerolled_ = false;
   bool video_prerolled_ = false;
@@ -523,7 +523,6 @@ TEST_P(PlayerComponentsTest, SunnyDay) {
   ASSERT_EQ(GetMediaTime(), 0);
   ASSERT_FALSE(IsPlaying());
 
-  int64_t play_requested_at = CurrentMonotonicTime();
   Play();
   int64_t eos_timestamp =
       std::max<int64_t>(1'000'000LL, GetMaxWrittenBufferTimestamp());
@@ -751,10 +750,10 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
   return supported_parameters;
 }
 
-INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
-                        PlayerComponentsTest,
-                        ValuesIn(GetSupportedCreationParameters()),
-                        GetPlayerComponentsTestConfigName);
+INSTANTIATE_TEST_SUITE_P(PlayerComponentsTests,
+                         PlayerComponentsTest,
+                         ValuesIn(GetSupportedCreationParameters()),
+                         GetPlayerComponentsTestConfigName);
 }  // namespace
 
 }  // namespace starboard

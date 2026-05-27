@@ -416,27 +416,40 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
                                       static_cast<int>(value_kb / kKiB));
     };
 
-    base::UmaHistogramMemoryLargeMB(
-        base::StrCat({prefix, "LibChrobaltPss"}),
-        static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
-    base::UmaHistogramMemoryLargeMB(
-        base::StrCat({prefix, "LibChrobaltRss"}),
-        static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+    auto get_detailed_stat = [&](const char* name) -> uint32_t {
+      if (pmd.os_dump().detailed_stats_kb) {
+        auto it = pmd.os_dump().detailed_stats_kb->find(name);
+        if (it != pmd.os_dump().detailed_stats_kb->end()) {
+          return base::saturated_cast<uint32_t>(it->second);
+        }
+      }
+      return 0;
+    };
 
-    emit_accurate_rss("PartitionAlloc", pmd.os_dump().partition_alloc_rss_kb);
+    uint32_t lib_pss = get_detailed_stat("pss:lib_chrobalt");
+    uint32_t lib_rss = get_detailed_stat("rss:lib_chrobalt");
+
+    base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, "LibChrobaltPss"}),
+                                    static_cast<int>(lib_pss / kKiB));
+    base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, "LibChrobaltRss"}),
+                                    static_cast<int>(lib_rss / kKiB));
+
+    emit_accurate_rss("PartitionAlloc",
+                      get_detailed_stat("rss:partition_alloc"));
+    emit_accurate_rss("Malloc", get_detailed_stat("rss:malloc"));
 #if BUILDFLAG(IS_ANDROID)
-    emit_accurate_rss("Malloc", pmd.os_dump().malloc_rss_kb);
-    emit_accurate_rss("CodeOther", pmd.os_dump().code_other_rss_kb);
-    emit_accurate_rss("Fonts", pmd.os_dump().fonts_rss_kb);
-    emit_accurate_rss("AshmemJit", pmd.os_dump().ashmem_jit_rss_kb);
-    emit_accurate_rss("AndroidRuntime", pmd.os_dump().android_runtime_rss_kb);
+    emit_accurate_rss("CodeOther", get_detailed_stat("rss:code_other"));
+    emit_accurate_rss("Fonts", get_detailed_stat("rss:fonts"));
+    emit_accurate_rss("AshmemJit", get_detailed_stat("rss:ashmem_jit"));
+    emit_accurate_rss("AndroidRuntime",
+                      get_detailed_stat("rss:android_runtime"));
 #endif  // BUILDFLAG(IS_ANDROID)
-    emit_accurate_rss("Stacks", pmd.os_dump().stacks_rss_kb);
+    emit_accurate_rss("Stacks", get_detailed_stat("rss:stacks"));
 
     // Override V8 with accurate RSS.
     base::UmaHistogramMemoryLargeMB(
         base::StrCat({exp_prefix, "V8"}),
-        static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
+        static_cast<int>(get_detailed_stat("rss:v8") / kKiB));
 
 #endif
   }

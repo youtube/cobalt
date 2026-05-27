@@ -45,6 +45,14 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Android.ColdStart" enum="Boolean" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the application startup was a cold start (true) or a warm
+    start (false). Recorded during activity initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -93,6 +101,15 @@ Always run the pretty print utility on this file after editing:
     file, to be decompressed. This metric is only recorded when the shared
     library is stored as a compressed file.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.SlotSelectionStatus"
+    enum="SlotSelectionStatus" expires_after="never">
+<!-- expires-never: Needed for Evergreen updates health metrics. -->
+
+  <owner>yuying@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Status of slot selection by the Loader App.</summary>
 </histogram>
 
 <histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"

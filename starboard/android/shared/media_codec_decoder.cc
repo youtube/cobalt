@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_decoder.h"
 
 #include <sched.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include "starboard/android/shared/media_common.h"
@@ -23,6 +24,7 @@
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/thread.h"
 #include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -124,12 +126,12 @@ MediaCodecDecoder::CreateForVideo(
     bool require_software_codec,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
+    bool enable_frame_renderer_listener,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool enable_output_checker,
     bool skip_video_frames_over_60_fps) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
@@ -137,9 +139,9 @@ MediaCodecDecoder::CreateForVideo(
       frame_size_hint, max_frame_size, fps, j_output_surface, drm_system,
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      use_dual_threads, enable_output_checker, skip_video_frames_over_60_fps,
-      &error_message);
+      enable_frame_renderer_listener, force_big_endian_hdr_metadata,
+      max_video_input_size, flush_delay_usec, use_dual_threads,
+      skip_video_frames_over_60_fps, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -197,12 +199,12 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool require_software_codec,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
+    bool enable_frame_renderer_listener,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool enable_output_checker,
     bool skip_video_frames_over_60_fps,
     std::string* error_message)
     : JobOwner(job_queue),
@@ -211,7 +213,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
-      tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
+      tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
@@ -227,10 +229,11 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(!drm_system_ || j_media_crypto);
   auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
-      j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
+      j_output_surface, j_media_crypto, color_metadata,
+      enable_frame_renderer_listener, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size,
-      enable_output_checker, skip_video_frames_over_60_fps);
+      skip_video_frames_over_60_fps);
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
@@ -924,7 +927,7 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    SbThreadSetPriority(kSbThreadPriorityHigh);
+    setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);

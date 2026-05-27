@@ -36,6 +36,8 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
     case AKEYCODE_PROG_BLUE:
       return VKEY_BLUE;
 
+    case AKEYCODE_MENU:
+      return VKEY_MENU;
     case AKEYCODE_CHANNEL_UP:
       return VKEY_CHANNEL_UP;
     case AKEYCODE_CHANNEL_DOWN:
