@@ -44,6 +44,10 @@ rendering issues caused by Chromium's shader expectations.
 * `getuid`
 * `if_indextoname`
 * `if_nametoindex`
+* `sched_getparam`
+* `sched_setparam`
+* `sched_getscheduler`
+* `sched_setscheduler`
 * `statx`
 
 ### Added AV2 to SbMediaVideoCodec
