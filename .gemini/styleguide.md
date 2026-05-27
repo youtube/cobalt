@@ -53,3 +53,6 @@ that should explain:
 * The threading model, in particular whether objects of the class can be used
 from any Thread/TaskRunner, or if it's Thread/TaskRunner-affine.
 
+# Feature Gating & Removal (Binary Size Optimization)
+
+When reviewing pull requests that surgically remove, disable, or gate any web API or feature in Cobalt/Chrobalt to optimize binary size, the changes **must** strictly observe the surgical feature removal pipeline and guidelines documented in the project's single source of truth: **[Surgical Feature Removal Guide (SKILL.md)](/cobalt/tools/binary_size/SKILL.md)**.

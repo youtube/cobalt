@@ -51,22 +51,26 @@ const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
 const char kH5vccSettingsKeyMediaAllowAudioWritingOnPause[] =
     "Media.AllowAudioWritingOnPause";
+const char kH5vccSettingsKeyMediaBypassMojoForMedia[] =
+    "Media.BypassMojoForMedia";
 const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
     "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
     "Media.EnableAv1StartupOptimization";
-const char kH5vccSettingsKeyMediaEnableCodecOutputChecker[] =
-    "Media.EnableCodecOutputChecker";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaEnableTrivialOptimizations[] =
+    "Media.EnableTrivialOptimizations";
 const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
     "Media.EnableVideoRendererVspAdjustment";
+const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
+    "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -213,6 +217,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.allow_audio_writing_on_pause = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaBypassMojoForMedia)) {
+    parsed.bypass_mojo_for_media = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings,
           kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
     parsed.disable_low_performance_sw_decoder = *val != 0;
@@ -220,10 +228,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
     parsed.enable_av1_startup_optimization = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableCodecOutputChecker)) {
-    parsed.enable_codec_output_checker = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
@@ -234,8 +238,16 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_reset_audio_decoder = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableTrivialOptimizations)) {
+    parsed.enable_trivial_optimizations = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
     parsed.enable_video_renderer_vsp_adjustment = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek)) {
+    parsed.flush_audio_track_during_seek = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {

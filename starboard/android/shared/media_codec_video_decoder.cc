@@ -26,6 +26,7 @@
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
@@ -51,116 +52,6 @@ using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
-
-bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
-  if (max_video_capabilities.empty()) {
-    SB_LOG(INFO)
-        << "Use hardware decoder as `max_video_capabilities` is empty.";
-    return false;
-  }
-
-  // `max_video_capabilities` is in the form of mime type attributes, like
-  // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
-  // so it can be parsed by MimeType.
-  auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
-  if (!mime_type) {
-    SB_LOG(INFO) << "Use hardware decoder as `max_video_capabilities` ("
-                 << max_video_capabilities << ") is invalid.";
-    return false;
-  }
-
-  std::string software_decoder_expectation =
-      mime_type->GetParamStringValue("softwaredecoder", "");
-  if (software_decoder_expectation == "required" ||
-      software_decoder_expectation == "preferred") {
-    SB_LOG(INFO) << "Use software decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return true;
-  } else if (software_decoder_expectation == "disallowed" ||
-             software_decoder_expectation == "unpreferred") {
-    SB_LOG(INFO) << "Use hardware decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return false;
-  }
-
-  bool is_low_resolution = mime_type->GetParamIntValue("width", 1920) <= 432 &&
-                           mime_type->GetParamIntValue("height", 1080) <= 240;
-  bool is_low_fps = mime_type->GetParamIntValue("framerate", 30) <= 15;
-
-  if (is_low_resolution && is_low_fps) {
-    // Workaround to be compatible with existing backend implementation.
-    SB_LOG(INFO) << "Use software decoder as `max_video_capabilities` ("
-                 << max_video_capabilities
-                 << ") indicates a low resolution and low fps playback.";
-    return true;
-  }
-
-  SB_LOG(INFO)
-      << "Use hardware decoder as `max_video_capabilities` is set to \""
-      << max_video_capabilities << "\".";
-  return false;
-}
-
-std::optional<Size> ParseMaxResolution(
-    const std::string& max_video_capabilities,
-    const Size& frame_size) {
-  SB_DCHECK_GT(frame_size.width, 0);
-  SB_DCHECK_GT(frame_size.height, 0);
-
-  if (max_video_capabilities.empty()) {
-    SB_LOG(INFO)
-        << "Didn't parse max resolutions as `max_video_capabilities` is empty.";
-    return std::nullopt;
-  }
-
-  SB_LOG(INFO) << "Try to parse max resolutions from `max_video_capabilities` ("
-               << max_video_capabilities << ").";
-
-  // `max_video_capabilities` is in the form of mime type attributes, like
-  // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
-  // so it can be parsed by MimeType.
-  auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
-  if (!mime_type) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as "
-                       "`max_video_capabilities` is invalid.";
-    return std::nullopt;
-  }
-
-  int width = mime_type->GetParamIntValue("width", -1);
-  int height = mime_type->GetParamIntValue("height", -1);
-  if (width <= 0 && height <= 0) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as either width or "
-                       "height isn't set.";
-    return std::nullopt;
-  }
-  if (width != -1 && height != -1) {
-    Size max_size = {width, height};
-    SB_LOG(INFO) << "Parsed max resolution=" << max_size;
-    return max_size;
-  }
-
-  if (frame_size.width <= 0 || frame_size.height <= 0) {
-    // We DCHECK() above, but just be safe.
-    SB_LOG(WARNING)
-        << "Failed to parse max resolutions due to invalid frame resolutions ("
-        << frame_size << ").";
-    return std::nullopt;
-  }
-
-  if (width > 0) {
-    Size max_size = {width, width * frame_size.height / frame_size.width};
-    SB_LOG(INFO) << "Inferred max size=" << max_size
-                 << ", frame resolution=" << frame_size;
-    return max_size;
-  }
-
-  Size max_size = {height * frame_size.width / frame_size.height, height};
-  SB_LOG(INFO) << "Inferred max size=" << max_size
-               << ", frame resolution=" << frame_size;
-  return max_size;
-}
 
 class VideoFrameImpl : public VideoFrame {
  public:
@@ -219,35 +110,8 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-// Convenience HDR mastering metadata.
-const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-
-// Determine if two |SbMediaMasteringMetadata|s are equal.
-bool Equal(const SbMediaMasteringMetadata& lhs,
-           const SbMediaMasteringMetadata& rhs) {
-  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
-
-// TODO: For whatever reason, Cobalt will always pass us this us for
-// color metadata, regardless of whether HDR is on or not.  Find out if this
-// is intentional or not.  It would make more sense if it were NULL.
-// Determine if |color_metadata| is "empty", or "null".
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
-}
-
-void UpdateTexImage(const JavaRef<jobject>& surface_texture) {
-  JNIEnv* env = AttachCurrentThread();
-
-  VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
-}
-
-void GetTransformMatrix(const JavaRef<jobject>& surface_texture,
-                        float* matrix4x4) {
+std::array<float, 16> GetTransformMatrix(
+    const JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
   jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
@@ -258,106 +122,9 @@ void GetTransformMatrix(const JavaRef<jobject>& surface_texture,
       env, surface_texture,
       jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
 
-  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4);
-}
-
-// Converts a 4x4 matrix representing the texture coordinate transform into
-// an equivalent rectangle representing the region within the texture where
-// the pixel data is valid.  Note that the width and height of this region may
-// be negative to indicate that that axis should be flipped.
-// This function also infers the coded size of the texture from the matrix
-// and the display size.
-SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
-    const float* matrix4x4,
-    const Size& display_size,
-    Size* out_coded_size) {
-  // Ensure that this matrix contains no rotations or shears.  In other words,
-  // make sure that we can convert it to a decode target content region without
-  // losing any information.
-  const float kEpsilon = 1e-6f;
-  SB_DCHECK_LT(std::abs(matrix4x4[1]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[2]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[3]), kEpsilon);
-
-  SB_DCHECK_LT(std::abs(matrix4x4[4]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[6]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[7]), kEpsilon);
-
-  SB_DCHECK_LT(std::abs(matrix4x4[8]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[9]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[10] - 1.0f), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[11]), kEpsilon);
-
-  SB_DCHECK_LT(std::abs(matrix4x4[14]), kEpsilon);
-  SB_DCHECK_LT(std::abs(matrix4x4[15] - 1.0f), kEpsilon);
-
-  float raw_sx = matrix4x4[0];
-  float raw_sy = matrix4x4[5];
-
-  float tx = raw_sx > 0 ? matrix4x4[12] : (raw_sx + matrix4x4[12]);
-  float ty = raw_sy > 0 ? matrix4x4[13] : (raw_sy + matrix4x4[13]);
-
-  float sx = std::abs(raw_sx);
-  float sy = std::abs(raw_sy);
-
-  Size coded_size = display_size;
-  int visible_x = 0;
-  int visible_y = 0;
-
-  if (sx > kEpsilon && sy > kEpsilon) {
-    const float possible_shrinks_amounts[] = {1.0f, 0.5f, 0.0f};
-    for (const float& shrink_amount : possible_shrinks_amounts) {
-      if (sx < 1.0f) {
-        coded_size.width =
-            std::round((display_size.width - 2.0f * shrink_amount) / sx);
-        visible_x = std::round(tx * coded_size.width - shrink_amount);
-      }
-      if (sy < 1.0f) {
-        coded_size.height =
-            std::round((display_size.height - 2.0f * shrink_amount) / sy);
-        visible_y = std::round(ty * coded_size.height - shrink_amount);
-      }
-
-      if (visible_x >= 0 && visible_y >= 0) {
-        break;
-      }
-    }
-  }
-
-  if (out_coded_size) {
-    *out_coded_size = coded_size;
-  }
-
-  SbDecodeTargetInfoContentRegion content_region;
-
-  // Create a base content region using the derived visible_x/y and
-  // display_size. The matrix produced by SurfaceTexture already maps to a
-  // top-down coordinate system (relative to the upper-left corner of the
-  // image), so visible_x/y are the top-left pixel offsets.
-  float left = visible_x;
-  float right = visible_x + display_size.width;
-  float top = visible_y;
-  float bottom = visible_y + display_size.height;
-
-  // The Android matrix usually includes a vertical flip because GL's origin
-  // is bottom-left. In our derived top-down pixel space:
-  // - If raw_sx < 0, the image is horizontally flipped.
-  // - If raw_sy > 0, the image is vertically flipped (standard for
-  // SurfaceTexture). We swap the coordinates to signal these flips to the
-  // Starboard renderer.
-  if (raw_sx < 0) {
-    std::swap(left, right);
-  }
-  if (raw_sy > 0) {
-    std::swap(top, bottom);
-  }
-
-  content_region.left = left;
-  content_region.right = right;
-  content_region.top = top;
-  content_region.bottom = bottom;
-
-  return content_region;
+  std::array<float, 16> matrix4x4;
+  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());
+  return matrix4x4;
 }
 
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
@@ -536,7 +303,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
+      require_software_codec_(
+          IsSoftwareDecoderRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
@@ -553,11 +321,13 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
-      enable_output_checker_(experimental_features.enable_codec_output_checker),
       skip_video_frames_over_60_fps_(
           experimental_features.skip_video_frames_over_60_fps),
-      is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
-                                      tunnel_mode_audio_session_id),
+      is_video_frame_tracker_enabled_(
+          // OnFrameRenderedListener is available since API 23, but only
+          // reliable for standard playback since API 34. Tunnel mode uses it on
+          // all SDKs.
+          android_get_device_api_level() >= 34 || tunnel_mode_audio_session_id),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
@@ -612,8 +382,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", preroll count=" << number_of_preroll_frames_
                << ", max pending input size=" << kMaxPendingInputsSize
                << ", max video capabilities=\"" << max_video_capabilities_
-               << "\", and tunnel mode audio session id="
-               << ToString(tunnel_mode_audio_session_id_);
+               << "\", tunnel mode audio session id="
+               << ToString(tunnel_mode_audio_session_id_)
+               << ", is_video_frame_tracker_enabled="
+               << ToString(is_video_frame_tracker_enabled_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -825,7 +597,8 @@ SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
-      UpdateTexImage(decode_target_->surface_texture());
+      VideoSurfaceTextureBridge::UpdateTexImage(
+          AttachCurrentThread(), decode_target_->surface_texture());
       UpdateDecodeTargetSizeAndContentRegion_Locked();
 
       if (!first_texture_received_) {
@@ -847,12 +620,9 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values) {
-      float matrix4x4[16];
-      GetTransformMatrix(decode_target_->surface_texture(), matrix4x4);
-
-      Size coded_size;
-      auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          matrix4x4, frame_size.display_size, &coded_size);
+      auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+      auto [content_region, coded_size] =
+          GetDecodeTargetGeometryFromMatrix(matrix4x4, frame_size.display_size);
 
       decode_target_->set_dimension(coded_size);
       decode_target_->set_content_region(content_region);
@@ -910,12 +680,9 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  float matrix4x4[16];
-  GetTransformMatrix(decode_target_->surface_texture(), matrix4x4);
-
-  Size coded_size;
-  auto content_region = GetDecodeTargetContentRegionFromMatrix(
-      matrix4x4, frame_sizes_.back().display_size, &coded_size);
+  auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+  auto [content_region, coded_size] = GetDecodeTargetGeometryFromMatrix(
+      matrix4x4, frame_sizes_.back().display_size);
   decode_target_->set_dimension(coded_size);
   decode_target_->set_content_region(content_region);
 }
@@ -1039,9 +806,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
-      tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      enable_output_checker_, skip_video_frames_over_60_fps_);
+      tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
+      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
+      use_dual_threads_, skip_video_frames_over_60_fps_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1281,10 +1048,6 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
     decoder_status_cb_(kNeedMoreInput,
                        new VideoFrame(video_frame_tracker_->seek_to_time()));
   }
-}
-
-bool MediaCodecVideoDecoder::IsFrameRenderedCallbackEnabled() {
-  return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
 
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {

@@ -71,14 +71,14 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
           return it;
         }
       }
-    }
-
-    // Start looking through the free list from the back.
-    FreeBlockReverseiterator rbegin(end);
-    FreeBlockReverseiterator rend(begin);
-    for (FreeBlockReverseiterator it = rbegin; it != rend; ++it) {
-      if (it->CanFulfill(size, alignment)) {
-        return --it.base();
+    } else {
+      // Start looking through the free list from the back.
+      FreeBlockReverseiterator rbegin(end);
+      FreeBlockReverseiterator rend(begin);
+      for (FreeBlockReverseiterator it = rbegin; it != rend; ++it) {
+        if (it->CanFulfill(size, alignment)) {
+          return --it.base();
+        }
       }
     }
 

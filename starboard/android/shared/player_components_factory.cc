@@ -470,7 +470,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool allow_flush_audio_track_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
+        experimental_features.flush_audio_track_during_seek;
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
         << " audio track during Reset().";

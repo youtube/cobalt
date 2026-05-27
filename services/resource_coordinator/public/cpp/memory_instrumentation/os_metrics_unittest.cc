@@ -182,6 +182,9 @@ TEST(OSMetricsTest, GivesNonZeroResults) {
 #elif BUILDFLAG(IS_APPLE)
   EXPECT_GT(dump.platform_private_footprint->internal_bytes, 0u);
 #endif
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_GT(dump.vm_size_kb, 0u);
+#endif
 }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
@@ -534,6 +537,60 @@ TEST(OSMetricsTest, DetailedMetricsIntegration) {
   OSMetrics::SetSmapsRollupForTesting(nullptr);
 }
 
+class CobaltCoreDetailedMetricsDelegate : public DetailedMetricsDelegate {
+ public:
+  void OnSmapsEntry(absl::string_view name,
+                    const SmapsMetrics& metrics) override {}
+
+  void GetAndResetStats(base::flat_map<std::string, uint64_t>* stats) override {
+    stats_["pss:cobalt_core"] = 100;
+    stats_["rss:cobalt_core"] = 200;
+    *stats = std::move(stats_);
+    stats_.clear();
+  }
+
+  base::WeakPtr<DetailedMetricsDelegate> GetWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::flat_map<std::string, uint64_t> stats_;
+  base::WeakPtrFactory<CobaltCoreDetailedMetricsDelegate> weak_ptr_factory_{
+      this};
+};
+
+TEST(OSMetricsTest, DetailedMetricsCobaltCoreFallback) {
+  if (!MemoryInstrumentation::GetInstance()) {
+    mojo::PendingRemote<mojom::Coordinator> coordinator_remote;
+    MemoryInstrumentation::CreateInstance(std::move(coordinator_remote), true);
+  }
+
+  CobaltCoreDetailedMetricsDelegate delegate;
+
+  base::ScopedFILE temp_smaps;
+  CreateTempFileWithContents(kTestSmaps1, &temp_smaps);
+  OSMetrics::SetProcSmapsForTesting(temp_smaps.get());
+
+  base::ScopedFILE temp_rollup;
+  CreateTempFileWithContents("Pss: 290 kB\nSwapPss: 0 kB\n", &temp_rollup);
+  OSMetrics::SetSmapsRollupForTesting(temp_rollup.get());
+
+  mojom::RawOSMemDump dump;
+  dump.platform_private_footprint = mojom::PlatformPrivateFootprint::New();
+  OSMetrics::MemDumpFlagSet flags;
+  flags.Put(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+
+  EXPECT_TRUE(OSMetrics::FillOSMemoryDump(base::kNullProcessHandle, flags,
+                                          &dump, delegate.GetWeakPtr()));
+
+  ASSERT_TRUE(dump.detailed_stats_kb.has_value());
+  EXPECT_EQ(100u, (*dump.detailed_stats_kb)["pss:cobalt_core"]);
+  EXPECT_EQ(200u, (*dump.detailed_stats_kb)["rss:cobalt_core"]);
+
+  OSMetrics::SetProcSmapsForTesting(nullptr);
+  OSMetrics::SetSmapsRollupForTesting(nullptr);
+}
+
 TEST(OSMetricsTest, DetailedMetricsDisabled) {
   if (!MemoryInstrumentation::GetInstance()) {
     mojo::PendingRemote<mojom::Coordinator> coordinator_remote;
@@ -633,5 +690,5 @@ TEST(OSMetricsTest, DetailedMetricsConcurrency) {
   OSMetrics::SetProcSmapsForTesting(nullptr);
   OSMetrics::SetSmapsRollupForTesting(nullptr);
 }
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 }  // namespace memory_instrumentation

@@ -69,16 +69,16 @@ const void* SbSystemGetExtension(const char* name) {
   }
 #endif
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return third_party::starboard::rdk::shared::GetConfigurationApi();
+    return starboard::GetConfigurationApi();
   }
   else if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
-    return starboard::rdk::shared::GetGraphicsApi();
+    return starboard::GetGraphicsApi();
   }
   else if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return third_party::starboard::rdk::shared::GetPlatformServiceApi();
+    return starboard::GetPlatformServiceApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    return third_party::starboard::rdk::shared::GetAccessibilityApi();
+    return starboard::GetAccessibilityApi();
   }
   return NULL;
 }

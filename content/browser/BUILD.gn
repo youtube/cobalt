@@ -2519,6 +2519,13 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
+  if (disable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [ "browsing_topics/*" ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [ "//components/browsing_topics/common:common" ]
+  }
+
   if (is_android) {
     sources += [
       "memory_pressure/user_level_memory_pressure_signal_generator.cc",
