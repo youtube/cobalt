@@ -197,9 +197,10 @@ class MediaCapabilitiesCache {
                           int frame_height,
                           int bitrate,
                           int fps);
-
-  bool HasTunnelModeVideoDecoderFor(const std::string& mime_type,
-                                    bool must_support_secure);
+  bool HasVideoDecoderFor(const std::string& mime_type,
+                          bool must_support_secure,
+                          bool must_support_hdr,
+                          bool must_support_tunnel_mode);
 
   std::string FindAudioDecoder(const std::string& mime_type, int bitrate);
 

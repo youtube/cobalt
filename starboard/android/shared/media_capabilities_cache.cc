@@ -438,14 +438,13 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
               .empty();
 }
 
-bool MediaCapabilitiesCache::HasTunnelModeVideoDecoderFor(
-    const std::string& mime_type,
-    bool must_support_secure) {
-  return HasVideoDecoderFor(mime_type, must_support_secure,
-                            /*must_support_hdr=*/false,
-                            /*must_support_tunnel_mode=*/true,
-                            /*frame_width=*/0, /*frame_height=*/0,
-                            /*bitrate=*/0, /*fps=*/0);
+bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
+                                                bool must_support_secure,
+                                                bool must_support_hdr,
+                                                bool must_support_tunnel_mode) {
+  return HasVideoDecoderFor(mime_type, must_support_secure, must_support_hdr,
+                            must_support_tunnel_mode, /*frame_width=*/0,
+                            /*frame_height=*/0, /*bitrate=*/0, /*fps=*/0);
 }
 
 std::string MediaCapabilitiesCache::FindAudioDecoder(

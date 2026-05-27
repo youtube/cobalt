@@ -28,6 +28,24 @@ using ::testing::ByMove;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 
+MediaCapabilitiesProvider::VideoCodecCapabilities CreateVp9DecoderCaps(
+    bool is_tunnel_sup,
+    bool is_secure_sup = true,
+    bool is_hdr_capable = false,
+    Range width = Range{0, 1920},
+    Range height = Range{0, 1080},
+    Range bitrate = Range{0, 10'000'000},
+    Range fps = Range{0, 30}) {
+  MediaCapabilitiesProvider::VideoCodecCapabilities caps;
+  caps.push_back(std::make_unique<MockVideoCodecCapability>(
+      "OMX.google.vp9.decoder",
+      /*is_secure_req=*/false, is_secure_sup,
+      /*is_tunnel_req=*/false, is_tunnel_sup,
+      /*is_software_decoder=*/false, is_hdr_capable, width, height, bitrate,
+      fps));
+  return caps;
+}
+
 class MediaCapabilitiesCacheTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -272,124 +290,74 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
   EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
 }
 
-TEST_F(MediaCapabilitiesCacheTest, HasTunnelModeVideoDecoderFor_Supported) {
-  auto populate_caps =
-      [](std::map<std::string,
-                  MediaCapabilitiesProvider::AudioCodecCapabilities>&
-             audio_caps,
-         std::map<std::string,
-                  MediaCapabilitiesProvider::VideoCodecCapabilities>&
-             video_caps) {
-        MediaCapabilitiesProvider::VideoCodecCapabilities vp9_caps;
-        vp9_caps.push_back(std::make_unique<MockVideoCodecCapability>(
-            "OMX.google.vp9.decoder",
-            /*is_secure_req=*/false, /*is_secure_sup=*/true,
-            /*is_tunnel_req=*/false, /*is_tunnel_sup=*/true,
-            /*is_software_decoder=*/false,
-            /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
-            Range{0, 10'000'000}, Range{0, 30}));
-        video_caps["video/x-vnd.on2.vp9"] = std::move(vp9_caps);
-      };
-
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke(populate_caps));
-
-  EXPECT_TRUE(cache_->HasTunnelModeVideoDecoderFor(
-      "video/x-vnd.on2.vp9", /*must_support_secure=*/false));
-}
-
-TEST_F(MediaCapabilitiesCacheTest, HasTunnelModeVideoDecoderFor_NotSupported) {
-  auto populate_caps =
-      [](std::map<std::string,
-                  MediaCapabilitiesProvider::AudioCodecCapabilities>&
-             audio_caps,
-         std::map<std::string,
-                  MediaCapabilitiesProvider::VideoCodecCapabilities>&
-             video_caps) {
-        MediaCapabilitiesProvider::VideoCodecCapabilities vp9_caps;
-        vp9_caps.push_back(std::make_unique<MockVideoCodecCapability>(
-            "OMX.google.vp9.decoder",
-            /*is_secure_req=*/false, /*is_secure_sup=*/true,
-            /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
-            /*is_software_decoder=*/false,
-            /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
-            Range{0, 10'000'000}, Range{0, 30}));
-        video_caps["video/x-vnd.on2.vp9"] = std::move(vp9_caps);
-      };
-
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke(populate_caps));
-
-  EXPECT_FALSE(cache_->HasTunnelModeVideoDecoderFor(
-      "video/x-vnd.on2.vp9", /*must_support_secure=*/false));
-}
-
 TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
-  auto populate_caps =
-      [](std::map<std::string,
-                  MediaCapabilitiesProvider::AudioCodecCapabilities>&
-             audio_caps,
-         std::map<std::string,
-                  MediaCapabilitiesProvider::VideoCodecCapabilities>&
-             video_caps) {
-        MediaCapabilitiesProvider::VideoCodecCapabilities vp9_caps;
-        vp9_caps.push_back(std::make_unique<MockVideoCodecCapability>(
-            "OMX.google.vp9.decoder",
-            /*is_secure_req=*/false, /*is_secure_sup=*/true,
-            /*is_tunnel_req=*/false, /*is_tunnel_sup=*/true,
-            /*is_software_decoder=*/false,
-            /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
-            Range{0, 10'000'000}, Range{0, 30}));
-        video_caps["video/x-vnd.on2.vp9"] = std::move(vp9_caps);
-      };
-
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke(populate_caps));
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+            /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
+            /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
+            Range{0, 10'000'000}, Range{0, 30});
+      }));
 
   EXPECT_TRUE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
                                          /*must_support_secure=*/false,
                                          /*must_support_hdr=*/false,
                                          /*must_support_tunnel_mode=*/false,
-                                         1920, 1080, 5'000'000, 30));
+                                         /*frame_width=*/1920,
+                                         /*frame_height=*/1080,
+                                         /*bitrate=*/5'000'000,
+                                         /*fps=*/30));
 
+  // Width exceeded
   EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
                                           /*must_support_secure=*/false,
                                           /*must_support_hdr=*/false,
                                           /*must_support_tunnel_mode=*/false,
-                                          3840, 2160, 20'000'000, 30));
+                                          /*frame_width=*/3840,
+                                          /*frame_height=*/1080,
+                                          /*bitrate=*/5'000'000,
+                                          /*fps=*/30));
 
+  // Height exceeded
   EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
                                           /*must_support_secure=*/false,
                                           /*must_support_hdr=*/false,
                                           /*must_support_tunnel_mode=*/false,
-                                          1920, 1080, 5'000'000, 60));
+                                          /*frame_width=*/1920,
+                                          /*frame_height=*/2160,
+                                          /*bitrate=*/5'000'000,
+                                          /*fps=*/30));
+
+  // Bitrate exceeded
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                          /*must_support_secure=*/false,
+                                          /*must_support_hdr=*/false,
+                                          /*must_support_tunnel_mode=*/false,
+                                          /*frame_width=*/1920,
+                                          /*frame_height=*/1080,
+                                          /*bitrate=*/20'000'000,
+                                          /*fps=*/30));
+
+  // FPS exceeded
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                          /*must_support_secure=*/false,
+                                          /*must_support_hdr=*/false,
+                                          /*must_support_tunnel_mode=*/false,
+                                          /*frame_width=*/1920,
+                                          /*frame_height=*/1080,
+                                          /*bitrate=*/5'000'000,
+                                          /*fps=*/60));
 }
 
 TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
-  auto populate_caps =
-      [](std::map<std::string,
-                  MediaCapabilitiesProvider::AudioCodecCapabilities>&
-             audio_caps,
-         std::map<std::string,
-                  MediaCapabilitiesProvider::VideoCodecCapabilities>&
-             video_caps) {
-        MediaCapabilitiesProvider::VideoCodecCapabilities vp9_caps;
-        vp9_caps.push_back(std::make_unique<MockVideoCodecCapability>(
-            "OMX.google.vp9.decoder",
-            /*is_secure_req=*/false, /*is_secure_sup=*/true,
-            /*is_tunnel_req=*/false, /*is_tunnel_sup=*/true,
-            /*is_software_decoder=*/false,
-            /*is_hdr_capable=*/true, Range{0, 1920}, Range{0, 1080},
-            Range{0, 10'000'000}, Range{0, 30}));
-        video_caps["video/x-vnd.on2.vp9"] = std::move(vp9_caps);
-      };
-
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke(populate_caps));
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+            /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
+            /*is_hdr_capable=*/true);
+      }));
 
   EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
                                      /*must_support_secure=*/false,
