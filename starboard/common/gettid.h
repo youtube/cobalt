@@ -15,18 +15,31 @@
 #ifndef STARBOARD_COMMON_GETTID_H_
 #define STARBOARD_COMMON_GETTID_H_
 
+#include <unistd.h>
+
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
-#include <sys/syscall.h>
-#include <unistd.h>
+// Fallback for platforms where the toolchain/sysroot <unistd.h> does not
+// declare gettid() natively (e.g., glibc < 2.30).
 #if !defined(gettid)
+
+#include <sys/syscall.h>
+
+// Some toolchains/sysroots (like Musl or embedded RDK toolchains) define the
+// system call number using the kernel-level prefix __NR_gettid rather than the
+// user-level SYS_gettid. Ensure SYS_gettid is defined for compatibility.
+#if !defined(SYS_gettid) && defined(__NR_gettid)
+#define SYS_gettid __NR_gettid
+#endif
+
+#if defined(SYS_gettid)
+// Direct syscall fallback because the system's <unistd.h> doesn't define
+// gettid().
 #define gettid() syscall(SYS_gettid)
-#endif
-#elif BUILDFLAG(IS_ANDROID)
-#include <unistd.h>
 #else
-#error "Unsupported platform for gettid"
+#error "SYS_gettid is not defined on this Starboard platform."
 #endif
+
+#endif  // !defined(gettid)
 
 #endif  // STARBOARD_COMMON_GETTID_H_

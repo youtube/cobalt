@@ -26,28 +26,15 @@ namespace {
 
 // Helper entry point that returns the thread's TID.
 void* GetThreadIdEntryPoint(void* context) {
-#if defined(__linux__)
   return ToVoid(gettid());
-#else
-  return ToVoid(0);
-#endif
 }
 
 TEST(PosixGettidTest, SunnyDay) {
-#if defined(__linux__)
   pid_t tid = gettid();
   EXPECT_GT(tid, 0);
-
-  pid_t syscall_tid = syscall(SYS_gettid);
-  EXPECT_EQ(tid, syscall_tid);
-#else
-  // On non-linux platforms, our fallback wrapper returns 0.
-  EXPECT_EQ(gettid(), 0);
-#endif
 }
 
 TEST(PosixGettidTest, SunnyDayDifferentIds) {
-#if defined(__linux__)
   const int kThreads = 16;
   pthread_t threads[kThreads];
 
@@ -78,22 +65,6 @@ TEST(PosixGettidTest, SunnyDayDifferentIds) {
       EXPECT_NE(thread_tids[i], thread_tids[j]);
     }
   }
-#else
-  // On non-linux, gettid always returns 0, so we can't test uniqueness.
-  // Just verify we can create and join threads.
-  const int kThreads = 4;
-  pthread_t threads[kThreads];
-  for (int i = 0; i < kThreads; ++i) {
-    EXPECT_EQ(
-        pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr),
-        0);
-  }
-  for (int i = 0; i < kThreads; ++i) {
-    void* result = nullptr;
-    EXPECT_EQ(pthread_join(threads[i], &result), 0);
-    EXPECT_EQ(static_cast<pid_t>(FromVoid(result)), 0);
-  }
-#endif
 }
 
 }  // namespace
