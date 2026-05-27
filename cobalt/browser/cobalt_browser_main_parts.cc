@@ -26,6 +26,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -119,6 +120,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+
+  cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();

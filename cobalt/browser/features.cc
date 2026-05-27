@@ -48,5 +48,9 @@ const base::FeatureParam<int> kCpuMetricsIntervalParam{
 const base::FeatureParam<int> kMemoryMetricsIntervalParam{
     &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
 
+BASE_FEATURE(kCobaltMemoryAttributionManager,
+             "CobaltMemoryAttributionManager",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt

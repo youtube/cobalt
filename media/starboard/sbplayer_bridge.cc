@@ -23,6 +23,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -1073,6 +1074,9 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
     return;
   }
 
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+
   DCHECK_NE(state_, kSuspended);
 
   switch (state) {
@@ -1122,6 +1126,9 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
     return;
   }
 
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+
   DCHECK_NE(state_, kSuspended);
 
   if (ticket != SB_PLAYER_INITIAL_TICKET && ticket != ticket_) {
@@ -1159,6 +1166,10 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
   if (player_ != player) {
     return;
   }
+
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+
   host_->OnPlayerError(error, message);
 }
 
@@ -1171,6 +1182,10 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   DecodingBuffers::iterator iter = decoding_buffers_.find(
       reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
   DCHECK(iter != decoding_buffers_.end());
+
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kMedia);
+
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
                << "sample_buffer " << sample_buffer;
