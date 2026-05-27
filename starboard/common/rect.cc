@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
-#include "starboard/player.h"
-// clang-format on
-
-#include "starboard/common/log.h"
 #include "starboard/common/rect.h"
-#include "starboard/shared/starboard/player/player_internal.h"
 
-void SbPlayerSetBounds(SbPlayer player,
-                       int z_index,
-                       int x,
-                       int y,
-                       int width,
-                       int height) {
-  if (!SbPlayerIsValid(player)) {
-    SB_DLOG(WARNING) << "player is invalid.";
-    return;
-  }
-  player->SetBounds(z_index, starboard::Rect(x, y, width, height));
+#include <ostream>
+
+namespace starboard {
+
+std::ostream& operator<<(std::ostream& os, const Rect& rect) {
+  return os << "{x=" << rect.x << ", y=" << rect.y << ", size=" << rect.size
+            << "}";
 }
+
+}  // namespace starboard

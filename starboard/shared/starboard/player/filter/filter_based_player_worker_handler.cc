@@ -390,23 +390,17 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
 Result<void> FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0) {
-    // |z_index| is changed quite frequently.  Assign |z_index| first, so we
-    // only log when the other members of |bounds| have been changed to avoid
-    // spamming the log.
-    bounds_.z_index = bounds.z_index;
-    bool bounds_changed = memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
-    SB_LOG_IF(INFO, bounds_changed)
-        << "Set bounds to "
-        << "x: " << bounds.x << ", y: " << bounds.y
-        << ", width: " << bounds.width << ", height: " << bounds.height
-        << ", z_index: " << bounds.z_index;
+  if (bounds_ != bounds) {
+    // |z_index| is changed quite frequently. Only log when the rect has been
+    // changed to avoid spamming the log.
+    bool rect_changed = bounds_.rect != bounds.rect;
+    SB_LOG_IF(INFO, rect_changed)
+        << "Set bounds to " << bounds.rect << ", z_index: " << bounds.z_index;
 
     bounds_ = bounds;
     if (video_renderer_) {
       // TODO: Force a frame update
-      video_renderer_->SetBounds(bounds.z_index, bounds.x, bounds.y,
-                                 bounds.width, bounds.height);
+      video_renderer_->SetBounds(bounds.z_index, bounds.rect);
     }
   }
 
