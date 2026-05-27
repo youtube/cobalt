@@ -27,6 +27,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
@@ -125,6 +127,14 @@ public abstract class CobaltActivity extends Activity {
   private String mStartDeepLink;
 
   private Object mBackInvokedCallback;
+
+  // Tracks if a physical/hardware back button press is currently in progress.
+  // On Android 13+ (API >= 33) with predictive back gesture enabled, the OS dispatches physical
+  // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
+  // To prevent double-triggering back navigation in the web application (which maps back keys
+  // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
+  // bypass simulated key dispatching.
+  private boolean mPhysicalBackKeyPressed = false;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -285,7 +295,10 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
+                // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
+                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }
@@ -355,6 +368,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = true;
+    }
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
@@ -367,6 +383,9 @@ public abstract class CobaltActivity extends Activity {
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
+    }
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = false;
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -553,6 +572,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onPause() {
+    mPhysicalBackKeyPressed = false;
     CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
   }
@@ -843,13 +863,32 @@ public abstract class CobaltActivity extends Activity {
 
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
+    private static final Handler sHandler = new Handler(Looper.getMainLooper());
+
     static Object register(final CobaltActivity activity) {
       OnBackInvokedCallback callback = new OnBackInvokedCallback() {
         @Override
         public void onBackInvoked() {
-          // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+          if (activity.mPhysicalBackKeyPressed) {
+            return; // Bypassed: physical key events are already driving this navigation
+          }
+
+          // 1. Dispatch keydown to initiate navigation immediately.
           activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+
+          // 2. Simulate physical key release with a 100ms delay.
+          // This mimics natural user latency and prevents the web page's focus manager
+          // from receiving 'keyup' prematurely during asynchronous page transitions
+          // (which would otherwise disrupt cursor/spatial navigation focus restoration).
+          sHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+              if (activity.isDestroyed() || activity.isFinishing()) {
+                return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+              }
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+            }
+          }, 100);
         }
       };
       activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(

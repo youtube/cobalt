@@ -32,9 +32,6 @@ const char kSbFileSepChar = '/';
 // The string form of SB_FILE_SEP_CHAR.
 const char* kSbFileSepString = "/";
 
-// Whether the current platform supports thread priorities.
-const bool kSbHasThreadPrioritySupport = true;
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.

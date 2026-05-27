@@ -28,6 +28,10 @@ _SKIP_LIST = {
     ],
 }
 
+# Default commit to start rolling from if none is specified.
+# Pointing to the last release chore.
+_DEFAULT_START_COMMIT = '2079b05a9fee4de18abd188fa4a6aceb01a77d7e'
+
 
 def get_out(cmd):
   res = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -35,6 +39,11 @@ def get_out(cmd):
 
 
 def get_commits(origin, target, start):
+  """Returns a list of commit lines in chronological order.
+
+  Retrieves commits that are present on the origin branch but not on the target
+  branch, optionally starting from a specific commit.
+  """
   cmd = ['git', 'rev-list', '--oneline', '--reverse', origin, f'^{target}']
   if start:
     cmd.append(f'{start}^..{origin}')
@@ -42,11 +51,16 @@ def get_commits(origin, target, start):
 
 
 def get_pr_set(branch, exclude_branch):
+  """Returns a set of PR numbers that have been merged into the branch.
+
+  Excludes any PRs that exist on the exclude_branch. Automatically accounts for
+  reverted cherry-picks.
+  """
   prs = set()
   cmd = ['git', 'log', '--reverse', '--format=%s', branch, f'^{exclude_branch}']
   subjects = get_out(cmd).splitlines()
   for subject in subjects:
-    match = re.match(r'^(Revert\s+"?)?Cherry pick PR #(\d+):', subject)
+    match = re.match(r"""^(Revert\s+['"]?)?Cherry pick PR #(\d+):""", subject)
     if match:
       revert, pr_num = match.groups()
       if revert:
@@ -112,14 +126,19 @@ def resolve_conflicts(unmerged):
     print(
         f"Resolving 'deleted by us' conflicts: {deleted_by_us}",
         file=sys.stderr)
-    for path in deleted_by_us:
-      subprocess.run(['git', 'rm', path], check=True)
+    subprocess.run(
+        ['git', 'rm', '--'] + deleted_by_us, check=True, stdout=sys.stderr)
     return True
 
   return False
 
 
 def cherry_pick(sha, num, title):
+  """Attempts to cherry-pick a single commit.
+
+  Returns:
+    bool: True if successfully cherry-picked and committed, False otherwise.
+  """
   log_output = get_out(
       ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
   parts = log_output.split('\x00', 2)
@@ -127,11 +146,11 @@ def cherry_pick(sha, num, title):
   author = parts[1]
   body = parts[2] if len(parts) > 2 else ''
 
-  msg = f'Cherry pick PR #{num}: {title}\n\n'
-  msg += f'Refer to original PR: #{num}\n\n'
-  if body:
-    msg += f'{body}\n\n'
-  msg += f'(cherry picked from commit {sha})'
+  body_section = f'{body}\n\n' if body else ''
+  msg = (f'Cherry pick PR #{num}: {title}\n\n'
+         f'Refer to original PR: #{num}\n\n'
+         f'{body_section}'
+         f'(cherry picked from commit {sha})')
 
   cmd = ['git', 'cherry-pick', '--no-commit']
   ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
@@ -163,7 +182,7 @@ def cherry_pick(sha, num, title):
 def main():
   p = argparse.ArgumentParser()
   p.add_argument('--target-branch', required=True)
-  p.add_argument('--start-commit')
+  p.add_argument('--start-commit', default=_DEFAULT_START_COMMIT)
   p.add_argument('--origin-branch', default='main')
   p.add_argument('--max-commits', type=int, default=1000)
   args = p.parse_args()
@@ -181,6 +200,8 @@ def main():
       print(f"Reached commit limit ({args.max_commits}).", file=sys.stderr)
       break
 
+    # Match commits that follow standard PR merge commit format:
+    # "<sha> <title> (#<pr_num>)"
     match = re.match(r'^(\w+) (.*) \(#(\d+)\)$', line)
     if match:
       sha, title, pr_num = match.groups()

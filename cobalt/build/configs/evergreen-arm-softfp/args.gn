@@ -3,5 +3,3 @@ import("//cobalt/build/configs/evergreen_common.gn")
 target_cpu = "arm"
 starboard_path = "starboard/no_platform"
 arm_float_abi = "softfp"
-
-arm_use_neon = true

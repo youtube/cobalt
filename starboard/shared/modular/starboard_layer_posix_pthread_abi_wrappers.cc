@@ -19,7 +19,6 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
-#include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 using starboard::EnsureInitialized;

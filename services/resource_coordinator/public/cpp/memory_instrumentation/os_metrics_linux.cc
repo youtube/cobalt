@@ -575,9 +575,9 @@ void GetSmapsRollup(base::ProcessId pid,
 
 LibChrobaltMem GetLibChrobaltMem(base::ProcessId pid) {
   SmapsRollup rollup;
-  GetSmapsRollup(pid, "libchrobalt.so", &rollup);
+  GetSmapsRollup(pid, "libchrobalt", &rollup);
   if (rollup.pss_kb == 0 && rollup.rss_kb == 0) {
-    GetSmapsRollup(pid, "libcobalt.so", &rollup);
+    GetSmapsRollup(pid, "libcobalt", &rollup);
   }
   return {rollup.pss_kb, rollup.rss_kb};
 }
@@ -589,7 +589,7 @@ uint32_t GetPartitionAllocRss(base::ProcessId pid) {
 }
 #else  // BUILDFLAG(IS_ANDROID)
 namespace {
-constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
+constexpr char kLibChrobaltPattern[] = "libchrobalt";
 constexpr char kPartitionAllocPattern[] = "partition_alloc";
 constexpr char kV8Pattern[] = "v8";
 constexpr char kScudoPattern[] = "scudo";
@@ -627,7 +627,7 @@ enum class RegionType {
 
 RegionType GetRegionType(const char* line) {
   if (absl::StrContains(line, kLibChrobaltPattern) ||
-      absl::StrContains(line, "libcobalt.so")) {
+      absl::StrContains(line, "libcobalt")) {
     return RegionType::kLibChrobalt;
   }
   if (absl::StrContains(line, kPartitionAllocPattern)) {

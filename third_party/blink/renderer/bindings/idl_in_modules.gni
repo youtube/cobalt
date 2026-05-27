@@ -1316,6 +1316,15 @@ if (is_cobalt) {
   }
 }
 
+if (!use_webrtc_peer_connection) {
+  _filtered_static_idl =
+      filter_exclude(
+          static_idl_files_in_modules,
+          [ "//third_party/blink/renderer/modules/peerconnection/*" ])
+  static_idl_files_in_modules = []
+  static_idl_files_in_modules = _filtered_static_idl
+}
+
 # Direct Sockets
 # This uses target_os rather than current_os (which is what is_android is set
 # from) for the case of generating the v8 context snapshot for android. When
@@ -1437,4 +1446,13 @@ if (enable_compute_pressure) {
     "//third_party/blink/renderer/modules/compute_pressure/testing/create_virtual_pressure_source_options.idl",
     "//third_party/blink/renderer/modules/compute_pressure/testing/internals_compute_pressure.idl",
   ]
+}
+
+if (!use_webrtc_peer_connection) {
+  _filtered_testing_idl =
+      filter_exclude(
+          static_idl_files_in_modules_for_testing,
+          [ "//third_party/blink/renderer/modules/peerconnection/testing/*" ])
+  static_idl_files_in_modules_for_testing = []
+  static_idl_files_in_modules_for_testing = _filtered_testing_idl
 }
