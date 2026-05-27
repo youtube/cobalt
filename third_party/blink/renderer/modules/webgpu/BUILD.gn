@@ -120,6 +120,14 @@ blink_modules_sources("webgpu") {
     # something to link to, though WebGPU won't be supported.
     deps += [ "//third_party/dawn/src/dawn:proc" ]
   }
+
+  if (is_cobalt) {
+    if (use_dawn) {
+      deps -= [ "//third_party/dawn/src/dawn/wire" ]
+    } else {
+      deps -= [ "//third_party/dawn/src/dawn:proc" ]
+    }
+  }
 }
 
 source_set("unit_tests") {
