@@ -8,6 +8,15 @@ import 'common.gcl' as common
 config build = common.build {
   //
   build_file = 'src/cobalt/devinfra/kokoro/bin/presubmit_build_mac.sh'
+  action = [
+    {
+      define_artifacts = {
+        regex = [
+          '**/*sponge_log.xml',
+        ]
+      }
+    }
+  ]
   env_vars = super.env_vars + [
     {
       key = 'CONFIG'

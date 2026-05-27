@@ -88,12 +88,15 @@ EOF
 
   if [[ "${GN_TARGET}" == *"cobalt_browsertests"* ]]; then
     echo "Running Cobalt Browser Tests in Simulator..."
+    # Store XML test log in dedicated subdirectory so ResultStore/Sponge parses it correctly
+    local xml_dir="${out_dir}/test_output/cobalt_browsertests"
+    mkdir -p "${xml_dir}"
     time "${out_dir}"/iossim \
      -x tvos \
      -d "Apple TV 4K (3rd generation)" \
      -v \
      -i \
-     -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
+     -c "--gtest_filter=ContentMainRunnerImplBrowserTest.* --gtest_output=xml:${xml_dir}/sponge_log.xml" \
      "${out_dir}"/cobalt_browsertests.app
   fi
 
