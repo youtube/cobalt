@@ -14,7 +14,10 @@
   },
   "targets": [
     "cobalt:gn_all",
-    "loader_app"
+    "loader_app",
+    "crash_sandbox",
+    "noop_sandbox",
+    "one_app_only_sandbox"
   ],
   "includes": [
     {
