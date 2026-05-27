@@ -23,10 +23,15 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/threading/platform_thread.h"
+#include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
 #include "content/public/browser/browser_thread.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
 
 namespace cobalt {
 
@@ -203,8 +208,34 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
+      // Ensure all intermediate state changes are triggered.
+      TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
+      break;
     case kSbEventTypeFreeze:
+#if BUILDFLAG(USE_EVERGREEN)
+    {
+      cobalt::updater::UpdaterModule* updater_module =
+          cobalt::updater::UpdaterModule::GetInstance();
+      if (updater_module) {
+        LOG(INFO) << "Suspending UpdaterModule singleton.";
+        updater_module->Suspend();
+      }
+    }
+#endif
+      // Ensure all intermediate state changes are triggered.
+      TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
+      break;
     case kSbEventTypeUnfreeze:
+#if BUILDFLAG(USE_EVERGREEN)
+    {
+      cobalt::updater::UpdaterModule* updater_module =
+          cobalt::updater::UpdaterModule::GetInstance();
+      if (updater_module) {
+        LOG(INFO) << "Resuming UpdaterModule singleton.";
+        updater_module->Resume();
+      }
+    }
+#endif
       // Ensure all intermediate state changes are triggered.
       TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
       break;
