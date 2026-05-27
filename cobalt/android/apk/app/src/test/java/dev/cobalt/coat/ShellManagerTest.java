@@ -23,7 +23,7 @@ import android.widget.FrameLayout;
 
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
+import dev.cobalt.shell.ContentViewRenderView;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,7 +44,7 @@ public class ShellManagerTest {
   private Activity mActivity;
   private ShellManager mShellManager;
   private FrameLayout mRootView;
-  @Mock private dev.cobalt.shell.ContentViewRenderView mMockContentViewRenderView;
+  @Mock private ContentViewRenderView mMockContentViewRenderView;
 
 
   @Before
