@@ -34,6 +34,7 @@ set(PLUGIN_COBALT_EXTERNAL_COBALT_LIBRARY "" CACHE STRING "Path of libloader_app
 option(PLUGIN_COBALT_ENABLE_FOCUS_IFACE "Enable support for focus change." OFF)
 option(PLUGIN_COBALT_EVEGREEN_LITE "Enable Evergreen Lite build configuration." OFF)
 option(PLUGIN_COBALT_EVEGREEN_COMPATIBLE "Enable Evergreen compatible configuration." OFF)
+option(PLUGIN_COBALT_ENABLE_DEVTOOLS "Enable DevTools remote debugging port (devel builds)." OFF)
 
 if(PLUGIN_COBALT_ENABLE_FOCUS_IFACE)
     add_definitions(-DPLUGIN_COBALT_ENABLE_FOCUS_IFACE=1)
