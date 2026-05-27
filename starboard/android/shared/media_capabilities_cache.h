@@ -129,7 +129,7 @@ class VideoCodecCapability : public CodecCapability {
   // VideoCapabilities.areSizeAndRateSupported() or
   // VideoCapabilities.isSizeSupported() will be used to check the
   // supportability.
-  bool AreResolutionAndRateSupported(const Size& size, int fps) const;
+  bool AreResolutionAndRateSupported(Size size, int fps) const;
 
  protected:
   VideoCodecCapability(std::string name,
@@ -207,7 +207,7 @@ class MediaCapabilitiesCache {
                           bool must_support_secure,
                           bool must_support_hdr,
                           bool must_support_tunnel_mode,
-                          const Size& frame_size,
+                          Size frame_size,
                           int bitrate,
                           int fps);
   bool HasVideoDecoderFor(const std::string& mime_type,
@@ -243,7 +243,7 @@ class MediaCapabilitiesCache {
                                bool must_support_hdr,
                                bool require_software_codec,
                                bool must_support_tunnel_mode,
-                               const Size& frame_size,
+                               Size frame_size,
                                int bitrate,
                                int fps);
 

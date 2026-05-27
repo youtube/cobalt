@@ -29,7 +29,7 @@ struct Size {
   constexpr bool IsEmpty() const { return width <= 0 || height <= 0; }
   constexpr int GetArea() const { return width * height; }
 
-  constexpr bool FitsWithin(const Size& other) const {
+  constexpr bool FitsWithin(Size other) const {
     return this->width <= other.width && this->height <= other.height;
   }
 

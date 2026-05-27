@@ -177,7 +177,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::ConvertTo(
 // static
 scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     int bit_depth,
-    const Size& size,
+    Size size,
     int source_y_pitch_in_bytes,
     int source_uv_pitch_in_bytes,
     int64_t timestamp,
