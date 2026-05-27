@@ -46,8 +46,10 @@ struct Rect {
   int y;
   Size size;
 
-  static constexpr Rect kEmpty = Rect();
+  static const Rect kEmpty;
 };
+
+constexpr Rect Rect::kEmpty = Rect();
 
 std::ostream& operator<<(std::ostream& os, const Rect& rect);
 
