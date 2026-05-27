@@ -9,6 +9,15 @@ This skill guides an AI coding agent through the step-by-step process of disabli
 
 ---
 
+> [!IMPORTANT]
+> **Core Philosophy: Surgical Minimality & Upstream Friendliness**
+> The paramount principle of feature removal in Cobalt/Chrobalt is that **every change must be as minimal and upstream-friendly as possible to avoid future merge conflicts**.
+> 1. **Never delete code or headers unnecessarily**: Only gate or prune feature-specific files. Keep core/shared files (e.g., standard Chromium C++ files, standard headers) fully intact and untouched.
+> 2. **Never break transitive include assumptions**: Avoid removing standard C++ headers that are not strictly owned by the excluded feature. Upstream merges assume core files import their expected core headers.
+> 3. **Utilize dynamic pruning over static edits**: Use `bindings.gni` dynamic exclude patterns and GN `filter_exclude` rather than editing static lists like `generated_in_modules.gni` to keep downstream maintenance completely conflict-free.
+
+---
+
 ## 1. High-Level Workflow Overview
 
 The feature removal process follows a four-phase methodology:
@@ -52,19 +61,13 @@ buildflag_header("buildflags") {
 ```
 This will generate `buildflags.h` defining the macro `BUILDFLAG(ENABLE_<FEATURE_NAME>)`.
 
-> [!TIP]
-> **Smart Header Inclusion Rules**:
-> 1. **Do NOT blindly add `#include "third_party/blink/public/common/buildflags.h"`** to every `.cc` or `.h` file you modify.
-> 2. **Check for Transitive Inclusion**: If the file already transitively includes `buildflags.h` (e.g., through a core header like `third_party/blink/public/common/features.h` or its own corresponding `.h` header file), you can use `BUILDFLAG(ENABLE_<FEATURE_NAME>)` directly without adding the `#include` statement.
-> 3. **Verify First**: Apply the preprocessor gating (`#if BUILDFLAG(...)`) and try running `gn gen` and compile. Only add the explicit `#include` statement if the compilation fails with an undeclared/undefined macro error.
->
-> If an include is required:
-> ```cpp
-> #include "third_party/blink/public/common/buildflags.h"
-> #if BUILDFLAG(ENABLE_<FEATURE_NAME>)
-> ...
-> #endif
-> ```
+> [!IMPORTANT]
+> **Strict Header Inclusion (Include What You Use - IWYU)**:
+> 1. **Always explicitly include the buildflags header**: If you modify any C++ source (`.cc`) or header (`.h`) file to add a feature gating preprocessor macro (`#if BUILDFLAG(ENABLE_<FEATURE>)`), you **must** explicitly include the generated buildflags header at the top of the file:
+>    ```cpp
+>    #include "third_party/blink/public/common/buildflags.h"
+>    ```
+> 2. **Why transitive includes are prohibited**: While the buildflags header might be transitively (indirectly) included on some platforms (e.g., compiling successfully on Android), different target platforms (like Linux) or upstream header cleanup refactorings will frequently omit that indirect include, breaking compilation. Explicitly including the header ensures cross-platform robustness and 100% upgrade-resiliency.
 
 ---
 
@@ -102,7 +105,11 @@ To prevent massive line-by-line code conflicts with upstream Chromium branches, 
      sources = _filtered_sources
    }
    ```
-4. If the target compiles auto-generated Web IDL bindings (e.g., inside `third_party/blink/renderer/bindings/`), apply a similar filter to `static_idl_files_in_modules` using the matching directory prefix (e.g. `[ "//third_party/blink/renderer/modules/feature_dir/*" ]`).
+
+    > [!WARNING]
+    > **The Mojo Typemap Paradox (SHARED Targets)**:
+    > Mojo C++ bindings use **typemaps** to map Mojom types to existing production C++ structs (e.g., mapping `blink.mojom.InterestGroup` to `blink::InterestGroup`). Completely excluding these production C++ structs from `common` SHARED libraries causes `mojom_platform` compilation to fail.
+    > **Instruction**: Never strip production C++ data structs from SHARED targets if they are referenced in Mojo typemaps. Keep minimal, inert C++ struct definitions inside the common library while completely severing their active handlers, tests, and business logic.
 
 ---
 
@@ -113,14 +120,14 @@ The JSON report lists all direct C++ includes of feature headers under the `"cpp
 For each entry in the audit:
 1. Open the C++ source file listed under `"file"`.
 2. Locate the matching `#include` statement listed in `"referenced_headers"`.
-3. Wrap the include using preprocessor macros, only adding the `#include "third_party/blink/public/common/buildflags.h"` statement if it is not already transitively included in the file:
+3. Wrap the include using preprocessor macros, ensuring the buildflags header is explicitly included at the top of the file as per the **Strict Header Inclusion (IWYU)** rule in Phase 1:
    ```cpp
    #if BUILDFLAG(ENABLE_<FEATURE_NAME>)
    #include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
    #endif  // BUILDFLAG(ENABLE_<FEATURE_NAME>)
    ```
    > [!IMPORTANT]
-   > Always append **`// nogncheck`** to gated includes that refer to headers compiled in gated targets. This prevents the GN build-system dependency-checker from raising untracked header errors. Refer to the **Smart Header Inclusion Rules** in Phase 1 to avoid redundant buildflag header inclusions.
+   > Always append **`// nogncheck`** to gated includes that refer to headers compiled in gated targets. This prevents the GN build-system dependency-checker from raising untracked header errors. Refer to the **Strict Header Inclusion (IWYU)** rule in Phase 1 to ensure the buildflags header is always explicitly included.
 
 4. Locate all usages of classes, methods, or variables defined in that header within the file.
 5. Wrap those usages with the same preprocessor block:
@@ -136,6 +143,26 @@ For each entry in the audit:
 
 6. **Check for V8 IDL Bindings**: If the C++ integration point resides inside `v8_script_value_serializer_for_modules.cc` or another serialization class, make sure to wrap both serialization registration and serialization method bodies.
 
+#### Advanced C++ Gating Rules
+
+*   **Gate DevTools Auto-Attachers & Observers**: Auto-attachers or observers (such as `FrameAutoAttacher`) often inherit from tracker classes in the excluded feature directories, causing compilation to crash because the base classes are missing. Always check if the feature defines a manager, observer, or tracker inside the DevTools directory. Gird the class inheritance (multiple inheritance blocks), declarations, and corresponding implementation callbacks inside preprocessor gates.
+*   **Sever Mojo Exposed Binders**: Renderer processes expose Mojo services to the browser at startup. If the service implementation is excluded, the exposed binder list will cause unresolved symbol linker errors. Always check where the service is exposed to the browser (e.g., `browser_exposed_renderer_interfaces.cc` or `ExposeInterfacesToBrowser`). Wrap both the include statements and the binders registration blocks inside the preprocessor gates:
+    ```cpp
+    #if BUILDFLAG(ENABLE_<FEATURE>)
+      binders->Add<...>(...);
+    #endif
+    ```
+*   **Stub Mojo-Overridden Methods Instead of Removing**: If a Mojo interface (like `LocalFrameHost`) defines a method belonging to the feature, trying to remove its declaration from `RenderFrameHostImpl` will break the Mojo C++ interface override contracts. Keep the method declaration intact, but **guard the method body** so it does nothing or safely reports a bad message when the feature is disabled:
+    ```cpp
+    void RenderFrameHostImpl::SomeFeatureMethod(...) {
+    #if BUILDFLAG(ENABLE_<FEATURE>)
+      // Production implementation...
+    #else
+      mojo::ReportBadMessage("Feature is disabled.");
+    #endif
+    }
+    ```
+
 ---
 
 ### Phase 5: Address Static Analysis Tool Limitations (Manual Auditing)
@@ -143,9 +170,11 @@ For each entry in the audit:
 Because the static analysis tool relies strictly on production C++ symbol databases, the agent **must** execute the following manual audits to prevent compile-time or runtime crashes:
 
 #### 1. Audit Web IDL & V8 generated bindings
-If the feature exposes any APIs to JavaScript (defined in `.idl` files), you must filter them out:
+If the feature exposes any APIs to JavaScript (defined in `.idl` files), you must filter them out from both the **input IDL graph** and the **expected bindings list** to satisfy the bindings generator's strict bi-directional validation contracts (Rule 1: every expected source must be generated, Rule 2: every generated source must be expected).
+
+Follow these instructions:
 1. Open `third_party/blink/renderer/bindings/idl_in_modules.gni`.
-2. Locate `static_idl_files_in_modules` and apply the negative filter block to exclude the feature's IDL directory:
+2. Locate `static_idl_files_in_modules` and apply the negative filter block to exclude the feature's IDL directory (stops files from being compiled into the Web IDL database, preventing their generation):
    ```gn
    if (!enable_<feature_name>) {
      _filtered_static_idl =
@@ -156,7 +185,47 @@ If the feature exposes any APIs to JavaScript (defined in `.idl` files), you mus
      static_idl_files_in_modules = _filtered_static_idl
    }
    ```
-3. Check `third_party/blink/renderer/bindings/bindings.gni` and add exclusion patterns (e.g. `*<feature_name>*`) to `cobalt_bindings_exclude_patterns`.
+3. Open `third_party/blink/renderer/bindings/bindings.gni`. Define your V8 generated source exclusion patterns conditionally based on your feature build flag under `cobalt_bindings_exclude_patterns`. **Never** edit the static manifest `generated_in_modules.gni` directly as it is auto-generated and will cause merge conflicts or get overwritten:
+   ```gn
+   # In third_party/blink/renderer/bindings/bindings.gni
+   cobalt_bindings_exclude_patterns = []
+   ...
+   if (!enable_<feature_name>) {
+     cobalt_bindings_exclude_patterns += [
+       "*_feature_pattern_1_*",
+       "*_feature_pattern_2_*",
+     ]
+   }
+   ```
+   > [!IMPORTANT]
+   > Make sure to list **all** wildcard variations matching any V8 binding files generated for the feature (e.g. checking for dictionaries, interfaces, unions, and enumerations) to prevent the `check_generated_file_list` validator from throwing unlisted source errors.
+4. Verify that the parent targets in `third_party/blink/renderer/bindings/BUILD.gn` and `third_party/blink/renderer/bindings/modules/v8/BUILD.gn` apply the exclusions generically:
+   ```gn
+   if (cobalt_bindings_exclude_patterns != []) {
+     _filtered_sources = filter_exclude(sources, cobalt_bindings_exclude_patterns)
+     sources = []
+     sources = _filtered_sources
+   }
+   ```
+
+   > [!TIP]
+   > **Web IDL Modularity & Cross-Module Dependencies (The Partial IDL Interface Pattern)**:
+   > If a core, shared IDL file (like `shared_storage_worklet_global_scope.idl` in `modules/shared_storage/`) directly declares a method or attribute referencing a type defined in a gated feature directory (like `StorageInterestGroup` inside the gated `modules/ad_auction/` directory), excluding the feature IDLs will immediately crash the IDL parser due to an "undefined type" error.
+   > **Instruction**: Never statically delete the method from the core IDL, as it breaks compilation when the feature flag is set to `true`. Instead, refactor the method out of the core IDL file and declare it as a **`partial interface`** inside a **new IDL file located inside the feature's gated directory** (e.g., `modules/ad_auction/shared_storage_worklet_global_scope_interest_groups.idl`):
+   > ```webidl
+   > [
+   >   Global=SharedStorageWorklet,
+   >   Exposed=SharedStorageWorklet
+   > ]
+   > partial interface SharedStorageWorkletGlobalScope {
+   >   [
+   >     RuntimeEnabled=InterestGroupsInSharedStorageWorklet,
+   >     CallWith=ScriptState,
+   >     RaisesException
+   >   ] Promise<sequence<StorageInterestGroup>> interestGroups();
+   > };
+   > ```
+   > This completely severs the cross-module compile-time dependency. When the feature flag is `false`, the feature directory (and thus the partial interface) is excluded, letting the core IDL compile cleanly. When the flag is `true`, both compile and merge perfectly.
 
 #### 2. Audit Unit Test targets
 Unit test and mocking files are compiled into separate test executables, which are invisible to the production build graph:
@@ -184,22 +253,7 @@ Some parent targets might depend on the feature target to inherit compilation co
 2. Review the returned parent targets. **Only apply list subtraction (`deps -= [...]` or `public_deps -= [...]`) in parent targets that EXPLICITLY list the feature target in their own target definition blocks.**
 3. If a parent target transitively inherits the dependency through another middleman target, do **not** add a subtraction block there. The dependency will be cleanly severed automatically once you disable it in the direct parent target.
 
----
 
-#### 4. Audit Mojo IPC Benders
-If the feature utilizes Mojo IPC interface definitions (found in `.mojom` files), both processes communicate using auto-generated headers rather than direct implementation headers.
-1. Locate all `.mojom` files in the feature's directory.
-2. Search the codebase for references to the generated interface classes (e.g. `mojom::AdAuctionService` or its binder registration).
-3. Locate where the interfaces are registered in the Mojo interface binder map (e.g., `content/browser/browser_interface_binders.cc` or `third_party/blink/renderer/modules/modules_initializer.cc`).
-4. Wrap both the include statement and the registry mapping block:
-   ```cpp
-   #if BUILDFLAG(ENABLE_<FEATURE_NAME>)
-     frame.GetInterfaceRegistry()->AddInterface(
-         WTF::BindRepeating(&<FeatureName>Tracker::BindToFrame, ...));
-   #endif  // BUILDFLAG(ENABLE_<FEATURE_NAME>)
-   ```
-
----
 
 ## 3. Build & Verification Checklist
 
@@ -212,46 +266,12 @@ gn gen out/android-arm_gold
 ```
 
 ### Step 2: Perform a local compile
-Compile the target binary using `autoninja`. **If compilation, linkage, or header checking raises errors, surgically troubleshoot them** (by adding missing macro guards, routing fallbacks, or gating headers) and repeat compiling until it succeeds completely:
+Compile the target binary using `autoninja`. **If compilation, linkage, or header checking raises errors or warnings, surgically troubleshoot them**:
+* **Address Compiler Warnings**: Gating/removing C++ business logic often leaves helper functions, static functions, or constants unused, triggering strict `-Wunused-function` or `-Wunused-variable` compiler warnings. **Always resolve these warnings** by extending the preprocessor gating blocks (`#if BUILDFLAG(...)`) to enclose the unused static helpers or variables cleanly. Never leave compiler warnings unresolved, as production compiles treat warnings as errors.
+* Repeat compiling until it succeeds completely and cleanly:
 ```bash
 autoninja -C out/android-arm_gold cobalt_apk
 ```
 
 ### Step 3: Assert size savings
 Compare the resulting binary size of the shared object with the baseline to verify that the proportional size savings match the expectations computed by the SuperSize tool.
-
----
-
-## 4. Architectural Lessons & Troubleshooting Guidelines for Future Feature Removals
-
-Based on technical challenges faced during past surgical removals, future removals must adhere to these critical rules to prevent complex compilation and linker crashes:
-
-### Rule 1: The Mojo Typemap Paradox (SHARED Targets)
-* **Problem**: Mojo C++ bindings use **typemaps** to map Mojom types to existing production C++ structs (e.g., mapping `blink.mojom.InterestGroup` to `blink::InterestGroup`). Completely excluding these production C++ structs from `common` SHARED libraries causes `mojom_platform` compilation to fail.
-* **Instruction**: Never strip production C++ data structs from SHARED targets if they are referenced in Mojo typemaps. Keep minimal, inert C++ struct definitions inside the common library while completely severing their active handlers, tests, and business logic.
-
-### Rule 2: Gate DevTools Auto-Attachers & Observers
-* **Problem**: Auto-attachers or observers (such as `FrameAutoAttacher`) often inherit from tracker classes in the excluded feature directories, causing compilation to crash because the base classes are missing.
-* **Instruction**: Always check if the feature defines a manager, observer, or tracker inside the DevTools directory. Gird both the class inheritance (multiple inheritance blocks), declarations, and corresponding implementation callbacks (e.g. `AuctionWorkletCreated`) inside preprocessor gates.
-
-### Rule 3: Sever Mojo Exposed Binders
-* **Problem**: Renderer processes expose Mojo services to the browser at startup. If the service implementation is excluded, the exposed binder list will cause unresolved symbol linker errors.
-* **Instruction**: Always check where the service is exposed to the browser (e.g., `browser_exposed_renderer_interfaces.cc` or `ExposeInterfacesToBrowser`). Wrap both the include statements and the binders registration blocks inside the preprocessor gates:
-  ```cpp
-  #if BUILDFLAG(ENABLE_<FEATURE>)
-    binders->Add<...>(...);
-  #endif
-  ```
-
-### Rule 4: Stub Mojo-Overridden Methods Instead of Removing
-* **Problem**: If a Mojo interface (like `LocalFrameHost`) defines a method belonging to the feature, trying to remove its declaration from `RenderFrameHostImpl` will break the Mojo C++ interface override contracts.
-* **Instruction**: Keep the method declaration intact, but **guard the method body** so it does nothing or safely reports a bad message when the feature is disabled:
-  ```cpp
-  void RenderFrameHostImpl::SomeFeatureMethod(...) {
-  #if BUILDFLAG(ENABLE_<FEATURE>)
-    // Production implementation...
-  #else
-    mojo::ReportBadMessage("Feature is disabled.");
-  #endif
-  }
-  ```
