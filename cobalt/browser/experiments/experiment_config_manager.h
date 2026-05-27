@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 #define COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 
+#include <optional>
+
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_service.h"
@@ -67,8 +69,7 @@ class ExperimentConfigManager {
   // PrefService for metrics local state.
   const raw_ptr<PrefService> metrics_local_state_;
 
-  bool has_cached_config_type_ = false;
-  ExperimentConfigType cached_config_type_;
+  std::optional<ExperimentConfigType> cached_config_type_;
 
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            StoreSafeConfigWithRegularConfig);

@@ -127,8 +127,8 @@ ExperimentConfigManager::ExperimentConfigManager(
 }
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
-  if (has_cached_config_type_) {
-    return cached_config_type_;
+  if (cached_config_type_) {
+    return *cached_config_type_;
   }
 
   DCHECK(metrics_local_state_);
@@ -152,8 +152,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
                 "than to use the safe one.");
   if (num_crashes >= crash_streak_empty_config_threshold) {
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
-    has_cached_config_type_ = true;
-    return cached_config_type_;
+    return ExperimentConfigType::kEmptyConfig;
   }
 
   ExperimentConfigType config_type;
@@ -178,8 +177,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // treat it as an empty config.
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
-    has_cached_config_type_ = true;
-    return cached_config_type_;
+    return ExperimentConfigType::kEmptyConfig;
   }
 
   // Check if a rollback happened. If so, apply the empty config.
@@ -195,13 +193,11 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
           VersionComparisonResult::kGreaterThan) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.RollbackDetected", true);
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
-    has_cached_config_type_ = true;
-    return cached_config_type_;
+    return ExperimentConfigType::kEmptyConfig;
   }
 
   cached_config_type_ = config_type;
-  has_cached_config_type_ = true;
-  return cached_config_type_;
+  return config_type;
 }
 
 void ExperimentConfigManager::StoreSafeConfig() {
