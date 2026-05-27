@@ -23,6 +23,16 @@
 // declare gettid() natively (e.g., glibc < 2.30).
 #if !defined(gettid)
 
+// TODO(b/517239886): Apple is not a Starboard platform and the Apple
+// dependencies on this file need to be cleaned up.
+#if BUILDFLAG(IS_IOS_TVOS)
+#include <pthread.h>
+inline pid_t gettid() {
+  return pthread_mach_thread_np(pthread_self());
+}
+
+#else  // !BUILDFLAG(IS_IOS_TVOS)
+
 #include <sys/syscall.h>
 
 // Some toolchains/sysroots (like Musl or embedded RDK toolchains) define the
@@ -39,6 +49,8 @@
 #else
 #error "SYS_gettid is not defined on this Starboard platform."
 #endif
+
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
 
 #endif  // !defined(gettid)
 
