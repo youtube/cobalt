@@ -302,6 +302,12 @@ void XRSystem::MakeXrCompatibleAsync(device::mojom::blink::VRService::MakeXrComp
   std::move(callback).Run(device::mojom::blink::XrCompatibleResult::kNoDeviceAvailable);
 }
 
+void XRSystem::MakeXrCompatibleSync(device::mojom::XrCompatibleResult* xr_compatible_result) {
+  if (xr_compatible_result) {
+    *xr_compatible_result = device::mojom::XrCompatibleResult::kNoDeviceAvailable;
+  }
+}
+
 XRFrameProvider* XRSystem::frameProvider() {
   return nullptr;
 }
