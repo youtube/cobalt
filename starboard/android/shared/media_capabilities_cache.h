@@ -209,15 +209,6 @@ class MediaCapabilitiesCache {
                                bool must_support_hdr,
                                bool require_software_codec,
                                bool must_support_tunnel_mode);
-  std::string FindVideoDecoder(const std::string& mime_type,
-                               bool must_support_secure,
-                               bool must_support_hdr,
-                               bool require_software_codec,
-                               bool must_support_tunnel_mode,
-                               int frame_width,
-                               int frame_height,
-                               int bitrate,
-                               int fps);
 
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
@@ -236,6 +227,16 @@ class MediaCapabilitiesCache {
 
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
+
+  std::string FindVideoDecoder(const std::string& mime_type,
+                               bool must_support_secure,
+                               bool must_support_hdr,
+                               bool require_software_codec,
+                               bool must_support_tunnel_mode,
+                               int frame_width,
+                               int frame_height,
+                               int bitrate,
+                               int fps);
 
   void UpdateMediaCapabilities_Locked();
   void LoadAudioConfigurations_Locked();
