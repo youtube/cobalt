@@ -14,6 +14,11 @@
 
 // Custom API for hiding, showing, focusing, blurring, and receiving input
 // from an on screen keyboard.
+//
+// This IDL definition was imported almost verbatim from C25:
+// https://github.com/youtube/cobalt/blob/25.lts.1%2B/cobalt/dom/on_screen_keyboard.idl
+// with minor adjustments for Blink in the extended attributes and replacing
+// DOMRect with DOMRectReadOnly for boundingRect.
 
 [
     Exposed=Window,
