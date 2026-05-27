@@ -28,6 +28,11 @@ using ::testing::ByMove;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 
+using AudioCodecCapabilities =
+    MediaCapabilitiesProvider::AudioCodecCapabilities;
+using VideoCodecCapabilities =
+    MediaCapabilitiesProvider::VideoCodecCapabilities;
+
 class MediaCapabilitiesCacheTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -206,69 +211,344 @@ TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_DisabledCache) {
   EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
 }
 
-TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
-  SbMediaAudioConfiguration config;
-
-  EXPECT_CALL(*mock_media_capabilities_provider_, GetIsWidevineSupported())
-      .Times(2)
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
-
-  EXPECT_CALL(*mock_media_capabilities_provider_, GetIsCbcsSchemeSupported())
-      .Times(2)
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
-
-  EXPECT_CALL(*mock_media_capabilities_provider_, GetSupportedHdrTypes())
-      .Times(2)
-      .WillRepeatedly(
-          Return(std::set<SbMediaTransferId>{kSbMediaTransferIdSmpteSt2084}));
-
+TEST_F(MediaCapabilitiesCacheTest, FindAudioDecoderEnabledCacheFound) {
+  std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities;
+  audio_codec_capabilities["audio/mp4a-latm"].push_back(
+      std::make_unique<MockAudioCodecCapability>(
+          "decoder_aac", false, false, false, false, Range(0, 256000)));
   EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetIsPassthroughSupported(testing::_))
-      .Times(2)
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
+              GetCodecCapabilities(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+              std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            audio_caps = std::move(audio_codec_capabilities);
+          }));
 
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 192000), "decoder_aac");
+  // Call again to test cache.
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 192000), "decoder_aac");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindAudioDecoderEnabledCacheNotFound) {
+  std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities;
+  audio_codec_capabilities["audio/mp4a-latm"].push_back(
+      std::make_unique<MockAudioCodecCapability>(
+          "decoder_aac", false, false, false, false, Range(0, 256000)));
   EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(testing::_, testing::_))
-      .Times(4)
-      .WillOnce(Return(true))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
+              GetCodecCapabilities(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+              std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            audio_caps = std::move(audio_codec_capabilities);
+          }));
+
+  // Mime type not found.
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/opus", 192000), "");
+  // Bitrate not supported.
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 300000), "");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindAudioDecoderDisabledCache) {
+  cache_->SetCacheEnabled(false);
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              FindAudioDecoder("audio/mp4a-latm", 192000))
+      .Times(2)
+      .WillOnce(Return("decoder_aac"))
+      .WillOnce(Return(""));
+
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 192000), "decoder_aac");
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 192000), "");
+}
+
+TEST_F(MediaCapabilitiesCacheTest,
+       FindAudioDecoderEnabledCacheDecoderSelection) {
+  std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities;
+  // A high-bitrate decoder.
+  audio_codec_capabilities["audio/mp4a-latm"].push_back(
+      std::make_unique<MockAudioCodecCapability>(
+          "decoder_aac_hq", false, false, false, false, Range(256000, 512000)));
+  // A low-bitrate decoder.
+  audio_codec_capabilities["audio/mp4a-latm"].push_back(
+      std::make_unique<MockAudioCodecCapability>(
+          "decoder_aac_lq", false, false, false, false, Range(0, 256000)));
 
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+              std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            audio_caps = std::move(audio_codec_capabilities);
+          }));
+
+  // Low bitrate can only be handled by the second decoder.
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 192000),
+            "decoder_aac_lq");
+
+  // High bitrate can only be handled by the first decoder.
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 320000),
+            "decoder_aac_hq");
+
+  // Unsupported bitrate is not handled by any decoder.
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4a-latm", 600000), "");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoderEnabledCacheFound) {
+  std::map<std::string, VideoCodecCapabilities> video_codec_capabilities;
+  video_codec_capabilities["video/avc"].push_back(
+      std::make_unique<MockVideoCodecCapability>(
+          "decoder_h264",      // name
+          false,               // is_secure_req
+          true,                // is_secure_sup
+          false,               // is_tunnel_req
+          true,                // is_tunnel_sup
+          false,               // is_software_decoder
+          true,                // is_hdr_capable
+          Range(0, 1920),      // supported_widths
+          Range(0, 1080),      // supported_heights
+          Range(0, 20000000),  // supported_bitrates
+          Range(0, 30)));      // supported_frame_rates
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+              std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            video_caps = std::move(video_codec_capabilities);
+          }));
+
+  // Simple case.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "decoder_h264");
+  // Call again to test cache.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "decoder_h264");
+  // Secure required.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", true, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "decoder_h264.secure");
+  // HDR required.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, true, false, false,
+                                     1280, 720, 1000000, 30),
+            "decoder_h264");
+  // Tunnel mode required.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, true,
+                                     1280, 720, 1000000, 30),
+            "decoder_h264");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoderEnabledCacheNotFound) {
+  std::map<std::string, VideoCodecCapabilities> video_codec_capabilities;
+  video_codec_capabilities["video/avc"].push_back(
+      std::make_unique<MockVideoCodecCapability>(
+          "decoder_h264",      // name
+          false,               // is_secure_req
+          false,               // is_secure_sup
+          false,               // is_tunnel_req
+          false,               // is_tunnel_sup
+          false,               // is_software_decoder
+          false,               // is_hdr_capable
+          Range(0, 1920),      // supported_widths
+          Range(0, 1080),      // supported_heights
+          Range(0, 20000000),  // supported_bitrates
+          Range(0, 30)));      // supported_frame_rates
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+              std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            video_caps = std::move(video_codec_capabilities);
+          }));
+
+  // Mime type not found.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/vp9", false, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "");
+  // Secure required but not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", true, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "");
+  // HDR required but not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, true, false, false,
+                                     1280, 720, 1000000, 30),
+            "");
+  // Tunnel mode required but not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, true,
+                                     1280, 720, 1000000, 30),
+            "");
+  // Software decoder required but not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, true, false,
+                                     1280, 720, 1000000, 30),
+            "");
+  // Resolution not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     3840, 2160, 1000000, 30),
+            "");
+  // Frame rate not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1920, 1080, 1000000, 60),
+            "");
+  // Bitrate not supported.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1920, 1080, 30000000, 30),
+            "");
+}
+
+TEST_F(MediaCapabilitiesCacheTest,
+       FindVideoDecoderEnabledCacheDecoderSelection) {
+  std::map<std::string, VideoCodecCapabilities> video_codec_capabilities;
+  // A hardware decoder that supports up to 1080p.
+  video_codec_capabilities["video/avc"].push_back(
+      std::make_unique<MockVideoCodecCapability>(
+          "decoder_h264_hw", false, true, false, true, false, true,
+          Range(0, 1920), Range(0, 1080), Range(0, 20000000), Range(0, 30)));
+  // A software decoder that supports up to 720p.
+  video_codec_capabilities["video/avc"].push_back(
+      std::make_unique<MockVideoCodecCapability>(
+          "decoder_h264_sw", false, false, false, false, true, false,
+          Range(0, 1280), Range(0, 720), Range(0, 10000000), Range(0, 30)));
+
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+              std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            video_caps = std::move(video_codec_capabilities);
+          }));
+
+  // 720p request, should select the first decoder that can handle it.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1280, 720, 5000000, 30),
+            "decoder_h264_hw");
+
+  // 1080p request, only the first decoder can handle it.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1920, 1080, 15000000, 30),
+            "decoder_h264_hw");
+
+  // 720p request, but require software decoder.
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, true, false,
+                                     1280, 720, 5000000, 30),
+            "decoder_h264_sw");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoderDisabledCache) {
+  cache_->SetCacheEnabled(false);
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              FindVideoDecoder("video/avc", true, true, false, true, 1920, 1080,
+                               10000000, 30))
       .Times(2)
-      .WillRepeatedly(Return());
+      .WillOnce(Return("decoder_h264.secure"))
+      .WillOnce(Return(""));
 
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", true, true, false, true, 1920,
+                                     1080, 10000000, 30),
+            "decoder_h264.secure");
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", true, true, false, true, 1920,
+                                     1080, 10000000, 30),
+            "");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
+  SbMediaAudioConfiguration config;
+
+  // Set expectations for the first call to the provider, which will happen
+  // when the first cacheable value is requested.
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetIsWidevineSupported())
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetIsCbcsSchemeSupported())
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetSupportedHdrTypes())
+      .WillOnce(
+          Return(std::set<SbMediaTransferId>{kSbMediaTransferIdSmpteSt2084}));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .WillOnce(testing::Invoke(
+          [](std::map<std::string, AudioCodecCapabilities>& audio_caps,
+             std::map<std::string, VideoCodecCapabilities>& video_caps) {
+            audio_caps["audio/mp4"].push_back(
+                std::make_unique<MockAudioCodecCapability>(
+                    "audio_decoder", false, false, false, false,
+                    Range(0, 200000)));
+            video_caps["video/avc"].push_back(
+                std::make_unique<MockVideoCodecCapability>(
+                    "video_decoder", false, true, false, true, false, true,
+                    Range(0, 1920), Range(0, 1080), Range(0, 20000000),
+                    Range(0, 30)));
+          }));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetAudioConfiguration(0, testing::_))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetAudioConfiguration(1, testing::_))
+      .WillOnce(Return(false));
+
+  // This is called separately, not as part of the initial cache population.
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsPassthroughSupported(kSbMediaAudioCodecAc3))
+      .WillOnce(Return(true));
+
+  // Call all cacheable functions and verify they return the initial values.
   EXPECT_TRUE(cache_->IsWidevineSupported());
   EXPECT_TRUE(cache_->IsCbcsSchemeSupported());
   EXPECT_TRUE(cache_->IsHDRTransferCharacteristicsSupported(
       kSbMediaTransferIdSmpteSt2084));
   EXPECT_TRUE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
   EXPECT_TRUE(cache_->GetAudioConfiguration(0, &config));
-  EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
+  EXPECT_FALSE(cache_->GetAudioConfiguration(1, &config));
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4", 192000), "audio_decoder");
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "video_decoder");
 
-  // Call all cache functions again to ensure that the provider functions
-  // are not being called to retrieve the values.
+  // Call again to ensure we're hitting the cache (no more calls to provider).
   EXPECT_TRUE(cache_->IsWidevineSupported());
   EXPECT_TRUE(cache_->IsCbcsSchemeSupported());
   EXPECT_TRUE(cache_->IsHDRTransferCharacteristicsSupported(
       kSbMediaTransferIdSmpteSt2084));
   EXPECT_TRUE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
   EXPECT_TRUE(cache_->GetAudioConfiguration(0, &config));
-  EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
+  EXPECT_FALSE(cache_->GetAudioConfiguration(1, &config));
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4", 192000), "audio_decoder");
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "video_decoder");
 
   cache_->ClearCache();
 
+  // Set expectations for calls after the cache is cleared.
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetIsWidevineSupported())
+      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetIsCbcsSchemeSupported())
+      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetSupportedHdrTypes())
+      .WillOnce(Return(std::set<SbMediaTransferId>()));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetAudioConfiguration(0, testing::_))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsPassthroughSupported(kSbMediaAudioCodecAc3))
+      .WillOnce(Return(false));
+
+  // Verify that the cache is empty and new values are fetched.
   EXPECT_FALSE(cache_->IsWidevineSupported());
   EXPECT_FALSE(cache_->IsCbcsSchemeSupported());
   EXPECT_FALSE(cache_->IsHDRTransferCharacteristicsSupported(
-      kSbMediaTransferIdAribStdB67));
-  EXPECT_FALSE(cache_->IsPassthroughSupported(kSbMediaAudioCodecEac3));
-  EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
-  EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
+      kSbMediaTransferIdSmpteSt2084));
+  EXPECT_FALSE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
+  EXPECT_FALSE(cache_->GetAudioConfiguration(0, &config));
+  EXPECT_EQ(cache_->FindAudioDecoder("audio/mp4", 192000), "");
+  EXPECT_EQ(cache_->FindVideoDecoder("video/avc", false, false, false, false,
+                                     1280, 720, 1000000, 30),
+            "");
 }
+
 }  // namespace starboard

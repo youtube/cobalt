@@ -163,6 +163,17 @@ class MediaCapabilitiesProvider {
       std::map<std::string, AudioCodecCapabilities>& audio_codec_capabilities,
       std::map<std::string, VideoCodecCapabilities>&
           video_codec_capabilities) = 0;
+  virtual std::string FindAudioDecoder(const std::string& mime_type,
+                                       int bitrate) = 0;
+  virtual std::string FindVideoDecoder(const std::string& mime_type,
+                                       bool must_support_secure,
+                                       bool must_support_hdr,
+                                       bool require_software_codec,
+                                       bool must_support_tunnel_mode,
+                                       int frame_width,
+                                       int frame_height,
+                                       int bitrate,
+                                       int fps) = 0;
 };
 
 class MediaCapabilitiesCache {

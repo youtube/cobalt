@@ -192,6 +192,33 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
       }
     }
   }
+
+  std::string FindAudioDecoder(const std::string& mime_type,
+                               int bitrate) override {
+    JNIEnv* env = AttachCurrentThread();
+    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
+    auto j_decoder_name =
+        Java_MediaCodecUtil_findAudioDecoder(env, j_mime, bitrate);
+    return ConvertJavaStringToUTF8(env, j_decoder_name.obj());
+  }
+
+  std::string FindVideoDecoder(const std::string& mime_type,
+                               bool must_support_secure,
+                               bool must_support_hdr,
+                               bool require_software_codec,
+                               bool must_support_tunnel_mode,
+                               int frame_width,
+                               int frame_height,
+                               int bitrate,
+                               int fps) override {
+    JNIEnv* env = AttachCurrentThread();
+    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
+    auto j_decoder_name = Java_MediaCodecUtil_findVideoDecoder(
+        env, j_mime, must_support_secure, must_support_hdr,
+        /*mustSupportSoftwareCodec=*/false, must_support_tunnel_mode,
+        /*decoderCacheTtlMs=*/-1, frame_width, frame_height, bitrate, fps);
+    return ConvertJavaStringToUTF8(env, j_decoder_name.obj());
+  }
 };
 }  // namespace
 
@@ -441,11 +468,7 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
     const std::string& mime_type,
     int bitrate) {
   if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name =
-        Java_MediaCodecUtil_findAudioDecoder(env, j_mime, bitrate);
-    return ConvertJavaStringToUTF8(env, j_decoder_name.obj());
+    return media_capabilities_provider_->FindAudioDecoder(mime_type, bitrate);
   }
 
   std::lock_guard scoped_lock(mutex_);
@@ -473,13 +496,10 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     int bitrate,
     int fps) {
   if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name = Java_MediaCodecUtil_findVideoDecoder(
-        env, j_mime, must_support_secure, must_support_hdr,
-        /*mustSupportSoftwareCodec=*/false, must_support_tunnel_mode,
-        /*decoderCacheTtlMs=*/-1, frame_width, frame_height, bitrate, fps);
-    return ConvertJavaStringToUTF8(env, j_decoder_name.obj());
+    return media_capabilities_provider_->FindVideoDecoder(
+        mime_type, must_support_secure, must_support_hdr,
+        require_software_codec, must_support_tunnel_mode, frame_width,
+        frame_height, bitrate, fps);
   }
 
   std::lock_guard scoped_lock(mutex_);
