@@ -28,7 +28,10 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -58,6 +61,11 @@
 #endif
 
 namespace cobalt {
+
+namespace {
+constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
+}  // namespace
+
 #if !BUILDFLAG(IS_ANDROID)
 namespace {
 content::ContentMainRunner* GetContentMainRunner() {
@@ -68,10 +76,20 @@ content::ContentMainRunner* GetContentMainRunner() {
 }  // namespace
 #endif
 
-class AppEventRunnerImpl : public AppEventRunner {
+class AppEventRunnerImpl : public AppEventRunner,
+                           public CobaltLifecycleManagerObserver {
  public:
-  AppEventRunnerImpl() = default;
-  ~AppEventRunnerImpl() override = default;
+  AppEventRunnerImpl() {
+    CobaltLifecycleManager::GetInstance()->AddObserver(this);
+  }
+  ~AppEventRunnerImpl() override {
+    CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
+  }
+
+  PendingAck pending_ack() const override {
+    base::AutoLock lock(lock_);
+    return pending_ack_;
+  }
 
   void InitializeSystem() override {
     exit_manager_ = std::make_unique<base::AtExitManager>();
@@ -200,29 +218,24 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoConceal() override {
     content::Shell::OnConceal();
-    for (auto* web_contents : GetWebContents()) {
-      web_contents->WasHidden();
-    }
+    WaitForAck(PendingAck::kConceal);
   }
 
   void DoReveal() override {
     content::Shell::OnReveal();
-    for (auto* web_contents : GetWebContents()) {
-      web_contents->WasShown();
-    }
+    WaitForAck(PendingAck::kReveal);
   }
 
   void DoFreeze(base::OnceClosure callback) override {
     content::Shell::OnFreeze();
-    auto* client = cobalt::CobaltContentBrowserClient::Get();
-    if (client) {
-      client->FlushCookiesAndLocalStorage(std::move(callback));
-    } else {
-      std::move(callback).Run();
-    }
+    WaitForAck(PendingAck::kCookieFlush);
+    std::move(callback).Run();
   }
 
-  void DoUnfreeze() override { content::Shell::OnUnfreeze(); }
+  void DoUnfreeze() override {
+    content::Shell::OnUnfreeze();
+    WaitForAck(PendingAck::kUnfreeze);
+  }
 
   void OnInput(const SbEvent* event) override {
     CHECK(is_running());
@@ -374,6 +387,91 @@ class AppEventRunnerImpl : public AppEventRunner {
 #if BUILDFLAG(IS_STARBOARD)
   std::unique_ptr<ui::PlatformEventSourceStarboard> platform_event_source_;
 #endif
+
+  void OnCookieFlushComplete() {
+    base::AutoLock lock(lock_);
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
+  }
+
+  void WaitForAck(PendingAck ack_type) {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
+    base::AutoLock lock(lock_);
+    pending_ack_ = ack_type;
+
+    if (ack_type == PendingAck::kCookieFlush) {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage(
+            base::BindOnce(&AppEventRunnerImpl::OnCookieFlushComplete,
+                           base::Unretained(this)));
+      } else {
+        pending_ack_ = PendingAck::kNone;
+        return;
+      }
+    } else {
+      for (auto* web_contents : GetWebContents()) {
+        CobaltLifecycleManager::GetInstance()->StartWaitingForAck(web_contents,
+                                                                  ack_type);
+      }
+    }
+
+    base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+    quit_closure_ = run_loop.QuitClosure();
+
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, run_loop.QuitClosure(), kTransitionTimeout);
+
+    {
+      base::AutoUnlock unlock(lock_);
+      run_loop.Run();
+    }
+    pending_ack_ = PendingAck::kNone;
+  }
+
+  // CobaltLifecycleManagerObserver implementation.
+  void OnAllFramesVisible(content::WebContents* web_contents) override {
+    web_contents->WasShown();
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kReveal) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesConcealed(content::WebContents* web_contents) override {
+    web_contents->WasHidden();
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kConceal) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesBlurred(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kBlur) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesResumed(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kUnfreeze) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  mutable base::Lock lock_;
+  base::OnceClosure quit_closure_;
+  PendingAck pending_ack_ = PendingAck::kNone;
 };
 
 void AppEventRunner::OnStart(const SbEvent* event) {

@@ -29,6 +29,8 @@
 
 namespace cobalt {
 
+enum class PendingAck;
+
 // AppEventRunner defines an interface for managing the system-level
 // execution of the Cobalt process. This abstraction allows for injecting
 // fake or mock behaviors during unit testing.
@@ -62,6 +64,9 @@ class AppEventRunner {
 
   // Returns all active WebContents.
   virtual std::vector<content::WebContents*> GetWebContents() = 0;
+
+  // Returns the currently active pending transition ACK.
+  virtual PendingAck pending_ack() const = 0;
 
   // Lifecycle signals called from the application.
   // These functions check and update the running, visible, focused, and frozen

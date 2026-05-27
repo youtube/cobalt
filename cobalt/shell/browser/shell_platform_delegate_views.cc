@@ -373,8 +373,8 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 ShellPlatformDelegate::~ShellPlatformDelegate() {
-  CobaltLifecycleManager::GetInstance()->RemoveObserver(
-      static_cast<CobaltLifecycleManagerObserver*>(this));
+  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
 }
 
 std::unique_ptr<views::ViewsDelegate>

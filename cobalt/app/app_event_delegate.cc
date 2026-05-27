@@ -35,8 +35,6 @@ namespace cobalt {
 
 namespace {
 
-constexpr base::TimeDelta kTransitionTimeout = base::Seconds(5);
-
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
   switch (type) {
@@ -85,18 +83,9 @@ AppEventDelegate::AppEventDelegate(
     // If a special runner wasn't provided, use the default.
     runner_ = AppEventRunner::Create();
   }
-
-  // Register as an observer to CobaltLifecycleManager to listen for
-  // renderer-side visibility, focus, and deactivation ACKs (such as Conceal or
-  // CookieFlush ACKs). This allows the high-level OS application lifecycle to
-  // coordinate synchronously and asynchronously with the renderer's
-  // document/frame state transitions.
-  CobaltLifecycleManager::GetInstance()->AddObserver(this);
 }
 
-AppEventDelegate::~AppEventDelegate() {
-  CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
-}
+AppEventDelegate::~AppEventDelegate() = default;
 
 bool AppEventDelegate::IsRunning() const {
   base::AutoLock lock(lock_);
@@ -264,35 +253,7 @@ void AppEventDelegate::ExecuteNextStepLocked() {
   }
 
   bool is_activating = target_state_ < application_state_;
-
-  // If the OS triggers a deactivating transition while the application is still
-  // waiting for an activating ACK (e.g., a page is still loading or rendering
-  // layout during a reveal wait), the deactivating transition must immediately
-  // preempt the activating state. We clear any pending activating ACKs and
-  // associated web contents to prevent a permanent deadlock between the
-  // blocking deactivation nested RunLoop and the pending activation state.
-  if (!is_activating && (pending_ack_ == PendingAck::kReveal ||
-                         pending_ack_ == PendingAck::kUnfreeze)) {
-    LOG(WARNING) << "Preempting and clearing activating ACK "
-                 << static_cast<int>(pending_ack_)
-                 << " for deactivation transition";
-    pending_ack_ = PendingAck::kNone;
-    pending_web_contents_.clear();
-  }
-
-  if (pending_ack_ != h5vcc_runtime::PendingAck::kNone) {
-    // We're waiting for an ACK callback, wait for that before transitioning
-    // further.
-    return;
-  }
-
   ApplicationState next_state = GetNextState(application_state_, is_activating);
-
-  // Get the ACK callback that this transition has to wait for, if any.
-  h5vcc_runtime::PendingAck needed_ack =
-      GetNeededAck(application_state_, is_activating);
-
-  pending_ack_ = needed_ack;
 
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
@@ -330,33 +291,6 @@ AppEventDelegate::ApplicationState AppEventDelegate::GetNextState(
   }
 }
 
-h5vcc_runtime::PendingAck AppEventDelegate::GetNeededAck(
-    ApplicationState current_state,
-    bool is_activating) const {
-  // Return the ACK callback that the given transition has to wait for
-  // before it can be considered complete.
-  if (is_activating) {
-    if (current_state == ApplicationState::kFrozen) {
-      return h5vcc_runtime::PendingAck::kUnfreeze;
-    }
-    if (current_state == ApplicationState::kConcealed) {
-      return h5vcc_runtime::PendingAck::kReveal;
-    }
-    return h5vcc_runtime::PendingAck::kNone;
-  } else {
-    switch (current_state) {
-      case ApplicationState::kStarted:
-        return h5vcc_runtime::PendingAck::kBlur;
-      case ApplicationState::kBlurred:
-        return h5vcc_runtime::PendingAck::kConceal;
-      case ApplicationState::kConcealed:
-        return h5vcc_runtime::PendingAck::kCookieFlush;
-      default:
-        return h5vcc_runtime::PendingAck::kNone;
-    }
-  }
-}
-
 void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
                                           bool is_activating) {
   if (is_activating) {
@@ -382,8 +316,7 @@ void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
         runner_->OnConceal();
         break;
       case ApplicationState::kFrozen:
-        runner_->OnFreeze(base::BindOnce(&AppEventDelegate::OnCookieFlushAck,
-                                         base::Unretained(this)));
+        runner_->OnFreeze(base::DoNothing());
         break;
       case ApplicationState::kStopped:
         runner_->OnStop();
@@ -399,99 +332,12 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
   ExecuteEventRunner(next_state, is_activating);
 
   base::AutoLock lock(lock_);
-  // Deactivating transitions that require an asynchronous ACK (Conceal and
-  // CookieFlush) must defer updating application_state_ until the ACK actually
-  // arrives (handled in OnConcealAck and OnCookieFlushAck respectively).
-  // Otherwise, the synchronous blocking loop in TransitionToLifeCycleState
-  // would exit prematurely before the transition is truly complete.
-  if (next_state != ApplicationState::kConcealed &&
-      next_state != ApplicationState::kFrozen) {
-    SetApplicationState(next_state);
-  }
+  SetApplicationState(next_state);
 
-  if (pending_ack_ != PendingAck::kNone) {
-    for (auto* web_contents : runner_->GetWebContents()) {
-      CobaltLifecycleManager::GetInstance()->StartWaitingForAck(web_contents,
-                                                                pending_ack_);
-    }
+  if (next_state == ApplicationState::kStopped) {
+    SbEventSchedule(&AppEventDelegate::TeardownCallback, this, 0);
   } else {
     ExecuteNextStepLocked();
-  }
-}
-
-void AppEventDelegate::OnAllFramesVisible(content::WebContents* web_contents) {
-  // Called when all frames in a specific WebContents have completed layout
-  // and are visible after a reveal transition.
-  bool should_ack = false;
-  {
-    base::AutoLock lock(lock_);
-    // Remove this WebContents from the set of pending ones we are waiting for.
-    pending_web_contents_.erase(web_contents);
-    // When the set becomes empty, it means ALL active WebContents have
-    // acknowledged they are visible, and we can proceed to grant focus.
-    if (pending_web_contents_.empty()) {
-      should_ack = true;
-    }
-  }
-  if (should_ack) {
-    OnRevealAck();
-  }
-}
-
-void AppEventDelegate::OnAllFramesConcealed(
-    content::WebContents* web_contents) {
-  OnConcealAck(web_contents);
-}
-
-void AppEventDelegate::OnStartWaitingForReveal(
-    content::WebContents* web_contents) {
-  base::AutoLock lock(lock_);
-  pending_web_contents_.insert(web_contents);
-  pending_ack_ = PendingAck::kReveal;
-}
-
-void AppEventDelegate::OnRevealAck() {
-  base::AutoLock lock(lock_);
-  if (pending_ack_ != PendingAck::kReveal) {
-    return;
-  }
-  pending_ack_ = h5vcc_runtime::PendingAck::kNone;
-  runner_->ClearWaitingForRevealAck();
-  ExecuteNextStepLocked();
-}
-
-void AppEventDelegate::OnConcealAck(content::WebContents* web_contents) {
-  base::AutoLock lock(lock_);
-  if (pending_ack_ != PendingAck::kConceal) {
-    return;
-  }
-  pending_web_contents_.erase(web_contents);
-  if (pending_web_contents_.empty()) {
-    pending_ack_ = h5vcc_runtime::PendingAck::kNone;
-    SetApplicationState(ApplicationState::kConcealed);
-    ExecuteNextStepLocked();
-  }
-}
-
-// Architectural Design Note:
-// Cookie flushing is coordinated via a localized base::OnceClosure callback
-// rather than the CobaltLifecycleObserver broadcast interface because:
-// 1. Encapsulation: A one-off browser-side storage transaction is kept highly
-//    localized, avoiding interface pollution for unrelated observers.
-// 2. Layer Separation: CobaltLifecycleObserver strictly coordinates
-// renderer-side
-//    Mojo frame states (layout/visibility). Mixing it with browser-side disk
-//    SQLite database operations would violate layering separation.
-void AppEventDelegate::OnCookieFlushAck() {
-  base::AutoLock lock(lock_);
-  if (pending_ack_ == h5vcc_runtime::PendingAck::kCookieFlush) {
-    pending_ack_ = h5vcc_runtime::PendingAck::kNone;
-    SetApplicationState(ApplicationState::kFrozen);
-    if (target_state_ == ApplicationState::kStopped) {
-      SbEventSchedule(&AppEventDelegate::TeardownCallback, this, 0);
-    } else {
-      ExecuteNextStepLocked();
-    }
   }
 }
 
@@ -504,31 +350,6 @@ void AppEventDelegate::TeardownCallback(void* data) {
 void AppEventDelegate::DoTeardown() {
   runner_->OnStop();
   SetApplicationState(ApplicationState::kStopped);
-}
-
-void AppEventDelegate::OnAllFramesBlurred(content::WebContents* web_contents) {
-  base::AutoLock lock(lock_);
-  if (pending_ack_ != PendingAck::kBlur) {
-    return;
-  }
-  pending_web_contents_.erase(web_contents);
-  if (pending_web_contents_.empty()) {
-    pending_ack_ = h5vcc_runtime::PendingAck::kNone;
-    ExecuteNextStepLocked();
-  }
-}
-
-void AppEventDelegate::OnAllFramesResumed(content::WebContents* web_contents) {
-  base::AutoLock lock(lock_);
-  if (pending_ack_ != PendingAck::kUnfreeze) {
-    return;
-  }
-  pending_web_contents_.erase(web_contents);
-  if (pending_web_contents_.empty()) {
-    pending_ack_ = h5vcc_runtime::PendingAck::kNone;
-    SetApplicationState(ApplicationState::kConcealed);
-    ExecuteNextStepLocked();
-  }
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
@@ -550,12 +371,6 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
 
   target_state_ = state;
 
-  // The initial transition from kInitial to kStarted/kPreloaded is an
-  // 'activating' move, but numerically it looks like a deactivation. We
-  // explicitly exclude it here to avoid unnecessary blocking during startup.
-  bool is_deactivating = application_state_ != ApplicationState::kInitial &&
-                         state > application_state_;
-
   if (is_transitioning_) {
     LOG(INFO) << "Transition already in progress. Updated target_state_ to "
               << static_cast<int>(state);
@@ -563,54 +378,6 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   } else {
     is_transitioning_ = true;
     ExecuteNextStepLocked();
-  }
-
-  // If this is NOT a deactivating transition, we are done.
-  if (!is_deactivating) {
-    return;
-  }
-
-  if (content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
-    base::TimeTicks start_time = base::TimeTicks::Now();
-
-    // Use a nested RunLoop with nestable tasks allowed to wait efficiently
-    // and asynchronously for renderer-side ACKs. This sleeps the UI thread in
-    // the kernel when idle, woke up instantly by Mojo/starboard work
-    // scheduling.
-    while (application_state_ < target_state_) {
-      base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
-      quit_closure_ = run_loop.QuitClosure();
-
-      // Safety timeout task to prevent permanent hangs
-      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-          FROM_HERE, run_loop.QuitClosure(), kTransitionTimeout);
-
-      lock_.Release();
-      run_loop.Run();  // Natively sleeps the thread!
-      lock_.Acquire();
-
-      if (application_state_ == target_state_ ||
-          pending_ack_ == h5vcc_runtime::PendingAck::kNone) {
-        break;
-      }
-      if (base::TimeTicks::Now() - start_time > kTransitionTimeout) {
-        LOG(WARNING) << "Transition timed out after "
-                     << kTransitionTimeout.InSeconds() << " seconds.";
-        break;
-      }
-    }
-
-    // Synchronously execute any remaining steps that were skipped by the
-    // asynchronous task runner.
-    while (application_state_ < target_state_) {
-      ApplicationState next_state =
-          GetNextState(application_state_, /*is_activating=*/false);
-      {
-        base::AutoUnlock unlock(lock_);
-        ExecuteEventRunner(next_state, /*is_activating=*/false);
-      }
-      SetApplicationState(next_state);
-    }
   }
 }
 

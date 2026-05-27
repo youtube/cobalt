@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/public/browser/visibility.h"
@@ -127,7 +128,7 @@ TEST_F(AppEventRunnerTest, OnReveal) {
 
   // Bind a mock renderer to CobaltLifecycleManager.
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
-  h5vcc_runtime::CobaltLifecycleManager::GetInstance()->BindReceiver(
+  CobaltLifecycleManager::GetInstance()->BindReceiver(
       shell_->web_contents()->GetPrimaryMainFrame(),
       remote.BindNewPipeAndPassReceiver());
 

@@ -382,11 +382,6 @@ void CobaltLifecycleManager::StartWaitingForAck(
       LOG(WARNING) << "StartWaitingForAck: No connected frames during "
                       "Unfreeze! Waiting for FrameReady...";
       return;
-    } else if (ack_type == PendingAck::kCookieFlush) {
-      // For Freeze, cookie flush is handled asynchronously by AppEventDelegate.
-      // We do not complete it immediately here, letting it wait cleanly for the
-      // asynchronous OnCookieFlushAck callback.
-      return;
     } else {
       // If there are no connected frames (e.g., during startup before any
       // frames are created or if all frames crashed), we complete the ACK
@@ -457,14 +452,8 @@ void CobaltLifecycleManager::CompleteAckImmediately(
 void CobaltLifecycleManager::CheckCompletion(
     content::WebContents* web_contents) {
   PendingAck pending_ack = pending_acks_[web_contents];
-  if (pending_ack == PendingAck::kNone) {
-    return;
-  }
-
-  if (pending_ack_frames_[web_contents].empty()) {
-    if (pending_ack == PendingAck::kReveal) {
-      web_contents->WasShown();
-    }
+  if (pending_ack != PendingAck::kNone &&
+      pending_ack_frames_[web_contents].empty()) {
     CompleteAckImmediately(web_contents, pending_ack);
   }
 }

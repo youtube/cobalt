@@ -48,7 +48,7 @@ class ShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
-class ShellPlatformDelegate : public CobaltLifecycleManagerObserver {
+class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
  public:
   enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
 

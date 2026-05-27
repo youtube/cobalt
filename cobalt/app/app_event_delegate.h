@@ -58,7 +58,7 @@ namespace cobalt {
 // Each box corresponds to an AppEventDelegate::ApplicationState. The ↔ arrows
 // represent bidirectional transitions handled via TransitionToLifeCycleState,
 // which ensures all intermediate states are traversed.
-class AppEventDelegate : public CobaltLifecycleManagerObserver {
+class AppEventDelegate {
  public:
   // ApplicationState defines the lifecycle states of the application.
   // The order of these states is critical: TransitionToLifeCycleState relies on
@@ -92,20 +92,7 @@ class AppEventDelegate : public CobaltLifecycleManagerObserver {
   // Receives a Starboard event and handles it.
   void HandleEvent(const SbEvent* event);
 
-  // Called when the renderer acknowledges visibility.
-  void OnRevealAck();
-
-  // Called when the renderer acknowledges conceal.
-  void OnConcealAck(content::WebContents* web_contents);
-  void OnCookieFlushAck();
   void DoTeardown();
-
-  // h5vcc_runtime::H5vccRuntimeObserver implementation.
-  void OnAllFramesVisible(content::WebContents* web_contents) override;
-  void OnStartWaitingForReveal(content::WebContents* web_contents) override;
-  void OnAllFramesConcealed(content::WebContents* web_contents) override;
-  void OnAllFramesBlurred(content::WebContents* web_contents) override;
-  void OnAllFramesResumed(content::WebContents* web_contents) override;
 
   bool IsRunning() const;
   bool IsVisible() const;
@@ -119,7 +106,7 @@ class AppEventDelegate : public CobaltLifecycleManagerObserver {
   }
   PendingAck pending_ack() const {
     base::AutoLock lock(lock_);
-    return pending_ack_;
+    return runner_ ? runner_->pending_ack() : PendingAck::kNone;
   }
 
  private:
@@ -164,8 +151,6 @@ class AppEventDelegate : public CobaltLifecycleManagerObserver {
   ApplicationState GetNextState(ApplicationState current_state,
                                 bool is_activating) const;
   void ExecuteEventRunner(ApplicationState next_state, bool is_activating);
-  PendingAck GetNeededAck(ApplicationState current_state,
-                          bool is_activating) const;
 
   bool IsRunningLocked() const;
   bool IsVisibleLocked() const;
@@ -182,13 +167,6 @@ class AppEventDelegate : public CobaltLifecycleManagerObserver {
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
   base::OnceClosure quit_closure_;
-
-  PendingAck pending_ack_ = PendingAck::kNone;
-
-  // Set of WebContents that are currently waiting for reveal acknowledgment
-  // from the renderer (Reveal ACK). Focus transitions are deferred until all
-  // WebContents in this set have completed layout and become visible.
-  std::set<content::WebContents*> pending_web_contents_;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.
