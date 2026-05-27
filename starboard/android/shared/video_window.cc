@@ -20,6 +20,8 @@
 #include <android/native_window_jni.h>
 #include <jni.h>
 
+#include <chrono>
+#include <condition_variable>
 #include <mutex>
 
 #include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
@@ -38,12 +40,14 @@ namespace {
 
 // Global video surface pointer mutex.
 SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
+// Global condition variable to notify waiters when surface becomes available.
+SB_ONCE_INITIALIZE_FUNCTION(std::condition_variable, GetViewSurfaceCondVar)
 // Global pointer to the single video surface.
-jobject g_j_video_surface = NULL;
+jobject g_j_video_surface = nullptr;
 // Global pointer to the single video window.
-ANativeWindow* g_native_video_window = NULL;
+ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
-VideoSurfaceHolder* g_video_surface_holder = NULL;
+VideoSurfaceHolder* g_video_surface_holder = nullptr;
 // Global boolean to indicate if we need to reset SurfaceView after playing
 // vertical video.
 bool g_reset_surface_on_clear_window = false;
@@ -53,22 +57,27 @@ bool g_reset_surface_on_clear_window = false;
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder) {
-    g_video_surface_holder->OnSurfaceDestroyed();
-    g_video_surface_holder = NULL;
-  }
-  if (g_j_video_surface) {
-    env->DeleteGlobalRef(g_j_video_surface);
-    g_j_video_surface = NULL;
-  }
-  if (g_native_video_window) {
-    ANativeWindow_release(g_native_video_window);
-    g_native_video_window = NULL;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder) {
+      g_video_surface_holder->OnSurfaceDestroyed();
+      g_video_surface_holder = nullptr;
+    }
+    if (g_j_video_surface) {
+      env->DeleteGlobalRef(g_j_video_surface);
+      g_j_video_surface = nullptr;
+    }
+    if (g_native_video_window) {
+      ANativeWindow_release(g_native_video_window);
+      g_native_video_window = nullptr;
+    }
+    if (surface) {
+      g_j_video_surface = env->NewGlobalRef(surface.obj());
+      g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    }
   }
   if (surface) {
-    g_j_video_surface = env->NewGlobalRef(surface.obj());
-    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    GetViewSurfaceCondVar()->notify_all();
   }
 }
 
@@ -77,36 +86,39 @@ void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
 }
 
 // static
-bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
-  // We only consider video surface is available when there is a video
-  // surface and it is not held by any decoder, i.e.
-  // g_video_surface_holder is NULL.
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  return !g_video_surface_holder && g_j_video_surface;
+bool VideoSurfaceHolder::WaitForVideoSurface(
+    std::chrono::milliseconds timeout) {
+  std::unique_lock lock(*GetViewSurfaceMutex());
+  return GetViewSurfaceCondVar()->wait_for(lock, timeout, [] {
+    return g_j_video_surface != nullptr && g_video_surface_holder == nullptr;
+  });
 }
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder != NULL) {
-    return NULL;
+  if (g_video_surface_holder != nullptr) {
+    return nullptr;
   }
   if (!g_j_video_surface) {
-    return NULL;
+    return nullptr;
   }
   g_video_surface_holder = this;
   return g_j_video_surface;
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder == this) {
-    g_video_surface_holder = NULL;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder == this) {
+      g_video_surface_holder = nullptr;
+    }
   }
+  GetViewSurfaceCondVar()->notify_all();
 }
 
 bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == NULL) {
+  if (g_native_video_window == nullptr) {
     return false;
   } else {
     *width = ANativeWindow_getWidth(g_native_video_window);
