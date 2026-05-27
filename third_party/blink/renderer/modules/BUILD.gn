@@ -195,7 +195,10 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
-    sub_modules -= [ "//third_party/blink/renderer/modules/ml" ]
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/ml",
+      "//third_party/blink/renderer/modules/xr",
+    ]
   }
 
   if (!use_webrtc_peer_connection) {
