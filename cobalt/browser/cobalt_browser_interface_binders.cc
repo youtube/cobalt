@@ -38,6 +38,9 @@
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
+#include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
+#include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/h5vcc_storage/testing/h5vcc_storage_for_testing_impl.h"
 #include "cobalt/browser/h5vcc_storage/testing/public/mojom/h5vcc_storage_for_testing.mojom.h"
@@ -84,6 +87,9 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_settings::H5vccSettingsImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(
       base::BindRepeating(&performance::PerformanceImpl::Create));
+  binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
+      base::BindRepeating(&h5vcc_platform_service::
+                              H5vccPlatformServiceManagerImpl::GetOrCreate));
 }
 
 }  // namespace cobalt
