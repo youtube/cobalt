@@ -187,6 +187,34 @@ class MediaCodec {
   virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
 };
 
+class DefaultMediaCodecFactory : public MediaCodec::Factory {
+ public:
+  DefaultMediaCodecFactory() = default;
+  ~DefaultMediaCodecFactory() override = default;
+
+  std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
+      const AudioStreamInfo& audio_stream_info,
+      MediaCodec::Handler* handler,
+      jobject j_media_crypto) override;
+
+  NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
+      SbMediaVideoCodec video_codec,
+      const Size& frame_size_hint,
+      int fps,
+      const std::optional<Size>& max_frame_size,
+      MediaCodec::Handler* handler,
+      jobject j_surface,
+      jobject j_media_crypto,
+      const SbMediaColorMetadata* color_metadata,
+      bool enable_frame_renderer_listener,
+      bool require_secured_decoder,
+      bool require_software_codec,
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool force_big_endian_hdr_metadata,
+      int max_video_input_size,
+      bool skip_video_frames_over_60_fps) override;
+};
+
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_H_
