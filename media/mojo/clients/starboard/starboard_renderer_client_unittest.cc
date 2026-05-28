@@ -86,6 +86,7 @@ class FakeStarboardRendererExtension
 #endif  // BUILDFLAG(IS_ANDROID)
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override {}
+  void SetSourceUrl(const std::string& source_url) override {}
 };
 
 class MockVideoRendererSink : public VideoRendererSink {

@@ -98,6 +98,7 @@ class StarboardRendererWrapper
       mojom::CommandBufferIdPtr command_buffer_id) override;
   void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
   void OnSbWindowHandleReady(uint64_t sb_window_handle) override;
+  void SetSourceUrl(const std::string& source_url) override;
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
 #endif  // BUILDFLAG(IS_ANDROID)
