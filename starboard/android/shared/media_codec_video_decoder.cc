@@ -323,6 +323,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
       skip_video_frames_over_60_fps_(
           experimental_features.skip_video_frames_over_60_fps),
+      enable_trivial_optimizations_(
+          experimental_features.enable_trivial_optimizations.value_or(false)),
       is_video_frame_tracker_enabled_(
           // OnFrameRenderedListener is available since API 23, but only
           // reliable for standard playback since API 34. Tunnel mode uses it on
@@ -943,11 +945,22 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       }
     }
   }
-  decoder_status_cb_(
-      is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(
-          dequeue_output_result, media_codec_bridge,
-          std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+  if (enable_trivial_optimizations_) {
+    decoder_status_cb_(
+        is_end_of_stream || media_decoder_->GetNumberOfPendingInputs() >=
+                                kMaxPendingInputsSize
+            ? kBufferFull
+            : kNeedMoreInput,
+        new VideoFrameImpl(
+            dequeue_output_result, media_codec_bridge,
+            std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+  } else {
+    decoder_status_cb_(
+        is_end_of_stream ? kBufferFull : kNeedMoreInput,
+        new VideoFrameImpl(
+            dequeue_output_result, media_codec_bridge,
+            std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+  }
 }
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(
