@@ -29,6 +29,20 @@ runs:
       run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
       shell: bash
 
+    - name: Compute Archive Flags
+      id: compute-flags
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        flags="--compression zstd --compression-level=9"
+        if [[ "${PLATFORM}" == *android* ]]; then
+          flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+        elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
+          flags="--compression gz --archive-per-target --flatten-deps"
+        fi
+        echo "flags=${flags}" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
@@ -74,6 +88,7 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
@@ -85,19 +100,12 @@ runs:
           exit 0
         fi
 
-        FLAGS="--compression zstd --compression-level=9"
-        if [[ "${PLATFORM}" == *android* ]]; then
-          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-        elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
-          FLAGS="--compression gz --archive-per-target --flatten-deps"
-        fi
-
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${TARGETS}" \
-          ${FLAGS}
+          ${ARCHIVE_FLAGS}
       shell: bash
 
     - name: Archive Browser Tests
@@ -106,7 +114,7 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
-        UPLOAD_ON_DEVICE: ${{ inputs.upload_on_device_test_artifacts }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
@@ -118,21 +126,12 @@ runs:
           exit 0
         fi
 
-        FLAGS="--compression zstd --compression-level=9"
-        if [[ "${UPLOAD_ON_DEVICE}" == "true" ]]; then
-          if [[ "${PLATFORM}" == *android* ]]; then
-            FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-          elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
-            FLAGS="--compression gz --archive-per-target --flatten-deps"
-          fi
-        fi
-
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${TARGETS}" \
-          ${FLAGS}
+          ${ARCHIVE_FLAGS}
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
