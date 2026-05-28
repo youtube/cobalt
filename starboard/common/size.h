@@ -30,7 +30,7 @@ struct Size {
   constexpr int GetArea() const { return width * height; }
 
   constexpr bool FitsWithin(Size other) const {
-    return this->width <= other.width && this->height <= other.height;
+    return width <= other.width && height <= other.height;
   }
 
   constexpr bool operator==(const Size& other) const {
