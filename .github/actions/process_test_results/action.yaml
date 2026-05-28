@@ -1,5 +1,6 @@
 name: Process Test Results
 description: Processes test results to produce a test summary and upload results to DataDog.
+# Triggering new run after glob fixes
 inputs:
   target_name:
     description: "The test target name."
@@ -19,11 +20,19 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Set Summary Glob
+      id: set-summary-glob
+      run: |
+        results_glob="${{ inputs.results_glob }}"
+        summary_glob="${results_glob/\/**\//\/**\/summary\/**\/}"
+        echo "summary_glob=${summary_glob}" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Create Test Summary
       id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        paths: ${{ inputs.results_glob }}
+        paths: ${{ steps.set-summary-glob.outputs.summary_glob }}
         output: test-report-summary.md
         show: "fail, skip"
 
@@ -51,22 +60,37 @@ runs:
         # nullglob to return empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        result_xmls=(${RESULTS_GLOB})
-        result_logs=(${LOG_GLOB})
+        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+          check_glob="${RESULTS_GLOB/\/**\//\/**\/summary\/**\/}"
+          expected_files=${GTEST_SHARDS}
+          failed_count=${TESTS_FAILED:-0}
+        else
+          check_glob="${RESULTS_GLOB/\/**\//\/**\/datadog\/**\/}"
+          expected_files=$((3 * GTEST_SHARDS))
 
-        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
+          # For postsubmit, check all files in datadog folder for any failure.
+          python3 cobalt/tools/junit_mini_parser.py ${check_glob} > /dev/null
+          if [[ $? -ne 0 ]]; then
+            failed_count=1
+          else
+            failed_count=0
+          fi
+        fi
+
+        result_xmls=(${check_glob})
+        result_logs=(${LOG_GLOB/results\//results\/datadog\/})
+
+        if [ ${#result_xmls[@]} -ne ${expected_files} ]; then
           if [ ${#result_logs[@]} -gt ${#result_xmls[@]} ]; then
-            # If there are more log files than test results, test shards probably crashed.
             msg="Some targets likely crashed."
           else
-            # If both the logs and the results are missing the tests probably failed to run.
             msg="Some targets may have failed to run."
           fi
-          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
+          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${expected_files}."
           exit_code=1
         fi
 
-        if [ ${TESTS_FAILED:-0} -gt 0 ]; then
+        if [ ${failed_count} -gt 0 ]; then
           # Print failed tests.
           echo
           echo " _____ _____ ____ _____   ____ _____   _   _____ _   _  ____  "
@@ -76,13 +100,17 @@ runs:
           echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
           echo
 
-          python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}
+          python3 cobalt/tools/junit_mini_parser.py ${check_glob}
 
-          echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
+          echo "::error::${TARGET_NAME} has failed test(s)."
           exit_code=1
         fi
 
-        echo "${TESTS_PASSED} of ${TESTS_TOTAL} tests passed (${TESTS_SKIPPED} skipped)."
+        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+          echo "${TESTS_PASSED} of ${TESTS_TOTAL} tests passed (${TESTS_SKIPPED} skipped)."
+        else
+          echo "Postsubmit runs completed. Check Datadog for full results."
+        fi
         exit ${exit_code}
       shell: bash
 
@@ -116,5 +144,6 @@ runs:
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
         shopt -s globstar
-        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
+        datadog_glob="${RESULTS_GLOB/results\//results\/datadog\/}"
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${datadog_glob}
       shell: bash

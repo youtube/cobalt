@@ -8,6 +8,7 @@
   "test_browser": true,
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 10,
+  "test_attempts": 3,
   "targets": [
     "cobalt:gn_all",
     "cobalt/testing/browser_tests:cobalt_browsertests",

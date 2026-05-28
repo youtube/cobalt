@@ -15,11 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import unittest
 from unittest.mock import mock_open, patch
-import logging
+import xml.etree.ElementTree
 
-from cobalt.tools.junit_mini_parser import find_failing_tests, main
+from cobalt.tools.junit_mini_parser import find_failing_tests, main, generate_filter_string, scrub_passing_tests
 
 
 class TestFindFailingTests(unittest.TestCase):
@@ -35,8 +36,9 @@ class TestFindFailingTests(unittest.TestCase):
     </testsuites>
     """
     with patch('builtins.open', mock_open(read_data=xml_content)):
-      failing_tests = find_failing_tests(['dummy_file.xml'])
+      failing_tests, unparseable_files = find_failing_tests(['dummy_file.xml'])
       self.assertEqual(failing_tests, {})
+      self.assertEqual(unparseable_files, [])
 
   def test_single_failing_test(self):
     xml_content = """
@@ -50,9 +52,12 @@ class TestFindFailingTests(unittest.TestCase):
     </testsuites>
     """
     with patch('builtins.open', mock_open(read_data=xml_content)):
-      failing_tests = find_failing_tests(['report.xml'])
-      expected = {'report.xml': [('TestSuiteA.test_fail', 'Assertion failed')]}
-      self.assertEqual(failing_tests, expected)
+      failing_tests, unparseable_files = find_failing_tests(['report.xml'])
+      expected = {
+          'report.xml': [('TestSuiteA.test_fail', 'Assertion failed\n...')]
+      }
+      self.assertEqual(dict(failing_tests), expected)
+      self.assertEqual(unparseable_files, [])
 
   def test_multiple_failing_tests_in_single_file(self):
     xml_content = """
@@ -70,13 +75,15 @@ class TestFindFailingTests(unittest.TestCase):
     </testsuites>
     """
     with patch('builtins.open', mock_open(read_data=xml_content)):
-      failing_tests = find_failing_tests(['results.xml'])
+      failing_tests, unparseable_files = find_failing_tests(['results.xml'])
       expected = {
-          'results.xml': [('UnitTests.test_two_failed', 'Something went wrong'),
-                          ('UnitTests.test_three_errored',
-                           'An exception occurred')]
+          'results.xml': [
+              ('UnitTests.test_two_failed', 'Something went wrong\n...'),
+              ('UnitTests.test_three_errored', 'An exception occurred\n...')
+          ]
       }
-      self.assertEqual(failing_tests, expected)
+      self.assertEqual(dict(failing_tests), expected)
+      self.assertEqual(unparseable_files, [])
 
   def test_failing_tests_in_multiple_files(self):
     xml_content1 = """
@@ -105,12 +112,14 @@ class TestFindFailingTests(unittest.TestCase):
             mock_open(read_data=xml_content1).return_value,
             mock_open(read_data=xml_content2).return_value
         ]):
-      failing_tests = find_failing_tests(['report1.xml', 'report2.xml'])
+      failing_tests, unparseable_files = find_failing_tests(
+          ['report1.xml', 'report2.xml'])
       expected = {
-          'report1.xml': [('ModuleA.test_beta_fail', 'Failure A')],
-          'report2.xml': [('ModuleB.test_gamma_error', 'Error B')]
+          'report1.xml': [('ModuleA.test_beta_fail', 'Failure A\n...')],
+          'report2.xml': [('ModuleB.test_gamma_error', 'Error B\n...')]
       }
-      self.assertEqual(failing_tests, expected)
+      self.assertEqual(dict(failing_tests), expected)
+      self.assertEqual(unparseable_files, [])
 
   def test_empty_testsuite_name(self):
     xml_content = """
@@ -123,11 +132,13 @@ class TestFindFailingTests(unittest.TestCase):
     </testsuites>
     """
     with patch('builtins.open', mock_open(read_data=xml_content)):
-      failing_tests = find_failing_tests(['empty_name.xml'])
+      failing_tests, unparseable_files = find_failing_tests(['empty_name.xml'])
       expected = {
-          'empty_name.xml': [('empty_name.xml.test_one_failed', 'Fail msg')]
+          'empty_name.xml': [('empty_name.xml.test_one_failed', 'Fail msg\n...')
+                            ]
       }
-      self.assertEqual(failing_tests, expected)
+      self.assertEqual(dict(failing_tests), expected)
+      self.assertEqual(unparseable_files, [])
 
 
 class TestMain(unittest.TestCase):
@@ -141,16 +152,84 @@ class TestMain(unittest.TestCase):
 
   @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
   def test_main_success(self, mock_find):
-    mock_find.return_value = {}
+    mock_find.return_value = ({}, [])
     self.assertEqual(main(['results.xml']), 0)
 
   @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
   def test_main_failure(self, mock_find):
-    mock_find.return_value = {'results.xml': [('Test.fail', 'msg')]}
+    mock_find.return_value = ({'results.xml': [('Test.fail', 'msg')]}, [])
     self.assertEqual(main(['results.xml']), 1)
 
   def test_main_no_files(self):
     self.assertEqual(main([]), 0)
+
+
+class TestGenerateFilterString(unittest.TestCase):
+  """Test cases for generate_filter_string."""
+
+  def test_empty_failures(self):
+    self.assertEqual(generate_filter_string({}), '-*')
+
+  def test_single_failure(self):
+    failing_tests = {'report.xml': [('SuiteA.test1', 'msg')]}
+    self.assertEqual(generate_filter_string(failing_tests), 'SuiteA.test1')
+
+  def test_multiple_failures(self):
+    failing_tests = {
+        'report1.xml': [('SuiteA.test1', 'msg'), ('SuiteA.test2', 'msg')],
+        'report2.xml': [('SuiteB.test1', 'msg')]
+    }
+    result = generate_filter_string(failing_tests)
+    self.assertIn('SuiteA.test1', result)
+    self.assertIn('SuiteA.test2', result)
+    self.assertIn('SuiteB.test1', result)
+    parts = result.split(':')
+    self.assertEqual(len(parts), 3)
+
+  def test_deduplication(self):
+    failing_tests = {
+        'report1.xml': [('SuiteA.test1', 'msg')],
+        'report2.xml': [('SuiteA.test1', 'msg')]
+    }
+    self.assertEqual(generate_filter_string(failing_tests), 'SuiteA.test1')
+
+
+class TestScrubPassingTests(unittest.TestCase):
+  """Test cases for scrub_passing_tests."""
+
+  @patch('cobalt.tools.junit_mini_parser._parse_xml')
+  def test_scrub_passing(self, mock_parse):
+    xml_content = """
+    <testsuites>
+      <testsuite name="Suite1" tests="2" failures="1" errors="0">
+        <testcase name="Pass"/>
+        <testcase name="Fail"><failure/></testcase>
+      </testsuite>
+      <testsuite name="Suite2" tests="1" failures="0" errors="0">
+        <testcase name="Pass2"/>
+      </testsuite>
+    </testsuites>
+    """
+    tree = xml.etree.ElementTree.ElementTree(
+        xml.etree.ElementTree.fromstring(xml_content))
+    mock_parse.return_value = tree
+
+    with patch.object(tree, 'write') as mock_write:
+      scrub_passing_tests('dummy.xml')
+
+      root = tree.getroot()
+      suites = root.findall('testsuite')
+      self.assertEqual(len(suites), 1)
+      self.assertEqual(suites[0].get('name'), 'Suite1')
+
+      cases = suites[0].findall('testcase')
+      self.assertEqual(len(cases), 1)
+      self.assertEqual(cases[0].get('name'), 'Fail')
+
+      self.assertEqual(suites[0].get('tests'), '1')
+      self.assertEqual(suites[0].get('failures'), '1')
+
+      mock_write.assert_called_once()
 
 
 if __name__ == '__main__':

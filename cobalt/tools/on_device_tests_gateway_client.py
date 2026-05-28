@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import grpc
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
+from cobalt.tools.junit_mini_parser import find_failing_tests, generate_filter_string
 
 _WORK_DIR = '/on_device_tests_gateway'
 
@@ -239,7 +240,23 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
       target_name = test_target.split(':')[-1]
-      gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
+      gtest_filter = None
+      # Use previous results to generate a filter to retry only failing tests.
+      if args.previous_results:
+        target_files = [
+            file_path for file_path in args.previous_results
+            if os.path.basename(file_path).startswith(f'{target_name}_')
+        ]
+        if target_files:
+          failing_tests, unparseable_files = find_failing_tests(target_files)
+          # Only use the generated filter if all files were parseable.
+          if not unparseable_files:
+            gtest_filter = generate_filter_string(failing_tests)
+
+      # Fallback to default filter if no filter was generated.
+      if gtest_filter is None:
+        gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
+
       if gtest_filter == '-*':
         print(f'Skipping {target_name} due to test filter.')
         continue
@@ -362,6 +379,12 @@ def main() -> int:
       type=str,
       default='0',
       help='The maximum number of times a test can retry.',
+  )
+  trigger_args.add_argument(
+      '--previous_results',
+      type=str,
+      nargs='+',
+      help='List of JUnit XML files from previous run for retry filter.',
   )
   trigger_args.add_argument(
       '--retry_level',

@@ -1,0 +1,34 @@
+name: Maintain Summary Results
+description: Copies test results to summary and datadog directories.
+inputs:
+  run:
+    description: Current run number.
+    required: true
+  passed:
+    description: "Whether the test passed in this run ('true' or 'false')."
+    required: true
+  files_glob:
+    description: Glob pattern to find source files.
+    required: true
+  summary_dir:
+    description: Destination directory for summary results.
+    required: true
+  datadog_dir:
+    description: Destination directory for datadog results.
+    required: true
+  add_run_suffix_to_summary:
+    description: "Whether to add '_run${run}' suffix to summary files."
+    default: 'false'
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        bash ${{ github.action_path }}/maintain_summary_results.sh \
+          "${{ inputs.run }}" \
+          "${{ inputs.passed }}" \
+          "${{ inputs.files_glob }}" \
+          "${{ inputs.summary_dir }}" \
+          "${{ inputs.datadog_dir }}" \
+          "${{ inputs.add_run_suffix_to_summary }}"

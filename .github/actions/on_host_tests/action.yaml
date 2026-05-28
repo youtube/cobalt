@@ -13,6 +13,9 @@ inputs:
   num_gtest_shards:
     description: "Total number of shards used to run the steps in this file."
     required: true
+  test_attempts:
+    description: "Number of attempts for the tests."
+    default: "1"
 runs:
   using: "composite"
   steps:
@@ -59,8 +62,9 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir
         # to be picked up by the test result processor.
         # This also prevents accidental overwriting when collecting results.
-        test_output="${results_dir}/shard_${{ matrix.shard }}"
-        mkdir -p ${test_output}
+        datadog_output="${results_dir}/datadog/shard_${{ matrix.shard }}"
+        summary_output="${results_dir}/summary/shard_${{ matrix.shard }}"
+        mkdir -p "${datadog_output}" "${summary_output}"
 
         failed_suites=""
         cd unit_test/
@@ -80,12 +84,13 @@ runs:
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
-          xml_path="${test_output}/${test_binary}_result.xml"
-          log_path="${test_output}/${test_binary}_log.txt"
-          # TODO: Investigate test_runner.py
+
+          if [ "${test_filter}" == "-*" ]; then
+            echo "Skipped due to test filter." >  "${datadog_output}/${test_binary}_log.txt"
+            continue
+          fi
 
           # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
-          # If so, use it as the entrypoint to run tests.
           wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
           if [[ -x "${wrapper_path}" ]]; then
             ENTRYPOINT="./${wrapper_path}"
@@ -93,23 +98,76 @@ runs:
             ENTRYPOINT="./${test_binary_path}"
           fi
 
-          if [ "${test_filter}" == "-*" ]; then
-            echo "Skipped due to test filter." >  ${log_path}
-          else
+          max_runs="${{ inputs.test_attempts }}"
+          max_runs="${max_runs:-1}"
+          if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
+            max_runs=3
+          fi
+
+          current_filter="${test_filter}"
+          suite_failed="false"
+
+          for run in $(seq 1 $max_runs); do
+            echo "Attempt ${run} of ${max_runs} for ${test_binary}"
+
+            temp_dir="${results_dir}/tmp_results_run${run}"
+            mkdir -p "${temp_dir}"
+            xml_path="${temp_dir}/${test_binary}_result.xml"
+            log_path="${temp_dir}/${test_binary}_log.txt"
+
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
                 --single-process-tests \
                 --gtest_shard_index="${GTEST_SHARD_INDEX}" \
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_binary}"
-            }
+                --gtest_filter="${current_filter}" 2>&1 | tee ${log_path}
+
+            run_status=${PIPESTATUS[0]}
 
             if [[ ! -f ${xml_path} ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
             fi
+
+            # Maintain summary results
+            passed="false"
+            if [[ $run_status -eq 0 ]]; then
+              passed="true"
+            fi
+            bash ${GITHUB_WORKSPACE}/.github/actions/maintain_summary_results/maintain_summary_results.sh \
+              "${run}" \
+              "${passed}" \
+              "${temp_dir}/*" \
+              "${summary_output}" \
+              "${datadog_output}" \
+              "false"
+
+            if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+              if [[ $run_status -eq 0 ]]; then
+                echo "Passed on attempt ${run}."
+                suite_failed="false"
+                break
+              else
+                suite_failed="true"
+                # Generate positive filter for failed tests for next run
+                current_filter=$(python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py --generate-filter "${xml_path}")
+                if [[ "${current_filter}" == "-*" ]]; then
+                  break
+                fi
+              fi
+            else
+              # Postsubmit: Always run 3 times, scrub passing tests from run 2 and 3.
+              if [[ $run_status -ne 0 ]]; then
+                suite_failed="true"
+              fi
+              if [[ $run -gt 1 ]]; then
+                python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py --scrub-passing "${xml_path}"
+              fi
+            fi
+          done
+
+          if [[ "${suite_failed}" == "true" ]]; then
+            failed_suites="${failed_suites} ${test_binary}"
           fi
         done
         echo "Finished running tests..."

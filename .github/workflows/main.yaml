@@ -755,6 +755,7 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          test_attempts: ${{ needs.initialize.outputs.test_attempts }}
     outputs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
 
@@ -896,7 +897,7 @@ jobs:
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat*.txt
           # TODO: Enable symbolization when it works.
           # symbolize: true
           symbolize: 'false'
@@ -904,7 +905,7 @@ jobs:
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log*.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
