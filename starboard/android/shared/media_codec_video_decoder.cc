@@ -1185,7 +1185,7 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
 }
 
 bool MediaCodecVideoDecoder::SignalIfNeedMoreInput(
-    scoped_refptr<VideoFrame> frame) {
+    const scoped_refptr<VideoFrame>& frame) {
   if (!decoder_status_cb_) {
     return false;
   }
@@ -1196,7 +1196,7 @@ bool MediaCodecVideoDecoder::SignalIfNeedMoreInput(
   bool need_more_input =
       media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
   if (need_more_input) {
-    decoder_status_cb_(kNeedMoreInput, std::move(frame));
+    decoder_status_cb_(kNeedMoreInput, frame);
   }
   return need_more_input;
 }
