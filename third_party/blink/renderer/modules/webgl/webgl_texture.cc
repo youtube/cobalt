@@ -70,7 +70,9 @@ void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
     Context()->ContextGL()->DeleteTextures(1, &texture_id);
     ResetUnownedObject();
   }
-  SetObject(new_object);
+  if (Object() != new_object) {
+    SetObject(new_object);
+  }
   mailbox_ = video_frame && video_frame->HasSharedImage() ? video_frame->shared_image()->mailbox() : gpu::Mailbox();
   shared_image_ = video_frame ? video_frame->shared_image() : nullptr;
   video_frame_ = std::move(video_frame);
