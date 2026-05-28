@@ -49,6 +49,14 @@ rendering issues caused by Chromium's shader expectations.
 ### Added AV2 to SbMediaVideoCodec
 This prepares Cobalt for future AV2 playback support.
 
+### Added SbMediaIsChangeTypeTransitionSupported() to media.h
+This API will query the starboard implementation for its support of SourceBuffer.changeType().
+
+### Updated the capabilities of SbPlayerWriteSamples()
+If `SbMediaIsChangeTypeTransitionSupported` returns true, `SbPlayerWriteSamples()` may write
+samples to an `SbPlayer` that has different data (such as MIME string and codec type) than what the
+`SbPlayer` is currently configured to.
+
 ### Removed unused configuration constants
 The following configuration constants were removed as they are no longer used by Cobalt core:
 * `kSbFileMaxOpen`
