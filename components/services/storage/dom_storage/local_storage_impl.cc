@@ -685,6 +685,7 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
     DeleteAndRecreateDatabase();
+    return;
   }
 
   // Verify DB schema version.
@@ -736,6 +737,7 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
     DeleteAndRecreateDatabase();
+    return;
   }
 
   OnConnectionFinished();
