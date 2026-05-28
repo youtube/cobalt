@@ -32,8 +32,8 @@ will be `lts`.
 
 ## Minor Version
 
-The current update revision number (e.g. release number). This will always be `0` on the main branch.  When a release
-branch is cut, will be modified to start at `1`, and be incremented each time a
+The current update revision number (e.g. release number). This will always be `0` on the main branch. When a release
+branch is cut, it will be modified to start at `1`, and be incremented each time a
 release or update is released.  It is possible that multiple updates are
 released off of the same release branch, if new bugs are discovered and fixed.
 
