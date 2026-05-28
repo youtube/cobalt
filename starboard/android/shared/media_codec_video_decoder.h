@@ -300,7 +300,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const PipelineConfig& pipeline_config,
       const PlatformOptions& platform_options);
 
-  bool SignalIfNeedMoreInput(scoped_refptr<VideoFrame> frame = nullptr);
+  bool SignalIfNeedMoreInput(const scoped_refptr<VideoFrame>& frame = nullptr);
 
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
 };
