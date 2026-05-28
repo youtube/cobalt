@@ -7,6 +7,7 @@
 
 #include "media/base/audio_decoder_config.h"
 #include "media/base/ipc/media_param_traits.h"
+#include "media/media_buildflags.h"
 #include "media/mojo/mojom/media_types.mojom.h"
 
 namespace mojo {
@@ -69,6 +70,16 @@ struct StructTraits<media::mojom::AudioDecoderConfigDataView,
       const media::AudioDecoderConfig& input) {
     return input.should_discard_decoder_delay();
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  static bool is_change_type_transition(const media::AudioDecoderConfig& input) {
+    return input.is_change_type_transition();
+  }
+
+  static const std::string& mime_type(const media::AudioDecoderConfig& input) {
+    return input.mime_type();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   static bool Read(media::mojom::AudioDecoderConfigDataView input,
                    media::AudioDecoderConfig* output);

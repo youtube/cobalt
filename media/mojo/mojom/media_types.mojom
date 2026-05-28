@@ -206,6 +206,10 @@ struct AudioDecoderConfig {
   ChannelLayout target_output_channel_layout;
   SampleFormat target_output_sample_format;
   bool should_discard_decoder_delay;
+  [EnableIf=use_starboard_media]
+  bool is_change_type_transition;
+  [EnableIf=use_starboard_media]
+  string mime_type;
 };
 
 // This defines a mojo transport format for media::VideoDecoderConfig.
@@ -224,6 +228,10 @@ struct VideoDecoderConfig {
   EncryptionScheme encryption_scheme;
   VideoColorSpace color_space_info;
   gfx.mojom.HDRMetadata? hdr_metadata;
+  [EnableIf=use_starboard_media]
+  bool is_change_type_transition;
+  [EnableIf=use_starboard_media]
+  string mime_type;
 };
 
 // Native struct media::SubsampleEntry;
