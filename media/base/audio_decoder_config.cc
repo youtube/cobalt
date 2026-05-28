@@ -5,6 +5,7 @@
 #include "media/base/audio_decoder_config.h"
 
 #include "base/logging.h"
+#include "media/media_buildflags.h"
 #include "base/strings/to_string.h"
 #include "media/base/limits.h"
 #include "media/base/media_util.h"
@@ -58,6 +59,10 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
   bytes_per_frame_ = channels_ * bytes_per_channel_;
 
   should_discard_decoder_delay_ = true;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  is_change_type_transition_ = false;
+  mime_type_ = "";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioDecoderConfig::~AudioDecoderConfig() = default;
@@ -89,7 +94,12 @@ bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
        config.should_discard_decoder_delay()) &&
       (target_output_channel_layout() ==
        config.target_output_channel_layout()) &&
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      (target_output_sample_format() == config.target_output_sample_format()) &&
+      (mime_type() == config.mime_type()));
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       (target_output_sample_format() == config.target_output_sample_format()));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 std::string AudioDecoderConfig::AsHumanReadableString() const {
@@ -111,7 +121,13 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << ", target_output_channel_layout: "
     << ChannelLayoutToString(target_output_channel_layout())
     << ", target_output_sample_format: "
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    << SampleFormatToString(target_output_sample_format())
+    << ", mime: \"" << mime_type() << "\""
+    << ", is_change_type_transition: " << base::ToString(is_change_type_transition());
+#else
     << SampleFormatToString(target_output_sample_format());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return s.str();
 }
 
