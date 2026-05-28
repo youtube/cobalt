@@ -187,6 +187,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
     ]
 
     if (use_starboard_media) {
