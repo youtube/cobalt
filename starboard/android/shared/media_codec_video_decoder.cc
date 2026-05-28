@@ -253,7 +253,7 @@ MediaCodecVideoDecoder::CreateForTesting(
     const TunnelModeConfig& tunnel_mode_config,
     const PipelineConfig& pipeline_config,
     const PlatformOptions& platform_options) {
-  SB_CHECK(media_codec_factory);  // Enforce required non-null factory in tests!
+  SB_CHECK(media_codec_factory);
   return CreateInternal(std::move(media_codec_factory), job_queue,
                         stream_config, tunnel_mode_config, pipeline_config,
                         platform_options);
