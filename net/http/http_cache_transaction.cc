@@ -21,6 +21,7 @@
 #include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
@@ -3987,6 +3988,23 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     }
     return true;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // If disable-http-cache-except-js-and-html is set, only allow HTML and JS/ECMAScript
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("disable-http-cache-except-js-and-html")) {
+    std::string mime_type;
+    if (headers.GetMimeType(&mime_type)) {
+      bool is_html = (mime_type == "text/html");
+      bool is_js = (mime_type.ends_with("javascript") || mime_type.ends_with("ecmascript"));
+      if (!is_html && !is_js) {
+        return true; // Do not write to cache / doom existing entry
+      }
+    } else {
+      // If we cannot determine the MIME type, err on the side of caution and do not cache.
+      return true;
+    }
+  }
+#endif
 
   return false;
 }

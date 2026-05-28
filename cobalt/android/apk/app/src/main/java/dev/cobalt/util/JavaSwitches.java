@@ -60,9 +60,9 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
-      extraCommandLineArgs.add("--disable-http-cache");
-    }
+    // if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--disable-http-cache-except-js-and-html");
+    // }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_DECOMMIT_POOLED_PAGES)) {
       extraCommandLineArgs.add("--js-flags=--no-decommit-pooled-pages");
