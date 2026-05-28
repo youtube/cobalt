@@ -194,9 +194,14 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
-  quit_ = true;
+  SB_CHECK(quit_) << "Stop() must be called before destruction";
+}
 
-  audio_out_thread_->Join();
+void AudioTrackAudioSink::Stop() {
+  quit_ = true;
+  if (audio_out_thread_ && !audio_out_thread_->join_called()) {
+    audio_out_thread_->Join();
+  }
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
@@ -631,6 +636,17 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
   // has changed. We use the default max required frames to avoid underruns.
   return has_remote_audio_output ? kMaxRequiredFramesRemote
                                  : kMaxRequiredFramesLocal;
+}
+
+void AudioTrackAudioSinkType::Destroy(SbAudioSink audio_sink) {
+  if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
+    SB_LOG(WARNING) << "audio_sink is invalid.";
+    return;
+  }
+  if (audio_sink != kSbAudioSinkInvalid) {
+    static_cast<AudioTrackAudioSink*>(audio_sink)->Stop();
+  }
+  delete audio_sink;
 }
 
 }  // namespace starboard
