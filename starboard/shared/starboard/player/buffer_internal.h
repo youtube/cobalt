@@ -31,59 +31,23 @@ namespace starboard {
 // It performs better than std::vector<> as it doesn't fill the buffer with 0s.
 class Buffer {
  public:
-  static constexpr uint8_t kPadding = 0x78;
-#if defined(NDEBUG)
-  static constexpr int kPaddingSize = 0;
-#else   // defined(NDEBUG)
-  static constexpr int kPaddingSize = 32;
-#endif  // defined(NDEBUG)
-
   Buffer() = default;
-  explicit Buffer(int size)
-      : size_(size), data_(new uint8_t[size + kPaddingSize * 2]) {
-#if !defined(NDEBUG)
-    memset(data_, kPadding, kPaddingSize);
-    memset(data_ + kPaddingSize + size_, kPadding, kPaddingSize);
-#endif  // !defined(NDEBUG)
-  }
+  explicit Buffer(int size);
+  Buffer(const Buffer& that);
+  Buffer(Buffer&& that);
+  ~Buffer();
 
-  Buffer(const Buffer& that)
-      : size_(that.size_), data_(new uint8_t[that.size_ + kPaddingSize * 2]) {
-    memcpy(data_, that.data_, size_ + kPaddingSize * 2);
-  }
-  Buffer(Buffer&& that) : size_(that.size_), data_(that.data_) {
-    that.size_ = 0;
-    that.data_ = nullptr;
-  }
-  ~Buffer() {
-#if !defined(NDEBUG)
-    if (data_) {
-      uint8_t buffer[kPaddingSize];
-      memset(buffer, kPadding, kPaddingSize);
-      SB_CHECK_EQ(memcmp(data_, buffer, kPaddingSize), 0);
-      SB_CHECK_EQ(memcmp(data_ + kPaddingSize + size_, buffer, kPaddingSize),
-                  0);
-    }
-#endif  // !defined(NDEBUG)
-    delete[] data_;
-  }
-
-  Buffer& operator=(Buffer&& that) {
-    std::swap(this->size_, that.size_);
-    std::swap(this->data_, that.data_);
-    return *this;
-  }
+  Buffer& operator=(Buffer&& that);
 
   int size() const { return size_; }
 
-  uint8_t* data() { return size_ == 0 ? nullptr : data_ + kPaddingSize; }
-  const uint8_t* data() const {
-    return size_ == 0 ? nullptr : data_ + kPaddingSize;
-  }
+  uint8_t* data();
+  const uint8_t* data() const;
 
  private:
   int size_ = 0;
   uint8_t* data_ = nullptr;
+  bool is_pooled_ = false;
 
   Buffer& operator=(const Buffer& that) = delete;
 };
