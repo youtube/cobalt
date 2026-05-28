@@ -390,6 +390,8 @@ int64_t AudioRendererPcm::GetAudioWriteHead() {
   }
 
   SB_CHECK(decoder_sample_rate_);
+
+  std::lock_guard lock(mutex_);
   return seeking_to_time_ + audio_frame_tracker_.GetTotalOriginalFrames() *
                                 1'000'000LL / *decoder_sample_rate_;
 }
@@ -407,6 +409,7 @@ int64_t AudioRendererPcm::AdjustTimestampToAudioClock(int64_t timestamp) {
   }
   SB_CHECK(decoder_sample_rate_);
 
+  std::lock_guard lock(mutex_);
   int64_t frame_position =
       (timestamp - seeking_to_time_) * *decoder_sample_rate_ / 1'000'000LL;
   int64_t adjusted_frame_position =
