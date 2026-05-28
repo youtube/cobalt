@@ -74,7 +74,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       bool enable_flush_during_seek,
       int64_t reset_delay_usec,
       int64_t flush_delay_usec,
-      const ExperimentalFeatures& experimental_features);
+      const ExperimentalFeatures& experimental_features,
+      MediaCodec::Factory* media_codec_factory = nullptr);
 
   MediaCodecVideoDecoder(PassKey<MediaCodecVideoDecoder>,
                          JobQueue* job_queue,
@@ -94,6 +95,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          int64_t reset_delay_usec,
                          int64_t flush_delay_usec,
                          const ExperimentalFeatures& experimental_features,
+                         MediaCodec::Factory* media_codec_factory,
                          std::string* error_message);
 
   ~MediaCodecVideoDecoder() override;
@@ -268,6 +270,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
+  MediaCodec::Factory* const media_codec_factory_;
 };
 
 }  // namespace starboard
