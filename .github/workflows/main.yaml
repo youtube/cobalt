@@ -498,7 +498,6 @@ jobs:
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          archive_browsertests: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_browser == 'true' }}
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
 

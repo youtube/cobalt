@@ -16,9 +16,6 @@ inputs:
   test_targets_json_file:
     description: "The path to test targets json file."
     required: true
-  archive_browsertests:
-    description: "Indicates if browser tests should be archived."
-    default: "false"
   platform:
     description: "The platform for which artifacts are being uploaded."
     required: true
@@ -31,6 +28,20 @@ runs:
     - name: Create Artifacts Directory
       run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
       shell: bash
+    - name: Check test types
+      id: check-test-types
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        has_host_gunit_tests=$(jq '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gunittest")] | length > 0' "${TEST_TARGETS_JSON_FILE}")
+        has_device_gunit_tests=$(jq '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest")] | length > 0' "${TEST_TARGETS_JSON_FILE}")
+        has_browsertest_or_webtest=$(jq '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest"))] | length > 0' "${TEST_TARGETS_JSON_FILE}")
+
+        echo "has_host_gunit_tests=${has_host_gunit_tests}" >> $GITHUB_OUTPUT
+        echo "has_device_gunit_tests=${has_device_gunit_tests}" >> $GITHUB_OUTPUT
+        echo "has_browsertest_or_webtest=${has_browsertest_or_webtest}" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
@@ -39,24 +50,44 @@ runs:
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        mapfile -t targets < <(jq -r '.[] | select(.executable != null) | .executable' "${TEST_TARGETS_JSON_FILE}")
+        mapfile -t targets < <(jq -r '.[] | select(.executable != null and .runs_on == "device") | .executable' "${TEST_TARGETS_JSON_FILE}")
         for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
-    - name: Archive Test Dependencies
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
+    - name: Archive Host Tests
+      if: steps.check-test-types.outputs.has_host_gunit_tests == 'true' && inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
-        ARCHIVE_BROWSERTESTS: ${{ inputs.archive_browsertests }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
 
-        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
+        FLAGS="--compression zstd --compression-level=9"
+        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gunittest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${TARGETS}" \
+          ${FLAGS}
+      shell: bash
+
+    - name: Archive Device Tests
+      if: steps.check-test-types.outputs.has_device_gunit_tests == 'true' && inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -x
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        cd cobalt/src/
+
         FLAGS=""
         if [[ "${PLATFORM}" == *android* ]]; then
           FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
@@ -66,18 +97,41 @@ runs:
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        TARGETS=$(jq -cr '[.[] | select(.target != null) | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
-        # Archive browser tests if requested.
-        if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then
-          # Determine the browser test target for this platform.
-          BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
-          if [[ -n "${TARGETS}" ]]; then
-            TARGETS="${TARGETS},${BROWSERTEST_TARGET}"
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${TARGETS}" \
+          ${FLAGS}
+      shell: bash
+
+    - name: Archive Browser Tests
+      if: steps.check-test-types.outputs.has_browsertest_or_webtest == 'true' && (inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true')
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -x
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        cd cobalt/src/
+
+        FLAGS=""
+        if [[ "${{ inputs.upload_on_device_test_artifacts }}" == "true" ]]; then
+          if [[ "${PLATFORM}" == *android* ]]; then
+            FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+          elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
+            FLAGS="--compression gz --archive-per-target --flatten-deps"
           else
-            TARGETS="${BROWSERTEST_TARGET}"
+            FLAGS="--compression zstd --compression-level=9"
           fi
+        else
+          FLAGS="--compression zstd --compression-level=9"
         fi
+
+        TARGETS=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         if [[ -n "${TARGETS}" ]]; then
           time vpython3 -u ./cobalt/build/archive_test_artifacts.py \

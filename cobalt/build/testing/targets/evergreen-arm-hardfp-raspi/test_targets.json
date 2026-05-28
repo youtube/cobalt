@@ -4,6 +4,8 @@
   },
   {
     "target": "starboard/nplb:nplb_loader",
-    "executable": "out/evergreen-arm-hardfp-raspi_devel/nplb_loader.py"
+    "executable": "out/evergreen-arm-hardfp-raspi_devel/nplb_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   }
 ]

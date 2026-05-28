@@ -30,42 +30,62 @@
   },
   {
     "target": "crypto:crypto_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "media/mojo:media_mojo_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/media_mojo_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/media_mojo_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "skia:skia_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "starboard/nplb:nplb_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/abseil-cpp:absl_hardening_tests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/absl_hardening_tests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/absl_hardening_tests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/blink/renderer/platform/wtf:wtf_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/wtf_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/wtf_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "ui/events:events_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "ui/ozone:ozone_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/blink/common:blink_common_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/blink_common_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   },
   {
     "target": "storage:storage_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/storage_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gunittest"
   }
 ]

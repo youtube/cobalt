@@ -19,106 +19,158 @@
   },
   {
     "target": "base:base_perftests_loader",
-    "executable": "out/linux-x64x11-modular_devel/base_perftests_loader"
+    "executable": "out/linux-x64x11-modular_devel/base_perftests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "cc:cc_perftests_loader",
-    "executable": "out/linux-x64x11-modular_devel/cc_perftests_loader"
+    "executable": "out/linux-x64x11-modular_devel/cc_perftests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "cc:cc_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/cc_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/cc_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "components/viz:viz_perftests_loader",
-    "executable": "out/linux-x64x11-modular_devel/viz_perftests_loader"
+    "executable": "out/linux-x64x11-modular_devel/viz_perftests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "components/viz:viz_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/viz_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/viz_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "crypto:crypto_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/crypto_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/crypto_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "google_apis:google_apis_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/google_apis_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/google_apis_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "google_apis/gcm:gcm_unit_tests_loader",
-    "executable": "out/linux-x64x11-modular_devel/gcm_unit_tests_loader"
+    "executable": "out/linux-x64x11-modular_devel/gcm_unit_tests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "gpu:command_buffer_perftests_loader",
-    "executable": "out/linux-x64x11-modular_devel/command_buffer_perftests_loader"
+    "executable": "out/linux-x64x11-modular_devel/command_buffer_perftests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "gpu:gl_tests_loader",
-    "executable": "out/linux-x64x11-modular_devel/gl_tests_loader"
+    "executable": "out/linux-x64x11-modular_devel/gl_tests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "gpu:gpu_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/gpu_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/gpu_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "media/capture:capture_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/capture_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/capture_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "media/midi:midi_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/midi_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/midi_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "mojo:mojo_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/mojo_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/mojo_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "skia:skia_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/skia_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/skia_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "sql:sql_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/sql_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/sql_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "starboard/nplb:nplb_loader",
-    "executable": "out/linux-x64x11-modular_devel/nplb_loader"
+    "executable": "out/linux-x64x11-modular_devel/nplb_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/blink_heap_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/blink_heap_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/blink/renderer/platform/wtf:wtf_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/wtf_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/wtf_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/boringssl:boringssl_crypto_tests_loader",
-    "executable": "out/linux-x64x11-modular_devel/boringssl_crypto_tests_loader"
+    "executable": "out/linux-x64x11-modular_devel/boringssl_crypto_tests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/boringssl:boringssl_ssl_tests_loader",
-    "executable": "out/linux-x64x11-modular_devel/boringssl_ssl_tests_loader"
+    "executable": "out/linux-x64x11-modular_devel/boringssl_ssl_tests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/perfetto:trace_processor_minimal_smoke_tests_loader",
-    "executable": "out/linux-x64x11-modular_devel/trace_processor_minimal_smoke_tests_loader"
+    "executable": "out/linux-x64x11-modular_devel/trace_processor_minimal_smoke_tests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "third_party/zlib:zlib_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/zlib_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/zlib_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "ui/ozone:ozone_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/ozone_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/ozone_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "url:url_perftests_loader",
-    "executable": "out/linux-x64x11-modular_devel/url_perftests_loader"
+    "executable": "out/linux-x64x11-modular_devel/url_perftests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "url:url_unittests_loader",
-    "executable": "out/linux-x64x11-modular_devel/url_unittests_loader"
+    "executable": "out/linux-x64x11-modular_devel/url_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gunittest"
   }
 ]
