@@ -407,7 +407,7 @@ void CheckException(JNIEnv* env) {
 std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   ScopedJavaLocalRef<jstring> sanitized_exception_string =
       Java_PiiElider_getSanitizedStacktrace(
-          env, ScopedJavaLocalRef(env, java_throwable));
+          env, ScopedJavaLocalRef<jthrowable>(env, java_throwable));
 
   return ConvertJavaStringToUTF8(sanitized_exception_string);
 }

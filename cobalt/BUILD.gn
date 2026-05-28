@@ -127,6 +127,24 @@ if (is_ios && target_platform == "tvos") {
     info_plist = cobalt_info_plist
   }
 
+  # Bundles the browser engine and starboard dependencies into a unified, non-thin
+  # static library for custom Apple TV application integration and CI packaging.
+  static_library("cobalt_archive") {
+    complete_static_lib = true
+
+    configs -= [ "//build/config/compiler:thin_archive" ]
+
+    deps = [
+      ":common",
+      "//base",
+      "//cobalt/browser/tvos/intents:yt_intents",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//components/crash/core/app",
+      "//content/public/app",
+      "//starboard:starboard_group",
+    ]
+  }
+
   foreach(locale, cobalt_locales) {
     bundle_data("cobalt_strings_${locale}_bundle_data") {
       sources = [

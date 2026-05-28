@@ -303,13 +303,9 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   return can_accept_more_data;
 }
 
-void VideoRendererImpl::SetBounds(int z_index,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height) {
+void VideoRendererImpl::SetBounds(int z_index, const Rect& rect) {
   if (sink_) {
-    sink_->SetBounds(z_index, x, y, width, height);
+    sink_->SetBounds(z_index, rect);
   }
 }
 
@@ -397,7 +393,17 @@ void VideoRendererImpl::OnDecoderStatus(
           static_cast<int32_t>(decoder_->GetPrerollFrameCount());
     }
 
-    if (preroll_completed && seeking_.exchange(false)) {
+    bool should_call_preroll_cb;
+    if (experimental_features_.enable_trivial_optimizations.value_or(false)) {
+      // Avoid unconditional cache thrashing.
+      should_call_preroll_cb =
+          preroll_completed && seeking_.load() && seeking_.exchange(false);
+    } else {
+      // The previous logic.
+      should_call_preroll_cb = preroll_completed && seeking_.exchange(false);
+    }
+
+    if (should_call_preroll_cb) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       SB_LOG(INFO) << "Video preroll complete: elapsed(msec)="
                    << FormatWithDigitSeparators(
@@ -434,17 +440,35 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   {
     std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
     sink_frames_mutex_.lock();
-    for (auto decoder_frame : decoder_frames_) {
-      if (sink_frames_.empty()) {
-        sink_frames_.push_back(decoder_frame);
-        continue;
+    if (experimental_features_.enable_trivial_optimizations.value_or(false)) {
+      auto it = decoder_frames_.begin();
+      while (it != decoder_frames_.end()) {
+        auto next = std::next(it);
+        if (sink_frames_.empty()) {
+          sink_frames_.splice(sink_frames_.end(), decoder_frames_, it);
+        } else if (sink_frames_.back()->is_end_of_stream()) {
+          // If the sink reached end of stream, no more frames can be appended.
+          // Remaining frames in decoder_frames_ will be cleared below.
+          break;
+        } else if ((*it)->is_end_of_stream() ||
+                   (*it)->timestamp() > sink_frames_.back()->timestamp()) {
+          sink_frames_.splice(sink_frames_.end(), decoder_frames_, it);
+        }
+        it = next;
       }
-      if (sink_frames_.back()->is_end_of_stream()) {
-        continue;
-      }
-      if (decoder_frame->is_end_of_stream() ||
-          decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
-        sink_frames_.push_back(decoder_frame);
+    } else {
+      for (auto decoder_frame : decoder_frames_) {
+        if (sink_frames_.empty()) {
+          sink_frames_.push_back(decoder_frame);
+          continue;
+        }
+        if (sink_frames_.back()->is_end_of_stream()) {
+          continue;
+        }
+        if (decoder_frame->is_end_of_stream() ||
+            decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
+          sink_frames_.push_back(decoder_frame);
+        }
       }
     }
     decoder_frames_.clear();
@@ -491,6 +515,7 @@ void VideoRendererImpl::WritePendingInputs() {
   if (pending_end_of_stream_ && pending_input_buffers_.empty()) {
     // All pending buffers have been sent to the decoder; now it's safe to
     // send the end-of-stream signal.
+    pending_end_of_stream_ = false;
     WriteEndOfStream();
   }
 }

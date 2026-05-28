@@ -91,10 +91,6 @@ void PerformanceImpl::GetAppStartupTimeStamp(
         StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
   }
 #endif
-#if BUILDFLAG(IS_IOS_TVOS)
-  // TODO - b/487001977: Implement this method.
-  NOTIMPLEMENTED();
-#endif
   std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }
 

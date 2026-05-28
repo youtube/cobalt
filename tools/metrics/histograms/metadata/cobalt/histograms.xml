@@ -103,6 +103,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.LoaderApp.SlotSelectionStatus"
+    enum="SlotSelectionStatus" expires_after="never">
+<!-- expires-never: Needed for Evergreen updates health metrics. -->
+
+  <owner>yuying@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Status of slot selection by the Loader App.</summary>
+</histogram>
+
 <histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"
     expires_after="never">
   <owner>colinliang@google.com</owner>
