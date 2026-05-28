@@ -136,7 +136,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'if_indextoname',
     'if_nametoindex',
     'inotify_add_watch',
-    'inotify_init',
     'inotify_init1',
     'inotify_rm_watch',
     'isatty',
