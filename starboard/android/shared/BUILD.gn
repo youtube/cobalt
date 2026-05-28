@@ -393,11 +393,18 @@ static_library("media_codec_video_decoder_helpers") {
 
 static_library("test_support") {
   testonly = true
-  public_deps = [ "//testing/gtest" ]
+  public_deps = [
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [ ":starboard_platform" ]
 
   sources = [
+    "fake_media_codec.cc",
+    "fake_media_codec.h",
     "starboard_test_environment.cc",
     "starboard_test_environment.h",
   ]
@@ -412,6 +419,7 @@ test("starboard_platform_tests") {
               "media_capabilities_cache_test.cc",
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
+              "media_codec_video_decoder_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
