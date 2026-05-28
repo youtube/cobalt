@@ -262,6 +262,19 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
+      if args.test_type == 'browser_test':
+        package_name = 'org.chromium.native_test'
+        options = (f'{package_name}.NativeTestInstrumentationTestRunner.'
+                   'NativeTestActivity=org.chromium.content_browsertests_apk.'
+                   'ContentBrowserTestsActivity,'
+                   f'{package_name}.NativeTest.RunInSubThread=1,'
+                   f'{package_name}.NativeTestInstrumentationTestRunner.'
+                   'ShardNanoTimeout=1680000000000,'
+                   f'{package_name}.NativeTestInstrumentationTestRunner.'
+                   f'StdoutFile={dir_on_device}/{target_name}_log.txt,'
+                   f'{package_name}.NativeTest.CommandLineFlags='
+                   f'\'{command_line_args}\'')
+        params.append(f'options={options}')
       test_type = 'unit_test'
 
     elif test_type in ('e2e_test', 'yts_test', 'yts_wpt_test'):
