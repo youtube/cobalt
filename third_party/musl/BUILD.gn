@@ -856,6 +856,7 @@ static_library("c_internal") {
     "src/stdio/fprintf.c",
     "src/stdio/fputc.c",
     "src/stdio/fputs.c",
+    "src/stdio/fputwc.c",
     "src/stdio/fread.c",
     "src/stdio/fscanf.c",
     "src/stdio/fseek.c",
