@@ -279,7 +279,7 @@ GStreamerAudioSink::~GStreamerAudioSink() {
 // static
 void* GStreamerAudioSink::AudioThreadEntryPoint(void* context) {
   SB_DCHECK(context);
-  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(ThreadPriority::kRealTime));
+  setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(ThreadPriority::kRealTime));
 
   GStreamerAudioSink* sink = reinterpret_cast<GStreamerAudioSink*>(context);
   GST_TRACE_OBJECT(sink->pipeline_, "TID: %d", gettid());

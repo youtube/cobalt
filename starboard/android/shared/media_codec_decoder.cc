@@ -927,7 +927,7 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    setpriority(PRIO_PROCESS, 0, SbPriorityToNice(ThreadPriority::kHigh));
+    setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(ThreadPriority::kHigh));
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);

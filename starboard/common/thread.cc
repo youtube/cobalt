@@ -39,7 +39,7 @@ namespace {
 // Returns a value between 0 and 1 that is used by SetThreadPriority() to scale
 // the desired thread priority between what sched_get_priority_min() and
 // sched_get_priority_max() return.
-float SbThreadPriorityToRelativeSchedPriority(ThreadPriority priority) {
+float ThreadPriorityToRelativeSchedPriority(ThreadPriority priority) {
   switch (priority) {
     case ThreadPriority::kLowest:
       return 0.1f;
@@ -70,7 +70,7 @@ float SbThreadPriorityToRelativeSchedPriority(ThreadPriority priority) {
 bool SetThreadPriority(ThreadPriority priority) {
 #if defined(__APPLE__)
   const float relative_priority =
-      SbThreadPriorityToRelativeSchedPriority(priority);
+      ThreadPriorityToRelativeSchedPriority(priority);
 
   int policy;
   struct sched_param param;
@@ -91,13 +91,13 @@ bool SetThreadPriority(ThreadPriority priority) {
 #else
   // setpriority returns 0 on success and -1 on failure. The default nice value
   // is 0. See https://linux.die.net/man/2/setpriority
-  return (setpriority(PRIO_PROCESS, 0, SbPriorityToNice(priority)) == 0);
+  return (setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(priority)) == 0);
 #endif  // defined(__APPLE__)
 }
 
 }  // namespace
 
-int SbPriorityToNice(ThreadPriority priority) {
+int ThreadPriorityToNiceValue(ThreadPriority priority) {
   // Nice value settings are shared between Android and Linux.
   // They are selected from looking at:
   // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
