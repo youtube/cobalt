@@ -44,6 +44,10 @@ rendering issues caused by Chromium's shader expectations.
 * `getuid`
 * `if_indextoname`
 * `if_nametoindex`
+* `sched_getparam`
+* `sched_setparam`
+* `sched_getscheduler`
+* `sched_setscheduler`
 * `statx`
 
 ### Added AV2 to SbMediaVideoCodec
@@ -52,6 +56,7 @@ This prepares Cobalt for future AV2 playback support.
 ### Removed unused configuration constants
 The following configuration constants were removed as they are no longer used by Cobalt core:
 * `kSbFileMaxOpen`
+* `kSbHasThreadPrioritySupport`
 * `kSbMaxThreadLocalKeys`
 * `kSbMaxThreadNameLength`
 * `kSbNetworkReceiveBufferSize`

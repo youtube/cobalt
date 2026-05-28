@@ -36,5 +36,5 @@
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
-  return third_party::starboard::rdk::shared::DeviceInfo::GetAudioConfiguration(output_index, out_configuration);
+  return starboard::DeviceInfo::GetAudioConfiguration(output_index, out_configuration);
 }

@@ -36,7 +36,6 @@ typedef struct StarboardExtensionExperimentalFeatures {
   bool allow_audio_writing_on_pause;
   bool disable_low_performance_sw_decoder;
   bool enable_av1_startup_optimization;
-  bool enable_codec_output_checker;
   bool enable_video_renderer_vsp_adjustment;
   bool flush_audio_track_during_seek;
   bool flush_decoder_during_reset;

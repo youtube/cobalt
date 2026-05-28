@@ -229,7 +229,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     render_cb_ = render_cb;
   }
 
-  void SetBounds(int z_index, int x, int y, int width, int height) override {}
+  void SetBounds(int z_index, const Rect& rect) override {}
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
@@ -333,7 +333,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
-      enable_output_checker_(experimental_features.enable_codec_output_checker),
       skip_video_frames_over_60_fps_(
           experimental_features.skip_video_frames_over_60_fps),
       is_video_frame_tracker_enabled_(
@@ -821,8 +820,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, enable_output_checker_,
-      skip_video_frames_over_60_fps_);
+      use_dual_threads_, skip_video_frames_over_60_fps_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

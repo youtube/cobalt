@@ -324,17 +324,14 @@ bool AVSBVideoRenderer::CanAcceptMoreData() const {
          sample_buffer_builder_->GetMaxNumberOfCachedFrames();
 }
 
-void AVSBVideoRenderer::SetBounds(int z_index,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height) {
+void AVSBVideoRenderer::SetBounds(int z_index, const Rect& rect) {
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
   onApplicationMainThread(^{
     float scale = [UIScreen mainScreen].scale;
     display_view.frame =
-        CGRectMake(x / scale, y / scale, width / scale, height / scale);
+        CGRectMake(rect.x / scale, rect.y / scale, rect.size.width / scale,
+                   rect.size.height / scale);
     display_layer.zPosition = z_index;
   });
 }

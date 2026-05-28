@@ -50,8 +50,6 @@ std::ostream& operator<<(
             << ToString(features.disable_low_performance_sw_decoder)
             << ", enable_av1_startup_optimization="
             << ToString(features.enable_av1_startup_optimization)
-            << ", enable_codec_output_checker="
-            << ToString(features.enable_codec_output_checker)
             << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
