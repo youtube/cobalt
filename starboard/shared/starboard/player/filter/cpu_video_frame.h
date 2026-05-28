@@ -42,14 +42,8 @@ class CpuVideoFrame : public VideoFrame {
 
   struct Plane {
     Plane(Size size, int pitch_in_bytes, const uint8_t* data)
-        : size(size),
-          width(size.width),
-          height(size.height),
-          pitch_in_bytes(pitch_in_bytes),
-          data(data) {}
+        : size(size), pitch_in_bytes(pitch_in_bytes), data(data) {}
     Size size;
-    int width;
-    int height;
     int pitch_in_bytes;
     const uint8_t* data;
   };
@@ -57,8 +51,6 @@ class CpuVideoFrame : public VideoFrame {
   explicit CpuVideoFrame(int64_t timestamp) : VideoFrame(timestamp) {}
 
   Format format() const { return format_; }
-  int width() const { return size_.width; }
-  int height() const { return size_.height; }
   const Size& size() const { return size_; }
 
   int GetPlaneCount() const;
