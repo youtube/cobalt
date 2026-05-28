@@ -10,6 +10,7 @@
 namespace storage {
 
 BASE_DECLARE_FEATURE(kCoalesceStorageAreaCommits);
+BASE_DECLARE_FEATURE(kLocalStorageDeleteLockFile);
 
 }  // namespace storage
 

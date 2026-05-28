@@ -32,6 +32,9 @@ public class JavaSwitches {
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
+  /** flag to delete stale leveldb LOCK file on startup. */
+  public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
+
   /** flag to enable fast track mic capture. */
   public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
 
@@ -49,6 +52,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
+      extraCommandLineArgs.add("--enable-features=LocalStorageDeleteLockFile");
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
