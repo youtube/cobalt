@@ -653,7 +653,9 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
     if (base::FeatureList::IsEnabled(kLocalStorageDeleteLockFile)) {
       base::FilePath db_path = directory_.AppendASCII(kLocalStorageLeveldbName);
       base::FilePath lock_file_path = db_path.AppendASCII("LOCK");
-      base::DeleteFile(lock_file_path);
+      database_task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(base::IgnoreResult(&base::DeleteFile), lock_file_path));
     }
     database_ = AsyncDomStorageDatabase::OpenDirectory(
         directory_, kLocalStorageLeveldbName, memory_dump_id_,
