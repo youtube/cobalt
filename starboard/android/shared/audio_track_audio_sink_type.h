@@ -88,15 +88,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
-  void Destroy(SbAudioSink audio_sink) override {
-    // TODO(b/330793785): Use audio_sink.flush() instead of re-creating a new
-    // audio_sink.
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
+  void Destroy(SbAudioSink audio_sink) override;
 
   void TestMinRequiredFrames();
 
@@ -144,6 +136,8 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
                       std::unique_ptr<AudioTrackBridge> bridge,
                       void* context);
   ~AudioTrackAudioSink() override;
+
+  void Stop();
 
   bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
