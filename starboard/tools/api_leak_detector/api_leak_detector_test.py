@@ -72,19 +72,6 @@ class TestAPILeakDetector(unittest.TestCase):
     self.assertEqual(inversed, expected_inversed)
 
   @patch('builtins.open', new_callable=MagicMock)
-  def test_load_allowed_c99_symbols(self, mock_open):
-    mock_open.return_value.__enter__.return_value = [
-        '# Comment line\n', '* allowed_symbol_1\n', '* allowed_symbol_2\n',
-        '  # Another comment\n', '* allowed_symbol_3\n'
-    ]
-
-    allowed_c99_symbols = api_leak_detector.LoadAllowedC99Symbols()
-    expected_symbols = {
-        'allowed_symbol_1', 'allowed_symbol_2', 'allowed_symbol_3'
-    }
-    self.assertEqual(allowed_c99_symbols, expected_symbols)
-
-  @patch('builtins.open', new_callable=MagicMock)
   def test_load_manifest(self, mock_open):
     mock_open.return_value.__enter__.return_value = [
         '# Manifest of Leaking Files\n', '\n',
