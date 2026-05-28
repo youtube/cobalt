@@ -533,6 +533,8 @@ void ShellPlatformDelegate::ConcealShell(Shell* shell) {
     // Restore spec-compliant Minimize and Hide window widget deactivation!
     shell_data.window_widget->Minimize();
     shell_data.window_widget->GetNativeWindow()->Hide();
+    // Also hide the window widget visually for extra safety!
+    shell_data.window_widget->Hide();
   }
 }
 

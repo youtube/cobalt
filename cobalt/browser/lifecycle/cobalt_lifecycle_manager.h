@@ -210,6 +210,11 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     // Called when the remote controller for a frame disconnects.
     void OnControllerDisconnect(content::RenderFrameHost* frame);
 
+    bool is_unfreezing() const { return is_unfreezing_; }
+    void set_is_unfreezing(bool is_unfreezing) {
+      is_unfreezing_ = is_unfreezing;
+    }
+
    private:
     CobaltLifecycleManager* manager_;
 
@@ -223,6 +228,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     base::flat_set<content::RenderFrameHost*> resumed_frames_;
     base::flat_set<content::RenderFrameHost*> visible_frames_;
     base::flat_set<content::RenderFrameHost*> focused_frames_;
+
+    bool is_unfreezing_ = false;
   };
 
   WebContentsTracker* GetOrCreateTracker(content::WebContents* web_contents);

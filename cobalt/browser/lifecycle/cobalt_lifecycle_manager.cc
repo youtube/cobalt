@@ -359,6 +359,10 @@ void CobaltLifecycleManager::StartWaitingForAck(
 
   auto* tracker = GetOrCreateTracker(web_contents);
 
+  if (ack_type == PendingAck::kUnfreeze) {
+    tracker->set_is_unfreezing(true);
+  }
+
   if (ack_type == PendingAck::kReveal) {
     auto* main_frame = main_frames_[web_contents];
     if (main_frame) {
@@ -383,8 +387,9 @@ void CobaltLifecycleManager::StartWaitingForAck(
   }
 
   if (pending_ack_frames_[web_contents].empty()) {
-    if (ack_type == PendingAck::kUnfreeze || ack_type == PendingAck::kBlur ||
-        ack_type == PendingAck::kReveal) {
+    if (tracker->is_unfreezing() &&
+        (ack_type == PendingAck::kUnfreeze || ack_type == PendingAck::kBlur ||
+         ack_type == PendingAck::kReveal)) {
       // This can happen if the renderer disconnected its Mojo pipe during
       // freeze. We must wait for the renderer to reconnect and call FrameReady
       // before we can expect any ACKs.
@@ -415,8 +420,6 @@ void CobaltLifecycleManager::StartWaitingForAck(
       base::Seconds(2));
 }
 
-// CheckCompletion is called whenever the set of pending frames for a specific
-// WebContents might have become empty.
 // If we are waiting for reveal on this WebContents and all its registered
 // frames have reported visible, it completes the reveal sequence for THIS
 // WebContents:
@@ -432,6 +435,14 @@ void CobaltLifecycleManager::CompleteAckImmediately(
   }
   pending_acks_[web_contents] = PendingAck::kNone;
   pending_ack_frames_.erase(web_contents);
+
+  if (ack_type == PendingAck::kReveal || ack_type == PendingAck::kConceal ||
+      ack_type == PendingAck::kCookieFlush) {
+    auto* tracker = GetOrCreateTracker(web_contents);
+    if (tracker) {
+      tracker->set_is_unfreezing(false);
+    }
+  }
 
   switch (ack_type) {
     case PendingAck::kUnfreeze:

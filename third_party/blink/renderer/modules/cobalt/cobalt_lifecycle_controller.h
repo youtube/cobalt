@@ -15,6 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_COBALT_LIFECYCLE_CONTROLLER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_COBALT_LIFECYCLE_CONTROLLER_H_
 
+#include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-blink.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom-blink.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_state_observer.h"
@@ -89,6 +90,7 @@ class CobaltLifecycleController
 
  private:
   void EnsureRemoteIsBound();
+  void NotifyObserver(base::OnceClosure callback);
 
   HeapMojoReceiver<cobalt::mojom::blink::CobaltLifecycleController,
                    CobaltLifecycleController>
