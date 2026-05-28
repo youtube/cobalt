@@ -254,7 +254,6 @@ static_library("starboard_platform") {
     "system_request_stop.cc",
     "text_to_speech_helper.cc",
     "text_to_speech_helper.h",
-    "thread_get_id.cc",
     "thread_platform_android.cc",
     "time_zone_get_name.cc",
     "video_frame_tracker.cc",

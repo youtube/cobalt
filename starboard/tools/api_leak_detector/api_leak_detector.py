@@ -129,6 +129,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'getrlimit',
     'getsockname',
     'getsockopt',
+    'gettid',
     'getuid',
     'gmtime_r',
     'if_indextoname',

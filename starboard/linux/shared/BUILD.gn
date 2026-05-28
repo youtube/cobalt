@@ -117,7 +117,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/linux/system_is_debugger_attached.cc",
     "//starboard/shared/linux/system_network_status.cc",
     "//starboard/shared/linux/system_symbolize.cc",
-    "//starboard/shared/linux/thread_get_id.cc",
     "//starboard/shared/linux/time_zone_get_name.cc",
     "//starboard/shared/linux/time_zone_monitor.cc",
     "//starboard/shared/linux/time_zone_monitor.h",
