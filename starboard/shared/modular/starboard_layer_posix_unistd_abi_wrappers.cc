@@ -700,7 +700,7 @@ musl_pid_t __abi_wrap_getpid() {
 }
 
 musl_pid_t __abi_wrap_gettid() {
-#if defined(__ANDROID__)
+#if defined(gettid)
   return static_cast<musl_pid_t>(gettid());
 #else
   return static_cast<musl_pid_t>(syscall(SYS_gettid));
