@@ -213,6 +213,16 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   client_ = client;
   init_cb_ = std::move(init_cb);
 
+  if (IsUrlPlayer()) {
+    state_ = STATE_INITIALIZING;
+    if (get_sb_window_handle_cb_) {
+      get_sb_window_handle_cb_.Run();
+      return;
+    }
+    CreatePlayerBridge();
+    return;
+  }
+
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
 
@@ -530,6 +540,49 @@ void StarboardRenderer::OnSbWindowHandleReady(const uint64_t sb_window_handle) {
   CreatePlayerBridge();
 }
 
+bool StarboardRenderer::IsUrlPlayer() const {
+#if SB_HAS(PLAYER_WITH_URL)
+  return !source_url_.empty();
+#else
+  return false;
+#endif
+}
+
+void StarboardRenderer::OnUrlPlayerPresenting() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+#if SB_HAS(PLAYER_WITH_URL)
+  int width = 0, height = 0;
+  player_bridge_->GetVideoResolution(&width, &height);
+  if (width > 0 && height > 0) {
+    gfx::Size size(width, height);
+    client_->OnVideoNaturalSizeChange(size);
+    paint_video_hole_frame_cb_.Run(size);
+  } else {
+    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
+                 << "x" << height
+                 << ") at presenting; skipping video hole update.";
+  }
+
+  // Re-apply playback rate; the platform player ignores rate changes
+  // before it is ready to play.
+  player_bridge_->SetPlaybackRate(playback_rate_);
+#endif  // SB_HAS(PLAYER_WITH_URL)
+}
+
+#if SB_HAS(PLAYER_WITH_URL)
+void StarboardRenderer::SetSourceUrl(const std::string& source_url) {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  source_url_ = source_url;
+}
+
+void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
+    const char* init_data_type,
+    const unsigned char* init_data,
+    unsigned int init_data_length) {
+  // TODO: Forward encrypted media init data to the EME/DRM layer.
+}
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
@@ -582,7 +635,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
-  DCHECK(audio_stream_ || video_stream_);
+  DCHECK(audio_stream_ || video_stream_ || IsUrlPlayer());
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
 
@@ -622,39 +675,59 @@ void StarboardRenderer::CreatePlayerBridge() {
   // number of active players.
   player_bridge_.reset();
 
-  LOG(INFO) << "Creating SbPlayerBridge.";
+  if (IsUrlPlayer()) {
+#if SB_HAS(PLAYER_WITH_URL)
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_, source_url_, sb_window_, this,
+        /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
+        base::BindRepeating(
+            &StarboardRenderer::OnEncryptedMediaInitDataEncountered,
+            base::Unretained(this))
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+            ,
+        /*pipeline_identifier=*/""
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+        ));
+#endif  // SB_HAS(PLAYER_WITH_URL)
+  } else {
+    LOG(INFO) << "Creating SbPlayerBridge.";
 
-  player_bridge_.reset(new SbPlayerBridge(
-      GetSbPlayerInterface(), task_runner_,
-      get_decode_target_graphics_context_provider_func_, audio_config,
-      audio_mime_type, video_config, video_mime_type,
-      // TODO(b/326497953): Support suspend/resume.
-      // TODO(b/326508279): Support background mode.
-      sb_window_, drm_system_, this,
-      // TODO(b/326497953): Support suspend/resume.
-      false,
-      // TODO(b/326825450): Revisit 360 videos.
-      kSbPlayerOutputModeInvalid, max_video_capabilities_,
-      // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      /*max_video_input_size=*/-1, experimental_features_
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_,
+        get_decode_target_graphics_context_provider_func_, audio_config,
+        audio_mime_type, video_config, video_mime_type,
+        // TODO(b/326497953): Support suspend/resume.
+        // TODO(b/326508279): Support background mode.
+        sb_window_, drm_system_, this,
+        // TODO(b/326497953): Support suspend/resume.
+        false,
+        // TODO(b/326825450): Revisit 360 videos.
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+        /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      // TODO: b/475294958 - Revisit platform-specific codes above starboard.
-      surface_view_
+        ,
+        // TODO: b/475294958 - Revisit platform-specific codes above starboard.
+        surface_view_
 #endif  // BUILDFLAG(IS_ANDROID)
-      ));
+        ));
+  }
   if (player_bridge_->IsValid()) {
-    // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
-    // returns no audio configurations, update the write durations again
-    // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-    audio_write_duration_for_preroll_ = audio_write_duration_ =
-        HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-            ? audio_write_duration_remote_
-            : audio_write_duration_local_;
-    LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-              << audio_write_duration_for_preroll_
-              << " and with max_video_capabilities_ at "
-              << max_video_capabilities_;
+    if (IsUrlPlayer()) {
+      // URL player: skip audio config query, the platform player manages audio.
+    } else {
+      // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
+      // returns no audio configurations, update the write durations again
+      // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+      audio_write_duration_for_preroll_ = audio_write_duration_ =
+          HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+              ? audio_write_duration_remote_
+              : audio_write_duration_local_;
+      LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+                << audio_write_duration_for_preroll_
+                << " and with max_video_capabilities_ at "
+                << max_video_capabilities_;
+    }
   } else {
     error_message = player_bridge_->GetPlayerCreationErrorMessage();
     player_bridge_.reset();
@@ -860,6 +933,11 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
+  // URL player handles all buffering natively so ignore OnNeedData.
+  if (IsUrlPlayer()) {
+    return;
+  }
+
   int max_buffers =
       std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
@@ -986,11 +1064,15 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
                          weak_factory_.GetWeakPtr(), buffering_state_));
-      audio_write_duration_for_preroll_ = audio_write_duration_ =
-          HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
-      LOG(INFO) << "Audio write duration is " << audio_write_duration_;
+      if (IsUrlPlayer()) {
+        OnUrlPlayerPresenting();
+      } else {
+        audio_write_duration_for_preroll_ = audio_write_duration_ =
+            HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+                ? audio_write_duration_remote_
+                : audio_write_duration_local_;
+        LOG(INFO) << "Audio write duration is " << audio_write_duration_;
+      }
       break;
     case kSbPlayerStateEndOfStream:
       client_->OnEnded();
