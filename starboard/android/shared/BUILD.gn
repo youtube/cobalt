@@ -184,6 +184,8 @@ static_library("starboard_platform") {
     "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
+    "media_codec.cc",
+    "media_codec.h",
     "media_codec_audio_decoder.cc",
     "media_codec_audio_decoder.h",
     "media_codec_bridge.cc",
@@ -408,6 +410,7 @@ test("starboard_platform_tests") {
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
               "media_capabilities_cache_test.cc",
+              "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
@@ -437,7 +440,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
-    "media_codec_bridge.h",
+    "media_codec.h",
     "media_common.h",
     "media_drm_bridge.h",
   ]

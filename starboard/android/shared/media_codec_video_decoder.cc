@@ -58,9 +58,10 @@ class VideoFrameImpl : public VideoFrame {
   typedef std::function<void()> VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
-                 MediaCodecBridge* media_codec_bridge,
+                 MediaCodec* media_codec_bridge,
                  const VideoFrameReleaseCallback& release_callback)
-      : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
+      : VideoFrame(dequeue_output_result.flags &
+                           MediaCodec::kBufferFlagEndOfStream
                        ? kMediaTimeEndOfStream
                        : dequeue_output_result.presentation_time_microseconds),
         dequeue_output_result_(dequeue_output_result),
@@ -92,7 +93,7 @@ class VideoFrameImpl : public VideoFrame {
 
  private:
   DequeueOutputResult dequeue_output_result_;
-  MediaCodecBridge* media_codec_bridge_;
+  MediaCodec* media_codec_bridge_;
   volatile bool released_;
   const VideoFrameReleaseCallback release_callback_;
 };
@@ -919,13 +920,13 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 }
 
 void MediaCodecVideoDecoder::ProcessOutputBuffer(
-    MediaCodecBridge* media_codec_bridge,
+    MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   bool is_end_of_stream =
-      dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
+      dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -951,7 +952,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 }
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(
-    MediaCodecBridge* media_codec_bridge) {
+    MediaCodec* media_codec_bridge) {
   if (!tunnel_mode_audio_session_id_) {
     return;
   }
@@ -965,7 +966,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
 }
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
-    MediaCodecBridge* media_codec_bridge) {
+    MediaCodec* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
@@ -1008,7 +1009,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
   }
 }
 
-bool MediaCodecVideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
+bool MediaCodecVideoDecoder::Tick(MediaCodec* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
   SB_DCHECK(!tunnel_mode_audio_session_id_);

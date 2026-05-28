@@ -100,11 +100,12 @@ NonNullResult<std::unique_ptr<MediaCodecDecoder>>
 MediaCodecDecoder::CreateForAudio(JobQueue* job_queue,
                                   Host* host,
                                   const AudioStreamInfo& audio_stream_info,
-                                  SbDrmSystem drm_system) {
+                                  SbDrmSystem drm_system,
+                                  MediaCodec::Factory* media_codec_factory) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, audio_stream_info,
-      drm_system, &error_message);
+      drm_system, media_codec_factory, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -132,7 +133,8 @@ MediaCodecDecoder::CreateForVideo(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool skip_video_frames_over_60_fps) {
+    bool skip_video_frames_over_60_fps,
+    MediaCodec::Factory* media_codec_factory) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -141,7 +143,7 @@ MediaCodecDecoder::CreateForVideo(
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       enable_frame_renderer_listener, force_big_endian_hdr_metadata,
       max_video_input_size, flush_delay_usec, use_dual_threads,
-      skip_video_frames_over_60_fps, &error_message);
+      skip_video_frames_over_60_fps, media_codec_factory, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -153,6 +155,7 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                                      Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system,
+                                     MediaCodec::Factory* media_codec_factory,
                                      std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeAudio),
@@ -166,16 +169,21 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+  if (media_codec_factory) {
+    media_codec_bridge_ = media_codec_factory->CreateAudioMediaCodec(
+        audio_stream_info, this, j_media_crypto);
+  } else {
+    media_codec_bridge_ = MediaCodec::CreateAudioMediaCodec(
+        audio_stream_info, this, j_media_crypto);
+  }
   if (!media_codec_bridge_) {
-    *error_message = "Failed to create audio media codec bridge.";
+    *error_message = "Failed to create audio media codec.";
     SB_LOG(ERROR) << *error_message;
     return;
   }
   // When |audio_stream_info.codec| == kSbMediaAudioCodecOpus, we instead send
   // the audio specific configuration when we create the MediaCodec object in
-  // the call to MediaCodecBridge::CreateAudioMediaCodecBridge() above.
+  // the call to MediaCodec::CreateAudioMediaCodec() above.
   // TODO: Determine if we should send the audio specific configuration here
   // only when |audio_codec| == kSbMediaAudioCodecAac.
   if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&
@@ -206,6 +214,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
     bool skip_video_frames_over_60_fps,
+    MediaCodec::Factory* media_codec_factory,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -227,18 +236,29 @@ MediaCodecDecoder::MediaCodecDecoder(
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
-      j_output_surface, j_media_crypto, color_metadata,
-      enable_frame_renderer_listener, require_secured_decoder,
-      require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size,
-      skip_video_frames_over_60_fps);
+
+  auto media_codec_bridge =
+      media_codec_factory
+          ? media_codec_factory->CreateVideoMediaCodec(
+                video_codec, frame_size_hint, fps, max_frame_size,
+                /*handler=*/this, j_output_surface, j_media_crypto,
+                color_metadata, enable_frame_renderer_listener,
+                require_secured_decoder, require_software_codec,
+                tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+                max_video_input_size, skip_video_frames_over_60_fps)
+          : MediaCodec::CreateVideoMediaCodec(
+                video_codec, frame_size_hint, fps, max_frame_size,
+                /*handler=*/this, j_output_surface, j_media_crypto,
+                color_metadata, enable_frame_renderer_listener,
+                require_secured_decoder, require_software_codec,
+                tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+                max_video_input_size, skip_video_frames_over_60_fps);
+
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
     *error_message = media_codec_bridge.error();
-    SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
+    SB_LOG(ERROR) << "Failed to create video media codec with error: "
                   << *error_message;
     return;
   }
@@ -750,11 +770,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   // were called and had it stored in |pending_input_to_retry_|.
   if (!input_buffer_already_written &&
       pending_input.type != PendingInput::kWriteEndOfStream) {
-    ScopedJavaLocalRef<jobject> byte_buffer(
-        media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.is_null()) {
-      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer, |byte_buffer| is"
-                    << " null.";
+    size_t capacity = 0;
+    void* address = media_codec_bridge_->GetInputBufferAddress(
+        dequeue_input_result.index, &capacity);
+    if (!address) {
+      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer address.";
       // There could be dirty callbacks right after flush, thus the
       // MediaCodec.InputBuffer could be unavailable. In that case, we should
       // re-write the input buffer with a different MediaCodec.InputBuffer.
@@ -763,12 +783,10 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
       return false;
     }
 
-    JNIEnv* env = AttachCurrentThread();
-    jint capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
-    if (capacity < size) {
+    if (capacity < static_cast<size_t>(size)) {
       auto error_message = FormatString(
           "Unable to write to MediaCodec buffer, input buffer size (%d) is"
-          " greater than |byte_buffer.capacity()| (%d).",
+          " greater than buffer capacity (%d).",
           size, static_cast<int>(capacity));
       SB_LOG(ERROR) << error_message;
       ReportError(kSbPlayerErrorDecode, error_message);
@@ -776,8 +794,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     }
 
     SB_DCHECK_GE(size, 0);
-    SB_DCHECK_LE(size, capacity);
-    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+    SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
     using ::starboard::experimental::IsPointerAnnotated;
     using ::starboard::experimental::UnannotatePointer;
@@ -803,7 +820,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
     status = media_codec_bridge_->QueueInputBuffer(
         dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_CODEC_CONFIG, false);
+        MediaCodec::kBufferFlagCodecConfig, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
@@ -818,7 +835,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   } else {
     status = media_codec_bridge_->QueueInputBuffer(
         dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_END_OF_STREAM, false);
+        MediaCodec::kBufferFlagEndOfStream, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
@@ -903,27 +920,27 @@ void MediaCodecDecoder::ReportError(const SbPlayerError error,
 
 void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
                                           bool is_transient,
-                                          const std::string& diagnostic_info) {
+                                          const std::string& error_message) {
   SB_LOG(WARNING) << "MediaCodecDecoder encountered "
                   << (is_recoverable ? "recoverable, " : "unrecoverable, ")
                   << (is_transient ? "transient " : "intransient ")
-                  << " error with message: " << diagnostic_info;
+                  << " error with message: " << error_message;
   // The callback may be called on a different thread and before |error_cb_| is
   // initialized.
   if (!is_transient) {
     if (media_type_ == kSbMediaTypeAudio) {
       ReportError(kSbPlayerErrorDecode,
-                  "OnMediaCodecError (audio): " + diagnostic_info +
+                  "OnMediaCodecError (audio): " + error_message +
                       (is_recoverable ? ", recoverable " : ", unrecoverable "));
     } else {
       ReportError(kSbPlayerErrorDecode,
-                  "OnMediaCodecError (video): " + diagnostic_info +
+                  "OnMediaCodecError (video): " + error_message +
                       (is_recoverable ? ", recoverable " : ", unrecoverable "));
     }
   }
 }
 
-void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -942,11 +959,11 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
 }
 
 void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
-    int buffer_index,
-    int flags,
-    int offset,
+    int32_t buffer_index,
+    int32_t flags,
+    int32_t offset,
     int64_t presentation_time_us,
-    int size) {
+    int32_t size) {
   SB_DCHECK_GE(buffer_index, 0);
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
