@@ -393,15 +393,15 @@ static_library("media_codec_video_decoder_helpers") {
 
 static_library("test_support") {
   testonly = true
-  public_deps = [
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    ":starboard_platform",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/jni_zero:jni_zero",
   ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  deps = [ ":starboard_platform" ]
 
   sources = [
     "fake_media_codec.cc",
