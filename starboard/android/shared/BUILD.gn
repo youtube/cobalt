@@ -392,6 +392,7 @@ static_library("test_support") {
   public_deps = [
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/jni_zero:jni_zero",
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
