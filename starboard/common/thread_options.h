@@ -68,11 +68,6 @@ enum class ThreadPriority {
   kNoPriority = INT_MIN,
 };
 
-// Returns whether the given thread priority is valid.
-static inline bool ThreadIsValidPriority(ThreadPriority priority) {
-  return priority != ThreadPriority::kNoPriority;
-}
-
 struct ThreadOptions {
   ThreadOptions() = default;
   ThreadOptions& SetPriority(ThreadPriority priority_in) {
