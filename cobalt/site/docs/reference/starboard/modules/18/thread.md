@@ -77,15 +77,6 @@ typedef int32_t SbThreadId
 
 ## Functions
 
-### SbThreadGetId
-
-Returns the Thread ID of the currently executing thread.
-
-#### Declaration
-
-```
-SbThreadId SbThreadGetId()
-```
 
 ### SbThreadIsValidId
 

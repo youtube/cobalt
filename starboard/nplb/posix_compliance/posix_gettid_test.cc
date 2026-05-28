@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,47 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Thread joining is mostly tested in the other tests.
+#include <pthread.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <unistd.h>
 
+#include "starboard/common/gettid.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
 namespace {
 
-// Returns the thread's ID.
+// Helper entry point that returns the thread's TID.
 void* GetThreadIdEntryPoint(void* context) {
-  return ToVoid(SbThreadGetId());
+  return ToVoid(gettid());
 }
 
-TEST(SbThreadGetIdTest, SunnyDay) {
-  EXPECT_NE(kSbThreadInvalidId, SbThreadGetId());
+TEST(PosixGettidTest, SunnyDay) {
+  pid_t tid = gettid();
+  EXPECT_GT(tid, 0);
 }
 
-TEST(SbThreadGetIdTest, SunnyDayDifferentIds) {
+TEST(PosixGettidTest, SunnyDayDifferentIds) {
   const int kThreads = 16;
-
   pthread_t threads[kThreads];
+
   for (int i = 0; i < kThreads; ++i) {
-    pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr);
+    EXPECT_EQ(
+        pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr),
+        0);
     EXPECT_TRUE(threads[i] != 0);
   }
 
-  // We join on all these threads to get their IDs back.
-  SbThreadId thread_ids[kThreads];
+  pid_t main_tid = gettid();
+  pid_t thread_tids[kThreads];
+
   for (int i = 0; i < kThreads; ++i) {
-    void* result = NULL;
+    void* result = nullptr;
     EXPECT_EQ(pthread_join(threads[i], &result), 0);
-    SbThreadId id = static_cast<SbThreadId>(FromVoid(result));
-    EXPECT_NE(id, SbThreadGetId());
-    thread_ids[i] = id;
+    pid_t tid = static_cast<pid_t>(FromVoid(result));
+
+    // Child thread TID should not equal the main thread TID.
+    EXPECT_NE(tid, main_tid);
+    EXPECT_GT(tid, 0);
+    thread_tids[i] = tid;
   }
 
-  // Check every thread ID against every other thread ID. None should be equal.
+  // Verify all child thread TIDs are mutually unique.
   for (int i = 0; i < kThreads; ++i) {
     for (int j = i + 1; j < kThreads; ++j) {
-      EXPECT_NE(thread_ids[i], thread_ids[j]);
+      EXPECT_NE(thread_tids[i], thread_tids[j]);
     }
   }
 }
