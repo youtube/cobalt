@@ -110,7 +110,7 @@ class MediaCodecDecoderTest : public ::testing::Test {
 
 TEST_F(MediaCodecDecoderTest, InitializesCorrectly) {
   auto result = MediaCodecDecoder::CreateForAudio(
-      &job_queue_, &host_, audio_stream_info_, kSbDrmSystemInvalid, &factory_);
+      factory_, &job_queue_, &host_, audio_stream_info_, kSbDrmSystemInvalid);
   ASSERT_TRUE(result);
   decoder_ = std::move(result.value());
 
@@ -120,7 +120,7 @@ TEST_F(MediaCodecDecoderTest, InitializesCorrectly) {
 
 TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
   auto result = MediaCodecDecoder::CreateForAudio(
-      &job_queue_, &host_, audio_stream_info_, kSbDrmSystemInvalid, &factory_);
+      factory_, &job_queue_, &host_, audio_stream_info_, kSbDrmSystemInvalid);
   ASSERT_TRUE(result);
   decoder_ = std::move(result.value());
 
