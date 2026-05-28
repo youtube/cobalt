@@ -16,6 +16,8 @@ package dev.cobalt.browser;
 
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
+import org.chromium.components.navigation_interception.InterceptNavigationDelegate;
+import org.chromium.content_public.browser.WebContents;
 
 /** Exposes the native CobaltContentBrowserClient class functionality. */
 public class CobaltContentBrowserClient {
@@ -25,6 +27,7 @@ public class CobaltContentBrowserClient {
     void flushCookiesAndLocalStorage();
     void dispatchBlur();
     void dispatchFocus();
+    void associateInterceptNavigationDelegate(WebContents webContents, InterceptNavigationDelegate delegate);
   }
 
   public static void flushCookiesAndLocalStorage() {
@@ -37,5 +40,9 @@ public class CobaltContentBrowserClient {
 
   public static void dispatchFocus() {
     CobaltContentBrowserClientJni.get().dispatchFocus();
+  }
+
+  public static void associateInterceptNavigationDelegate(WebContents webContents, InterceptNavigationDelegate delegate) {
+    CobaltContentBrowserClientJni.get().associateInterceptNavigationDelegate(webContents, delegate);
   }
 }

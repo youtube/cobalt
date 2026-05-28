@@ -93,6 +93,7 @@ source_set("browser") {
     deps += [
       "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
+      "//components/navigation_interception",
       "//components/variations:variations_associated_data",
     ]
   } else {

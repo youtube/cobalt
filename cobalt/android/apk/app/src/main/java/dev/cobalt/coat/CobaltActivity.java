@@ -334,6 +334,9 @@ public abstract class CobaltActivity extends Activity {
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
 
+            CobaltInterceptNavigationDelegate delegate = new CobaltInterceptNavigationDelegate(CobaltActivity.this);
+            CobaltContentBrowserClient.associateInterceptNavigationDelegate(getActiveWebContents(), delegate);
+
             // Load the `url` with the same shell we created above.
             mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
@@ -439,6 +442,14 @@ public abstract class CobaltActivity extends Activity {
   public WebContents getActiveWebContents() {
     Shell shell = getActiveShell();
     return shell != null ? shell.getWebContents() : null;
+  }
+
+  public String getStartupUrl() {
+    return mStartupUrl;
+  }
+
+  public String getStartDeepLink() {
+    return mStartDeepLink;
   }
 
   @Nullable
