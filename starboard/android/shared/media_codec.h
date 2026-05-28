@@ -88,6 +88,8 @@ struct DequeueOutputResult {
 // MediaCodec is an abstract interface for Android MediaCodec functionality,
 // providing a unified API for both JNI-based (MediaCodecBridge) and NDK-based
 // (NdkMediaCodec) implementations. It is typically owned by MediaCodecDecoder.
+//
+// This class is not thread-safe.
 class MediaCodec {
  public:
   static constexpr int32_t kBufferFlagCodecConfig = 2;
@@ -187,6 +189,11 @@ class MediaCodec {
   virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
 };
 
+// DefaultMediaCodecFactory is the production implementation of
+// MediaCodec::Factory. It delegates codec creation directly to JNI/NDK-based
+// wrappers.
+//
+// This class is stateless and is thread-safe.
 class DefaultMediaCodecFactory : public MediaCodec::Factory {
  public:
   DefaultMediaCodecFactory() = default;

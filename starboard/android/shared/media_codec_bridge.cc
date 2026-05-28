@@ -289,13 +289,22 @@ ScopedJavaLocalRef<jobject> MediaCodecBridge::GetInputBuffer(jint index) {
 }
 
 void* MediaCodecBridge::GetInputBufferAddress(jint index, size_t* capacity) {
+  SB_CHECK(capacity);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer = GetInputBuffer(index);
   if (byte_buffer.is_null()) {
     return nullptr;
   }
-  *capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
-  return env->GetDirectBufferAddress(byte_buffer.obj());
+  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
+  if (cap < 0) {
+    return nullptr;
+  }
+  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+  if (!address) {
+    return nullptr;
+  }
+  *capacity = static_cast<size_t>(cap);
+  return address;
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
