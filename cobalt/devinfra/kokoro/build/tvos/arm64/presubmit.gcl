@@ -17,6 +17,11 @@ config build = common.build {
       }
     }
   ]
+  post_build = [
+    {
+      store_artifacts_in_placer = {}
+    }
+  ]
   env_vars = super.env_vars + [
     {
       key = 'CONFIG'
