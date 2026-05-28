@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/media_buildflags.h"
 #include "media/mojo/mojom/video_decoder_config_mojom_traits.h"
 
 namespace mojo {
@@ -69,6 +70,15 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
 
   if (hdr_metadata)
     output->set_hdr_metadata(hdr_metadata.value());
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  output->set_is_change_type_transition(input.is_change_type_transition());
+
+  std::string mime_type;
+  if (!input.ReadMimeType(&mime_type))
+    return false;
+  output->set_mime_type(mime_type);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!output->IsValidConfig())
     return false;
