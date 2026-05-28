@@ -1773,7 +1773,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
 
 // static
 void* PlayerImpl::ThreadEntryPoint(void* context) {
-  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityRealTime));
+  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(ThreadPriority::kRealTime));
   SB_DCHECK(context);
   GST_TRACE("%d", gettid());
 
