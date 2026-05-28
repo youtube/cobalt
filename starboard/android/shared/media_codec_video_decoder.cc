@@ -251,7 +251,8 @@ MediaCodecVideoDecoder::Create(
     bool enable_flush_during_seek,
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
-    const ExperimentalFeatures& experimental_features) {
+    const ExperimentalFeatures& experimental_features,
+    MediaCodec::Factory* media_codec_factory) {
   std::string error_message;
   auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
       PassKey<MediaCodecVideoDecoder>(), job_queue, video_stream_info,
@@ -260,7 +261,7 @@ MediaCodecVideoDecoder::Create(
       force_secure_pipeline_under_tunnel_mode, force_reset_surface,
       force_big_endian_hdr_metadata, max_input_size, surface_view,
       enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-      experimental_features, &error_message);
+      experimental_features, media_codec_factory, &error_message);
 
   if (!error_message.empty()) {
     return Failure(error_message);
@@ -295,6 +296,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
     const ExperimentalFeatures& experimental_features,
+    MediaCodec::Factory* media_codec_factory,
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(video_stream_info.codec),
@@ -338,7 +340,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
-              : nullptr) {
+              : nullptr),
+      media_codec_factory_(media_codec_factory) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -810,8 +813,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, skip_video_frames_over_60_fps_,
-      ignore_mediacodec_callbacks_during_flushing_);
+      use_dual_threads_, skip_video_frames_over_60_fps_, media_codec_factory_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
