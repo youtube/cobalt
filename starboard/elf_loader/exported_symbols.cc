@@ -209,7 +209,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
-  REGISTER_SYMBOL(SbThreadGetId);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -317,6 +316,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
+  REGISTER_WRAPPER(gettid);
   REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);

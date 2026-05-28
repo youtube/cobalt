@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
+#include "starboard/common/gettid.h"
 #include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
@@ -21,7 +24,7 @@ namespace {
 // 1. Raw system call / Starboard API
 void BM_ThreadGetId(::benchmark::State& state) {
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(SbThreadGetId());
+    ::benchmark::DoNotOptimize(gettid());
   }
 }
 BENCHMARK(BM_ThreadGetId);
@@ -32,7 +35,7 @@ SbThreadId GetThreadId() {
   // doesn't use fork().
   thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
   if (tls_thread_id == kSbThreadInvalidId) {
-    tls_thread_id = SbThreadGetId();
+    tls_thread_id = gettid();
   }
   return tls_thread_id;
 }

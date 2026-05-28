@@ -28,12 +28,7 @@
 #define COBALT_HACK_FOR_ANGLE_STARBOARD_INCLUDE
 
 #if defined(COBALT_HACK_FOR_ANGLE_STARBOARD_INCLUDE)
-// Since Angle includes unistd.h for syscall which is implemented here,
-// and Angle does not have the top level include path, we can not include
-// starboard/thread.h here. Until that is resolved, declare SbThreadGetId() to
-// match its declaraiton in starboard/thread.h.
 typedef int32_t SbThreadId;
-SbThreadId SbThreadGetId();
 #else
 #include "starboard/thread.h"
 #endif
@@ -85,7 +80,7 @@ SbThreadId SbThreadGetId();
 // Simple wrappers can be directly replaced with the function name.
 #define libc_wrapper_SYS_close(fildes) close(fildes)
 #define libc_wrapper_SYS_fcntl(fd, op, ...) fcntl(fd, op, ##__VA_ARGS__)
-#define libc_wrapper_SYS_gettid() SbThreadGetId()
+#define libc_wrapper_SYS_gettid() gettid()
 #define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
 #define libc_wrapper_SYS_read(fildes, buf, nbyte) read(fildes, buf, nbyte)
 #define libc_wrapper_SYS_readv(fildes, iov, iovcnt) readv(fildes, iov, iovcnt)
