@@ -771,8 +771,8 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     if (capacity < static_cast<size_t>(size)) {
       auto error_message = FormatString(
           "Unable to write to MediaCodec buffer, input buffer size (%d) is"
-          " greater than buffer capacity (%d).",
-          size, static_cast<int>(capacity));
+          " greater than buffer capacity (%zu).",
+          size, capacity);
       SB_LOG(ERROR) << error_message;
       ReportError(kSbPlayerErrorDecode, error_message);
       return false;
