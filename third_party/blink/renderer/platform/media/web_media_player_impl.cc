@@ -108,7 +108,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_renderer.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "media/filters/hls_data_source_provider_impl.h"

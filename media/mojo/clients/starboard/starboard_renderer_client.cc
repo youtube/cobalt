@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "media/base/media_log.h"
 #include "media/base/media_resource.h"
 #include "media/base/video_frame.h"
@@ -24,6 +25,10 @@
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "url/gurl.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/task/bind_post_task.h"
@@ -334,6 +339,14 @@ void StarboardRendererClient::InitializeMojoRenderer(
     PipelineStatusCallback init_cb) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   DCHECK(AreMojoPipesConnected());
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  GURL url = media_resource->GetMediaUrl();
+  if (url.is_valid()) {
+    renderer_extension_->SetSourceUrl(url.spec());
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
 }
 
