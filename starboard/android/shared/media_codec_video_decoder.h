@@ -28,7 +28,7 @@
 #include "starboard/android/shared/decode_target.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
-#include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
@@ -129,11 +129,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
-  void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
+  void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
                            const DequeueOutputResult& output) override;
-  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) override;
-  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
-  bool Tick(MediaCodecBridge* media_codec_bridge) override;
+  void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
+  void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
+  bool Tick(MediaCodec* media_codec_bridge) override;
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
