@@ -298,3 +298,15 @@ if (!enable_interest_groups) {
     "*navigator_auction*",
   ]
 }
+cobalt_bindings_exclude_patterns += [
+  "*_rtc_*",
+  "*v8_rtc_*",
+  "*peer_connection*",
+  "*explicit_congestion_notification*",
+  "*v8_union_mediastreamtrack_string*",
+]
+
+cobalt_webnn_exclude_patterns = [
+  "*v8_ml.*",
+  "*v8_ml_*",
+]
