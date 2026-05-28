@@ -81,7 +81,7 @@ These are some other benefits that Cobalt provides:
 
 ### Porters
 
-Pointers should begin with the [porting guide](starboard/porting.md), which
+Porters should begin with the [porting guide](starboard/porting.md), which
 explains how to use Starboard, Cobalt's porting layer, to customize the
 platform-specific functionality that Cobalt uses. There are several reference
 documents to help porters customize configuration files and to implement
