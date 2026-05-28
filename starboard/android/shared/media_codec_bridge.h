@@ -45,8 +45,14 @@ class MediaCodecBridge : public MediaCodec {
       SbMediaVideoCodec video_codec,
       const std::string& decoder_name,
       const char* mime,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
       const Size& frame_size_hint,
       int fps,
+      // `max_frame_size` can be set to positive values to specify the maximum
+      // resolutions the video can be adapted to.  When they are not set,
+      // MediaCodecBridge will set them to the maximum resolutions the platform
+      // can decode.
       const std::optional<Size>& max_frame_size,
       Handler* handler,
       jobject j_surface,
