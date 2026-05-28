@@ -32,6 +32,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/containers/contains.h"
 #include "base/strings/string_split.h"
+#include "starboard/media.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -1297,6 +1298,22 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
   if (!supports_change_type_) {
     return false;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto iter = id_to_mime_map_.find(id);
+  std::string current_mime = iter != id_to_mime_map_.end() ? iter->second : "";
+  std::string target_mime = content_type;
+  if (!codecs.empty()) {
+    target_mime += "; codecs=\"" + codecs + "\"";
+  }
+
+  if (!SbMediaIsChangeTypeTransitionSupported(current_mime.c_str(),
+                                              target_mime.c_str())) {
+    LOG(INFO) << "Codec transition unsupported natively on hardware: "
+              << current_mime << " -> " << target_mime;
+    return false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // CanChangeType() doesn't care if there has or hasn't been received a first
   // initialization segment for the source buffer corresponding to |id|.
