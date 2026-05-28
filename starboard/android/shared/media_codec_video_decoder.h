@@ -246,6 +246,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
 
+  // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
 

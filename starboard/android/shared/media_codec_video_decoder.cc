@@ -340,6 +340,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
               : nullptr) {
   SB_CHECK(error_message);
+  SB_CHECK(media_codec_factory_);
 
   if (tunnel_mode_config.force_secure_pipeline) {
     SB_DCHECK(tunnel_mode_audio_session_id_);

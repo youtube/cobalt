@@ -19,7 +19,7 @@
 namespace starboard {
 
 FakeMediaCodec::FakeMediaCodec(Handler* handler) : handler_(handler) {
-  EXPECT_TRUE(handler_);
+  SB_CHECK(handler_);
   for (int i = 0; i < kNumBuffers; ++i) {
     buffers_[i].resize(kBufferSize);
   }
@@ -31,6 +31,7 @@ jni_zero::ScopedJavaLocalRef<jobject> FakeMediaCodec::GetInputBuffer(
 }
 
 void* FakeMediaCodec::GetInputBufferAddress(jint index, size_t* capacity) {
+  SB_CHECK(capacity);
   std::lock_guard<std::mutex> lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return nullptr;
