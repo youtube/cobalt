@@ -196,10 +196,7 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
-    sub_modules -= [
-      "//third_party/blink/renderer/modules/ml",
-      "//third_party/blink/renderer/modules/xr",
-    ]
+    sub_modules -= [ "//third_party/blink/renderer/modules/ml" ]
   }
 
   if (!use_webrtc_peer_connection) {
@@ -798,11 +795,6 @@ source_set("unit_tests") {
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
     deps -= [ "//third_party/blink/renderer/modules/ml:unit_tests" ]
-    sources -= [
-      "xr/xr_rigid_transform_test.cc",
-      "xr/xr_test_utils.cc",
-      "xr/xr_view_test.cc",
-    ]
   }
 
   if (!use_webrtc_peer_connection) {

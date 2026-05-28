@@ -276,8 +276,3 @@ cobalt_webnn_exclude_patterns = [
   "*v8_ml.*",
   "*v8_ml_*",
 ]
-
-cobalt_webxr_exclude_patterns = [
-  "*v8_xr.*",
-  "*v8_xr_*",
-]
