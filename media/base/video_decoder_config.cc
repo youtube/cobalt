@@ -5,6 +5,7 @@
 #include "media/base/video_decoder_config.h"
 
 #include <iomanip>
+#include "media/media_buildflags.h"
 #include <vector>
 
 #include "base/check_op.h"
@@ -75,6 +76,11 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   extra_data_ = extra_data;
   encryption_scheme_ = encryption_scheme;
   color_space_info_ = color_space;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  from_changeType_ = false;
+  mime_type_ = "";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool VideoDecoderConfig::IsValidConfig() const {
@@ -94,7 +100,12 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
-         hdr_metadata() == config.hdr_metadata() && level() == config.level();
+         hdr_metadata() == config.hdr_metadata() && level() == config.level()
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+         && from_changeType() == config.from_changeType() &&
+         mime_type() == config.mime_type()
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+         ;
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -115,7 +126,11 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", encryption scheme: " << encryption_scheme()
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
+    << ", color space: " << color_space_info().ToGfxColorSpace().ToString()
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    << ", mime: \"" << mime_type() << "\""
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    ;
 
   if (hdr_metadata().has_value()) {
     s << ", hdr metadata: " << hdr_metadata()->ToString();
