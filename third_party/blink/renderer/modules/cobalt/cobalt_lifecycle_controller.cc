@@ -123,7 +123,15 @@ void CobaltLifecycleController::PageVisibilityChanged() {
     return;
   }
   if (GetPage()) {
-    remote_observer_->PageVisibilityChanged(visible);
+    NotifyObserver(base::BindOnce(
+        [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
+               observer,
+           bool visible) {
+          if (observer.is_bound()) {
+            observer->PageVisibilityChanged(visible);
+          }
+        },
+        std::ref(remote_observer_), visible));
   }
 }
 
@@ -134,9 +142,23 @@ void CobaltLifecycleController::FocusedFrameChanged() {
   if (GetPage()) {
     bool is_focused = GetPage()->GetFocusController().IsFocused();
     if (is_focused) {
-      remote_observer_->PageFocused();
+      NotifyObserver(base::BindOnce(
+          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
+                 observer) {
+            if (observer.is_bound()) {
+              observer->PageFocused();
+            }
+          },
+          std::ref(remote_observer_)));
     } else {
-      remote_observer_->PageBlurred();
+      NotifyObserver(base::BindOnce(
+          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
+                 observer) {
+            if (observer.is_bound()) {
+              observer->PageBlurred();
+            }
+          },
+          std::ref(remote_observer_)));
     }
   }
 }
@@ -145,9 +167,41 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
     mojom::blink::FrameLifecycleState state) {
   if (state == mojom::blink::FrameLifecycleState::kRunning) {
     if (remote_observer_.is_bound()) {
-      remote_observer_->PageResumed();
+      NotifyObserver(base::BindOnce(
+          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
+                 observer) {
+            if (observer.is_bound()) {
+              observer->PageResumed();
+            }
+          },
+          std::ref(remote_observer_)));
     }
   }
+}
+
+// NotifyObserver posts the Mojo callbacks asynchronously to Blink's local HTML
+// Event Loop task runner using the same queue as JS DOM events
+// (TaskType::kDOMManipulation) instead of executing them synchronously.
+//
+// This is required because dispatching JS/DOM lifecycle events (such as
+// 'visibilitychange' and 'blur') is scheduled asynchronously via HTML tasks.
+// If the renderer notifies the browser about a state change synchronously via
+// Mojo, the browser completes the transition and dispatches subsequent events
+// (such as native window focus) immediately. This can result in the native
+// focus event being processed by the renderer before the pending HTML task for
+// the visibility change has executed, leading to out-of-order JS events.
+//
+// Posting the Mojo observer notifications to the same
+// TaskType::kDOMManipulation task runner ensures that they are queued in the
+// exact same line as pending JS DOM events, forcing Blink's scheduler to
+// execute them in strict FIFO (First-In-First-Out) sequential order.
+void CobaltLifecycleController::NotifyObserver(base::OnceClosure callback) {
+  if (!GetExecutionContext()) {
+    return;
+  }
+  GetExecutionContext()
+      ->GetTaskRunner(TaskType::kDOMManipulation)
+      ->PostTask(FROM_HERE, std::move(callback));
 }
 
 void CobaltLifecycleController::Trace(Visitor* visitor) const {

@@ -229,19 +229,23 @@ sequenceDiagram
   participant Controller as CobaltLifecycle <br/> Controller
 
   OS->>Delegate: SbEvent (Unfreeze)
-  Note over Delegate: Resolve intermediate step:<br/>kFrozen ➔ kConcealed
+  Note over Delegate: "Resolve intermediate step:<br/>kFrozen ➔ kConcealed"
   Delegate->>Runner: DoUnfreeze()
   Runner->>Shell: content::Shell::OnUnfreeze()
   Shell->>Blink: C++ WebContents::SetPageFrozen(false)
-  Note over Shell: Resumes background tasks<br/>& prepares graphics viewports
-  Note over Runner: Returns immediately!<br/>Execution is fully asynchronous
-  Runner-->>Delegate: DoUnfreeze complete
-  Note over Delegate: Update canonical state:<br/>SetApplicationState(kConcealed)
+  Note over Shell: "Resumes background tasks<br/>& prepares graphics viewports"
+  Note over Runner: "Initialize resume wait state:<br/>pending_ack_ = kUnfreeze"
+  Note over Runner: "WaitForAck(kUnfreeze)<br/>(Blocks UI thread via nested RunLoop)"
 
-  Note over Blink: Main Blink Frame resumes<br/>and handles events in background
+  Note over Blink: "Main Blink Frame resumes<br/>and handles events in background"
   Blink-->>Controller: C++ ContextLifecycleStateObserver
   Controller->>Manager: Mojo: PageResumed()
-  Note over Manager: All active frames resumed asynchronously!
+  Note over Manager: All active frames resumed!
+  Manager->>Runner: OnAllFramesResumed(web_contents)
+  Note over Runner: "Quit nested RunLoop!<br/>run_loop.Quit()"
+  Note over Runner: DoUnfreeze() returns synchronously
+  Runner-->>Delegate: DoUnfreeze complete
+  Note over Delegate: "Update canonical state:<br/>SetApplicationState(kConcealed)"
 ```
 
 ### D. Reveal Transition
