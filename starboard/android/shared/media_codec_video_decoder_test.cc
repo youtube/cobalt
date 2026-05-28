@@ -35,8 +35,6 @@ using ::testing::Return;
 
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
-  MediaCodecVideoDecoderTest() {}
-
   void SetUp() override {
     video_stream_info_.codec = kSbMediaVideoCodecH264;
     video_stream_info_.frame_size = {1920, 1080};
@@ -59,11 +57,11 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
         video_stream_info_,
-        kSbDrmSystemInvalid,
+        /*drm_system=*/kSbDrmSystemInvalid,
         kSbPlayerOutputModePunchOut,
-        nullptr,
-        (void*)1,
-        ""};
+        /*decode_target_graphics_context_provider=*/nullptr,
+        /*surface_view=*/reinterpret_cast<void*>(1),
+        /*max_video_capabilities=*/""};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;

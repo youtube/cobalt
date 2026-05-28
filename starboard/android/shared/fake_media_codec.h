@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_FAKE_MEDIA_CODEC_H_
 #define STARBOARD_ANDROID_SHARED_FAKE_MEDIA_CODEC_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <memory>
@@ -136,8 +137,8 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   }
 
  private:
-  FakeMediaCodec* last_created_audio_codec_ = nullptr;
-  FakeMediaCodec* last_created_video_codec_ = nullptr;
+  std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
+  std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
 };
 
 }  // namespace starboard
