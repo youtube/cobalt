@@ -1,6 +1,7 @@
 # Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+import("//third_party/blink/public/public_features.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("exported") {
@@ -21,13 +22,16 @@ blink_modules_sources("exported") {
 
   deps = [
     "//third_party/blink/renderer/modules/accessibility",
-    "//third_party/blink/renderer/modules/ai",
     "//third_party/blink/renderer/modules/crypto",
     "//third_party/blink/renderer/modules/filesystem",
     "//third_party/blink/renderer/modules/mediastream",
     "//third_party/blink/renderer/modules/shared_storage",
     "//ui/accessibility:ax_enums_mojo_blink",
   ]
+
+  if (enable_blink_language_detection) {
+    deps += [ "//third_party/blink/renderer/modules/ai" ]
+  }
 }
 
 static_library("test_support") {

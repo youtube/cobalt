@@ -80,3 +80,8 @@ source_set("unit_tests") {
     "//components/translate/core/common:common",
   ]
 }
+
+source_set("constants") {
+  sources = [ "constants.h" ]
+}
+
