@@ -16,6 +16,12 @@
 # Integration test for Cobalt lifecycle on Linux.
 # Sends signals to a running Cobalt process and verifies JS state via DevTools.
 
+
+#
+# NEW COMMENT FOR TESTING
+# ADDED HERE. BELOW THERE WILL BE REMOVED LINES
+#
+
 source cobalt/tools/test_common.sh
 
 PORT=9223
@@ -33,15 +39,9 @@ rm -rf ~/.cobalt_storage ~/.cobalt ~/.config/cobalt
 TEST_HTML="<html><body><h1>Test</h1><input autofocus></body></html>"
 B64_HTML=$(echo "$TEST_HTML" | base64 -w 0)
 
-$EXECUTABLE --url="data:text/html;base64,$B64_HTML" --remote-debugging-port=$PORT --no-sandbox > $LOG_FILE 2>&1 &
-COBALT_PID=$!
-
-echo "[TEST] Launched PID: $COBALT_PID. Waiting for DevTools..."
-if ! vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT --wait --wait-total 60 | grep -q "SUCCESS"; then
-  echo "FAILURE: DevTools did not become ready in time."
-  kill -9 $COBALT_PID
-  exit 1
-fi
+#
+# SOME LINES REMOVED HERE
+#
 
 echo "[TEST] Allowing time for app initialization to avoid V8 crashes..."
 sleep 10
@@ -50,7 +50,7 @@ execute_js() {
   vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT "$1"
 }
 
-echo "[TEST] Verifying initial state (Visible & Focused)..."
+echo "[TEST] Verifying initial state (Visible & Focused) EDITED LINE HERE..."
 bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 $HOST || exit 1
 bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 $HOST || exit 1
 
