@@ -81,6 +81,10 @@ void ShellPlatformDelegate::OnFocus() {
   if (!IsVisible()) {
     return;
   }
+  if (IsWaitingForRevealAck()) {
+    deferred_focus_ = true;
+    return;
+  }
   for (auto* shell : Shell::windows()) {
     shell->Focus();
   }

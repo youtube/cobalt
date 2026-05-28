@@ -242,9 +242,6 @@ void AppEventDelegate::ExecuteNextStepLocked() {
   lock_.AssertAcquired();
 
   if (application_state_ == target_state_) {
-    LOG(INFO) << "Transition complete. Reached target state "
-              << static_cast<int>(target_state_);
-
     is_transitioning_ = false;
     if (quit_closure_) {
       std::move(quit_closure_).Run();

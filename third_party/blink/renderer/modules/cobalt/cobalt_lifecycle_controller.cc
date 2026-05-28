@@ -144,7 +144,9 @@ void CobaltLifecycleController::FocusedFrameChanged() {
 void CobaltLifecycleController::ContextLifecycleStateChanged(
     mojom::blink::FrameLifecycleState state) {
   if (state == mojom::blink::FrameLifecycleState::kRunning) {
-    remote_observer_->PageResumed();
+    if (remote_observer_.is_bound()) {
+      remote_observer_->PageResumed();
+    }
   }
 }
 

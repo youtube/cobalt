@@ -84,9 +84,6 @@ class MockAppEventRunner : public AppEventRunner {
               GetWebContents,
               (),
               (override));
-
-  MOCK_METHOD(bool, IsWaitingForRevealAck, (), (const, override));
-  MOCK_METHOD(void, ClearWaitingForRevealAck, (), (override));
   MOCK_METHOD(PendingAck, pending_ack, (), (const, override));
 
   // These are the methods called by the base class.

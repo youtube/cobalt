@@ -209,6 +209,14 @@ void CobaltLifecycleManager::WebContentsTracker::OnControllerDisconnect(
   resumed_frames_.erase(frame);
   visible_frames_.erase(frame);
   focused_frames_.erase(frame);
+
+  // Proactively remove the disconnected frame from the parent manager's active
+  // pending ACK sets.
+  auto it = manager_->pending_ack_frames_.find(web_contents());
+  if (it != manager_->pending_ack_frames_.end()) {
+    it->second.erase(frame);
+    manager_->CheckCompletion(web_contents());
+  }
 }
 
 CobaltLifecycleManager::WebContentsTracker*

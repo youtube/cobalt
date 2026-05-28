@@ -26,6 +26,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -46,6 +47,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
+#include "ui/compositor/compositor.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
 #include "ui/platform_window/platform_window.h"
@@ -475,6 +477,22 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
   ShellData& shell_data = it->second;
   if (!shell_data.window_widget) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+  } else {
+    if (shell_data.window_widget->GetNativeWindow() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost()->compositor()) {
+      shell_data.window_widget->GetNativeWindow()
+          ->GetHost()
+          ->compositor()
+          ->SetVisible(true);
+    }
+    // Restore spec-compliant window Show and Restore mapping!
+    shell_data.window_widget->GetNativeWindow()->Show();
+    shell_data.window_widget->Restore();
+
+    // Synchronously process all pending native window mapping and reveal events
+    // to let the Aura view fully map prior to SetContents() execution.
+    base::RunLoop().RunUntilIdle();
   }
 
   SetContents(shell);
@@ -487,9 +505,19 @@ void ShellPlatformDelegate::ConcealShell(Shell* shell) {
   }
   ShellData& shell_data = it->second;
   if (shell_data.window_widget) {
-    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
-    shell_data.window_widget->CloseNow();
-    shell_data.window_widget = nullptr;
+    // Forcefully set compositor invisible to satisfy accelerated widget release
+    // assertions natively.
+    if (shell_data.window_widget->GetNativeWindow() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost()->compositor()) {
+      shell_data.window_widget->GetNativeWindow()
+          ->GetHost()
+          ->compositor()
+          ->SetVisible(false);
+    }
+    // Restore spec-compliant Minimize and Hide window widget deactivation!
+    shell_data.window_widget->Minimize();
+    shell_data.window_widget->GetNativeWindow()->Hide();
   }
 }
 

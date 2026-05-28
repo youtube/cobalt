@@ -103,19 +103,6 @@ class AppEventRunnerImpl : public AppEventRunner,
         false /* is_content_browsertests */, is_visible);
   }
 
-  bool IsWaitingForRevealAck() const override {
-    if (content::Shell::GetPlatform()) {
-      return content::Shell::GetPlatform()->IsWaitingForRevealAck();
-    }
-    return false;
-  }
-
-  void ClearWaitingForRevealAck() override {
-    if (content::Shell::GetPlatform()) {
-      content::Shell::GetPlatform()->ClearWaitingForRevealAck();
-    }
-  }
-
   std::vector<content::WebContents*> GetWebContents() override {
     std::vector<content::WebContents*> result;
     for (auto* shell : content::Shell::windows()) {
@@ -201,6 +188,7 @@ class AppEventRunnerImpl : public AppEventRunner,
     // (e.g. CobaltActivity.onResume) which propagate directly to Chromium's
     // WindowAndroid.
 #endif
+    WaitForAck(PendingAck::kBlur);
   }
 
   void DoFocus() override {
@@ -217,12 +205,18 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoConceal() override {
+    for (auto* web_contents : GetWebContents()) {
+      web_contents->WasHidden();
+    }
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
   }
 
   void DoReveal() override {
     content::Shell::OnReveal();
+    for (auto* web_contents : GetWebContents()) {
+      web_contents->WasShown();
+    }
     WaitForAck(PendingAck::kReveal);
   }
 
@@ -432,7 +426,6 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   // CobaltLifecycleManagerObserver implementation.
   void OnAllFramesVisible(content::WebContents* web_contents) override {
-    web_contents->WasShown();
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kReveal) {
       if (quit_closure_) {
@@ -442,7 +435,6 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void OnAllFramesConcealed(content::WebContents* web_contents) override {
-    web_contents->WasHidden();
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kConceal) {
       if (quit_closure_) {
@@ -558,7 +550,6 @@ void AppEventRunner::OnUnfreeze() {
   CHECK(is_frozen());
 
   DoUnfreeze();
-
   set_is_frozen(false);
 }
 
