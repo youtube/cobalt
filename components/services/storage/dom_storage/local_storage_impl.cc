@@ -678,7 +678,11 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
-    DeleteAndRecreateDatabase();
+    if (status.IsCorruption()) {
+      DeleteAndRecreateDatabase();
+    } else {
+      FallbackToInMemory();
+    }
     return;
   }
 
@@ -730,7 +734,11 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
-    DeleteAndRecreateDatabase();
+    if (status.IsCorruption()) {
+      DeleteAndRecreateDatabase();
+    } else {
+      FallbackToInMemory();
+    }
     return;
   }
 
@@ -804,6 +812,27 @@ void LocalStorageImpl::DeleteAndRecreateDatabase() {
     // fail, but try anyway.
     InitiateConnection(recreate_in_memory);
   }
+}
+
+void LocalStorageImpl::FallbackToInMemory() {
+  if (connection_state_ == CONNECTION_SHUTDOWN)
+    return;
+
+  PurgeAllStorageAreas();
+
+  // Reset state to be in process of connecting.
+  connection_state_ = CONNECTION_IN_PROGRESS;
+  commit_error_count_ = 0;
+  database_.reset();
+
+  if (tried_to_recreate_during_open_) {
+    // Give up completely, run without any database.
+    OnConnectionFinished();
+    return;
+  }
+
+  tried_to_recreate_during_open_ = true;
+  InitiateConnection(true);
 }
 
 void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory,
@@ -991,7 +1020,11 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
-    DeleteAndRecreateDatabase();
+    if (status.IsCorruption()) {
+      DeleteAndRecreateDatabase();
+    } else {
+      FallbackToInMemory();
+    }
   }
 }
 

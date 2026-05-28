@@ -127,6 +127,7 @@ class LocalStorageImpl : public base::trace_event::MemoryDumpProvider,
                             DomStorageDatabase::Value value);
   void OnConnectionFinished();
   void DeleteAndRecreateDatabase();
+  void FallbackToInMemory();
   void OnDBDestroyed(bool recreate_in_memory, leveldb::Status status);
 
   StorageAreaHolder* GetOrCreateStorageArea(
