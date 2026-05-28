@@ -1,9 +1,15 @@
 name: Test Targets JSON
 description: Parses test target JSON file
+inputs:
+  targets_file:
+    description: "Optional path to a local test_targets.json file. If omitted, GHA downloads from artifacts."
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
+      if: inputs.targets_file == ''
       uses: actions/download-artifact@v5
       with:
         name: ${{ matrix.platform }}_test_targets_json
@@ -11,14 +17,82 @@ runs:
     - name: Test target count
       id: parse-json
       run: |
-        test_targets_json="$(cat test_targets.json | jq -cr '.test_targets')"
-        echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-        echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        targets_file="${{ inputs.targets_file }}"
+        if [[ -z "${targets_file}" ]]; then
+          targets_file="test_targets.json"
+        fi
+
+        # On-Host Targets by Subtype
+        on_host_gunit_targets=$(jq -cr 'map(select(.test_type == "gunit" and .test_env == "on_host") | .test_target) // []' "${targets_file}")
+        echo "on_host_gunit_targets=${on_host_gunit_targets}" >> $GITHUB_OUTPUT
+
+        on_host_junit_targets=$(jq -cr 'map(select(.test_type == "junit" and .test_env == "on_host") | .test_target) // []' "${targets_file}")
+        echo "on_host_junit_targets=${on_host_junit_targets}" >> $GITHUB_OUTPUT
+
+        on_host_browsertest_targets=$(jq -cr 'map(select(.test_type == "browsertest" and .test_env == "on_host") | .test_target) // []' "${targets_file}")
+        echo "on_host_browsertest_targets=${on_host_browsertest_targets}" >> $GITHUB_OUTPUT
+
+        # Combine host targets (GN targets)
+        on_host_targets=$(jq -cr 'map(select(.test_env == "on_host") | .test_target) // []' "${targets_file}")
+        echo "on_host_targets=${on_host_targets}" >> $GITHUB_OUTPUT
+
+        # On-Host Executables by Subtype
+        on_host_gunit_executables=$(jq -cr 'map(select(.test_type == "gunit" and .test_env == "on_host") | .executable) // []' "${targets_file}")
+        echo "on_host_gunit_executables=${on_host_gunit_executables}" >> $GITHUB_OUTPUT
+
+        on_host_junit_executables=$(jq -cr 'map(select(.test_type == "junit" and .test_env == "on_host") | .executable) // []' "${targets_file}")
+        echo "on_host_junit_executables=${on_host_junit_executables}" >> $GITHUB_OUTPUT
+
+        on_host_executables=$(jq -cr 'map(select(.test_env == "on_host") | .executable) // []' "${targets_file}")
+        echo "on_host_executables=${on_host_executables}" >> $GITHUB_OUTPUT
+
+        # On-Device Targets by Subtype
+        on_device_gunit_targets=$(jq -cr 'map(select(.test_type == "gunit" and .test_env == "on_device") | .test_target) // []' "${targets_file}")
+        echo "on_device_gunit_targets=${on_device_gunit_targets}" >> $GITHUB_OUTPUT
+
+        on_device_browsertest_targets=$(jq -cr 'map(select(.test_type == "browsertest" and .test_env == "on_device") | .test_target) // []' "${targets_file}")
+        echo "on_device_browsertest_targets=${on_device_browsertest_targets}" >> $GITHUB_OUTPUT
+
+        # Combine device targets (GN targets)
+        on_device_targets=$(jq -cr 'map(select(.test_env == "on_device") | .test_target) // []' "${targets_file}")
+        echo "on_device_targets=${on_device_targets}" >> $GITHUB_OUTPUT
+
+        # On-Device Executables
+        on_device_executables=$(jq -cr 'map(select(.test_env == "on_device") | .executable) // []' "${targets_file}")
+        echo "on_device_executables=${on_device_executables}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
-  test_targets_count:
-    description: The number of test targets.
-    value: ${{ steps.parse-json.outputs.test_targets_count }}
-  test_targets_json:
-    description: The test targets in a JSON array.
-    value: '${{ steps.parse-json.outputs.test_targets_json }}'
+  on_host_gunit_targets:
+    description: The on-host GTest unittests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_gunit_targets }}
+  on_host_junit_targets:
+    description: The on-host JUnit targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_junit_targets }}
+  on_host_browsertest_targets:
+    description: The on-host browsertests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_browsertest_targets }}
+  on_host_targets:
+    description: The on-host test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_host_targets }}
+  on_host_executables:
+    description: All host executables.
+    value: ${{ steps.parse-json.outputs.on_host_executables }}
+  on_host_gunit_executables:
+    description: GTest unittests executables.
+    value: ${{ steps.parse-json.outputs.on_host_gunit_executables }}
+  on_host_junit_executables:
+    description: JUnit test executables.
+    value: ${{ steps.parse-json.outputs.on_host_junit_executables }}
+
+  on_device_gunit_targets:
+    description: The on-device GTest unittests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_gunit_targets }}
+  on_device_browsertest_targets:
+    description: The on-device browsertests targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_browsertest_targets }}
+  on_device_targets:
+    description: The on-device test targets in a JSON array.
+    value: ${{ steps.parse-json.outputs.on_device_targets }}
+  on_device_executables:
+    description: All device executables.
+    value: ${{ steps.parse-json.outputs.on_device_executables }}

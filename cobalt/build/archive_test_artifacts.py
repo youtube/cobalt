@@ -111,12 +111,17 @@ def create_archive(
         return
       continue
     target_path, target_name = target.split(':')
+    is_junit_test = target_name.endswith('_junit_tests')
+
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
       deps_file = os.path.join(
           out_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
+      if not os.path.exists(deps_file) and is_junit_test:
+        deps_file = os.path.join(out_dir, 'gen.runtime', target_path,
+                                 f'{target_name}.runtime_deps')
     else:
       deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
       if not os.path.exists(deps_file):
@@ -141,8 +146,23 @@ def create_archive(
       if os.path.exists(test_targets_json):
         target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
+      if is_junit_test:
+        if flatten_deps:
+          raise ValueError('Unsupported configuration for JUnit tests.')
+        wrapper_rel_path = os.path.join('bin', f'run_{target_name}')
+        target_deps.add(os.path.join(out_dir, wrapper_rel_path))
+        target_deps.add(os.path.join(out_dir, 'bin/helper', target_name))
+        target_src_root_deps.update([
+            'third_party/catapult/common/py_trace_event',
+            'third_party/catapult/common/py_utils',
+            'third_party/catapult/dependency_manager',
+            'third_party/catapult/devil',
+            'third_party/catapult/third_party/six',
+        ])
+
       for line in runtime_deps_file:
-        if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+        if not is_junit_test and any(
+            line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
         if flatten_deps and line.startswith('../../'):
@@ -155,6 +175,7 @@ def create_archive(
           rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
           target_deps.add(rel_path)
       combined_deps |= target_deps
+      combined_deps |= target_src_root_deps
 
       if archive_per_target:
         output_path = os.path.join(destination_dir,

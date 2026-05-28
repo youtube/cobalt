@@ -3,21 +3,35 @@ description: Uploads test archives for on-device and on-host tests.
 inputs:
   upload_e2e_test_artifacts:
     description: "Indicates if E2E test artifacts should be uploaded."
-    required: true
+    required: false
+    default: "false"
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
-    required: true
+    required: false
+    default: "false"
   upload_on_device_test_artifacts:
     description: "Indicates if on-device test artifacts should be uploaded."
-    required: true
+    required: false
+    default: "false"
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
-    required: true
+    required: false
+    default: ""
   test_targets_json_file:
-    description: "The path to test targets json file."
-    required: true
+    description: "The path to test targets json file (only for legacy mode)."
+    required: false
+    default: ""
+  test_targets_json:
+    description: "JSON array of GN targets to package (for dynamic mode)."
+    required: false
+    default: "[]"
+  on_device_executables:
+    description: "JSON array of device executables to copy (for dynamic mode)."
+    required: false
+    default: "[]"
   archive_browsertests:
     description: "Indicates if browser tests should be archived."
+    required: false
     default: "false"
   platform:
     description: "The platform for which artifacts are being uploaded."
@@ -39,7 +53,13 @@ runs:
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        mapfile -t targets < <(jq -r '.executables | .[]' "${TEST_TARGETS_JSON_FILE}")
+
+        if [[ -n "${{ inputs.on_device_executables }}" && "${{ inputs.on_device_executables }}" != "[]" ]]; then
+          readarray -t targets < <(echo '${{ inputs.on_device_executables }}' | jq -r '.[]')
+        else
+          mapfile -t targets < <(jq -r '.executables | .[]' "${TEST_TARGETS_JSON_FILE}")
+        fi
+
         for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
@@ -56,21 +76,42 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
 
-        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
+        # Determine the correct compression flags:
+        # GTests dependencies running on device use gz + flatten-deps for Android/Raspi/RDK.
+        # Host-run tests (JUnits or Linux tests) always use zstd and bypass flatten-deps!
         FLAGS=""
-        if [[ "${PLATFORM}" == *android* ]]; then
-          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-        elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
-          FLAGS="--compression gz --archive-per-target --flatten-deps"
+        if [[ "${{ inputs.upload_on_device_test_artifacts }}" == "true" ]]; then
+          if [[ "${PLATFORM}" == *android* ]]; then
+            FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+          elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
+            FLAGS="--compression gz --archive-per-target --flatten-deps"
+          else
+            FLAGS="--compression zstd --compression-level=9"
+          fi
         else
           FLAGS="--compression zstd --compression-level=9"
+          if [[ "${PLATFORM}" == *android* ]]; then
+            FLAGS="${FLAGS} --use-android-deps-path"
+          fi
         fi
 
-        TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        # Resolve targets in dual-mode
+        TARGETS=""
+        if [[ -n "${{ inputs.test_targets_json }}" && "${{ inputs.test_targets_json }}" != "[]" ]]; then
+          TARGETS=$(echo '${{ inputs.test_targets_json }}' | jq -cr 'join(",") // empty')
+        else
+          if [[ -f "${TEST_TARGETS_JSON_FILE}" ]]; then
+            TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
+          fi
+        fi
 
-        # Archive browser tests if requested.
+        if [[ -z "${TARGETS}" || "${TARGETS}" == "null" ]]; then
+          echo "No targets to archive dependencies for. Bypassing step successfully."
+          exit 0
+        fi
+
+        # Archive browser tests if requested (only for legacy compatibility mode)
         if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then
-          # Determine the browser test target for this platform.
           BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
           if [[ -n "${TARGETS}" ]]; then
             TARGETS="${TARGETS},${BROWSERTEST_TARGET}"

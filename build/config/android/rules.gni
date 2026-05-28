@@ -1292,7 +1292,13 @@ if (!is_robolectric && enable_java_templates) {
       test_name = invoker.target_name
       test_suite = invoker.target_name
       test_type = "junit"
-      ignore_all_data_deps = true
+      # In Cobalt Android builds, generate runtime deps files for JUnit tests
+      # so that test archiving scripts can package test dependencies.
+      if (is_cobalt && is_android) {
+        ignore_all_data_deps = false
+      } else {
+        ignore_all_data_deps = true
+      }
       resource_apk = _apkbuilder_output
       deps = [
         ":$_apkbuilder_target_name",

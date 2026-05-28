@@ -44,7 +44,7 @@ public class ShellManagerTest {
   private Activity mActivity;
   private ShellManager mShellManager;
   private FrameLayout mRootView;
-  @Mock private ContentViewRenderView mMockContentViewRenderView;
+  @Mock private dev.cobalt.shell.ContentViewRenderView mMockContentViewRenderView;
 
 
   @Before

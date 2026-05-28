@@ -1,9 +1,8 @@
-{
-  "TODO(b/382508397)": "Remove this when list is dynamically generated.",
-  "test_targets": [
-    "starboard/nplb:nplb_loader"
-  ],
-  "executables": [
-    "out/evergreen-arm-hardfp-raspi_devel/nplb_loader.py"
-  ]
-}
+[
+  {
+    "test_target": "starboard/nplb:nplb_loader",
+    "test_type": "gunit",
+    "executable": "out/evergreen-arm-hardfp-raspi_devel/nplb_loader.py",
+    "test_env": "on_device"
+  }
+]

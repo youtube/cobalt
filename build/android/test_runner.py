@@ -877,6 +877,13 @@ def AddJUnitTestOptions(parser):
       help='Path to .ap_ containing binary resources for Robolectric.')
   parser.add_argument('--shadows-allowlist',
                       help='Path to Allowlist file for Shadows.')
+  # Accepted but suppressed so that Cobalt JUnit tests can be executed with
+  # their wrapper script while generating their runtime dependencies.
+  parser.add_argument(
+      '--runtime-deps-path',
+      dest='runtime_deps_path',
+      type=os.path.realpath,
+      help=argparse.SUPPRESS)
 
 
 def AddLinkerTestOptions(parser):

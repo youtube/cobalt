@@ -39,6 +39,25 @@ env:
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
+    testing/test_env.py
+
+  # Additional build scripts and tools required ONLY for executing Android JUnit tests on host.
+  # Dynamically checked out during test execution to keep initial checkout minimal.
+  ANDROID_JUNIT_CI_ESSENTIALS: |
+    build/android
+    build/util
+    build/skia_gold_common
+    build/gn_helpers.py
+    build/action_helpers.py
+    build/print_python_deps.py
+    build/zip_helpers.py
+    third_party/logdog
+    third_party/colorama
+    third_party/jinja2
+    third_party/markupsafe
+    third_party/protobuf
+    .vpython3
+    testing/android/junit/shadows-allowlist.txt
 
 jobs:
   # Retrieves configuration from json file.
@@ -490,17 +509,34 @@ jobs:
         with:
           package_dir: out/test-package
 
+
+
+      - name: Parse Test Target JSON
+        if: ${{ matrix.config == 'devel' }}
+        id: test-target-json
+        uses: ./.github/actions/test_targets_json
+        with:
+          targets_file: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+
+      - name: Upload Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
+          upload_on_host_test_artifacts: "true"
+          test_targets_json: ${{ steps.test-target-json.outputs.on_host_targets }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+
       - name: Upload Test Artifacts
         uses: ./.github/actions/upload_test_artifacts
         with:
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
-          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          archive_browsertests: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_browser == 'true' }}
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
+          test_targets_json: ${{ steps.test-target-json.outputs.on_device_targets }}
+          on_device_executables: ${{ steps.test-target-json.outputs.on_device_executables }}
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
@@ -511,11 +547,11 @@ jobs:
     needs: [initialize, build]
     if: |
       needs.initialize.outputs.test_on_device == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
-        )
+      (
+        (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+      )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
     permissions: {}
@@ -538,18 +574,20 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Run On-Device Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+          test_targets_json: ${{ steps.test-target-json.outputs.on_device_targets }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+      # Downstream process_test_results action requires GTest XML format. Since JUnit
+      # Robolectric tests do not natively generate XML result files, we pass the GTest-only
+      # targets list here to exclude JUnit tests from downstream results matrix processing.
+      test_targets_json: ${{ steps.test-target-json.outputs.on_device_gunit_targets }}
 
   e2e-test:
     needs: [initialize, build]
@@ -748,15 +786,19 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Run On-Host Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_host_tests
         with:
           nightly: ${{ inputs.nightly }}
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          gunit_executables: ${{ join(fromJson(steps.test-target-json.outputs.on_host_gunit_executables), ' ') }}
+          junit_executables: ${{ join(fromJson(steps.test-target-json.outputs.on_host_junit_executables), ' ') }}
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+      # Downstream process_test_results action requires GTest XML format. Since JUnit
+      # Robolectric tests do not natively generate XML result files, we pass the GTest-only
+      # targets list here to exclude JUnit tests from downstream results matrix processing.
+      test_targets_json: ${{ steps.test-target-json.outputs.on_host_gunit_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]

@@ -87,9 +87,6 @@ def main(xml_files: list[str]) -> int:
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO, format='%(message)s')
   if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
+    logging.info('No XML test result files provided.')
+    sys.exit(0)
   sys.exit(main(sys.argv[1:]))
