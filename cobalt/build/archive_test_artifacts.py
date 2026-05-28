@@ -147,7 +147,7 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests'):
+    if target.endswith(':cobalt_browsertests') and not use_android_deps_path:
       _handle_browsertests(source_dir, out_dir, destination_dir, compression)
       # If this was the only target, we are done.
       if len(targets) == 1:
