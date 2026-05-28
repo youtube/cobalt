@@ -15,11 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 
+#include <atomic>
 #include <list>
 #include <mutex>
 #include <vector>
-
-#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
@@ -39,16 +38,15 @@ class VideoFrameTracker {
   int UpdateAndGetDroppedFrames();
 
  private:
-  void UpdateDroppedFrames();
-
-  ThreadChecker thread_checker_;
+  void UpdateDroppedFrames_Locked();
 
   std::list<int64_t> frames_to_be_rendered_;
 
   const int max_pending_frames_size_;
   int dropped_frames_ = 0;
-  int64_t seek_to_time_ = 0;  // microseconds
+  std::atomic<int64_t> seek_to_time_{0};  // microseconds
 
+  std::mutex mutex_;
   std::mutex rendered_frames_mutex_;
   std::vector<int64_t> rendered_frames_on_tracker_thread_;  // microseconds
   std::vector<int64_t> rendered_frames_on_decoder_thread_;  // microseconds

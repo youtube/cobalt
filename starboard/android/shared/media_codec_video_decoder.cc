@@ -888,13 +888,6 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
     return;
   }
 
-  if (is_video_frame_tracker_enabled_) {
-    SB_DCHECK(video_frame_tracker_);
-    for (const auto& input_buffer : input_buffers) {
-      video_frame_tracker_->OnInputBuffer(input_buffer->timestamp());
-    }
-  }
-
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
@@ -1033,6 +1026,13 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
   SB_CHECK(video_frame_tracker_);
   return input_buffer->timestamp() < video_frame_tracker_->seek_to_time();
+}
+
+void MediaCodecVideoDecoder::OnInputBufferQueued(int64_t timestamp_us) {
+  if (is_video_frame_tracker_enabled_) {
+    SB_DCHECK(video_frame_tracker_);
+    video_frame_tracker_->OnInputBuffer(timestamp_us);
+  }
 }
 
 void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {

@@ -76,7 +76,7 @@ int64_t VideoFrameTracker::seek_to_time() const {
 }
 
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  std::lock_guard lock(mutex_);
 
   if (frames_to_be_rendered_.empty()) {
     frames_to_be_rendered_.push_back(timestamp);
@@ -85,6 +85,11 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
 
   if (frames_to_be_rendered_.size() >
       static_cast<size_t>(max_pending_frames_size_)) {
+    SB_LOG(WARNING)
+        << "Evicting frame from VideoFrameTracker due to queue overflow: "
+        << "evicted_timestamp=" << frames_to_be_rendered_.front()
+        << ", new_timestamp=" << timestamp
+        << ", max_size=" << max_pending_frames_size_;
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
     frames_to_be_rendered_.pop_front();
@@ -113,31 +118,31 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void VideoFrameTracker::Seek(int64_t seek_to_time) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  std::lock_guard lock(mutex_);
 
   // Ensure that all dropped frames before seeking are captured.
-  UpdateDroppedFrames();
+  UpdateDroppedFrames_Locked();
 
   frames_to_be_rendered_.clear();
   seek_to_time_ = seek_to_time;
 }
 
 int VideoFrameTracker::UpdateAndGetDroppedFrames() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  UpdateDroppedFrames();
+  std::lock_guard lock(mutex_);
+  UpdateDroppedFrames_Locked();
   return dropped_frames_;
 }
 
-void VideoFrameTracker::UpdateDroppedFrames() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+void VideoFrameTracker::UpdateDroppedFrames_Locked() {
+  // Assumes mutex_ is locked by the caller.
 
   {
-    std::lock_guard lock(rendered_frames_mutex_);
+    std::lock_guard lock_rendered(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
 
   while (!frames_to_be_rendered_.empty() &&
-         frames_to_be_rendered_.front() < seek_to_time_) {
+         frames_to_be_rendered_.front() < seek_to_time_.load()) {
     // It is possible that the initial frame rendered time is before the
     // seek to time, when the platform decides to render a frame earlier
     // than the seek to time during preroll. This shouldn't be an issue

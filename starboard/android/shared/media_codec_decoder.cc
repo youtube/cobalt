@@ -832,6 +832,10 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     return false;
   }
 
+  if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    host_->OnInputBufferQueued(input_buffer->timestamp());
+  }
+
   is_output_restricted_ = false;
   return true;
 }
