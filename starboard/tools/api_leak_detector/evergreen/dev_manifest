@@ -9,4 +9,3 @@ dlopen
 dlsym
 ioctl
 memfd_create
-sched_setscheduler

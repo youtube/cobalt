@@ -173,10 +173,7 @@ void SbWindowPrivate::BeginComposite() {
 }
 
 void SbWindowPrivate::CompositeVideoFrame(
-    int bounds_x,
-    int bounds_y,
-    int bounds_width,
-    int bounds_height,
+    const starboard::Rect& rect,
     const starboard::scoped_refptr<starboard::CpuVideoFrame>& frame) {
   if (frame != nullptr &&
       frame->format() == starboard::CpuVideoFrame::kBGRA32 &&
@@ -227,20 +224,21 @@ void SbWindowPrivate::CompositeVideoFrame(
               image.width, image.height);
 
     // Initially assume we don't have to center or scale.
-    if (bounds_width != width || bounds_height != height ||
+    if (rect.size.width != width || rect.size.height != height ||
         frame->width() != width || frame->height() != height) {
       // This transform maps the destination pixel back to the source pixel.
-      double sx = static_cast<double>(frame->width()) / bounds_width;
-      double sy = static_cast<double>(frame->height()) / bounds_height;
+      double sx = static_cast<double>(frame->width()) / rect.size.width;
+      double sy = static_cast<double>(frame->height()) / rect.size.height;
       XTransform transform = {
           {{XDoubleToFixed(sx), XDoubleToFixed(0), XDoubleToFixed(0)},
            {XDoubleToFixed(0), XDoubleToFixed(sy), XDoubleToFixed(0)},
            {XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(1)}}};
       XRenderSetPictureTransform(display, video_picture, &transform);
     }
-    XRenderComposite(display, PictOpSrc, video_picture, None,
-                     composition_picture, 0, 0, 0, 0, bounds_x, bounds_y,
-                     bounds_width, bounds_height);
+    XRenderComposite(
+        display, PictOpSrc, video_picture, None, composition_picture,
+        /*src_x=*/0, /*src_y=*/0, /*mask_x=*/0,
+        /*mask_y=*/0, rect.x, rect.y, rect.size.width, rect.size.height);
   }
 }
 

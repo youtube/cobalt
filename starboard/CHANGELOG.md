@@ -48,6 +48,10 @@ rendering issues caused by Chromium's shader expectations.
 * `inotify_init1`
 * `inotify_add_watch`
 * `inotify_rm_watch`
+* `sched_getparam`
+* `sched_setparam`
+* `sched_getscheduler`
+* `sched_setscheduler`
 * `statx`
 
 ### Added AV2 to SbMediaVideoCodec

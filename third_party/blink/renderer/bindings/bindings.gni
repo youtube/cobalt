@@ -271,3 +271,8 @@ cobalt_bindings_exclude_patterns = [
   "*explicit_congestion_notification*",
   "*v8_union_mediastreamtrack_string*",
 ]
+
+cobalt_webnn_exclude_patterns = [
+  "*v8_ml.*",
+  "*v8_ml_*",
+]
