@@ -21,6 +21,8 @@
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/navigation_handle.h"
+
+// RANDOM STUFF ADDED IN NEW PR
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
@@ -124,6 +126,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 #endif
   }
 }
+
+// MORE RANDOM STUFF IN NEW PR
 
 void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
                                                         const char* value) {
