@@ -29,6 +29,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/context_factory.h"
@@ -45,12 +46,10 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
+#include "ui/compositor/compositor.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
 #include "ui/platform_window/platform_window.h"
-#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-#include "ui/ozone/platform/starboard/platform_window_starboard.h"
-#endif
 #include "ui/views/background.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
@@ -66,6 +65,10 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
+
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif
 
 namespace content {
 
@@ -370,7 +373,10 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 }  // namespace
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() {
+  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+}
 
 std::unique_ptr<views::ViewsDelegate>
 ShellPlatformDelegate::CreateViewsDelegate() {
@@ -456,25 +462,77 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
         ui::kColorWindowBackground);
     views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
         shell->web_contents(), bg_color);
-
-    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
-    shell_data.window_widget->Show();
+  }
+}
+void ShellPlatformDelegate::DidCreateOrAttachWebContents(
+    Shell* shell,
+    WebContents* web_contents) {
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end()) {
+    return;
+  }
+  ShellData& shell_data = it->second;
+  if (shell_data.window_widget) {
+    // Safely map native views window Show and Restore on initial startup!
+    shell_data.window_widget->GetNativeWindow()->Show();
+    shell_data.window_widget->Restore();
   }
 }
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
-  ShellData& shell_data = shell_data_map_.at(shell);
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end()) {
+    LOG(ERROR) << "RevealShell called for untracked shell!";
+    return;
+  }
+  ShellData& shell_data = it->second;
   if (!shell_data.window_widget) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
   }
 
   SetContents(shell);
 }
-void ShellPlatformDelegate::ConcealShell(Shell* shell) {
-  ShellData& shell_data = shell_data_map_.at(shell);
+void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end()) {
+    LOG(ERROR) << "MapWindowShell called for untracked shell!";
+    return;
+  }
+  ShellData& shell_data = it->second;
   if (shell_data.window_widget) {
-    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
-    shell_data.window_widget->CloseNow();
-    shell_data.window_widget = nullptr;
+    if (shell_data.window_widget->GetNativeWindow() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost()->compositor()) {
+      shell_data.window_widget->GetNativeWindow()
+          ->GetHost()
+          ->compositor()
+          ->SetVisible(true);
+    }
+    // Safely map native views window Show and Restore only on Mojo Reveal ACK!
+    shell_data.window_widget->GetNativeWindow()->Show();
+    shell_data.window_widget->Restore();
+  }
+}
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end()) {
+    LOG(ERROR) << "ConcealShell called for untracked shell!";
+    return;
+  }
+  ShellData& shell_data = it->second;
+  if (shell_data.window_widget) {
+    // Forcefully set compositor invisible to satisfy accelerated widget release
+    // assertions natively.
+    if (shell_data.window_widget->GetNativeWindow() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost() &&
+        shell_data.window_widget->GetNativeWindow()->GetHost()->compositor()) {
+      shell_data.window_widget->GetNativeWindow()
+          ->GetHost()
+          ->compositor()
+          ->SetVisible(false);
+    }
+    // Restore spec-compliant Minimize and Hide window widget deactivation!
+    shell_data.window_widget->Minimize();
+    shell_data.window_widget->GetNativeWindow()->Hide();
   }
 }
 

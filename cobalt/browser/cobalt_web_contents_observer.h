@@ -15,9 +15,13 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
+#include <map>
+
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
+#include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace cobalt {
 
@@ -51,6 +55,9 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void OnNavigationTimeout(const std::string& url);
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+  std::map<content::RenderFrameHost*,
+           mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
+      controllers_;
 #if BUILDFLAG(IS_ANDROIDTV)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)

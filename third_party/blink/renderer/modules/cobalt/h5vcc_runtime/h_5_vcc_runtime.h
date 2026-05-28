@@ -20,8 +20,6 @@
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/event_target_names.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
-#include "third_party/blink/renderer/core/page/focus_changed_observer.h"
-#include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -39,18 +37,13 @@ class ScriptState;
 class MODULES_EXPORT H5vccRuntime final
     : public EventTarget,
       public ExecutionContextLifecycleObserver,
-      public PageVisibilityObserver,
-      public FocusChangedObserver,
       public h5vcc_runtime::mojom::blink::DeepLinkListener {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   explicit H5vccRuntime(LocalDOMWindow&);
-  ~H5vccRuntime() override;
 
   void ContextDestroyed() override;
-  void PageVisibilityChanged() override;
-  void FocusedFrameChanged() override;
 
   // Web-exposed interface:
   String initialDeepLink();
@@ -76,7 +69,6 @@ class MODULES_EXPORT H5vccRuntime final
   void Trace(Visitor*) const override;
 
  private:
-  void OnMojoDisconnect();
   void MaybeFireDeepLinkEvent(const String&);
   void EnsureRemoteIsBound();
 

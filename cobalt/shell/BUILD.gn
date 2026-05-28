@@ -65,7 +65,9 @@ group("cobalt_shell_lib_deps") {
     "//base:base_static",
     "//cc/base",
     "//cobalt/browser:switches",
-    "//cobalt/browser/h5vcc_runtime:h5vcc_runtime",
+    "//cobalt/browser/crash_annotator/public/mojom:mojom",
+    "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/lifecycle:lifecycle",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
@@ -144,7 +146,6 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//ui/aura",
       "//ui/events",
-      "//ui/platform_window",
       "//ui/wm",
     ]
     if (is_starboard) {

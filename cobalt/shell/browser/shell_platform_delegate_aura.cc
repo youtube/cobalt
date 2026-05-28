@@ -110,7 +110,8 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
     SetContents(shell);
   }
-
+}
+void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
   static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host())
       ->platform_window()
       ->Show(true);
@@ -119,6 +120,9 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
   platform_->aura->host()->Hide();
 }
+void ShellPlatformDelegate::DidCreateOrAttachWebContents(
+    Shell* shell,
+    WebContents* web_contents) {}
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
 

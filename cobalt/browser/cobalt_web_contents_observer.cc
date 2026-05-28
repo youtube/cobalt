@@ -18,8 +18,13 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/timer/timer.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
+#include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
@@ -40,6 +45,25 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {
   timeout_timer_ = std::make_unique<base::OneShotTimer>();
+
+  // Check if main frame is already created.
+  if (web_contents) {
+    content::RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
+    if (main_frame && main_frame->IsRenderFrameLive()) {
+      mojo::Remote<cobalt::mojom::CobaltLifecycleController> controller;
+      main_frame->GetRemoteInterfaces()->GetInterface(
+          controller.BindNewPipeAndPassReceiver());
+
+      // Create observer and pass to renderer.
+      mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver>
+          observer_remote;
+      CobaltLifecycleManager::GetInstance()->BindReceiver(
+          main_frame, observer_remote.InitWithNewPipeAndPassReceiver());
+      controller->SetObserver(std::move(observer_remote));
+
+      controllers_[main_frame] = std::move(controller);
+    }
+  }
 }
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;

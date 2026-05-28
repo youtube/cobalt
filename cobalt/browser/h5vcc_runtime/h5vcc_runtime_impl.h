@@ -15,7 +15,6 @@
 #ifndef COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_IMPL_H_
 #define COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_IMPL_H_
 
-#include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -37,8 +36,6 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   static void Create(content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
 
-  ~H5vccRuntimeImpl() override;
-
   H5vccRuntimeImpl(const H5vccRuntimeImpl&) = delete;
   H5vccRuntimeImpl& operator=(const H5vccRuntimeImpl&) = delete;
 
@@ -48,13 +45,6 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
 
   void AddListener(
       mojo::PendingRemote<mojom::DeepLinkListener> listener) override;
-
-  void PageVisibilityChanged() override;
-  void PageBlurred() override;
-
-  content::RenderFrameHost& GetRenderFrameHost() const {
-    return render_frame_host();
-  }
 
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,

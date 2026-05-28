@@ -762,8 +762,7 @@ bool LocalFrame::DetachImpl(FrameDetachType type) {
       script_observer_->Shutdown();
     }
   }
-  if (idleness_detector_)
-    idleness_detector_->Shutdown();
+  idleness_detector_->Shutdown();
   if (inspector_issue_reporter_)
     probe_sink_->RemoveInspectorIssueReporter(inspector_issue_reporter_);
   if (inspector_trace_events_)

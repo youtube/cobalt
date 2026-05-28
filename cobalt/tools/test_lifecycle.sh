@@ -16,34 +16,15 @@
 # Integration test for Cobalt lifecycle on Linux.
 # Sends signals to a running Cobalt process and verifies JS state via DevTools.
 
+source cobalt/tools/test_common.sh
+
 PORT=9223
 LOG_FILE="lifecycle_run.log"
-EXECUTABLE=${TEST_LIFECYCLE_EXECUTABLE:-"./out/linux-x64x11-modular_devel/cobalt_loader"}
 HOST=${TEST_LIFECYCLE_HOST:-"localhost"}
 
-# Ensure no previous test instances or Cobalt processes are running.
-MY_PGID=$(ps -o pgid= -p $$ | tr -d ' ')
-OTHER_TEST_PIDS=$(pgrep -f "[t]est_lifecycle.sh" | while read pid; do
-  PGID=$(ps -o pgid= -p $pid | tr -d ' ')
-  if [ "$PGID" != "$MY_PGID" ]; then echo $pid; fi
-done | xargs || true)
-WAITER_PIDS=$(pgrep -f "[w]ait_for_state.sh" | while read pid; do
-  PGID=$(ps -o pgid= -p $pid | tr -d ' ')
-  if [ "$PGID" != "$MY_PGID" ]; then echo $pid; fi
-done | xargs || true)
-COBALT_PIDS=$(pgrep -x "cobalt_loader" | while read pid; do
-  PGID=$(ps -o pgid= -p $pid | tr -d ' ')
-  if [ "$PGID" != "$MY_PGID" ]; then echo $pid; fi
-done | xargs || true)
-
-if [ -n "$OTHER_TEST_PIDS" ] || [ -n "$WAITER_PIDS" ] || [ -n "$COBALT_PIDS" ]; then
-  echo "FAILURE: Previous test instance or Cobalt process is still running."
-  [ -n "$OTHER_TEST_PIDS" ] && echo "Found test_lifecycle.sh PIDs: $OTHER_TEST_PIDS"
-  [ -n "$WAITER_PIDS" ] && echo "Found wait_for_state.sh PIDs: $WAITER_PIDS"
-  [ -n "$COBALT_PIDS" ] && echo "Found cobalt_loader PIDs: $COBALT_PIDS"
-  echo "Please kill them before running this test."
-  exit 1
-fi
+parse_args "test_lifecycle.sh" "$@"
+check_running_processes "test_lifecycle.sh"
+run_build_if_needed
 
 echo "[TEST] Starting cobalt_loader with DevTools on $HOST:$PORT..."
 rm -f $LOG_FILE
@@ -77,12 +58,25 @@ bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 $HOST
 echo "[TEST] Injecting event logger..."
 execute_js "window.event_log = [];
             document.addEventListener('visibilitychange', () => {
+              console.log('JS_EVENT: visibilitychange ' + document.visibilityState);
               window.event_log.push({type: 'visibilitychange', visibility: document.visibilityState});
             });
-            window.addEventListener('focus', () => window.event_log.push({type: 'focus'}));
-            window.addEventListener('blur', () => window.event_log.push({type: 'blur'}));
-            document.addEventListener('freeze', () => window.event_log.push({type: 'freeze'}));
-            document.addEventListener('resume', () => window.event_log.push({type: 'resume'}));
+            window.addEventListener('focus', () => {
+              console.log('JS_EVENT: focus');
+              window.event_log.push({type: 'focus'});
+            });
+            window.addEventListener('blur', () => {
+              console.log('JS_EVENT: blur');
+              window.event_log.push({type: 'blur'});
+            });
+            document.addEventListener('freeze', () => {
+              console.log('JS_EVENT: freeze');
+              window.event_log.push({type: 'freeze'});
+            });
+            document.addEventListener('resume', () => {
+              console.log('JS_EVENT: resume');
+              window.event_log.push({type: 'resume'});
+            });
             window.focus();"
 
 wait_and_pop_event() {
@@ -124,12 +118,17 @@ sleep 2
 
 echo "[TEST] Sending SIGCONT (RESUME & REVEAL & FOCUS)..."
 kill -SIGCONT $COBALT_PID
+sleep 2
 
-echo "[TEST] Skipping verification of events after resume due to known issue."
+echo "[TEST] Verifying freeze and resume events in logs..."
+grep -q "JS_EVENT: freeze" $LOG_FILE || { echo "FAILURE: freeze event not found in logs"; exit 1; }
+grep -q "JS_EVENT: resume" $LOG_FILE || { echo "FAILURE: resume event not found in logs"; exit 1; }
+grep -q "JS_EVENT: visibilitychange visible" $LOG_FILE || { echo "FAILURE: visible event not found in logs"; exit 1; }
+[ $(grep -c "JS_EVENT: focus" $LOG_FILE) -ge 2 ] || { echo "FAILURE: expected at least 2 focus events in logs"; exit 1; }
 
 echo "[TEST] Killing Cobalt..."
 kill -9 $COBALT_PID 2>/dev/null || true
 
-echo "[TEST] SUCCESS: Lifecycle transitions verified (up to freeze)!"
+echo "[TEST] SUCCESS: Lifecycle transitions verified!"
 
 exit 0

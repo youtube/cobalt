@@ -1,4 +1,4 @@
-# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,34 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("h5vcc_runtime") {
+source_set("lifecycle") {
   sources = [
-    "h5vcc_runtime_impl.cc",
-    "h5vcc_runtime_impl.h",
+    "cobalt_lifecycle_manager.cc",
+    "cobalt_lifecycle_manager.h",
   ]
 
   public_deps = [
-    ":deep_link_manager",
-    "//cobalt/browser/h5vcc_runtime/public/mojom",
-  ]
-
-  deps = [
-    "//base",
+    "//cobalt/browser/lifecycle/public/mojom",
     "//content/public/browser",
-    "//mojo/public/cpp/bindings",
-    "//starboard:starboard_group",
-  ]
-}
-
-source_set("deep_link_manager") {
-  sources = [
-    "deep_link_manager.cc",
-    "deep_link_manager.h",
   ]
 
   deps = [
     "//base",
-    "//cobalt/browser/h5vcc_runtime/public/mojom",
-    "//mojo/public/cpp/bindings",
+    "//url",
   ]
 }
