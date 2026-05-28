@@ -30,22 +30,21 @@
 
 namespace starboard {
 
-// static
-std::unique_ptr<MediaCodec> MediaCodec::CreateAudioMediaCodec(
+std::unique_ptr<MediaCodec> DefaultMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
-    Handler* handler,
+    MediaCodec::Handler* handler,
     jobject j_media_crypto) {
   return MediaCodecBridge::CreateAudioMediaCodec(audio_stream_info, handler,
                                                  j_media_crypto);
 }
 
-// static
-NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
+NonNullResult<std::unique_ptr<MediaCodec>>
+DefaultMediaCodecFactory::CreateVideoMediaCodec(
     SbMediaVideoCodec video_codec,
     const Size& frame_size_hint,
     int fps,
     const std::optional<Size>& max_frame_size,
-    Handler* handler,
+    MediaCodec::Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
@@ -106,6 +105,42 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
     return std::move(jni_result.value());
   }
   return Failure(jni_result.error());
+}
+
+// static
+std::unique_ptr<MediaCodec> MediaCodec::CreateAudioMediaCodec(
+    const AudioStreamInfo& audio_stream_info,
+    Handler* handler,
+    jobject j_media_crypto) {
+  DefaultMediaCodecFactory factory;
+  return factory.CreateAudioMediaCodec(audio_stream_info, handler,
+                                       j_media_crypto);
+}
+
+// static
+NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
+    SbMediaVideoCodec video_codec,
+    const Size& frame_size_hint,
+    int fps,
+    const std::optional<Size>& max_frame_size,
+    Handler* handler,
+    jobject j_surface,
+    jobject j_media_crypto,
+    const SbMediaColorMetadata* color_metadata,
+    bool enable_frame_renderer_listener,
+    bool require_secured_decoder,
+    bool require_software_codec,
+    std::optional<int> tunnel_mode_audio_session_id,
+    bool force_big_endian_hdr_metadata,
+    int max_video_input_size,
+    bool skip_video_frames_over_60_fps) {
+  DefaultMediaCodecFactory factory;
+  return factory.CreateVideoMediaCodec(
+      video_codec, frame_size_hint, fps, max_frame_size, handler, j_surface,
+      j_media_crypto, color_metadata, enable_frame_renderer_listener,
+      require_secured_decoder, require_software_codec,
+      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+      max_video_input_size, skip_video_frames_over_60_fps);
 }
 
 // static

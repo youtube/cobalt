@@ -97,15 +97,15 @@ class MediaCodecDecoder::DecoderThread : public Thread {
 
 // static
 NonNullResult<std::unique_ptr<MediaCodecDecoder>>
-MediaCodecDecoder::CreateForAudio(JobQueue* job_queue,
+MediaCodecDecoder::CreateForAudio(MediaCodec::Factory& media_codec_factory,
+                                  JobQueue* job_queue,
                                   Host* host,
                                   const AudioStreamInfo& audio_stream_info,
-                                  SbDrmSystem drm_system,
-                                  MediaCodec::Factory* media_codec_factory) {
+                                  SbDrmSystem drm_system) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
-      PassKey<MediaCodecDecoder>(), job_queue, host, audio_stream_info,
-      drm_system, media_codec_factory, &error_message);
+      PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
+      audio_stream_info, drm_system, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -115,6 +115,7 @@ MediaCodecDecoder::CreateForAudio(JobQueue* job_queue,
 // static
 NonNullResult<std::unique_ptr<MediaCodecDecoder>>
 MediaCodecDecoder::CreateForVideo(
+    MediaCodec::Factory& media_codec_factory,
     JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
@@ -133,17 +134,16 @@ MediaCodecDecoder::CreateForVideo(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool skip_video_frames_over_60_fps,
-    MediaCodec::Factory* media_codec_factory) {
+    bool skip_video_frames_over_60_fps) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
-      PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
-      frame_size_hint, max_frame_size, fps, j_output_surface, drm_system,
-      color_metadata, require_software_codec, frame_rendered_cb,
+      PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
+      video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
+      drm_system, color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       enable_frame_renderer_listener, force_big_endian_hdr_metadata,
       max_video_input_size, flush_delay_usec, use_dual_threads,
-      skip_video_frames_over_60_fps, media_codec_factory, &error_message);
+      skip_video_frames_over_60_fps, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -151,11 +151,11 @@ MediaCodecDecoder::CreateForVideo(
 }
 
 MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                                     MediaCodec::Factory& media_codec_factory,
                                      JobQueue* job_queue,
                                      Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system,
-                                     MediaCodec::Factory* media_codec_factory,
                                      std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeAudio),
@@ -169,13 +169,8 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  if (media_codec_factory) {
-    media_codec_bridge_ = media_codec_factory->CreateAudioMediaCodec(
-        audio_stream_info, this, j_media_crypto);
-  } else {
-    media_codec_bridge_ = MediaCodec::CreateAudioMediaCodec(
-        audio_stream_info, this, j_media_crypto);
-  }
+  media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
+      audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
     *error_message = "Failed to create audio media codec.";
     SB_LOG(ERROR) << *error_message;
@@ -195,6 +190,7 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
 
 MediaCodecDecoder::MediaCodecDecoder(
     PassKey<MediaCodecDecoder>,
+    MediaCodec::Factory& media_codec_factory,
     JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
@@ -214,7 +210,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
     bool skip_video_frames_over_60_fps,
-    MediaCodec::Factory* media_codec_factory,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -237,22 +232,13 @@ MediaCodecDecoder::MediaCodecDecoder(
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
 
-  auto media_codec_bridge =
-      media_codec_factory
-          ? media_codec_factory->CreateVideoMediaCodec(
-                video_codec, frame_size_hint, fps, max_frame_size,
-                /*handler=*/this, j_output_surface, j_media_crypto,
-                color_metadata, enable_frame_renderer_listener,
-                require_secured_decoder, require_software_codec,
-                tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
-                max_video_input_size, skip_video_frames_over_60_fps)
-          : MediaCodec::CreateVideoMediaCodec(
-                video_codec, frame_size_hint, fps, max_frame_size,
-                /*handler=*/this, j_output_surface, j_media_crypto,
-                color_metadata, enable_frame_renderer_listener,
-                require_secured_decoder, require_software_codec,
-                tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
-                max_video_input_size, skip_video_frames_over_60_fps);
+  auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
+      video_codec, frame_size_hint, fps, max_frame_size,
+      /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
+      enable_frame_renderer_listener, require_secured_decoder,
+      require_software_codec, tunnel_mode_audio_session_id,
+      force_big_endian_hdr_metadata, max_video_input_size,
+      skip_video_frames_over_60_fps);
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());

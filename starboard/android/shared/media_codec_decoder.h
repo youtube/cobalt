@@ -75,12 +75,13 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   };
 
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
+      MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
       Host* host,
       const AudioStreamInfo& audio_stream_info,
-      SbDrmSystem drm_system,
-      MediaCodec::Factory* media_codec_factory = nullptr);
+      SbDrmSystem drm_system);
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForVideo(
+      MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
@@ -101,18 +102,18 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
-      bool skip_video_frames_over_60_fps,
-      MediaCodec::Factory* media_codec_factory = nullptr);
+      bool skip_video_frames_over_60_fps);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                    MediaCodec::Factory& media_codec_factory,
                     JobQueue* job_queue,
                     Host* host,
                     const AudioStreamInfo& audio_stream_info,
                     SbDrmSystem drm_system,
-                    MediaCodec::Factory* media_codec_factory,
                     std::string* error_message);
   MediaCodecDecoder(
       PassKey<MediaCodecDecoder>,
+      MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
@@ -134,7 +135,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
       bool skip_video_frames_over_60_fps,
-      MediaCodec::Factory* media_codec_factory,
       std::string* error_message);
   ~MediaCodecDecoder();
 

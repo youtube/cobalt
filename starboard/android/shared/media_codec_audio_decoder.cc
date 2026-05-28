@@ -216,8 +216,9 @@ void MediaCodecAudioDecoder::Reset() {
 
 Result<void> MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
+  DefaultMediaCodecFactory factory;
   auto result = MediaCodecDecoder::CreateForAudio(
-      job_queue(), this, audio_stream_info_, drm_system_);
+      factory, job_queue(), this, audio_stream_info_, drm_system_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
