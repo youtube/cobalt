@@ -966,8 +966,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  bool need_more_input_signaled = SignalIfNeedMoreInput();
-  if (!need_more_input_signaled && tunnel_mode_audio_session_id_) {
+  bool need_more_input = SignalIfNeedMoreInput();
+  if (!need_more_input && tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
     // to the renderer again.  Schedule a task to check back.
@@ -1018,11 +1018,11 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       dequeue_output_result, media_codec_bridge,
       std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this));
 
-  bool need_more_input_signaled = false;
+  bool need_more_input = false;
   if (!is_end_of_stream) {
-    need_more_input_signaled = SignalIfNeedMoreInput(video_frame);
+    need_more_input = SignalIfNeedMoreInput(video_frame);
   }
-  if (!need_more_input_signaled) {
+  if (!need_more_input) {
     decoder_status_cb_(kBufferFull, std::move(video_frame));
   }
 }
