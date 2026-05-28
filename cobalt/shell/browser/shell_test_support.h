@@ -99,14 +99,18 @@ class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
 class MojoInitializer {
  public:
   MojoInitializer() {
+#if defined(USE_AURA)
     if (!aura::Env::HasInstance()) {
       aura_env_ = aura::Env::CreateInstance();
     }
+#endif
     mojo::core::Init();
   }
 
  private:
+#if defined(USE_AURA)
   std::unique_ptr<aura::Env> aura_env_;
+#endif
 };
 
 class ShellTestBase : public ::testing::Test {

@@ -42,6 +42,7 @@ async def get_websocket_url(host, port):
     for target in targets:
       if target.get('type') == 'page' and target.get('webSocketDebuggerUrl'):
         return target['webSocketDebuggerUrl']
+    print(f'CDP targets found but no page target: {targets}', file=sys.stderr)
   except (requests.exceptions.RequestException, ValueError) as e:
     print(
         f'Error connecting to devtools on {host}:{port}: {e}', file=sys.stderr)

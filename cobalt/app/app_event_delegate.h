@@ -27,7 +27,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
 
@@ -58,7 +58,7 @@ namespace cobalt {
 // Each box corresponds to an AppEventDelegate::ApplicationState. The ↔ arrows
 // represent bidirectional transitions handled via TransitionToLifeCycleState,
 // which ensures all intermediate states are traversed.
-class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
+class AppEventDelegate {
  public:
   // ApplicationState defines the lifecycle states of the application.
   // The order of these states is critical: TransitionToLifeCycleState relies on
@@ -92,18 +92,7 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   // Receives a Starboard event and handles it.
   void HandleEvent(const SbEvent* event);
 
-  // Called when the renderer acknowledges visibility.
-  void OnRevealAck();
-  void OnRevealTimeout();
-
-  // Called when the renderer acknowledges conceal.
-  void OnConcealAck(content::WebContents* web_contents);
-
-  // h5vcc_runtime::H5vccRuntimeObserver implementation.
-  void OnAllFramesVisible(content::WebContents* web_contents) override;
-  void OnStartWaitingForReveal(content::WebContents* web_contents) override;
-  void OnAllFramesConcealed(content::WebContents* web_contents) override;
-  void OnAllFramesBlurred(content::WebContents* web_contents) override;
+  void DoTeardown();
 
   bool IsRunning() const;
   bool IsVisible() const;
@@ -111,44 +100,57 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   bool IsFrozen() const;
 
   ApplicationState GetState() const;
+  bool is_transitioning() const {
+    base::AutoLock lock(lock_);
+    return is_transitioning_;
+  }
+  PendingAck pending_ack() const {
+    base::AutoLock lock(lock_);
+    return runner_ ? runner_->pending_ack() : PendingAck::kNone;
+  }
 
  private:
   static const char* GetStateString(ApplicationState state);
+  static void TeardownCallback(void* data);
 
   void HandleEventLocked(const SbEvent* event);
-  void TransitionToLifeCycleState(ApplicationState state);
+
+  // Starts a transition of the application state from its current state to the
+  // target |state| by traversing all intermediate states in strict linear
+  // order. If this is a deactivating transition (e.g. Conceal or Freeze), it
+  // synchronously blocks the calling OS (Starboard) thread using a nested
+  // base::RunLoop until the target state is reached or a safety timeout occurs.
+  // Activating transitions are executed asynchronously.
+  void TransitionToLifeCycleState(ApplicationState state)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Wrapper that sets |application_state_| with the side effect of recording
   // this new state as a crash annotation.
   // TODO: b/486236529 - Consider enforcing that |application_state_| can only
   // be modified from within this method. This would prevent developers from
   // inadvertently updating the member variable but not the crash annotation.
+  //
+  // SetApplicationState must only be called on the UI thread.
   void SetApplicationState(ApplicationState state);
   void SetApplicationStateAnnotation(ApplicationState state);
 
-  // Helper that executes a single lifecycle step on the UI thread and then
-  // schedules the next step if the target state has not yet been reached.
-  void ExecuteNextStepOnUIThread();
-  void ExecuteNextStepOnUIThreadLocked(bool schedule_next_step);
+  // Central state-coordination method. Analyzes the current state and target
+  // state to determine the next single linear step, and schedules/executes it.
+  // It also signals the deactivation wait run loop to wake up when the
+  // transition reaches its target state.
+  void ExecuteNextStepLocked();
 
-  h5vcc_runtime::PendingAck GetNeededAck(ApplicationState current_state,
-                                         bool is_activating) const {
-    if (is_activating) {
-      if (current_state == ApplicationState::kConcealed) {
-        return h5vcc_runtime::PendingAck::kReveal;
-      }
-      return h5vcc_runtime::PendingAck::kNone;
-    } else {
-      switch (current_state) {
-        case ApplicationState::kStarted:
-          return h5vcc_runtime::PendingAck::kBlur;
-        case ApplicationState::kBlurred:
-          return h5vcc_runtime::PendingAck::kConceal;
-        default:
-          return h5vcc_runtime::PendingAck::kNone;
-      }
-    }
-  }
+  // Executes the actual side effects of a single linear transition step (such
+  // as calling runner callbacks and routing frame visibility/focus) on the UI
+  // thread. If required by the step (e.g., concealing or unfreezing), it
+  // initiates Mojo ACK tracking with the renderers and sets up pending ACK
+  // expectations.
+  void ExecuteStepOnUIThread(ApplicationState next_state, bool is_activating);
+
+  // Helpers to reduce duplication.
+  ApplicationState GetNextState(ApplicationState current_state,
+                                bool is_activating) const;
+  void ExecuteEventRunner(ApplicationState next_state, bool is_activating);
 
   bool IsRunningLocked() const;
   bool IsVisibleLocked() const;
@@ -164,15 +166,7 @@ class AppEventDelegate : public h5vcc_runtime::H5vccRuntimeObserver {
   ApplicationState application_state_ = ApplicationState::kInitial;
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
-
-  base::OnceClosure transition_quit_closure_;
-
-  h5vcc_runtime::PendingAck pending_ack_ = h5vcc_runtime::PendingAck::kNone;
-
-  // Set of WebContents that are currently waiting for reveal acknowledgment
-  // from the renderer (Reveal ACK). Focus transitions are deferred until all
-  // WebContents in this set have completed layout and become visible.
-  std::set<content::WebContents*> pending_web_contents_;
+  base::OnceClosure quit_closure_;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.

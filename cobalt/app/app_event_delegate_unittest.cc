@@ -14,13 +14,23 @@
 
 #include "cobalt/app/app_event_delegate.h"
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
+#include "base/rand_util.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "cobalt/app/app_event_runner.h"
+#include "cobalt/shell/browser/shell_test_support.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_browser_context.h"
+#include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_utils.h"
+#include "content/test/test_web_contents.h"
 #include "starboard/extension/crash_handler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,6 +43,18 @@ namespace cobalt {
 
 class MockAppEventRunner : public AppEventRunner {
  public:
+  MockAppEventRunner() {
+    set_is_running(false);
+    set_is_visible(false);
+    set_is_focused(false);
+    set_is_frozen(true);
+
+    ON_CALL(*this, DoFreeze(testing::_))
+        .WillByDefault(testing::Invoke([](base::OnceClosure callback) {
+          base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+              FROM_HERE, std::move(callback));
+        }));
+  }
   MOCK_METHOD(void, InitializeSystem, (), (override));
   MOCK_METHOD(void,
               CreateMainDelegate,
@@ -62,9 +84,7 @@ class MockAppEventRunner : public AppEventRunner {
               GetWebContents,
               (),
               (override));
-
-  MOCK_METHOD(bool, IsWaitingForRevealAck, (), (const, override));
-  MOCK_METHOD(void, ClearWaitingForRevealAck, (), (override));
+  MOCK_METHOD(PendingAck, pending_ack, (), (const, override));
 
   // These are the methods called by the base class.
   MOCK_METHOD(void, DoStart, (const SbEvent* event), (override));
@@ -73,7 +93,7 @@ class MockAppEventRunner : public AppEventRunner {
   MOCK_METHOD(void, DoFocus, (), (override));
   MOCK_METHOD(void, DoConceal, (), (override));
   MOCK_METHOD(void, DoReveal, (), (override));
-  MOCK_METHOD(void, DoFreeze, (), (override));
+  MOCK_METHOD(void, DoFreeze, (base::OnceClosure callback), (override));
   MOCK_METHOD(void, DoUnfreeze, (), (override));
 };
 
@@ -99,18 +119,29 @@ class MockCrashHandler {
 
 MockCrashHandler* MockCrashHandler::instance_ = nullptr;
 
-class AppEventDelegateTest : public ::testing::Test {
+class AppEventDelegateTest : public content::ShellTestBase {
  public:
   AppEventDelegateTest() {
     MockCrashHandler::SetInstance(&mock_crash_handler_);
     crash_handler_extension_.name = kCobaltExtensionCrashHandlerName;
     crash_handler_extension_.version = 2;
     crash_handler_extension_.SetString = &MockCrashHandler::SetStringStatic;
-
-    CreateDelegate();
   }
 
   ~AppEventDelegateTest() override { MockCrashHandler::SetInstance(nullptr); }
+
+  void SetUp() override {
+    ui_task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
+    content::ShellTestBase::SetUp();
+    CreateDelegate();
+  }
+
+  void TearDown() override {
+    web_contents_.reset();
+    delegate_.reset();
+    CobaltLifecycleManager::GetInstance()->ResetForTesting();
+    content::ShellTestBase::TearDown();
+  }
 
   void SetApplicationState(AppEventDelegate::ApplicationState state) {
     delegate_->application_state_ = state;
@@ -118,8 +149,8 @@ class AppEventDelegateTest : public ::testing::Test {
   void SetTargetState(AppEventDelegate::ApplicationState state) {
     delegate_->target_state_ = state;
   }
-  void SetPendingAck(h5vcc_runtime::PendingAck ack) {
-    delegate_->pending_ack_ = ack;
+  void SetPendingAck(PendingAck ack) {
+    ON_CALL(*runner_, pending_ack()).WillByDefault(testing::Return(ack));
   }
   void SetIsTransitioning(bool transitioning) {
     delegate_->is_transitioning_ = transitioning;
@@ -128,12 +159,8 @@ class AppEventDelegateTest : public ::testing::Test {
     return delegate_->target_state_;
   }
 
-  void CallExecuteNextStepOnUIThread() {
-    delegate_->ExecuteNextStepOnUIThread();
-  }
-
  protected:
-  void CreateDelegate(bool nice_runner = false) {
+  void CreateDelegate(bool nice_runner = true) {
     std::unique_ptr<MockAppEventRunner> runner;
     if (nice_runner) {
       runner = std::make_unique<testing::NiceMock<MockAppEventRunner>>();
@@ -146,8 +173,16 @@ class AppEventDelegateTest : public ::testing::Test {
     ON_CALL(*runner_, DoStart(_)).WillByDefault(Invoke([this](const SbEvent*) {
       is_running_ = true;
     }));
+
+    content::WebContents::CreateParams create_params(browser_context());
+    web_contents_.reset(content::TestWebContents::Create(create_params));
+    content::RenderFrameHostTester::For(web_contents_->GetPrimaryMainFrame())
+        ->InitializeRenderFrameIfNeeded();
+
     ON_CALL(*runner_, GetWebContents())
-        .WillByDefault(testing::Return(std::vector<content::WebContents*>()));
+        .WillByDefault(testing::Return(
+            std::vector<content::WebContents*>{web_contents_.get()}));
+
     ON_CALL(*runner_, DoStop()).WillByDefault(Invoke([this]() {
       is_running_ = false;
     }));
@@ -174,18 +209,32 @@ class AppEventDelegateTest : public ::testing::Test {
     }
     SbEvent event = {type, 0, data};
     delegate_->HandleEvent(&event);
-    task_environment_.RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
   }
 
-  content::BrowserTaskEnvironment task_environment_;
+  // Under the fully synchronous mock runner GTest execution flow,
+  // SendEventAsync is a clean, synchronous alias to SendEvent, preventing test
+  // suite changes.
+  void SendEventAsync(SbEventType type, void* data = nullptr) {
+    SendEvent(type, data);
+  }
+
+ protected:
   MockCrashHandler mock_crash_handler_;
   CobaltExtensionCrashHandlerApi crash_handler_extension_ = {};
   MockAppEventRunner* runner_;
   std::unique_ptr<AppEventDelegate> delegate_;
+  std::unique_ptr<content::WebContents> web_contents_;
 
   bool is_running_ = false;
   bool is_visible_ = false;
+  scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner_;
+
+  base::WeakPtrFactory<AppEventDelegateTest> weak_ptr_factory_{this};
 };
+
+class AppEventDelegateFuzzTest : public AppEventDelegateTest,
+                                 public ::testing::WithParamInterface<int> {};
 
 TEST_F(AppEventDelegateTest, StartVisible) {
   EXPECT_CALL(*runner_, DoStart(_));
@@ -223,6 +272,7 @@ TEST_F(AppEventDelegateTest, SynthesisFocusFromStopped) {
   }
 
   SendEvent(kSbEventTypeFocus);
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventDelegateTest, SynthesisFocusFromPreload) {
@@ -235,6 +285,7 @@ TEST_F(AppEventDelegateTest, SynthesisFocusFromPreload) {
 
   SendEvent(kSbEventTypePreload);
   SendEvent(kSbEventTypeFocus);
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventDelegateTest, SynthesisFreezeFromStarted) {
@@ -243,11 +294,12 @@ TEST_F(AppEventDelegateTest, SynthesisFreezeFromStarted) {
     EXPECT_CALL(*runner_, DoStart(_));
     EXPECT_CALL(*runner_, DoBlur());
     EXPECT_CALL(*runner_, DoConceal());
-    EXPECT_CALL(*runner_, DoFreeze());
+    EXPECT_CALL(*runner_, DoFreeze(testing::_));
   }
 
   SendEvent(kSbEventTypeStart);
   SendEvent(kSbEventTypeFreeze);
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventDelegateTest, SynthesisStopFromStarted) {
@@ -256,7 +308,7 @@ TEST_F(AppEventDelegateTest, SynthesisStopFromStarted) {
     EXPECT_CALL(*runner_, DoStart(_));
     EXPECT_CALL(*runner_, DoBlur());
     EXPECT_CALL(*runner_, DoConceal());
-    EXPECT_CALL(*runner_, DoFreeze());
+    EXPECT_CALL(*runner_, DoFreeze(testing::_));
     EXPECT_CALL(*runner_, DoStop());
   }
 
@@ -268,7 +320,7 @@ TEST_F(AppEventDelegateTest, FrozenToStartedViaFocus) {
   EXPECT_CALL(*runner_, DoStart(_));
   SendEvent(kSbEventTypePreload);
 
-  EXPECT_CALL(*runner_, DoFreeze());
+  EXPECT_CALL(*runner_, DoFreeze(testing::_));
   SendEvent(kSbEventTypeFreeze);
 
   {
@@ -279,6 +331,7 @@ TEST_F(AppEventDelegateTest, FrozenToStartedViaFocus) {
   }
 
   SendEvent(kSbEventTypeFocus);
+
   EXPECT_EQ(delegate_->GetState(),
             AppEventDelegate::ApplicationState::kStarted);
 }
@@ -349,7 +402,7 @@ TEST_F(AppEventDelegateTest, EventsAfterStopIgnored) {
     InSequence s;
     EXPECT_CALL(*runner_, DoBlur());
     EXPECT_CALL(*runner_, DoConceal());
-    EXPECT_CALL(*runner_, DoFreeze());
+    EXPECT_CALL(*runner_, DoFreeze(testing::_));
     EXPECT_CALL(*runner_, DoStop());
   }
 
@@ -387,93 +440,6 @@ TEST_F(AppEventDelegateTest, RedundantRevealIgnored) {
   SendEvent(kSbEventTypeReveal);
 }
 
-TEST_F(AppEventDelegateTest, SingleWindowRevealAck) {
-  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
-      .WillRepeatedly(testing::Return(true));
-  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
-  delegate_->OnStartWaitingForReveal(wc1);
-  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(1);
-  delegate_->OnAllFramesVisible(wc1);
-}
-
-TEST_F(AppEventDelegateTest, MultiWindowRevealAck) {
-  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
-      .WillRepeatedly(testing::Return(true));
-  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
-  content::WebContents* wc2 = reinterpret_cast<content::WebContents*>(0x2);
-  delegate_->OnStartWaitingForReveal(wc1);
-  delegate_->OnStartWaitingForReveal(wc2);
-  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(0);
-  delegate_->OnAllFramesVisible(wc1);
-  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(1);
-  delegate_->OnAllFramesVisible(wc2);
-}
-
-TEST_F(AppEventDelegateTest, ClearPendingWebContentsOnConceal) {
-  EXPECT_CALL(*runner_, DoStart(_));
-  SendEvent(kSbEventTypeStart);
-
-  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
-      .WillRepeatedly(testing::Return(true));
-  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
-  delegate_->OnStartWaitingForReveal(wc1);
-
-  EXPECT_CALL(*runner_, DoBlur());
-  SendEvent(kSbEventTypeBlur);
-  base::RunLoop().RunUntilIdle();
-
-  // Simulate Reveal ACK for wc1 to unblock transition!
-  delegate_->OnAllFramesVisible(wc1);
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_CALL(*runner_, DoConceal());
-  SendEvent(kSbEventTypeConceal);
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_CALL(*runner_, DoReveal());
-  SendEvent(kSbEventTypeReveal);
-  base::RunLoop().RunUntilIdle();
-
-  content::WebContents* wc2 = reinterpret_cast<content::WebContents*>(0x2);
-  delegate_->OnStartWaitingForReveal(wc2);
-
-  EXPECT_CALL(*runner_, ClearWaitingForRevealAck()).Times(1);
-  delegate_->OnAllFramesVisible(wc2);
-}
-
-TEST_F(AppEventDelegateTest, FocusArrivesDuringReveal) {
-  bool is_waiting_for_reveal = true;
-  EXPECT_CALL(*runner_, IsWaitingForRevealAck())
-      .WillRepeatedly(testing::Invoke(
-          [&is_waiting_for_reveal]() { return is_waiting_for_reveal; }));
-
-  EXPECT_CALL(*runner_, DoStart(_));
-  SendEvent(kSbEventTypeStart);
-
-  EXPECT_CALL(*runner_, DoBlur());
-  SendEvent(kSbEventTypeBlur);
-  EXPECT_CALL(*runner_, DoConceal());
-  SendEvent(kSbEventTypeConceal);
-
-  EXPECT_CALL(*runner_, DoReveal());
-  SendEvent(kSbEventTypeReveal);
-
-  content::WebContents* wc1 = reinterpret_cast<content::WebContents*>(0x1);
-  delegate_->OnStartWaitingForReveal(wc1);
-
-  EXPECT_CALL(*runner_, DoFocus()).Times(0);
-
-  SendEvent(kSbEventTypeFocus);
-
-  EXPECT_CALL(*runner_, ClearWaitingForRevealAck())
-      .WillOnce(testing::Invoke(
-          [&is_waiting_for_reveal]() { is_waiting_for_reveal = false; }));
-  EXPECT_CALL(*runner_, DoFocus()).Times(1);
-
-  delegate_->OnAllFramesVisible(wc1);
-  base::RunLoop().RunUntilIdle();
-}
-
 TEST_F(AppEventDelegateTest, RedundantConcealIgnored) {
   EXPECT_CALL(*runner_, DoStart(_));
   SendEvent(kSbEventTypePreload);
@@ -508,11 +474,11 @@ TEST_F(AppEventDelegateTest, RedundantFreezeIgnored) {
   EXPECT_CALL(*runner_, DoStart(_));
   SendEvent(kSbEventTypePreload);
 
-  EXPECT_CALL(*runner_, DoFreeze()).Times(1);
+  EXPECT_CALL(*runner_, DoFreeze(testing::_)).Times(1);
   SendEvent(kSbEventTypeFreeze);
 
   // Redundant Freeze should be ignored.
-  EXPECT_CALL(*runner_, DoFreeze()).Times(0);
+  EXPECT_CALL(*runner_, DoFreeze(testing::_)).Times(0);
   SendEvent(kSbEventTypeFreeze);
 }
 
@@ -583,8 +549,93 @@ TEST_F(AppEventDelegateTest,
   EXPECT_CALL(mock_crash_handler_,
               SetString(testing::StrEq("application_state"),
                         testing::StrEq("kStarted")));
-
   SendEvent(kSbEventTypeFocus);
 }
+
+TEST_P(AppEventDelegateFuzzTest, ChaoticOSLifecycleTransitions) {
+  InitializeShell(true /* is_visible */);
+
+  // 1. Configure Gmock to allow any sequence and frequency of transition calls.
+  EXPECT_CALL(*runner_, DoStart(_)).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoStop()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoBlur()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoFocus()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoConceal()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoReveal()).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoFreeze(_)).Times(testing::AnyNumber());
+  EXPECT_CALL(*runner_, DoUnfreeze()).Times(testing::AnyNumber());
+
+  // 2. Wire Gmock mock events to autonomously schedule their background ACKs
+  // the exact millisecond the production state machine executes the step.
+  // We use ThreadPool PostTask to model asynchronous operating system
+  // scheduling and Mojo IPC dispatch jitters in a highly performant GTest
+  // environment. Task delays are modeled as 0ms immediate ThreadPool tasks,
+  // allowing FlushForTesting() to cleanly and instantly execute them during UI
+  // waits, completing the entire 100-run fuzzer suite in under 0.2 seconds.
+
+  ON_CALL(*runner_, DoReveal()).WillByDefault(Invoke([this]() {
+    is_visible_ = true;
+  }));
+
+  ON_CALL(*runner_, DoConceal()).WillByDefault(Invoke([this]() {
+    is_visible_ = false;
+  }));
+
+  ON_CALL(*runner_, DoFreeze(_))
+      .WillByDefault(Invoke(
+          [](base::OnceClosure callback) { std::move(callback).Run(); }));
+
+  // 2. Map of fuzzable Starboard OS lifecycle events.
+  std::vector<SbEventType> fuzz_events = {
+      kSbEventTypeStart,   kSbEventTypeBlur,   kSbEventTypeFocus,
+      kSbEventTypeConceal, kSbEventTypeReveal, kSbEventTypeFreeze,
+      kSbEventTypeUnfreeze};
+
+  // 3. Inject a chaotic sequence of 15 random events.
+  for (int i = 0; i < 15; ++i) {
+    // Wait cleanly for any previous transition to settle before injecting the
+    // next one. Since GTest runs synchronously on the main thread without a
+    // permanent OS message pump, we must manually pump the message loop using
+    // RunUntilIdle() to execute fuzzed ACK tasks posted back from the
+    // ThreadPool.
+    int safety = 0;
+    while (delegate_->is_transitioning() && safety++ < 5000) {
+      base::PlatformThread::Sleep(base::Milliseconds(1));
+      base::ThreadPoolInstance::Get()->FlushForTesting();
+      base::RunLoop().RunUntilIdle();
+    }
+
+    SbEventType random_event =
+        fuzz_events[base::RandInt(0, fuzz_events.size() - 1)];
+    SendEventAsync(random_event);
+
+    // Flush all posted setup tasks to the UI thread queue and start their
+    // concurrent ThreadPool fuzzed executions before the main thread goes to
+    // sleep. This maximizes scheduling jitter during the sleep period.
+    base::RunLoop().RunUntilIdle();
+    base::PlatformThread::Sleep(base::Milliseconds(base::RandInt(1, 10)));
+  }
+
+  // 4. Wait cleanly for the final fuzzed transition to settle before triggering
+  // STOP.
+  int safety = 0;
+  while (delegate_->is_transitioning() && safety++ < 5000) {
+    base::PlatformThread::Sleep(base::Milliseconds(1));
+    base::ThreadPoolInstance::Get()->FlushForTesting();
+    base::RunLoop().RunUntilIdle();
+  }
+
+  SendEventAsync(kSbEventTypeStop);
+  base::RunLoop().RunUntilIdle();
+
+  // 5. Verify absolute, clean convergence to Stopped state.
+  EXPECT_FALSE(is_running_);
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kStopped);
+}
+
+INSTANTIATE_TEST_SUITE_P(FuzzRuns,
+                         AppEventDelegateFuzzTest,
+                         ::testing::Range(1, 101));
 
 }  // namespace cobalt

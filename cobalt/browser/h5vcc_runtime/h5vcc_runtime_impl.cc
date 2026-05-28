@@ -18,11 +18,8 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_manager.h"
-#include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -39,22 +36,6 @@ H5vccRuntimeImpl::H5vccRuntimeImpl(
     : content::DocumentService<mojom::H5vccRuntime>(render_frame_host,
                                                     std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&render_frame_host);
-  if (web_contents) {
-    H5vccRuntimeManager::GetInstance()->RegisterFrame(web_contents,
-                                                      &render_frame_host);
-  }
-}
-
-H5vccRuntimeImpl::~H5vccRuntimeImpl() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&render_frame_host());
-  if (web_contents) {
-    H5vccRuntimeManager::GetInstance()->UnregisterFrame(web_contents,
-                                                        &render_frame_host());
-  }
 }
 
 void H5vccRuntimeImpl::Create(
@@ -87,29 +68,6 @@ void H5vccRuntimeImpl::AddListener(
   // can be accessed anywhere.
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   manager->AddListener(std::move(listener_remote));
-}
-
-void H5vccRuntimeImpl::PageVisibilityChanged() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&render_frame_host());
-  if (web_contents->GetVisibility() == content::Visibility::VISIBLE) {
-    H5vccRuntimeManager::GetInstance()->OnPageVisibilityVisible(
-        web_contents, &render_frame_host());
-  } else {
-    H5vccRuntimeManager::GetInstance()->OnPageVisibilityHidden(
-        web_contents, &render_frame_host());
-  }
-}
-
-void H5vccRuntimeImpl::PageBlurred() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "H5vccRuntimeImpl::PageBlurred called for url = "
-            << render_frame_host().GetLastCommittedURL().spec();
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&render_frame_host());
-  H5vccRuntimeManager::GetInstance()->OnPageBlurred(web_contents,
-                                                    &render_frame_host());
 }
 
 }  // namespace h5vcc_runtime
