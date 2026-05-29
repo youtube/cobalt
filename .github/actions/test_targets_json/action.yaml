@@ -4,6 +4,7 @@ runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
+      if: env.DRY_RUN != 'true'
       uses: actions/download-artifact@v5
       with:
         name: ${{ matrix.platform }}_test_targets_json
@@ -11,9 +12,14 @@ runs:
     - name: Test target count
       id: parse-json
       run: |
-        test_targets_json="$(jq -cr '[.[] | select(.target != null) | .target]' test_targets.json)"
-        echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-        echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        if [[ "${DRY_RUN}" == "true" ]]; then
+          echo "test_targets_json=[\"mock_test\"]" >> $GITHUB_OUTPUT
+          echo "test_targets_count=1" >> $GITHUB_OUTPUT
+        else
+          test_targets_json="$(jq -cr '[.[] | select(.target != null) | .target]' test_targets.json)"
+          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+          echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        fi
       shell: bash
 outputs:
   test_targets_count:

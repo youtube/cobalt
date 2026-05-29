@@ -77,12 +77,27 @@ jobs:
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
+      - name: Check for Dry Run Label
+        id: check-dry-run
+        run: |
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ci-dry-run') }}" == "true" ]]; then
+            echo "DRY_RUN=true" >> $GITHUB_ENV
+            echo "dry_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "DRY_RUN=false" >> $GITHUB_ENV
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
       - name: Set platforms
         id: set-platforms
         shell: bash
         run: |
           set -x
-          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            platforms='["linux-x64x11"]'
+          else
+            platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          fi
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
       - name: Select build runners
         id: set-build-runners
@@ -103,10 +118,14 @@ jobs:
         shell: bash
         run: |
           set -x
-          # Attempt to load build configs from JSON. If not present use default.
-          build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
-          if [[ "${build_configs}" == "null" ]]; then
-            build_configs='["devel", "qa", "gold"]'
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            build_configs='["devel"]'
+          else
+            # Attempt to load build configs from JSON. If not present use default.
+            build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
+            if [[ "${build_configs}" == "null" ]]; then
+              build_configs='["devel", "qa", "gold"]'
+            fi
           fi
           echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
       - name: Set platform extra includes
@@ -114,7 +133,11 @@ jobs:
         shell: bash
         run: |
           set -x
-          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            includes='[{"name": "x64", "platform": "linux-x64x11"}]'
+          else
+            includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          fi
           echo "includes=${includes}" >> $GITHUB_OUTPUT
       - name: Set Docker service
         id: set-docker-service
@@ -128,63 +151,99 @@ jobs:
         shell: bash
         run: |
           set -x
-          test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_on_host="true"
+          else
+            test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
+          fi
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
       - name: Set on-device tests
         id: set-test-on-device
         shell: bash
         run: |
           set -x
-          test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_on_device="false"
+          else
+            test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
+          fi
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
       - name: Set test package
         id: set-test-package
         shell: bash
         run: |
           set -x
-          test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_package="false"
+          else
+            test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
+          fi
           echo "test_package=${test_package}" >> $GITHUB_OUTPUT
       - name: Set e2e tests
         id: set-test-e2e
         shell: bash
         run: |
           set -x
-          test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_e2e="false"
+          else
+            test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
+          fi
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
       - name: Set YTS tests
         id: set-test-yts
         shell: bash
         run: |
           set -x
-          test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_yts="false"
+          else
+            test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
+          fi
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
       - name: Set YTS Playback tests
         id: set-test-yts-playback
         shell: bash
         run: |
           set -x
-          test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_yts_playback="false"
+          else
+            test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
+          fi
           echo "test_yts_playback=${test_yts_playback}" >> $GITHUB_OUTPUT
       - name: Set Browser tests
         id: set-test-browser
         shell: bash
         run: |
           set -x
-          test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_browser="false"
+          else
+            test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
+          fi
           echo "test_browser=${test_browser}" >> $GITHUB_OUTPUT
       - name: Set YTS WPT tests
         id: set-test-yts-wpt
         shell: bash
         run: |
           set -x
-          test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_yts_wpt="false"
+          else
+            test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
+          fi
           echo "test_yts_wpt=${test_yts_wpt}" >> $GITHUB_OUTPUT
       - name: Set web tests
         id: set-web-tests
         shell: bash
         run: |
           set -x
-          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            web_tests="false"
+          else
+            web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
+          fi
           echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
       - name: Set root target for unit tests
         id: set-test-root-target
@@ -270,8 +329,12 @@ jobs:
         shell: bash
         run: |
           set -x
-          # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
-          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            num_gtest_shards=1
+          else
+            # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
+            num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
+          fi
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
 
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
@@ -291,7 +354,99 @@ jobs:
           set -x
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+      - name: Evaluate CI Pruning
+        id: prune
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Default to running CI unless proven otherwise.
+          echo "skip_ci=false" >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # 1. Fetch base branch to compare changes.
+            git fetch origin ${{ github.event.pull_request.base.sha }} --depth=1
+            git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
+
+            # 2. BANNED FILES (Global Invalidators).
+            # If a PR touches any of these, we immediately enforce a full CI run.
+            ban_patterns=(
+              '^\.github/'
+              '^DEPS$'
+              '\.py$'
+              '\.sh$'
+              '\.txt$'
+              '\.in$'
+              '^\.vpython3$'
+              '^docker-compose\.yaml$'
+              '^cobalt/docker/'
+              '^cobalt/testing/filters/'
+              '^\.clang-'
+              '^\.pylintrc$'
+              '^CPPLINT\.cfg$'
+              '^\.pre-commit-config\.yaml$'
+            )
+
+            # 3. ALLOWLIST (Documentation & Metadata).
+            # Files that are 100% safe to skip CI.
+            allow_patterns=(
+              '\.md$'               # Markdown documentation
+              '^docs/'              # Documentation directory
+              '^OWNERS$'            # Directory owner manifests
+              '^AUTHORS$'           # Contributor list
+              '^LICENSE'            # License and legal files
+              '^DIR_METADATA$'      # Directory metadata
+              '^WATCHLISTS$'        # Watchlist manifests
+              '^\.gitignore$'       # Git ignore configurations
+              '^\.gitattributes$'   # Git attributes
+            )
+
+            # 4. EVALUATION LOGIC
+            # Read every changed file path robustly, handling trailing newlines properly.
+            skip_ci=true
+            while IFS= read -r filename || [ -n "$filename" ]; do
+              [[ -z "$filename" ]] && continue
+
+              # Check if file is in the Ban List
+              for pattern in "${ban_patterns[@]}"; do
+                if [[ "$filename" =~ $pattern ]]; then
+                  echo "Banned file changed: '$filename'. Triggering full CI."
+                  skip_ci=false
+                  break 2
+                fi
+              done
+
+              # Check if file is C++ / GN source (needs gn analyze in build job)
+              if [[ "$filename" =~ \.cc$ || "$filename" =~ \.h$ || "$filename" =~ \.gn$ || "$filename" =~ \.gni$ ]]; then
+                echo "Source file changed: '$filename'. Triggering CI for gn analyze."
+                skip_ci=false
+                break
+              fi
+
+              # Check if file is in Allowlist
+              file_matched_allow=false
+              for pattern in "${allow_patterns[@]}"; do
+                if [[ "$filename" =~ $pattern ]]; then
+                  file_matched_allow=true
+                  break
+                fi
+              done
+
+              # If file is not banned, not C++, and not in allowlist, run CI for safety.
+              if [[ "$file_matched_allow" == "false" ]]; then
+                echo "Unlisted file type changed: '$filename'. Triggering CI for safety."
+                skip_ci=false
+                break
+              fi
+            done < changed_files.txt
+
+            if [[ "$skip_ci" == "true" ]]; then
+              echo "All changed files are documentation or metadata. Safely pruning CI!"
+              echo "skip_ci=true" >> $GITHUB_OUTPUT
+            fi
+          fi
     outputs:
+      dry_run: ${{ steps.check-dry-run.outputs.dry_run }}
+      skip_ci: ${{ steps.prune.outputs.skip_ci }}
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -326,6 +481,7 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
+    if: needs.initialize.outputs.skip_ci != 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -348,7 +504,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.test_on_host == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -371,7 +527,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.web_tests == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -394,6 +550,7 @@ jobs:
 
   build:
     needs: [initialize, docker-build-image]
+    if: needs.initialize.outputs.skip_ci != 'true'
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
@@ -409,6 +566,7 @@ jobs:
       volumes:
         - /runner-cache:/runner-cache
     env:
+      DRY_RUN: ${{ needs.initialize.outputs.dry_run }}
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       DEPOT_TOOLS_UPDATE: 0
       DEPOT_TOOLS_REPORT_BUILD: 0
@@ -485,12 +643,13 @@ jobs:
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
-        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
+        if: steps.build.outputs.skip_autoninja != 'true' && (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
         uses: ./.github/actions/package
         with:
           package_dir: out/test-package
 
       - name: Upload Test Artifacts
+        if: steps.build.outputs.skip_autoninja != 'true'
         uses: ./.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -504,7 +663,7 @@ jobs:
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
+        if: inputs.run_api_leak_detector && env.DRY_RUN != 'true'
 
 
   on-device-test:
@@ -578,7 +737,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run E2E Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'e2e_test'
@@ -613,7 +776,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run YTS Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'yts_test'
@@ -643,7 +810,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run YTS Playback Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'yts_test'
@@ -676,7 +847,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run Browser Tests (Linux)
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/linux_browser_tests
         with:
           test_artifacts_key: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -713,7 +888,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Run YTS WPT Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/internal_tests
         with:
           test_type: 'yts_wpt_test'
@@ -737,6 +916,7 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
+      DRY_RUN: ${{ needs.initialize.outputs.dry_run }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -789,22 +969,27 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Pruning Status
+        id: prune-status
+        uses: ./.github/actions/check_pruned
       - name: Prepare OverlayFS Workspace
+        if: steps.prune-status.outputs.pruned != 'true'
         id: overlay_workspace
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
 
       - name: Runner Cache Hot
-        if: steps.overlay_workspace.outputs.cache_hit == 'true'
+        if: steps.prune-status.outputs.pruned != 'true' && steps.overlay_workspace.outputs.cache_hit == 'true'
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: steps.overlay_workspace.outputs.cache_hit != 'true'
+        if: steps.prune-status.outputs.pruned != 'true' && steps.overlay_workspace.outputs.cache_hit != 'true'
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
@@ -813,12 +998,14 @@ jobs:
           use_cache: true
 
       - name: Set Up Depot Tools
+        if: steps.prune-status.outputs.pruned != 'true'
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
         with:
           run_sync: 'false'
 
       - name: Run Web Tests
+        if: steps.prune-status.outputs.pruned != 'true'
         uses: ./.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -827,7 +1014,7 @@ jobs:
   test-results:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
     if: |
-      always() &&
+      always() && needs.initialize.outputs.skip_ci != 'true' &&
       (
         needs.on-device-test.result != 'skipped' ||
         needs.on-host-test.result != 'skipped' ||
@@ -912,7 +1099,7 @@ jobs:
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
-    if: always() && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
+    if: always() && needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -981,29 +1168,64 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
+      - name: Verify CI Pipeline Status
+        run: |
+          # Print exact results for debugging
+          echo "DEBUG: build result is '${{ needs.build.result }}'"
+          echo "DEBUG: test-results result is '${{ needs.test-results.result }}'"
+          echo "DEBUG: browser-test-results result is '${{ needs.browser-test-results.result }}'"
+
+          # 1. If upstream CI was safely pruned/skipped at the initialization stage, report success immediately.
+          if [[ "${{ needs.initialize.outputs.skip_ci }}" == "true" ]]; then
+            echo "CI was safely pruned by initialization checks. Gatekeeper passing!"
+            exit 0
+          fi
+
+          # 2. Verify that required upstream jobs succeeded or were safely skipped.
+          # We explicitly allow 'success', 'skipped', and empty strings (which GHA may emit for un-triggered conditional jobs).
+          # Any other state (failure, cancelled, timed_out) is fatal.
+          for result in "${{ needs.build.result }}" "${{ needs.test-results.result }}" "${{ needs.browser-test-results.result }}"; do
+            trimmed_result=$(echo "$result" | xargs)
+            case "$trimmed_result" in
+              success|skipped|"")
+                echo "Upstream job result '$trimmed_result' is valid."
+                ;;
+              *)
+                echo "::error::A required upstream job failed, timed out, or was cancelled (result: $trimmed_result)!"
+                exit 1
+                ;;
+            esac
+          done
+        shell: bash
       - name: Restore CI Essentials
+        if: needs.initialize.outputs.skip_ci != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Unit Test Results
-        if: needs.test-results.result != 'skipped' && needs.test-results.result != ''
+        if: needs.initialize.outputs.skip_ci != 'true' && needs.test-results.result != 'skipped' && needs.test-results.result != ''
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Download Browser Test Results
-        if: needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != ''
+        if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != ''
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
+        if: always() && needs.initialize.outputs.skip_ci != 'true'
         run: |
-          # Print test result summary.
+          # Print test result summary if any results exist.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          files=(results/**/*.xml)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No test result XMLs found. Skipping parser."
+            exit 0
+          fi
+          python3 cobalt/tools/junit_mini_parser.py "${files[@]}"
         shell: bash
