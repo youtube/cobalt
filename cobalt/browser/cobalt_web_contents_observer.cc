@@ -117,7 +117,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
                               false);
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
     platform_error_raised_count_ = 0;
 #endif
   }
@@ -152,9 +152,38 @@ void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
                                        url);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
+#elif BUILDFLAG(IS_STARBOARD)
+  if (is_platform_error_showing_) {
+    return;
+  }
+  is_platform_error_showing_ = true;
+  platform_error_raised_count_++;
+  base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
+                              platform_error_raised_count_);
+  if (!SbSystemRaisePlatformError(
+          kSbSystemPlatformErrorTypeConnectionError,
+          &CobaltWebContentsObserver::HandlePlatformErrorResponse, this)) {
+    LOG(WARNING) << "Did not handle platform error";
+    is_platform_error_showing_ = false;
+  }
 #else
   NOTIMPLEMENTED();
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+// static
+void CobaltWebContentsObserver::HandlePlatformErrorResponse(
+    SbSystemPlatformErrorResponse response,
+    void* user_data) {
+  auto* observer = static_cast<CobaltWebContentsObserver*>(user_data);
+  observer->OnPlatformErrorResponse(response);
+}
+
+void CobaltWebContentsObserver::OnPlatformErrorResponse(
+    SbSystemPlatformErrorResponse response) {
+  is_platform_error_showing_ = false;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace cobalt

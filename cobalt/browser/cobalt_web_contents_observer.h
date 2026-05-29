@@ -23,6 +23,10 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
+
 namespace cobalt {
 
 // This class is used to observe WebContents lifecycles within
@@ -61,6 +65,13 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 #if BUILDFLAG(IS_ANDROIDTV)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
+  static void HandlePlatformErrorResponse(
+      SbSystemPlatformErrorResponse response,
+      void* user_data);
+  void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response);
+  bool is_platform_error_showing_ = false;
+#endif  // BUILDFLAG(IS_STARBOARD)
 };
 
 }  // namespace cobalt
