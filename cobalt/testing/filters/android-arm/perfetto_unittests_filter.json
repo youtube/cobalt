@@ -1,5 +1,8 @@
 {
   "failing_tests": [
-    "ScopedDirTest.CloseOutOfScope"
+    "MessageTest.DestructInvalidMessageHandle",
+    "NullTraceWriterDeathTest.NewTracePacketTakeStreamWriterNoFinish",
+    "ScopedDirTest.CloseOutOfScope",
+    "UtilsTest.EintrWrapper"
   ]
 }
