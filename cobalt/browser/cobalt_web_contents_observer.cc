@@ -14,33 +14,23 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
 #include "base/metrics/histogram_functions.h"
-#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
-
-#if BUILDFLAG(IS_ANDROIDTV)
-#include "starboard/android/shared/starboard_bridge.h"
-#endif  // BUILDFLAG(IS_ANDROIDTV)
-
-#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/system.h"
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 
 namespace cobalt {
 
-#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 namespace {
 const int kNavigationTimeoutSeconds = 30;
-#if BUILDFLAG(IS_ANDROIDTV)
-const int kJniErrorTypeConnectionError = 0;
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 }  // namespace
-#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
@@ -48,7 +38,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
-#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
   LOG(INFO) << "DidStartNavigation to: " << handle->GetURL();
@@ -87,19 +77,6 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
-#if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
-
-  // Don't raise a new platform error if one is already showing
-  if (starboard_bridge->IsPlatformErrorShowing(env)) {
-    return;
-  }
-  platform_error_raised_count_++;
-  base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
-                              platform_error_raised_count_);
-  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
-#elif BUILDFLAG(IS_STARBOARD)
   if (is_platform_error_showing_) {
     return;
   }
@@ -114,13 +91,8 @@ void CobaltWebContentsObserver::RaisePlatformError() {
     LOG(WARNING) << "Did not handle platform error";
     is_platform_error_showing_ = false;
   }
-#else
-  NOTIMPLEMENTED();
-#endif
 }
-#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
 
-#if BUILDFLAG(IS_STARBOARD)
 // static
 void CobaltWebContentsObserver::HandlePlatformErrorResponse(
     SbSystemPlatformErrorResponse response, void* user_data) {
@@ -132,6 +104,6 @@ void CobaltWebContentsObserver::OnPlatformErrorResponse(
     SbSystemPlatformErrorResponse response) {
   is_platform_error_showing_ = false;
 }
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt

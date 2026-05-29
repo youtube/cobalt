@@ -19,7 +19,7 @@
 #include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/system.h"
 #endif
 
@@ -40,7 +40,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
   ~CobaltWebContentsObserver() override;
 
-#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
   void DidStartNavigation(
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
@@ -48,16 +48,14 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void RaisePlatformError();
 
  private:
-  int platform_error_raised_count_ = 0;
-  base::OneShotTimer timeout_timer_;
-  base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
-#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
-
-#if BUILDFLAG(IS_STARBOARD)
   static void HandlePlatformErrorResponse(SbSystemPlatformErrorResponse response, void* user_data);
   void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response);
   bool is_platform_error_showing_ = false;
-#endif  // BUILDFLAG(IS_STARBOARD)
+  int platform_error_raised_count_ = 0;
+
+  base::OneShotTimer timeout_timer_;
+  base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
 };
 
 }  // namespace cobalt
