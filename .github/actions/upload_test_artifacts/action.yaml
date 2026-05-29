@@ -62,6 +62,7 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
@@ -73,13 +74,12 @@ runs:
           exit 0
         fi
 
-        FLAGS="--compression zstd --compression-level=9"
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${TARGETS}" \
-          ${FLAGS}
+          ${ARCHIVE_FLAGS}
       shell: bash
 
     - name: Archive Device Tests
