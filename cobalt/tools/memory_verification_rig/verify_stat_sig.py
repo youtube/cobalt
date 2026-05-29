@@ -250,14 +250,21 @@ def capture_memory_rss(device, package, platform, pid=None):
         line = line.strip()
         if line.startswith("Native Heap"):
           parts = line.split()
-          if len(parts) >= 10:
-            try:
+          try:
+            heap_size = None
+            heap_free = None
+            if len(parts) == 9:  # No RSS column (Older Android)
+              heap_size = int(parts[6])
+              heap_free = int(parts[8])
+            elif len(parts) >= 10:  # With RSS column (Modern Android)
               heap_size = int(parts[7])
               heap_free = int(parts[9])
-              if heap_size > 0:
-                native_frag_pct = (heap_free / heap_size) * 100
-            except ValueError:
-              pass
+
+            if (heap_size is not None and heap_free is not None and
+                heap_size > 0):
+              native_frag_pct = (heap_free / heap_size) * 100
+          except ValueError:
+            pass
 
         if "TOTAL:" in line or "TOTAL" in line:
           parts = [p for p in line.split() if p.isdigit()]
@@ -362,7 +369,7 @@ def execute_profiling_run(args, run_id, sweep_config):
       scroller_path = os.path.join(
           REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_playlist.py")
       scroll_cmd = [
-          "python3", scroller_path, args.device,
+          sys.executable, scroller_path, args.device,
           str(args.duration - 8)
       ]
     elif args.platform == "android":
@@ -371,7 +378,7 @@ def execute_profiling_run(args, run_id, sweep_config):
       scroller_path = os.path.join(
           REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_adb.py")
       scroll_cmd = [
-          "python3", scroller_path, args.device,
+          sys.executable, scroller_path, args.device,
           str(args.duration - 8), "1.5"
       ]
     else:
@@ -380,7 +387,7 @@ def execute_profiling_run(args, run_id, sweep_config):
       scroller_path = os.path.join(
           REPO_ROOT, "cobalt/tools/memory_verification_rig/scroll_cdp.py")
       scroll_cmd = [
-          "python3", scroller_path, f"--port={args.port}",
+          sys.executable, scroller_path, f"--port={args.port}",
           f"--duration={args.duration - 8}", "--interval=1.5"
       ]
     try:
@@ -473,7 +480,7 @@ def execute_profiling_run(args, run_id, sweep_config):
       pass
 
   scrape_cmd = [
-      "python3", "-u",
+      sys.executable, "-u",
       f"{REPO_ROOT}/cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py",
       f"--platform={args.platform}", f"--package-name={args.package}",
       "--no-manage-cobalt", f"--histogram-file={histograms_txt}",
