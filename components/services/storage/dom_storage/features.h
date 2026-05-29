@@ -11,10 +11,10 @@
 namespace storage {
 
 BASE_DECLARE_FEATURE(kCoalesceStorageAreaCommits);
+
 #if BUILDFLAG(IS_COBALT)
 BASE_DECLARE_FEATURE(kLocalStorageDeleteLockFile);
 #endif
-
 
 }  // namespace storage
 

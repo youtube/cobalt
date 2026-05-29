@@ -650,6 +650,8 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
   if (!directory_.empty() && directory_.IsAbsolute() && !in_memory_only) {
     // We were given a subdirectory to write to, so use a disk-backed database.
     in_memory_ = false;
+
+#if BUILDFLAG(IS_COBALT)
     if (base::FeatureList::IsEnabled(kLocalStorageDeleteLockFile)) {
       base::FilePath db_path = directory_.AppendASCII(kLocalStorageLeveldbName);
       base::FilePath lock_file_path = db_path.AppendASCII("LOCK");
@@ -657,6 +659,8 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
           FROM_HERE,
           base::BindOnce(base::IgnoreResult(&base::DeleteFile), lock_file_path));
     }
+#endif  // BUILDFLAG(IS_COBALT)
+
     database_ = AsyncDomStorageDatabase::OpenDirectory(
         directory_, kLocalStorageLeveldbName, memory_dump_id_,
         database_task_runner_,

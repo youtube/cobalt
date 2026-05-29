@@ -980,7 +980,6 @@ TEST_F(LocalStorageImplTest, DeleteLockFile) {
 }
 #endif
 
-
 TEST_F(LocalStorageImplTest, InvalidVersionOnDisk) {
   auto key = StdStringToUint8Vector("key");
   auto value = StdStringToUint8Vector("value");
