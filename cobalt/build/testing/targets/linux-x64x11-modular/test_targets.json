@@ -74,6 +74,10 @@
     "executable": "out/linux-x64x11-modular_devel/mojo_unittests_loader"
   },
   {
+    "target": "services/resource_coordinator:cobalt_memory_instrumentation_unittests_loader",
+    "executable": "out/linux-x64x11-modular_devel/cobalt_memory_instrumentation_unittests_loader"
+  },
+  {
     "target": "skia:skia_unittests_loader",
     "executable": "out/linux-x64x11-modular_devel/skia_unittests_loader"
   },

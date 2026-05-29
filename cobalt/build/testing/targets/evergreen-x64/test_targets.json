@@ -85,6 +85,10 @@
     "executable": "out/evergreen-x64_devel/mojo_unittests_loader.py"
   },
   {
+    "target": "services/resource_coordinator:cobalt_memory_instrumentation_unittests_loader",
+    "executable": "out/evergreen-x64_devel/cobalt_memory_instrumentation_unittests_loader.py"
+  },
+  {
     "target": "sql:sql_unittests_loader",
     "executable": "out/evergreen-x64_devel/sql_unittests_loader.py"
   },
