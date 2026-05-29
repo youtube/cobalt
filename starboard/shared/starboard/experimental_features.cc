@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/experimental_features.h"
 
 #include <optional>
+#include <type_traits>
 
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental_features.h"
@@ -23,6 +24,9 @@ namespace starboard {
 
 namespace {
 
+static_assert(
+    std::is_trivially_destructible<std::optional<ExperimentalFeatures>>::value,
+    "g_experimental_features must be trivially destructible.");
 thread_local std::optional<ExperimentalFeatures> g_experimental_features;
 
 std::optional<int> FromIntPointer(const int* val) {
