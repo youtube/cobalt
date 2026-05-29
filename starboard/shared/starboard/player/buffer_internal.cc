@@ -19,10 +19,12 @@
 
 #include "starboard/common/once.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
+
 namespace starboard {
 namespace {
-
-constexpr bool kUseBufferPool = false;
 
 // kBufferSize (32KB) is chosen to be large enough to hold the maximum typical
 // float32 PCM audio frame payloads:
@@ -99,8 +101,15 @@ SB_ONCE_INITIALIZE_FUNCTION(BufferPool, BufferPool::Get)
 
 Buffer::Buffer(int size) : size_(size) {
   SB_CHECK_GE(size, 0);
+  static bool s_config_logged = []() {
+    SB_LOG(WARNING) << "STATS_CONFIG: Buffer initialized! kUseBufferPool = "
+                    << (UseBufferPool() ? "true" : "false")
+                    << ", kBufferSize = " << kBufferSize;
+    return true;
+  }();
+  (void)s_config_logged;
   size_t total_size = static_cast<size_t>(size) + kPaddingSize * 2;
-  if (kUseBufferPool && total_size <= kBufferSize) {
+  if (UseBufferPool() && total_size <= kBufferSize) {
     data_ = BufferPool::Get()->Allocate(total_size);
     is_pooled_ = true;
   } else {
@@ -120,7 +129,7 @@ Buffer::Buffer(const Buffer& that) : size_(that.size_) {
     return;
   }
   size_t total_size = static_cast<size_t>(size_) + kPaddingSize * 2;
-  if (kUseBufferPool && total_size <= kBufferSize) {
+  if (UseBufferPool() && total_size <= kBufferSize) {
     data_ = BufferPool::Get()->Allocate(total_size);
     is_pooled_ = true;
   } else {
@@ -166,6 +175,16 @@ uint8_t* Buffer::data() {
 
 const uint8_t* Buffer::data() const {
   return size_ == 0 ? nullptr : data_ + kPaddingSize;
+}
+
+// static
+bool Buffer::UseBufferPool() {
+#if BUILDFLAG(IS_ANDROID)
+  return starboard::features::FeatureList::IsEnabled(
+      starboard::features::kEnableDecodedAudioBufferPool);
+#else
+  return false;
+#endif
 }
 
 }  // namespace starboard

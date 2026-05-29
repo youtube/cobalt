@@ -44,6 +44,8 @@ class Buffer {
   uint8_t* data();
   const uint8_t* data() const;
 
+  static bool UseBufferPool();
+
  private:
   int size_ = 0;
   uint8_t* data_ = nullptr;
