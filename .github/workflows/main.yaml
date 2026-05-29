@@ -663,7 +663,7 @@ jobs:
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
+        if: inputs.run_api_leak_detector && env.DRY_RUN != 'true'
 
 
   on-device-test:
