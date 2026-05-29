@@ -112,7 +112,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMemoryPageSize);
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
-  REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
@@ -210,7 +209,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
-  REGISTER_SYMBOL(SbThreadGetId);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -319,6 +317,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
+  REGISTER_WRAPPER(gettid);
   REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);
@@ -394,6 +393,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(sched_getaffinity);
+  REGISTER_WRAPPER(sched_getparam);
+  REGISTER_WRAPPER(sched_setparam);
+  REGISTER_WRAPPER(sched_getscheduler);
+  REGISTER_WRAPPER(sched_setscheduler);
   REGISTER_WRAPPER(readv);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(sem_destroy);

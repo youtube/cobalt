@@ -48,7 +48,7 @@ class AudioSinkMinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(AudioSinkMinRequiredFramesTester* tester)
       : Thread("min_frames_test",
-               ThreadOptions().SetPriority(kSbThreadPriorityLowest)),
+               ThreadOptions().SetPriority(ThreadPriority::kLowest)),
         tester_(tester) {}
 
   void Run() override { tester_->TesterThreadFunc(); }
@@ -145,14 +145,19 @@ void AudioSinkMinRequiredFramesTester::TesterThreadFunc() {
       wait_timeout = !notified;
     }
 
-    // Get start threshold before release the audio sink.
-    int start_threshold =
-        audio_sink_ ? audio_sink_->GetStartThresholdInFrames() : 0;
-
+    int start_threshold = 0;
+    std::unique_ptr<AudioTrackAudioSink> sink_to_destroy;
+    {
+      std::lock_guard lock(mutex_);
+      if (audio_sink_) {
+        start_threshold = audio_sink_->GetStartThresholdInFrames();
+      }
+      sink_to_destroy = std::move(audio_sink_);
+    }
     // |min_required_frames_| is shared between two threads. Release audio sink
     // to end audio sink thread before access |min_required_frames_| on this
     // thread.
-    audio_sink_.reset();
+    sink_to_destroy.reset();
 
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
@@ -243,16 +248,23 @@ void AudioSinkMinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
       last_total_consumed_frames_) {
     return;
   }
-  if (last_underrun_count_ == -1) {
-    // |last_underrun_count_| is unknown, record the current underrun count
-    // and start to observe the underrun count.
-    last_underrun_count_ = audio_sink_->GetUnderrunCount();
-    last_total_consumed_frames_ = total_consumed_frames_;
-    return;
+  int underrun_count = 0;
+  {
+    std::lock_guard lock(mutex_);
+    if (!audio_sink_) {
+      return;
+    }
+    underrun_count = audio_sink_->GetUnderrunCount();
+    if (last_underrun_count_ == -1) {
+      // |last_underrun_count_| is unknown, record the current underrun count
+      // and start to observe the underrun count.
+      last_underrun_count_ = underrun_count;
+      last_total_consumed_frames_ = total_consumed_frames_;
+      return;
+    }
   }
   // The playback should be played for a while. If we still get new underruns,
   // we need to write more buffers into audio sink.
-  int underrun_count = audio_sink_->GetUnderrunCount();
   if (underrun_count > last_underrun_count_) {
     min_required_frames_ += required_frames_increment_;
     if (min_required_frames_ >= max_required_frames_) {

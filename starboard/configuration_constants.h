@@ -70,7 +70,4 @@ SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 // platforms that want to JIT.
 SB_EXPORT extern const bool kSbCanMapExecutableMemory;
 
-// Platform can support partial audio frames
-SB_EXPORT extern const bool kHasPartialAudioFramesSupport;
-
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_
