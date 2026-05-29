@@ -15,6 +15,10 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/memory/memory_pressure_listener.h"
+#endif
+
 namespace media {
 
 class VideoFramePool::PoolImpl
@@ -59,6 +63,10 @@ class VideoFramePool::PoolImpl
   // least recently used entry.
   void FrameReleased(scoped_refptr<VideoFrame> frame);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel level);
+#endif
+
   base::Lock lock_;
   bool is_shutdown_ GUARDED_BY(lock_) = false;
 
@@ -71,10 +79,18 @@ class VideoFramePool::PoolImpl
 
   // |tick_clock_| is always a DefaultTickClock outside of testing.
   raw_ptr<const base::TickClock> tick_clock_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+#endif
 };
 
 VideoFramePool::PoolImpl::PoolImpl()
-    : tick_clock_(base::DefaultTickClock::GetInstance()) {}
+    : tick_clock_(base::DefaultTickClock::GetInstance()) {
+  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
+      FROM_HERE, base::BindRepeating(&PoolImpl::OnMemoryPressure,
+                                     base::Unretained(this)));
+}
 
 VideoFramePool::PoolImpl::~PoolImpl() {
   DCHECK(is_shutdown_);
@@ -146,6 +162,31 @@ void VideoFramePool::PoolImpl::FrameReleased(scoped_refptr<VideoFrame> frame) {
   if (stale_index)
     frames_.erase(frames_.begin(), frames_.begin() + stale_index);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void VideoFramePool::PoolImpl::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  if (level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+    base::AutoLock auto_lock(lock_);
+    if (!is_shutdown_) {
+      size_t frames_cleared = frames_.size();
+      std::string resolution = "N/A";
+
+      if (!frames_.empty()) {
+        // Get the resolution of the first frame in the queue
+        resolution = frames_.front().frame->coded_size().ToString();
+      }
+
+      frames_.clear();
+
+      LOG(INFO) << "Cobalt: VideoFramePool cleared " << frames_cleared
+                << " frames (Res: " << resolution
+                << ") due to memory pressure level: " << level;
+    }
+  }
+}
+#endif
+
 
 VideoFramePool::VideoFramePool() : pool_(base::MakeRefCounted<PoolImpl>()) {}
 
