@@ -262,7 +262,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
-      if args.test_type == 'browser_test':
+      if 'cobalt_browsertests' in target_name:
         package_name = 'org.chromium.native_test'
         options = (f'{package_name}.NativeTestInstrumentationTestRunner.'
                    'NativeTestActivity=org.chromium.content_browsertests_apk.'
