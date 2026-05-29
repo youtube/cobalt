@@ -185,8 +185,7 @@ UpdaterModule::UpdaterModule(
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+  if (is_updater_running_.exchange(false)) {
     // TODO(b/452142372): Investigate UpdaterModule destruction sequence
     {
       base::ScopedBlockingCall scoped_blocking_call(
