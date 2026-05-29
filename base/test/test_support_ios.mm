@@ -160,14 +160,7 @@ bool IsSceneStartupEnabled() {
 // output to stdout, but results must be written to NSLog in order to show up in
 // the device log that is retrieved from the device by the host.
 - (BOOL)shouldRedirectOutputToFile {
-#if !TARGET_IPHONE_SIMULATOR
-  // Tests in XCTest mode don't need to redirect output to a file because the
-  // test result parser analyzes console output.
-  return !base::ShouldRunIOSUnittestsWithXCTest() &&
-         !base::debug::BeingDebugged();
-#else
   return NO;
-#endif  // TARGET_IPHONE_SIMULATOR
 }
 
 // Returns the path to the directory to store gtest output files.
