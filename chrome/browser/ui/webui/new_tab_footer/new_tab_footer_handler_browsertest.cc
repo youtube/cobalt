@@ -12,7 +12,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/new_tab_footer/mock_new_tab_footer_document.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
-#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "components/search/ntp_features.h"
 #include "content/public/browser/web_contents.h"
@@ -36,8 +35,7 @@ class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     handler_ = std::make_unique<NewTabFooterHandler>(
         mojo::PendingReceiver<new_tab_footer::mojom::NewTabFooterHandler>(),
-        document_.BindAndGetRemote(),
-        base::WeakPtr<TopChromeWebUIController::Embedder>(), web_contents());
+        document_.BindAndGetRemote(), web_contents());
   }
 
   void TearDownOnMainThread() override {

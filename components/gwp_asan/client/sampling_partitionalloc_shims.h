@@ -15,7 +15,7 @@
 namespace gwp_asan {
 namespace internal {
 
-  [[nodiscard]] GWP_ASAN_EXPORT bool InstallPartitionAllocHooks(
+GWP_ASAN_EXPORT void InstallPartitionAllocHooks(
     const AllocatorSettings& settings,
     GuardedPageAllocator::OutOfMemoryCallback callback);
 

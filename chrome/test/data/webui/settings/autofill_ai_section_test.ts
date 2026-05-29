@@ -56,15 +56,9 @@ suite('AutofillAiSectionUiReflectsEligibilityStatus', function() {
     entityDataManager.setGetOptInStatusResponse(false);
 
     section = document.createElement('settings-autofill-ai-section');
-    settingsPrefs.set(
-        `prefs.${AiEnterpriseFeaturePrefName.AUTOFILL_AI}.value`,
-        ModelExecutionEnterprisePolicyValue.ALLOW);
     section.prefs = settingsPrefs.prefs;
   });
 
-  teardown(function() {
-    CrSettingsPrefs.resetForTesting();
-  });
   interface EligibilityParamsInterface {
     // Whether the user is opted into Autofill with Ai.
     optedIn: boolean;
@@ -224,13 +218,6 @@ suite('AutofillAiSectionUiTest', function() {
     // alphabetically.
     testEntityTypes.sort(
         (a, b) => a.typeNameAsString.localeCompare(b.typeNameAsString));
-    settingsPrefs.set(
-        `prefs.${AiEnterpriseFeaturePrefName.AUTOFILL_AI}.value`,
-        ModelExecutionEnterprisePolicyValue.ALLOW);
-  });
-
-  teardown(function() {
-    CrSettingsPrefs.resetForTesting();
   });
 
   async function createPage() {
@@ -601,26 +588,13 @@ suite('AutofillAiSectionLongLabelsUiTest', function() {
     entityDataManager.setLoadEntityInstancesResponse(
         testEntityInstancesWithLabels);
 
-    await flushTasks();
-  });
-
-  teardown(function() {
-    CrSettingsPrefs.resetForTesting();
-  });
-
-  async function createPage() {
-    settingsPrefs.set(
-        `prefs.${AiEnterpriseFeaturePrefName.AUTOFILL_AI}.value`,
-        ModelExecutionEnterprisePolicyValue.ALLOW);
     section = document.createElement('settings-autofill-ai-section');
     section.prefs = settingsPrefs.prefs;
     document.body.appendChild(section);
-
     await flushTasks();
-  }
+  });
 
-  test('testLongLabelsHaveHiddenOverflow', async function() {
-    await createPage();
+  test('testLongLabelsHaveHiddenOverflow', function() {
     // Contains all labels and sublabels, in order.
     const labels =
         section.shadowRoot!.querySelectorAll<HTMLElement>('.ellipses');

@@ -540,16 +540,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="CustomTabs.Navigation.FinishReason" enum="FinishReason"
-    expires_after="2025-10-29">
-  <owner>adelm@google.com</owner>
-  <owner>chrome-connective-tissue@google.com</owner>
-  <summary>
-    The reason the custom tab activity was finished. Recorded during the
-    #finish() phase under CustomTabActivityNavigationController.
-  </summary>
-</histogram>
-
 <histogram name="CustomTabs.Omnibox.EnabledState" units="BooleanEnabled"
     expires_after="2025-09-01">
   <owner>ender@google.com</owner>
@@ -908,37 +898,33 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="CustomTabs.WebAppHeader.ControlsHiddenTime2" units="seconds"
+<histogram name="CustomTabs.WebAppHeader.ControlsHiddenTime" units="seconds"
     expires_after="2026-05-31">
-  <owner>vkorotkevich@google.com</owner>
+  <owner>japhet@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
     Records how long PWA controls are hidden due to the window size being too
-    small. Recorded when transitioning hidden to shown, and on destruction. The
-    second version is intorduced, because previously milliseconds were recorded.
+    small. Recorded when transitioning hidden to shown, and on destruction.
   </summary>
 </histogram>
 
-<histogram name="CustomTabs.WebAppHeader.ControlsShownTime2" units="seconds"
+<histogram name="CustomTabs.WebAppHeader.ControlsShownTime" units="seconds"
     expires_after="2026-05-31">
-  <owner>vkorotkevich@google.com</owner>
+  <owner>japhet@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
     Records how long PWA controls are shown before being hidden due to window
     size changes. Recorded when transitioning shown to hidden, and on
-    destruction. The second version is intorduced, because previously
-    milliseconds were recorded.
+    destruction.
   </summary>
 </histogram>
 
-<histogram name="CustomTabs.WebAppHeader.DisplayMode2"
+<histogram name="CustomTabs.WebAppHeader.DisplayMode"
     enum="WebAppHeaderDisplayMode" expires_after="2026-05-31">
-  <owner>vkorotkevich@google.com</owner>
+  <owner>japhet@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
     Records the DisplayMode of the the PWA header when it first becomes visible.
-    This histogram is a fixed version of a previous one, because buckets didn't
-    match DisplayMode enum values.
   </summary>
 </histogram>
 

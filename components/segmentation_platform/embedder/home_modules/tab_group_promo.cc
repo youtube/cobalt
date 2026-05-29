@@ -18,14 +18,16 @@ namespace {
 // users.
 const int kTabCountLimit = 10;
 
-const char kEducationalTipModuleHistogramName[] =
+// The number of times the tab group promo card can be shown to the user in a
+// single day.
+const int kShownCountLimit = 3;
+
+const char kTabGroupPromoHistogramName[] =
     "MagicStack.Clank.NewTabPage.Module.TopImpressionV2";
 
 // TODO(crbug.com/382803396): The enum id of the tab group promo card. Could be
 // referenced after refactor.
 const int kTabGroupPromoId = 7;
-
-constexpr std::array<int32_t, 0> kEducationalTipModuleHistogramEnumValues{};
 
 }  // namespace
 
@@ -53,28 +55,10 @@ std::map<SignalKey, FeatureQuery> TabGroupPromo::GetInputs() {
            .name = kTabGroupExists})},
   };
 
-  int days_to_show_ephemeral_card_once =
-      features::KDaysToShowEphemeralCardOnce.Get();
-  // Define signal for number of times all educational tip card has shown to the
-  // user in limited days.
-  DEFINE_UMA_FEATURE_ENUM_COUNT(countOfEducationalTipCardShownTimes,
-                                kEducationalTipModuleHistogramName,
-                                kEducationalTipModuleHistogramEnumValues.data(),
-                                kEducationalTipModuleHistogramEnumValues.size(),
-                                /* days= */ days_to_show_ephemeral_card_once);
-  map.emplace(kEducationalTipShownCount,
-              std::move(countOfEducationalTipCardShownTimes));
-
-  int days_to_show_tab_group_card_once =
-      features::KDaysToShowEachEphemeralCardOnce.Get();
-  // Define signal for number of times tab group promo card has shown to the
-  // user in limited days.
-  DEFINE_UMA_FEATURE_ENUM_COUNT(countOfTabGroupPromoShownTimes,
-                                kEducationalTipModuleHistogramName,
+  DEFINE_UMA_FEATURE_ENUM_COUNT(count, kTabGroupPromoHistogramName,
                                 &kTabGroupPromoId, /* enum_size= */ 1,
-                                /* days= */ days_to_show_tab_group_card_once);
-  map.emplace(kTabGroupPromoShownCount,
-              std::move(countOfTabGroupPromoShownTimes));
+                                /* days= */ 1);
+  map.emplace(kTabGroupPromoShownCount, std::move(count));
 
   return map;
 }
@@ -101,32 +85,25 @@ CardSelectionInfo::ShowResult TabGroupPromo::ComputeCardResult(
     return result;
   }
 
-  std::optional<float> result_for_is_user_signed_in =
+  std::optional<float> resultForIsUserSignedIn =
       signals.GetSignal(kIsUserSignedIn);
-  std::optional<float> result_for_tab_group_exists =
+  std::optional<float> resultForTabGroupExists =
       signals.GetSignal(kTabGroupExists);
-  std::optional<float> result_for_number_of_tabs =
-      signals.GetSignal(kNumberOfTabs);
-  std::optional<float> result_for_tab_group_promo_shown_count =
+  std::optional<float> resultForNumberOfTabs = signals.GetSignal(kNumberOfTabs);
+  std::optional<float> resultForTabGroupPromoShownCount =
       signals.GetSignal(kTabGroupPromoShownCount);
-  std::optional<float>
-      result_for_educational_tip_shown_count_for_tab_group_signal =
-          signals.GetSignal(kEducationalTipShownCount);
 
-  if (!result_for_is_user_signed_in.has_value() ||
-      !result_for_tab_group_exists.has_value() ||
-      !result_for_number_of_tabs.has_value() ||
-      !result_for_tab_group_promo_shown_count.has_value() ||
-      !result_for_educational_tip_shown_count_for_tab_group_signal
-           .has_value()) {
+  if (!resultForIsUserSignedIn.has_value() ||
+      !resultForTabGroupExists.has_value() ||
+      !resultForNumberOfTabs.has_value() ||
+      !resultForTabGroupPromoShownCount.has_value()) {
     result.position = EphemeralHomeModuleRank::kNotShown;
     return result;
   }
 
-  if (*result_for_is_user_signed_in && !*result_for_tab_group_exists &&
-      result_for_number_of_tabs.value() > kTabCountLimit &&
-      result_for_tab_group_promo_shown_count.value() < 1 &&
-      result_for_educational_tip_shown_count_for_tab_group_signal.value() < 1) {
+  if (*resultForIsUserSignedIn && !*resultForTabGroupExists &&
+      resultForNumberOfTabs.value() > kTabCountLimit &&
+      resultForTabGroupPromoShownCount.value() < kShownCountLimit) {
     result.position = EphemeralHomeModuleRank::kLast;
     return result;
   }
@@ -135,8 +112,7 @@ CardSelectionInfo::ShowResult TabGroupPromo::ComputeCardResult(
   return result;
 }
 
-bool TabGroupPromo::IsEnabled(bool is_in_enabled_cards_set,
-                              int impression_count) {
+bool TabGroupPromo::IsEnabled(int impression_count) {
   std::optional<CardSelectionInfo::ShowResult> forced_result =
       GetForcedEphemeralModuleShowResult();
 
@@ -146,8 +122,7 @@ bool TabGroupPromo::IsEnabled(bool is_in_enabled_cards_set,
     return true;
   }
 
-  if (!base::FeatureList::IsEnabled(features::kEducationalTipModule) ||
-      !is_in_enabled_cards_set) {
+  if (!base::FeatureList::IsEnabled(features::kEducationalTipModule)) {
     return false;
   }
 

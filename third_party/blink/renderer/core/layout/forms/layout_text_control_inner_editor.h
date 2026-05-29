@@ -34,8 +34,6 @@ class LayoutTextControlInnerEditor final : public LayoutBlockFlow {
 
   void AddChild(LayoutObject* new_child,
                 LayoutObject* before_child = nullptr) override;
-  void StyleDidChange(StyleDifference diff,
-                      const ComputedStyle* old_style) override;
 
  private:
   const bool is_multiline_;

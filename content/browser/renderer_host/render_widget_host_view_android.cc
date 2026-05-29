@@ -1378,21 +1378,12 @@ void RenderWidgetHostViewAndroid::SendStateOnTouchTransfer(
     bool browser_would_have_handled) {
   TRACE_EVENT("input", "RenderWidgetHostViewAndroid::StateOnTouchTransfer");
   CHECK(host());
-  auto* remote =
-      host()->mojo_rir_delegate()->GetRenderInputRouterDelegateRemote();
-  if (!remote) {
-    return;
-  }
-
+  auto* remote = host()->delegate()->GetRenderInputRouterDelegateRemote();
   const float y_offset_pix =
       host()->delegate()->GetCurrentTouchSequenceYOffset();
   remote->StateOnTouchTransfer(input::mojom::TouchTransferState::New(
       event.GetDownTime(), GetFrameSinkId(), y_offset_pix, view_.GetDipScale(),
       browser_would_have_handled));
-}
-
-bool RenderWidgetHostViewAndroid::IsMojoRIRDelegateConnectionSetup() {
-  return (host()->mojo_rir_delegate() != nullptr);
 }
 
 viz::FrameSinkId RenderWidgetHostViewAndroid::GetRootFrameSinkId() {
@@ -1573,9 +1564,8 @@ bool RenderWidgetHostViewAndroid::OnTouchEvent(
     } else if (event.GetAction() == ui::MotionEvent::Action::DOWN) {
       // Stop any ongoing fling on VizCompositorThread if the new input sequence
       // is going to be handled on the Browser.
-      if (auto* remote = host()
-                             ->mojo_rir_delegate()
-                             ->GetRenderInputRouterDelegateRemote()) {
+      if (auto* remote =
+              host()->delegate()->GetRenderInputRouterDelegateRemote()) {
         remote->StopFlingingOnViz(host()->GetFrameSinkId());
       }
     }
@@ -1631,10 +1621,8 @@ void RenderWidgetHostViewAndroid::ResetGestureDetection() {
     if (!host()) {
       return;
     }
-    if (auto* remote =
-            host()->mojo_rir_delegate()->GetRenderInputRouterDelegateRemote()) {
-      remote->ResetGestureDetection(GetFrameSinkId());
-    }
+    auto* remote = host()->delegate()->GetRenderInputRouterDelegateRemote();
+    remote->ResetGestureDetection(GetFrameSinkId());
     return;
   }
 

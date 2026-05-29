@@ -639,8 +639,7 @@ void MahiManagerImpl::OpenMahiPanelForElucidation(
 }
 
 bool MahiManagerImpl::IsEnabled() {
-  return (mahi_availability::IsMahiAvailable().has_value() &&
-          mahi_availability::IsMahiAvailable().value()) &&
+  return mahi_availability::IsMahiAvailable() &&
          chromeos::MagicBoostState::Get()->hmr_enabled().value_or(false);
 }
 

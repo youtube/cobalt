@@ -228,8 +228,7 @@ class FederatedAuthDisconnectRequestTest
           .Times(0);
     }
 
-    auto fedcm_metrics =
-        std::make_unique<FedCmMetrics>(rfh->GetPageUkmSourceId());
+    metrics_ = std::make_unique<FedCmMetrics>(rfh->GetPageUkmSourceId());
 
     blink::mojom::IdentityCredentialDisconnectOptionsPtr options =
         blink::mojom::IdentityCredentialDisconnectOptions::New();
@@ -241,7 +240,7 @@ class FederatedAuthDisconnectRequestTest
     DisconnectRequestCallbackHelper callback_helper;
     request_ = FederatedAuthDisconnectRequest::Create(
         std::move(network_manager), permission_delegate_.get(), rfh,
-        std::move(fedcm_metrics), std::move(options));
+        metrics_.get(), std::move(options));
     request_->SetCallbackAndStart(callback_helper.callback(),
                                   api_permission_delegate_.get());
     callback_helper.WaitForCallback();
@@ -338,12 +337,18 @@ class FederatedAuthDisconnectRequestTest
            network_manager_->has_fetched_disconnect_;
   }
 
+  void ResetFedCmMetrics() {
+    request_->metrics_ = nullptr;
+    metrics_.reset();
+  }
+
   ukm::TestAutoSetUkmRecorder* ukm_recorder() { return ukm_recorder_.get(); }
 
  protected:
   raw_ptr<TestIdpNetworkRequestManager> network_manager_;
   std::unique_ptr<MockApiPermissionDelegate> api_permission_delegate_;
   std::unique_ptr<TestPermissionDelegate> permission_delegate_;
+  std::unique_ptr<FedCmMetrics> metrics_;
   std::unique_ptr<FederatedAuthDisconnectRequest> request_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
@@ -367,6 +372,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, Success) {
   RunDisconnectTest(config, DisconnectStatus::kSuccess);
   EXPECT_TRUE(DidFetchAllEndpoints());
 
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
+
   ExpectDisconnectMetricsAndConsoleError(DisconnectStatusForMetrics::kSuccess,
                                          FedCmRequesterFrameType::kMainFrame,
                                          /*should_record_duration=*/true);
@@ -377,6 +385,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, NotTrustworthyIdP) {
   config.config_url = "http://idp.example/fedcm.json";
   RunDisconnectTest(config, DisconnectStatus::kError);
   EXPECT_FALSE(DidFetchAnyEndpoint());
+
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
 
   ExpectDisconnectMetricsAndConsoleError(
       DisconnectStatusForMetrics::kIdpNotPotentiallyTrustworthy,
@@ -408,6 +419,9 @@ TEST_F(FederatedAuthDisconnectRequestTest,
   RunDisconnectTest(config, DisconnectStatus::kSuccess);
   EXPECT_TRUE(DidFetchAllEndpoints());
 
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
+
   ExpectDisconnectMetricsAndConsoleError(DisconnectStatusForMetrics::kSuccess,
                                          FedCmRequesterFrameType::kMainFrame,
                                          /*should_record_duration=*/true);
@@ -436,6 +450,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, SameSiteIframe) {
                                       OriginFromString(kProviderUrl), _));
   RunDisconnectTest(config, DisconnectStatus::kSuccess, same_site_iframe);
   EXPECT_TRUE(DidFetchAllEndpoints());
+
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
 
   ExpectDisconnectMetricsAndConsoleError(
       DisconnectStatusForMetrics::kSuccess,
@@ -469,6 +486,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, CrossSiteIframe) {
   RunDisconnectTest(config, DisconnectStatus::kSuccess, cross_site_iframe);
   EXPECT_TRUE(DidFetchAllEndpoints());
 
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
+
   ExpectDisconnectMetricsAndConsoleError(
       DisconnectStatusForMetrics::kSuccess,
       FedCmRequesterFrameType::kCrossSiteIframe,
@@ -489,6 +509,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, NoAccountToDisconnect) {
   RunDisconnectTest(config, DisconnectStatus::kError);
   EXPECT_FALSE(DidFetchAnyEndpoint());
 
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
+
   ExpectDisconnectMetricsAndConsoleError(
       DisconnectStatusForMetrics::kNoAccountToDisconnect,
       FedCmRequesterFrameType::kMainFrame,
@@ -504,6 +527,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, DisabledInSettings) {
   RunDisconnectTest(config, DisconnectStatus::kError);
   EXPECT_FALSE(DidFetchAnyEndpoint());
 
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
+
   ExpectDisconnectMetricsAndConsoleError(
       DisconnectStatusForMetrics::kDisabledInSettings,
       FedCmRequesterFrameType::kMainFrame,
@@ -518,6 +544,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, DisabledInFlags) {
 
   RunDisconnectTest(config, DisconnectStatus::kError);
   EXPECT_FALSE(DidFetchAnyEndpoint());
+
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
 
   ExpectDisconnectMetricsAndConsoleError(
       DisconnectStatusForMetrics::kDisabledInFlags,
@@ -544,6 +573,9 @@ TEST_F(FederatedAuthDisconnectRequestTest, SuccessDespiteEmbargo) {
 
   RunDisconnectTest(config, DisconnectStatus::kSuccess);
   EXPECT_TRUE(DidFetchAllEndpoints());
+
+  // Check that the appropriate metrics are recorded upon destruction.
+  ResetFedCmMetrics();
 
   ExpectDisconnectMetricsAndConsoleError(DisconnectStatusForMetrics::kSuccess,
                                          FedCmRequesterFrameType::kMainFrame,

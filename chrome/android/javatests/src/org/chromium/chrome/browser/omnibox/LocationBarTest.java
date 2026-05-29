@@ -14,6 +14,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 
 import android.content.Intent;
@@ -53,6 +54,7 @@ import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lifecycle.InflationObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.locale.LocaleManagerDelegate;
+import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -119,6 +121,9 @@ public class LocationBarTest {
                 () -> {
                     TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
                     LocaleManager.getInstance().setDelegateForTest(mLocaleManagerDelegate);
+                    doReturn(new StatusIconResource(null))
+                            .when(mSearchEngineUtils)
+                            .getSearchEngineLogo(anyInt());
                 });
     }
 
@@ -188,6 +193,15 @@ public class LocationBarTest {
                     doReturn(isGoogle ? mGoogleSearchEngine : mNonGoogleSearchEngine)
                             .when(mTemplateUrlService)
                             .getDefaultSearchEngineTemplateUrl();
+
+                    StatusIconResource logo =
+                            new StatusIconResource(
+                                    isGoogle
+                                            ? R.drawable.ic_logo_googleg_20dp
+                                            : R.drawable.ic_search,
+                                    0);
+
+                    doReturn(logo).when(mSearchEngineUtils).getSearchEngineLogo(anyInt());
                 });
     }
 
@@ -754,7 +768,11 @@ public class LocationBarTest {
         startActivityNormally();
 
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
-        onView(withId(R.id.location_bar_status_icon)).check(matches(not(isDisplayed())));
+        if (OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled()) {
+            onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
+        } else {
+            onView(withId(R.id.location_bar_status_icon)).check(matches(not(isDisplayed())));
+        }
     }
 
     @Test
@@ -765,7 +783,11 @@ public class LocationBarTest {
         startActivityNormally();
 
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
-        onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
+        if (OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled()) {
+            onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
+        } else {
+            onView(withId(R.id.location_bar_status_icon)).check(matches(not(isDisplayed())));
+        }
     }
 
     @Test
@@ -799,7 +821,11 @@ public class LocationBarTest {
         startActivityNormally();
 
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
-        onView(withId(R.id.location_bar_status_icon)).check(matches(not(isDisplayed())));
+        if (OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled()) {
+            onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
+        } else {
+            onView(withId(R.id.location_bar_status_icon)).check(matches(not(isDisplayed())));
+        }
 
         mActivityTestRule.loadUrl(UrlConstants.ABOUT_URL);
         onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));

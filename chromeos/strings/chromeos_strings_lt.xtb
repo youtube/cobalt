@@ -334,7 +334,7 @@
 <translation id="2276999893457278469">Geriausias pagalbos centro turinys</translation>
 <translation id="2277631741861284101">Lengvai įrašykite ir bendrinkite garso įrašą</translation>
 <translation id="2279051792571591988">Atkurti numatytuosius nustatymus</translation>
-<translation id="2286454467119466181">Paprastas</translation>
+<translation id="2286454467119466181">Paprasta</translation>
 <translation id="2287186687001756809">Nėra jokių vaizdų. Jei norite pridėti nuotraukų, eikite adresu <ph name="LINK" /></translation>
 <translation id="2294577623958216786">Dabartinis tvarkaraštis nustatytas į <ph name="SUNRISE" />–<ph name="SUNSET" />. Kad būtų automatiškai atnaujintas saulėlydžio ir saulėtekio tvarkaraštis, įjunkite sistemos prieigą prie vietovės.</translation>
 <translation id="2305172810646967500">juoda</translation>
@@ -477,7 +477,6 @@
 <translation id="3091839911843451378">Nepavyko – sustabdyta</translation>
 <translation id="3102119246920354026">Talpykla</translation>
 <translation id="3103783611481501187">siurrealu</translation>
-<translation id="3119672627216736407">Pasiekiamas vertimas</translation>
 <translation id="3122464029669770682">Centrinis procesorius</translation>
 <translation id="3122614491980756867">baseinais</translation>
 <translation id="3122883569442693641">Daugiau išsamios informacijos</translation>
@@ -1138,7 +1137,6 @@
 <translation id="6058625436358447366">Norėdami užbaigti įveskite seną ir naują slaptažodžius</translation>
 <translation id="6061772781719867950">Nepavykusios HTTP užklausos</translation>
 <translation id="6073292342939316679">sumažinti klaviatūros šviesumą</translation>
-<translation id="6074608334942655098">Stabdyti vertimą</translation>
 <translation id="6074752328838739425">Slėpti suvestinę</translation>
 <translation id="6075872808778243331">(„Android“) HTTP delsa</translation>
 <translation id="6078323886959318429">Pridėti spartųjį klavišą</translation>

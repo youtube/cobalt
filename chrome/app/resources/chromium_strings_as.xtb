@@ -222,13 +222,11 @@
 <translation id="3954172517175569325">আপুনি নিজৰ Google একাউণ্টত ছেভ কৰি থোৱা আপোনাৰ পাছৱৰ্ড, পৰিশোধ পদ্ধতি আৰু ঠিকনাসমূহ এই ডিভাইচটোৰ পৰা আঁতৰোৱা হ’ব। সেইসমূহ পুনৰ Chromiumত ব্যৱহাৰ কৰিবলৈ, পুনৰ ছাইন ইন কৰক।</translation>
 <translation id="395904275706073188">সুৰক্ষিত পৃষ্ঠা পঢ়িব নোৱাৰি। এটা বেলেগ পৃষ্ঠা ব্যৱহাৰ কৰি চাওক।</translation>
 <translation id="3962647064319009959">Chromiumএ আপোনাক কিদৰে সুৰক্ষিত কৰি ৰাখে জানক</translation>
-<translation id="3971865010372729242">আপুনি ঠিকনাৰ বাৰ বা সন্ধান বাকচত টাইপ কৰিলে, Chromiumএ পৰামৰ্শ পাবৰ বাবে আপুনি যি টাইপ কৰে সেয়া আপোনাৰ প্ৰতিষ্ঠানৰ সন্ধান, AI আৰু এজেন্টৰ সঁজুলিসমূহলৈ পঠিয়ায়।</translation>
 <translation id="3975724895399328945">&amp;Google Chrome for Testingৰ বিষয়ে</translation>
 <translation id="3997429360543082038">ChromiumOSৰ বিষয়ে</translation>
 <translation id="4019629340646866719"><ph name="BEGIN_LINK_LINUX_OSS" />Linux বিকাশৰ পৰিৱেশ<ph name="END_LINK_LINUX_OSS" />ৰ দৰে অতিৰিক্ত <ph name="BEGIN_LINK_CROS_OSS" />মুক্ত উৎসৰ ছফ্টৱেৰ<ph name="END_LINK_CROS_OSS" />ৰ জৰিয়তে ChromiumOSক ব্যৱহাৰযোগ্য কৰা হৈছে।</translation>
 <translation id="4022972681110646219">স্ক্ৰীনৰ সমল অনুবাদ কৰক</translation>
 <translation id="4023601594785368013">মূল ভাষা: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">যিকোনো এপৰ পৰা Chromiumত লিংক খোলক। লগতে সহজে এক্সেছ পাবলৈ, এইটো আপোনাৰ টাস্কবাৰত পিন কৰি থোৱা থাকে।</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />বর্তমানৰ ছেটিংসমূহ<ph name="END_LINK" />ৰ সম্পর্কে প্ৰতিবেদন দি Chromiumক উন্নত কৰাত সহায় কৰক</translation>
 <translation id="4050175100176540509">শেহতীয়া সংস্কৰণত কিছুমান গুৰুত্বপূর্ণ উন্নত সুৰক্ষাৰ ব্যৱস্থা আৰু নতুন সুবিধা উপলব্ধ।</translation>
 <translation id="4055805654398742145">পা&amp;ছৱৰ্ড পৰিচালক</translation>
@@ -330,7 +328,6 @@
 <translation id="5524890928877629608">সন্ধান এলেকাৰ ওপৰৰ বাওঁফালৰ কোণ: <ph name="LEFT" />% বাওঁফালে, <ph name="TOP" />% ওপৰলৈ</translation>
 <translation id="5527463683072221100">Chromiumত PDF খোলক</translation>
 <translation id="5579324208890605088">ষ্টাৰ্টআপ সম্পৰ্কীয় আসোঁৱাহ: অনুগ্ৰহ কৰি ইনষ্টলাৰটো এগৰাকী নিয়মীয়া ব্যৱহাৰকাৰী হিচাপে চলাওক, প্ৰশাসক হিচাপে নহয়।</translation>
-<translation id="5580770360767802657">ডিফ’ল্ট হিচাপে Chromium ব্যৱহাৰ কৰি ইয়াক পিন কৰি থোৱা পাওক</translation>
 <translation id="5596627076506792578">অধিক বিকল্প</translation>
 <translation id="5605834417512968703">প্ৰতিচ্ছবিৰ সন্ধান সুবিধাটোৰ জৰিয়তে সন্ধান কৰিবলৈ যিকোনো বস্তু বাছনি কৰক বা প্ৰতিচ্ছবিৰ সন্ধান সুবিধাটোৰ পৰা বাহিৰ ওলাবলৈ এস্কে’প টিপক</translation>
 <translation id="5618818588972826921">প্ৰতিচ্ছবিৰ সন্ধান সুবিধাটোৰ জৰিয়তে সন্ধান কৰিবলৈ যিকোনো পাঠ বা প্ৰতিচ্ছবি বাছনি কৰক বা প্ৰতিচ্ছবিৰ সন্ধান সুবিধাটোৰ পৰা বাহিৰ ওলাবলৈ এস্কে’প টিপক</translation>
@@ -603,7 +600,6 @@ Chromiumএ আপোনাৰ ছেটিংসমূহ পুনৰুদ্
 <translation id="9106612006984859720">Chromiumৰ ভৱিষ্যতৰ আপডে’টসমূহ পাবলৈ আপোনাক Windows 10 অথবা তাৰ পাছৰ সংস্কৰণৰ আৱশ্যক হ’ব। এই কম্পিউটাৰটোৱে Windows 8.1 ব্যৱহাৰ কৰি আছে।</translation>
 <translation id="91086099826398415">Chromiumৰ &amp;নতুন টেবত লিংক খোলক</translation>
 <translation id="911206726377975832">লগতে আপোনাৰ ব্ৰাউজিং ডেটাও মচিবনে?</translation>
-<translation id="9134482777260927479">গৃহকাৰ্য সম্পৰ্কীয় সহায়</translation>
 <translation id="9148058034647219655">বাহিৰ হওক</translation>
 <translation id="9158494823179993217">আপোনাৰ ছিষ্টেমৰ প্ৰশাসকে <ph name="TARGET_URL_HOSTNAME" /> এক্সেছ কৰিবলৈ Chromiumক এটা বিকল্প ব্ৰাউজাৰ খুলিবলৈ কনফিগাৰ কৰিছে।</translation>
 <translation id="9185526690718004400">&amp;Chromium আপডে'ট কৰিবলৈ পুনৰ লঞ্চ কৰক</translation>

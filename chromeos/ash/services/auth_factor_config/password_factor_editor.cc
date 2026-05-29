@@ -64,14 +64,6 @@ void PasswordFactorEditor::UpdateOrSetLocalPassword(
     return;
   }
 
-  // Mojo strings are valid UTF-8, so the `CheckLocalPasswordComplexityImpl`
-  // call is OK.
-  if (CheckLocalPasswordComplexityImpl(new_password) !=
-      mojom::PasswordComplexity::kOk) {
-    std::move(callback).Run(mojom::ConfigureResult::kFatalError);
-    return;
-  }
-
   ash::AuthSessionStorage::Get()->BorrowAsync(
       FROM_HERE, auth_token,
       base::BindOnce(&PasswordFactorEditor::UpdateOrSetPasswordWithContext,
@@ -89,6 +81,14 @@ void PasswordFactorEditor::UpdateOrSetPasswordWithContext(
   if (!context) {
     LOG(ERROR) << "Invalid auth token";
     std::move(callback).Run(mojom::ConfigureResult::kInvalidTokenError);
+    return;
+  }
+
+  // Mojo strings are valid UTF-8, so the `CheckLocalPasswordComplexityImpl`
+  // call is OK.
+  if (CheckLocalPasswordComplexityImpl(new_password) !=
+      mojom::PasswordComplexity::kOk) {
+    std::move(callback).Run(mojom::ConfigureResult::kFatalError);
     return;
   }
 
@@ -114,9 +114,6 @@ void PasswordFactorEditor::UpdateOrSetOnlinePassword(
     std::move(callback).Run(mojom::ConfigureResult::kInvalidTokenError);
     return;
   }
-
-  // No complexity check for online passwords, it is controlled
-  // on the server side by identity provider.
 
   ash::AuthSessionStorage::Get()->BorrowAsync(
       FROM_HERE, auth_token,

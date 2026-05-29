@@ -38,7 +38,7 @@ TEST(StyleBuilderConverterTest,
           StyleColor(), 0.5f, 1.));
 
   const ResolveColorValueContext context{
-      .conversion_data = CSSToLengthConversionData(/*element=*/nullptr),
+      .length_resolver = CSSToLengthConversionData(/*element=*/nullptr),
       .text_link_colors = TextLinkColors()};
   EXPECT_EQ(ResolveColorValue(*color_mix_value, context), expected);
 }
@@ -69,7 +69,7 @@ TEST(StyleBuilderConverterTest,
           StyleColor(), 0.5f, 1.));
 
   const ResolveColorValueContext context{
-      .conversion_data = CSSToLengthConversionData(/*element=*/nullptr),
+      .length_resolver = CSSToLengthConversionData(/*element=*/nullptr),
       .text_link_colors = TextLinkColors()};
   EXPECT_EQ(ResolveColorValue(*color_mix_value, context), expected);
 }

@@ -77,16 +77,14 @@ void HatsServiceAndroid::DelayedSurveyTask::Launch() {
 
   ui::WindowAndroid* window_android = web_contents()->GetTopLevelNativeWindow();
 
-  delegate_ = std::make_unique<hats::SurveyUiDelegateAndroid>(message_.get(),
-                                                              window_android);
+  hats::SurveyUiDelegateAndroid delegate(message_.get(), window_android);
 
   // Create survey client with delegate.
-  hats::SurveyClientAndroid survey_client(trigger_, delegate_.get(),
+  hats::SurveyClientAndroid survey_client(trigger_, &delegate,
                                           hats_service_->profile(),
                                           supplied_trigger_id_, window_android);
   survey_client.LaunchSurvey(window_android, product_specific_bits_data_,
                              product_specific_string_data_);
-  survey_launched_ = true;
 }
 
 void HatsServiceAndroid::DelayedSurveyTask::DismissCallback(
@@ -141,10 +139,6 @@ void HatsServiceAndroid::DelayedSurveyTask::DismissCallback(
 
 void HatsServiceAndroid::DelayedSurveyTask::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (survey_launched_) {
-    return;
-  }
-
   if (hats_service_->IsNavigationAllowed(navigation_handle,
                                          navigation_behaviour_)) {
     return;

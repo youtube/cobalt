@@ -8,10 +8,6 @@
 #import "components/signin/public/identity_manager/account_info.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
-namespace signin_metrics {
-enum class AccessPoint;
-}
-
 // The result of the reauth flow.
 enum class ReauthResult : int {
   // The reauth flow has completed successfully.
@@ -40,14 +36,12 @@ enum class ReauthResult : int {
 // The delegate to get notified after the flow has completed.
 @property(nonatomic, weak) id<ReauthCoordinatorDelegate> delegate;
 
-// Designated initializer for ReauthCoordinator started from a sign-in flow.
+// Designated initializer.
 // `identity` - the identity for which the reauthentication flow should be
 //         shown.
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
                                    account:(const CoreAccountInfo&)account
-                               accessPoint:
-                                   (signin_metrics::AccessPoint)accessPoint
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController

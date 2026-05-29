@@ -12,7 +12,6 @@ NSString* const kCoderUserEmailKey = @"UserEmail";
 NSString* const kCoderGaiaIDKey = @"GaiaID";
 NSString* const kCoderUserFullNameKey = @"UserFullName";
 NSString* const kCoderUserGivenNameKey = @"UserGivenName";
-NSString* const kCoderHasValidAuthKey = @"HasValidAuth";
 }  // namespace
 
 @implementation FakeSystemIdentity {
@@ -85,7 +84,6 @@ NSString* const kCoderHasValidAuthKey = @"HasValidAuth";
     DCHECK_EQ(split.count, 2ul);
     _userFullName = split[0];
     _userGivenName = split[0];
-    _hasValidAuth = YES;
   }
   return self;
 }
@@ -111,8 +109,7 @@ NSString* const kCoderHasValidAuthKey = @"HasValidAuth";
   return [_userEmail isEqualToString:other.userEmail] &&
          [_gaiaID isEqualToString:other.gaiaID] &&
          [_userFullName isEqualToString:other.userFullName] &&
-         [_userGivenName isEqualToString:other.userGivenName] &&
-         _hasValidAuth == other.hasValidAuth;
+         [_userGivenName isEqualToString:other.userGivenName];
 }
 
 - (NSUInteger)hash {
@@ -129,6 +126,10 @@ NSString* const kCoderHasValidAuthKey = @"HasValidAuth";
   return [NSString stringWithFormat:@"%@_hash", _gaiaID];
 }
 
+- (BOOL)hasValidAuth {
+  return NO;
+}
+
 #pragma mark - NSSecureCoding
 
 - (void)encodeWithCoder:(NSCoder*)coder {
@@ -136,7 +137,6 @@ NSString* const kCoderHasValidAuthKey = @"HasValidAuth";
   [coder encodeObject:_gaiaID forKey:kCoderGaiaIDKey];
   [coder encodeObject:_userFullName forKey:kCoderUserFullNameKey];
   [coder encodeObject:_userGivenName forKey:kCoderUserGivenNameKey];
-  [coder encodeBool:_hasValidAuth forKey:kCoderHasValidAuthKey];
 }
 
 - (id)initWithCoder:(NSCoder*)coder {
@@ -149,7 +149,6 @@ NSString* const kCoderHasValidAuthKey = @"HasValidAuth";
                                         forKey:kCoderUserFullNameKey];
     _userGivenName = [coder decodeObjectOfClass:[NSString class]
                                          forKey:kCoderUserGivenNameKey];
-    _hasValidAuth = [coder decodeBoolForKey:kCoderHasValidAuthKey];
   }
   return self;
 }

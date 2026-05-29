@@ -63,6 +63,11 @@ class ProfileOAuth2TokenServiceIOSDelegate
       const std::optional<CoreAccountId>& primary_account_id) override;
   void ReloadAccountFromSystem(const CoreAccountId& account_id) override;
 
+  // Adds |account_id| to |accounts_| if it does not exist or udpates
+  // the auth error state of |account_id| if it exists. Fires
+  // |OnRefreshTokenAvailable| if the account info is updated.
+  virtual void AddOrUpdateAccount(const CoreAccountId& account_id);
+
   // DeviceAccountsProvider::Observer:
   void OnAccountsOnDeviceChanged() override;
   void OnAccountOnDeviceUpdated(
@@ -74,8 +79,7 @@ class ProfileOAuth2TokenServiceIOSDelegate
   virtual void RemoveAccount(const CoreAccountId& account_id);
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(ProfileOAuth2TokenServiceIOSDelegateTest,
-                           OnAuthErrorChangedAfterUpdatingCredentials);
+  friend class ProfileOAuth2TokenServiceIOSDelegateTest;
 
   // ProfileOAuth2TokenServiceDelegate implementation:
   void LoadCredentialsInternal(
@@ -93,13 +97,6 @@ class ProfileOAuth2TokenServiceIOSDelegate
   // each new account. Fires |OnRefreshTokenRevoked| for each account that was
   // removed.
   void ReloadCredentials(const CoreAccountId& primary_account_id);
-
-  // Adds `account_id` to `accounts_` if it does not exist or updates the auth
-  // error state of `account_id` to match `error` if it exists. Fires
-  // `OnRefreshTokenAvailable` if the account info is updated or
-  // `OnAuthErrorChanged` if the auth error changed.
-  void AddOrUpdateAccount(const CoreAccountId& account_id,
-                          GoogleServiceAuthError error);
 
   // Info about the existing accounts.
   std::set<CoreAccountId> accounts_;

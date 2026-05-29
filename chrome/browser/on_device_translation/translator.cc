@@ -13,7 +13,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "third_party/blink/public/mojom/ai/ai_common.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom.h"
 #include "third_party/blink/public/mojom/on_device_translation/translator.mojom.h"
 #include "url/origin.h"
@@ -56,8 +55,7 @@ void Translator::Translate(
            ->GetPrefs()
            ->GetBoolean(prefs::kTranslatorAPIAllowed)) {
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
     return;
   }
 
@@ -87,8 +85,7 @@ void Translator::Translate(
                   if (!output) {
                     responder->OnError(
                         blink::mojom::ModelStreamingResponseStatus::
-                            kErrorGenericFailure,
-                        /*quota_error_info=*/nullptr);
+                            kErrorGenericFailure);
                     return;
                   }
                   responder->OnStreaming(*output);
@@ -98,8 +95,7 @@ void Translator::Translate(
             std::nullopt));
   } else {
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
   }
 }
 

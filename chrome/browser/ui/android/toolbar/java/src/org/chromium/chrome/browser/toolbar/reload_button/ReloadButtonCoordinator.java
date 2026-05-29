@@ -57,8 +57,7 @@ public class ReloadButtonCoordinator {
             ObservableSupplier<@Nullable Tab> tabSupplier,
             ObservableSupplier<Boolean> ntpLoadingSupplier,
             ObservableSupplier<Boolean> enabledSupplier,
-            ThemeColorProvider themeColorProvider,
-            boolean isWebApp) {
+            ThemeColorProvider themeColorProvider) {
         mView = view;
 
         // ThemeColorProvider might not be updated by this time. Keep existing color list.
@@ -88,8 +87,7 @@ public class ReloadButtonCoordinator {
                         enabledSupplier,
                         (text) -> Toast.showAnchoredToast(mView.getContext(), mView, text),
                         mView.getResources(),
-                        mView.getContext(),
-                        isWebApp);
+                        mView.getContext());
         PropertyModelChangeProcessor.create(model, mView, ReloadButtonViewBinder::bind);
     }
 

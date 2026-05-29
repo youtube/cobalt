@@ -3300,9 +3300,7 @@ double CSSMathExpressionOperation::EvaluateOperator(
     case CSSMathOperator::kMediaProgress:
     case CSSMathOperator::kContainerProgress: {
       CHECK_EQ(operands.size(), 3u);
-      double progress_value =
-          (operands[0] - operands[1]) / (operands[2] - operands[1]);
-      return std::clamp(progress_value, 0., 1.);
+      return (operands[0] - operands[1]) / (operands[2] - operands[1]);
     }
     case CSSMathOperator::kCalcSize: {
       CHECK_EQ(operands.size(), 2u);
@@ -4095,7 +4093,6 @@ class CSSMathExpressionNodeParser {
       }
       double progress_value = (double_values[0] - double_values[1]) /
                               (double_values[2] - double_values[1]);
-      progress_value = std::clamp(progress_value, 0., 1.);
       return CSSMathExpressionNumericLiteral::Create(
           progress_value, CSSPrimitiveValue::UnitType::kNumber);
     }

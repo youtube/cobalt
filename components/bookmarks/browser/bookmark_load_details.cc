@@ -55,14 +55,11 @@ BookmarkLoadDetails::BookmarkLoadDetails()
   // loaded from disk or new/default values are allocated in
   // `PopulateNodeIdsForLocalOrSyncablePermanentNodes()`.
   bb_node_ = static_cast<BookmarkPermanentNode*>(
-      root_node_->Add(BookmarkPermanentNode::CreateBookmarkBar(
-          /*id=*/0, /*is_account_node=*/false)));
+      root_node_->Add(BookmarkPermanentNode::CreateBookmarkBar(/*id=*/0)));
   other_folder_node_ = static_cast<BookmarkPermanentNode*>(
-      root_node_->Add(BookmarkPermanentNode::CreateOtherBookmarks(
-          /*id=*/0, /*is_account_node=*/false)));
+      root_node_->Add(BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/0)));
   mobile_folder_node_ = static_cast<BookmarkPermanentNode*>(
-      root_node_->Add(BookmarkPermanentNode::CreateMobileBookmarks(
-          /*id=*/0, /*is_account_node=*/false)));
+      root_node_->Add(BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/0)));
 
   // Set the nodes' `date_added` to the same time so that there is no inherent
   // hierarchy in terms of their added time between them. This is relevant for

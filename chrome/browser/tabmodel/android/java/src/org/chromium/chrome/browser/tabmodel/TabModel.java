@@ -133,7 +133,4 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param creationState How the tab was created.
      */
     void addTab(Tab tab, int index, @TabLaunchType int type, @TabCreationState int creationState);
-
-    /** Broadcast a native-side notification that all tabs are now loaded from storage. */
-    void broadcastSessionRestoreComplete();
 }

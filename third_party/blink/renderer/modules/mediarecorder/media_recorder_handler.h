@@ -10,7 +10,6 @@
 #include <string_view>
 
 #include "base/feature_list.h"
-#include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
@@ -23,7 +22,6 @@
 #include "third_party/blink/renderer/modules/mediarecorder/video_track_recorder.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
-#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/heap/weak_cell.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -70,7 +68,8 @@ MODULES_EXPORT VideoTrackRecorder::CodecProfile VideoStringToCodecProfile(
 class MODULES_EXPORT MediaRecorderHandler final
     : public GarbageCollected<MediaRecorderHandler>,
       public VideoTrackRecorder::CallbackInterface,
-      public AudioTrackRecorder::CallbackInterface {
+      public AudioTrackRecorder::CallbackInterface,
+      public WebMediaStreamObserver {
  public:
   MediaRecorderHandler(
       scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
@@ -115,34 +114,10 @@ class MODULES_EXPORT MediaRecorderHandler final
  private:
   friend class MediaRecorderHandlerFixture;
   friend class MediaRecorderHandlerPassthroughTest;
-  friend class MediaStreamObserver;
 
-  class MediaStreamObserver : public WebMediaStreamObserver {
-   public:
-    explicit MediaStreamObserver(MediaRecorderHandler* handler)
-        : media_recorder_handler_(handler) {}
-
-    // WebMediaStreamObserver overrides.
-    void TrackAdded(const WebString& track_id) override {
-      CHECK(media_recorder_handler_);
-      media_recorder_handler_->TrackAdded(track_id);
-    }
-    void TrackRemoved(const WebString& track_id) override {
-      CHECK(media_recorder_handler_);
-      media_recorder_handler_->TrackRemoved(track_id);
-    }
-
-    base::WeakPtr<WebMediaStreamObserver> AsWeakPtr() {
-      return weak_factory_.GetWeakPtr();
-    }
-
-   private:
-    WeakPersistent<MediaRecorderHandler> media_recorder_handler_;
-    base::WeakPtrFactory<WebMediaStreamObserver> weak_factory_{this};
-  };
-
-  void TrackAdded(const WebString& track_id);
-  void TrackRemoved(const WebString& track_id);
+  // WebMediaStreamObserver overrides.
+  void TrackAdded(const WebString& track_id) override;
+  void TrackRemoved(const WebString& track_id) override;
 
   // VideoTrackRecorder::CallbackInterface overrides.
   void OnEncodedVideo(
@@ -187,6 +162,8 @@ class MODULES_EXPORT MediaRecorderHandler final
   void SetAudioFormatForTesting(const media::AudioParameters& params);
   void UpdateTrackLiveAndEnabled(const MediaStreamComponent& track,
                                  bool is_video);
+
+  void OnStarted();
 
   // Variant holding configured keyframe intervals.
   const KeyFrameRequestProcessor::Configuration key_frame_config_;
@@ -257,8 +234,6 @@ class MODULES_EXPORT MediaRecorderHandler final
   // Indicate if the codec description changed message has been printed or not.
   bool has_codec_description_changed_error_printed_ = false;
 #endif
-
-  std::unique_ptr<MediaStreamObserver> media_stream_observer_;
 
   // For invalidation of in-flight callbacks back to ourselves. Need to track
   // each callback interface specifically as there seem to be no automatic

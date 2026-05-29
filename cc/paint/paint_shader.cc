@@ -232,37 +232,23 @@ sk_sp<PaintShader> PaintShader::MakeSkSLCommand(
     std::vector<FloatUniform> float_uniforms,
     std::vector<Float2Uniform> float2_uniforms,
     std::vector<Float4Uniform> float4_uniforms,
-    std::vector<IntUniform> int_uniforms,
-    sk_sp<PaintShader> cached_paint_shader) {
+    std::vector<IntUniform> int_uniforms) {
   if (float_uniforms.size() > PaintShader::kMaxNumUniformsPerType ||
       float2_uniforms.size() > PaintShader::kMaxNumUniformsPerType ||
       float4_uniforms.size() > PaintShader::kMaxNumUniformsPerType ||
       int_uniforms.size() > PaintShader::kMaxNumUniformsPerType) {
     return nullptr;
   }
-
-  sk_sp<SkRuntimeEffect> effect;
-  uint32_t hash = 0;
   SkString cmd(sksl);
-  if (cached_paint_shader) {
-    effect = cached_paint_shader->cached_sk_runtime_effect_;
-    hash = cached_paint_shader->sk_runtime_effect_id_;
-    DCHECK_EQ(hash, base::PersistentHash(sksl))
-        << "`cached_paint_shader` does not align with `sksl`.";
-  } else {
-    // Use PersistentHash to get uint32_t, and use the hash as ID.
-    // TODO(crbug.com/404501097): We should use `SkRuntimeEffectHash::fHash`.
-    hash = base::PersistentHash(sksl);
-    auto result = SkRuntimeEffect::MakeForShader(cmd);
-    if (!result.effect) {
-      LOG(ERROR) << result.errorText.data();
-      return nullptr;
-    }
-    effect = result.effect;
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(cmd);
+  if (!effect) {
+    LOG(ERROR) << error.data();
+    return nullptr;
   }
-
   sk_sp<PaintShader> shader(new PaintShader(Type::kSkSLCommand));
-  shader->sk_runtime_effect_id_ = hash;
+  // Use PersistentHash to get uint32_t, and use the hash as ID.
+  // TODO(crbug.com/404501097): We should use `SkRuntimeEffectHash::fHash`.
+  shader->sk_runtime_effect_id_ = base::PersistentHash(sksl);
   shader->cached_sk_runtime_effect_ = std::move(effect);
   shader->sksl_command_ = std::move(cmd);
   shader->scalar_uniforms_ = std::move(float_uniforms);
@@ -782,11 +768,6 @@ bool PaintShader::EqualsForTesting(const PaintShader& other) const {
   }
 
   return true;
-}
-
-bool PaintShader::MatchingCachedRuntimeEffectForTesting(
-    const PaintShader& other) const {
-  return cached_sk_runtime_effect_ == other.cached_sk_runtime_effect_;
 }
 
 }  // namespace cc

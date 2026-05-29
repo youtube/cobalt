@@ -423,7 +423,7 @@
 <translation id="3564729643041517261">O estilo de exibição atual está definido como lado a lado</translation>
 <translation id="3570904478351465021">Inverno</translation>
 <translation id="3573145950452451508">Rodapé da página</translation>
-<translation id="3587482841069643663">Todas</translation>
+<translation id="3587482841069643663">Tudo</translation>
 <translation id="3589661172894441357">Glossário</translation>
 <translation id="3591784666823501596">Azul-real</translation>
 <translation id="3592715211448024517">Acessar menus</translation>
@@ -1024,7 +1024,7 @@
 <translation id="7685589220304187312">tlbar</translation>
 <translation id="7693840228159394336">Botão de opção anterior</translation>
 <translation id="7696631298608145306">passar para a próxima palavra</translation>
-<translation id="7701040980221191251">Nenhum</translation>
+<translation id="7701040980221191251">Não há</translation>
 <translation id="7701196182766842984">autolst</translation>
 <translation id="7708242671340939466">.input {$$COUNT :number} .match $$COUNT 1{{traço}} *{{{$$COUNT} traços}}</translation>
 <translation id="7714340021005120797">Nenhuma caixa de combinação a seguir</translation>

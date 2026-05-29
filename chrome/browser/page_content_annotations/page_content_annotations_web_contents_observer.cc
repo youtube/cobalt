@@ -10,8 +10,6 @@
 #include "chrome/browser/content_extraction/inner_text.h"
 #include "chrome/browser/page_content_annotations/annotate_page_content_request.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -58,27 +56,8 @@ PageContentAnnotationsWebContentsObserver::
   no_state_prefetch_manager_ =
       prerender::NoStatePrefetchManagerFactory::GetForBrowserContext(profile);
   template_url_service_ = TemplateURLServiceFactory::GetForProfile(profile);
-}
-
-AnnotatedPageContentRequest*
-PageContentAnnotationsWebContentsObserver::GetAnnotatedPageContentRequest() {
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  auto* page_content_extraction_service =
-      PageContentExtractionServiceFactory::GetForProfile(profile);
-  bool should_enable =
-      page_content_extraction_service &&
-      page_content_extraction_service->ShouldEnablePageContentExtraction();
-
-  if (should_enable) {
-    if (!annotated_page_content_request_) {
-      annotated_page_content_request_ =
-          AnnotatedPageContentRequest::Create(web_contents());
-    }
-  } else {
-    annotated_page_content_request_.reset();
-  }
-  return annotated_page_content_request_.get();
+  annotated_page_content_request_ =
+      AnnotatedPageContentRequest::MaybeCreate(web_contents);
 }
 
 PageContentAnnotationsWebContentsObserver::
@@ -107,29 +86,29 @@ void PageContentAnnotationsWebContentsObserver::
 }
 
 void PageContentAnnotationsWebContentsObserver::DidStopLoading() {
-  if (auto* annotated_page_content_request = GetAnnotatedPageContentRequest()) {
-    annotated_page_content_request->DidStopLoading();
+  if (annotated_page_content_request_) {
+    annotated_page_content_request_->DidStopLoading();
   }
 }
 
 void PageContentAnnotationsWebContentsObserver::PrimaryPageChanged(
     content::Page& page) {
-  if (auto* annotated_page_content_request = GetAnnotatedPageContentRequest()) {
-    annotated_page_content_request->PrimaryPageChanged();
+  if (annotated_page_content_request_) {
+    annotated_page_content_request_->PrimaryPageChanged();
   }
 }
 
 void PageContentAnnotationsWebContentsObserver::
     OnFirstContentfulPaintInPrimaryMainFrame() {
-  if (auto* annotated_page_content_request = GetAnnotatedPageContentRequest()) {
-    annotated_page_content_request->OnFirstContentfulPaintInPrimaryMainFrame();
+  if (annotated_page_content_request_) {
+    annotated_page_content_request_->OnFirstContentfulPaintInPrimaryMainFrame();
   }
 }
 
 void PageContentAnnotationsWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (auto* annotated_page_content_request = GetAnnotatedPageContentRequest()) {
-    annotated_page_content_request->DidFinishNavigation(navigation_handle);
+  if (annotated_page_content_request_) {
+    annotated_page_content_request_->DidFinishNavigation(navigation_handle);
   }
 }
 

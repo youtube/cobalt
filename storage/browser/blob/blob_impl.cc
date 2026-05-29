@@ -12,7 +12,6 @@
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/memory/safety_checks.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -136,11 +135,6 @@ void BlobImpl::Load(
     const std::string& method,
     const net::HttpRequestHeaders& headers,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client) {
-  // This function is known to be heap allocation heavy and performance
-  // critical. Extra memory safety checks can introduce regression
-  // (https://crbug.com/414710225) and these are disabled here.
-  base::ScopedSafetyChecksExclusion scoped_unsafe;
-
   BlobURLLoader::CreateAndStart(std::move(loader), method, headers,
                                 std::move(client),
                                 std::make_unique<BlobDataHandle>(*handle_));

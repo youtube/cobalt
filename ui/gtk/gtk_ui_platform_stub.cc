@@ -15,10 +15,6 @@ GtkUiPlatformStub::~GtkUiPlatformStub() = default;
 
 void GtkUiPlatformStub::OnInitialized() {}
 
-GdkWindow* GtkUiPlatformStub::GetGdkWindow(gfx::AcceleratedWidget window_id) {
-  return nullptr;
-}
-
 bool GtkUiPlatformStub::SetGtkWidgetTransientFor(
     GtkWidget* widget,
     gfx::AcceleratedWidget parent) {

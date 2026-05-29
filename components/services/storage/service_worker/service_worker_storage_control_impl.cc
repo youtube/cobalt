@@ -86,30 +86,22 @@ class ServiceWorkerLiveVersionRefImpl
 mojo::SelfOwnedReceiverRef<mojom::ServiceWorkerStorageControl>
 ServiceWorkerStorageControlImpl::Create(
     mojo::PendingReceiver<mojom::ServiceWorkerStorageControl> receiver,
-    const base::FilePath& user_data_directory,
-    scoped_refptr<storage::ServiceWorkerStorage::StorageSharedBuffer>
-        storage_shared_buffer) {
+    const base::FilePath& user_data_directory) {
   return mojo::MakeSelfOwnedReceiver(
-      base::WrapUnique(new ServiceWorkerStorageControlImpl(
-          user_data_directory, std::move(storage_shared_buffer))),
+      base::WrapUnique(
+          new ServiceWorkerStorageControlImpl(user_data_directory)),
       std::move(receiver));
 }
 
 ServiceWorkerStorageControlImpl::ServiceWorkerStorageControlImpl(
-    const base::FilePath& user_data_directory,
-    scoped_refptr<storage::ServiceWorkerStorage::StorageSharedBuffer>
-        storage_shared_buffer)
-    : storage_(ServiceWorkerStorage::Create(user_data_directory,
-                                            std::move(storage_shared_buffer))),
+    const base::FilePath& user_data_directory)
+    : storage_(ServiceWorkerStorage::Create(user_data_directory)),
       receiver_(this) {}
 
-ServiceWorkerStorageControlImpl::ServiceWorkerStorageControlImpl(  // IN-TEST
+ServiceWorkerStorageControlImpl::ServiceWorkerStorageControlImpl(
     const base::FilePath& user_data_directory,
-    scoped_refptr<storage::ServiceWorkerStorage::StorageSharedBuffer>
-        storage_shared_buffer,
     mojo::PendingReceiver<mojom::ServiceWorkerStorageControl> receiver)
-    : storage_(ServiceWorkerStorage::Create(user_data_directory,
-                                            std::move(storage_shared_buffer))),
+    : storage_(ServiceWorkerStorage::Create(user_data_directory)),
       receiver_(this, std::move(receiver)) {}
 
 ServiceWorkerStorageControlImpl::~ServiceWorkerStorageControlImpl() = default;

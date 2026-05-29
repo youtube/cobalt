@@ -2,14 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Binary declarations
-
-Binaries can be referenced by tests and define the label of the compile target
-to be built as well as various aspects that the infrastructure needs to know in
-order to run the binary.
-"""
-
-load("@chromium-luci//targets.star", "targets")
+load("//lib/targets.star", "targets")
 
 targets.binaries.console_test_launcher(
     name = "absl_hardening_tests",

@@ -49,7 +49,6 @@ public class TilesLinearLayout extends LinearLayout {
         int childCount = getChildCount();
         for (int i = 1; i < childCount; i++) {
             updateViewStartMargin(getChildAt(i), margin);
-            updateViewEndMargin(getChildAt(i - 1), 0);
         }
     }
 

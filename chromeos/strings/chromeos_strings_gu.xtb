@@ -206,7 +206,6 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
-<translation id="1762353673362288306">હવે તમે ફક્ત ક્લાસ ટૂલનો ઉપયોગ કરી શકશો</translation>
 <translation id="1762483337755424125">ટ્રાન્સક્રિપ્ટ</translation>
 <translation id="1765169783255151332">ઝડપથી કી સ્વિચ કરો</translation>
 <translation id="1768959921651994223">પ્રમાણીકરણનો પ્રકાર</translation>
@@ -477,7 +476,6 @@
 <translation id="3091839911843451378">નિષ્ફળ થયું - પ્રિન્ટર બંધ થઈ ગયું છે</translation>
 <translation id="3102119246920354026">કેશ</translation>
 <translation id="3103783611481501187">અતિવાસ્તવિક</translation>
-<translation id="3119672627216736407">અનુવાદ ઉપલબ્ધ</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">પૂલ</translation>
 <translation id="3122883569442693641">વધુ વિગતો</translation>
@@ -1138,7 +1136,6 @@
 <translation id="6058625436358447366">સમાપ્ત કરવા માટે, તમારા જૂના અને નવા પાસવર્ડ દાખલ કરો</translation>
 <translation id="6061772781719867950">HTTPSની નિષ્ફળ વિનંતીઓ</translation>
 <translation id="6073292342939316679">કીબોર્ડનું બ્રાઇટનેસ ઘટાડવાની કી</translation>
-<translation id="6074608334942655098">અનુવાદ કરવાનું રોકો</translation>
 <translation id="6074752328838739425">સારાંશ છુપાવો</translation>
 <translation id="6075872808778243331">(Android) HTTPની વિલંબતા</translation>
 <translation id="6078323886959318429">શોર્ટકટ ઉમેરો</translation>
@@ -1616,7 +1613,6 @@
 <translation id="8088963492174775412">રેકોર્ડ કરવા માટે દબાવો</translation>
 <translation id="8094062939584182041">Googleને આ સમસ્યા વિશે તમને ઇમેઇલ કરવાની મંજૂરી આપો</translation>
 <translation id="8104083085214006426">તમે ઓપન અને અસુરક્ષિત નેટવર્કનો ઉપયોગ કરી રહ્યાં છો</translation>
-<translation id="8108879170356113798">તમે <ph name="NUM_SECONDS" /> સેકન્ડમાં ફક્ત ક્લાસ ટૂલનો ઉપયોગ કરી શકશો</translation>
 <translation id="811820734797650957">(Android) ગેટવેને પિંગ કરી શકાય છે</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">પુષ્ટિ કરો</translation>

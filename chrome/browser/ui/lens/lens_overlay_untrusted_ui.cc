@@ -252,18 +252,15 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "enableRegionSelectedGlow",
       lens::features::GetVisualSelectionUpdatesEnableRegionSelectedGlow());
+  html_source->AddBoolean(
+      "enableCsbMotionTweaks",
+      lens::features::GetVisualSelectionUpdatesEnableCsbMotionTweaks());
   html_source->AddBoolean("autoFocusSearchbox",
                           lens::features::ShouldAutoFocusSearchbox());
   html_source->AddBoolean("cornerSlidersEnabled",
                           lens::features::AreLensOverlayCornerSlidersEnabled());
   html_source->AddInteger("sliderChangedTimeout",
                           lens::features::GetLensOverlaySliderChangedTimeout());
-  html_source->AddBoolean(
-      "enableCloseButtonTweaks",
-      lens::features::GetVisualSelectionUpdatesEnableCloseButtonTweaks());
-  html_source->AddBoolean(
-      "enableSummarizeSuggestionHint",
-      lens::features::ShouldEnableSummarizeHintForContextualSuggest());
 
   LensOverlayController& controller = GetLensOverlayController();
   html_source->AddDouble("invocationTime",
@@ -304,22 +301,13 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
       lens::features::GetVisualSelectionUpdatesEnableGradientSuperG()
           ? "//resources/cr_components/searchbox/icons/google_g_gradient.svg"
           : "//resources/cr_components/searchbox/icons/google_g_cr23.svg");
-  html_source->AddBoolean(
-      "enableCsbMotionTweaks",
-      lens::features::GetVisualSelectionUpdatesEnableCsbMotionTweaks());
   html_source->AddBoolean("reportMetrics", false);
   html_source->AddLocalizedString("searchBoxHintDefault",
                                   IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_CONTEXTUAL);
   html_source->AddLocalizedString(
       "searchBoxHintPdf", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_CONTEXTUAL_PDF);
   html_source->AddBoolean("isLensSearchbox", true);
-  html_source->AddBoolean(
-      "forceHideEllipsis",
-      lens::features::GetVisualSelectionUpdatesHideCsbEllipsis());
   html_source->AddBoolean("queryAutocompleteOnEmptyInput", true);
-  html_source->AddBoolean(
-    "enableThumbnailSizingTweaks",
-    lens::features::GetVisualSelectionUpdatesEnableThumbnailSizingTweaks());
 
   // Determine if the cursor tooltip should appear.
   Profile* profile = Profile::FromWebUI(web_ui);

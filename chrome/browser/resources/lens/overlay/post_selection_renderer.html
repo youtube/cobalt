@@ -63,7 +63,6 @@
   }
 
   :host([region-selected-glow-enabled]) #postSelection:before {
-    animation: postSelectionGlowFadeIn 120ms cubic-bezier(0, 0, 0, 1) forwards;
     background: conic-gradient(
       from 90deg at center,
       var(--gradient-blue) 0deg,
@@ -77,24 +76,14 @@
      * because it's only being calculated once */
     filter: blur(var(--region-selected-glow-blur-radius, 0px));
     inset: 0;
-    /* Set opacity to 0 to prevent the glow from being visible until the
-     * animation starts. */
-    opacity: 0;
+    opacity: 1;
     position: absolute;
+    transition: opacity 166ms cubic-bezier(0.3, 0, 1, 1);
     /* Necessary to position above the region selection scrim. */
     z-index: 1;
   }
 
-  @keyframes postSelectionGlowFadeIn {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
-  }
-
-  :host([should-darken-scrim]:not([region-selected-glow-enabled])) #postSelection {
+  :host([should-darken-scrim]) #postSelection {
     opacity: 20%;
   }
 

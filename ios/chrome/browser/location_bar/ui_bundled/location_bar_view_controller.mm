@@ -14,7 +14,6 @@
 #import "components/feature_engagement/public/tracker.h"
 #import "components/lens/lens_overlay_metrics.h"
 #import "components/omnibox/browser/omnibox_field_trial.h"
-#import "components/omnibox/common/omnibox_features.h"
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
@@ -23,7 +22,6 @@
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_entrypoint_view.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
-#import "ios/chrome/browser/lens_overlay/model/lens_overlay_presentation_type.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_overlay_entrypoint_view.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/badges_container_view.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/fakebox_buttons_snapshot_provider.h"
@@ -50,7 +48,6 @@
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_type.h"
-#import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -119,9 +116,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 // Whether the default search engine supports Lensing images. This controls the
 // edit menu option to do an image search.
 @property(nonatomic, assign) BOOL lensImageEnabled;
-
-// Search provider name (used for placeholder text).
-@property(nonatomic, copy) NSString* searchProviderName;
 
 // Type of the current placeholder view.
 @property(nonatomic, assign) LocationBarPlaceholderType placeholderType;
@@ -306,9 +300,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
         @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]);
     [self registerForTraitChanges:traits
                        withAction:@selector(updateTrailingButtonState)];
-
-    [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
-                       withAction:@selector(sizeClassDidChange)];
   }
 }
 
@@ -370,16 +361,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   [self.dispatcher cancelOmniboxEdit];
 }
 
-- (void)setSearchProviderName:(NSString*)searchProviderName {
-  if (_searchProviderName == searchProviderName) {
-    return;
-  }
-  _searchProviderName = searchProviderName;
-  if (_isNTP) {
-    [self updatePlaceholder];
-  }
-}
-
 #pragma mark - LocationBarSteadyViewConsumer
 
 - (void)updateLocationText:(NSString*)string clipTail:(BOOL)clipTail {
@@ -400,7 +381,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 - (void)updateForNTP:(BOOL)isNTP {
   _isNTP = isNTP;
   if (isNTP) {
-    [self updatePlaceholder];
+    // Display a fake "placeholder".
+    NSString* placeholderString =
+        l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
+    [self.locationBarSteadyView
+        setLocationLabelPlaceholderText:placeholderString];
   }
   [self.locationBarSteadyView setCentered:(!isNTP || self.incognito)];
   self.hideShareButtonWhileOnIncognitoNTP = isNTP;
@@ -770,23 +755,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
                       children:@[ lensOverlayAction, viewfinderAction ]];
 }
 
-// Updates placeholder in the steady view.
-- (void)updatePlaceholder {
-  NSString* placeholderString = self.searchOrTypeURLPlaceholderText;
-  [self.locationBarSteadyView
-      setLocationLabelPlaceholderText:placeholderString];
-}
-
-// Computes correct placeholder text.
-- (NSString*)searchOrTypeURLPlaceholderText {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
-    return l10n_util::GetNSStringF(IDS_OMNIBOX_EMPTY_HINT_WITH_DSE_NAME,
-                                   self.searchProviderName.cr_UTF16String);
-  } else {
-    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
-  }
-}
-
 #pragma mark - UIContextMenuInteractionDelegate
 
 - (UIMenu*)contextMenuUIMenu:(NSArray<UIMenuElement*>*)suggestedActions {
@@ -1102,27 +1070,13 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   }
 }
 
-- (void)sizeClassDidChange {
-  [self updateLensVisibilityIndicationIfNeeded];
-}
-
 - (void)setLensOverlayVisible:(BOOL)lensOverlayVisible {
   if (lensOverlayVisible == _lensOverlayVisible) {
     return;
   }
 
   _lensOverlayVisible = lensOverlayVisible;
-  [self updateLensVisibilityIndicationIfNeeded];
-}
-
-- (void)updateLensVisibilityIndicationIfNeeded {
-  // Only indicate Lens Overlay in use when the presentation does not cover the
-  // location bar.
-  BOOL shouldIndicateLensInUse =
-      lens::ContainerPresentationFor(self) !=
-      lens::ContainerPresentationType::kFullscreenCover;
-  [_lensOverlayPlaceholderView
-      setLensOverlayActive:shouldIndicateLensInUse && _lensOverlayVisible];
+  [_lensOverlayPlaceholderView setLensOverlayActive:lensOverlayVisible];
 }
 
 @end

@@ -97,12 +97,12 @@ Patientez quelques minutes avant de vous déconnecter. Si vous vous déconnectez
 <translation id="314782365035065913">Accédez plus rapidement à Chrome depuis le dock de l'écran d'accueil</translation>
 <translation id="3167189358072330585">Votre compte n'est pas compatible avec Google Chrome. Veuillez contacter l'administrateur de votre domaine ou utiliser un compte Google standard pour vous connecter.</translation>
 <translation id="322254490661677575">Pour utiliser et enregistrer des données Chrome dans votre compte Google, saisissez votre phrase secrète.</translation>
-<translation id="3282568296779691940">Se connecter à Chrome</translation>
+<translation id="3282568296779691940">Connectez-vous à Chrome</translation>
 <translation id="3303503998967553377">Utiliser Actions Chrome sur iOS</translation>
 <translation id="3348862487678490430">Ajouter un élément de liste de lecture à Chrome</translation>
 <translation id="3357827134511189025">Connectez-vous avec vos mots de passe et clés d'accès enregistrés depuis n'importe quelle appli avec Chrome pour la saisie automatique</translation>
 <translation id="3360031466389132716">{THRESHOLD,plural, =1{Cela se produit quand Chrome est inutilisé pendant {THRESHOLD} minute}one{Cela se produit quand Chrome est inutilisé pendant {THRESHOLD} minute}other{Cela se produit quand Chrome est inutilisé pendant {THRESHOLD} minutes}}</translation>
-<translation id="3367797402528056312">Finir de configurer Chrome</translation>
+<translation id="3367797402528056312">Terminer la configuration de Chrome</translation>
 <translation id="3371064404604898522">Définir Chrome comme navigateur par défaut</translation>
 <translation id="3399930248910934354">Accéder aux paramètres de Chrome</translation>
 <translation id="3440830787838130530">Partagez facilement et de manière sécurisée une copie d'un mot de passe avec votre groupe familial dans le Gestionnaire de mots de passe de Google</translation>
@@ -230,7 +230,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 
 Pour voir d'autres paramètres qui utilisent les données pour améliorer votre expérience Chrome, accédez aux <ph name="BEGIN_LINK" />services Google<ph name="END_LINK" />.</translation>
 <translation id="6922332667202044570">Supprimez les données de navigation dans Chrome.</translation>
-<translation id="6924922227983877439">Ouvrir les liens dans Chrome par défaut</translation>
+<translation id="6924922227983877439">Ouvrez les liens dans Chrome par défaut</translation>
 <translation id="6975725306479268850">Choisissez Chrome pour la saisie automatique</translation>
 <translation id="7056826488869329999">Lance le contrôle de sécurité dans Chrome.</translation>
 <translation id="7061455974939528301">Appuyez de manière prolongée sur l'icône Chrome, puis cliquez sur "Modifier l'écran d'accueil"</translation>
@@ -253,7 +253,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="7299681342915173313">Vous pouvez désormais utiliser Chrome chaque fois que vous appuyez sur des liens dans des e-mails, des documents et d'autres applis.</translation>
 <translation id="7344094882820374540">Profitez de la protection renforcée de Chrome contre les sites dangereux</translation>
 <translation id="7349129508108954623">Autorisez Chrome à utiliser Google Maps pour vous fournir des itinéraires et des informations locales sur les adresses détectées.</translation>
-<translation id="7371674917547846460">Découvrez des conseils utiles sur Chrome et plus.</translation>
+<translation id="7371674917547846460">Découvrez des conseils utiles sur Chrome et plus encore.</translation>
 <translation id="7394108421562933108">Maps dans Chrome</translation>
 <translation id="7400722733683201933">À propos de Google Chrome</translation>
 <translation id="7466693328838535498">Dans le champ "Rechercher des widgets", saisissez "Chrome"</translation>
@@ -292,7 +292,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="8069507567842347179">Ce colis a déjà fait l'objet d'un suivi dans Chrome.</translation>
 <translation id="8136856065410661948">Cela permettra de créer des événements dans votre calendrier Apple à partir de Chrome et de Google Lens.</translation>
 <translation id="8154120522323162874">Profitez pleinement de Chrome en continuant à configurer votre navigateur.</translation>
-<translation id="8160472928944011082">Impossible de mettre à jour Chrome</translation>
+<translation id="8160472928944011082">Impossible mettre à jour Chrome</translation>
 <translation id="8245080522851805544">Protégez la confidentialité de votre navigation avec l'authentification de l'appareil lorsque vous fermez Chrome</translation>
 <translation id="8248887045858762645">Astuce Chrome</translation>
 <translation id="8265730590513812063">Ouvrir le menu Chrome</translation>

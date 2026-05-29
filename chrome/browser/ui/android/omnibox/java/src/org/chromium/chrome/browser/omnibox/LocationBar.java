@@ -119,11 +119,6 @@ public interface LocationBar {
      */
     default void setHideStatusIconForSecureOrigins(boolean hideStatusIconForSecureOrigins) {}
 
-    /** Gets the height of the url bar view contained by the location bar. */
-    default float getUrlBarHeight() {
-        return 0;
-    }
-
     /** Destroys the LocationBar. */
     void destroy();
 }

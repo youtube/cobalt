@@ -50,7 +50,7 @@ class FromGWSNavigationAndKeepAliveRequestObserver
       const network::ResourceRequest& resource_request,
       content::RenderFrameHost* initiator_rfh) override;
 
- protected:
+ private:
   explicit FromGWSNavigationAndKeepAliveRequestObserver(
       content::WebContents* web_contents);
 };

@@ -164,12 +164,6 @@ GtkCssContext AppendCssNodeToStyleContextImpl(
   }
 }
 
-GtkWidget* CreateDummyWindow() {
-  GtkWidget* window = GtkToplevelWindowNew();
-  gtk_widget_realize(window);
-  return window;
-}
-
 double GetOpacityFromRenderNode(GskRenderNode* node) {
   DCHECK(GtkCheckVersion(4));
   if (!node) {
@@ -651,11 +645,6 @@ void GtkWindowDestroy(GtkWidget* widget) {
   } else {
     gtk_widget_destroy(widget);
   }
-}
-
-GtkWidget* GetDummyWindow() {
-  static GtkWidget* window = CreateDummyWindow();
-  return window;
 }
 
 gfx::Size GetSeparatorSize(bool horizontal) {

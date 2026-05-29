@@ -10,7 +10,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-arm-generic-rel",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "builder_group": "chromium.chromiumos",
@@ -42,7 +42,7 @@
         {
           "bucket": "ci",
           "builder": "chromeos-arm-generic-rel",
-          "project": "chromium-m138"
+          "project": "chromium"
         }
       ],
       "mirroring_builder_group_and_names": [
@@ -52,8 +52,7 @@
         }
       ],
       "retry_failed_shards": true,
-      "targets_spec_directory": "infra/config/generated/builders/ci/chromeos-arm-generic-rel/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "src/infra/config/generated/builders/ci/chromeos-arm-generic-rel/targets"
     }
   },
   "$build/siso": {
@@ -76,5 +75,11 @@
     ]
   },
   "builder_group": "chromium.chromiumos",
-  "recipe": "chromium"
+  "gardener_rotations": [
+    "chromium"
+  ],
+  "recipe": "chromium",
+  "sheriff_rotations": [
+    "chromium"
+  ]
 }

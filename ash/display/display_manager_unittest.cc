@@ -5218,10 +5218,7 @@ TEST_F(DisplayManagerTest, SoftwareMirrorRotationForNonTablet) {
           display::Screen::GetScreen()->GetPrimaryDisplay().bounds()));
   transformed_rect2 =
       host_list[0]->window()->transform().MapRect(transformed_rect2);
-  // Use gfx::ToEnclosingRect because `transformed_rect2` has rounding errors.
-  // External display shouldn't be rotated.
-  EXPECT_EQ(gfx::Rect(137.0f, 0.0f, 525.0f, 700.0f),
-            gfx::ToEnclosingRect(transformed_rect2));
+  EXPECT_EQ(gfx::RectF(50.0f, 0.0f, 600.0f, 800.0f), transformed_rect2);
 
   // Change the bounds of the source display and rotate the source display by 90
   // degrees.
@@ -5241,8 +5238,7 @@ TEST_F(DisplayManagerTest, SoftwareMirrorRotationForNonTablet) {
   transformed_rect3 =
       host_list[0]->window()->transform().MapRect(transformed_rect3);
   // Use gfx::ToEnclosingRect because `transformed_rect3` has rounding errors.
-  // External display shouldn't be rotated.
-  EXPECT_EQ(gfx::Rect(0.0f, 50.0f, 800.0f, 600.0f),
+  EXPECT_EQ(gfx::Rect(0.0f, 137.0f, 700.0f, 525.0f),
             gfx::ToEnclosingRect(transformed_rect3));
 }
 
@@ -5643,44 +5639,6 @@ TEST_F(DisplayManagerTest, UnifiedDesktopWithZeroAndOneDisplay) {
   EXPECT_EQ(1u, list.size());
   EXPECT_FALSE(display_manager()->current_unified_desktop_matrix().empty());
   EXPECT_EQ(2u, display_manager()->current_unified_desktop_matrix()[0].size());
-}
-
-// Test that GetNumExternalDisplays returns the right value.
-TEST_F(DisplayManagerTest, ExternalDisplayCount) {
-  const int64_t internal_display_id =
-      display::test::DisplayManagerTestApi(display_manager())
-          .SetFirstDisplayAsInternalDisplay();
-  const auto internal_info =
-      display_manager()->GetDisplayInfo(internal_display_id);
-  constexpr int64_t first_external_id = 210000010;
-  constexpr int64_t second_external_id = 220000010;
-
-  const auto external_info_1 =
-      display::ManagedDisplayInfo::CreateFromSpecWithID("400x300",
-                                                        first_external_id);
-
-  const auto external_info_2 =
-      display::ManagedDisplayInfo::CreateFromSpecWithID("800x600",
-                                                        second_external_id);
-
-  // Test when there is only internal display.
-  EXPECT_EQ(0u, display_manager()->GetNumExternalDisplays());
-
-  // Test when there is 1 internal and 1 external.
-  display_manager()->OnNativeDisplaysChanged(
-      vector<display::ManagedDisplayInfo>{internal_info, external_info_1});
-  EXPECT_EQ(1u, display_manager()->GetNumExternalDisplays());
-
-  // Test when all 3 displays are connected.
-  display_manager()->OnNativeDisplaysChanged(
-      vector<display::ManagedDisplayInfo>{internal_info, external_info_1,
-                                          external_info_2});
-  EXPECT_EQ(2u, display_manager()->GetNumExternalDisplays());
-
-  // Test when display is in docked mode with 2 external displays
-  display_manager()->OnNativeDisplaysChanged(
-      vector<display::ManagedDisplayInfo>{external_info_1, external_info_2});
-  EXPECT_EQ(2u, display_manager()->GetNumExternalDisplays());
 }
 
 }  // namespace ash

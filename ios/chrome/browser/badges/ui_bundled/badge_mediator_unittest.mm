@@ -56,8 +56,6 @@ enum class TestParam {
 @end
 
 @implementation FakeBadgeConsumer
-@synthesize forceDisabled = _forceDisabled;
-
 - (void)setupWithDisplayedBadge:(id<BadgeItem>)displayedBadgeItem
                 fullScreenBadge:(id<BadgeItem>)fullscreenBadgeItem {
   self.hasFullscreenOffTheRecordBadge =

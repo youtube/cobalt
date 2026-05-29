@@ -548,8 +548,6 @@ gfx::Range TabStripModel::InsertDetachedTabGroupAt(
     static_cast<tabs::TabModel*>(tab)->OnAddedToModel(this);
   }
 
-  index = ConstrainInsertionIndex(index, false);
-
   return InsertDetachedCollectionImpl(
       group_collection, group->active_index_,
       base::BindOnce(&TabStripModel::InsertDetachedTabGroupImpl,

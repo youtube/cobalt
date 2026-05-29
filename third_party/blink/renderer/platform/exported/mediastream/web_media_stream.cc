@@ -52,14 +52,12 @@ int WebMediaStream::UniqueId() const {
   return private_->UniqueId();
 }
 
-void WebMediaStream::AddObserver(
-    base::WeakPtr<WebMediaStreamObserver> observer) {
+void WebMediaStream::AddObserver(WebMediaStreamObserver* observer) {
   DCHECK(!IsNull());
   private_->AddObserver(observer);
 }
 
-void WebMediaStream::RemoveObserver(
-    base::WeakPtr<WebMediaStreamObserver> observer) {
+void WebMediaStream::RemoveObserver(WebMediaStreamObserver* observer) {
   DCHECK(!IsNull());
   private_->RemoveObserver(observer);
 }

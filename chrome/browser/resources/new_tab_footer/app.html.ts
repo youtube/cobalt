@@ -13,33 +13,23 @@ export function getHtml(this: NewTabFooterAppElement) {
 Container for housing the items in the center of the footer that are
 separated from each other by a divider.
 -->
-<div id="container" @contextmenu="${this.onContextMenu_}">
-  <div id="infoContainer">
-    ${this.managementNotice_ ? html`
-      <div id="managementNoticeContainer" class="notice-item">
+<div id="centerContainer">
+  ${this.managementNotice_ ?
+      html`<div id="managementNoticeContainer">
         <img id="managementNoticeLogo" alt=""
             src="${this.managementNotice_.bitmapDataUrl.url}">
         <p title="${this.managementNotice_.text}">
           ${this.managementNotice_.text}
         </p>
       </div>` : ''}
-    ${this.extensionName_ ? html`
-      <div id="extensionNameContainer" title="${this.extensionName_}"
-          class="notice-item">
+  ${this.extensionName_ ?
+      html`<div id="extensionName" title="${this.extensionName_}">
         <button @click="${this.onExtensionNameClick_}" role="link"
-            aria-label="${this.extensionName_}"
-            aria-description="$i18n{manageExtension}">
-          ${this.extensionName_}
+            aria-roledescription="$i18n{currentTabLinkRoleDesc}"
+            aria-label="$i18n{currentTabLinkLabel}">
+            ${this.extensionName_}
         </button>
       </div>` : ''}
-  </div>
-  <ntp-customize-buttons id="customizeButtons"
-      ?info-shown-to-user="${this.managementNotice_ || this.extensionName_}"
-      ?show-customize="${this.showCustomize_}"
-      ?show-customize-chrome-text="${this.showCustomizeChromeText_}"
-      @customize-click="${this.onCustomizeClick_}">
-  </ntp-customize-buttons>
 </div>
 <!--_html_template_end_-->`;
-  // clang-format off
 }

@@ -99,7 +99,6 @@ source_set("common_export") {
 }
 
 source_set("preloading_headers") {
-  deps = [ ":common_export" ]
   sources = [ "navigation/preloading_headers.h" ]
 }
 

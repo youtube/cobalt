@@ -206,7 +206,6 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
-<translation id="1762353673362288306">Ara només pots utilitzar Eines de classe</translation>
 <translation id="1762483337755424125">Transcripció</translation>
 <translation id="1765169783255151332">Canvia de tecles ràpidament</translation>
 <translation id="1768959921651994223">Tipus d'autenticació</translation>
@@ -334,7 +333,7 @@
 <translation id="2276999893457278469">Contingut d'ajuda principal</translation>
 <translation id="2277631741861284101">Grava i comparteix fàcilment el teu àudio</translation>
 <translation id="2279051792571591988">Restaura els valors predeterminats</translation>
-<translation id="2286454467119466181">Senzill</translation>
+<translation id="2286454467119466181">Simple</translation>
 <translation id="2287186687001756809">No hi ha cap imatge disponible. Per afegir fotos, ves a <ph name="LINK" />.</translation>
 <translation id="2294577623958216786">La programació actual està establerta en <ph name="SUNRISE" />-<ph name="SUNSET" />. Per actualitzar automàticament l'horari de la posta i de la sortida del sol, activa l'accés a la ubicació del sistema.</translation>
 <translation id="2305172810646967500">negre</translation>
@@ -477,7 +476,6 @@
 <translation id="3091839911843451378">Error: s'ha aturat</translation>
 <translation id="3102119246920354026">Memòria cau</translation>
 <translation id="3103783611481501187">surrealista</translation>
-<translation id="3119672627216736407">La traducció està disponible</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">piscines</translation>
 <translation id="3122883569442693641">Més detalls</translation>
@@ -1138,7 +1136,6 @@
 <translation id="6058625436358447366">Per acabar, introdueix la contrasenya antiga i la nova</translation>
 <translation id="6061772781719867950">Algunes sol·licituds HTTPS han fallat</translation>
 <translation id="6073292342939316679">disminueix la brillantor del teclat</translation>
-<translation id="6074608334942655098">Deixa de traduir</translation>
 <translation id="6074752328838739425">Amaga el resum</translation>
 <translation id="6075872808778243331">(Android) Latència d'HTTP</translation>
 <translation id="6078323886959318429">Afegeix una drecera</translation>
@@ -1406,7 +1403,7 @@
 <translation id="7177485034254901881">Aquest dispositiu <ph name="DEVICE_TYPE" /> està gestionat per <ph name="MANAGER" />. És possible que els administradors el configurin de manera remota.</translation>
 <translation id="7180611975245234373">Actualitza</translation>
 <translation id="7180865173735832675">Personalitza</translation>
-<translation id="7182063559013288142">Punt d'accés instantani</translation>
+<translation id="7182063559013288142">Punt d'accés Wi‑Fi instantani</translation>
 <translation id="7184043045742675738">Fes clic en qualsevol tecla per personalitzar el teu botó. Canvia la posició de la tecla amb el ratolí o les tecles de fletxa.</translation>
 <translation id="7187669805838282391">dimecres</translation>
 <translation id="7205318498545665455">Tria el micròfon</translation>
@@ -1616,7 +1613,6 @@ Baixa el model de transcripció (fins a 100 MB) per obtenir aquestes transcripci
 <translation id="8088963492174775412">Prem per gravar</translation>
 <translation id="8094062939584182041">Permet que Google t'enviï un correu electrònic sobre aquest problema</translation>
 <translation id="8104083085214006426">Estàs utilitzant una xarxa oberta i no segura</translation>
-<translation id="8108879170356113798">D'aquí a <ph name="NUM_SECONDS" /> segons només podràs utilitzar Eines de classe</translation>
 <translation id="811820734797650957">(Android) Es pot fer ping a la passarel·la</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Confirma</translation>

@@ -465,9 +465,4 @@ void IOSChromePaymentsAutofillClient::ShowSaveCreditCard(
           std::move(ui_info), std::move(save_card_delegate))));
 }
 
-bool IOSChromePaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable()
-    const {
-  return true;
-}
-
 }  // namespace autofill::payments

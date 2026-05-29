@@ -56,12 +56,9 @@ TEST(BookmarkLoadDetailsTest, AddAccountPermanentNodes) {
   ASSERT_EQ(nullptr, details.account_mobile_folder_node());
 
   details.AddAccountPermanentNodes(
-      BookmarkPermanentNode::CreateBookmarkBar(/*id=*/100,
-                                               /*is_account_node=*/true),
-      BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/200,
-                                                  /*is_account_node=*/true),
-      BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/300,
-                                                   /*is_account_node=*/true));
+      BookmarkPermanentNode::CreateBookmarkBar(/*id=*/100),
+      BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/200),
+      BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/300));
 
   EXPECT_NE(nullptr, details.account_bb_node());
   EXPECT_NE(nullptr, details.account_other_folder_node());
@@ -134,12 +131,9 @@ TEST(BookmarkLoadDetailsTest, CreateIndicesWithAccountNodes) {
 
   BookmarkLoadDetails details;
   details.AddAccountPermanentNodes(
-      BookmarkPermanentNode::CreateBookmarkBar(/*id=*/100,
-                                               /*is_account_node=*/true),
-      BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/200,
-                                                  /*is_account_node=*/true),
-      BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/300,
-                                                   /*is_account_node=*/true));
+      BookmarkPermanentNode::CreateBookmarkBar(/*id=*/100),
+      BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/200),
+      BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/300));
 
   ASSERT_NE(nullptr, details.bb_node());
   ASSERT_NE(nullptr, details.other_folder_node());
@@ -225,12 +219,9 @@ TEST(BookmarkLoadDetailsTest, CreateIndicesWithAccountNodes) {
 TEST(BookmarkLoadDetailsTest, ComputeUserFolderStats) {
   BookmarkLoadDetails details;
   details.AddAccountPermanentNodes(
-      BookmarkPermanentNode::CreateBookmarkBar(/*id=*/100,
-                                               /*is_account_node=*/true),
-      BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/200,
-                                                  /*is_account_node=*/true),
-      BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/300,
-                                                   /*is_account_node=*/true));
+      BookmarkPermanentNode::CreateBookmarkBar(/*id=*/100),
+      BookmarkPermanentNode::CreateOtherBookmarks(/*id=*/200),
+      BookmarkPermanentNode::CreateMobileBookmarks(/*id=*/300));
 
   ASSERT_NE(nullptr, details.bb_node());
   ASSERT_NE(nullptr, details.other_folder_node());

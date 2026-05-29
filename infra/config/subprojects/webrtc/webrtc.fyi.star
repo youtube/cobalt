@@ -2,11 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builders.star", "builder", "cpu", "defaults", "os")
-load("@chromium-luci//gn_args.star", "gn_args")
-load("@chromium-luci//targets.star", "targets")
-load("//lib/siso.star", "siso")
+load("//lib/builder_config.star", "builder_config")
+load("//lib/builders.star", "builder", "cpu", "defaults", "os", "siso")
+load("//lib/gn_args.star", "gn_args")
+load("//lib/targets.star", "targets")
 load("//lib/xcode.star", "xcode")
 
 luci.bucket(
@@ -94,6 +93,7 @@ defaults.set(
     cpu = cpu.X86_64,
     build_numbers = True,
     execution_timeout = 2 * time.hour,
+    reclient_enabled = False,
     service_account = "chromium-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
     siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
@@ -224,7 +224,7 @@ builder(
 
 builder(
     name = "WebRTC Chromium FYI Android Tests (dbg)",
-    parent = "WebRTC Chromium FYI Android Builder (dbg)",
+    triggered_by = ["WebRTC Chromium FYI Android Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -268,7 +268,7 @@ builder(
 
 builder(
     name = "WebRTC Chromium FYI Android Tests ARM64 (dbg)",
-    parent = "WebRTC Chromium FYI Android Builder ARM64 (dbg)",
+    triggered_by = ["WebRTC Chromium FYI Android Builder ARM64 (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -377,7 +377,7 @@ builder(
 
 builder(
     name = "WebRTC Chromium FYI Linux Tester",
-    parent = "WebRTC Chromium FYI Linux Builder",
+    triggered_by = ["WebRTC Chromium FYI Linux Builder"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(config = "chromium_webrtc_tot"),
@@ -473,7 +473,7 @@ builder(
 
 builder(
     name = "WebRTC Chromium FYI Mac Tester",
-    parent = "WebRTC Chromium FYI Mac Builder",
+    triggered_by = ["WebRTC Chromium FYI Mac Builder"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(config = "chromium_webrtc_tot"),
@@ -573,7 +573,7 @@ builder(
 
 builder(
     name = "WebRTC Chromium FYI Win10 Tester",
-    parent = "WebRTC Chromium FYI Win Builder",
+    triggered_by = ["WebRTC Chromium FYI Win Builder"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(config = "chromium_webrtc_tot"),

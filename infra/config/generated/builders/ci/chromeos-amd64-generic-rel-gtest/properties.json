@@ -7,7 +7,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-amd64-generic-rel",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -43,7 +43,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-amd64-generic-rel-gtest",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -74,7 +74,7 @@
               "parent": {
                 "bucket": "ci",
                 "builder": "chromeos-amd64-generic-rel",
-                "project": "chromium-m138"
+                "project": "chromium"
               }
             }
           }
@@ -84,7 +84,7 @@
         {
           "bucket": "ci",
           "builder": "chromeos-amd64-generic-rel-gtest",
-          "project": "chromium-m138"
+          "project": "chromium"
         }
       ],
       "mirroring_builder_group_and_names": [
@@ -98,8 +98,7 @@
         }
       ],
       "retry_failed_shards": true,
-      "targets_spec_directory": "infra/config/generated/builders/ci/chromeos-amd64-generic-rel-gtest/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "src/infra/config/generated/builders/ci/chromeos-amd64-generic-rel-gtest/targets"
     }
   },
   "$recipe_engine/resultdb/test_presentation": {
@@ -110,5 +109,11 @@
     ]
   },
   "builder_group": "chromium.chromiumos",
-  "recipe": "chromium"
+  "gardener_rotations": [
+    "chromium"
+  ],
+  "recipe": "chromium",
+  "sheriff_rotations": [
+    "chromium"
+  ]
 }

@@ -204,33 +204,25 @@ StyleShape::Segment ShapeCommandToShapeSegment(
 
       float angle =
           arc.Angle().ComputeDegrees(state.CssToLengthConversionData());
-      const Length zero_length = Length::Fixed(0);
       LengthSize radius =
-          arc.HasDirectionAgnosticRadius()
-              ? LengthSize(zero_length, zero_length)
-              : StyleBuilderConverter::ConvertRadius(state, arc.Radius());
-      Length direction_agnostic_radius =
-          arc.HasDirectionAgnosticRadius()
-              ? StyleBuilderConverter::ConvertLength(state,
-                                                     arc.Radius().First())
-              : zero_length;
+          StyleBuilderConverter::ConvertRadius(state, arc.Radius());
       bool large = arc.Size() == CSSValueID::kLarge;
       bool sweep = arc.Sweep() == CSSValueID::kCw;
       return command.GetType() == SVGPathSegType::kPathSegArcAbs
-                 ? StyleShape::Segment(
-                       StyleShape::ArcToSegment{{{target_point},
-                                                 angle,
-                                                 radius,
-                                                 direction_agnostic_radius,
-                                                 large,
-                                                 sweep}})
-                 : StyleShape::Segment(
-                       StyleShape::ArcBySegment{{{target_point},
-                                                 angle,
-                                                 radius,
-                                                 direction_agnostic_radius,
-                                                 large,
-                                                 sweep}});
+                 ? StyleShape::Segment(StyleShape::ArcToSegment{
+                       {{target_point},
+                        angle,
+                        radius,
+                        large,
+                        sweep,
+                        arc.HasDirectionAgnosticRadius()}})
+                 : StyleShape::Segment(StyleShape::ArcBySegment{
+                       {{target_point},
+                        angle,
+                        radius,
+                        large,
+                        sweep,
+                        arc.HasDirectionAgnosticRadius()}});
     }
     case SVGPathSegType::kPathSegClosePath:
       return StyleShape::CloseSegment{};
@@ -355,30 +347,21 @@ struct ShapeSegmentToShapeCommandVisitor {
   template <SVGPathSegType T>
   const CSSShapeCommand* Arc(CSSShapeCommand::Type type,
                              const StyleShape::ArcSegment<T>& segment) {
-    const bool treat_as_direction_agnostic_radius =
-        RuntimeEnabledFeatures::CSSShapeFunctionDirectionAgnosticArcEnabled() &&
-        segment.radius.Width().IsZero() && segment.radius.Height().IsZero();
     return MakeGarbageCollected<const cssvalue::CSSShapeArcCommand>(
         type, LengthPointToCSSValue(segment.target_point, zoom),
         *CSSNumericLiteralValue::Create(segment.angle,
                                         CSSPrimitiveValue::UnitType::kDegrees),
         *MakeGarbageCollected<CSSValuePair>(
-            CSSPrimitiveValue::CreateFromLength(
-                treat_as_direction_agnostic_radius
-                    ? segment.direction_agnostic_radius
-                    : segment.radius.Width(),
-                zoom),
-            CSSPrimitiveValue::CreateFromLength(
-                treat_as_direction_agnostic_radius
-                    ? segment.direction_agnostic_radius
-                    : segment.radius.Height(),
-                zoom),
-            treat_as_direction_agnostic_radius
-                ? CSSValuePair::IdenticalValuesPolicy::kDropIdenticalValues
-                : CSSValuePair::IdenticalValuesPolicy::kKeepIdenticalValues),
+            CSSPrimitiveValue::CreateFromLength(segment.radius.Width(), zoom),
+            CSSPrimitiveValue::CreateFromLength(segment.radius.Height(), zoom),
+            RuntimeEnabledFeatures::
+                        CSSShapeFunctionDirectionAgnosticArcEnabled() &&
+                    !segment.has_direction_agnostic_radius
+                ? CSSValuePair::IdenticalValuesPolicy::kKeepIdenticalValues
+                : CSSValuePair::IdenticalValuesPolicy::kDropIdenticalValues),
         segment.large ? CSSValueID::kLarge : CSSValueID::kSmall,
         segment.sweep ? CSSValueID::kCw : CSSValueID::kCcw,
-        treat_as_direction_agnostic_radius);
+        segment.has_direction_agnostic_radius);
   }
 
   float zoom;

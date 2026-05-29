@@ -706,7 +706,7 @@ FT_BEGIN_HEADER
    * defined.
    *
    * [1]
-   * https://learn.microsoft.com/typography/cleartype/truetypecleartype
+   * https://www.microsoft.com/typography/cleartype/truetypecleartype.aspx
    */
 #define TT_CONFIG_OPTION_SUBPIXEL_HINTING
 
@@ -724,7 +724,7 @@ FT_BEGIN_HEADER
    * flags array which can be used to disambiguate, but old fonts will not
    * have them.
    *
-   *   https://learn.microsoft.com/typography/opentype/spec/glyf
+   *   https://www.microsoft.com/typography/otspec/glyf.htm
    *   https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html
    */
 #undef TT_CONFIG_OPTION_COMPONENT_OFFSET_SCALED

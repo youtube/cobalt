@@ -10,7 +10,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-arm-generic-rel",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "builder_group": "chromium.chromiumos",
@@ -42,11 +42,10 @@
         {
           "bucket": "ci",
           "builder": "chromeos-arm-generic-rel",
-          "project": "chromium-m138"
+          "project": "chromium"
         }
       ],
-      "targets_spec_directory": "infra/config/generated/builders/try/chromeos-arm-generic-rel/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "src/infra/config/generated/builders/try/chromeos-arm-generic-rel/targets"
     }
   },
   "$build/siso": {

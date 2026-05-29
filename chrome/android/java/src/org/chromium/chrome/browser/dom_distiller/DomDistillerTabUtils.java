@@ -107,10 +107,7 @@ public class DomDistillerTabUtils {
      */
     public static boolean shouldExcludeMobileFriendly(Tab tab) {
         if (sExcludeMobileFriendlyForTesting != null) return sExcludeMobileFriendlyForTesting;
-        // Including mobile-friendly by default only applies to the CPA, otherwise we fallback to
-        // the accessibility setting.
-        if (DomDistillerFeatures.triggerOnMobileFriendlyPages()
-                && !ReaderModeManager.shouldUseReaderModeMessages(tab)) {
+        if (DomDistillerFeatures.triggerOnMobileFriendlyPages()) {
             return false;
         }
 

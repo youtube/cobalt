@@ -16,7 +16,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="1178581264944972037">Pausar</translation>
 <translation id="1181037720776840403">Remover</translation>
 <translation id="1192844206376121885">Essa ação vai excluir todos os dados e cookies armazenados por <ph name="ORIGIN" />.</translation>
-<translation id="1201402288615127009">Avançar</translation>
+<translation id="1201402288615127009">Próxima</translation>
 <translation id="1240190568154816272">Dicas do Chrome</translation>
 <translation id="1242008676835033345">Incorporado em <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Toque em Apps &gt; Apps padrão.</translation>
@@ -102,7 +102,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="2231160360698766265">Os sites podem abrir conteúdo protegido</translation>
 <translation id="2235344399760031203">Cookies de terceiros foram bloqueados</translation>
 <translation id="2238944249568001759">Pesquisas sugeridas com base na sua última guia</translation>
-<translation id="2241587408274973373">Cards da página Nova guia</translation>
+<translation id="2241587408274973373">Cards da página "Nova guia"</translation>
 <translation id="2241634353105152135">Apenas uma vez</translation>
 <translation id="2253414712144136228">Remover <ph name="NAME_OF_LIST_ITEM" /></translation>
 <translation id="228293613124499805">A maioria dos sites que você visita provavelmente salva dados no seu dispositivo, muitas vezes para melhorar a experiência ao salvar suas preferências ou as informações que você compartilha com o site. Recomendamos manter essa configuração ativada.</translation>
@@ -130,7 +130,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="2570922361219980984">O acesso ao local também está desativado para este dispositivo. Ative-o nas <ph name="BEGIN_LINK" />Configurações do Android<ph name="END_LINK" />.</translation>
 <translation id="257931822824936280">Visualização expandida. Clique para recolher</translation>
 <translation id="2586657967955657006">Área de transferência</translation>
-<translation id="2588271083332682494">Aproveite os grupos de guias</translation>
+<translation id="2588271083332682494">Organize-se com os grupos de guias</translation>
 <translation id="2597457036804169544">Não aplicar o tema escuro para sites</translation>
 <translation id="2606760465469169465">Verificação automática</translation>
 <translation id="2621115761605608342">Permitir JavaScript para um site específico.</translation>
@@ -212,7 +212,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="358794129225322306">Permite que um site faça o download de vários arquivos automaticamente.</translation>
 <translation id="3594780231884063836">Desativar som do vídeo</translation>
 <translation id="3600792891314830896">Silenciar sites com áudio</translation>
-<translation id="3602290021589620013">Prévia</translation>
+<translation id="3602290021589620013">Visualizar</translation>
 <translation id="3611658447322220736">Os sites fechados recentemente podem terminar de enviar e receber dados</translation>
 <translation id="3628308229821498208">Pesquisas sugeridas</translation>
 <translation id="3641456520301071208">Os sites podem solicitar sua localização</translation>
@@ -262,7 +262,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="4149890623864272035">Você quer mesmo excluir todos os dados locais, incluindo cookies, e redefinir todas as permissões deste site?</translation>
 <translation id="4149994727733219643">Versão simplificada das páginas da Web</translation>
 <translation id="4151930093518524179">Zoom padrão</translation>
-<translation id="4165986682804962316">Configurações de sites</translation>
+<translation id="4165986682804962316">Configurações do site</translation>
 <translation id="4169549551965910670">Conectado a um dispositivo USB</translation>
 <translation id="4194328954146351878">Perguntar antes de permitir que sites vejam e mudem informações em dispositivos NFC (recomendado)</translation>
 <translation id="4200726100658658164">Abrir as configurações de localização</translation>
@@ -373,7 +373,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> bloqueado</translation>
 <translation id="560980142378233747">Isso significa que os recursos do site vão funcionar conforme o esperado, mas talvez você tenha menos proteção de navegação. <ph name="BEGIN_LINK" />Enviar feedback<ph name="END_LINK" /></translation>
 <translation id="5617702678271228680">Página inferior de cards da página "Nova guia"</translation>
-<translation id="5632485077360054581">Saiba como</translation>
+<translation id="5632485077360054581">Me ajude a fazer isso</translation>
 <translation id="5649053991847567735">Downloads automáticos</translation>
 <translation id="5668404140385795438">Aplicar zoom mesmo que o site tente impedir</translation>
 <translation id="5668843533782548925">Os sites ficam mais lentos, mas mais seguros</translation>
@@ -385,7 +385,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="571222594670061844">Sites podem mostrar solicitações de login de serviços de identificação</translation>
 <translation id="5723967018671998714">Os cookies de terceiros são bloqueados no modo de navegação anônima</translation>
 <translation id="5740126560802162366">Os sites podem salvar dados no seu dispositivo</translation>
-<translation id="5743425052258407233">Com seu histórico em todos os dispositivos, fica fácil continuar de onde você parou</translation>
+<translation id="5743425052258407233">Tenha seu histórico em todos os dispositivos para continuar facilmente de onde parou</translation>
 <translation id="5750869797196646528">Rastreamento de mãos</translation>
 <translation id="5771720122942595109">Bloqueada: <ph name="PERMISSION_1" /></translation>
 <translation id="5804241973901381774">Permissões</translation>
@@ -407,7 +407,7 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="5922967540311291836">Bloquear cookies de terceiros:</translation>
 <translation id="5923512600150154850">Essa ação vai excluir <ph name="DATASIZE" /> de dados e cookies armazenados por sites.</translation>
 <translation id="5939518447894949180">Redefinir</translation>
-<translation id="5948139900367969951">Acesse o que importa com facilidade</translation>
+<translation id="5948139900367969951">Tenha acesso rápido ao que mais importa para você</translation>
 <translation id="5964247741333118902">Conteúdo incorporado</translation>
 <translation id="5968921426641056619">Digite o endereço da Web</translation>
 <translation id="5975083100439434680">Diminuir zoom</translation>
@@ -458,7 +458,6 @@ A Proteção avançada controla estas configurações do Chrome:
 <translation id="6612358246767739896">Conteúdo protegido</translation>
 <translation id="662080504995468778">Ficar</translation>
 <translation id="6635327442719709864">Quando ativada, os sites podem pedir para usar portas seriais. Quando desativada, os sites não podem usar portas seriais.</translation>
-<translation id="6678072580827808850">Analisar Confirmação de segurança</translation>
 <translation id="6683865262523156564">Este site está em um grupo que pode ver sua atividade. O grupo é definido por <ph name="RWS_OWNER" />.</translation>
 <translation id="6689172468748959065">Fotos do perfil</translation>
 <translation id="6697925417670533197">Downloads ativos</translation>

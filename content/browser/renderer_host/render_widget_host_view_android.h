@@ -424,7 +424,6 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   gpu::SurfaceHandle GetRootSurfaceHandle() override;
   void SendStateOnTouchTransfer(const ui::MotionEvent& event,
                                 bool browser_would_have_handled) override;
-  bool IsMojoRIRDelegateConnectionSetup() override;
 
   // Methods called from Java
   bool IsReady(JNIEnv* env, const base::android::JavaParamRef<jobject>& obj);

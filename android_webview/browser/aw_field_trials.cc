@@ -14,7 +14,6 @@
 #include "base/path_service.h"
 #include "components/history/core/browser/features.h"
 #include "components/metrics/persistent_histograms.h"
-#include "components/payments/content/android/payment_feature_map.h"
 #include "components/permissions/features.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/translate/core/common/translate_util.h"
@@ -149,8 +148,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(::features::kVulkan);
 
   aw_feature_overrides.DisableFeature(::features::kServiceWorkerPaymentApps);
-  aw_feature_overrides.EnableFeature(
-      ::payments::android::kAndroidPaymentIntentsOmitDeprecatedParameters);
 
   // WebView does not support overlay fullscreen yet for video overlays.
   aw_feature_overrides.DisableFeature(media::kOverlayFullscreenVideo);
@@ -322,9 +319,4 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // Disable draw cutout edge-to-edge on WebView. Safe area insets are not
   // handled correctly when WebView is drawing edge-to-edge.
   aw_feature_overrides.DisableFeature(features::kDrawCutoutEdgeToEdge);
-
-  // This is enabled for WebView to improve crbug.com/418159642.
-  // TODO(crbug.com/422161917): Revert this for the ablation study.
-  aw_feature_overrides.EnableFeature(
-      features::kServiceWorkerBackgroundUpdateForRegisteredStorageKeys);
 }

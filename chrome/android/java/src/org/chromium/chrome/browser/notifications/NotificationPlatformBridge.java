@@ -959,7 +959,8 @@ public class NotificationPlatformBridge {
 
         // If this is an "Always allow" confirmation notification, append the report button. Remove
         // the entry from the `sAlwaysAllowNotificationsMap`, since it is no longer needed.
-        if (ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()
+        if (ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)
                 && skipUAButtons
                 && sAlwaysAllowNotificationsMap.containsKey(identifyingAttributes.origin)) {
             // Don't show default icon on confirmation notification from Chrome.
@@ -970,7 +971,8 @@ public class NotificationPlatformBridge {
 
         // If reporting is enabled and the user is being shown the notification rather than a
         // warning, reporting as spam should be allowed on unsubscribe.
-        if (ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()
+        if (ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)
                 && !shouldTreatNotificationAsSuspicious) {
             Bundle extras = new Bundle();
             extras.putBoolean(
@@ -1197,7 +1199,8 @@ public class NotificationPlatformBridge {
         LibraryLoader.getInstance().ensureInitialized();
         String notificationTitle;
         String notificationBody;
-        if (ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()) {
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)) {
             notificationTitle =
                     res.getString(R.string.notification_provisionally_unsubscribed_title_new);
         } else {
@@ -1240,7 +1243,8 @@ public class NotificationPlatformBridge {
         // just not using NotificationBuilderBase.
         notificationBuilder.setSuppressShowingLargeIcon(true);
         notificationBuilder.setTimeoutAfter(
-                ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()
+                ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)
                         ? NEW_PROVISIONAL_UNSUBSCRIBE_DURATION_MS
                         : PROVISIONAL_UNSUBSCRIBE_DURATION_MS);
         notificationBuilder.setExtras(extras);
@@ -1678,11 +1682,9 @@ public class NotificationPlatformBridge {
                     originalNotificationBackup.putParcelable(
                             NotificationConstants.EXTRA_NOTIFICATION_BACKUP_OF_ORIGINAL,
                             tappedNotification);
-                    if (tappedNotification != null
-                            && tappedNotification.extras != null
-                            && tappedNotification.extras.containsKey(
-                                    NotificationConstants
-                                            .EXTRA_ALLOW_REPORTING_AS_SPAM_IS_NOTIFICATION_WARNED)) {
+                    if (tappedNotification.extras.containsKey(
+                            NotificationConstants
+                                    .EXTRA_ALLOW_REPORTING_AS_SPAM_IS_NOTIFICATION_WARNED)) {
                         originalNotificationBackup.putBoolean(
                                 NotificationConstants
                                         .EXTRA_ALLOW_REPORTING_AS_SPAM_IS_NOTIFICATION_WARNED,

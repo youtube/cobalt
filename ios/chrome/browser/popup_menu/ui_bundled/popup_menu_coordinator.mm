@@ -178,7 +178,6 @@ using base::UserMetricsAction;
     [self dismissPopupMenuAnimated:NO];
   }
   [self.popupMenuHelpCoordinator stop];
-  self.popupMenuHelpCoordinator = nil;
   [self.browser->GetCommandDispatcher() stopDispatchingToTarget:self];
   [self.overflowMenuMediator disconnect];
   self.overflowMenuMediator = nil;

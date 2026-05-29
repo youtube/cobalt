@@ -776,13 +776,7 @@ TEST_F(ProfileResetterTest, ResetStartPagePartially) {
             startup_pref.urls);
 }
 
-// TODO(434716727): The test is flaky on Mac machines.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_ResetPinnedTabs DISABLED_ResetPinnedTabs
-#else
-#define MAYBE_ResetPinnedTabs ResetPinnedTabs
-#endif
-TEST_F(PinnedTabsResetTest, MAYBE_ResetPinnedTabs) {
+TEST_F(PinnedTabsResetTest, ResetPinnedTabs) {
   std::unique_ptr<content::WebContents> contents1(CreateWebContents());
   std::unique_ptr<content::WebContents> contents2(CreateWebContents());
   std::unique_ptr<content::WebContents> contents3(CreateWebContents());

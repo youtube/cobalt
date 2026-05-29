@@ -374,7 +374,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)setLensOverlayVisible:(BOOL)lensOverlayVisible {
-  self.badgeViewController.forceDisabled = lensOverlayVisible;
   [self.viewController setLensOverlayVisible:lensOverlayVisible];
 }
 

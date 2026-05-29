@@ -189,13 +189,9 @@ void ReclaimableCodec::OnActivityTimerFired(TimerBase*) {
   // immediately after being resumed.
   if (is_inactive && last_tick_was_inactive_) {
     activity_timer_.Stop();
-    auto* message = "Codec reclaimed due to inactivity.";
-    if (RuntimeEnabledFeatures::QuotaExceededErrorUpdateEnabled()) {
-      OnCodecReclaimed(MakeGarbageCollected<QuotaExceededError>(message));
-    } else {
-      OnCodecReclaimed(MakeGarbageCollected<DOMException>(
-          DOMExceptionCode::kQuotaExceededError, message));
-    }
+    OnCodecReclaimed(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kQuotaExceededError,
+        "Codec reclaimed due to inactivity."));
   }
 
   last_tick_was_inactive_ = time_inactive >= (inactivity_threshold_ / 2);

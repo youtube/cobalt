@@ -197,7 +197,6 @@ class TabGroupRowMediator {
                 SharedImageTilesConfig config =
                         new SharedImageTilesConfig.Builder(mContext)
                                 .setBackgroundColor(backgroundColor)
-                                .setTextColor(SemanticColorUtils.getDefaultTextColor(mContext))
                                 .build();
                 mSharedImageTilesCoordinator =
                         new SharedImageTilesCoordinator(

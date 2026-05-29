@@ -187,10 +187,10 @@ void LensSearchController::StartContextualization(
   // Setup all state necessary for this Lens session.
   StartLensSession(invocation_source);
 
-  // TODO(crbug.com/418856988): Replace this with a call that starts
-  // contextualization without the unneeded callback.
-  lens_contextualization_controller_->StartContextualization(invocation_source,
-                                                             base::DoNothing());
+  // TODO(crbug.com/404941800): This flow should not start the overlay once
+  // contextualization is separated from the overlay.
+  lens_overlay_controller_->StartContextualizationWithoutOverlay(
+      invocation_source, lens_overlay_query_controller_.get());
 }
 
 void LensSearchController::IssueContextualSearchRequest(
@@ -247,10 +247,6 @@ void LensSearchController::CloseLensAsync(
     state_ = State::kClosingSidePanel;
     last_dismissal_source_ = dismissal_source;
     side_panel_coordinator->Close();
-    // Also trigger the overlay fade out animation, but don't pass a callback
-    // to finish the closing process since the side panel will call
-    // the finish closing process callback in OnSidePanelHidden().
-    lens_overlay_controller_->TriggerOverlayCloseAnimation(base::DoNothing());
     return;
   }
   state_ = State::kClosing;
@@ -603,7 +599,6 @@ void LensSearchController::HandleStartQueryResponse(
     std::vector<lens::mojom::OverlayObjectPtr> objects,
     lens::mojom::TextPtr text,
     bool is_error) {
-  lens_contextualization_controller_->SetText(text.Clone());
   lens_overlay_controller_->HandleStartQueryResponse(std::move(objects),
                                                      std::move(text), is_error);
 }

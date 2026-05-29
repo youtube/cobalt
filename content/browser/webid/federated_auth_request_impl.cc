@@ -5,6 +5,7 @@
 #include "content/browser/webid/federated_auth_request_impl.h"
 
 #include <algorithm>
+#include <iostream>
 #include <random>
 #include <vector>
 
@@ -323,6 +324,7 @@ void FederatedAuthRequestImpl::RequestToken(
     std::move(callback).Run(RequestTokenStatus::kError, std::nullopt, "",
                             /*error=*/nullptr,
                             /*is_auto_selected=*/false);
+    HandleMetricsForPotentialConcurrentRequests();
     return;
   }
 
@@ -335,11 +337,14 @@ void FederatedAuthRequestImpl::RequestToken(
     std::move(callback).Run(RequestTokenStatus::kError, std::nullopt, "",
                             /*error=*/nullptr,
                             /*is_auto_selected=*/false);
+    HandleMetricsForPotentialConcurrentRequests();
     return;
   }
 
   had_transient_user_activation_ =
       render_frame_host().HasTransientUserActivation();
+
+  MaybeCreateFedCmMetrics();
 
   // Store the previous `idp_order_` value from this class. Note that this is {}
   // unless there is a pending request from the same RFH. In particular, this is
@@ -369,9 +374,6 @@ void FederatedAuthRequestImpl::RequestToken(
   network_manager_ = CreateNetworkManager();
   request_dialog_controller_ = CreateDialogController();
   start_time_ = base::TimeTicks::Now();
-  if (!fedcm_metrics_) {
-    fedcm_metrics_ = CreateFedCmMetrics();
-  }
   // TODO(crbug.com/40218857): handle active mode with multiple IdP.
   if (idp_get_params_ptrs[0]->mode == blink::mojom::RpMode::kActive) {
     rp_mode_ = RpMode::kActive;
@@ -568,8 +570,8 @@ void FederatedAuthRequestImpl::RequestUserInfo(
         "FedCM should not be allowed in nested frame trees.");
     return;
   }
-  // FedCmMetrics class is currently not used for UserInfo API. If we log UKM
-  // metrics later on, we should call CreateFedCmMetrics() here.
+  // FedCMMetrics class is currently not used for UserInfo API. If we log UKM
+  // metrics later on, we should call MaybeCreateFedCmMetrics() here.
 
   auto network_manager = IdpNetworkRequestManager::Create(
       static_cast<RenderFrameHostImpl*>(&render_frame_host()));
@@ -790,6 +792,7 @@ void FederatedAuthRequestImpl::CompleteDisconnectRequest(
   }
   std::move(callback).Run(status);
   disconnect_request_.reset();
+  HandleMetricsForPotentialConcurrentRequests();
 }
 
 bool FederatedAuthRequestImpl::CanShowContinueOnPopup() const {
@@ -2492,7 +2495,7 @@ void FederatedAuthRequestImpl::PreventSilentAccess(
 void FederatedAuthRequestImpl::Disconnect(
     blink::mojom::IdentityCredentialDisconnectOptionsPtr options,
     DisconnectCallback callback) {
-  std::unique_ptr<FedCmMetrics> disconnect_metrics = CreateFedCmMetrics();
+  MaybeCreateFedCmMetrics();
   if (disconnect_request_) {
     // Since we do not send any fetches in this case, consider the request to be
     // instant, e.g. duration is 0.
@@ -2500,7 +2503,7 @@ void FederatedAuthRequestImpl::Disconnect(
         blink::mojom::ConsoleMessageLevel::kError,
         webid::GetDisconnectConsoleErrorMessage(
             FedCmDisconnectStatus::kTooManyRequests));
-    disconnect_metrics->RecordDisconnectMetrics(
+    fedcm_metrics_->RecordDisconnectMetrics(
         FedCmDisconnectStatus::kTooManyRequests, std::nullopt,
         webid::ComputeRequesterFrameType(render_frame_host(), origin(),
                                          GetEmbeddingOrigin()),
@@ -2518,7 +2521,7 @@ void FederatedAuthRequestImpl::Disconnect(
 
   disconnect_request_ = FederatedAuthDisconnectRequest::Create(
       std::move(network_manager), permission_delegate_, &render_frame_host(),
-      std::move(disconnect_metrics), std::move(options));
+      fedcm_metrics_.get(), std::move(options));
   FederatedAuthDisconnectRequest* disconnect_request_ptr =
       disconnect_request_.get();
 
@@ -2544,16 +2547,18 @@ void FederatedAuthRequestImpl::RecordErrorMetrics(
   }
 }
 
-std::unique_ptr<FedCmMetrics> FederatedAuthRequestImpl::CreateFedCmMetrics() {
-  // Ensure the lifecycle state as GetPageUkmSourceId doesn't support the
-  // prerendering page. As FederatedAithRequest runs behind the
-  // BrowserInterfaceBinders, the service doesn't receive any request while
-  // prerendering, and the CHECK should always meet the condition.
-  CHECK(!render_frame_host().IsInLifecycleState(
-      RenderFrameHost::LifecycleState::kPrerendering));
+void FederatedAuthRequestImpl::MaybeCreateFedCmMetrics() {
+  if (!fedcm_metrics_) {
+    // Ensure the lifecycle state as GetPageUkmSourceId doesn't support the
+    // prerendering page. As FederatedAithRequest runs behind the
+    // BrowserInterfaceBinders, the service doesn't receive any request while
+    // prerendering, and the CHECK should always meet the condition.
+    CHECK(!render_frame_host().IsInLifecycleState(
+        RenderFrameHost::LifecycleState::kPrerendering));
 
-  return std::make_unique<FedCmMetrics>(
-      render_frame_host().GetPageUkmSourceId());
+    fedcm_metrics_ = std::make_unique<FedCmMetrics>(
+        render_frame_host().GetPageUkmSourceId());
+  }
 }
 
 bool FederatedAuthRequestImpl::IsNewlyLoggedIn(
@@ -2565,6 +2570,19 @@ bool FederatedAuthRequestImpl::IsNewlyLoggedIn(
   // Exclude filtered out accounts so they are not shown at the top.
   return !account.is_filtered_out &&
          !account_ids_before_login_.contains(account.id);
+}
+
+void FederatedAuthRequestImpl::HandleMetricsForPotentialConcurrentRequests() {
+  // Record UKM for the request that's completed, either successfully or with
+  // errors.
+  // TODO(crbug.com/417784830): fedcm_metrics_ should be bound to each request.
+  // Otherwise UKMs in a single flow may be recorded in different events.
+  fedcm_metrics_.reset();
+  // If there's an existing auth request token callback, we will need to
+  // record metrics for it once it is resolved.
+  if (auth_request_token_callback_) {
+    MaybeCreateFedCmMetrics();
+  }
 }
 
 bool FederatedAuthRequestImpl::ShouldTerminateRequest(
@@ -2626,18 +2644,17 @@ bool FederatedAuthRequestImpl::HandlePendingRequestAndCancelNewRequest(
       webid::GetPageData(render_frame_host().GetPage())
           ->PendingWebIdentityRequest();
 
-  std::unique_ptr<FedCmMetrics> new_request_metrics = CreateFedCmMetrics();
   RpMode pending_request_rp_mode = pending_request->GetRpMode();
   RpMode new_request_rp_mode = idp_get_params_ptrs[0]->mode;
-  new_request_metrics->RecordMultipleRequestsRpMode(
-      pending_request_rp_mode, new_request_rp_mode, idp_order_);
+  fedcm_metrics_->RecordMultipleRequestsRpMode(pending_request_rp_mode,
+                                               new_request_rp_mode, idp_order_);
 
   bool can_replace_pending_request = had_transient_user_activation_ &&
                                      new_request_rp_mode == RpMode::kActive &&
                                      pending_request_rp_mode != RpMode::kActive;
   if (!can_replace_pending_request) {
     // Cancel this new request.
-    new_request_metrics->RecordRequestTokenStatus(
+    fedcm_metrics_->RecordRequestTokenStatus(
         TokenStatus::kTooManyRequests, requirement, idp_order_,
         /*num_idps_mismatch=*/0,
         /*selected_idp_config_url=*/std::nullopt,
@@ -2663,13 +2680,14 @@ bool FederatedAuthRequestImpl::HandlePendingRequestAndCancelNewRequest(
     // call will be rejected. The two requests may be from different RFHs so
     // we should calculate properly.
     if (old_idp_order.empty()) {
-      new_request_metrics->RecordMultipleRequestsFromDifferentIdPs(
+      fedcm_metrics_->RecordMultipleRequestsFromDifferentIdPs(
           idp_order_ != pending_request->idp_order_);
     } else {
-      new_request_metrics->RecordMultipleRequestsFromDifferentIdPs(
-          idp_order_ != old_idp_order);
+      fedcm_metrics_->RecordMultipleRequestsFromDifferentIdPs(idp_order_ !=
+                                                              old_idp_order);
     }
     idp_order_ = std::move(old_idp_order);
+    HandleMetricsForPotentialConcurrentRequests();
     return true;
   }
 
@@ -2687,7 +2705,7 @@ bool FederatedAuthRequestImpl::HandlePendingRequestAndCancelNewRequest(
   // Some members were reset to false during CleanUp when replacing a passive
   // flow from the same frame so we need to set them again.
   had_transient_user_activation_ = true;
-  fedcm_metrics_ = std::move(new_request_metrics);
+  MaybeCreateFedCmMetrics();
   idp_order_ = std::move(new_idp_order);
 
   return false;

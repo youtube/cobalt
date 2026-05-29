@@ -13,16 +13,17 @@ class FontFeatureValuesMapIterationSource final
     : public PairSyncIterable<CSSFontFeatureValuesMap>::IterationSource {
  public:
   FontFeatureValuesMapIterationSource(const CSSFontFeatureValuesMap& map,
-                                      const FontFeatureAliases aliases)
-      : map_(map),
-        aliases_(std::move(aliases)),
-        iterator_(aliases_.begin()) {}
+                                      const FontFeatureAliases* aliases)
+      : map_(map), aliases_(aliases), iterator_(aliases->begin()) {}
 
   bool FetchNextItem(ScriptState* script_state,
                      String& map_key,
                      Vector<uint32_t>& map_value,
                      ExceptionState&) override {
-    if (iterator_ == aliases_.end()) {
+    if (!aliases_) {
+      return false;
+    }
+    if (iterator_ == aliases_->end()) {
       return false;
     }
     map_key = iterator_->key;
@@ -37,13 +38,9 @@ class FontFeatureValuesMapIterationSource final
   }
 
  private:
+  // Needs to be kept alive while we're iterating over it.
   const Member<const CSSFontFeatureValuesMap> map_;
-  // Create a copy to keep the iterator from becoming invalid if there are
-  // modifications to the aliases HashMap while iterating.
-  // TODO(https://crbug.com/483936078): Implement live/stable iteration over
-  // FontFeatureAliases by changing its storage type, avoiding taking a copy
-  // here.
-  const FontFeatureAliases aliases_;
+  const FontFeatureAliases* aliases_;
   FontFeatureAliases::const_iterator iterator_;
 };
 
@@ -53,8 +50,8 @@ uint32_t CSSFontFeatureValuesMap::size() const {
 
 PairSyncIterable<CSSFontFeatureValuesMap>::IterationSource*
 CSSFontFeatureValuesMap::CreateIterationSource(ScriptState*, ExceptionState&) {
-  return MakeGarbageCollected<FontFeatureValuesMapIterationSource>(
-      *this, aliases_ ? *aliases_ : FontFeatureAliases());
+  return MakeGarbageCollected<FontFeatureValuesMapIterationSource>(*this,
+                                                                   aliases_);
 }
 
 bool CSSFontFeatureValuesMap::GetMapEntry(ScriptState*,

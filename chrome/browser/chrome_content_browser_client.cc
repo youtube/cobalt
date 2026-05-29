@@ -1397,7 +1397,6 @@ void ChromeContentBrowserClient::RegisterLocalStatePrefs(
   registry->RegisterBooleanPref(prefs::kDeviceNativeClientForceAllowed, false);
   registry->RegisterBooleanPref(prefs::kDeviceNativeClientForceAllowedCache,
                                 false);
-  registry->RegisterBooleanPref(prefs::kIsFirstBootForNacl, true);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kOutOfProcessSystemDnsResolutionEnabled,

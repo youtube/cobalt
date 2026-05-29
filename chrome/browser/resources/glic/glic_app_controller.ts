@@ -30,11 +30,6 @@ const kMaxWaitTimeMs = loadTimeData.getInteger('maxLoadingTimeMs');
 // the --enable-features=GlicDebugWebview command-line flag.
 const kEnableDebug = loadTimeData.getBoolean('enableDebug');
 
-// Whether additional web client unresponsiveness tracking metrics should be
-// recorded.
-const kEnableUnresponsiveMetrics =
-    loadTimeData.getBoolean('enableWebClientUnresponsiveMetrics');
-
 interface PageElementTypes {
   panelContainer: HTMLElement;
   loadingPanel: HTMLElement;
@@ -65,21 +60,6 @@ interface StateDescriptor {
   reloadOnOpen?: boolean;
 }
 
-// Web client unresponsiveness state tracking values for metrics reporting.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-//
-// LINT.IfChange(WebClientUnresponsiveState)
-export enum WebClientUnresponsiveState {
-  ENTERED_FROM_WEBVIEW_EVENT = 0,
-  ENTERED_FROM_CUSTOM_HEARTBEAT = 1,
-  ALREADY_ON_FROM_WEBVIEW_EVENT = 2,
-  ALREADY_ON_FROM_CUSTOM_HEARTBEAT = 3,
-  EXITED = 4,
-  MAX_VALUE = EXITED,
-}
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:WebClientUnresponsiveState)
-
 export class GlicAppController implements PageInterface, WebviewDelegate,
                                           ApiHostEmbedder {
   loadingTimer: number|undefined;
@@ -103,8 +83,6 @@ export class GlicAppController implements PageInterface, WebviewDelegate,
 
   private profileReadyState: ProfileReadyState|undefined = undefined;
   private profileReadyInitialState = Promise.withResolvers<void>();
-
-  private enteredUnresponsiveTimestampMs?: number;
 
   state: WebUiState|undefined;
 
@@ -154,42 +132,7 @@ export class GlicAppController implements PageInterface, WebviewDelegate,
   // WebviewDelegate implementation.
   webviewUnresponsive(): void {
     console.warn('webview unresponsive');
-    this.trackUnresponsiveState(
-        this.state === WebUiState.kUnresponsive ?
-            WebClientUnresponsiveState.ALREADY_ON_FROM_WEBVIEW_EVENT :
-            WebClientUnresponsiveState.ENTERED_FROM_WEBVIEW_EVENT);
     this.setState(WebUiState.kUnresponsive);
-  }
-
-  trackUnresponsiveState(newState: WebClientUnresponsiveState): void {
-    if (!kEnableUnresponsiveMetrics) {
-      return;
-    }
-
-    // Track and record unresponsive state duration.
-    if (newState === WebClientUnresponsiveState.ENTERED_FROM_WEBVIEW_EVENT ||
-        newState === WebClientUnresponsiveState.ENTERED_FROM_CUSTOM_HEARTBEAT) {
-      // Entering an unresponsive state.
-      this.enteredUnresponsiveTimestampMs = Date.now();
-    } else if (newState === WebClientUnresponsiveState.EXITED) {
-      // Existing an unresponsive state.
-      if (this.enteredUnresponsiveTimestampMs !== undefined) {
-        const unresponsiveDuration =
-            Date.now() - this.enteredUnresponsiveTimestampMs;
-        chrome.metricsPrivate.recordMediumTime(
-            'Glic.Host.WebClientUnresponsiveState.Duration',
-            unresponsiveDuration);
-        this.enteredUnresponsiveTimestampMs = undefined;
-      } else {
-        console.error(
-            'Unresponsive state exited without an entering timestamp');
-      }
-    }
-
-    // Record unresponsive state detections and transitions.
-    chrome.metricsPrivate.recordEnumerationValue(
-        'Glic.Host.WebClientUnresponsiveState', newState,
-        WebClientUnresponsiveState.MAX_VALUE + 1);
   }
 
   webviewError(reason: string): void {
@@ -304,7 +247,6 @@ export class GlicAppController implements PageInterface, WebviewDelegate,
             },
         onExit:
             () => {
-              this.trackUnresponsiveState(WebClientUnresponsiveState.EXITED);
               $.unresponsiveOverlay.classList.toggle('hidden', true);
             },
       },
@@ -533,10 +475,6 @@ export class GlicAppController implements PageInterface, WebviewDelegate,
         this.setState(WebUiState.kReady);
         break;
       case WebClientState.UNRESPONSIVE:
-        this.trackUnresponsiveState(
-            this.state === WebUiState.kUnresponsive ?
-                WebClientUnresponsiveState.ALREADY_ON_FROM_CUSTOM_HEARTBEAT :
-                WebClientUnresponsiveState.ENTERED_FROM_CUSTOM_HEARTBEAT);
         this.setState(WebUiState.kUnresponsive);
         break;
       case WebClientState.ERROR:

@@ -63,7 +63,6 @@
 #include "components/download/public/common/download_item.h"
 #include "components/download/public/common/download_item_rename_handler.h"
 #include "components/download/public/common/download_stats.h"
-#include "components/enterprise/connectors/core/reporting_utils.h"
 #include "components/offline_pages/buildflags/buildflags.h"
 #include "components/pdf/common/constants.h"
 #include "components/pdf/common/pdf_util.h"
@@ -73,7 +72,6 @@
 #include "components/prefs/pref_member.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/buildflags.h"
-#include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/content/browser/web_ui/safe_browsing_ui.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_search_api/safe_search_util.h"
@@ -462,18 +460,11 @@ void MaybeReportDangerousDownloadBlocked(
     if (download->GetState() == DownloadItem::DownloadState::COMPLETE) {
       raw_digest_sha256 = download->GetHash();
     }
-    google::protobuf::RepeatedPtrField<safe_browsing::ReferrerChainEntry>
-        referrer_chain;
-    if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
-      referrer_chain =
-          safe_browsing::GetOrIdentifyReferrerChainForEnterprise(*download);
-    }
-
     router->OnDangerousDownloadEvent(
         download->GetURL(), download->GetTabUrl(), download_path,
         base::HexEncode(raw_digest_sha256), danger_type,
         download->GetMimeType(), /*scan_id*/ "", download->GetTotalBytes(),
-        referrer_chain, enterprise_connectors::EventResult::BLOCKED);
+        enterprise_connectors::EventResult::BLOCKED);
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 #endif  // BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
@@ -1119,6 +1110,8 @@ void ChromeDownloadManagerDelegate::ChooseSavePath(
     content::SavePackagePathPickedCallback callback) {
 #if BUILDFLAG(IS_ANDROID)
   if (!web_contents) {
+    std::move(callback).Run(content::SavePackagePathPickedParams(),
+                            base::DoNothing());
     return;
   }
 
@@ -2329,8 +2322,11 @@ void ChromeDownloadManagerDelegate::RequestIncognitoSavePackageConfirmationDone(
     content::SavePackagePathPickedCallback callback,
     bool accept) {
   if (!accept) {
+    std::move(callback).Run(content::SavePackagePathPickedParams(),
+                            base::DoNothing());
     return;
   }
+
   download::DetermineSavePackagePath(
       url, suggested_path,
       base::BindOnce(&OnDetermineSavePackagePathDone, std::move(callback)));

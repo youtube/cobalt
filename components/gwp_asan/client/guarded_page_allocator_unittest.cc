@@ -30,35 +30,29 @@
 namespace gwp_asan {
 namespace internal {
 
-static constexpr size_t kMaxMetadata = 2048;
-static constexpr size_t kMaxSlots = 8192;
+static constexpr size_t kMaxMetadata = AllocatorState::kMaxMetadata;
+static constexpr size_t kMaxSlots = AllocatorState::kMaxRequestedSlots;
 
 class BaseGpaTest : public testing::Test {
  protected:
   BaseGpaTest(size_t max_allocated_pages,
               size_t max_metadata,
               size_t max_slots,
-              bool is_partition_alloc)
-      : is_partition_alloc_(is_partition_alloc),
-        settings_{AllocatorSettings{
+              bool is_partition_alloc) {
+    gpa_.Init(
+        AllocatorSettings{
             .max_allocated_pages = max_allocated_pages,
             .num_metadata = max_metadata,
             .total_pages = max_slots,
             .sampling_frequency = 0u,
-        }} {}
-
-  void SetUp() override {
-    ASSERT_TRUE(gpa_.Init(settings_,
-                          base::BindLambdaForTesting([&](size_t allocations) {
-                            allocator_oom_ = true;
-                          }),
-                          is_partition_alloc_));
+        },
+        base::BindLambdaForTesting(
+            [&](size_t allocations) { allocator_oom_ = true; }),
+        is_partition_alloc);
   }
 
   void TearDown() override { gpa_.DestructForTesting(); }
 
-  const bool is_partition_alloc_;
-  const AllocatorSettings settings_;
   GuardedPageAllocator gpa_;
   bool allocator_oom_ = false;
 };

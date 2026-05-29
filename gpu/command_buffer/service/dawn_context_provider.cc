@@ -85,25 +85,18 @@ void SetDawnErrorCrashKey(std::string_view message) {
 // Different versions of DumpWithoutCrashing for different reasons.
 // Deliberately prevent inlining so that the crash report's call stack can
 // distinguish between them.
-#if BUILDFLAG(IS_WIN)
 NOINLINE NOOPT void DumpWithoutCrashingOnDXGIError(wgpu::ErrorType error_type,
                                                    std::string_view message) {
   LOG(ERROR) << "DXGI Error: " << message;
-
-  if (features::kSkiaGraphiteDawnDumpWCOnD3DError.Get()) {
-    base::debug::DumpWithoutCrashing();
-  }
+  base::debug::DumpWithoutCrashing();
 }
 
 NOINLINE NOOPT void DumpWithoutCrashingOnD3D11DebugLayerError(
     wgpu::ErrorType error_type,
     std::string_view message) {
   LOG(ERROR) << message;
-  if (features::kSkiaGraphiteDawnDumpWCOnD3DError.Get()) {
-    base::debug::DumpWithoutCrashing();
-  }
+  base::debug::DumpWithoutCrashing();
 }
-#endif
 
 NOINLINE NOOPT void DumpWithoutCrashingOnGenericError(
     wgpu::ErrorType error_type,
@@ -115,14 +108,11 @@ NOINLINE NOOPT void DumpWithoutCrashingOnGenericError(
 void DumpWithoutCrashingOnError(wgpu::ErrorType error_type,
                                 std::string_view message) {
   SetDawnErrorCrashKey(message);
-#if BUILDFLAG(IS_WIN)
   if (message.find("DXGI_ERROR") != std::string_view::npos) {
     DumpWithoutCrashingOnDXGIError(error_type, message);
   } else if (message.find("The D3D11 debug layer") != std::string_view::npos) {
     DumpWithoutCrashingOnD3D11DebugLayerError(error_type, message);
-  } else
-#endif
-  {
+  } else {
     DumpWithoutCrashingOnGenericError(error_type, message);
   }
 }

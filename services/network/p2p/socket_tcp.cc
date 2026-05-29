@@ -73,13 +73,13 @@ P2PSocketTcpBase::P2PSocketTcpBase(
 
 P2PSocketTcpBase::~P2PSocketTcpBase() = default;
 
-bool P2PSocketTcpBase::InitAccepted(const net::IPEndPoint& remote_address,
+void P2PSocketTcpBase::InitAccepted(const net::IPEndPoint& remote_address,
                                     std::unique_ptr<net::StreamSocket> socket) {
   DCHECK(socket);
   remote_address_.ip_address = remote_address;
   // TODO(ronghuawu): Add FakeSSLServerSocket.
   socket_ = std::move(socket);
-  return DoRead();
+  DoRead();
 }
 
 void P2PSocketTcpBase::Init(
@@ -128,18 +128,15 @@ void P2PSocketTcpBase::OnConnected(int result) {
   DCHECK_NE(result, net::ERR_IO_PENDING);
 
   if (result != net::OK) {
-    LOG(WARNING) << "Error from connecting socket, result=" << result
-                 << ", destroying socket";
+    LOG(WARNING) << "Error from connecting socket, result=" << result;
     OnError();
     return;
   }
 
-  if (!OnOpen()) {
-    LOG(ERROR) << "Socket destroyed in OnConnected/OnOpen";
-  }
+  OnOpen();
 }
 
-bool P2PSocketTcpBase::OnOpen() {
+void P2PSocketTcpBase::OnOpen() {
   // Setting socket send and receive buffer size.
   if (net::OK != socket_->SetReceiveBufferSize(kTcpRecvSocketBufferSize)) {
     LOG(WARNING) << "Failed to set socket receive buffer size to "
@@ -152,9 +149,9 @@ bool P2PSocketTcpBase::OnOpen() {
   }
 
   if (!DoSendSocketCreateMsg())
-    return false;
+    return;
 
-  return DoRead();
+  DoRead();
 }
 
 bool P2PSocketTcpBase::DoSendSocketCreateMsg() {
@@ -201,7 +198,7 @@ bool P2PSocketTcpBase::DoSendSocketCreateMsg() {
   return true;
 }
 
-bool P2PSocketTcpBase::DoRead() {
+void P2PSocketTcpBase::DoRead() {
   while (true) {
     if (!read_buffer_.get()) {
       read_buffer_ = base::MakeRefCounted<net::GrowableIOBuffer>();
@@ -217,23 +214,14 @@ bool P2PSocketTcpBase::DoRead() {
     const int result = socket_->Read(
         read_buffer_.get(), read_buffer_->RemainingCapacity(),
         base::BindOnce(&P2PSocketTcp::OnRead, base::Unretained(this)));
-    if (result == net::ERR_IO_PENDING) {
-      return true;  // not finished, but blocked
-    }
-    if (!HandleReadResult(result)) {
-      return false;  // error, socket deleted
-    }
+    if (result == net::ERR_IO_PENDING || !HandleReadResult(result))
+      return;
   }
 }
 
 void P2PSocketTcpBase::OnRead(int result) {
-  if (!HandleReadResult(result)) {
-    LOG(ERROR) << "OnRead/HandleReadResult reports socket destroyed";
-    return;
-  }
-  if (!DoRead()) {
-    LOG(ERROR) << "OnRead/DoRead reports socket destroyed";
-  }
+  if (HandleReadResult(result))
+    DoRead();
 }
 
 bool P2PSocketTcpBase::OnPacket(base::span<const uint8_t> data) {
@@ -274,17 +262,17 @@ bool P2PSocketTcpBase::OnPacket(base::span<const uint8_t> data) {
   return true;
 }
 
-bool P2PSocketTcpBase::WriteOrQueue(SendBuffer& send_buffer) {
+void P2PSocketTcpBase::WriteOrQueue(SendBuffer& send_buffer) {
   if (write_buffer_.buffer.get()) {
     write_queue_.push(send_buffer);
-    return true;
+    return;
   }
 
   write_buffer_ = send_buffer;
-  return DoWrite();
+  DoWrite();
 }
 
-bool P2PSocketTcpBase::DoWrite() {
+void P2PSocketTcpBase::DoWrite() {
   while (!write_pending_ && write_buffer_.buffer.get()) {
     int result = socket_->Write(
         write_buffer_.buffer.get(), write_buffer_.buffer->BytesRemaining(),
@@ -294,10 +282,9 @@ bool P2PSocketTcpBase::DoWrite() {
     if (result == net::ERR_IO_PENDING) {
       write_pending_ = true;
     } else if (!HandleWriteResult(result)) {
-      return false;  // Error, socket is destroyed.
+      break;
     }
   }
-  return true;
 }
 
 void P2PSocketTcpBase::OnWritten(int result) {
@@ -306,13 +293,8 @@ void P2PSocketTcpBase::OnWritten(int result) {
 
   write_pending_ = false;
 
-  if (!HandleWriteResult(result)) {
-    LOG(ERROR) << "Socket destroyed in OnWritten/HandleWriteResult";
-    return;
-  }
-  if (!DoWrite()) {
-    LOG(ERROR) << "Socket destroyed in OnWritten/DoWrite";
-  }
+  if (HandleWriteResult(result))
+    DoWrite();
 }
 
 bool P2PSocketTcpBase::HandleWriteResult(int result) {
@@ -391,14 +373,13 @@ bool P2PSocketTcpBase::SendPacket(base::span<const uint8_t> data,
     }
   }
 
-  return DoSend(packet_info.destination, data, packet_info.packet_options);
+  DoSend(packet_info.destination, data, packet_info.packet_options);
+  return true;
 }
 
 void P2PSocketTcpBase::Send(base::span<const uint8_t> data,
                             const P2PPacketInfo& packet_info) {
-  if (!SendPacket(data, packet_info)) {
-    LOG(ERROR) << "Socket destroyed while sending";
-  }
+  SendPacket(data, packet_info);
 }
 
 void P2PSocketTcpBase::SendBatch(
@@ -463,7 +444,7 @@ bool P2PSocketTcp::ProcessInput(base::span<const uint8_t> input,
   return OnPacket(input.subspan(kPacketHeaderSize, packet_size));
 }
 
-bool P2PSocketTcp::DoSend(const net::IPEndPoint& to,
+void P2PSocketTcp::DoSend(const net::IPEndPoint& to,
                           base::span<const uint8_t> data,
                           const webrtc::AsyncSocketPacketOptions& options) {
   const size_t buffer_size = kPacketHeaderSize + data.size();
@@ -487,7 +468,7 @@ bool P2PSocketTcp::DoSend(const net::IPEndPoint& to,
                              send_buffer_without_header.size(),
                              options.packet_time_params, webrtc::TimeMicros());
 
-  return WriteOrQueue(send_buffer);
+  WriteOrQueue(send_buffer);
 }
 
 // P2PSocketStunTcp
@@ -528,7 +509,7 @@ bool P2PSocketStunTcp::ProcessInput(base::span<const uint8_t> input,
   return OnPacket(input.first(packet_size));
 }
 
-bool P2PSocketStunTcp::DoSend(const net::IPEndPoint& to,
+void P2PSocketStunTcp::DoSend(const net::IPEndPoint& to,
                               base::span<const uint8_t> data,
                               const webrtc::AsyncSocketPacketOptions& options) {
   // Each packet is expected to have header (STUN/TURN ChannelData), where
@@ -563,7 +544,7 @@ bool P2PSocketStunTcp::DoSend(const net::IPEndPoint& to,
   // WriteOrQueue may free the memory, so dump it first.
   delegate_->DumpPacket(send_buffer.buffer->span(), false);
 
-  return WriteOrQueue(send_buffer);
+  WriteOrQueue(send_buffer);
 }
 
 int P2PSocketStunTcp::GetExpectedPacketSize(base::span<const uint8_t> data,

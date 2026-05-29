@@ -11,7 +11,6 @@ export function createAutocompleteMatch(): AutocompleteMatch {
     actions: [],
     allowedToBeDefaultMatch: false,
     isSearchType: false,
-    isEnterpriseSearchAggregatorPeopleType: false,
     swapContentsAndDescription: false,
     supportsDeletion: false,
     suggestionGroupId: -1,  // Indicates a missing suggestion group Id.
@@ -22,7 +21,6 @@ export function createAutocompleteMatch(): AutocompleteMatch {
     destinationUrl: {url: ''},
     inlineAutocompletion: {data: []},
     fillIntoEdit: {data: []},
-    iconPath: '',
     iconUrl: '',
     imageDominantColor: '',
     imageUrl: '',

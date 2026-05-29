@@ -7,7 +7,6 @@
 #import <memory>
 
 #import "base/base64url.h"
-#import "base/check.h"
 #import "base/memory/weak_ptr.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
@@ -40,7 +39,6 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/public/provider/chrome/browser/lens/lens_overlay_result.h"
 #import "ios/web/public/navigation/referrer.h"
-#import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "url/gurl.h"
 
@@ -84,8 +82,6 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
   base::WeakPtr<WebStateList> _webStateList;
   // Bridge for observing WebStateList events.
   std::unique_ptr<WebStateListObserverBridge> _webStateListObserverBridge;
-  // The web state associated with the Lens Overlay invokation.
-  base::WeakPtr<web::WebState> _associatedWebState;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
@@ -98,9 +94,6 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
     _webStateListObserverBridge =
         std::make_unique<WebStateListObserverBridge>(self);
     webStateList->AddObserver(_webStateListObserverBridge.get());
-    web::WebState* activeWebState = webStateList->GetActiveWebState();
-    CHECK(activeWebState);
-    _associatedWebState = activeWebState->GetWeakPtr();
   }
   return self;
 }
@@ -117,7 +110,11 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 - (void)disconnect {
-  [self removeWebListObservation];
+  if (_webStateList) {
+    _webStateList->RemoveObserver(_webStateListObserverBridge.get());
+  }
+  _webStateList = nullptr;
+  _webStateListObserverBridge.reset();
   _searchEngineObserver.reset();
   _navigationManager.reset();
   _currentLensResult = nil;
@@ -130,9 +127,9 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
   BOOL isLensAvailable =
       search_engines::SupportsSearchImageWithLens(_templateURLService);
   if (!isLensAvailable) {
-    [self destroyLensUIAnimated:YES
-                         reason:lens::LensOverlayDismissalSource::
-                                    kDefaultSearchEngineChange];
+    [self.commandsHandler destroyLensUI:YES
+                                 reason:lens::LensOverlayDismissalSource::
+                                            kDefaultSearchEngineChange];
   }
 }
 
@@ -307,9 +304,9 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 - (void)lensOverlayDidTapOnCloseButton:(id<ChromeLensOverlay>)lensOverlay {
-  [self destroyLensUIAnimated:YES
-                       reason:lens::LensOverlayDismissalSource::
-                                  kOverlayCloseButton];
+  [self.commandsHandler
+      destroyLensUI:YES
+             reason:lens::LensOverlayDismissalSource::kOverlayCloseButton];
 }
 
 - (void)lensOverlay:(id<ChromeLensOverlay>)lensOverlay
@@ -396,31 +393,25 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 - (void)didChangeWebStateList:(WebStateList*)webStateList
                        change:(const WebStateListChange&)change
                        status:(const WebStateListStatus&)status {
-  if (!_associatedWebState || !_webStateList) {
-    return;
-  }
+  BOOL didDetach = change.type() == WebStateListChange::Type::kDetach;
+  BOOL activeWebStateChange = status.active_web_state_change();
 
   // Because Lens Overlay doesn't support inter-window changes of the active
-  // web state, it must be close immediately if the associated web state
+  // web state, it must be close immediately if the active web state
   // gets detached.
-  BOOL didDetachAssociatedWebState =
-      _webStateList->GetIndexOfWebState(_associatedWebState.get()) ==
-      WebStateList::kInvalidIndex;
-  if (didDetachAssociatedWebState) {
-    [self destroyLensUIAnimated:NO
-                         reason:lens::LensOverlayDismissalSource::kTabClosed];
+  if (didDetach && activeWebStateChange) {
+    [self.commandsHandler
+        destroyLensUI:NO
+               reason:lens::LensOverlayDismissalSource::kTabClosed];
   }
-}
-
-- (void)webStateListDestroyed:(WebStateList*)webStateList {
-  [self removeWebListObservation];
 }
 
 #pragma mark - LensResultPageMediatorDelegate
 
 - (void)lensResultPageWebStateDestroyed {
-  [self destroyLensUIAnimated:YES
-                       reason:lens::LensOverlayDismissalSource::kTabClosed];
+  [self.commandsHandler
+      destroyLensUI:YES
+             reason:lens::LensOverlayDismissalSource::kTabClosed];
 }
 
 - (void)lensResultPageDidChangeActiveWebState:(web::WebState*)webState {
@@ -439,21 +430,6 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 #pragma mark - Private
-
-- (void)removeWebListObservation {
-  if (_webStateList && _webStateListObserverBridge) {
-    _webStateList->RemoveObserver(_webStateListObserverBridge.get());
-  }
-  _webStateList = nullptr;
-  _webStateListObserverBridge.reset();
-}
-
-- (void)destroyLensUIAnimated:(BOOL)animated
-                       reason:
-                           (lens::LensOverlayDismissalSource)dismissalSource {
-  [self removeWebListObservation];
-  [self.commandsHandler destroyLensUI:animated reason:dismissalSource];
-}
 
 - (void)clearNavigations {
   if (_navigationManager) {

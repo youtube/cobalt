@@ -277,9 +277,7 @@ public class CustomTabActivity extends BaseCustomTabActivity {
 
         if (mAuxiliarySearchController != null) {
             Tab tab = getCustomTabActivityTabProvider().getTab();
-            if (tab != null) {
-                mAuxiliarySearchController.donateCustomTabs(tab.getUrl(), tab.getTimestampMillis());
-            }
+            mAuxiliarySearchController.donateCustomTabs(tab.getUrl(), tab.getTimestampMillis());
         }
     }
 

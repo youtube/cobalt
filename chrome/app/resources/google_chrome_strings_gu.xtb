@@ -56,7 +56,6 @@
 <translation id="1682634494516646069">Google Chrome એની ડેટા ડિરેક્ટરી વાંચી અથવા લખી શકતુંં નથી:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">તમે જ્યારે ઍડ્રેસ બાર અથવા શોધ બૉક્સમાં ટાઇપ કરો છો, ત્યારે સૂચનો મેળવવા માટે Chrome તમે જે ટાઇપ કરો છો તેને તમારી સંસ્થાના શોધ, AI અને એજન્ટ ટૂલ પર મોકલે છે.</translation>
 <translation id="1698376642261615901">Google Chrome એ એક એવું વેબ બ્રાઉઝર છે જે પ્રકાશની ગતિએ વેબપૃષ્ઠો અને એપ્લિકેશંસને ચલાવે છે. તે ઝડપી, સ્થિર અને ઉપયોગમાં સરળ છે. Google Chrome માં નિર્મિત મૉલવેર અને ફિશીંગ સુરક્ષા સાથે વેબને વધુ સુરક્ષિત રૂપે બ્રાઉઝ કરો.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome એક કલાકમાં ફરીથી લૉન્ચ થશે}one{Chrome # કલાકમાં ફરીથી લૉન્ચ થશે}other{Chrome # કલાકમાં ફરીથી લૉન્ચ થશે}}</translation>
 <translation id="1722488837206509557">આ તમને ઉપલબ્ધ ડિવાઇસમાંથી પસંદ કરવાની અને તેમના પર કન્ટેન્ટ બતાવવાની મંજૂરી આપશે.</translation>
@@ -223,7 +222,6 @@
 <translation id="3716540481907974026">ChromeOS Flexનું વર્ઝન</translation>
 <translation id="3718181793972440140">આ, 1 આઇટમને આ ડિવાઇસમાંથી ડિલીટ કરશે. પછીથી તમારો ડેટા ફરીથી મેળવવા માટે, Chromeમાં <ph name="USER_EMAIL" /> તરીકે સાઇન ઇન કરો.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome તેને કાઢી નાખવાનો સુઝાવ તમને આપે છે. <ph name="BEGIN_LINK" />સપોર્ટેડ એક્સ્ટેન્શન વિશે વધુ જાણો<ph name="END_LINK" />}one{Chrome તેમને કાઢી નાખવાનો સુઝાવ તમને આપે છે. <ph name="BEGIN_LINK" />સપોર્ટેડ એક્સ્ટેન્શન વિશે વધુ જાણો<ph name="END_LINK" />}other{Chrome તેમને કાઢી નાખવાનો સુઝાવ તમને આપે છે. <ph name="BEGIN_LINK" />સપોર્ટેડ એક્સ્ટેન્શન વિશે વધુ જાણો<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Chrome ઇન્સ્ટૉલ કરવા વિશે વધુ જાણો</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">સાઇન ઇન કરવામાં ભૂલ આવવાને કારણે, ChromeOS Flex તમારા ડેટાને સિંક કરી શક્યું નથી.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -320,7 +318,6 @@
 <translation id="4970880042055371251">ChromeOSનું વર્ઝન</translation>
 <translation id="4990567037958725628">Google Chrome કૅનેરી</translation>
 <translation id="5003967926796347400">“Google Password Manager” પર ક્લિક કરો</translation>
-<translation id="504867494566807945">કોઈપણ ઍપમાંથી લિંકને Chromeમાં ખોલો. વધુમાં, સરળ ઍક્સેસ માટે તે તમારા ટાસ્કબારમાં પિન કરવામાં આવે છે.</translation>
 <translation id="5114340746415930644">તમારા <ph name="USER_EMAIL" /> એકાઉન્ટમાં Chrome ડેટાનો ઉપયોગ કરવા અને તેને સાચવવા માટે તમારો પાસફ્રેઝ દાખલ કરો</translation>
 <translation id="5120334927898581447">જ્યારે તમે Googleની અન્ય સેવાઓમાં સાઇન ઇન કરશો, ત્યારે Chromeમાં સાઇન ઇન કરો</translation>
 <translation id="5126049312684316860">તમે જે પેજની મુલાકાત લેશો તેવી શક્યતા હોય, Chrome તેવા વધુ પેજને પણ પહેલેથી લોડ કરે છે, જેથી જ્યારે તમે તેમની મુલાકાત લો, ત્યારે તે વધુ ઝડપથી લોડ થાય</translation>
@@ -401,7 +398,6 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="6075300983329039771">તમારી સંસ્થાના <ph name="MANAGER" /> માટે જરૂરી છે કે તમે Chromeમાં સાઇન ઇન કરો</translation>
 <translation id="6113794647360055231">Chrome હવે પહેલાંથી બહેતર બન્યું છે</translation>
 <translation id="6116252277240876590">આ ભાષાનો ઉપયોગ Chromeમાંના મેનૂ, સેટિંગ, અલર્ટ અને અન્ય ટેક્સ્ટ બતાવવા માટે થાય છે</translation>
-<translation id="6127237283587442951">ડિફૉલ્ટ તરીકે Chromeનો ઉપયોગ કરો અને તેને પિન કરો</translation>
 <translation id="6134085236017727171">તમારા માઇક્રોફોનનો ઉપયોગ કરવા માટે, <ph name="BEGIN_LINK" />સિસ્ટમના સેટિંગ<ph name="END_LINK" />માં જઈને Chromeને ઍક્સેસ આપો</translation>
 <translation id="6135456723633883042">આ ટૅબ વધારાના સંસાધનોનો ઉપયોગ કરી રહ્યાં છે. તમારા પર્ફોર્મન્સને બહેતર બનાવવા માટે, Chromeને તેમને નિષ્ક્રિય કરવા દો.</translation>
 <translation id="6145313976051292476">Chromeમાં PDFs ખોલો</translation>
@@ -636,7 +632,6 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="9090566250983691233">Chrome શા માટે અમુક ફાઇલો બ્લૉક કરે છે, તે જાણો</translation>
 <translation id="9106236359747881194">શોધવા માટે ટેક્સ્ટ પસંદ કરો</translation>
 <translation id="911206726377975832">તમારો બ્રાઉઝિંગ ડેટા પણ ડિલીટ કરી દઈએ?</translation>
-<translation id="9134482777260927479">હોમવર્ક માટે મદદ</translation>
 <translation id="9138603949443464873">તમારા ફેરફારો લાગુ કરવા માટે, Chromeને ફરી લૉન્ચ કરો</translation>
 <translation id="9148058034647219655">બહાર નીકળો</translation>
 <translation id="9195993889682885387">Chrome છેલ્લા અમુક અઠવાડિયાઓના તમારા બ્રાઉઝિંગ ઇતિહાસને આધારે તમારી રુચિઓનું અનુમાન લગાવી શકે છે. આ માહિતી તમારા ડિવાઇસમાં જ રહે છે.</translation>

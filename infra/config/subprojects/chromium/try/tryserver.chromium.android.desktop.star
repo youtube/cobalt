@@ -3,27 +3,27 @@
 # found in the LICENSE file.
 """Definitions of builders in the tryserver.chromium.android builder group."""
 
-load("@chromium-luci//branches.star", "branches")
-load("@chromium-luci//builders.star", "os")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//gn_args.star", "gn_args")
-load("@chromium-luci//try.star", "try_")
-load("//lib/siso.star", "siso")
-load("//lib/try_constants.star", "try_constants")
+load("//lib/branches.star", "branches")
+load("//lib/builders.star", "os", "siso")
+load("//lib/try.star", "try_")
+load("//lib/consoles.star", "consoles")
+load("//lib/gn_args.star", "gn_args")
 
 try_.defaults.set(
-    executable = try_constants.DEFAULT_EXECUTABLE,
+    executable = try_.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.chromium.android",
-    pool = try_constants.DEFAULT_POOL,
+    pool = try_.DEFAULT_POOL,
     builderless = True,
     cores = 32,
     os = os.LINUX_DEFAULT,
     ssd = True,
     compilator_cores = 32,
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
+    execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 4,
-    service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
+    reclient_enabled = False,
+    service_account = try_.DEFAULT_SERVICE_ACCOUNT,
+    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )

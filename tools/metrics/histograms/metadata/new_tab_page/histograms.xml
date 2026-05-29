@@ -252,31 +252,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="NewTabPage.ComposeEntrypoint.Click.UserTextPresent"
-    enum="Boolean" expires_after="2026-06-10">
-  <owner>niharm@google.com</owner>
-  <owner>ananyaseelam@google.com</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    Recorded when the user clicks on the compose entrypoint in the NTP realbox.
-    Records whether the user had text in the realbox at the time they clicked
-    the compose entrypoint. This metric is only recorded when the entry point is
-    used to navigate rather than open the compose box.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.ComposeEntrypoint.Shown" enum="BooleanShown"
-    expires_after="2026-06-10">
-  <owner>niharm@google.com</owner>
-  <owner>ananyaseelam@google.com</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    Recorded when the compose entrypoint is shown in the NTP realbox. This is
-    recorded once when the NTP is attached to DOM. It is not shown for
-    enterprise if the enterprise policies don't allow AIMode settings.
-  </summary>
-</histogram>
-
 <histogram name="NewTabPage.ConcretePage" enum="NewTabPageConcretePage"
     expires_after="2025-11-16">
   <owner>romanarora@chromium.org</owner>
@@ -531,89 +506,6 @@ chromium-metrics-reviews@google.com.
     Records the reason of why failed to show a home surface UI on the chosen
     NTP. Logged in cold or warm startup when failed to show the home surface UI.
     This histogram is recorded on tablets only.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.Click" enum="FooterElement"
-    expires_after="2025-11-23">
-  <owner>temao@chromium.org</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>Logged when the Footer was clicked.</summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.ContextMenuClicked"
-    enum="FooterContextMenuItem" expires_after="2025-11-23">
-  <owner>temao@chromium.org</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>Logged when item in footer's context menu is clicked.</summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.CustomizeChromeOpened"
-    enum="FooterCustomizeChromeEntryPoint" expires_after="2025-11-23">
-  <owner>temao@chromium.org</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    Captures calls to open Customize Chrome on the Footer. Calls can be made to
-    open Customize Chrome while it is already open. Opening Customize Chrome
-    from inside the side panel is tracked by
-    &quot;SidePanel.CustomizeChrome.ShowTriggered&quot;.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.ShownTime" units="ms"
-    expires_after="2026-02-01">
-  <owner>pauladedeji@google.com</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    Histogram of the time, in milliseconds, between when the New Tab Footer was
-    triggered to be shown and when it was shown.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.ToggledVisibility" enum="BooleanVisible"
-    expires_after="2026-02-01">
-  <owner>pauladedeji@google.com</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    Logged when New Tab Footer visibility is toggled via Customize Chrome.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.VisibleOnLoad" enum="BooleanVisible"
-    expires_after="2026-02-01">
-  <owner>pauladedeji@google.com</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    Whether New Tab Footer is visible when a new tab page is opened.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.WebUI.LoadCompletedTime" units="ms"
-    expires_after="2026-02-01">
-  <owner>pauladedeji@google.com</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    The amount of time between the RenderFrameHost StartProvisionalLoad event
-    and the RenderFrameHost DocumentOnLoadCompleted event for the New Tab
-    Footer's WebUI.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Footer.WebUI.LoadDocumentTime" units="ms"
-    expires_after="2026-02-01">
-  <owner>pauladedeji@google.com</owner>
-  <owner>tiborg@chromium.org</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <summary>
-    The amount of time between the RenderFrameHost StartProvisionalLoad and
-    DidFinishDocumentLoad events for the New Tab Footer's WebUI.
   </summary>
 </histogram>
 
@@ -1412,16 +1304,6 @@ chromium-metrics-reviews@google.com.
     <variant name="8"/>
     <variant name="9"/>
   </token>
-</histogram>
-
-<histogram name="NewTabPage.MostVisited.NumberOfCustomTilesOnFirstNtp"
-    units="units" expires_after="2025-11-23">
-  <owner>fredmello@chromium.org</owner>
-  <owner>huangs@chromium.org</owner>
-  <summary>
-    The number of Custom Tiles on the NTP the first time the NTP opens for a
-    profile, assuming Custom Tiles are enabled.
-  </summary>
 </histogram>
 
 <histogram name="NewTabPage.MostVisited.ReselectMatch.{StrictnessSuffix}"

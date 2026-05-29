@@ -672,7 +672,6 @@ void WaylandWindowDragController::HandleDropAndResetState(
   events_grabber_ = nullptr;
   state_ = State::kIdle;
   drag_source_.reset();
-  data_source_.reset();
 }
 
 void WaylandWindowDragController::RunLoop() {

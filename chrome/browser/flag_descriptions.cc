@@ -1179,12 +1179,6 @@ const char kMvcUpdateViewWhenModelChangedName[] =
 const char kMvcUpdateViewWhenModelChangedDescription[] =
     "Performance optimization to the MVC framework where a View is only "
     "updated when the corresponding Model changes.";
-
-const char kReloadTabUiResourcesIfChangedName[] =
-    "Reload Tab UIResources if changed";
-const char kReloadTabUiResourcesIfChangedDescription[] =
-    "Performance optimization to the Tab Strip to reload UIResources when "
-    "producing a frame only if they have been re-rendered.";
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 const char kCodeBasedRBDName[] = "Code-based RBD";
@@ -3046,18 +3040,6 @@ const char kOmniboxUrlSuggestionsOnFocusDecription[] =
     "Enables zero-prefix URL suggestions on web and SRP when the omnibox is "
     "focused.";
 
-const char kOmniboxShowPopupOnMouseReleasedName[] =
-    "Show omnibox suggestions popup on mouse released";
-const char kOmniboxShowPopupOnMouseReleasedDescription[] =
-    "Enables delaying presentation of the omnibox suggestions popup until the "
-    "mouse is released.";
-
-const char kOmniboxZpsSuggestionLimit[] =
-    "Omnibox suggestion limit for zero prefix suggestions";
-const char kOmniboxZpsSuggestionLimitDescription[] =
-    "Enables limits on the total number of suggestions, as well as separate "
-    "limits for search and URL suggestions in the omnibox.";
-
 const char kWebUIOmniboxPopupName[] = "WebUI Omnibox Popup";
 const char kWebUIOmniboxPopupDescription[] =
     "If enabled, shows the omnibox suggestions popup in WebUI.";
@@ -3288,8 +3270,7 @@ const char kPdfSearchifyDescription[] =
 const char kPdfXfaFormsName[] = "PDF XFA support";
 const char kPdfXfaFormsDescription[] =
     "Enables support for XFA forms in PDFs. "
-    "Has no effect if Chrome was not built with XFA support, or if controlled "
-    "by an enterprise policy.";
+    "Has no effect if Chrome was not built with XFA support.";
 
 const char kAutoWebContentsDarkModeName[] = "Auto Dark Mode for Web Contents";
 const char kAutoWebContentsDarkModeDescription[] =
@@ -4601,13 +4582,6 @@ const char kAccessibilityIncludeLongClickActionName[] =
 const char kAccessibilityIncludeLongClickActionDescription[] =
     "When enabled, the accessibility tree for the web contents will include "
     "the ACTION_LONG_CLICK action on all relevant nodes.";
-
-const char kAccessibilityPopulateSupplementalDescriptionApiName[] =
-    "Accessibility populate supplemental description";
-const char kAccessibilityPopulateSupplementalDescriptionApiDescription[] =
-    "When enabled, the supplemental description information will be populated "
-    "using the Android supplemental description API.";
-
 const char kAccessibilityTextFormattingName[] = "Accessibility Text Formatting";
 const char kAccessibilityTextFormattingDescription[] =
     "When enabled, text formatting information will be included in the "
@@ -5649,15 +5623,6 @@ const char kNtpCalendarModuleDescription[] =
 const char kNtpChromeCartModuleName[] = "NTP Chrome Cart Module";
 const char kNtpChromeCartModuleDescription[] =
     "Shows the chrome cart module on the New Tab Page.";
-
-const char kNtpSearchboxComposeboxName[] = "NTP Composebox";
-const char kNtpSearchboxComposeboxDescription[] =
-    "Shows the Composebox on the New Tab Page Searchbox upon clicking the "
-    "entrypoint.";
-
-const char kNtpSearchboxComposeEntrypointName[] = "NTP Compose Entrypoint";
-const char kNtpSearchboxComposeEntrypointDescription[] =
-    "Shows the Compose entrypoint on the New Tab Page Searchbox.";
 
 const char kNtpDriveModuleName[] = "NTP Drive Module";
 const char kNtpDriveModuleDescription[] =

@@ -10,11 +10,10 @@
 
 class SideSwipeUIControllerTest : public PlatformTest {
  public:
-  SideSwipeUIControllerTest() : view_([[UIView alloc] init]) {
+  SideSwipeUIControllerTest() {
     side_swipe_ui_controller_ = [[SideSwipeUIController alloc] init];
   }
 
-  UIView* view_;
   SideSwipeUIController* side_swipe_ui_controller_;
 };
 
@@ -66,14 +65,4 @@ TEST_F(SideSwipeUIControllerTest, TestNativeSwipeIsEnabledOnLtrEnv) {
   // On an LTR layout, edge navigation is enabled on right direction since
   // leading edge navigation is enabled.
   EXPECT_TRUE(edgeNavigationIsEnabledOnRightDirection);
-}
-
-// Tests that gesture recognizers are removed from the original view that
-// requested these when the UIViewController is disconnected.
-TEST_F(SideSwipeUIControllerTest, TestGestureRecognizerRemovedOnDisconnect) {
-  [side_swipe_ui_controller_ addHorizontalGesturesToView:view_];
-  EXPECT_EQ(2U, view_.gestureRecognizers.count);
-
-  [side_swipe_ui_controller_ disconnect];
-  EXPECT_EQ(0U, view_.gestureRecognizers.count);
 }

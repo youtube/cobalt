@@ -19,7 +19,6 @@
 
 #include "base/check.h"
 #include "base/containers/fixed_flat_map.h"
-#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
@@ -1494,12 +1493,7 @@ void PdfInkModule::RecordStrokePosition(const gfx::PointF& position,
   base::TimeDelta time_diff = timestamp - state.start_time.value();
   auto result = state.inputs.back().Append(
       CreateInkStrokeInput(tool_type, canonical_position, time_diff));
-  if (!result.ok()) {
-    // TODO(crbug.com/421120183): Fix crash and remove.
-    SCOPED_CRASH_KEY_STRING256("PdfInkModule", "RecordStrokePosition",
-                               result.message());
-    CHECK(result.ok()) << result.message();
-  }
+  CHECK(result.ok()) << result.message();
 }
 
 void PdfInkModule::ApplyUndoRedoCommands(

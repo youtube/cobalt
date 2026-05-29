@@ -1592,7 +1592,6 @@ inline constexpr char kDeviceNativeClientForceAllowed[] =
     "device_native_client_force_allowed";
 inline constexpr char kDeviceNativeClientForceAllowedCache[] =
     "device_native_client_force_allowed_cache";
-inline constexpr char kIsFirstBootForNacl[] = "is_first_boot_for_nacl";
 #endif
 
 // Profile avatar and name
@@ -2390,9 +2389,6 @@ inline constexpr char kNtpCollapsedSnapshotDocument[] =
 // Keeps track of sync promo collapsed state in the Other Devices menu.
 inline constexpr char kNtpCollapsedSyncPromo[] = "ntp.collapsed_sync_promo";
 #else
-// Name of preference to count of times compose button was shown.
-inline const char kNtpComposeButtonShownCountPrefName[] =
-    "ntp.compose_button.shown_count";
 // Holds info for New Tab Page custom background
 // Use `kNtpCustomBackgroundDict` only.
 inline constexpr char kDeprecatedNtpCustomBackgroundDictDoNotUse[] =

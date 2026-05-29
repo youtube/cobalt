@@ -20,7 +20,6 @@
 #include "remoting/base/directory_service_client.h"
 #include "remoting/base/oauth_token_info.h"
 #include "remoting/base/passthrough_oauth_token_getter.h"
-#include "remoting/client/common/client_status_observer.h"
 #include "remoting/client/common/frame_consumer_wrapper.h"
 #include "remoting/client/common/logging.h"
 #include "remoting/proto/control.pb.h"
@@ -68,7 +67,6 @@ RemotingClient::~RemotingClient() {
   if (signal_strategy_) {
     signal_strategy_->RemoveListener(this);
   }
-  observers_.Notify(&ClientStatusObserver::OnClientDestroyed);
 }
 
 void RemotingClient::StartSession(std::string_view support_access_code,
@@ -202,14 +200,6 @@ void RemotingClient::StopSession() {
   return;
 }
 
-void RemotingClient::AddObserver(ClientStatusObserver* observer) {
-  observers_.AddObserver(observer);
-}
-
-void RemotingClient::RemoveObserver(ClientStatusObserver* observer) {
-  observers_.RemoveObserver(observer);
-}
-
 void RemotingClient::SetCapabilities(
     const protocol::Capabilities& capabilities) {
   NOTIMPLEMENTED();
@@ -262,13 +252,9 @@ void RemotingClient::OnConnectionState(protocol::ConnectionToHost::State state,
     protocol::PeerConnectionParameters peer_connection_params;
     peer_connection_params.set_preferred_min_bitrate_bps(kMinBitrateBps);
     connection_->host_stub()->ControlPeerConnection(peer_connection_params);
-    observers_.Notify(&ClientStatusObserver::OnConnected);
-  } else if (state == protocol::ConnectionToHost::State::CLOSED) {
+  } else if (state == protocol::ConnectionToHost::State::CLOSED ||
+             state == protocol::ConnectionToHost::State::FAILED) {
     StopSession();
-    observers_.Notify(&ClientStatusObserver::OnDisconnected);
-  } else if (state == protocol::ConnectionToHost::State::FAILED) {
-    StopSession();
-    observers_.Notify(&ClientStatusObserver::OnConnectionFailed);
   }
 }
 

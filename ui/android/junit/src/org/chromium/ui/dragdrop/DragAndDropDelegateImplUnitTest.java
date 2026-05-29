@@ -651,14 +651,16 @@ public class DragAndDropDelegateImplUnitTest {
         // A11y setting with isTouchExplorationEnabled=true and isPerformGesturesEnabled=false on XR
         AccessibilityState.setIsTouchExplorationEnabledForTesting(true);
         AccessibilityState.setIsPerformGesturesEnabledForTesting(false);
-        Assert.assertTrue(
-                "Drag and drop should start.", calllStartDragAndDrop(shadowImage, dropData));
+        Assert.assertFalse(
+                "Drag and drop should not start when isTouchExplorationEnabled=true.",
+                calllStartDragAndDrop(shadowImage, dropData));
 
         // A11y setting with isTouchExplorationEnabled=true and isPerformGesturesEnabled=true on XR
         AccessibilityState.setIsTouchExplorationEnabledForTesting(true);
         AccessibilityState.setIsPerformGesturesEnabledForTesting(true);
-        Assert.assertTrue(
-                "Drag and drop should start.", calllStartDragAndDrop(shadowImage, dropData));
+        Assert.assertFalse(
+                "Drag and drop should not start when isTouchExplorationEnabled=true.",
+                calllStartDragAndDrop(shadowImage, dropData));
 
         // A11y setting with isTouchExplorationEnabled=false and isPerformGesturesEnabled=false on
         // XR

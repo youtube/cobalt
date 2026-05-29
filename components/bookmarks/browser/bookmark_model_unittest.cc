@@ -2295,7 +2295,6 @@ TEST_F(BookmarkModelTest, NodeVisibility_RemoveAccountPermanentFolders) {
   // folders.
   EXPECT_CALL(observer, BookmarkPermanentNodeVisibilityChanged(local_bb))
       .WillOnce([&](const BookmarkPermanentNode* node) {
-        EXPECT_TRUE(model_->IsLocalOnlyNode(*node));
         EXPECT_TRUE(node->IsVisible());
         EXPECT_THAT(GetVisiblePermanentNodes(),
                     ElementsAre(local_bb, account_bb, account_other));
@@ -2303,7 +2302,6 @@ TEST_F(BookmarkModelTest, NodeVisibility_RemoveAccountPermanentFolders) {
 
   EXPECT_CALL(observer, BookmarkPermanentNodeVisibilityChanged(local_other))
       .WillOnce([&](const BookmarkPermanentNode* node) {
-        EXPECT_TRUE(model_->IsLocalOnlyNode(*node));
         EXPECT_TRUE(node->IsVisible());
         EXPECT_THAT(
             GetVisiblePermanentNodes(),
@@ -2318,7 +2316,6 @@ TEST_F(BookmarkModelTest, NodeVisibility_RemoveAccountPermanentFolders) {
   EXPECT_CALL(observer,
               BookmarkNodeRemoved(_, _, model_->account_mobile_node(), _, _))
       .WillOnce(WithArg<2>([&](const BookmarkNode* node) {
-        EXPECT_FALSE(model_->IsLocalOnlyNode(*node));
         EXPECT_FALSE(node->IsVisible());
         EXPECT_THAT(
             GetVisiblePermanentNodes(),
@@ -2326,16 +2323,14 @@ TEST_F(BookmarkModelTest, NodeVisibility_RemoveAccountPermanentFolders) {
       }));
 
   EXPECT_CALL(observer, BookmarkNodeRemoved(_, _, account_other, _, _))
-      .WillOnce(WithArgs<1, 2>([&](size_t old_index, const BookmarkNode* node) {
-        EXPECT_FALSE(model_->IsLocalOnlyNode(*node));
+      .WillOnce(WithArg<1>([&](size_t old_index) {
         EXPECT_EQ(GetVisibleIndexForPermanentNode(old_index), 3u);
         EXPECT_THAT(GetVisiblePermanentNodes(),
                     ElementsAre(local_bb, local_other, account_bb));
       }));
 
   EXPECT_CALL(observer, BookmarkNodeRemoved(_, _, account_bb, _, _))
-      .WillOnce(WithArgs<1, 2>([&](size_t old_index, const BookmarkNode* node) {
-        EXPECT_FALSE(model_->IsLocalOnlyNode(*node));
+      .WillOnce(WithArg<1>([&](size_t old_index) {
         EXPECT_EQ(GetVisibleIndexForPermanentNode(old_index), 2u);
         EXPECT_THAT(GetVisiblePermanentNodes(),
                     ElementsAre(local_bb, local_other));

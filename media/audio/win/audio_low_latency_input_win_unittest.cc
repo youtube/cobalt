@@ -816,7 +816,6 @@ TEST_F(WinAudioInputLoopbackTest,
   sink.WaitForData();
   sink.WaitForData();
   stream_.Close();
-  output_stream_.Close();
 
   EXPECT_EQ(sink.num_callbacks(), 2);
   EXPECT_GT(sink.num_received_audio_frames(), 0);

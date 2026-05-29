@@ -9,9 +9,9 @@ import android.os.SystemClock;
 
 import androidx.annotation.Keep;
 import androidx.annotation.Nullable;
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.SmallTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -60,7 +60,6 @@ public class AwPrefetchTest extends AwParameterizedTest {
     private static final String BASIC_PREFETCH_URL = "/android_webview/test/data/hello_world.html";
 
     private final TestAwContentsClient mContentsClient;
-    private AwEmbeddedTestServer mTestServer;
     private String mPrefetchUrl;
 
     public AwPrefetchTest(AwSettingsMutation param) {
@@ -74,7 +73,7 @@ public class AwPrefetchTest extends AwParameterizedTest {
     public void setUp() throws Exception {
         mActivityTestRule.startBrowserProcess();
 
-        mTestServer =
+        AwEmbeddedTestServer mTestServer =
                 AwEmbeddedTestServer.createAndStartHTTPSServer(
                         InstrumentationRegistry.getInstrumentation().getContext(),
                         ServerCertificate.CERT_TEST_NAMES);
@@ -491,32 +490,6 @@ public class AwPrefetchTest extends AwParameterizedTest {
                 Runnable::run,
                 integer -> {});
         loadUrlLatch.countDown();
-    }
-
-    @Test
-    @LargeTest
-    @Feature({"AndroidWebView"})
-    @CommandLineFlags.Add({ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1"})
-    public void testPrefetchHasExpectedSecHeaderPurposeHeaderValue() throws Throwable {
-        // Prepare PrefetchParameters
-        Map<String, String> additionalHeaders = new HashMap<>();
-        additionalHeaders.put("foo", "bar");
-        additionalHeaders.put("lorem", "ipsum");
-        AwNoVarySearchData expectedNoVarySearch =
-                new AwNoVarySearchData(false, false, new String[] {"ts", "uid"}, null);
-        AwPrefetchParameters prefetchParameters =
-                new AwPrefetchParameters(additionalHeaders, expectedNoVarySearch, true);
-
-        // Do the prefetch request.
-        TestAwPrefetchCallback callback = startPrefetchingAndWait(mPrefetchUrl, prefetchParameters);
-
-        // wait then do the checks
-        callback.mOnStatusUpdatedHelper.waitForNext();
-        HashMap<String, String> prefetchHeaders =
-                mTestServer.getRequestHeadersForUrl(BASIC_PREFETCH_URL);
-        String secPurposeHeaderValue = prefetchHeaders.get("Sec-Purpose");
-        Assert.assertNotNull(secPurposeHeaderValue);
-        Assert.assertTrue(AwPrefetchManager.isSecPurposeForPrefetch(secPurposeHeaderValue));
     }
 
     private static AwPrefetchParameters getAwPrefetchParameters() {

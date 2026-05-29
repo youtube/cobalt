@@ -35,6 +35,7 @@
 #include "media/mojo/clients/mojo_audio_encoder.h"
 #include "media/mojo/clients/mojo_video_encoder_metrics_provider.h"
 #include "media/muxers/live_webm_muxer_delegate.h"
+#include "media/muxers/memory_webm_muxer_delegate.h"
 #include "media/muxers/mp4_muxer.h"
 #include "media/muxers/mp4_muxer_delegate.h"
 #include "media/muxers/muxer.h"
@@ -70,6 +71,11 @@ namespace blink {
 BASE_FEATURE(kMediaRecorderEnableMp4Muxer,
              "MediaRecorderEnableMp4Muxer",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kMediaRecorderSeekableWebm,
+             "MediaRecorderSeekableWebm",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 namespace {
 
 constexpr double kDefaultVideoFrameRate = 30.0;
@@ -289,8 +295,7 @@ MediaRecorderHandler::MediaRecorderHandler(
     scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
     KeyFrameRequestProcessor::Configuration key_frame_config)
     : key_frame_config_(key_frame_config),
-      main_thread_task_runner_(std::move(main_thread_task_runner)),
-      media_stream_observer_(std::make_unique<MediaStreamObserver>(this)) {}
+      main_thread_task_runner_(std::move(main_thread_task_runner)) {}
 
 bool MediaRecorderHandler::CanSupportMimeType(const String& type,
                                               const String& web_codecs) {
@@ -569,10 +574,12 @@ bool MediaRecorderHandler::Start(int timeslice,
   DCHECK(!muxer_adapter_);
 
   DCHECK(!is_media_stream_observer_);
-  media_stream_->AddObserver(media_stream_observer_->AsWeakPtr());
+  media_stream_->AddObserver(this);
   is_media_stream_observer_ = true;
 
-  timeslice_ = base::Milliseconds(timeslice);
+  timeslice_ = timeslice == std::numeric_limits<int>::max()
+                   ? base::TimeDelta::Max()
+                   : base::Milliseconds(timeslice);
   slice_origin_timestamp_ = base::TimeTicks::Now();
 
   audio_bits_per_second_ = audio_bits_per_second;
@@ -648,6 +655,16 @@ bool MediaRecorderHandler::Start(int timeslice,
       recorder_->UpdateAudioBitrate(audio_bits_per_second_);
     }
 #endif
+  } else if (timeslice_.is_max() &&
+             base::FeatureList::IsEnabled(kMediaRecorderSeekableWebm)) {
+    // Write a seekable WebM instead of a live one.
+    muxer = std::make_unique<media::WebmMuxer>(
+        audio_codec, use_video_tracks, use_audio_tracks,
+        std::make_unique<media::MemoryWebmMuxerDelegate>(
+            write_callback,
+            WTF::BindOnce(&MediaRecorderHandler::OnStarted,
+                          WrapPersistent(weak_factory_.GetWeakCell()))),
+        optional_timeslice);
   } else {
     muxer = std::make_unique<media::WebmMuxer>(
         audio_codec, use_video_tracks, use_audio_tracks,
@@ -715,7 +732,7 @@ void MediaRecorderHandler::Stop() {
 
   // Unregister from media stream notifications.
   if (media_stream_ && is_media_stream_observer_) {
-    media_stream_->RemoveObserver(media_stream_observer_->AsWeakPtr());
+    media_stream_->RemoveObserver(this);
   }
   is_media_stream_observer_ = false;
 
@@ -1188,6 +1205,12 @@ void MediaRecorderHandler::OnVideoEncodingError(
   if (recorder_) {
     recorder_->OnError(DOMExceptionCode::kEncodingError,
                        String(media::EncoderStatusCodeToString(error_status)));
+  }
+}
+
+void MediaRecorderHandler::OnStarted() {
+  if (recorder_) {
+    recorder_->OnStarted();
   }
 }
 

@@ -157,10 +157,7 @@ void CookiesEventRouter::OnCookieChange(bool otr,
   }
   base::Value::List args;
   base::Value::Dict dict;
-  dict.Set(
-      kRemovedKey,
-      change.cause != net::CookieChangeCause::INSERTED &&
-          change.cause != net::CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE);
+  dict.Set(kRemovedKey, change.cause != net::CookieChangeCause::INSERTED);
 
   Profile* profile =
       otr ? profile_->GetPrimaryOTRProfile(/*create_if_needed=*/false)

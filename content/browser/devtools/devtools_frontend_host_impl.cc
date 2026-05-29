@@ -104,8 +104,11 @@ std::string DevToolsFrontendHost::GetFrontendResource(const std::string& path) {
 DevToolsFrontendHostImpl::DevToolsFrontendHostImpl(
     RenderFrameHost* frame_host,
     const HandleMessageCallback& handle_message_callback)
-    : WebContentsObserver(WebContents::FromRenderFrameHost(frame_host)),
+    : web_contents_(WebContents::FromRenderFrameHost(frame_host)),
       handle_message_callback_(handle_message_callback) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  Observe(web_contents_);
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   mojo::AssociatedRemote<blink::mojom::DevToolsFrontend> frontend;
   frame_host->GetRemoteAssociatedInterfaces()->GetInterface(&frontend);
   std::string api_script =
@@ -118,12 +121,8 @@ DevToolsFrontendHostImpl::DevToolsFrontendHostImpl(
 DevToolsFrontendHostImpl::~DevToolsFrontendHostImpl() = default;
 
 void DevToolsFrontendHostImpl::BadMessageReceived() {
-  if (!web_contents()) {
-    return;
-  }
-
   bad_message::ReceivedBadMessage(
-      web_contents()->GetPrimaryMainFrame()->GetProcess(),
+      web_contents_->GetPrimaryMainFrame()->GetProcess(),
       bad_message::DFH_BAD_EMBEDDER_MESSAGE);
 }
 

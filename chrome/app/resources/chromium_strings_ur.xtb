@@ -221,13 +221,11 @@
 <translation id="3954172517175569325">‏آپ کے پاس ورڈز، ادائیگی کے طریقے اور پتے جو آپ نے اپنے Google اکاؤنٹ میں محفوظ کیے ہیں اس آلہ سے ہٹا دیے جائیں گے۔ انہیں Chromium میں دوبارہ استعمال کرنے کے لیے، دوبارہ سائن ان کریں۔</translation>
 <translation id="395904275706073188">محفوظ صفحات کو پڑھا نہیں جا سکتا۔ کوئی دوسرا صفحہ آزمائیں۔</translation>
 <translation id="3962647064319009959">‏جانیں کہ Chromium آپ کو کیسے محفوظ رکھتا ہے</translation>
-<translation id="3971865010372729242">‏جب آپ ایڈریس بار یا تلاش کے خانے میں ٹائپ کرتے ہیں تو Chromium آپ کی تنظیم کی تلاش، AI اور ایجنٹ ٹولز کو تجاویز حاصل کرنے کے لیے بھیجتا ہے۔</translation>
 <translation id="3975724895399328945">‏&amp;Google Chrome for Testing کے بارے میں</translation>
 <translation id="3997429360543082038">‏ChromiumOS کے بارے میں</translation>
 <translation id="4019629340646866719">‏ChromiumOS کو اضافی <ph name="BEGIN_LINK_CROS_OSS" />اوپن سورس سافٹ ویئر<ph name="END_LINK_CROS_OSS" /> کے ذریعے ممکن بنایا گیا ہے، جیسے کہ <ph name="BEGIN_LINK_LINUX_OSS" />Linux ڈیولپمنٹ انوائرنمنٹ<ph name="END_LINK_LINUX_OSS" />۔</translation>
 <translation id="4022972681110646219">اسکرین پر موجود مواد کا ترجمہ کریں</translation>
 <translation id="4023601594785368013">اصل زبان: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">‏کسی بھی ایپ سے Chromium میں لنکس کھولیں۔ اس کے علاوہ آسان رسائی کے لیے، یہ آپ کے ٹاسک بار میں پن ہو جاتا ہے۔</translation>
 <translation id="4036079820698952681">‏<ph name="BEGIN_LINK" />موجودہ ترتیبات<ph name="END_LINK" /> کی اطلاع دے کر Chromium کو بہتر بنانے میں مدد کریں</translation>
 <translation id="4050175100176540509">اہم سیکیورٹی اصلاحات اور نئی خصوصیات تازہ ترین ورژن میں دستیاب ہیں۔</translation>
 <translation id="4055805654398742145">پاس ورڈ مینیجر</translation>
@@ -329,7 +327,6 @@
 <translation id="5524890928877629608">تلاش کے حلقے کا اوپری دایاں کونا: <ph name="LEFT" /> فیصد دائیں، <ph name="TOP" /> فیصد اوپر</translation>
 <translation id="5527463683072221100">‏Chromium میں PDFs کھولیں</translation>
 <translation id="5579324208890605088">اسٹارٹ اپ کی خرابی: براہ کرم انسٹالر کو باقاعدہ صارف کے طور پر چلائیں، منتظم کے طور پر نہیں۔</translation>
-<translation id="5580770360767802657">‏‫Chromium کو بطور ڈیفالٹ استعمال کریں اور اسے پن کریں</translation>
 <translation id="5596627076506792578">مزید اختیارات</translation>
 <translation id="5605834417512968703">‏تصاویر کا استعمال کر کے تلاش کے ساتھ تلاش کرنے کے لیے کچھ بھی منتخب کریں یا تصاویر کا استعمال کر کے تلاش سے باہر نکلنے کے لیے Escape کو دبائیں</translation>
 <translation id="5618818588972826921">‏تصاویر کا استعمال کر کے تلاش کے ساتھ تلاش کرنے کیلئے کوئی بھی ٹیکسٹ یا تصویر منتخب کریں یا تصاویر کا استعمال کر کے تلاش سے باہر نکلنے کیلئے Escape کو دبائیں</translation>
