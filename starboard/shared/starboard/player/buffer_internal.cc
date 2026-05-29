@@ -75,11 +75,12 @@ class BufferPool {
   }
 
  private:
-  BufferPool() {
-    pool_storage_ = new uint8_t[kBufferSize * kPoolSize];
+  BufferPool() : pool_storage_(new uint8_t[kBufferSize * kPoolSize]) {
     for (size_t i = 0; i < kPoolSize; ++i) {
       free_list_.push_back(pool_storage_ + i * kBufferSize);
     }
+    SB_LOG(INFO) << "BufferPool is created: buffer size=" << kBufferSize
+                 << ", pool size=" << kPoolSize;
   }
 
   bool IsFromPool(uint8_t* ptr) const {
@@ -108,6 +109,12 @@ Buffer::Buffer(int size) : size_(size) {
     return true;
   }();
   (void)s_config_logged;
+  if (size_ == 0) {
+    data_ = nullptr;
+    is_pooled_ = false;
+    return;
+  }
+
   size_t total_size = static_cast<size_t>(size) + kPaddingSize * 2;
   if (UseBufferPool() && total_size <= kBufferSize) {
     data_ = BufferPool::Get()->Allocate(total_size);

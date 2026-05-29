@@ -26,6 +26,12 @@ TEST(BufferTest, DefaultCtor) {
   EXPECT_EQ(buffer.size(), 0);
 }
 
+TEST(BufferTest, ZeroSize) {
+  Buffer buffer(0);
+  EXPECT_EQ(buffer.size(), 0);
+  EXPECT_EQ(buffer.data(), nullptr);
+}
+
 TEST(BufferTest, Allocate) {
   Buffer buffer(128);
   ASSERT_EQ(buffer.size(), 128);
