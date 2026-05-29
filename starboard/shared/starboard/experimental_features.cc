@@ -27,6 +27,8 @@ namespace {
 static_assert(
     std::is_trivially_destructible<std::optional<ExperimentalFeatures>>::value,
     "g_experimental_features must be trivially destructible.");
+static_assert(sizeof(ExperimentalFeatures) < 256,
+              "ExperimentalFeatures is too large for thread-local storage.");
 thread_local std::optional<ExperimentalFeatures> g_experimental_features;
 
 std::optional<int> FromIntPointer(const int* val) {
