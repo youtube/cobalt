@@ -142,6 +142,7 @@ public class PlatformError
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
           }
+          cobaltActivity.activeNetworkCheck();
           dialog.dismiss();
           break;
         default: // fall out
