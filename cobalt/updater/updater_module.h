@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
@@ -131,8 +130,6 @@ class UpdaterModule {
                          base::TimeDelta update_check_delay);
   ~UpdaterModule();
 
-  // TODO: b/454440974 Investigate whether singleton is necessary.
-  friend class base::NoDestructor<UpdaterModule>;
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
@@ -153,7 +150,7 @@ class UpdaterModule {
 
   // TODO: b/513314330 Investigate alternatives to Singleton
   // Holds the single instance of UpdaterModule.
-  static base::NoDestructor<UpdaterModule>* updater_module_;
+  static UpdaterModule* updater_module_;
 };
 
 }  // namespace updater
