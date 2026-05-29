@@ -1152,9 +1152,14 @@ jobs:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && needs.initialize.outputs.skip_ci != 'true' && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
+        if: always() && needs.initialize.outputs.skip_ci != 'true'
         run: |
-          # Print test result summary.
+          # Print test result summary if any results exist.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          files=(results/**/*.xml)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No test result XMLs found. Skipping parser."
+            exit 0
+          fi
+          python3 cobalt/tools/junit_mini_parser.py "${files[@]}"
         shell: bash
