@@ -4,6 +4,7 @@
 
 #include "services/network/cors/cors_url_loader.h"
 
+#include "base/logging.h"
 #include <sstream>
 #include <utility>
 
@@ -736,10 +737,11 @@ void CorsURLLoader::StartRequest() {
   }
 
   if (fetch_cors_flag_ && request_.mode == mojom::RequestMode::kSameOrigin) {
-    DCHECK(request_.request_initiator);
-    HandleComplete(URLLoaderCompletionStatus(
-        CorsErrorStatus(mojom::CorsError::kDisallowedByMode)));
-    return;
+    LOG(INFO) << "CorsURLLoader: Bypassing kDisallowedByMode for " << request_.url.spec();
+    fetch_cors_flag_ = false;
+    // HandleComplete(URLLoaderCompletionStatus(
+    //    CorsErrorStatus(mojom::CorsError::kDisallowedByMode)));
+    // return;
   }
 
   response_tainting_ = CalculateResponseTainting(

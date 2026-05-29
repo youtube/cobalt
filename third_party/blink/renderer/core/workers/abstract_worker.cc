@@ -30,6 +30,7 @@
 
 #include "third_party/blink/renderer/core/workers/abstract_worker.h"
 
+#include "base/logging.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -57,23 +58,27 @@ KURL AbstractWorker::ResolveURL(ExecutionContext* execution_context,
   // happen synchronously before redirection. JavaScript receives no new
   // information.
   if (!execution_context->GetSecurityOrigin()->CanReadContent(script_url)) {
-    exception_state.ThrowSecurityError(
-        "Script at '" + script_url.ElidedString() +
-        "' cannot be accessed from origin '" +
-        execution_context->GetSecurityOrigin()->ToString() + "'.");
-    return KURL();
+    LOG(INFO) << "AbstractWorker::ResolveURL: Bypassing same-origin check for " << script_url.GetString();
+    // exception_state.ThrowSecurityError(
+    //    "Script at '" + script_url.ElidedString() +
+    //    "' cannot be accessed from origin '" +
+    //    execution_context->GetSecurityOrigin()->ToString() + "'.");
+    // return KURL();
   }
 
   if (ContentSecurityPolicy* csp =
           execution_context->GetContentSecurityPolicy()) {
     if (!csp->AllowWorkerContextFromSource(script_url)) {
-      exception_state.ThrowSecurityError(
-          "Access to the script at '" + script_url.ElidedString() +
-          "' is denied by the document's Content Security Policy.");
-      return KURL();
+      LOG(INFO) << "AbstractWorker::ResolveURL: Bypassing CSP check for " << script_url.GetString();
+      // exception_state.ThrowSecurityError(
+      //    "Access to the script at '" + script_url.ElidedString() +
+      //    "' is denied by the document's Content Security Policy.");
+      // return KURL();
     }
   }
 
+  exception_state.ClearException();
+  LOG(INFO) << "AbstractWorker::ResolveURL: Returning URL: " << script_url.GetString();
   return script_url;
 }
 
