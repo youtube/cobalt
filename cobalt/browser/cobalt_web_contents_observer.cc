@@ -14,23 +14,23 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
-#include "base/metrics/histogram_functions.h"
 #include "starboard/system.h"
-#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace cobalt {
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 namespace {
 const int kNavigationTimeoutSeconds = 30;
 }  // namespace
-#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
@@ -38,7 +38,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
   LOG(INFO) << "DidStartNavigation to: " << handle->GetURL();
@@ -86,8 +86,7 @@ void CobaltWebContentsObserver::RaisePlatformError() {
                               platform_error_raised_count_);
   if (!SbSystemRaisePlatformError(
           kSbSystemPlatformErrorTypeConnectionError,
-          &CobaltWebContentsObserver::HandlePlatformErrorResponse,
-          this)) {
+          &CobaltWebContentsObserver::HandlePlatformErrorResponse, this)) {
     LOG(WARNING) << "Did not handle platform error";
     is_platform_error_showing_ = false;
   }
@@ -95,7 +94,8 @@ void CobaltWebContentsObserver::RaisePlatformError() {
 
 // static
 void CobaltWebContentsObserver::HandlePlatformErrorResponse(
-    SbSystemPlatformErrorResponse response, void* user_data) {
+    SbSystemPlatformErrorResponse response,
+    void* user_data) {
   auto* observer = static_cast<CobaltWebContentsObserver*>(user_data);
   observer->OnPlatformErrorResponse(response);
 }
@@ -104,6 +104,6 @@ void CobaltWebContentsObserver::OnPlatformErrorResponse(
     SbSystemPlatformErrorResponse response) {
   is_platform_error_showing_ = false;
 }
-#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace cobalt
