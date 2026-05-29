@@ -17,6 +17,10 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
+
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
@@ -45,7 +49,11 @@ void H5vccUpdaterImpl::Create(
 
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+#if BUILDFLAG(USE_EVERGREEN)
+  std::string url =
+      cobalt::updater::UpdaterModule::GetInstance()->GetUpdateServerUrl();
+  std::move(callback).Run(url);
+#endif
 }
 
 }  // namespace h5vcc_updater
