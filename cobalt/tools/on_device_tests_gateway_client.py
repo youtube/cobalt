@@ -239,20 +239,27 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
     if test_type in ('unit_test', 'browser_test'):
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
+      target_gtest_filter = ''
       if isinstance(target_data, dict):
         test_target = target_data['target']
         test_attempts = target_data.get('test_attempts', '')
         if test_attempts:
           test_args.extend([f'test_attempts={test_attempts}'])
+        target_gtest_filter = target_data.get('gtest_filter', '')
       else:
         test_target = target_data
         if args.test_attempts:
           test_args.extend([f'test_attempts={args.test_attempts}'])
       target_name = test_target.split(':')[-1]
-      gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-      if gtest_filter == '-*':
-        print(f'Skipping {target_name} due to test filter.')
-        continue
+      if args.gtest_filter:
+        gtest_filter = args.gtest_filter
+      elif target_gtest_filter:
+        gtest_filter = target_gtest_filter
+      else:
+        gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
+        if gtest_filter == '-*':
+          print(f'Skipping {target_name} due to test filter.')
+          continue
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
@@ -421,6 +428,11 @@ def main() -> int:
       '--filter_json_dir',
       type=str,
       help='Directory containing filter JSON files for test selection.',
+  )
+  unit_test_group.add_argument(
+      '--gtest_filter',
+      type=str,
+      help='Explicit gtest filter string to run specific test cases.',
   )
   unit_test_group.add_argument(
       '-a',
