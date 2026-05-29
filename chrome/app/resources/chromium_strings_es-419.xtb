@@ -111,7 +111,7 @@
 <translation id="2451727308784734061">Accede rápidamente al Administrador de contraseñas con el acceso directo. Puedes mover el acceso directo a la pantalla principal de la computadora o al selector de aplicaciones.</translation>
 <translation id="2478295928299953161">Chromium se cerrará pronto</translation>
 <translation id="2483889755041906834">En Chromium</translation>
-<translation id="2485422356828889247">Desinstalar</translation>
+<translation id="2485422356828889247">Desinstalación</translation>
 <translation id="2513154137948333830">Debes reiniciar el sistema: <ph name="INSTALL_SUCCESS" /></translation>
 <translation id="2542968102051442371">Selecciona texto con la Búsqueda con imágenes</translation>
 <translation id="2554739539410784893">Chromium está intentando reemplazar las contraseñas existentes. Para permitirlo, escribe tu contraseña de Windows.</translation>
@@ -218,13 +218,11 @@
 <translation id="3954172517175569325">Se quitarán de este dispositivo las contraseñas, las formas de pago y las direcciones que guardaste en tu Cuenta de Google. Para volver a usarlas en Chromium, vuelve a acceder.</translation>
 <translation id="395904275706073188">No se pueden leer las páginas protegidas. Prueba con otra página.</translation>
 <translation id="3962647064319009959">Descubre cómo Chromium te protege</translation>
-<translation id="3971865010372729242">Cuando escribes en la barra de direcciones o en el cuadro de búsqueda, Chromium envía lo que escribes a las herramientas de búsqueda, IA y agentes de tu organización para obtener sugerencias.</translation>
 <translation id="3975724895399328945">Acerca de &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Acerca de Chromium OS</translation>
 <translation id="4019629340646866719">Chromium OS funciona gracias a <ph name="BEGIN_LINK_CROS_OSS" />software de código abierto<ph name="END_LINK_CROS_OSS" /> adicional, como <ph name="BEGIN_LINK_LINUX_OSS" />el entorno de desarrollo de Linux<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Traducir pantalla</translation>
 <translation id="4023601594785368013">Idioma original: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Abre vínculos en Chromium desde cualquier app. Además, para facilitar el acceso, se fija en la barra de tareas.</translation>
 <translation id="4036079820698952681">Informa tu <ph name="BEGIN_LINK" />configuración actual<ph name="END_LINK" /> para ayudarnos a mejorar Chromium</translation>
 <translation id="4050175100176540509">La última versión proporciona importantes mejoras de seguridad y nuevas funciones.</translation>
 <translation id="4055805654398742145">Administrador de contraseñas</translation>
@@ -326,7 +324,6 @@
 <translation id="5524890928877629608">esquina superior izquierda del área de búsqueda: izquierda <ph name="LEFT" />%, superior <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Abrir archivos PDF en Chromium</translation>
 <translation id="5579324208890605088">Error de inicio: Ejecuta el instalador como usuario normal, no como administrador.</translation>
-<translation id="5580770360767802657">Usa Chromium de forma predeterminada y fíjalo</translation>
 <translation id="5596627076506792578">Más opciones</translation>
 <translation id="5605834417512968703">Selecciona cualquier elemento para realizar una Búsqueda con imágenes o presiona Escape para salir de la Búsqueda con imágenes</translation>
 <translation id="5618818588972826921">Selecciona cualquier texto o imagen para realizar una Búsqueda con imágenes o presiona Escape para salir de la Búsqueda con imágenes</translation>
@@ -595,7 +592,6 @@
 <translation id="9106612006984859720">Para obtener próximas actualizaciones de Chromium, necesitarás Windows 10 o versiones posteriores. Esta computadora usa Windows 8.1.</translation>
 <translation id="91086099826398415">Abrir vínculo en una pes&amp;taña nueva de Chromium</translation>
 <translation id="911206726377975832">¿También eliminar datos de navegación?</translation>
-<translation id="9134482777260927479">Ayuda para las actividades para el hogar</translation>
 <translation id="9148058034647219655">Salir</translation>
 <translation id="9158494823179993217">El administrador del sistema configuró Chromium de manera que abriera un navegador alternativo para acceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="9185526690718004400">Reiniciar para actualizar &amp;Chromium</translation>

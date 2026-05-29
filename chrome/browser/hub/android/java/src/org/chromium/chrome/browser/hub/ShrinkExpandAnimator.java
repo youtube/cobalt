@@ -14,12 +14,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.UsedByReflection;
 
-/**
- * Animator for scaling a {@link ShrinkExpandImageView} from one rect to another.
- *
- * <p>Note: This needs to be a field to prevent the {@link java.lang.ref.WeakReference} in {@link
- * android.animation.ObjectAnimator} from being GC'd.
- */
+/** Animator for scaling a {@link ShrinkExpandImageView} from one rect to another. */
 // TODO(crbug.com/40286625): Move to hub/internal/ once TabSwitcherLayout no longer depends on this.
 @NullMarked
 public class ShrinkExpandAnimator {

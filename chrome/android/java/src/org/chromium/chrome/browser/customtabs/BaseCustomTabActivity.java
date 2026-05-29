@@ -815,6 +815,10 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
             getCustomTabActivityTabController().destroy();
         }
 
+        if (mBrowserControlsVisibilityManager != null) {
+            mBrowserControlsVisibilityManager.destroy();
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                 && mAppHeaderCoordinator != null) {
             mAppHeaderCoordinator.destroy();
@@ -1481,6 +1485,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getCustomTabActivityTabProvider(),
                         getCustomTabToolbarCoordinator(),
                         getCloseButtonVisibilityManager(),
+                        getAppHeaderCoordinator(),
                         getIntentDataProvider());
         return mBrowserControlsVisibilityManager;
     }

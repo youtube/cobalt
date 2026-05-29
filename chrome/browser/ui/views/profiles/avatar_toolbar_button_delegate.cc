@@ -262,12 +262,10 @@ class ExplicitStateProvider : public StateProvider {
   explicit ExplicitStateProvider(
       StateObserver& state_observer,
       const std::u16string& explicit_text,
-      std::optional<std::u16string> accessibility_label,
-      std::optional<base::RepeatingClosure> explicit_action)
+      std::optional<std::u16string> accessibility_label)
       : StateProvider(state_observer),
         explicit_text_(explicit_text),
-        accessibility_label_(std::move(accessibility_label)),
-        explicit_action_(std::move(explicit_action)) {}
+        accessibility_label_(accessibility_label) {}
   ~ExplicitStateProvider() override = default;
 
   // StateProvider:
@@ -285,10 +283,6 @@ class ExplicitStateProvider : public StateProvider {
     RequestUpdate();
   }
 
-  std::optional<base::RepeatingClosure> GetButtonAction() {
-    return explicit_action_;
-  }
-
   base::WeakPtr<ExplicitStateProvider> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -301,9 +295,6 @@ class ExplicitStateProvider : public StateProvider {
 
   const std::u16string explicit_text_;
   const std::optional<std::u16string> accessibility_label_;
-
-  // The explicit action to be used when the button is pressed.
-  std::optional<base::RepeatingClosure> explicit_action_;
 
   base::WeakPtrFactory<ExplicitStateProvider> weak_ptr_factory_{this};
 };
@@ -606,10 +597,12 @@ class HistorySyncOptinCoordinator : public base::SupportsUserData::Data,
 
   // IdentityManager::Observer:
   void OnPrimaryAccountChanged(
-      const signin::PrimaryAccountChangeEvent& /*event*/) override {
-    if (!IsSyncPromoEligible()) {
+      const signin::PrimaryAccountChangeEvent& event) override {
+    if (event.GetEventTypeFor(signin::ConsentLevel::kSync) ==
+        signin::PrimaryAccountChangeEvent::Type::kSet) {
       // Needed to prevent the promo from showing when it is already triggered
-      // and the user sign out or turns on sync without dismissing the promo.
+      // and the user turns on sync from a different entry point (e.g.
+      // settings).
       Collapse();
     }
   }
@@ -1274,7 +1267,7 @@ class StateManager : public StateObserver,
 
     // Recompute the button active state after adding a new state.
     ComputeButtonActiveState();
-    UpdateAvatarButton();
+    UpdateButtonText();
   }
 
  private:
@@ -1635,17 +1628,15 @@ void AvatarToolbarButtonDelegate::OnThemeChanged(
           : GetCurrentProfileThemeColors(*color_provider, *service));
 }
 
-base::ScopedClosureRunner AvatarToolbarButtonDelegate::SetExplicitButtonState(
-    const std::u16string& text,
-    std::optional<std::u16string> accessibility_label,
-    std::optional<base::RepeatingClosure> action) {
-  CHECK(!text.empty());
+base::ScopedClosureRunner AvatarToolbarButtonDelegate::ShowExplicitText(
+    const std::u16string& new_text,
+    std::optional<std::u16string> accessibility_label) {
+  CHECK(!new_text.empty());
 
   // Create the new explicit state with the clear text callback.
   std::unique_ptr<ExplicitStateProvider> explicit_state_provider =
       std::make_unique<ExplicitStateProvider>(
-          /*state_observer=*/*state_manager_, text,
-          std::move(accessibility_label), std::move(action));
+          /*state_observer=*/*state_manager_, new_text, accessibility_label);
 
   ExplicitStateProvider* explicit_state_provider_ptr =
       explicit_state_provider.get();
@@ -2075,21 +2066,13 @@ AvatarToolbarButtonDelegate::GetButtonAction() {
     case ButtonState::kUpgradeClientError:
     case ButtonState::kPassphraseError:
     case ButtonState::kSyncPaused:
+    case ButtonState::kExplicitTextShowing:
     case ButtonState::kGuestSession:
     case ButtonState::kShowIdentityName:
     case ButtonState::kNormal:
       return std::nullopt;
-    case ButtonState::kExplicitTextShowing: {
-      internal::ExplicitStateProvider* explicit_state =
-          const_cast<internal::ExplicitStateProvider*>(
-              internal::StateProviderGetter(
-                  *state_manager_->GetActiveStateProvider())
-                  .AsExplicit());
-      CHECK(explicit_state);
-      return explicit_state->GetButtonAction();
-    }
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-    case ButtonState::kHistorySyncOptin: {
+    case ButtonState::kHistorySyncOptin:
       internal::HistorySyncOptinStateProvider* history_sync_optin_state =
           const_cast<internal::HistorySyncOptinStateProvider*>(
               internal::StateProviderGetter(
@@ -2097,7 +2080,6 @@ AvatarToolbarButtonDelegate::GetButtonAction() {
                   .AsHistorySyncOptin());
       CHECK(history_sync_optin_state);
       return history_sync_optin_state->GetButtonAction();
-    }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   }
 }

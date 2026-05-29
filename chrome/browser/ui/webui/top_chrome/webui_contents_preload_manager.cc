@@ -30,7 +30,6 @@
 #include "chrome/browser/ui/webui/top_chrome/profile_preload_candidate_selector.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
-#include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_state.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/crash/core/common/crash_key.h"
@@ -118,6 +117,30 @@ content::WebUIController* GetWebUIController(
   return webui->GetController();
 }
 
+class WebUIContentsPreloadState
+    : public content::WebContentsUserData<WebUIContentsPreloadState> {
+ public:
+  // Whether the WebUI was preloaded.
+  bool preloaded = false;
+
+  // Whether the WebUI is ready to be shown. This is set to true when the WebUI
+  // calls TopChromeWebUIController::Embedder::ShowUI().
+  bool ready_to_show = false;
+
+  // The timeticks when Request() is called. If nullopt, the WebUI is not yet
+  // requested.
+  std::optional<base::TimeTicks> request_time;
+
+ private:
+  WEB_CONTENTS_USER_DATA_KEY_DECL();
+  friend class content::WebContentsUserData<WebUIContentsPreloadState>;
+
+  explicit WebUIContentsPreloadState(content::WebContents* web_contents)
+      : WebContentsUserData(*web_contents) {}
+};
+
+WEB_CONTENTS_USER_DATA_KEY_IMPL(WebUIContentsPreloadState);
+
 }  // namespace
 
 // A stub WebUI page embdeder that captures the ready-to-show signal.
@@ -194,9 +217,8 @@ class WebUIContentsPreloadManager::PendingPreload
   PendingPreload(WebUIContentsPreloadManager* manager,
                  Profile* profile,
                  content::WebContents* busy_web_contents_to_watch,
-                 PreloadReason preload_reason,
                  base::TimeDelta deadline)
-      : manager_(manager), profile_(profile), preload_reason_(preload_reason) {
+      : manager_(manager), profile_(profile) {
     WebContentsObserver::Observe(busy_web_contents_to_watch);
     profile_observation_.Observe(profile_);
     deadline_timer_.Start(FROM_HERE, deadline, this, &PendingPreload::Preload);
@@ -205,7 +227,7 @@ class WebUIContentsPreloadManager::PendingPreload
   void Preload() {
     deadline_timer_.Stop();
     WebContentsObserver::Observe(nullptr);
-    manager_->MaybePreloadForBrowserContext(profile_, preload_reason_);
+    manager_->MaybePreloadForBrowserContext(profile_);
   }
 
   // content::WebContentsObserver:
@@ -223,7 +245,6 @@ class WebUIContentsPreloadManager::PendingPreload
   raw_ptr<WebUIContentsPreloadManager> manager_;
   raw_ptr<Profile> profile_;
   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
-  const PreloadReason preload_reason_;
   base::OneShotTimer deadline_timer_;
 };
 
@@ -278,11 +299,9 @@ void WebUIContentsPreloadManager::WarmupForBrowser(Browser* browser) {
 
   if (IsDelayPreloadEnabled()) {
     MaybePreloadForBrowserContextLater(
-        browser->profile(), browser->tab_strip_model()->GetActiveWebContents(),
-        PreloadReason::kBrowserWarmup);
+        browser->profile(), browser->tab_strip_model()->GetActiveWebContents());
   } else {
-    MaybePreloadForBrowserContext(browser->profile(),
-                                  PreloadReason::kBrowserWarmup);
+    MaybePreloadForBrowserContext(browser->profile());
   }
 }
 
@@ -318,7 +337,7 @@ void WebUIContentsPreloadManager::SetPreloadCandidateSelector(
 }
 
 void WebUIContentsPreloadManager::MaybePreloadForBrowserContext(
-    content::BrowserContext* browser_context, PreloadReason preload_reason) {
+    content::BrowserContext* browser_context) {
   pending_preload_.reset();
 
   if (!ShouldPreloadForBrowserContext(browser_context)) {
@@ -345,26 +364,16 @@ void WebUIContentsPreloadManager::MaybePreloadForBrowserContext(
   }
 
   SetPreloadedContents(CreateNewContents(browser_context, *preload_url));
-  base::UmaHistogramEnumeration("WebUI.TopChrome.Preload.Reason",
-                                preload_reason);
 }
 
 void WebUIContentsPreloadManager::MaybePreloadForBrowserContextLater(
     content::BrowserContext* browser_context,
     content::WebContents* busy_web_contents_to_watch,
-    PreloadReason preload_reason,
     base::TimeDelta deadline) {
   CHECK(!is_delay_preload_disabled_for_test_);
-
-  // Usually destroying a WebContents may trigger preload, but if the
-  // destroy is caused by setting new preload contents, ignore it.
-  if (is_setting_preloaded_web_contents_) {
-    return;
-  }
-
   pending_preload_ = std::make_unique<PendingPreload>(
       this, Profile::FromBrowserContext(browser_context),
-      busy_web_contents_to_watch, preload_reason, deadline);
+      busy_web_contents_to_watch, deadline);
 }
 
 std::unique_ptr<content::WebContents>
@@ -430,11 +439,9 @@ RequestResult WebUIContentsPreloadManager::Request(
 
   // Preload a new contents.
   if (IsDelayPreloadEnabled()) {
-    MaybePreloadForBrowserContextLater(browser_context, web_contents_ret.get(),
-                                       PreloadReason::kWebUIRequested);
+    MaybePreloadForBrowserContextLater(browser_context, web_contents_ret.get());
   } else {
-    MaybePreloadForBrowserContext(browser_context,
-                                  PreloadReason::kWebUIRequested);
+    MaybePreloadForBrowserContext(browser_context);
   }
 
   task_manager::WebContentsTags::ClearTag(web_contents_ret.get());
@@ -525,13 +532,6 @@ bool WebUIContentsPreloadManager::ShouldPreloadForBrowserContext(
     return false;
   }
 
-  // Only preloads for regular profiles because WebContents::GetWebUI()
-  // may crash due to dangling RFH if navigation fails. See crbug.com/409389408.
-  // TODO(crbug.com/424551539): remove after fixing dangling RFH.
-  if (!Profile::FromBrowserContext(browser_context)->IsRegularProfile()) {
-    return false;
-  }
-
   // Don't preload if under heavy memory pressure.
   const auto* memory_monitor = base::MemoryPressureMonitor::Get();
   if (memory_monitor && memory_monitor->GetCurrentPressureLevel() >=
@@ -570,10 +570,9 @@ void WebUIContentsPreloadManager::OnWebContentsDestroyed(
   // the most time.
   if (IsDelayPreloadEnabled()) {
     MaybePreloadForBrowserContextLater(web_contents->GetBrowserContext(),
-                                       nullptr, PreloadReason::kWebUIDestroyed);
+                                       nullptr);
   } else {
-    MaybePreloadForBrowserContext(web_contents->GetBrowserContext(),
-                                  PreloadReason::kWebUIDestroyed);
+    MaybePreloadForBrowserContext(web_contents->GetBrowserContext());
   }
 }
 

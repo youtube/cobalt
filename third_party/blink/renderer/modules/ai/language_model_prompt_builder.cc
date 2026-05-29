@@ -243,28 +243,6 @@ void LanguageModelPromptBuilder::Build(const V8LanguageModelPrompt* input) {
         LanguageModel::ConvertRoleToMojo(message->role()),
         Vector<mojom::blink::AILanguageModelPromptContentPtr>(
             content_sequence.size())));
-
-    bool is_multimodal = false;  // True if any content is not text.
-    for (const auto& content : content_sequence) {
-      if (content->type().AsEnum() != V8LanguageModelMessageType::Enum::kText) {
-        is_multimodal = true;
-        break;
-      }
-    }
-    if (is_multimodal) {
-      if (!RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
-        v8::Isolate* isolate = script_state_->GetIsolate();
-        Reject(ScriptValue(isolate, V8ThrowException::CreateTypeError(
-                                        isolate, "Input type not supported")));
-        return;
-      }
-      if (message->role() == V8LanguageModelMessageRole::Enum::kAssistant) {
-        Reject(DOMException::Create(
-            "Multimodal input is not supported for the assistant role.",
-            DOMException::GetErrorName(DOMExceptionCode::kNotSupportedError)));
-        return;
-      }
-    }
   }
 
   size_t message_index = 0;

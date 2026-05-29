@@ -857,9 +857,7 @@ void PageHandler::Navigate(const std::string& url,
 
   // chrome-untrusted:// WebUIs might perform high-priviledged actions on
   // navigation, disallow navigation to them unless the client is trusted.
-  if ((gurl.SchemeIs(kChromeUIUntrustedScheme) ||
-       gurl.SchemeIs(kChromeDevToolsScheme)) &&
-      !is_trusted_) {
+  if (gurl.SchemeIs(kChromeUIUntrustedScheme) && !is_trusted_) {
     callback->sendFailure(Response::ServerError(
         "Navigating to a URL with a privileged scheme is not allowed"));
     return;
@@ -2091,7 +2089,7 @@ DisableForRenderFrameHostReasonToProtocol(
           return Page::BackForwardCacheNotRestoredReasonEnum::
               EmbedderOfflinePage;
         case back_forward_cache::DisabledReasonId::
-            kChromePasswordManagerClient_BindCredentialManager:
+            kContentCredentialManager_BindCredentialManager:
           return Page::BackForwardCacheNotRestoredReasonEnum::
               EmbedderChromePasswordManagerClientBindCredentialManager;
         case back_forward_cache::DisabledReasonId::kPermissionRequestManager:

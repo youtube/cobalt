@@ -221,13 +221,11 @@
 <translation id="3954172517175569325">Google аккаунтыңызға сақтаған құпия сөздер, төлеу әдістері және мекенжайлар осы құрылғыдан өшіріледі. Оларды Chromium-де қайта пайдалану үшін аккаунтқа қайтадан кіріңіз.</translation>
 <translation id="395904275706073188">Қорғалған беттерді оқу мүмкін емес. Басқа бетті байқап көріңіз.</translation>
 <translation id="3962647064319009959">Chromium сізді қалай қорғайтыны туралы ақпарат алыңыз</translation>
-<translation id="3971865010372729242">Мекенжай жолағына немесе іздеу өрісіне терген кезіңізде, Chromium ұсыныстар алу үшін терген нәрсеңізді ұйымның іздеу жүйесіне, жасанды интеллектіге және агент құралдарына жібереді.</translation>
 <translation id="3975724895399328945">&amp;Google Chrome for Testing туралы</translation>
 <translation id="3997429360543082038">ChromiumOS туралы</translation>
 <translation id="4019629340646866719">ChromiumOS жүйесі де <ph name="BEGIN_LINK_LINUX_OSS" />Linux әзірлеу ортасы<ph name="END_LINK_LINUX_OSS" /> сияқты <ph name="BEGIN_LINK_CROS_OSS" />ашық кодты бағдарламалық құрал<ph name="END_LINK_CROS_OSS" /> арқылы қолжетімді болады.</translation>
 <translation id="4022972681110646219">Экран мазмұнын аудару</translation>
 <translation id="4023601594785368013">Түпнұсқа тілі: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Кез келген қолданба сілтемесін Chromium-нен ашыңыз. Оңай қол жеткізу үшін ол тапсырмалар жолағына бекітіледі.</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />Ағымдағы параметрлерді<ph name="END_LINK" /> хабарлау арқылы Chromium браузерін жақсартуға көмектесіңіз</translation>
 <translation id="4050175100176540509">Соңғы нұсқасында қауіпсіздік жақсартылып, жаңа мүмкіндіктер берілген.</translation>
 <translation id="4055805654398742145">P&amp;assword Manager</translation>
@@ -329,7 +327,6 @@
 <translation id="5524890928877629608">іздеу аймағының жоғарғы сол жақ бұрышы: сол жақ <ph name="LEFT" />%, жоғарғы жақ <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">PDF-терді Chromium-де ашу</translation>
 <translation id="5579324208890605088">Іске қосу қатесі: орнату құралын әкімші емес, кәдімгі пайдаланушы ретінде іске қосыңыз.</translation>
-<translation id="5580770360767802657">Chromium-ді әдепкісінше пайдалану және бекіту</translation>
 <translation id="5596627076506792578">Қосымша опциялар</translation>
 <translation id="5605834417512968703">"Сурет іздеу" функциясы арқылы іздеу керек кез келген нәрсені таңдаңыз немесе бұл функциядан шығу үшін Escape пернесін басыңыз.</translation>
 <translation id="5618818588972826921">"Сурет іздеу" функциясымен іздеу керек кез келген мәтінді не суретті таңдаңыз немесе "Сурет іздеу" функциясынан шығу үшін Escape пернесін басыңыз.</translation>
@@ -602,7 +599,6 @@ Chromium параметрлеріңізді қалпына келтіре алм
 <translation id="9106612006984859720">Chromium-нің жаңа нұсқаларын алып тұру үшін Windows 10 не одан кейінгі операциялық жүйе керек болады. Бұл компьютерде Windows 8.1 нұсқасы орнатылған.</translation>
 <translation id="91086099826398415">Сілтемені жаңа Chromium қойындысында ашу</translation>
 <translation id="911206726377975832">Сонымен қатар шолу деректеріңізді жоясыз ба?</translation>
-<translation id="9134482777260927479">Үй тапсырмасын орындауға көмектесу</translation>
 <translation id="9148058034647219655">Шығу</translation>
 <translation id="9158494823179993217">Жүйе әкімшісі Chromium браузерін <ph name="TARGET_URL_HOSTNAME" /> сілтемесіне қосымша браузер арқылы кіре алатындай етіп конфигурациялады.</translation>
 <translation id="9185526690718004400">&amp;Chromium-ді жаңарту үшін қайта іске қосу</translation>

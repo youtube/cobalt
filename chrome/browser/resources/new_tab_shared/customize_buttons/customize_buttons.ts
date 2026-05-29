@@ -27,10 +27,6 @@ export class CustomizeButtonsElement extends CrLitElement {
 
   static override get properties() {
     return {
-      infoShownToUser: {
-        reflect: true,
-        type: Boolean,
-      },
       modulesShownToUser: {
         reflect: true,
         type: Boolean,
@@ -39,7 +35,10 @@ export class CustomizeButtonsElement extends CrLitElement {
         reflect: true,
         type: Boolean,
       },
-      showCustomize: {type: Boolean},
+      showCustomize: {
+        notify: true,
+        type: Boolean,
+      },
       showCustomizeChromeText: {type: Boolean},
       showWallpaperSearch: {
         reflect: true,
@@ -56,7 +55,6 @@ export class CustomizeButtonsElement extends CrLitElement {
     };
   }
 
-  protected accessor infoShownToUser: boolean = false;
   protected accessor modulesShownToUser: boolean = false;
   protected accessor showBackgroundImage: boolean = false;
   protected accessor showCustomize: boolean = false;

@@ -3,19 +3,18 @@
 # found in the LICENSE file.
 """Definitions of builders in the metadata.exporter builder group."""
 
-load("@chromium-luci//builder_health_indicators.star", "health_spec")
-load("@chromium-luci//builders.star", "os")
-load("@chromium-luci//ci.star", "ci")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//html.star", "linkify")
-load("//lib/ci_constants.star", "ci_constants")
+load("//lib/builder_health_indicators.star", "health_spec")
+load("//lib/builders.star", "os")
+load("//lib/ci.star", "ci")
+load("//lib/consoles.star", "consoles")
+load("//lib/html.star", "linkify")
 
 ci.defaults.set(
-    pool = ci_constants.DEFAULT_POOL,
+    pool = ci.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
-    execution_timeout = ci_constants.DEFAULT_EXECUTION_TIMEOUT,
-    health_spec = health_spec.default(),
+    execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
+    health_spec = health_spec.DEFAULT,
 )
 
 consoles.console_view(

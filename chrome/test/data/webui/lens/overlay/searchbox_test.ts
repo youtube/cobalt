@@ -60,8 +60,7 @@ suite('Searchbox', () => {
       detail: {inputValue: 'hello'},
     }));
     await waitAfterNextRender(lensOverlayElement);
-    // Ghost loader should not be visible if the input is not empty.
-    assertFalse(isVisible(lensOverlayElement.$.searchboxGhostLoader));
+    assertTrue(isVisible(lensOverlayElement.$.searchboxGhostLoader));
 
     // Simulate escape being pressed from the searchbox with empty input.
     const escapeEvent = new CustomEvent('escape-searchbox', {
@@ -74,7 +73,7 @@ suite('Searchbox', () => {
     });
     lensOverlayElement.handleEscapeSearchboxForTesting(escapeEvent);
     await waitAfterNextRender(lensOverlayElement);
-    // Ghost loader should stay hidden when escape is pressed.
+    // Ghost loader should hide when escape is pressed.
     assertFalse(isVisible(lensOverlayElement.$.searchboxGhostLoader));
   });
 });

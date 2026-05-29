@@ -222,13 +222,11 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="3954172517175569325">Lozinke, načini plaćanja i adrese koje ste sačuvali na Google nalogu biće uklonjeni sa ovog uređaja. Da biste ih ponovo koristili u Chromium-u, ponovo se prijavite.</translation>
 <translation id="395904275706073188">Zaštićene stranice ne mogu da se čitaju. Probajte sa drugom stranicom.</translation>
 <translation id="3962647064319009959">Saznajte kako vas Chromium štiti</translation>
-<translation id="3971865010372729242">Kada unosite tekst u traku za adresu ili u okvir za pretragu, Chromium šalje ono što unosite u alatke za pretragu, veštačku inteligenciju i agenta organizacije da biste dobijali predloge.</translation>
 <translation id="3975724895399328945">O verziji Google Chrome for Testing</translation>
 <translation id="3997429360543082038">O Chromium OS-u</translation>
 <translation id="4019629340646866719">Chromium OS je omogućen zahvaljujući dodatnom <ph name="BEGIN_LINK_CROS_OSS" />softveru sa otvorenim kodom<ph name="END_LINK_CROS_OSS" />, kao što je <ph name="BEGIN_LINK_LINUX_OSS" />Linux okruženje za programiranje<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Prevedi ekran</translation>
 <translation id="4023601594785368013">Izvorni jezik: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Otvarajte linkove u Chromium-u iz bilo koje aplikacije. Radi lakšeg pristupa zakačite ga na traku zadataka.</translation>
 <translation id="4036079820698952681">Pomozite da poboljšamo Chromium tako što ćete poslati izveštaj o <ph name="BEGIN_LINK" />aktuelnim podešavanjima<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">Važna bezbednosna poboljšanja i nove funkcije su dostupni u najnovijoj verziji.</translation>
 <translation id="4055805654398742145">Menadžer lozinki</translation>
@@ -330,7 +328,6 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="5524890928877629608">gornji levi ugao oblasti pretrage: ulevo <ph name="LEFT" />%, nagore <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Otvarajte PDF-ove u Chromium-u</translation>
 <translation id="5579324208890605088">Greška pri pokretanju: pokrenite program za instalaciju kao redovan korisnik, a ne kao administrator.</translation>
-<translation id="5580770360767802657">Podrazumevano koristite Chromium i zakačite ga</translation>
 <translation id="5596627076506792578">Još opcija</translation>
 <translation id="5605834417512968703">Izaberite bilo šta za pretragu pomoću pretrage slika ili pritisnite Escape da biste izašli iz pretrage slika</translation>
 <translation id="5618818588972826921">Izaberite bilo koji tekst ili sliku za pretragu pomoću pretrage slika ili pritisnite Escape da biste izašli iz pretrage slika</translation>
@@ -603,7 +600,6 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="9106612006984859720">Da biste dobijali buduća Chromium ažuriranja, treba vam Windows 10 ili novija verzija. Ovaj računar koristi Windows 8.1.</translation>
 <translation id="91086099826398415">Otvori link u novoj Chromium &amp;kartici</translation>
 <translation id="911206726377975832">Želite li da izbrišete i podatke pregledanja?</translation>
-<translation id="9134482777260927479">Pomoć za domaće zadatke</translation>
 <translation id="9148058034647219655">Izađi</translation>
 <translation id="9158494823179993217">Administrator sistema je konfigurisao Chromium da otvara alternativni pregledač za pristup URL-u <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="9185526690718004400">Ponovo pokreni da bi se &amp;Chromium ažurirao</translation>

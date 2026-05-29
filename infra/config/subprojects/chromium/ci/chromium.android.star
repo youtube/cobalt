@@ -3,22 +3,19 @@
 # found in the LICENSE file.
 """Definitions of builders in the chromium.android builder group."""
 
-load("@chromium-luci//args.star", "args")
-load("@chromium-luci//branches.star", "branches")
-load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builder_health_indicators.star", "health_spec")
-load("@chromium-luci//builders.star", "builders", "os")
-load("@chromium-luci//ci.star", "ci")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//gn_args.star", "gn_args")
-load("@chromium-luci//targets.star", "targets")
-load("//lib/ci_constants.star", "ci_constants")
-load("//lib/gardener_rotations.star", "gardener_rotations")
-load("//lib/siso.star", "siso")
+load("//lib/args.star", "args")
+load("//lib/branches.star", "branches")
+load("//lib/builder_config.star", "builder_config")
+load("//lib/builder_health_indicators.star", "health_spec")
+load("//lib/builders.star", "builders", "gardener_rotations", "os", "siso")
+load("//lib/ci.star", "ci")
+load("//lib/consoles.star", "consoles")
+load("//lib/gn_args.star", "gn_args")
+load("//lib/targets.star", "targets")
 load("//project.star", "settings")
 
 ci.defaults.set(
-    executable = ci_constants.DEFAULT_EXECUTABLE,
+    executable = ci.DEFAULT_EXECUTABLE,
     builder_group = "chromium.android",
     builder_config_settings = builder_config.ci_settings(
         retry_failed_shards = True,
@@ -26,15 +23,17 @@ ci.defaults.set(
         # leads to the whole shard being marked as invalid.
         retry_invalid_shards = True,
     ),
-    pool = ci_constants.DEFAULT_POOL,
+    pool = ci.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     gardener_rotations = gardener_rotations.ANDROID,
-    tree_closing_notifiers = ci_constants.DEFAULT_TREE_CLOSING_NOTIFIERS,
-    execution_timeout = ci_constants.DEFAULT_EXECUTION_TIMEOUT,
-    health_spec = health_spec.default(),
-    service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
-    shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
+    tree_closing_notifiers = ci.DEFAULT_TREE_CLOSING_NOTIFIERS,
+    execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
+    health_spec = health_spec.DEFAULT,
+    reclient_enabled = False,
+    service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
+    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
 )
@@ -65,7 +64,7 @@ consoles.console_view(
 ci.thin_tester(
     name = "Android WebView O (dbg)",
     branch_selector = branches.selector.ANDROID_BRANCHES,
-    parent = "ci/Android arm64 Builder (dbg)",
+    triggered_by = ["ci/Android arm64 Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -119,7 +118,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "Android WebView P (dbg)",
     branch_selector = branches.selector.ANDROID_BRANCHES,
-    parent = "ci/Android arm64 Builder (dbg)",
+    triggered_by = ["ci/Android arm64 Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -521,7 +520,7 @@ ci.builder(
 
 ci.thin_tester(
     name = "android-webview-10-x86-rel-tests",
-    parent = "ci/android-x86-rel",
+    triggered_by = ["ci/android-x86-rel"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -849,7 +848,7 @@ ci.builder(
 ci.thin_tester(
     name = "Oreo Phone Tester",
     branch_selector = branches.selector.ANDROID_BRANCHES,
-    parent = "ci/Android arm64 Builder (dbg)",
+    triggered_by = ["ci/Android arm64 Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -972,7 +971,7 @@ ci.builder(
 ci.builder(
     name = "android-12l-x64-dbg-tests",
     description_html = "Run Chromium tests on Android 12l tablet-flavor emulator.",
-    parent = "ci/Android x64 Builder (dbg)",
+    triggered_by = ["ci/Android x64 Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -1094,7 +1093,7 @@ ci.builder(
     name = "android-12l-landscape-x64-dbg-tests",
     description_html = "Run Chromium tests on Android 12l tablet-flavor " +
                        "emulator in Landscape Mode.",
-    parent = "ci/Android x64 Builder (dbg)",
+    triggered_by = ["ci/Android x64 Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -1854,7 +1853,7 @@ ci.builder(
 
 ci.thin_tester(
     name = "android-cronet-x64-dbg-12-tests",
-    parent = "ci/android-cronet-x64-dbg",
+    triggered_by = ["ci/android-cronet-x64-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -1902,7 +1901,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "android-cronet-x64-dbg-13-tests",
-    parent = "ci/android-cronet-x64-dbg",
+    triggered_by = ["ci/android-cronet-x64-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -1951,7 +1950,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "android-cronet-x64-dbg-14-tests",
     description_html = "Tests Cronet against Android 14",
-    parent = "ci/android-cronet-x64-dbg",
+    triggered_by = ["ci/android-cronet-x64-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2001,7 +2000,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "android-cronet-x64-dbg-15-tests",
     description_html = "Tests Cronet against Android 15",
-    parent = "ci/android-cronet-x64-dbg",
+    triggered_by = ["ci/android-cronet-x64-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2051,7 +2050,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "android-cronet-x64-dbg-16-tests",
     description_html = "Tests Cronet against Android 16",
-    parent = "ci/android-cronet-x64-dbg",
+    triggered_by = ["ci/android-cronet-x64-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2099,7 +2098,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "android-cronet-x86-dbg-marshmallow-tests",
-    parent = "ci/android-cronet-x86-dbg",
+    triggered_by = ["ci/android-cronet-x86-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2147,7 +2146,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "android-cronet-x86-dbg-nougat-tests",
-    parent = "ci/android-cronet-x86-dbg",
+    triggered_by = ["ci/android-cronet-x86-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2195,7 +2194,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "android-cronet-x86-dbg-oreo-tests",
-    parent = "ci/android-cronet-x86-dbg",
+    triggered_by = ["ci/android-cronet-x86-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2250,7 +2249,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "android-cronet-x86-dbg-pie-tests",
-    parent = "ci/android-cronet-x86-dbg",
+    triggered_by = ["ci/android-cronet-x86-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2307,7 +2306,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "android-cronet-x86-dbg-10-tests",
     branch_selector = branches.selector.ANDROID_BRANCHES,
-    parent = "ci/android-cronet-x86-dbg",
+    triggered_by = ["ci/android-cronet-x86-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2362,7 +2361,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "android-cronet-x86-dbg-11-tests",
-    parent = "ci/android-cronet-x86-dbg",
+    triggered_by = ["ci/android-cronet-x86-dbg"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -2729,7 +2728,7 @@ ci.builder(
 ci.thin_tester(
     name = "android-pie-arm64-dbg",
     branch_selector = branches.selector.ANDROID_BRANCHES,
-    parent = "ci/Android arm64 Builder (dbg)",
+    triggered_by = ["ci/Android arm64 Builder (dbg)"],
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(

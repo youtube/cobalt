@@ -75,8 +75,7 @@ public class BackButtonMediatorTest {
                         mEnabledSupplier,
                         mShowNavigationPopup,
                         mResources,
-                        mContext,
-                        /* isWebApp= */ false);
+                        mContext);
 
         shadowOf(Looper.getMainLooper()).idle();
     }

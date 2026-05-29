@@ -206,7 +206,6 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
-<translation id="1762353673362288306">Енді тек сабақ құралдарын пайдалануға болады.</translation>
 <translation id="1762483337755424125">Транскрипция</translation>
 <translation id="1765169783255151332">Пернелерді жылдам ауыстыру</translation>
 <translation id="1768959921651994223">Аутентификация түрі</translation>
@@ -253,7 +252,7 @@
 <translation id="1914144885717544695">жұма күні</translation>
 <translation id="1915960750806557358">Пікір жіберіңіз немесе мәселені сипаттаңыз. Жеке басқа қатысты, шетін не құпия ештеңе қоспаңыз.</translation>
 <translation id="1923388006036088459">Акценттік түстер</translation>
-<translation id="1926611810597212636">сыңармүйіз</translation>
+<translation id="1926611810597212636">жалғызмүйіз</translation>
 <translation id="1944321879609775960">Қорытынды жасау үшін <ph name="DEVICE_TYPE" /> құрылғысын өшіріп қосыңыз.</translation>
 <translation id="1945403655450283000">Диктофон</translation>
 <translation id="1947737735496445907">Басып шығарылған</translation>
@@ -269,7 +268,7 @@
 <translation id="1999615961760456652">Адаптивті портал</translation>
 <translation id="2004572381882349402">Ретушь</translation>
 <translation id="200669432486043882">Файлды ауыстыру</translation>
-<translation id="2006864819935886708">Байланыс</translation>
+<translation id="2006864819935886708">Қосылу мүмкіндігі</translation>
 <translation id="2008685064673031089">Prime search</translation>
 <translation id="2011174342667534258">SDK нұсқасы:</translation>
 <translation id="2016697457005847575">Ақауларды жою қадамдарын орындап көріңіз</translation>
@@ -477,7 +476,6 @@
 <translation id="3091839911843451378">Сәтсіз: тоқтатылды</translation>
 <translation id="3102119246920354026">Кэш</translation>
 <translation id="3103783611481501187">сюрреалистік</translation>
-<translation id="3119672627216736407">Аудармасы бар</translation>
 <translation id="3122464029669770682">Орталық процессор</translation>
 <translation id="3122614491980756867">бассейндер</translation>
 <translation id="3122883569442693641">Қосымша мәліметтер</translation>
@@ -1138,7 +1136,6 @@
 <translation id="6058625436358447366">Аяқтау үшін ескі және жаңа құпия сөздерді енгізіңіз.</translation>
 <translation id="6061772781719867950">HTTP сұраулары сәтсіз аяқталды.</translation>
 <translation id="6073292342939316679">пернетақта жарықтығын азайту</translation>
-<translation id="6074608334942655098">Аударуды тоқтату</translation>
 <translation id="6074752328838739425">Қорытындыны жасыру</translation>
 <translation id="6075872808778243331">HTTP кідірісі (Android)</translation>
 <translation id="6078323886959318429">Таңбашаны енгізу</translation>
@@ -1616,7 +1613,6 @@
 <translation id="8088963492174775412">Жазу үшін басыңыз.</translation>
 <translation id="8094062939584182041">Google-ға осы мәселе туралы электрондық хат жіберуге рұқсат ету</translation>
 <translation id="8104083085214006426">Ашық әрі қауіпті желіні қолданып жатырсыз.</translation>
-<translation id="8108879170356113798">Сабақ құралдарын <ph name="NUM_SECONDS" /> секундтан кейін ғана пайдалануға болады.</translation>
 <translation id="811820734797650957">Шлюз байланысы тексеріледі (Android)</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Растау</translation>

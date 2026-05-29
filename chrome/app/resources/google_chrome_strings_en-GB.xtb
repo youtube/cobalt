@@ -56,7 +56,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="1682634494516646069">Google Chrome cannot read and write to its data directory:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">When you type in the address bar or search box, Chrome sends what you type to your organisation's search, AI and agent tools to get suggestions.</translation>
 <translation id="1698376642261615901">Google Chrome is a web browser that runs web pages and applications with lightning speed. It's fast, stable and easy to use. Browse the web more safely with malware and phishing protection built into Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome will relaunch in an hour}other{Chrome will relaunch in # hours}}</translation>
 <translation id="1722488837206509557">This will allow you to select from available devices and display content on them.</translation>
@@ -223,7 +222,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3716540481907974026">Chrome OS Flex version</translation>
 <translation id="3718181793972440140">This will delete 1 item from this device. To retrieve your data later, sign in to Chrome as <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome recommends that you remove it. <ph name="BEGIN_LINK" />Learn more about supported extensions<ph name="END_LINK" />}other{Chrome recommends that you remove them. <ph name="BEGIN_LINK" />Learn more about supported extensions<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Learn more about installing Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Chrome OS Flex could not sync your data due to an error signing in.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -246,7 +244,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="4050175100176540509">Important security improvements and new features are available in the latest version.</translation>
 <translation id="4053720452172726777">Customise and control Google Chrome</translation>
 <translation id="408393047846373801">To get your passwords and more on all your devices, sign in to Chrome. This password will be saved in your Google Account after you sign in.</translation>
-<translation id="409936259433005390">Upgrading to Windows 11 soon? Download the Chrome installer to OneDrive so that you're ready from day one.</translation>
 <translation id="4110895483821904099">Set up your new Chrome profile</translation>
 <translation id="4111566860456076004">Chrome can't verify where this extension comes from, and it might be unsafe. Remove it from Chrome so that it can no longer see and change your data on sites that you visit, including your personal info.</translation>
 <translation id="4128488089242627000">Chrome runs faster and features that use JavaScript should work as designed (recommended)</translation>
@@ -320,7 +317,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="4970880042055371251">Chrome OS version</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Click 'Google Password Manager'</translation>
-<translation id="504867494566807945">Open links in Chrome from any app. Plus for easy access, it gets pinned to your taskbar.</translation>
 <translation id="5114340746415930644">Enter your passphrase to use and save Chrome data in your account, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Sign in to Chrome when you sign in to other Google services</translation>
 <translation id="5126049312684316860">Chrome preloads even more pages that you're likely to visit, so that they load more quickly when you visit them.</translation>
@@ -401,7 +397,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6075300983329039771">Your organisation, <ph name="MANAGER" />, requires you to sign in to Chrome</translation>
 <translation id="6113794647360055231">Chrome just got better</translation>
 <translation id="6116252277240876590">This language is used to display menus, settings, alerts and other text in Chrome</translation>
-<translation id="6127237283587442951">Use Chrome by default and get it pinned</translation>
 <translation id="6134085236017727171">To use your microphone, give Chrome access in <ph name="BEGIN_LINK" />system settings<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">These tabs are using extra resources. To improve your performance, let Chrome make them inactive.</translation>
 <translation id="6145313976051292476">Open PDFs in Chrome</translation>
@@ -562,7 +557,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="80471789339884597">Thanks for installing. You must restart all your browsers before using <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8064015041956107954">You can open bookmarks, reading mode and more from the Chrome menu at the top right</translation>
 <translation id="8064015586118426197">Chrome OS Flex</translation>
-<translation id="8077579734294125741">Other Chrome profiles</translation>
+<translation id="8077579734294125741">Other Chrome Profiles</translation>
 <translation id="8086881907087796310">Installation failed because your computer does not meet the minimum hardware requirements.</translation>
 <translation id="8113883687556086139">Verify that it's you to use and save Chrome data in your account, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8118331347066725040">Send feedback for search with Lens</translation>
@@ -636,7 +631,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="9090566250983691233">Learn why Chrome blocks some files</translation>
 <translation id="9106236359747881194">Select text to search</translation>
 <translation id="911206726377975832">Also delete your browsing data?</translation>
-<translation id="9134482777260927479">Homework help</translation>
 <translation id="9138603949443464873">To apply your changes, relaunch Chrome</translation>
 <translation id="9148058034647219655">Exit</translation>
 <translation id="9195993889682885387">Chrome can estimate your interests based on your browsing history from the last few weeks. This info stays on your device.</translation>

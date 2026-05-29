@@ -79,7 +79,7 @@
 - (void)showPlusAddressesBottomSheet {
 }
 
-- (void)showSaveCardBottomSheetOnOriginWebState:(web::WebState*)originWebState {
+- (void)showSaveCardBottomSheet {
   _showSaveCardBottomSheet = YES;
 }
 

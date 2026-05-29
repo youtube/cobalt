@@ -52,7 +52,6 @@
 <translation id="1662146548738125461">Tentang ChromeOS Flex</translation>
 <translation id="1674870198290878346">Buka Link di Jendela Sa&amp;maran Chrome</translation>
 <translation id="1682634494516646069">Google Chrome tidak dapat membaca dan menulis ke direktori datanya: <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Saat Anda mengetik di kolom URL atau kotak penelusuran, Chrome akan mengirimkan hal yang Anda ketik ke alat penelusuran, AI, dan agen milik organisasi Anda untuk mendapatkan saran.</translation>
 <translation id="1698376642261615901">Google Chrome adalah browser web yang menjalankan halaman dan aplikasi web secepat kilat. Cepat, stabil, dan mudah digunakan. Jelajahi web secara lebih aman dengan perlindungan terhadap software perusak dan phishing yang disertakan dalam Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome akan diluncurkan ulang dalam 1 jam}other{Chrome akan diluncurkan ulang dalam # jam}}</translation>
 <translation id="1722488837206509557">Tindakan ini akan memungkinkan Anda memilih dari perangkat yang tersedia dan menampilkan konten di perangkat tersebut.</translation>
@@ -219,7 +218,6 @@
 <translation id="3716540481907974026">Versi ChromeOS Flex</translation>
 <translation id="3718181793972440140">Tindakan ini akan menghapus 1 item dari perangkat ini. Untuk mengambil data nanti, login ke Chrome sebagai <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome merekomendasikan agar Anda menghapusnya. <ph name="BEGIN_LINK" />Pelajari lebih lanjut ekstensi yang didukung<ph name="END_LINK" />}other{Chrome merekomendasikan agar Anda menghapusnya. <ph name="BEGIN_LINK" />Pelajari lebih lanjut ekstensi yang didukung<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Pelajari lebih lanjut cara menginstal Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex tidak dapat menyinkronkan data Anda karena terjadi error saat login.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -242,7 +240,6 @@
 <translation id="4050175100176540509">Peningkatan keamanan dan fitur baru yang penting tersedia di versi terbaru.</translation>
 <translation id="4053720452172726777">Sesuaikan dan kontrol Google Chrome</translation>
 <translation id="408393047846373801">Untuk mendapatkan sandi dan info Anda yang lain di semua perangkat Anda, login ke Chrome. Sandi ini akan disimpan di Akun Google Anda setelah Anda login.</translation>
-<translation id="409936259433005390">Segera mengupgrade ke Windows 11? Download Penginstal Chrome ke OneDrive agar Anda siap menguprade sejak hari pertama.</translation>
 <translation id="4110895483821904099">Siapkan profil Chrome baru Anda</translation>
 <translation id="4111566860456076004">Chrome tidak dapat memverifikasi asal ekstensi ini, dan mungkin ekstensi ini tidak aman. Hapus dari Chrome agar ekstensi ini tidak dapat lagi melihat dan mengubah data Anda di situs yang Anda kunjungi, termasuk info pribadi Anda.</translation>
 <translation id="4128488089242627000">Chrome berjalan lebih cepat dan fitur yang menggunakan JavaScript akan berfungsi sebagaimana mestinya (direkomendasikan)</translation>
@@ -316,7 +313,6 @@
 <translation id="4970880042055371251">Versi ChromeOS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Klik “Pengelola Sandi Google”</translation>
-<translation id="504867494566807945">Buka link di Chrome dari aplikasi apa pun. Selain itu, Chrome akan disematkan ke taskbar Anda untuk memudahkan akses.</translation>
 <translation id="5114340746415930644">Masukkan frasa sandi untuk menggunakan dan menyimpan data Chrome di akun Anda, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Login ke Chrome saat Anda login ke layanan Google lainnya</translation>
 <translation id="5126049312684316860">Chrome melakukan pramuat lebih banyak halaman yang mungkin akan Anda buka, agar halaman tersebut dimuat lebih cepat saat Anda membukanya</translation>
@@ -393,7 +389,6 @@
 <translation id="6075300983329039771">Organisasi Anda, <ph name="MANAGER" />, mengharuskan Anda login ke Chrome</translation>
 <translation id="6113794647360055231">Chrome menjadi lebih baik</translation>
 <translation id="6116252277240876590">Bahasa ini digunakan untuk menampilkan menu, setelan, notifikasi, dan teks lainnya di Chrome</translation>
-<translation id="6127237283587442951">Gunakan Chrome sebagai browser default dan sematkan ke taskbar</translation>
 <translation id="6134085236017727171">Untuk menggunakan mikrofon, beri Chrome akses di <ph name="BEGIN_LINK" />setelan sistem<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Tab ini menggunakan lebih banyak resource. Untuk meningkatkan performa Anda, izinkan Chrome menonaktifkannya.</translation>
 <translation id="6145313976051292476">Buka PDF di Chrome</translation>
@@ -628,7 +623,6 @@
 <translation id="9090566250983691233">Pelajari alasan Chrome memblokir beberapa file</translation>
 <translation id="9106236359747881194">Pilih teks untuk menelusuri</translation>
 <translation id="911206726377975832">Hapus juga data browsing Anda?</translation>
-<translation id="9134482777260927479">Bantuan pekerjaan rumah</translation>
 <translation id="9138603949443464873">Untuk menerapkan perubahan, luncurkan ulang Chrome</translation>
 <translation id="9148058034647219655">Keluar</translation>
 <translation id="9195993889682885387">Chrome dapat memperkirakan minat Anda berdasarkan histori penjelajahan Anda dari beberapa minggu terakhir. Informasi ini disimpan di perangkat Anda.</translation>

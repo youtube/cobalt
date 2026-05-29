@@ -56,7 +56,6 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="1682634494516646069">Aplikace Google Chrome nemůže číst ani zapisovat do svého datového adresáře:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Když píšete do adresního řádku nebo vyhledávacího pole, Chrome za účelem poskytování návrhů zadaný text odesílá do vyhledávacích, AI a agentních nástrojů vaší organizace.</translation>
 <translation id="1698376642261615901">Webový prohlížeč Google Chrome spouští stránky a aplikace rychlostí blesku. Je rychlý, stabilní a snadno použitelný. S ochranou proti malwaru a phishingu integrovanou do prohlížeče Google Chrome můžete procházet web bezpečněji.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome se za hodinu restartuje}few{Chrome se za # hodiny restartuje}many{Chrome se za # hodiny restartuje}other{Chrome se za # hodin restartuje}}</translation>
 <translation id="1722488837206509557">Budete moci vybírat z dostupných zařízení a zobrazovat na nich obsah.</translation>
@@ -223,7 +222,6 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="3716540481907974026">Verze systému ChromeOS Flex</translation>
 <translation id="3718181793972440140">Ze zařízení bude smazána 1 položka. Budete-li chtít své údaje později načíst, přihlaste se do Chromu jako <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome vám doporučuje odstranit ho. <ph name="BEGIN_LINK" />Další informace o podporovaných rozšířeních<ph name="END_LINK" />}few{Chrome vám doporučuje odstranit je. <ph name="BEGIN_LINK" />Další informace o podporovaných rozšířeních<ph name="END_LINK" />}many{Chrome vám doporučuje odstranit je. <ph name="BEGIN_LINK" />Další informace o podporovaných rozšířeních<ph name="END_LINK" />}other{Chrome vám doporučuje odstranit je. <ph name="BEGIN_LINK" />Další informace o podporovaných rozšířeních<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Další informace o instalaci Chromu</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Systém ChromeOS Flex nemůže synchronizovat data kvůli chybě při přihlašování.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -245,7 +243,6 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="4050175100176540509">V nejnovější verzi jsou k dispozici důležitá vylepšení zabezpečení a nové funkce.</translation>
 <translation id="4053720452172726777">Přizpůsobit a ovládat Google Chrome</translation>
 <translation id="408393047846373801">Pokud svá hesla a další položky chcete mít na všech svých zařízeních, přihlaste se do Chromu Toto heslo se po přihlášení uloží do vašeho účtu Google.</translation>
-<translation id="409936259433005390">Budete brzy upgradovat na Windows 11? Stáhněte si instalační program prohlížeče Chrome do úložiště OneDrive, abyste byli hned od prvního dne připraveni.</translation>
 <translation id="4110895483821904099">Nastavit nový profil prohlížeče Chrome</translation>
 <translation id="4111566860456076004">Toto rozšíření nemusí být bezpečné. Chrome nedokáže ověřit, odkud pochází. Odstraňte ho z prohlížeče Chrome, aby již nemohlo číst a měnit vaše data (včetně osobních údajů) na webech, které navštěvujete.</translation>
 <translation id="4128488089242627000">Chrome běží rychleji a funkce využívající JavaScript by měly fungovat tak, jak byly navrženy (doporučeno)</translation>
@@ -319,7 +316,6 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="4970880042055371251">Verze systému ChromeOS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Klikněte na Správce hesel Google</translation>
-<translation id="504867494566807945">Otevírejte v Chromu odkazy ze všech aplikací. Navíc se pro snadný přístup připne na hlavní panel.</translation>
 <translation id="5114340746415930644">Pokud chcete používat a ukládat data Chromu ve svém účtu <ph name="USER_EMAIL" />, zadejte heslovou frázi</translation>
 <translation id="5120334927898581447">Přihlášení do Chromu při přihlášení do jiných služeb Google</translation>
 <translation id="5126049312684316860">Chrome předběžně načítá ještě více stránek, které byste pravděpodobně mohli navštívit. Když je navštívíte, načtou se tak rychleji</translation>
@@ -400,7 +396,6 @@ Aplikace Google Chrome nemůže vaše nastavení obnovit.</translation>
 <translation id="6075300983329039771">Vaše organizace, <ph name="MANAGER" />, vyžaduje, abyste se do Chromu přihlásili</translation>
 <translation id="6113794647360055231">Chrome je opět o něco lepší</translation>
 <translation id="6116252277240876590">Tento jazyk se používá k zobrazení nabídek, nastavení, upozornění a dalšího textu v Chromu</translation>
-<translation id="6127237283587442951">Používejte Chrome jako výchozí prohlížeč a připněte si ho</translation>
 <translation id="6134085236017727171">Pokud chcete používat mikrofon, udělte Chromu přístup v <ph name="BEGIN_LINK" />nastavení systému<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Tyto karty využívají další zdroje. Ke zlepšení výkonu je Chrome nechte deaktivovat.</translation>
 <translation id="6145313976051292476">Otevírání souborů PDF v Chromu</translation>
@@ -635,7 +630,6 @@ Aplikace Google Chrome nemůže vaše nastavení obnovit.</translation>
 <translation id="9090566250983691233">Přečtěte si, proč Chrome některé soubory blokuje</translation>
 <translation id="9106236359747881194">Vyberte text, který chcete vyhledat</translation>
 <translation id="911206726377975832">Vymazat také všechna data procházení?</translation>
-<translation id="9134482777260927479">Pomoc s domácími úkoly</translation>
 <translation id="9138603949443464873">Chcete-li změny použít, restartujte Chrome</translation>
 <translation id="9148058034647219655">Ukončit</translation>
 <translation id="9195993889682885387">Chrome dokáže odhadovat vaše zájmy podle historie prohlížení za posledních několik týdnů. Tyto údaje zůstávají v zařízení.</translation>

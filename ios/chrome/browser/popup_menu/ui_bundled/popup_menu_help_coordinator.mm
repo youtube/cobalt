@@ -80,10 +80,6 @@ base::TimeDelta kPromoDisplayDelayForTests = base::Seconds(1);
 @implementation PopupMenuHelpCoordinator {
   raw_ptr<segmentation_platform::DeviceSwitcherResultDispatcher>
       _deviceSwitcherResultDispatcher;
-
-  // Whether the coordinator has been stopped.
-  // TODO(crbug.com/424761561): Remove when crashes stop.
-  BOOL _stopped;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
@@ -102,8 +98,9 @@ base::TimeDelta kPromoDisplayDelayForTests = base::Seconds(1);
 #pragma mark - Getters
 
 - (feature_engagement::Tracker*)featureEngagementTracker {
-  CHECK(!_stopped, base::NotFatalUntil::M147)
-      << "PopupMenuHelpCoordinator used after -stop";
+  if (!self.profile) {
+    return nullptr;
+  }
   feature_engagement::Tracker* tracker =
       feature_engagement::TrackerFactory::GetForProfile(self.profile);
   DCHECK(tracker);
@@ -137,8 +134,6 @@ base::TimeDelta kPromoDisplayDelayForTests = base::Seconds(1);
 }
 
 - (void)stop {
-  _stopped = YES;
-
   SceneState* sceneState = self.browser->GetSceneState();
   [sceneState removeObserver:self];
 }
@@ -265,8 +260,10 @@ base::TimeDelta kPromoDisplayDelayForTests = base::Seconds(1);
 
 // Returns whether blue dot should be shown.
 - (BOOL)shouldShowBlueDot {
-  CHECK(!_stopped, base::NotFatalUntil::M147)
-      << "PopupMenuHelpCoordinator used after -stop";
+  // Don't show blue dot if cannot make a decision.
+  if (!self.profile) {
+    return NO;
+  }
 
   // As sync error takes precendence on blue dot for settings destination in the
   // overflow menu. In that case don't show blue dot as the full path from

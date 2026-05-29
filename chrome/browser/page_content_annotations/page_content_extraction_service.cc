@@ -20,7 +20,7 @@ void PageContentExtractionService::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-bool PageContentExtractionService::ShouldEnablePageContentExtraction() const {
+bool PageContentExtractionService::ShouldEnablePageContentExtraction() {
   if (base::FeatureList::IsEnabled(page_content_annotations::features::
                                        kAnnotatedPageContentExtraction)) {
     return true;

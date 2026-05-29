@@ -47,7 +47,6 @@
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/core/dom/quota_exceeded_error.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/body.h"
 #include "third_party/blink/renderer/core/fetch/body_stream_buffer.h"
@@ -845,13 +844,6 @@ void FetchManager::Loader::DidFinishLoading(uint64_t) {
 
 void FetchManager::Loader::DidFail(uint64_t identifier,
                                    const ResourceError& error) {
-  // Record the failures for blob fetch request.
-  if (GetFetchRequestData() &&
-      GetFetchRequestData()->Url().ProtocolIs("blob")) {
-    base::UmaHistogramSparse("Net.BlobFetch.ResponseNetErrorCode",
-                             -error.ErrorCode());
-  }
-
   if (GetFetchRequestData() && GetFetchRequestData()->TrustTokenParams()) {
     HistogramNetErrorForTrustTokensOperation(
         GetFetchRequestData()->TrustTokenParams()->operation,
@@ -1702,8 +1694,8 @@ FetchLaterResult* FetchLaterManager::FetchLater(
   if (available_quota < total_request_length) {
     UseCounter::Count(GetExecutionContext(),
                       WebFeature::kFetchLaterErrorQuotaExceeded);
-    QuotaExceededError::Throw(
-        exception_state,
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kQuotaExceededError,
         String::Format(
             "fetchLater exceeds its quota for the origin: got %" PRIu64 " "
             "bytes, expected less than %" PRIu64 " bytes.",

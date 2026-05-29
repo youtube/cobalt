@@ -10,7 +10,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-octopus-rel",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "builder_group": "chromium.chromiumos",
@@ -46,12 +46,11 @@
         {
           "bucket": "ci",
           "builder": "chromeos-octopus-rel",
-          "project": "chromium-m138"
+          "project": "chromium"
         }
       ],
       "retry_failed_shards": false,
-      "targets_spec_directory": "infra/config/generated/builders/try/chromeos-octopus-rel/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "src/infra/config/generated/builders/try/chromeos-octopus-rel/targets"
     }
   },
   "$build/siso": {

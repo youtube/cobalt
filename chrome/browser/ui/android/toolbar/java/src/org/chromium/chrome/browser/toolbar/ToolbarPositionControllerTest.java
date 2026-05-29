@@ -226,11 +226,6 @@ public class ToolbarPositionControllerTest {
                 public int getControlsPosition() {
                     return mControlsPosition;
                 }
-
-                @Override
-                public boolean isVisibilityForced() {
-                    return false;
-                }
             };
 
     private final CoordinatorLayout.LayoutParams mControlContainerLayoutParams =
@@ -871,7 +866,6 @@ public class ToolbarPositionControllerTest {
 
         mControlContainerHeightSupplier.set(15);
         assertEquals(15, mBottomControlsStacker.getTotalHeight());
-        assertEquals(15, mHairlineLayoutParams.bottomMargin);
     }
 
     @Test

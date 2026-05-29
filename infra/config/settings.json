@@ -1,13 +1,8 @@
 {
-    "project": "chromium-m138",
-    "project_title": "Chromium M138",
-    "ref": "refs/branch-heads/7204",
-    "chrome_project": "chrome-m138",
-    "dawn_ref": "refs/heads/chromium/7204",
-    "is_main": false,
-    "platforms": {
-        "cros-lts": {
-            "description": "LTS"
-        }
-    }
+    "project": "chromium",
+    "project_title": "Chromium",
+    "ref": "refs/heads/main",
+    "chrome_project": "chrome",
+    "dawn_ref": "refs/heads/main",
+    "is_main": true
 }

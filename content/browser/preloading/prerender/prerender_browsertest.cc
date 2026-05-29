@@ -1191,88 +1191,6 @@ IN_PROC_BROWSER_TEST_F(
       "Prerender.Experimental.MatchableHostCountOnActivation", 1, 1);
 }
 
-// Tests the case where prerendering navigation fails while a potential
-// activation navigation is waiting for the No-Vary-Search header.
-// This is a regression test for crbug.com/420906968.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
-                       FailureOnPrerenderNavigation) {
-  const std::string kTestingRelativeUrl =
-      "/delayed_with_no_vary_search?prerender";
-  const std::string kPrerenderingRelativeUrl = kTestingRelativeUrl + "&a=5";
-  // Create a HTTP response to control prerendering main-frame navigation.
-  net::test_server::ControllableHttpResponse main_prerender_response(
-      embedded_test_server(), kPrerenderingRelativeUrl);
-
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
-  const GURL prerendering_url =
-      embedded_test_server()->GetURL(kPrerenderingRelativeUrl);
-  const GURL navigation_url =
-      embedded_test_server()->GetURL(kTestingRelativeUrl + "&a=3");
-
-  // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
-
-  // Start prerendering with the No-Vary-Search hint.
-  content::test::PrerenderHostCreationWaiter host_creation_waiter;
-  AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
-  FrameTreeNodeId host_id = host_creation_waiter.Wait();
-  auto* host =
-      web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
-          host_id);
-  ASSERT_TRUE(host);
-  ASSERT_TRUE(host->no_vary_search_hint().has_value());
-
-  // Add a testing PrerenderHost::Observer to the prerender host that we'd like
-  // to monitor.
-  NoVarySearchHintPrerenderHostObserver observer(*host);
-
-  // Start navigation in primary page.
-  TestActivationManager primary_page_manager(web_contents(), navigation_url);
-  std::unique_ptr<content::TestNavigationObserver> nav_observer =
-      test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
-                                                          navigation_url);
-
-  // Wait until the navigation is deferred by CommitDeferringCondition.
-  ASSERT_TRUE(primary_page_manager.WaitForBeforeChecks());
-  primary_page_manager.ResumeActivation();
-  ASSERT_FALSE(host->were_headers_received());
-
-  auto* prerender_web_contents =
-      content::WebContents::FromFrameTreeNodeId(host_id);
-  content::test::PrerenderHostObserver host_observer(*prerender_web_contents,
-                                                     host_id);
-
-  // Abort the request. This fails the prerender navigation.
-  main_prerender_response.WaitForRequest();
-  main_prerender_response.Done();
-
-  ASSERT_TRUE(primary_page_manager.WaitForAfterChecks());
-  primary_page_manager.ResumeActivation();
-
-  // Wait for the navigation to finish.
-  nav_observer->Wait();
-  primary_page_manager.WaitForNavigationFinished();
-
-  // Check that the prerender host was not activated.
-  ASSERT_FALSE(host_observer.was_activated());
-  host_observer.WaitForDestroyed();
-
-  ASSERT_TRUE(observer.wait_for_headers_start_reason().has_value());
-  ASSERT_TRUE(observer.wait_for_headers_finish_reason().has_value());
-
-  EXPECT_EQ(observer.wait_for_headers_start_reason().value(),
-            StartedReason::kWithTimeout);
-  EXPECT_EQ(observer.wait_for_headers_finish_reason().value(),
-            FinishedReason::kPrerenderNavigationFailed);
-
-  histogram_tester().ExpectUniqueSample(
-      "Prerender.Experimental.WaitingForHeadersFinishedReason.SpeculationRule",
-      FinishedReason::kPrerenderNavigationFailed, 1);
-}
-
 // Test that the timer is enabled and cleared appropriately when navigating to
 // a No-Vary-Search hint matched prerender with timeout waiting for headers.
 // Flaky on android: crbug.com/395337644
@@ -15172,6 +15090,125 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, WarmingUpCCDoesntInvokeCrashes) {
   prerender_observer.WaitForActivation();
   EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
+}
+
+class PrerenderTargetHintOriginTrialBrowserTest : public PrerenderBrowserTest {
+ public:
+  PrerenderTargetHintOriginTrialBrowserTest() = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    PrerenderBrowserTest::SetUpCommandLine(command_line);
+    // The public key for the default privatey key used by the
+    // tools/origin_trials/generate_token.py tool.
+    static constexpr char kOriginTrialTestPublicKey[] =
+        "dRCs+TocuKkocNKa0AtZ4awrt9XKH2SQCI6o4FY6BNA=";
+    command_line->AppendSwitchASCII("origin-trial-public-key",
+                                    kOriginTrialTestPublicKey);
+  }
+};
+
+// Verify that origin trial token can enable SpeculationRulesTargetHint
+// correctly.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintOriginTrialBrowserTest,
+                       Prerender2InNewTabOriginTrial) {
+  // The URL that was used to register the Origin Trial token.
+  static constexpr char kOriginUrl[] = "https://127.0.0.1:44444";
+
+  const GURL initiator_url(
+      base::StrCat({kOriginUrl, "/origin_trial_initiator.html"}));
+  const GURL prerender_url(base::StrCat({kOriginUrl, "/empty.html"}));
+
+  // The origin trial token is associated with an origin. We can't guarantee the
+  // EmbeddedTestServer to use a specific port. So the URLLoaderInterceptor is
+  // used instead.
+  URLLoaderInterceptor prerender_loader(base::BindLambdaForTesting(
+      [&](URLLoaderInterceptor::RequestParams* params) {
+        if (params->url_request.url != initiator_url &&
+            params->url_request.url != prerender_url) {
+          return false;
+        }
+
+        const std::string headers =
+            "HTTP/1.1 200 OK\n"
+            "Content-type: text/html\n";
+
+        URLLoaderInterceptor::WriteResponse(
+            "content/test/data/prerender" + params->url_request.url.path(),
+            params->client.get(), &headers, std::optional<net::SSLInfo>(),
+            params->url_request.url);
+
+        return true;
+      }));
+
+  // Navigate to an initial page which has a link to `prerender_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initiator_url));
+
+  // Start prerendering `prerender_url`.
+  FrameTreeNodeId host_id = prerender_helper()->AddPrerender(
+      prerender_url, /*eagerness=*/std::nullopt, "_blank");
+  auto* prerender_web_contents = WebContents::FromFrameTreeNodeId(host_id);
+  ASSERT_NE(prerender_web_contents, web_contents_impl());
+  ExpectWebContentsIsForNewTabPrerendering(*prerender_web_contents);
+
+  // Click the link annotated with "target=_blank". This should activate the
+  // prerendered page.
+  TestNavigationObserver activation_observer(prerender_url);
+  activation_observer.WatchExistingWebContents();
+  test::PrerenderHostObserver prerender_observer(*prerender_web_contents,
+                                                 host_id);
+  const std::string kLinkClickScript = R"(
+      clickSameSiteNewWindowLink();
+  )";
+  EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
+  activation_observer.WaitForNavigationFinished();
+  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), prerender_url);
+  EXPECT_EQ(activation_observer.last_navigation_url(), prerender_url);
+  EXPECT_TRUE(prerender_observer.was_activated());
+  EXPECT_FALSE(HasHostForUrl(prerender_url));
+
+  ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
+
+  ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
+  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+      ukm_source_id, PreloadingType::kPrerender,
+      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+      PreloadingTriggeringOutcome::kSuccess,
+      PreloadingFailureReason::kUnspecified,
+      /*accurate=*/true,
+      /*ready_time=*/kMockElapsedTime,
+      blink::mojom::SpeculationEagerness::kEager)});
+
+  ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
+      ukm_source_id,
+      /*confidence=*/100,
+      /*accurate_prediction=*/true)});
+
+  // The navigation occurred in a new WebContents, so the original WebContents
+  // should still be showing the initial trigger page.
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initiator_url);
+}
+
+// Verify that without an origin trial token, prerendering into same tab should
+// be the fallback.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintOriginTrialBrowserTest,
+                       NoTokenFallback) {
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerender_url = GetUrl("/title2.html");
+
+  // Navigate to an initial page which has a link to `prerender_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Start prerendering `prerender_url`.
+  test::PrerenderHostCreationWaiter host_creation_waiter;
+  AddPrerendersAsync({prerender_url},
+                     /*eagerness=*/std::nullopt,
+                     /*target_hint=*/"_blank");
+  FrameTreeNodeId host_id = host_creation_waiter.Wait();
+  auto* prerender_web_contents = WebContents::FromFrameTreeNodeId(host_id);
+  // Without specifying an Origin Trial token, Prerendering into new tab should
+  // not be triggered. Instead, the prerendered page is expected to fall back
+  // into same tab version.
+  ASSERT_EQ(prerender_web_contents, web_contents_impl());
 }
 
 class PrerenderTargetHintKillSwitchBrowserTest : public PrerenderBrowserTest {

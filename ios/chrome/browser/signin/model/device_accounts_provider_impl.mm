@@ -106,10 +106,9 @@ DeviceAccountsProvider::AccountInfo ConvertSystemIdentityToAccountInfo(
                         ? base::SysNSStringToUTF8(cached_hosted_domain)
                         : kNoHostedDomainFound;
   }
-  bool has_persistent_auth_error = !identity.hasValidAuth;
   return AccountInfo(GaiaId(identity.gaiaID),
                      base::SysNSStringToUTF8(identity.userEmail),
-                     std::move(hosted_domain), has_persistent_auth_error);
+                     std::move(hosted_domain));
 }
 
 std::vector<DeviceAccountsProvider::AccountInfo>

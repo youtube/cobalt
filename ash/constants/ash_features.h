@@ -283,8 +283,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kEnableTouchpadsInDiagnosticsApp);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kEnableTouchscreensInDiagnosticsApp);
-COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kEnableTouchCalibrationSetting);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kEnableWifiQos);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kEnableWifiQosEnterprise);
 COMPONENT_EXPORT(ASH_CONSTANTS)
@@ -932,8 +930,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kFeatureManagementFeatureAwareDeviceDemoMode);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kDemoModeAppLandscapeLocked);
-COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kDemoModeSecondaryGoogleAccountSigninAllowedFalse);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kSideAlignedToasts);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kSmartDimExperimentalComponent);
@@ -1150,8 +1146,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS) bool IsDemoModeAppResetWindowContainerEnable();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsDemoModeSignInEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsDemoModeWallpaperUpdateEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsDemoModeSignInFileCleanupEnabled();
-COMPONENT_EXPORT(ASH_CONSTANTS)
-bool IsDemoModeSecondaryGoogleAccountSigninAllowedFalse();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsDeskTemplateSyncEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsDisplayPerformanceModeEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsInputDeviceSettingsSplitEnabled();
@@ -1453,7 +1447,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS) bool IsToggleCameraShortcutEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTouchscreenMappingExperienceEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTouchpadInDiagnosticsAppEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTouchscreenInDiagnosticsAppEnabled();
-COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTouchscreenCalibrationEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTrafficCountersEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTrafficCountersForWiFiTestingEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsTrilinearFilteringEnabled();

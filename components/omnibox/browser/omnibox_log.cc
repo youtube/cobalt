@@ -4,7 +4,6 @@
 
 #include "components/omnibox/browser/omnibox_log.h"
 
-#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 
 OmniboxLog::OmniboxLog(
@@ -25,8 +24,15 @@ OmniboxLog::OmniboxLog(
     const AutocompleteResult& result,
     const GURL& final_destination_url,
     bool is_incognito,
-    bool is_zero_suggest,
-    std::optional<SessionData> session)
+    bool zero_prefix_suggestions_shown_in_session,
+    bool zero_prefix_search_suggestions_shown_in_session,
+    bool zero_prefix_url_suggestions_shown_in_session,
+    bool typed_search_suggestions_shown_in_session,
+    bool typed_url_suggestions_shown_in_session,
+    bool contextual_search_suggestions_selected_in_session,
+    bool contextual_search_suggestions_shown_in_session,
+    bool lens_action_selected_in_session,
+    bool lens_action_shown_in_session)
     : text(text),
       just_deleted_text(just_deleted_text),
       input_type(input_type),
@@ -46,8 +52,22 @@ OmniboxLog::OmniboxLog(
       result(result),
       final_destination_url(final_destination_url),
       is_incognito(is_incognito),
-      is_zero_suggest(is_zero_suggest),
-      session(session),
+      zero_prefix_suggestions_shown_in_session(
+          zero_prefix_suggestions_shown_in_session),
+      zero_prefix_search_suggestions_shown_in_session(
+          zero_prefix_search_suggestions_shown_in_session),
+      zero_prefix_url_suggestions_shown_in_session(
+          zero_prefix_url_suggestions_shown_in_session),
+      typed_search_suggestions_shown_in_session(
+          typed_search_suggestions_shown_in_session),
+      typed_url_suggestions_shown_in_session(
+          typed_url_suggestions_shown_in_session),
+      contextual_search_suggestions_selected_in_session(
+          contextual_search_suggestions_selected_in_session),
+      contextual_search_suggestions_shown_in_session(
+          contextual_search_suggestions_shown_in_session),
+      lens_action_selected_in_session(lens_action_selected_in_session),
+      lens_action_shown_in_session(lens_action_shown_in_session),
       steady_state_omnibox_position(
           metrics::OmniboxEventProto::UNKNOWN_POSITION),
       ukm_source_id(ukm::kInvalidSourceId) {

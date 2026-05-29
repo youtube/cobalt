@@ -2,10 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("@chromium-luci//builders.star", "builder", "defaults")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//swarming.star", swarming_lib = "swarming")
-load("//lib/siso.star", "siso")
+load("//lib/builders.star", "builder", "defaults", "siso")
+load("//lib/consoles.star", "consoles")
+load("//lib/swarming.star", swarming_lib = "swarming")
 
 luci.bucket(
     name = "findit",

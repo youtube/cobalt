@@ -218,13 +218,11 @@
 <translation id="3954172517175569325">మీరు Google ఖాతాలో సేవ్ చేసిన మీ పాస్‌వర్డ్‌లు, పేమెంట్ ఆప్షన్‌లు, ఇంకా అడ్రస్‌లు ఈ పరికరం నుండి తీసివేయబడతాయి. వాటిని మళ్లీ Chromiumలో ఉపయోగించడానికి, తిరిగి సైన్ ఇన్ చేయండి.</translation>
 <translation id="395904275706073188">ప్రొటెక్షన్ ఉన్న పేజీలను రీడ్ చేయడం సాధ్యం కాలేదు. వేరే పేజీని ట్రై చేయండి.</translation>
 <translation id="3962647064319009959">Chromium మిమ్మల్ని ఎలా సురక్షితంగా ఉంచుతుందో తెలుసుకోండి</translation>
-<translation id="3971865010372729242">మీరు అడ్రస్ బార్ లేదా సెర్చ్ బాక్స్‌లో టైప్ చేసినప్పుడు, Chromium మీరు టైప్ చేసే దాన్ని మీ సంస్థకు సంబంధించిన సెర్చ్, AI, ఇంకా ఏజెంట్ టూల్స్‌కు పంపి, మీకు సూచనలను అందిస్తుంది.</translation>
 <translation id="3975724895399328945">&amp;Google Chrome for Testing పరిచయం</translation>
 <translation id="3997429360543082038">ChromiumOS గురించి</translation>
 <translation id="4019629340646866719">ChromiumOS అనేది <ph name="BEGIN_LINK_LINUX_OSS" />Linux డెవలప్‌మెంట్ ఎన్విరాన్‌మెంట్<ph name="END_LINK_LINUX_OSS" /> తరహాలోనే, అదనపు <ph name="BEGIN_LINK_CROS_OSS" />ఓపెన్ సోర్స్ సాఫ్ట్‌వేర్<ph name="END_LINK_CROS_OSS" /> ద్వారా సాధ్యమైంది.</translation>
 <translation id="4022972681110646219">స్క్రీన్‌ను అనువదించండి</translation>
 <translation id="4023601594785368013">అసలు భాష: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">ఏదైనా యాప్ నుండి Chromiumలో లింక్‌లను తెరవండి. అలాగే సులభంగా యాక్సెస్ చేయడానికి, అది మీ టాస్క్‌బార్‌కు పిన్ అవుతుంది.</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />ప్రస్తుత సెట్టింగ్‌లను<ph name="END_LINK" /> రిపోర్ట్ చేయడం ద్వారా Chromiumను మెరుగుపరచడంలో సహాయపడండి</translation>
 <translation id="4050175100176540509">ముఖ్యమైన భద్రతా మెరుగుదలలు మరియు కొత్త ఫీచర్‌లు తాజా వెర్షన్‌లో అందుబాటులో ఉన్నాయి.</translation>
 <translation id="4055805654398742145">Password Manager</translation>
@@ -326,7 +324,6 @@
 <translation id="5524890928877629608">సెర్చ్ ఏరియాకు ఎగువ ఎడమ మూలన: ఎడమ వైపు <ph name="LEFT" />%, ఎగువ <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Chromiumలో PDFలను తెరవండి</translation>
 <translation id="5579324208890605088">స్టార్టప్ ఎర్రర్: దయచేసి ఇన్‌స్టాలర్‌ను అడ్మినిస్ట్రేటర్‌గా కాకుండా ఒక సాధారణ యూజర్‌గా రన్ చేయండి.</translation>
-<translation id="5580770360767802657">పిన్ అయ్యేలా చేయడానికి ఆటోమేటిక్‌గా Chromiumను ఉపయోగించండి</translation>
 <translation id="5596627076506792578">మరిన్ని ఆప్షన్‌లు</translation>
 <translation id="5605834417512968703">ఇమేజ్ సెర్చ్‌తో సెర్చ్ చేయడానికి ఏదైనా ఎంచుకోండి లేదా ఇమేజ్ సెర్చ్ నుండి ఎగ్జిట్ అవ్వడానికి Escapeను నొక్కండి</translation>
 <translation id="5618818588972826921">ఇమేజ్ సెర్చ్‌తో సెర్చ్ చేయడానికి ఏదైనా టెక్స్ట్ లేదా ఇమేజ్‌ను ఎంచుకోండి లేదా ఇమేజ్ సెర్చ్ నుండి ఎగ్జిట్ అవ్వడానికి Escapeను నొక్కండి</translation>

@@ -201,9 +201,6 @@ export class AppElement extends AppElementBase {
         notify: true,
       },
 
-      composeboxEnabled: {type: Boolean},
-      composeButtonEnabled: {type: Boolean},
-
       realboxShown_: {type: Boolean},
       logoEnabled_: {type: Boolean},
       oneGoogleBarEnabled_: {type: Boolean},
@@ -292,10 +289,7 @@ export class AppElement extends AppElementBase {
   protected accessor wallpaperSearchButtonEnabled_: boolean =
       loadTimeData.getBoolean('wallpaperSearchButtonEnabled');
   protected accessor showWallpaperSearchButton_: boolean = false;
-  accessor composeButtonEnabled: boolean =
-      loadTimeData.getBoolean('searchboxShowComposeEntrypoint');
-  accessor composeboxEnabled: boolean =
-      loadTimeData.getBoolean('searchboxShowComposebox');
+
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
   private customizeButtonsCallbackRouter_:
@@ -463,11 +457,6 @@ export class AppElement extends AppElementBase {
           });
     }
     FocusOutlineManager.forDocument(document);
-    if (this.composeButtonEnabled) {
-      chrome.metricsPrivate.recordBoolean(
-          'NewTabPage.ComposeEntrypoint.Shown', true);
-      this.pageHandler_.incrementComposeButtonShownCount();
-    }
   }
 
   override disconnectedCallback() {
@@ -714,6 +703,10 @@ export class AppElement extends AppElementBase {
 
   private onShowBackgroundImageChange_() {
     this.backgroundManager_.setShowBackgroundImage(this.showBackgroundImage_);
+  }
+
+  protected onShowCustomizeChange_(e: CustomEvent<boolean>) {
+    this.showCustomize_ = e.detail;
   }
 
   private onThemeChange_() {

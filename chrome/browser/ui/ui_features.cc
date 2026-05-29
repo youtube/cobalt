@@ -95,7 +95,7 @@ constexpr base::FeatureParam<PreloadTopChromeWebUIMode>::Option
 };
 const base::FeatureParam<PreloadTopChromeWebUIMode> kPreloadTopChromeWebUIMode{
     &kPreloadTopChromeWebUI, kPreloadTopChromeWebUIModeName,
-    PreloadTopChromeWebUIMode::kPreloadOnWarmup,
+    PreloadTopChromeWebUIMode::kPreloadOnMakeContents,
     &kPreloadTopChromeWebUIModeOptions};
 
 const char kPreloadTopChromeWebUISmartPreloadName[] = "smart-preload";
@@ -109,11 +109,6 @@ const base::FeatureParam<bool> kPreloadTopChromeWebUIDelayPreload{
 const char kPreloadTopChromeWebUIExcludeOriginsName[] = "exclude-origins";
 const base::FeatureParam<std::string> kPreloadTopChromeWebUIExcludeOrigins{
     &kPreloadTopChromeWebUI, kPreloadTopChromeWebUIExcludeOriginsName, ""};
-
-// An experiment to reduce the number of navigations when preloading WebUIs.
-BASE_FEATURE(kPreloadTopChromeWebUILessNavigations,
-             "PreloadTopChromeWebUILessNavigations",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables exiting browser fullscreen (users putting the browser itself into the
 // fullscreen mode via the browser UI or shortcuts) with press-and-hold Esc.

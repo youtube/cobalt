@@ -24,7 +24,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabSupplierObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
-import org.chromium.chrome.browser.toolbar.ToolbarResourceUtils;
+import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelAnimatorFactory;
@@ -46,7 +46,6 @@ class BackButtonMediator implements ThemeColorProvider.TintObserver {
     private final ObservableSupplier<Boolean> mEnabledSupplier;
     private final Callback<Boolean> mEnabledObserver;
     private Insets mInsets;
-    private final boolean mIsWebApp;
 
     private @DrawableRes int mDrawableResForTesting;
 
@@ -69,13 +68,11 @@ class BackButtonMediator implements ThemeColorProvider.TintObserver {
             ObservableSupplier<Boolean> enabledSupplier,
             Callback<Tab> showNavigationPopup,
             Resources resources,
-            Context context,
-            boolean isWebApp) {
+            Context context) {
         mModel = model;
         mThemeColorProvider = themeColorProvider;
         mResources = resources;
         mContext = context;
-        mIsWebApp = isWebApp;
 
         mInsets = Insets.NONE;
 
@@ -158,8 +155,10 @@ class BackButtonMediator implements ThemeColorProvider.TintObserver {
     }
 
     private void updateBackground(@BrandedColorScheme int brandedThemeColor) {
-        final int backgroundRes =
-                ToolbarResourceUtils.backgroundResForThemeColor(brandedThemeColor, mIsWebApp);
+        final @DrawableRes int backgroundRes =
+                brandedThemeColor == BrandedColorScheme.INCOGNITO
+                        ? R.drawable.default_icon_background_baseline
+                        : R.drawable.default_icon_background;
         mDrawableResForTesting = backgroundRes;
         var drawable =
                 new InsetDrawable(

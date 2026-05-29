@@ -13,7 +13,6 @@
 #include "content/public/browser/prefetch_request_status_listener.h"
 #include "net/http/http_no_vary_search_data.h"
 #include "net/http/http_request_headers.h"
-#include "services/network/public/cpp/resource_request.h"
 #include "url/gurl.h"
 
 namespace android_webview {
@@ -48,25 +47,6 @@ class AwPrefetchManager {
   AwPrefetchManager& operator=(const AwPrefetchManager&) = delete;
 
   ~AwPrefetchManager();
-
-  // Returns `true` if the `resource_request` is also a prefetch request.
-  // NOTE: A prefetch request can also be a prerender request i.e.
-  // this method & `IsPrerenderRequest` can both return `true` for it,
-  // however this is not always the case.
-  static bool IsPrefetchRequest(
-      const network::ResourceRequest& resource_request);
-
-  // Returns `true` if the `resource_request` is also a prerender request.
-  // NOTE: A prerender request will always be a prefetch request i.e.
-  // this method & `IsPrefetchRequest` will always return `true` for it
-  // as prefetching a always required for prerendering.
-  static bool IsPrerenderRequest(
-      const network::ResourceRequest& resource_request);
-
-  // Returns `true` if the `blink::kSecPurposeHeaderName` header is associated
-  // with a prefetch request.
-  static bool IsSecPurposeForPrefetch(
-      std::optional<std::string> sec_purpose_header_value);
 
   // Returns the key associated with the outgoing prefetch request
   // and thus the prefetch handle inside of `all_prefetches_map_` (if

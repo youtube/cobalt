@@ -220,13 +220,11 @@
 <translation id="3954172517175569325">De adgangskoder, betalingsmetoder og adresser, du har gemt på din Google-konto, fjernes fra denne enhed. Hvis du vil bruge dem igen i Chromium, skal du logge ind igen.</translation>
 <translation id="395904275706073188">Beskyttede sider kan ikke læses. Prøv en anden side.</translation>
 <translation id="3962647064319009959">Se, hvordan Chromium beskytter dig</translation>
-<translation id="3971865010372729242">Når du skriver i adresselinjen eller søgefeltet, sender Chromium det, du skriver, til din organisations søge-, AI- og agentværktøjer for at få forslag.</translation>
 <translation id="3975724895399328945">Om &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Om Chromium OS</translation>
 <translation id="4019629340646866719">Chromium OS leveres ved hjælp af <ph name="BEGIN_LINK_CROS_OSS" />open source-software<ph name="END_LINK_CROS_OSS" />. Det samme gælder for <ph name="BEGIN_LINK_LINUX_OSS" />Linux-udviklingsmiljøet<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Oversæt skærmen</translation>
 <translation id="4023601594785368013">Originalsprog: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Åbn links i Chromium fra en hvilken som helst app. Den fastgøres også til proceslinjen, så du nemt kan tilgå den.</translation>
 <translation id="4036079820698952681">Hjælp med at gøre Chromium bedre ved at rapportere de <ph name="BEGIN_LINK" />aktuelle indstillinger<ph name="END_LINK" />.</translation>
 <translation id="4050175100176540509">Vigtige sikkerhedsforbedringer og nye funktioner er tilgængelige i den seneste version.</translation>
 <translation id="4055805654398742145">Adgangs­kode­admin­istrator</translation>
@@ -290,7 +288,7 @@
 <translation id="4814736265800133385">Brug Chromium uden en konto</translation>
 <translation id="4888717733111232871">Indgående regel for Chromium om at tillade mDNS-trafik.</translation>
 <translation id="4893347770495441059">Genstart og opdater &amp;Chromium</translation>
-<translation id="4918844574251943176">Billedet er kopieret</translation>
+<translation id="4918844574251943176">Billedet er blevet kopieret</translation>
 <translation id="4943838377383847465">Chromium kører i baggrunden.</translation>
 <translation id="494490797786467921">Klik for at lukke dialogboksen til login i Chromium</translation>
 <translation id="4950660488495335294">Du kan organisere alle dine ting i Chromium ved hjælp af Chromium-profiler. Opret profiler til venner og familie, eller brug dem til at holde arbejde og fornøjelse adskilt.</translation>
@@ -328,7 +326,6 @@
 <translation id="5524890928877629608">øverste venstre hjørne af søgeområdet: venstre <ph name="LEFT" /> %, øverste <ph name="TOP" /> %</translation>
 <translation id="5527463683072221100">Åbn PDF-filer i Chromium</translation>
 <translation id="5579324208890605088">Opstartsfejl: Kør installationsprogrammet som almindelig bruger, ikke som administrator.</translation>
-<translation id="5580770360767802657">Brug Chromium som standard, og fastgør den</translation>
 <translation id="5596627076506792578">Flere valgmuligheder</translation>
 <translation id="5605834417512968703">Vælg det, du vil søge efter med billedsøgning, eller tryk på Escape for at lukke billedsøgning</translation>
 <translation id="5618818588972826921">Vælg den tekst eller det billede, du vil søge efter med Billedsøgning, eller tryk på Escape for at lukke Billedsøgning</translation>
@@ -601,7 +598,6 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="9106612006984859720">Hvis du vil have fremtidige Chromium-opdateringer, skal du have Windows 10 eller nyere. Denne computer anvender Windows 8.1.</translation>
 <translation id="91086099826398415">Åbn linket på en ny Chromium-&amp;fane</translation>
 <translation id="911206726377975832">Slet også dine browserdata?</translation>
-<translation id="9134482777260927479">Lektiehjælp</translation>
 <translation id="9148058034647219655">Afslut</translation>
 <translation id="9158494823179993217">Din systemadministrator har konfigureret Chromium til at åbne en anden browser for at få adgang til <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="9185526690718004400">Genstart og opdater &amp;Chromium</translation>

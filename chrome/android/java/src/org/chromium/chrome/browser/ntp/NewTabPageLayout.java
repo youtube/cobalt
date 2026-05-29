@@ -16,13 +16,11 @@ import android.view.DragEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
-import androidx.core.widget.ImageViewCompat;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
@@ -66,8 +64,7 @@ import org.chromium.ui.text.EmptyTextWatcher;
  * Layout for the new tab page. This positions the page elements in the correct vertical positions.
  * There are no separate phone and tablet UIs; this layout adapts based on the available space.
  */
-public class NewTabPageLayout extends LinearLayout
-        implements SearchEngineUtils.SearchBoxHintTextObserver {
+public class NewTabPageLayout extends LinearLayout {
     private static final String TAG = "NewTabPageLayout";
 
     private int mSearchBoxTwoSideMargin;
@@ -141,8 +138,6 @@ public class NewTabPageLayout extends LinearLayout
     private View mFakeSearchBoxLayout;
     private TextView mFakeSearchBoxEditText;
     private Callback<Logo> mOnLogoAvailableCallback;
-    private @Nullable ImageView mDseIconView;
-    private ViewGroup mFakeSearchBox;
 
     /** Constructor for inflating from XML. */
     public NewTabPageLayout(Context context, AttributeSet attrs) {
@@ -255,14 +250,10 @@ public class NewTabPageLayout extends LinearLayout
         initializeLogoCoordinator(searchProviderHasLogo, searchProviderIsGoogle);
         initializeMostVisitedTilesCoordinator(
                 mProfile, lifecycleDispatcher, tileGroupDelegate, touchEnabledDelegate);
-        initializeDseIconView(searchProviderIsGoogle);
         initializeSearchBoxTextView();
         initializeVoiceSearchButton();
         initializeLensButton();
         initializeLayoutChangeListener();
-
-        // Initialize Searchbox observers
-        SearchEngineUtils.getForProfile(mProfile).addSearchBoxHintTextObserver(this);
 
         manager.addDestructionObserver(NewTabPageLayout.this::onDestroy);
         mInitialized = true;
@@ -317,41 +308,6 @@ public class NewTabPageLayout extends LinearLayout
                     }
                 });
         TraceEvent.end(TAG + ".initializeSearchBoxTextView()");
-    }
-
-    private void initializeDseIconView(boolean shouldShowDesIconView) {
-        if (!OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled()) return;
-
-        mFakeSearchBox = findViewById(R.id.search_box);
-        mDseIconView = mFakeSearchBox.findViewById(R.id.search_box_engine_icon);
-        ImageViewCompat.setImageTintList(mDseIconView, null);
-
-        setDseIconViewVisibility(shouldShowDesIconView);
-    }
-
-    private void setDseIconViewVisibility(boolean isVisible) {
-        if (mDseIconView == null) return;
-
-        int visibility = isVisible ? VISIBLE : GONE;
-        if (mDseIconView.getVisibility() == visibility) return;
-
-        mDseIconView.setVisibility(visibility);
-
-        if (isVisible) {
-            mFakeSearchBox.setPaddingRelative(
-                    getResources()
-                            .getDimensionPixelSize(
-                                    R.dimen.fake_search_box_start_padding_with_dse_logo),
-                    mFakeSearchBox.getPaddingTop(),
-                    mFakeSearchBox.getPaddingEnd(),
-                    mFakeSearchBox.getPaddingBottom());
-        } else {
-            mFakeSearchBox.setPaddingRelative(
-                    getResources().getDimensionPixelSize(R.dimen.fake_search_box_start_padding),
-                    mFakeSearchBox.getPaddingTop(),
-                    mFakeSearchBox.getPaddingEnd(),
-                    mFakeSearchBox.getPaddingBottom());
-        }
     }
 
     private void initializeVoiceSearchButton() {
@@ -636,9 +592,6 @@ public class NewTabPageLayout extends LinearLayout
         // Hide or show the views above the most visited tiles as needed, including search box, and
         // spacers. The visibility of Logo is handled by LogoCoordinator.
         mSearchBoxCoordinator.setVisibility(mSearchProviderHasLogo);
-        if (mDseIconView != null) {
-            setDseIconViewVisibility(mSearchProviderIsGoogle);
-        }
 
         onUrlFocusAnimationChanged();
 
@@ -919,8 +872,6 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     private void onDestroy() {
-        SearchEngineUtils.getForProfile(mProfile).removeSearchBoxHintTextObserver(this);
-
         if (mCallbackController != null) {
             mCallbackController.destroy();
             mCallbackController = null;
@@ -1062,8 +1013,9 @@ public class NewTabPageLayout extends LinearLayout
                 && uiConfig.getCurrentDisplayStyle().horizontal < HorizontalDisplayStyle.WIDE;
     }
 
-    @Override
-    public void onSearchBoxHintTextChanged(String newHint) {
-        mFakeSearchBoxEditText.setHint(newHint);
+    /** Update text hint to capture the Search Engine name. */
+    /* package */ void updateSearchBoxHintText() {
+        mFakeSearchBoxEditText.setHint(
+                SearchEngineUtils.getForProfile(mProfile).getSearchBoxHintText());
     }
 }

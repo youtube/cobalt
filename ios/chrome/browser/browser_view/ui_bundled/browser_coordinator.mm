@@ -1388,15 +1388,15 @@ enum class ToolbarKind {
   [self.qrScannerCoordinator stop];
   self.qrScannerCoordinator = nil;
 
-  [_lensOverlayCoordinator stop];
-  _lensOverlayCoordinator = nil;
+  [_lensCoordinator stop];
+  _lensCoordinator = nil;
 
   if (IsLVFUnifiedExperienceEnabled(self.profile->GetPrefs())) {
     [_lensViewFinderCoordinator stop];
     _lensViewFinderCoordinator = nil;
   } else {
-    [_lensCoordinator stop];
-    _lensCoordinator = nil;
+    [_lensOverlayCoordinator stop];
+    _lensOverlayCoordinator = nil;
   }
 
   [self.downloadManagerCoordinator stop];
@@ -2059,15 +2059,9 @@ enum class ToolbarKind {
   [self.plusAddressBottomSheetCoordinator start];
 }
 
-- (void)showSaveCardBottomSheetOnOriginWebState:(web::WebState*)originWebState {
+- (void)showSaveCardBottomSheet {
   if (self.saveCardBottomSheetCoordinator) {
     [self.saveCardBottomSheetCoordinator stop];
-  }
-
-  if (self.activeWebState != originWebState) {
-    // Do not show the sheet if the current tab is not the one where the
-    // bottomsheet show request was triggered from.
-    return;
   }
 
   self.saveCardBottomSheetCoordinator = [[SaveCardBottomSheetCoordinator alloc]
@@ -2686,36 +2680,11 @@ enum class ToolbarKind {
     return;
   }
 
-  __weak __typeof(self) weakSelf = self;
-
-  auto startFindInPage = ^{
-    if (IsNativeFindInPageAvailable()) {
-      [weakSelf showSystemFindPanel];
-    } else {
-      [weakSelf showFindBar];
-    }
-  };
-
-  BOOL lensOverlayAvailable = IsLensOverlayAvailable(self.profile->GetPrefs());
-  web::WebState* activeWebState = self.activeWebState;
-  if (lensOverlayAvailable && activeWebState) {
-    LensOverlayTabHelper* lensOverlayTabHelper =
-        LensOverlayTabHelper::FromWebState(activeWebState);
-    BOOL lensOverlayVisible =
-        lensOverlayTabHelper &&
-        lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
-    if (lensOverlayVisible) {
-      id<LensOverlayCommands> lensOverlayHandler =
-          HandlerForProtocol(_dispatcher, LensOverlayCommands);
-      [lensOverlayHandler
-          destroyLensUI:YES
-                 reason:lens::LensOverlayDismissalSource::kFindInPageInvoked
-             completion:startFindInPage];
-      return;
-    }
+  if (IsNativeFindInPageAvailable()) {
+    [self showSystemFindPanel];
+  } else {
+    [self showFindBar];
   }
-
-  startFindInPage();
 }
 
 - (void)closeFindInPage {
@@ -4146,9 +4115,7 @@ enum class ToolbarKind {
   // Attempting to snapshot while the overscroll "bounce back" animation is
   // occurring will cut the animation short.
   web::WebState* activeWebState = self.activeWebState;
-  if (!activeWebState) {
-    return;
-  }
+  DCHECK(activeWebState);
   ProfileIOS* profile = self.profile;
   feature_engagement::Tracker* engagementTracker =
       feature_engagement::TrackerFactory::GetForProfile(profile);

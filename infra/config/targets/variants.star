@@ -2,13 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Variant declarations
-
-Variants are used to expand tests within a matrix compound suite into multiple
-tests and applying variant-specific modifications to the tests.
-"""
-
-load("@chromium-luci//targets.star", "targets")
+load("//lib/targets.star", "targets")
 
 targets.variant(
     name = "AMD_RADEON_RX_5500_XT",

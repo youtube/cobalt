@@ -3,16 +3,15 @@
 # found in the LICENSE file.
 """Definitions of builders in the chromium.android builder group."""
 
-load("@chromium-luci//branches.star", "branches")
-load("@chromium-luci//builders.star", "os")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//try.star", "try_")
-load("//lib/try_constants.star", "try_constants")
+load("//lib/builders.star", "os")
+load("//lib/branches.star", "branches")
+load("//lib/try.star", "try_")
+load("//lib/consoles.star", "consoles")
 load("//project.star", "PLATFORMS", "platform")
 load("../fallback-cq.star", "fallback_cq")
 
 try_.defaults.set(
-    pool = try_constants.DEFAULT_POOL,
+    pool = try_.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     list_view = "presubmit",
@@ -29,7 +28,7 @@ try_.defaults.set(
     # This will improve our turnaround time for landing infra/config changes
     # when addressing outages
     priority = 25,
-    service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
+    service_account = try_.DEFAULT_SERVICE_ACCOUNT,
 )
 
 consoles.list_view(

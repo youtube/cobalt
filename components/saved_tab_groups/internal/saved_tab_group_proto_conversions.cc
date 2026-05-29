@@ -27,6 +27,9 @@
 namespace tab_groups {
 namespace {
 
+// The current schema version of the SavedTabGroupData proto.
+const int kCurrentSchemaVersion = 1;
+
 base::Time TimeFromWindowsEpochMicros(int64_t time_windows_epoch_micros) {
   return base::Time::FromDeltaSinceWindowsEpoch(
       base::Microseconds(time_windows_epoch_micros));
@@ -200,17 +203,9 @@ SavedTabGroup DataToSavedTabGroup(const proto::SavedTabGroupData& data) {
   return group;
 }
 
-proto::SavedTabGroupData SavedTabGroupToData(
-    const SavedTabGroup& group,
-    const sync_pb::SavedTabGroupSpecifics& base_specifics) {
+proto::SavedTabGroupData SavedTabGroupToData(const SavedTabGroup& group) {
   proto::SavedTabGroupData pb_data;
   auto* pb_specific = pb_data.mutable_specifics();
-  pb_specific->CopyFrom(base_specifics);
-
-  // WARNING: all fields need to be set or cleared explicitly.
-  // WARNING: if you are adding support for new `SavedTabGroupSpecifics`
-  // fields, you need to update the following functions accordingly:
-  // `TrimAllSupportedFieldsFromRemoteSpecifics`.
   pb_specific->set_guid(group.saved_guid().AsLowercaseString());
   pb_specific->set_creation_time_windows_epoch_micros(
       group.creation_time().ToDeltaSinceWindowsEpoch().InMicroseconds());
@@ -225,15 +220,6 @@ proto::SavedTabGroupData SavedTabGroupToData(
         ->mutable_created()
         ->mutable_device_info()
         ->set_cache_guid(group.creator_cache_guid().value());
-  } else {
-    if (pb_specific->has_attribution_metadata() &&
-        pb_specific->attribution_metadata().has_created() &&
-        pb_specific->attribution_metadata().created().has_device_info()) {
-      pb_specific->mutable_attribution_metadata()
-          ->mutable_created()
-          ->mutable_device_info()
-          ->clear_cache_guid();
-    }
   }
 
   if (group.last_updater_cache_guid().has_value()) {
@@ -241,24 +227,12 @@ proto::SavedTabGroupData SavedTabGroupToData(
         ->mutable_updated()
         ->mutable_device_info()
         ->set_cache_guid(group.last_updater_cache_guid().value());
-  } else {
-    if (pb_specific->has_attribution_metadata() &&
-        pb_specific->attribution_metadata().has_updated() &&
-        pb_specific->attribution_metadata().updated().has_device_info()) {
-      pb_specific->mutable_attribution_metadata()
-          ->mutable_updated()
-          ->mutable_device_info()
-          ->clear_cache_guid();
-    }
   }
 
   if (group.position().has_value()) {
     pb_group->set_pinned_position(group.position().value());
-  } else {
-    pb_group->clear_pinned_position();
   }
 
-  // Local only fields.
   if (AreLocalIdsPersisted()) {
     const auto& local_group_id = group.local_group_id();
     if (local_group_id.has_value()) {
@@ -288,9 +262,7 @@ proto::SavedTabGroupData SavedTabGroupToData(
             .InMicroseconds());
   }
 
-  // Version fields.
-  pb_specific->set_version(kCurrentSavedTabGroupSpecificsProtoVersion);
-  pb_data.set_version(kCurrentSavedTabGroupDataProtoVersion);
+  pb_data.set_version(kCurrentSchemaVersion);
 
   // Note: When adding a new syncable field, also update IsSyncEquivalent().
 
@@ -322,17 +294,10 @@ SavedTabGroupTab DataToSavedTabGroupTab(const proto::SavedTabGroupData& data) {
   return tab;
 }
 
-proto::SavedTabGroupData SavedTabGroupTabToData(
-    const SavedTabGroupTab& tab,
-    const sync_pb::SavedTabGroupSpecifics& base_specifics) {
+proto::SavedTabGroupData SavedTabGroupTabToData(const SavedTabGroupTab& tab) {
   proto::SavedTabGroupData pb_data;
   auto* pb_specific = pb_data.mutable_specifics();
-  pb_specific->CopyFrom(base_specifics);
 
-  // WARNING: all fields need to be set or cleared explicitly.
-  // WARNING: if you are adding support for new `SavedTabGroupSpecifics`
-  // fields, you need to update the following functions accordingly:
-  // `TrimAllSupportedFieldsFromRemoteSpecifics`.
   pb_specific->set_guid(tab.saved_tab_guid().AsLowercaseString());
   pb_specific->set_creation_time_windows_epoch_micros(
       tab.creation_time().ToDeltaSinceWindowsEpoch().InMicroseconds());
@@ -344,15 +309,6 @@ proto::SavedTabGroupData SavedTabGroupTabToData(
         ->mutable_created()
         ->mutable_device_info()
         ->set_cache_guid(tab.creator_cache_guid().value());
-  } else {
-    if (pb_specific->has_attribution_metadata() &&
-        pb_specific->attribution_metadata().has_created() &&
-        pb_specific->attribution_metadata().created().has_device_info()) {
-      pb_specific->mutable_attribution_metadata()
-          ->mutable_created()
-          ->mutable_device_info()
-          ->clear_cache_guid();
-    }
   }
 
   if (tab.last_updater_cache_guid().has_value()) {
@@ -360,15 +316,6 @@ proto::SavedTabGroupData SavedTabGroupTabToData(
         ->mutable_updated()
         ->mutable_device_info()
         ->set_cache_guid(tab.last_updater_cache_guid().value());
-  } else {
-    if (pb_specific->has_attribution_metadata() &&
-        pb_specific->attribution_metadata().has_updated() &&
-        pb_specific->attribution_metadata().updated().has_device_info()) {
-      pb_specific->mutable_attribution_metadata()
-          ->mutable_updated()
-          ->mutable_device_info()
-          ->clear_cache_guid();
-    }
   }
 
   sync_pb::SavedTabGroupTab* pb_tab = pb_specific->mutable_tab();
@@ -378,9 +325,7 @@ proto::SavedTabGroupData SavedTabGroupTabToData(
   pb_tab->set_position(tab.position().value());
   // Note: When adding a new syncable field, also update IsSyncEquivalent().
 
-  // Version fields.
-  pb_specific->set_version(kCurrentSavedTabGroupSpecificsProtoVersion);
-  pb_data.set_version(kCurrentSavedTabGroupDataProtoVersion);
+  pb_data.set_version(kCurrentSchemaVersion);
 
   return pb_data;
 }

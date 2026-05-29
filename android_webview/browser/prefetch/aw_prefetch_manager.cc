@@ -5,8 +5,6 @@
 
 #include <jni.h>
 
-#include <optional>
-
 #include "android_webview/browser/prefetch/aw_preloading_utils.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
@@ -15,7 +13,6 @@
 
 // Has to come after all the FromJniType() / ToJniType() headers.
 #include "android_webview/browser_jni_headers/AwPrefetchManager_jni.h"
-#include "third_party/blink/public/common/navigation/preloading_headers.h"
 
 using content::BrowserThread;
 
@@ -82,23 +79,6 @@ AwPrefetchManager::AwPrefetchManager(content::BrowserContext* browser_context)
 }
 
 AwPrefetchManager::~AwPrefetchManager() = default;
-
-bool AwPrefetchManager::IsPrefetchRequest(
-    const network::ResourceRequest& resource_request) {
-  return AwPrefetchManager::IsSecPurposeForPrefetch(
-      resource_request.headers.GetHeader(blink::kSecPurposeHeaderName));
-}
-
-bool AwPrefetchManager::IsPrerenderRequest(
-    const network::ResourceRequest& resource_request) {
-  return blink::IsSecPurposeForPrerender(
-      resource_request.headers.GetHeader(blink::kSecPurposeHeaderName));
-}
-
-bool AwPrefetchManager::IsSecPurposeForPrefetch(
-    std::optional<std::string> sec_purpose_header_value) {
-  return blink::IsSecPurposeForPrefetch(sec_purpose_header_value);
-}
 
 int AwPrefetchManager::StartPrefetchRequest(
     JNIEnv* env,
@@ -171,20 +151,15 @@ void AwPrefetchManager::CancelPrefetch(JNIEnv* env, jint prefetch_key) {
   }
 }
 
-bool AwPrefetchManager::GetIsPrefetchInCacheForTesting(JNIEnv* env,
-                                                       jint prefetch_key) {
+bool AwPrefetchManager::GetIsPrefetchInCacheForTesting(
+    JNIEnv* env,
+    jint prefetch_key) {  // IN-TEST
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return all_prefetches_map_.find(prefetch_key) != all_prefetches_map_.end();
 }
 
 jint JNI_AwPrefetchManager_GetNoPrefetchKey(JNIEnv* env) {
   return NO_PREFETCH_KEY;
-}
-
-jboolean JNI_AwPrefetchManager_IsSecPurposeForPrefetch(
-    JNIEnv* env,
-    std::string& sec_purpose_header_value) {
-  return AwPrefetchManager::IsSecPurposeForPrefetch(sec_purpose_header_value);
 }
 
 base::android::ScopedJavaLocalRef<jobject>

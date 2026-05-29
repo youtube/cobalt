@@ -348,9 +348,7 @@ class TabGroupSyncService : public KeyedService, public base::SupportsUserData {
   virtual void UpdateArchivalStatus(const base::Uuid& sync_id,
                                     bool archival_status) = 0;
 
-  // Method to update the last seen timestamp for a tab. This method exists for
-  // external callers such as messaging card dismiss button to be able to clear
-  // the dots of all unseen tabs without actually switching to the tabs.
+  // Update the last seen timestamp for a tab.
   virtual void UpdateTabLastSeenTime(const base::Uuid& group_id,
                                      const base::Uuid& tab_id,
                                      TriggerSource source) = 0;

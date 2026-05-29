@@ -375,7 +375,6 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2718352093833049315">Aðeins um Wi-Fi</translation>
 <translation id="2718846868787000099">Vefsvæðin sem þú opnar geta séð kjörstillingarnar þínar til að sýna þér efni á þeim tungumálum sem þú hefur valið.</translation>
 <translation id="2723001399770238859">hljóð</translation>
-<translation id="2734335652257251631">Sýna lesstillingu</translation>
 <translation id="2739887572830526131">Haltu flipahópnum ef þú vilt bæta flipum við síðar eða eyddu honum ef þú hefur ekki þörf fyrir hann lengur.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> er ekki í boði eins og er.</translation>
 <translation id="2760805590727089264">MM / ÁÁ</translation>
@@ -1440,7 +1439,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7431991332293347422">Stjórnaðu því hvernig vefskoðunarferillinn þinn er notaður til að sérsníða leit og fleira</translation>
 <translation id="7435356471928173109">Kerfisstjórinn slökkti á þessu</translation>
 <translation id="7437998757836447326">Skrá út af Chrome</translation>
-<translation id="7439467816829380878">Flytja flipa í hóp</translation>
 <translation id="7453810262525006706">Draga saman í hliðarglugga</translation>
 <translation id="7454641608352164238">Ekki nægt pláss</translation>
 <translation id="7454744349230173024">Fyrirtækið þitt slökkti á eiginleikanum til að vista aðgangsorð</translation>
@@ -1746,7 +1744,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="8676789164135894283">Innskráningarstaðfestingar</translation>
 <translation id="8683039184091909753">mynd</translation>
 <translation id="8688183792442786085">Valinn flipi: <ph name="TAB_TITLE" /></translation>
-<translation id="8693232767599693749">Sjá lesstillingu?</translation>
 <translation id="8697753151306746444">Deildu glugga eða skjá í staðinn</translation>
 <translation id="869891660844655955">Lokadagsetning</translation>
 <translation id="8699120352855309748">Ekki bjóða upp á að þýða þessi tungumál</translation>
@@ -1816,7 +1813,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="9019199799064251516">Halda áfram án þess að nota prófíllás bílsins?</translation>
 <translation id="9022774213089566801">Oft skoðað</translation>
 <translation id="9022871169049522985">Vefsvæði og auglýsendur geta mælt árangur auglýsinga sinna</translation>
-<translation id="9027728231343310283">Afturkalla <ph name="SITE" /></translation>
 <translation id="9035378196785279980">Flytja í\u2026</translation>
 <translation id="9042893549633094279">Persónuvernd og öryggi</translation>
 <translation id="9047347135558855162">Leitaðu í Chrome í einum grænum</translation>

@@ -228,17 +228,17 @@ void BluetoothLocalGattDescriptorFloss::GattServerDescriptorWriteRequest(
       FROM_HERE, kResponseTimeout,
       base::BindOnce(&BluetoothLocalGattDescriptorFloss::OnWriteRequestCallback,
                      weak_ptr_factory_.GetWeakPtr(), request_id,
-                     base::OwnedRef(value), needs_response, /*success=*/false));
+                     std::ref(value), needs_response, /*success=*/false));
 
   delegate->OnDescriptorWriteRequest(
       device, descriptor, value, offset,
       base::BindOnce(&BluetoothLocalGattDescriptorFloss::OnWriteRequestCallback,
                      weak_ptr_factory_.GetWeakPtr(), request_id,
-                     base::OwnedRef(value), needs_response,
+                     std::ref(value), needs_response,
                      /*success=*/true),
       base::BindOnce(&BluetoothLocalGattDescriptorFloss::OnWriteRequestCallback,
                      weak_ptr_factory_.GetWeakPtr(), request_id,
-                     base::OwnedRef(value), needs_response,
+                     std::ref(value), needs_response,
                      /*success=*/false));
 }
 

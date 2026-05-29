@@ -149,10 +149,10 @@ class GlicMetricsTest : public testing::Test {
   }
 
   void ExpectEntryPointImpressionLogged(
-      EntryPointStatus entry_point_impression) {
+      EntryPointImpression entry_point_impression) {
     task_environment_.FastForwardBy(base::Minutes(16));
-    histogram_tester_.ExpectTotalCount("Glic.EntryPoint.Status", 1);
-    histogram_tester_.ExpectBucketCount("Glic.EntryPoint.Status",
+    histogram_tester_.ExpectTotalCount("Glic.EntryPoint.Impression", 1);
+    histogram_tester_.ExpectBucketCount("Glic.EntryPoint.Impression",
                                         entry_point_impression,
                                         /*expected_count=*/1);
   }
@@ -354,20 +354,12 @@ TEST_F(GlicMetricsTest, SessionDuration_LogsError) {
                                       /*expected_count=*/1);
 }
 
-TEST_F(GlicMetricsTest, ImpressionBeforeFreNotPermittedByPolicy) {
+TEST_F(GlicMetricsTest, ImpressionBeforeFre) {
   profile_->GetPrefs()->SetInteger(
       prefs::kGlicCompletedFre,
       static_cast<int>(prefs::FreStatus::kNotStarted));
 
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kBeforeFreNotEligible);
-}
-
-TEST_F(GlicMetricsTest, ImpressionIncompleteFreNotPermittedByPolicy) {
-  profile_->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kIncomplete));
-
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kIncompleteFreNotEligible);
+  ExpectEntryPointImpressionLogged(EntryPointImpression::kBeforeFre);
 }
 
 // kGeminiSettings is by default enabled, however if we initialize a scoped
@@ -400,20 +392,12 @@ class GlicMetricsFeaturesEnabledTest : public GlicMetricsTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionBeforeFre) {
+TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionNotPermittedByPolicy) {
   profile_->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kNotStarted));
+      ::prefs::kGeminiSettings,
+      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled));
 
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kBeforeFreAndEligible);
-}
-
-TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionIncompleteFre) {
-  profile_->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kIncomplete));
-
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kIncompleteFreAndEligible);
+  ExpectEntryPointImpressionLogged(EntryPointImpression::kNotPermitted);
 }
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreBrowserOnly) {
@@ -421,7 +405,7 @@ TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreBrowserOnly) {
   // kGlicPinnedToTabstrip is true
   // kGlicLauncherEnabled is false
 
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kAfterFreBrowserOnly);
+  ExpectEntryPointImpressionLogged(EntryPointImpression::kAfterFreBrowserOnly);
 }
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreOsOnly) {
@@ -429,7 +413,7 @@ TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreOsOnly) {
   profile_->GetPrefs()->SetBoolean(prefs::kGlicPinnedToTabstrip, false);
   local_state()->SetBoolean(prefs::kGlicLauncherEnabled, true);
 
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kAfterFreOsOnly);
+  ExpectEntryPointImpressionLogged(EntryPointImpression::kAfterFreOsOnly);
 }
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreEnabled) {
@@ -437,28 +421,15 @@ TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreEnabled) {
   // kGlicPinnedToTabstrip is true
   local_state()->SetBoolean(prefs::kGlicLauncherEnabled, true);
 
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kAfterFreBrowserAndOs);
+  ExpectEntryPointImpressionLogged(EntryPointImpression::kAfterFreEnabled);
 }
 
-TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreDisabledEntrypoints) {
+TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreDisabled) {
   // kGeminiSettings is enabled
   profile_->GetPrefs()->SetBoolean(prefs::kGlicPinnedToTabstrip, false);
   // kGlicLauncherEnabled is false
 
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kAfterFreThreeDotOnly);
-}
-
-TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreNotPermittedByPolicy) {
-  // kGeminiSettings is enabled
-  // kGlicPinnedToTabstrip is true
-  // kGlicLauncherEnabled is true
-
-  // Disable kGeminiSettings
-  profile_->GetPrefs()->SetInteger(
-      ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled));
-
-  ExpectEntryPointImpressionLogged(EntryPointStatus::kAfterFreNotEligible);
+  ExpectEntryPointImpressionLogged(EntryPointImpression::kAfterFreDisabled);
 }
 
 TEST_F(GlicMetricsFeaturesEnabledTest, EnablingChanged) {

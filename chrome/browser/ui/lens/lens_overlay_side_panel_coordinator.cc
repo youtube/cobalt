@@ -226,8 +226,6 @@ bool LensOverlaySidePanelCoordinator::MaybeHandleTextDirectives(
       if (page_url.host() != nav_url.host() ||
           page_url.path() != nav_url.path() ||
           page_url_text_query != nav_url_text_query) {
-        lens::RecordHandleTextDirectiveResult(
-            lens::LensOverlayTextDirectiveResult::kOpenedInNewTab);
         lens_search_controller_->GetTabInterface()
             ->GetBrowserWindowInterface()
             ->OpenGURL(nav_url, WindowOpenDisposition::NEW_FOREGROUND_TAB);
@@ -885,15 +883,11 @@ void LensOverlaySidePanelCoordinator::OnTextFinderLookupComplete(
                              ->GetLastCommittedURL();
   if (lookup_results.empty()) {
     if (URLsMatchWithoutTextFragment(page_url, nav_url)) {
-      lens::RecordHandleTextDirectiveResult(
-          lens::LensOverlayTextDirectiveResult::kNotFoundOnPage);
       ShowToast(l10n_util::GetStringUTF8(
           IDS_LENS_OVERLAY_TOAST_PAGE_CONTENT_NOT_FOUND_MESSAGE));
       return;
     }
 
-    lens::RecordHandleTextDirectiveResult(
-        lens::LensOverlayTextDirectiveResult::kOpenedInNewTab);
     lens_search_controller_->GetTabInterface()
         ->GetBrowserWindowInterface()
         ->OpenGURL(nav_url, WindowOpenDisposition::NEW_FOREGROUND_TAB);
@@ -905,15 +899,11 @@ void LensOverlaySidePanelCoordinator::OnTextFinderLookupComplete(
     // If any of the text fragments are not found, then open in a new tab.
     if (!pair.second) {
       if (URLsMatchWithoutTextFragment(page_url, nav_url)) {
-        lens::RecordHandleTextDirectiveResult(
-            lens::LensOverlayTextDirectiveResult::kNotFoundOnPage);
         ShowToast(l10n_util::GetStringUTF8(
             IDS_LENS_OVERLAY_TOAST_PAGE_CONTENT_NOT_FOUND_MESSAGE));
         return;
       }
 
-      lens::RecordHandleTextDirectiveResult(
-          lens::LensOverlayTextDirectiveResult::kOpenedInNewTab);
       lens_search_controller_->GetTabInterface()
           ->GetBrowserWindowInterface()
           ->OpenGURL(nav_url, WindowOpenDisposition::NEW_FOREGROUND_TAB);
@@ -933,8 +923,6 @@ void LensOverlaySidePanelCoordinator::OnTextFinderLookupComplete(
 
   // If every text fragment was found, then create a text highlighter manager to
   // render the text highlights. Focus the main tab first.
-  lens::RecordHandleTextDirectiveResult(
-      lens::LensOverlayTextDirectiveResult::kFoundOnPage);
   lens_search_controller_->GetTabInterface()->GetContents()->Focus();
   companion::TextHighlighterManager* text_highlighter_manager =
       companion::TextHighlighterManager::GetOrCreateForPage(page);

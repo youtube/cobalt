@@ -924,8 +924,6 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="RootCompositorFrameSinkDestroyed"/>
   <int value="11" label="FailedChoreographerNotSupported"/>
   <int value="12" label="FailedNullChoreographer"/>
-  <int value="13" label="FailedNullParentSurfaceControl"/>
-  <int value="14" label="FailedNullChildSurfaceControl"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/viz/service/input/input_manager.cc:CreateAndroidInputReceiverResult) -->
@@ -1799,7 +1797,6 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="DownTimeAfterEventTime"/>
   <int value="12" label="SequenceTransferredBackFromViz"/>
   <int value="13" label="WebContentsIgnoringInputEvents"/>
-  <int value="14" label="RIRDelegateConnectionNotSetup"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/android/transfer_input_to_viz_result.h:TransferInputToVizResult)-->

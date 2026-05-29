@@ -16,7 +16,6 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/mojom/ai/ai_common.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_language_model.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom.h"
@@ -39,8 +38,7 @@ class AITestUtils {
     MOCK_METHOD(void, OnStreaming, (const std::string& text), (override));
     MOCK_METHOD(void,
                 OnError,
-                (blink::mojom::ModelStreamingResponseStatus status,
-                 blink::mojom::QuotaErrorInfoPtr quota_error_info),
+                (blink::mojom::ModelStreamingResponseStatus status),
                 (override));
     MOCK_METHOD(void,
                 OnCompletion,
@@ -97,8 +95,7 @@ class AITestUtils {
 
     MOCK_METHOD(void,
                 OnError,
-                (blink::mojom::AIManagerCreateClientError error,
-                 blink::mojom::QuotaErrorInfoPtr quota_error_info),
+                (blink::mojom::AIManagerCreateClientError error),
                 (override));
 
    private:

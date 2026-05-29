@@ -56,7 +56,6 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="1682634494516646069">Google Chrome no puede leer el directorio de datos ni escribir en él:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Al escribir en la barra de direcciones o en el cuadro de búsqueda, Chrome envía lo que escribes a las herramientas de búsqueda, de IA y de agente de tu organización para obtener sugerencias.</translation>
 <translation id="1698376642261615901">Google Chrome es un navegador web que ejecuta aplicaciones y páginas web a gran velocidad. Es rápido, estable y fácil de utilizar. Navega por la Web de forma más segura gracias a la protección integrada contra suplantación de identidad y malware.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome se reiniciará dentro de 1 hora}other{Chrome se reiniciará dentro de # horas}}</translation>
 <translation id="1722488837206509557">Esto te permitirá seleccionar los dispositivos disponibles y mostrar contenido en ellos.</translation>
@@ -184,7 +183,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="3161522574479303604">Todos los idiomas</translation>
 <translation id="319199214552513804">Para obtener esta extensión y más en todos tus ordenadores, inicia sesión en Chrome</translation>
 <translation id="3196187562065225381">Chrome ha bloqueado esta descarga porque el archivo es peligroso</translation>
-<translation id="3222857603094643834">Busca cualquier elemento de esta página con Google Lens</translation>
+<translation id="3222857603094643834">Busca cualquier cosa en esta página con Google Lens</translation>
 <translation id="3226612997184048185">Si también guardas los marcadores en tu cuenta de Google, puedes hacer un seguimiento de los precios de los productos en Chrome y recibir una notificación cuando bajen</translation>
 <translation id="3242123554343253302">Añadir perfil de Chrome</translation>
 <translation id="3245429137663807393">Si también compartes informes de uso de Chrome, esos informes incluirán las URLs que visites.</translation>
@@ -223,7 +222,6 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="3716540481907974026">Versión de ChromeOS Flex</translation>
 <translation id="3718181793972440140">Se eliminará un elemento de este dispositivo. Para recuperar tus datos en otro momento, inicia sesión en Chrome como <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome te recomienda que la elimines. <ph name="BEGIN_LINK" />Más información sobre las extensiones compatibles<ph name="END_LINK" />}other{Chrome te recomienda que las elimines. <ph name="BEGIN_LINK" />Más información sobre las extensiones compatibles<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Más información sobre cómo instalar Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex no ha podido sincronizar tus datos debido a un error de inicio de sesión.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -246,7 +244,6 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="4050175100176540509">En la última versión puedes encontrar mejoras de seguridad importantes y nuevas funciones.</translation>
 <translation id="4053720452172726777">Personaliza y controla Google Chrome</translation>
 <translation id="408393047846373801">Para acceder a tus contraseñas y más en todos tus dispositivos, inicia sesión en Chrome. Esta contraseña se guardará en tu cuenta de Google cuando inicies sesión.</translation>
-<translation id="409936259433005390">¿Vas a actualizar a Windows 11 pronto? Descarga el instalador de Chrome en OneDrive para que todo esté listo desde el primer día.</translation>
 <translation id="4110895483821904099">Configura tu nuevo perfil de Chrome</translation>
 <translation id="4111566860456076004">Chrome no puede verificar el origen de esta extensión y podría no ser segura. Elimínala de Chrome para que no pueda ver ni cambiar tus datos en los sitios que visites, incluida tu información personal.</translation>
 <translation id="4128488089242627000">Chrome se ejecuta más rápido y las funciones que usan JavaScript deberían funcionar según lo previsto (opción recomendada)</translation>
@@ -289,7 +286,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="459622048091363950">Una vez que Chrome tenga acceso, los sitios web podrán solicitarlo también.</translation>
 <translation id="4598116752460667024">Busca cualquier proceso de la lista.</translation>
 <translation id="4600710005438004015">No se ha podido actualizar Chrome a la versión más reciente, por lo que no disfrutas de las últimas funciones y correcciones de seguridad.</translation>
-<translation id="4624065194742029982">Incógnito de Chrome</translation>
+<translation id="4624065194742029982">Chrome en Incógnito</translation>
 <translation id="4627412468266359539">Opcional: Ayuda a mejorar las funciones y el rendimiento de ChromeOS Flex enviando automáticamente datos de diagnóstico y de uso a Google.</translation>
 <translation id="4633000520311261472">Para aumentar la seguridad de Chrome, hemos inhabilitado algunas extensiones que no figuran en <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> y que podrían haberse añadido sin tu conocimiento.</translation>
 <translation id="4680828127924988555">Cancelar instalación</translation>
@@ -305,7 +302,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="4793679854893018356">Descubre cómo te protege Chrome</translation>
 <translation id="4828579605166583682">Google Chrome está intentando reemplazar las contraseñas. Introduce tu contraseña de Windows para permitirlo.</translation>
 <translation id="4842397268809523050">ChromeOS Flex no ha podido sincronizar tus datos porque la función de sincronización no está disponible para tu dominio.</translation>
-<translation id="4851866215237571846">Ya has iniciado sesión como <ph name="EXISTING_USER" />. Para mantener tu información de navegación aparte, inicia sesión en Chrome con tu perfil de <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="4851866215237571846">Ya has iniciado sesión con <ph name="EXISTING_USER" />.  Para mantener tu información de navegación aparte, inicia sesión en Chrome con tu perfil de <ph name="USER_EMAIL_ADDRESS" />.</translation>
 <translation id="4855026984605187434">Para compartir tu pantalla, permite la grabación de pantalla de Chrome en Ajustes del sistema</translation>
 <translation id="4873783916118289636">Revisa los controles principales de privacidad y de seguridad en Chrome</translation>
 <translation id="4885446229353981848">Mostrar siempre el acceso directo a Google Lens</translation>
@@ -320,7 +317,6 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="4970880042055371251">Versión de ChromeOS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Haz clic en Gestor de contraseñas de Google</translation>
-<translation id="504867494566807945">Abre enlaces en Chrome desde cualquier aplicación. Además, se fija en la barra de tareas para que puedas acceder a él fácilmente.</translation>
 <translation id="5114340746415930644">Introduce tu frase de contraseña para usar y guardar datos de Chrome en tu cuenta (<ph name="USER_EMAIL" />)</translation>
 <translation id="5120334927898581447">Iniciar sesión en Chrome al iniciar sesión en otros servicios de Google</translation>
 <translation id="5126049312684316860">Chrome precarga más páginas de las que probablemente visites para que se carguen más rápido si accedes a ellas</translation>
@@ -401,7 +397,6 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="6075300983329039771">Tu organización, <ph name="MANAGER" />, requiere que inicies sesión en Chrome</translation>
 <translation id="6113794647360055231">Chrome mejor que nunca</translation>
 <translation id="6116252277240876590">Los menús, ajustes, alertas y otros textos de Chrome se muestran en este idioma</translation>
-<translation id="6127237283587442951">Usa Chrome de forma predeterminada y fíjalo</translation>
 <translation id="6134085236017727171">Para usar el micrófono, da acceso a Chrome en la <ph name="BEGIN_LINK" />configuración del sistema<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Estas pestañas están usando recursos adicionales. Para mejorar tu rendimiento, permite que Chrome las inactive.</translation>
 <translation id="6145313976051292476">Abrir archivos PDF en Chrome</translation>
@@ -615,7 +610,7 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="8765470054473112089">Al escribir en la barra de direcciones o en el cuadro de búsqueda, Chrome envía lo que escribes a tu buscador predeterminado para que obtengas mejores sugerencias. Esta función está desactivada en el modo Incógnito.</translation>
 <translation id="8781673607513845160">Para usar la cámara, da acceso a Chrome en la <ph name="BEGIN_LINK" />configuración del sistema<ph name="END_LINK" /></translation>
 <translation id="878572486461146056">Error de instalación: tu administrador de red ha aplicado una política de grupo que impide la instalación: <ph name="INSTALL_ERROR" /></translation>
-<translation id="8798550110818026746">Tu organización puede ver y gestionar tus datos de navegación, como tus marcadores, tu historial y tus contraseñas. No puede ver los datos de navegación de otros perfiles de Chrome.</translation>
+<translation id="8798550110818026746">Tu organización puede ver y gestionar los datos de navegación, como los marcadores, el historial y las contraseñas. No puede ver los datos de navegación de otros perfiles de Chrome.</translation>
 <translation id="8801657293260363985">V8 es el motor de Chrome para JavaScript y WebAssembly que se usa para mejorar el rendimiento de los sitios</translation>
 <translation id="8821043148920470810">Para recibir futuras actualizaciones de Google Chrome, deberás tener Windows 10 o una versión posterior. Este ordenador tiene Windows 7.</translation>
 <translation id="8823341990149967727">Chrome no está actualizado</translation>
@@ -636,7 +631,6 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="9090566250983691233">Averigua por qué bloquea Chrome algunos archivos</translation>
 <translation id="9106236359747881194">Seleccionar texto para buscarlo</translation>
 <translation id="911206726377975832">¿Quieres borrar también los datos de navegación?</translation>
-<translation id="9134482777260927479">Ayuda con los deberes</translation>
 <translation id="9138603949443464873">Reinicia Chrome para aplicar los cambios</translation>
 <translation id="9148058034647219655">Salir</translation>
 <translation id="9195993889682885387">Chrome puede estimar tus intereses basándose en tu historial de navegación de las últimas semanas. Esta información se queda en tu dispositivo.</translation>

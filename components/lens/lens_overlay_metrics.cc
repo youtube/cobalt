@@ -519,9 +519,4 @@ void RecordSidePanelMenuOptionSelected(
       "Lens.Overlay.SidePanel.SelectedMoreInfoMenuOption", menu_option);
 }
 
-void RecordHandleTextDirectiveResult(
-    lens::LensOverlayTextDirectiveResult result) {
-  base::UmaHistogramEnumeration("Lens.Overlay.TextDirectiveResult", result);
-}
-
 }  // namespace lens

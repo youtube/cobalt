@@ -86,7 +86,7 @@
 <translation id="47070857600201406">{DAY_COUNT,plural, =1{Luk efter 1 dag}one{Luk efter <ph name="DAY_COUNT_MANY" /> dag}other{Luk efter <ph name="DAY_COUNT_MANY" /> dage}}</translation>
 <translation id="4783638485675352219">Del titler og webadresser på åbne faner fra denne enhed med operativsystemet</translation>
 <translation id="4788280460033928884">{REVIEWS,plural, =1{(<ph name="REVIEWS_COUNT_ONE" /> anmeldelse)}one{(<ph name="REVIEWS_COUNT_MANY" /> anmeldelse)}other{(<ph name="REVIEWS_COUNT_MANY" /> anmeldelser)}}</translation>
-<translation id="4850886885716139402">Se</translation>
+<translation id="4850886885716139402">Vis</translation>
 <translation id="4852605713297257667">{TABS_COUNT,plural, =1{Føj <ph name="TABS_COUNT_ONE" /> valgt fane til gruppen}one{Føj <ph name="TABS_COUNT_MANY" /> valgt fane til gruppen}other{Føj <ph name="TABS_COUNT_MANY" /> valgte faner til gruppen}}</translation>
 <translation id="4861611890274104875">Luk kortet.</translation>
 <translation id="4861953997778766866">Alle kan ændre dine delte fanegrupper</translation>
@@ -119,7 +119,6 @@
 <translation id="6051432659151380973">Dine fanegrupper gemmes automatisk</translation>
 <translation id="6054741997831917303">Prisen på denne vare er for nylig faldet fra <ph name="PREVIOUS_PRICE" /> til <ph name="NEW_PRICE" /></translation>
 <translation id="6109251075362363230">Alle dubletter af faner arkiveres nu også med undtagelse af den senest anvendte kopi.</translation>
-<translation id="61924696525243173">{WINDOW_COUNT,plural, =1{Flyt gruppe til det nye vindue}one{Flyt gruppe til det nye vindue}other{Flyt gruppe til et andet vindue}}</translation>
 <translation id="6193448654517602979">Vælg faner</translation>
 <translation id="6220820548421939212">Ja tak</translation>
 <translation id="6228793724645064692">(butiksanmeldelse)</translation>
@@ -175,7 +174,6 @@
 <translation id="7942349550061667556">Rød</translation>
 <translation id="7961015016161918242">Aldrig</translation>
 <translation id="7966321538264951561">Afvis forslagene.</translation>
-<translation id="796696298310625748">{WINDOW_COUNT,plural, =1{Flyt fanen til et nyt vindue}one{Flyt fanen til et andet vindue}other{Flyt faner til et andet vindue}}</translation>
 <translation id="799469866974412355">Ny gruppe fra din anden enhed</translation>
 <translation id="8029301326595421733">Oplysningerne om denne butik er åbnet i fuld højde</translation>
 <translation id="8053770993984522566">Listen over fanegrupper er åbnet i halv højde</translation>
@@ -197,7 +195,6 @@
 <translation id="8730621377337864115">Udført</translation>
 <translation id="8730999928494395583">Din aktivitet i disse inkognitofaner fjernes fra denne enhed</translation>
 <translation id="875848103419578654">{NUM_MONTHS,plural, =1{Oprettet for <ph name="NUM_MONTHS_ONE" /> måned siden}one{Oprettet for <ph name="NUM_MONTHS_MANY" /> måned siden}other{Oprettet for <ph name="NUM_MONTHS_MANY" /> måneder siden}}</translation>
-<translation id="8813708480179818649">Fjern fane fra gruppe</translation>
 <translation id="8820741577754260431">Se prisfald på dine faner</translation>
 <translation id="883379923675618699">Chrome lukker automatisk elementer i den inaktive sektion, som du ikke har brugt i 3 måneder. Du kan til enhver tid deaktivere dette under Indstillinger.</translation>
 <translation id="8887921976452567404">Dine lukkede faner og grupper kan åbnes igen via sektionerne Seneste faner og Fanegrupper.</translation>

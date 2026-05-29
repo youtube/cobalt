@@ -329,12 +329,12 @@
 <translation id="2244834438220057800">verde</translation>
 <translation id="225692081236532131">Estado de la activación</translation>
 <translation id="2267285889943769271">Añadir captura de pantalla</translation>
-<translation id="2268044343513325586">Pulir</translation>
+<translation id="2268044343513325586">Restringir</translation>
 <translation id="2271469253353559191">Horario del modo Oscuro</translation>
 <translation id="2276999893457278469">Contenido de ayuda destacado</translation>
 <translation id="2277631741861284101">Graba y comparte tu audio fácilmente</translation>
 <translation id="2279051792571591988">Restaurar valores predeterminados</translation>
-<translation id="2286454467119466181">Simple</translation>
+<translation id="2286454467119466181">Sencilla</translation>
 <translation id="2287186687001756809">No hay imágenes disponibles. Para añadir fotos, accede a <ph name="LINK" /></translation>
 <translation id="2294577623958216786">El horario actual está programado de <ph name="SUNRISE" /> a <ph name="SUNSET" />. Para actualizar automáticamente el horario de la puesta y la salida del sol, activa el acceso a la ubicación.</translation>
 <translation id="2305172810646967500">negro</translation>
@@ -477,7 +477,6 @@
 <translation id="3091839911843451378">No se ha podido imprimir - Se ha detenido</translation>
 <translation id="3102119246920354026">Caché</translation>
 <translation id="3103783611481501187">surrealista</translation>
-<translation id="3119672627216736407">Traducción disponible</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">piscinas</translation>
 <translation id="3122883569442693641">Más detalles</translation>
@@ -1138,7 +1137,6 @@
 <translation id="6058625436358447366">Para finalizar, introduce tu contraseña anterior y la nueva</translation>
 <translation id="6061772781719867950">Solicitudes HTTPS con errores</translation>
 <translation id="6073292342939316679">reducir brillo del teclado</translation>
-<translation id="6074608334942655098">Dejar de traducir</translation>
 <translation id="6074752328838739425">Ocultar resumen</translation>
 <translation id="6075872808778243331">(Android) Latencia de HTTP</translation>
 <translation id="6078323886959318429">Acceso directo</translation>

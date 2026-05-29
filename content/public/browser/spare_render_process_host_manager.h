@@ -68,9 +68,7 @@ class CONTENT_EXPORT SpareRenderProcessHostManager {
   // strict site isolation (via ShouldEnableStrictSiteIsolation), then the
   // //content layer will maintain a warm spare process host at all times
   // (without a need for separate calls to WarmupSpare).
-  //
-  // Returns a RenderProcessHost if a new one is created.
-  virtual RenderProcessHost* WarmupSpare(BrowserContext* browser_context) = 0;
+  virtual void WarmupSpare(BrowserContext* browser_context) = 0;
 
   // Gracefully remove and cleanup all existing spare RenderProcessHosts.
   virtual void CleanupSparesForTesting() = 0;

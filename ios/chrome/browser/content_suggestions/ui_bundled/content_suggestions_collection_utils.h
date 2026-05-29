@@ -58,10 +58,8 @@ CGFloat HeaderBottomPadding(UITraitCollection* trait_collection);
 // is added to the `search_tab_target` with autolayout and `search_hint_label`
 // is added to `hintLabelContainer` with autoresizing.  This is done due to the
 // way `search_hint_label` is later tranformed.
-// Uses `placeholder_text` as the placeholder.
 void ConfigureSearchHintLabel(UILabel* search_hint_label,
-                              UIView* search_tab_target,
-                              NSString* placeholder_text);
+                              UIView* search_tab_target);
 // Configure the `voice_search_button` appearance.
 void ConfigureVoiceSearchButton(UIButton* voice_search_button,
                                 BOOL use_color_icon);

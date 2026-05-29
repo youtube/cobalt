@@ -23,9 +23,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
-import org.chromium.ui.util.XrUtils;
 
 /** Unit Tests for {@link TabUiFeatureUtilities}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -81,20 +79,5 @@ public class TabUiFeatureUtilitiesUnitTest {
         DeviceClassManager.resetForTesting();
 
         assertFalse(TabUiFeatureUtilities.shouldUseListMode());
-    }
-
-    @Test
-    @CommandLineFlags.Add({ChromeSwitches.DISABLE_FULLSCREEN})
-    public void testDisableFullScreen_XrDeviceWithFlag_isTrue() {
-        XrUtils.setXrDeviceForTesting(true);
-
-        assertFalse(DeviceClassManager.enableFullscreen());
-    }
-
-    @Test
-    public void testDisableFullScreen_XrDeviceWithoutFlag_isTrue() {
-        XrUtils.setXrDeviceForTesting(true);
-
-        assertFalse(DeviceClassManager.enableFullscreen());
     }
 }

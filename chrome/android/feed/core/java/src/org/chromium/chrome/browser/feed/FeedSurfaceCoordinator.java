@@ -1270,7 +1270,7 @@ public class FeedSurfaceCoordinator
 
     @Override
     public boolean isFeedExpanded() {
-        return mMediator.isSuggestionsVisible();
+        return mSectionHeaderModel.get(SectionHeaderListProperties.IS_SECTION_ENABLED_KEY);
     }
 
     @Override

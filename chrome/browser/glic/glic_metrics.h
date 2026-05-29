@@ -34,20 +34,18 @@ enum class Error {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseError)
 
-// LINT.IfChange(EntryPointStatus)
-enum class EntryPointStatus {
-  kBeforeFreNotEligible = 0,
-  kBeforeFreAndEligible = 1,
-  kIncompleteFreNotEligible = 2,
-  kIncompleteFreAndEligible = 3,
-  kAfterFreBrowserOnly = 4,
-  kAfterFreOsOnly = 5,
-  kAfterFreBrowserAndOs = 6,
-  kAfterFreThreeDotOnly = 7,
-  kAfterFreNotEligible = 8,
-  kMaxValue = kAfterFreNotEligible,
+// LINT.IfChange(EntryPointImpression)
+enum class EntryPointImpression {
+  kBeforeFre = 0,
+  kAfterFreBrowserOnly = 1,
+  kAfterFreOsOnly = 2,
+  kAfterFreEnabled = 3,
+  kAfterFreDisabled = 4,
+  kNotPermitted = 5,
+  kIncompleteFre = 6,
+  kMaxValue = kIncompleteFre,
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicEntryPointStatus)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicEntryPointImpression)
 
 // LINT.IfChange(ResponseSegmentation)
 enum class ResponseSegmentation {
@@ -188,12 +186,6 @@ class GlicMetrics {
   void OnWidgetUserResizeEnded();
   // Called when the glic window finishes closing.
   void OnGlicWindowClose();
-  // Called when glic requests a scroll.
-  void OnGlicScrollAttempt();
-  // Called when scrolling starts (after glic requests to scroll) or if
-  // the operation fails. `success` is true if a scroll was successfully
-  // triggered.
-  void OnGlicScrollComplete(bool success);
 
   // Must be called immediately after constructor before any calls from
   // glic.mojom.
@@ -281,19 +273,6 @@ class GlicMetrics {
   base::TimeTicks show_start_time_;
   // Web client's operation modes.
   mojom::WebClientMode starting_mode_ = mojom::WebClientMode::kUnknown;
-
-  // The following variables are used for recording scroll related metrics.
-  // The number of scroll attempts  (tracked per session and reset when the
-  // session ends).
-  int scroll_attempt_count_ = 0;
-  // These two variables mirror `input_submitted_time_` and
-  // `input_mode_`, but are only set when `OnGlicScrollAttempt()` is
-  // called. They are reset in `OnGlicScrollComplete()`. They are separately
-  // tracked because `OnGlicScrollComplete()` could potentially be called after
-  // `OnResponseStopped()`, which resets `input_submitted_time_` and
-  // `input_mode_`.
-  base::TimeTicks scroll_input_submitted_time_;
-  mojom::WebClientMode scroll_input_mode_;
 };
 
 }  // namespace glic

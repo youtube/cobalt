@@ -101,8 +101,7 @@ public class ReloadButtonMediatorTest {
                         mEnabledSupplier,
                         mShowToastCallback,
                         mResources,
-                        mContext,
-                        /* isWebApp= */ false);
+                        mContext);
 
         // supplier will try to notify observers initially, need to wait for updates.
         shadowOf(Looper.getMainLooper()).idle();

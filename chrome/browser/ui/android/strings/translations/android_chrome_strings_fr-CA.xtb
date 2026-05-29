@@ -375,7 +375,6 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="2718352093833049315">Wi-Fi uniquement</translation>
 <translation id="2718846868787000099">Permet d'afficher le contenu dans vos langues favorites; les sites que vous visitez peuvent voir vos préférences</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Afficher le mode Lecture</translation>
 <translation id="2739887572830526131">Conservez ce groupe pour y ajouter des onglets plus tard, ou supprimez-le si vous n'en avez plus besoin.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> n'est pas disponible pour le moment.</translation>
 <translation id="2760805590727089264">MM/AA</translation>
@@ -1440,7 +1439,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="7431991332293347422">Gérez la façon dont votre historique de navigation est utilisé pour personnaliser, entre autres, la recherche</translation>
 <translation id="7435356471928173109">Désactivée par votre administrateur</translation>
 <translation id="7437998757836447326">Se déconnecter de Chrome</translation>
-<translation id="7439467816829380878">Déplacer l'onglet vers le groupe</translation>
 <translation id="7453810262525006706">Réduire la fenêtre en vue latérale</translation>
 <translation id="7454641608352164238">Espace insuffisant</translation>
 <translation id="7454744349230173024">Votre organisation a désactivé l'enregistrement des mots de passe</translation>
@@ -1746,7 +1744,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8676789164135894283">Vérifications de connexion</translation>
 <translation id="8683039184091909753">image</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, onglet sélectionné</translation>
-<translation id="8693232767599693749">Afficher le mode Lecture?</translation>
 <translation id="8697753151306746444">Partagez la fenêtre ou l'écran à la place</translation>
 <translation id="869891660844655955">Date d'expiration</translation>
 <translation id="8699120352855309748">Ne pas proposer de traduire ces langues</translation>
@@ -1816,7 +1813,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="9019199799064251516">Continuer sans verrouillage de profil du véhicule?</translation>
 <translation id="9022774213089566801">Fréquemment consultés</translation>
 <translation id="9022871169049522985">Les sites et les annonceurs peuvent mesurer la performance de leurs annonces</translation>
-<translation id="9027728231343310283">Annuler la révocation de l'autorisation de <ph name="SITE" /></translation>
 <translation id="9035378196785279980">Déplacer vers\u2026</translation>
 <translation id="9042893549633094279">Confidentialité et sécurité</translation>
 <translation id="9047347135558855162">Lancez rapidement une recherche dans Chrome</translation>

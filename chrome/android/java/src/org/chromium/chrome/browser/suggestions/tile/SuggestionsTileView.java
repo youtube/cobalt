@@ -87,5 +87,9 @@ public class SuggestionsTileView extends TileView {
                     resources.getDimensionPixelSize(R.dimen.tile_view_icon_margin_top_modern);
         }
         mIconView.setLayoutParams(params);
+
+        if (mData.source == TileSource.CUSTOM_LINKS) {
+            setStyleForCustomTile();
+        }
     }
 }

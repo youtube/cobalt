@@ -182,7 +182,7 @@
 <translation id="1670478569471758522">మీ ఎంపికకు సంబంధించిన మరింత సమాచారం</translation>
 <translation id="1672499492233627739">వెబ్‌క్యామ్ వీడియో ఫీడ్</translation>
 <translation id="1676557873873341166">వీడియో తీస్తోంది</translation>
-<translation id="1684279041537802716">యాక్సెంట్ రంగు</translation>
+<translation id="1684279041537802716">ముదురు రంగు</translation>
 <translation id="1697278726914783200">రికార్డ్ చేయండి</translation>
 <translation id="1703835215927279855">లెటర్</translation>
 <translation id="1706391837335750954">DNS రిసాల్వర్ అందుబాటులో ఉంది</translation>
@@ -206,7 +206,6 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
-<translation id="1762353673362288306">మీరు ఇప్పుడు క్లాస్ టూల్స్‌ను మాత్రమే ఉపయోగించగలరు</translation>
 <translation id="1762483337755424125">టైప్ చేసిన మాటల ఫైల్</translation>
 <translation id="1765169783255151332">కీలను వేగంగా మార్చండి</translation>
 <translation id="1768959921651994223">ప్రామాణీకరణ రకం</translation>
@@ -334,7 +333,7 @@
 <translation id="2276999893457278469">టాప్ సహాయక కంటెంట్</translation>
 <translation id="2277631741861284101">మీ ఆడియోను సులభంగా రికార్డ్ చేయండి, షేర్ చేయండి</translation>
 <translation id="2279051792571591988">ఆటోమేటిక్ సెట్టింగ్‌లను రీస్టోర్ చేయండి</translation>
-<translation id="2286454467119466181">సాధారణ</translation>
+<translation id="2286454467119466181">సరళం</translation>
 <translation id="2287186687001756809">ఇమేజ్ అందుబాటులో లేదు. ఫోటోలను జోడించడానికి, <ph name="LINK" />కు వెళ్లండి</translation>
 <translation id="2294577623958216786">ప్రస్తుత షెడ్యూల్‌ను <ph name="SUNRISE" />-<ph name="SUNSET" />‌కు సెట్ చేయడం జరిగింది. సన్‌సెట్, సన్‌రైజ్ షెడ్యూల్‌ను ఆటోమేటిక్‌గా అప్‌డేట్ చేయడానికి, సిస్టమ్ లొకేషన్ యాక్సెస్‌ను ఆన్ చేయండి.</translation>
 <translation id="2305172810646967500">నలుపు రంగు</translation>
@@ -477,7 +476,6 @@
 <translation id="3091839911843451378">విఫలమైంది - ఆగిపోయింది</translation>
 <translation id="3102119246920354026">కాష్</translation>
 <translation id="3103783611481501187">సర్రియల్</translation>
-<translation id="3119672627216736407">అనువాదం అందుబాటులో ఉంది</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">పూల్స్</translation>
 <translation id="3122883569442693641">మరిన్ని వివరాలు</translation>
@@ -1138,7 +1136,6 @@
 <translation id="6058625436358447366">దీనిని ముగించడానికి, మీ పాత, కొత్త పాస్‌వర్డ్‌లను నమోదు చేయండి</translation>
 <translation id="6061772781719867950">విఫలమైన HTTP రిక్వెస్ట్‌లు</translation>
 <translation id="6073292342939316679">కీబోర్డ్ బ్రైట్‌నెస్‌ను తగ్గిస్తుంది</translation>
-<translation id="6074608334942655098">అనువదించడం ఆపివేయండి</translation>
 <translation id="6074752328838739425">సారాంశాన్ని దాచండి</translation>
 <translation id="6075872808778243331">(Android) HTTP ప్రతిస్పందన సమయం</translation>
 <translation id="6078323886959318429">షార్ట్‌కట్‌ను జోడించండి</translation>
@@ -1543,7 +1540,7 @@
 <translation id="7799817062559422778">లైట్ మోడ్</translation>
 <translation id="7802764839223122985">కీ ఏదీ నొక్కబడలేదు. <ph name="REASSIGN_INSTRUCTION" /></translation>
 <translation id="780301667611848630">వద్దు</translation>
-<translation id="7805768142964895445">స్టేటస్</translation>
+<translation id="7805768142964895445">స్థితి</translation>
 <translation id="7811024689617730980">1 నుండి 31 వరకు ఆటోమేటిక్ రీసెట్ కోసం ఒక రోజును ఎంచుకోండి</translation>
 <translation id="7813073042185856802">పర్వతం</translation>
 <translation id="7819857487979277519">PSK (WPA లేదా RSN)</translation>
@@ -1616,7 +1613,6 @@
 <translation id="8088963492174775412">రికార్డ్ చేయడానికి నొక్కండి</translation>
 <translation id="8094062939584182041">ఈ సమస్యకు గురించి మీకు ఈమెయిల్ చేయడానికి Googleకు అనుమతినివ్వండి</translation>
 <translation id="8104083085214006426">మీరు ఓపెన్, అసురక్షిత నెట్‌వర్క్‌ను ఉపయోగిస్తున్నారు</translation>
-<translation id="8108879170356113798">మీరు క్లాస్ టూల్స్‌ను <ph name="NUM_SECONDS" /> సెకన్లలోపు మాత్రమే ఉపయోగించగలరు</translation>
 <translation id="811820734797650957">(Android) గేట్‌వేను పింగ్ చేయవచ్చు</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">నిర్ధారించు</translation>

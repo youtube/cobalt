@@ -407,8 +407,8 @@ NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
   URLLabel.text = [_sharedURL absoluteString];
   URLLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
   URLLabel.textColor = [UIColor colorNamed:kTextTertiaryColor];
-  URLLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-  URLLabel.numberOfLines = 2;
+  URLLabel.lineBreakMode = NSLineBreakByCharWrapping;
+  URLLabel.numberOfLines = 0;
 
   UIStackView* URLStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[ titleLabel, URLLabel ]];

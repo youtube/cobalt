@@ -112,9 +112,6 @@ std::string ShortOriginForReporting(const std::string& url) {
 const char ReferrerChainData::kDownloadReferrerChainDataKey[] =
     "referrer_chain_data_key";
 
-const char ReferrerChainData::kDownloadReferrerChainDataKeyForEnterprise[] =
-    "referrer_chain_data_key_for_enterprise";
-
 ReferrerChainData::ReferrerChainData(
     ReferrerChainProvider::AttributionResult attribution_result,
     std::unique_ptr<ReferrerChain> referrer_chain,
@@ -127,7 +124,7 @@ ReferrerChainData::ReferrerChainData(
 
 ReferrerChainData::~ReferrerChainData() = default;
 
-ReferrerChain* ReferrerChainData::GetReferrerChain() const {
+ReferrerChain* ReferrerChainData::GetReferrerChain() {
   return referrer_chain_.get();
 }
 

@@ -6,7 +6,6 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
-#include "base/time/time.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
@@ -14,7 +13,6 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
-#include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -26,11 +24,6 @@
 namespace glic {
 
 namespace {
-
-bool CheckFreStatus(Profile* profile, prefs::FreStatus status) {
-  return profile->GetPrefs()->GetInteger(prefs::kGlicCompletedFre) ==
-         static_cast<int>(status);
-}
 
 class DelegateImpl : public GlicMetrics::Delegate {
  public:
@@ -343,46 +336,9 @@ void GlicMetrics::OnGlicWindowClose() {
                               attach_change_count_);
   attach_change_count_ = 0;
 
-  if (base::FeatureList::IsEnabled(features::kGlicScrollTo)) {
-    base::UmaHistogramCounts100("Glic.ScrollTo.SessionCount",
-                                scroll_attempt_count_);
-    scroll_attempt_count_ = 0;
-  }
-
   glic_window_size_timer_.Stop();
   profile_->GetPrefs()->SetTime(prefs::kGlicWindowLastDismissedTime,
                                 base::Time::Now());
-}
-
-void GlicMetrics::OnGlicScrollAttempt() {
-  CHECK(base::FeatureList::IsEnabled(features::kGlicScrollTo));
-  ++scroll_attempt_count_;
-  if (!input_submitted_time_.is_null()) {
-    scroll_input_submitted_time_ = input_submitted_time_;
-    scroll_input_mode_ = input_mode_;
-  }
-}
-
-void GlicMetrics::OnGlicScrollComplete(bool success) {
-  CHECK(base::FeatureList::IsEnabled(features::kGlicScrollTo));
-  if (success && !scroll_input_submitted_time_.is_null()) {
-    base::TimeDelta time_to_scroll =
-        base::TimeTicks::Now() - scroll_input_submitted_time_;
-    switch (scroll_input_mode_) {
-      case mojom::WebClientMode::kAudio:
-        base::UmaHistogramMediumTimes(
-            "Glic.ScrollTo.UserPromptToScrollTime.Audio", time_to_scroll);
-        break;
-      case mojom::WebClientMode::kText:
-        base::UmaHistogramMediumTimes(
-            "Glic.ScrollTo.UserPromptToScrollTime.Text", time_to_scroll);
-        break;
-      case mojom::WebClientMode::kUnknown:
-        break;
-    }
-  }
-  scroll_input_submitted_time_ = base::TimeTicks();
-  scroll_input_mode_ = mojom::WebClientMode::kUnknown;
 }
 
 void GlicMetrics::SetControllers(GlicWindowController* window_controller,
@@ -406,50 +362,37 @@ void GlicMetrics::DidRequestContextFromFocusedTab() {
 }
 
 void GlicMetrics::OnImpressionTimerFired() {
+  if (profile_->GetPrefs()->GetInteger(prefs::kGlicCompletedFre) ==
+      static_cast<int>(prefs::FreStatus::kNotStarted)) {
+    base::UmaHistogramEnumeration("Glic.EntryPoint.Impression",
+                                  EntryPointImpression::kBeforeFre);
+    return;
+  }
+  if (profile_->GetPrefs()->GetInteger(prefs::kGlicCompletedFre) ==
+      static_cast<int>(prefs::FreStatus::kIncomplete)) {
+    base::UmaHistogramEnumeration("Glic.EntryPoint.Impression",
+                                  EntryPointImpression::kIncompleteFre);
+    return;
+  }
   if (!enabling_->IsAllowed()) {
-    EntryPointStatus impression;
-    if (CheckFreStatus(profile_, prefs::FreStatus::kNotStarted)) {
-      // Profile not eligible, and not started FRE
-      impression = EntryPointStatus::kBeforeFreNotEligible;
-    } else if (CheckFreStatus(profile_, prefs::FreStatus::kIncomplete)) {
-      // Profile not eligible, started but not completed FRE
-      impression = EntryPointStatus::kIncompleteFreNotEligible;
-    } else {
-      // Profile not eligible, completed FRE
-      impression = EntryPointStatus::kAfterFreNotEligible;
-    }
-    base::UmaHistogramEnumeration("Glic.EntryPoint.Status", impression);
+    base::UmaHistogramEnumeration("Glic.EntryPoint.Impression",
+                                  EntryPointImpression::kNotPermitted);
     return;
   }
 
-  // Profile eligible, has not started FRE
-  if (CheckFreStatus(profile_, prefs::FreStatus::kNotStarted)) {
-    base::UmaHistogramEnumeration("Glic.EntryPoint.Status",
-                                  EntryPointStatus::kBeforeFreAndEligible);
-    return;
-  }
-
-  // Profile eligible, started but not completed FRE
-  if (CheckFreStatus(profile_, prefs::FreStatus::kIncomplete)) {
-    base::UmaHistogramEnumeration("Glic.EntryPoint.Status",
-                                  EntryPointStatus::kIncompleteFreAndEligible);
-    return;
-  }
-
-  // Profile eligible and completed FRE
-  EntryPointStatus impression;
+  EntryPointImpression impression;
   bool is_os_entrypoint_enabled =
       g_browser_process->local_state()->GetBoolean(prefs::kGlicLauncherEnabled);
   if (is_pinned_ && is_os_entrypoint_enabled) {
-    impression = EntryPointStatus::kAfterFreBrowserAndOs;
+    impression = EntryPointImpression::kAfterFreEnabled;
   } else if (is_pinned_) {
-    impression = EntryPointStatus::kAfterFreBrowserOnly;
+    impression = EntryPointImpression::kAfterFreBrowserOnly;
   } else if (is_os_entrypoint_enabled) {
-    impression = EntryPointStatus::kAfterFreOsOnly;
+    impression = EntryPointImpression::kAfterFreOsOnly;
   } else {
-    impression = EntryPointStatus::kAfterFreThreeDotOnly;
+    impression = EntryPointImpression::kAfterFreDisabled;
   }
-  base::UmaHistogramEnumeration("Glic.EntryPoint.Status", impression);
+  base::UmaHistogramEnumeration("Glic.EntryPoint.Impression", impression);
 
   ui::Accelerator saved_hotkey =
       glic::GlicLauncherConfiguration::GetGlobalHotkey();

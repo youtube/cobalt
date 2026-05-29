@@ -288,8 +288,7 @@ void ProcessCompletion(base::OnceCallback<void()> complete,
                                 base::TimeDelta actual_delay =
                                     base::TimeTicks::Now() - start_time;
                                 base::UmaHistogramTimes(
-                                    "ServiceWorkerCache.CacheStorage."
-                                    "Renderer." +
+                                    "ServiceWorkerCache.Cache.Renderer." +
                                         operation_name + ".AblationDelay",
                                     actual_delay);
                               },

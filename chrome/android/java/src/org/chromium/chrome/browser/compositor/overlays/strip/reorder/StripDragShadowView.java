@@ -292,7 +292,7 @@ public class StripDragShadowView extends FrameLayout {
 
         setProgress(0.f);
         mRunningAnimator = ObjectAnimator.ofFloat(this, PROGRESS, 1.f);
-        mRunningAnimator.setInterpolator(Interpolators.STANDARD_DEFAULT_EFFECTS);
+        mRunningAnimator.setInterpolator(Interpolators.EMPHASIZED);
         mRunningAnimator.setDuration(ANIM_EXPAND_MS);
         mRunningAnimator.start();
     }

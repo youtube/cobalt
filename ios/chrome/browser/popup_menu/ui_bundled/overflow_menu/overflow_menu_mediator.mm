@@ -1487,11 +1487,26 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       IsIncognitoModeDisabled(self.profilePrefs);
 
   if (IsLensOverlayAvailable(_profilePrefs)) {
-    self.lensOverlayAction.enabled = ![self isLensOverlayVisible];
+    BOOL isPortrait = !IsCompactHeight(self.baseViewController.traitCollection);
+    BOOL isSupported =
+        search_engines::SupportsSearchImageWithLens(self.templateURLService);
+    BOOL portraitOverride =
+        IsLensOverlayLandscapeOrientationEnabled(_profilePrefs);
+    self.lensOverlayAction.enabled =
+        isSupported && (isPortrait || portraitOverride);
   }
 
   if (IsReaderModeAvailable()) {
     self.readerModeAction.enabled = [self isReaderModeEnabled];
+  }
+
+  // If Lens Overlay is already being displayed, disable the action.
+  if (self.webState) {
+    if (LensOverlayTabHelper* lensOverlayTabHelper =
+            LensOverlayTabHelper::FromWebState(self.webState)) {
+      self.lensOverlayAction.enabled =
+          !lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
+    }
   }
 }
 
@@ -1561,28 +1576,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 // Returns whether translate is enabled on the current page.
 - (BOOL)isTranslateEnabled {
-  return [self canManuallyTranslate:NO] && ![self isLensOverlayVisible];
-}
-
-- (BOOL)isLensOverlayEnabled {
-  BOOL isPortrait = !IsCompactHeight(self.baseViewController.traitCollection);
-  BOOL isSupported =
-      search_engines::SupportsSearchImageWithLens(self.templateURLService);
-  BOOL portraitOverride =
-      IsLensOverlayLandscapeOrientationEnabled(_profilePrefs);
-  return isSupported && (isPortrait || portraitOverride) &&
-         ![self isLensOverlayVisible];
-}
-
-// Returns whether Lens Overlay is currently being displayed.
-- (BOOL)isLensOverlayVisible {
-  if (!self.webState) {
-    return NO;
-  }
-  LensOverlayTabHelper* lensOverlayTabHelper =
-      LensOverlayTabHelper::FromWebState(self.webState);
-  return lensOverlayTabHelper &&
-         lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
+  return [self canManuallyTranslate:NO];
 }
 
 // Determines whether or not translate is available on the page and logs the

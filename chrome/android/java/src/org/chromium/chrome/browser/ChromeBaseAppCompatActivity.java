@@ -410,21 +410,12 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     @VisibleForTesting
     static void applyOverridesForAutomotive(Context baseContext, Configuration overrideConfig) {
         if (BuildInfo.getInstance().isAutomotive) {
-            // Potentially clamp scaling for automotive devices.
-            if (ChromeFeatureList.sClampAutomotiveScaling.isEnabled()) {
-                float maxScalingFactor =
-                        ChromeFeatureList.sClampAutomotiveScalingMaxScalingPercentage.getValue()
-                                / 100.0f;
-                CommandLine.getInstance()
-                        .appendSwitchWithValue(
-                                DisplaySwitches.CLAMP_AUTOMOTIVE_SCALE_UP,
-                                Float.toString(maxScalingFactor));
-            }
             DisplayUtil.scaleUpConfigurationForAutomotive(baseContext, overrideConfig);
 
             RecordHistogram.recordSparseHistogram(
                     "Android.Automotive.UiScalingFactor",
                     (int) (100 * DisplayUtil.getTargetScalingFactorForAutomotive(baseContext)));
+
             // Enable web ui scaling for automotive devices.
             CommandLine.getInstance()
                     .appendSwitch(DisplaySwitches.AUTOMOTIVE_WEB_UI_SCALE_UP_ENABLED);
@@ -667,8 +658,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
 
     private InsetObserver createInsetObserver() {
         return new InsetObserver(
-                new ImmutableWeakReference<>(getWindow().getDecorView().getRootView()),
-                ChromeFeatureList.sAccountForSuppressedKeyboardInsets.isEnabled());
+                new ImmutableWeakReference<>(getWindow().getDecorView().getRootView()));
     }
 
     private void setAutomotiveToolbarBackButtonAction() {

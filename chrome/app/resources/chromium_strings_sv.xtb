@@ -222,13 +222,11 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="3954172517175569325">Dina sparade lösenord, betalningsmetoder och adresser i Google-kontot tas bort från den här enheten. Logga in på nytt om du vill använda dem igen i Chromium.</translation>
 <translation id="395904275706073188">Det går inte att läsa skyddade sidor. Testa med en annan sida.</translation>
 <translation id="3962647064319009959">Läs mer om hur du skyddas i Chromium</translation>
-<translation id="3971865010372729242">När du skriver i adressfältet eller sökrutan skickar Chromium det du skriver till organisationens sök-, AI- och agentverktyg för att få förslag.</translation>
 <translation id="3975724895399328945">Om &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Om Chromium OS</translation>
 <translation id="4019629340646866719">Chromium OS fungerar tack vare ytterligare <ph name="BEGIN_LINK_CROS_OSS" />program med öppen källkod<ph name="END_LINK_CROS_OSS" />, liksom <ph name="BEGIN_LINK_LINUX_OSS" />utvecklingsmiljön för Linux<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Översätt text på skärmen</translation>
 <translation id="4023601594785368013">Originalspråk: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Öppna länkar från dina appar i Chromium, som dessutom fästs i aktivitetsfältet för enkel åtkomst.</translation>
 <translation id="4036079820698952681">Hjälp oss att förbättra Chromium genom att rapportera dina <ph name="BEGIN_LINK" />aktuella inställningar<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">Den senaste versionen har viktiga säkerhetsförbättringar och nya funktioner.</translation>
 <translation id="4055805654398742145">Lösenordshantering</translation>
@@ -330,7 +328,6 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="5524890928877629608">övre vänstra hörnet av sökområdet: <ph name="LEFT" /> % åt vänster, <ph name="TOP" /> % uppåt</translation>
 <translation id="5527463683072221100">Öppna PDF-filer i Chromium</translation>
 <translation id="5579324208890605088">Startfel: Kör installationsprogrammet som vanlig användare, inte som administratör.</translation>
-<translation id="5580770360767802657">Använd Chromium som standard och fäst den</translation>
 <translation id="5596627076506792578">Fler alternativ</translation>
 <translation id="5605834417512968703">Välj vad du vill söka efter med bildsökning eller tryck på Escape för att avsluta bildsökningen</translation>
 <translation id="5618818588972826921">Välj text eller bild att söka efter med bildsökning eller tryck på Escape för att avsluta bildsökningen</translation>
@@ -603,7 +600,6 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="9106612006984859720">Du behöver Windows 10 eller senare för att få kommande uppdateringar av Chromium. På den här datorn används Windows 8.1.</translation>
 <translation id="91086099826398415">Öppna länken i en ny &amp;flik i Chromium</translation>
 <translation id="911206726377975832">Vill du även ta bort din webbinformation?</translation>
-<translation id="9134482777260927479">Läxhjälp</translation>
 <translation id="9148058034647219655">Avsluta</translation>
 <translation id="9158494823179993217">Systemadministratören har konfigurerat Chromium så att <ph name="TARGET_URL_HOSTNAME" /> öppnas i en annan webbläsare.</translation>
 <translation id="9185526690718004400">Starta om för att uppdatera &amp;Chromium</translation>

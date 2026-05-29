@@ -24,7 +24,7 @@ static_assert(static_cast<unsigned>(SupportedLanguage::kMaxValue) ==
                   static_cast<unsigned>(LanguagePackKey::kMaxValue) + 1,
               "Missmatching SupportedLanguage size and LanguagePackKey size");
 
-// Map from `SupportedLanguage` to the language code.
+// The supported languages for on-device translation.
 inline constexpr auto kSupportedLanguageCodeMap = base::MakeFixedFlatMap<
     SupportedLanguage,
     std::string_view>(
@@ -101,6 +101,24 @@ LanguagePackKey LanguagePackKeyFromNonEnglishSupportedLanguage(
 }
 
 }  // namespace
+
+bool IsPopularLanguage(SupportedLanguage supported_language) {
+  return supported_language == SupportedLanguage::kEn ||
+         supported_language == SupportedLanguage::kZh ||
+         supported_language == SupportedLanguage::kZhHant ||
+         supported_language == SupportedLanguage::kJa ||
+         supported_language == SupportedLanguage::kPt ||
+         supported_language == SupportedLanguage::kRu ||
+         supported_language == SupportedLanguage::kEs ||
+         supported_language == SupportedLanguage::kTr ||
+         supported_language == SupportedLanguage::kHi ||
+         supported_language == SupportedLanguage::kVi ||
+         supported_language == SupportedLanguage::kBn ||
+         supported_language == SupportedLanguage::kKn ||
+         supported_language == SupportedLanguage::kTa ||
+         supported_language == SupportedLanguage::kTe ||
+         supported_language == SupportedLanguage::kMr;
+}
 
 // Converts a SupportedLanguage to a language code.
 std::string_view ToLanguageCode(SupportedLanguage supported_language) {

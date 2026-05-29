@@ -26,7 +26,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabSupplierObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.R;
-import org.chromium.chrome.browser.toolbar.ToolbarResourceUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelAnimatorFactory;
@@ -52,7 +51,6 @@ class ReloadButtonMediator implements ThemeColorProvider.TintObserver {
     private boolean mIsReloading;
     private @Nullable Tab mCurrentTab;
     private Insets mInsets;
-    private final boolean mIsWebApp;
 
     private @DrawableRes int mBackgroundResForTesting;
 
@@ -77,8 +75,7 @@ class ReloadButtonMediator implements ThemeColorProvider.TintObserver {
             ObservableSupplier<Boolean> enabledSupplier,
             Callback<String> showToast,
             Resources resources,
-            Context context,
-            boolean isWebApp) {
+            Context context) {
         mModel = model;
         mResources = resources;
         mShowToastCallback = showToast;
@@ -86,7 +83,6 @@ class ReloadButtonMediator implements ThemeColorProvider.TintObserver {
         mNtpLoadingSupplier = ntpLoadingSupplier;
         mEnabledSupplier = enabledSupplier;
         mContext = context;
-        mIsWebApp = isWebApp;
 
         mInsets = Insets.NONE;
 
@@ -164,8 +160,10 @@ class ReloadButtonMediator implements ThemeColorProvider.TintObserver {
     }
 
     private void updateBackground(@BrandedColorScheme int brandedColorScheme) {
-        final int backgroundRes =
-                ToolbarResourceUtils.backgroundResForThemeColor(brandedColorScheme, mIsWebApp);
+        final @DrawableRes int backgroundRes =
+                brandedColorScheme == BrandedColorScheme.INCOGNITO
+                        ? R.drawable.default_icon_background_baseline
+                        : R.drawable.default_icon_background;
         InsetDrawable drawable =
                 new InsetDrawable(
                         ResourcesCompat.getDrawable(mResources, backgroundRes, mContext.getTheme()),

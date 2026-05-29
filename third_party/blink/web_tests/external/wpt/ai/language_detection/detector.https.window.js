@@ -66,7 +66,16 @@ promise_test(async t => {
 }, 'LanguageDetector.detect() returns valid results');
 
 promise_test(async t => {
-  await testCreateMonitorCallbackThrowsError(t, createLanguageDetector);
+  const error = new Error('CreateMonitorCallback threw an error');
+  function monitor(m) {
+    m.addEventListener('downloadprogress', e => {
+      assert_unreached(
+          'This should never be reached since monitor throws an error.');
+    });
+    throw error;
+  }
+
+  await promise_rejects_exactly(t, error, createLanguageDetector({monitor}));
 }, 'If monitor throws an error, LanguageDetector.create() rejects with that error');
 
 promise_test(async t => {

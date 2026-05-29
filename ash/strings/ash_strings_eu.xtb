@@ -71,7 +71,7 @@ Hona hemen hasteko egin ditzakezun gauza batzuk.</translation>
 <translation id="1201402288615127009">Hurrengoa</translation>
 <translation id="1210557957257435379">pantaila-grabaketa</translation>
 <translation id="121097972571826261">Joan hurrengo hitzera</translation>
-<translation id="1218444235442067213">Google Play Store-ko aplikazioa (<ph name="APP_NAME" />)</translation>
+<translation id="1218444235442067213">Play Store-ko aplikazioa (<ph name="APP_NAME" />)</translation>
 <translation id="1225748608451425081">Chromebook-a blokeatuta dago arazo ezagun bat dela eta. <ph name="TIME_LEFT" /> barru hasi ahalko duzu saioa.</translation>
 <translation id="1229194443904279055">Utzi hautatzeari</translation>
 <translation id="1235458158152011030">Sare ezagunak</translation>
@@ -553,7 +553,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="2848120746144143659">Pantaila osoaren pantaila-argazki bat ateratzeko, sakatu Sartu</translation>
 <translation id="2849936225196189499">Ezinbestekoa</translation>
 <translation id="2850207700020959936">Aplikazioek kamera erabil dezakete</translation>
-<translation id="2860184359326882502">Emaitzarik onenak</translation>
+<translation id="2860184359326882502">Emaitzarik onena</translation>
 <translation id="2865888419503095837">Sarearen informazioa</translation>
 <translation id="2869095047958348710">Joan den <ph name="DAY_OF_WEEK" /></translation>
 <translation id="2872353916818027657">Trukatu monitore nagusia</translation>
@@ -724,7 +724,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3434107140712555581">% <ph name="BATTERY_PERCENTAGE" /></translation>
 <translation id="343571671045587506">Editatu gogorarazpena</translation>
 <translation id="3435967511775410570">Ezagutu da hatz-marka</translation>
-<translation id="3437677362970530951">Google Play Store-ko eta beste bideojoko-plataformetako jokoak</translation>
+<translation id="3437677362970530951">Play Store-ko eta beste bideojoko-plataformetako jokoak</translation>
 <translation id="3439896670700055005">Kargatu orria berriro, baina cacheko edukia erabili gabe</translation>
 <translation id="3441920967307853524"><ph name="RECEIVED_BYTES" />/<ph name="TOTAL_BYTES" /></translation>
 <translation id="3443917186865471894">Pertsonalizatu sagua</translation>
@@ -761,7 +761,6 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3552189655002856821">Desaktibatuta dago wifi-konexioa</translation>
 <translation id="3554215588514239132">Erakutsi edo ezkutatu garatzaileentzako tresnen panela</translation>
 <translation id="3554637740840164787">Ainguratu da <ph name="ITEM_TITLE" /></translation>
-<translation id="3554928024630051016">USB bidezko beste gailu bat gehitzeko, kendu bat eta entxufatu beste bat</translation>
 <translation id="3558768885091059911">Kamera eta mikrofonoa erabiltzeko baimena aktibatu nahi duzu?</translation>
 <translation id="3560174576767922131">Grabatu bideo bat</translation>
 <translation id="3563775809269155755">Gaitu wifi-gunea</translation>
@@ -870,7 +869,6 @@ Aurrera egiteko, erabiltzaile guztiek saioa amaitu behar dute.</translation>
 <translation id="3861651314799684201">Pantaila osoa grabatzeko, sakatu Sartu</translation>
 <translation id="3870197372373144624">Itzali gailua.</translation>
 <translation id="3879748587602334249">Deskargen kudeatzailea</translation>
-<translation id="3884007280698606545">USB bidezko gailuen mugara iritsi zara</translation>
 <translation id="3886872229787704059">Gaur ireki da</translation>
 <translation id="3891340733213178823">Saioa amaitzeko, sakatu Ktrl + Maius + Q bi aldiz.</translation>
 <translation id="3892148308691398805">Kopiatu testua</translation>
@@ -1157,7 +1155,7 @@ Gailu bat dago konektatuta.</translation>
 <translation id="4774338217796918551">Itzuli bihar ordu honetan: <ph name="COME_BACK_TIME" />.</translation>
 <translation id="4776584068981882959">Oraindik ezin izan da egiaztatu pasahitza. Saiatu berriro.</translation>
 <translation id="4776917500594043016"><ph name="USER_EMAIL_ADDRESS" /> erabiltzaile-kontuko pasahitza</translation>
-<translation id="4777825441726637019">Google Play Store</translation>
+<translation id="4777825441726637019">Play Store</translation>
 <translation id="4778095205580009397">Google-ren Laguntzailea ez dago erabilgarri demo saioetan.</translation>
 <translation id="4785412405516449976">Google-ko kontu bat duten kontaktuak soilik</translation>
 <translation id="4789348252524569426">Ezin dira instalatu hizketa-fitxategiak. Gailua eguneratu behar da. Berrabiarazi gailua eta saiatu berriro.</translation>
@@ -1174,7 +1172,7 @@ Gailu bat dago konektatuta.</translation>
 <translation id="481749895090480684">Zereginen zerrenda: <ph name="GLANCEABLES_TASKS_LIST_NAME" /></translation>
 <translation id="4826588772550366629">kamera eta mikrofonoa</translation>
 <translation id="4828935196674083554">Gehitzen…</translation>
-<translation id="482908187605862807">Google Play Store-n erabilgarri dauden aplikazioak</translation>
+<translation id="482908187605862807">Play Store-n erabilgarri dauden aplikazioak</translation>
 <translation id="4831034276697007977">Ziur klik automatikoak desaktibatu nahi dituzula?</translation>
 <translation id="4835677468087803981">Ezkutatu PINa</translation>
 <translation id="4849058404725798627">Nabarmendu teklatuaren fokua duen objektua</translation>

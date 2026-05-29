@@ -52,7 +52,6 @@
 <translation id="1662146548738125461">Despre sistemul de operare Chrome Flex</translation>
 <translation id="1674870198290878346">Deschide linkul într-o fereastră Chrome inco&amp;gnito</translation>
 <translation id="1682634494516646069">Google Chrome nu poate citi și scrie în directorul propriu de date: <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Când introduci text în bara de adrese sau în caseta de căutare, Chrome trimite ceea ce introduci către instrumentele de căutare, AI și de agent ale organizației tale pentru a primi sugestii.</translation>
 <translation id="1698376642261615901">Google Chrome este un browser web care rulează pagini web și aplicații cu o viteză extraordinară. Este rapid, stabil și ușor de utilizat. Navigați pe web beneficiind de mai multă siguranță datorită protecției împotriva programelor malware și a phishingului, care este încorporată în Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome se va relansa într-o oră}few{Chrome se va relansa în # ore}other{Chrome se va relansa în # de ore}}</translation>
 <translation id="1722488837206509557">Astfel, vei putea să selectezi dintre dispozitivele disponibile și să afișezi conținut pe acestea.</translation>
@@ -219,7 +218,6 @@
 <translation id="3716540481907974026">Versiunea sistemului de operare Chrome Flex</translation>
 <translation id="3718181793972440140">Astfel, se va șterge 1 element de pe acest dispozitiv. Pentru a recupera datele mai târziu, conectează-te la Chrome ca <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome recomandă să o elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" />}few{Chrome recomandă să le elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" />}other{Chrome recomandă să le elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Află mai multe despre instalarea Chrome</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex nu a putut sincroniza datele din cauza unei erori la conectare.</translation>
 <translation id="3795971588916395511">Sistemul de operare Google Chrome</translation>
@@ -316,7 +314,6 @@
 <translation id="4970880042055371251">Versiunea sistemului de operare Chrome</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Dă clic pe Managerul de parole Google</translation>
-<translation id="504867494566807945">Deschide linkuri în Chrome din orice aplicație. În plus, pentru acces ușor, browserul se fixează în bara de activități.</translation>
 <translation id="5114340746415930644">Introdu expresia de acces pentru a folosi și a salva datele Chrome în contul <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Conectează-te la Chrome când te conectezi la alte servicii Google</translation>
 <translation id="5126049312684316860">Chrome preîncarcă și mai multe pagini pe care este posibil să le accesezi, astfel încât să se încarce mai rapid când le accesezi</translation>
@@ -393,7 +390,6 @@
 <translation id="6075300983329039771">Organizația ta, <ph name="MANAGER" />, îți solicită să te conectezi la Chrome</translation>
 <translation id="6113794647360055231">Chrome a devenit și mai bun</translation>
 <translation id="6116252277240876590">Această limbă se folosește pentru a afișa meniuri, setări, alerte și alte texte în Chrome</translation>
-<translation id="6127237283587442951">Folosește Chrome în mod prestabilit și fixează-l</translation>
 <translation id="6134085236017727171">Pentru a folosi microfonul, permite accesul browserului Chrome în <ph name="BEGIN_LINK" />setările de sistem<ph name="END_LINK" />.</translation>
 <translation id="6135456723633883042">Aceste file folosesc resurse suplimentare. Pentru a-ți îmbunătăți performanța, permite-i browserului Chrome să le dezactiveze.</translation>
 <translation id="6145313976051292476">Deschide fișierele PDF în Chrome</translation>
@@ -628,7 +624,6 @@
 <translation id="9090566250983691233">Află de ce Chrome blochează unele fișiere</translation>
 <translation id="9106236359747881194">Selectează text pentru a căuta</translation>
 <translation id="911206726377975832">Ștergi și datele de navigare?</translation>
-<translation id="9134482777260927479">Ajutor pentru teme</translation>
 <translation id="9138603949443464873">Pentru a aplica modificările, relansează Chrome</translation>
 <translation id="9148058034647219655">Ieși</translation>
 <translation id="9195993889682885387">Chrome îți poate estima interesele pe baza istoricului tău de navigare din ultimele câteva săptămâni. Aceste informații rămân pe dispozitivul tău.</translation>

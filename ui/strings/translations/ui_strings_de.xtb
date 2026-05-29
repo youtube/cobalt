@@ -80,7 +80,7 @@
 <translation id="3157931365184549694">Wieder­her­stellen</translation>
 <translation id="3183922693828471536">Hierher blättern</translation>
 <translation id="3234408098842461169">Abwärtspfeil</translation>
-<translation id="3240426699337459095">Link kopiert</translation>
+<translation id="3240426699337459095">Link wurde kopiert.</translation>
 <translation id="3291688615589870984">{DAYS,plural, =1{1 Tag}other{# Tage}}</translation>
 <translation id="3295886253693811851">Anruf starten mit</translation>
 <translation id="3306688585798492231">Integriertes Display</translation>
@@ -184,7 +184,7 @@
 <translation id="6907759265145635167"><ph name="QUANTITY" /> PB/s</translation>
 <translation id="6917971086528278418">{YEARS,plural, =1{noch 1 Jahr}other{noch # Jahre}}</translation>
 <translation id="6945221475159498467">Auswählen</translation>
-<translation id="6965382102122355670">OK</translation>
+<translation id="6965382102122355670">Ok</translation>
 <translation id="6974053822202609517">Linksläufig</translation>
 <translation id="7052633198403197513">F1</translation>
 <translation id="7170202025028120564">Die Displayeinstellungen deiner App werden beim nächsten Neustart übernommen.</translation>

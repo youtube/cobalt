@@ -154,8 +154,6 @@ public abstract class ChromeFeatureList {
 
     // Feature names.
     /* Alphabetical: */
-    public static final String ACCOUNT_FOR_SUPPRESSED_KEYBOARD_INSETS =
-            "AccountForSuppressedKeyboardInsets";
     public static final String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2 =
             "AdaptiveButtonInTopToolbarCustomizationV2";
     public static final String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY =
@@ -307,12 +305,10 @@ public abstract class ChromeFeatureList {
     public static final String CCT_REPORT_PRERENDER_EVENTS = "CCTReportPrerenderEvents";
     public static final String CCT_RESIZABLE_FOR_THIRD_PARTIES = "CCTResizableForThirdParties";
     public static final String CCT_REVAMPED_BRANDING = "CCTRevampedBranding";
-    public static final String CCT_SHOW_TAB_FIX = "CCTShowTabFix";
     public static final String CCT_TAB_MODAL_DIALOG = "CCTTabModalDialog";
     public static final String CCT_TOOLBAR_REFACTOR = "CCTToolbarRefactor";
     public static final String CHANGE_UNFOCUSED_PRIORITY = "ChangeUnfocusedPriority";
     public static final String CHROME_SURVEY_NEXT_ANDROID = "ChromeSurveyNextAndroid";
-    public static final String CLAMP_AUTOMOTIVE_SCALING = "ClampAutomotiveScaling";
     public static final String CLANK_STARTUP_LATENCY_INJECTION = "ClankStartupLatencyInjection";
     public static final String CLANK_WHATS_NEW = "ClankWhatsNew";
     public static final String CLEAR_BROWSING_DATA_ANDROID_SURVEY =
@@ -632,8 +628,6 @@ public abstract class ChromeFeatureList {
     public static final String XSURFACE_METRICS_REPORTING = "XsurfaceMetricsReporting";
 
     /* Alphabetical: */
-    public static final CachedFlag sAccountForSuppressedKeyboardInsets =
-            newCachedFlag(ACCOUNT_FOR_SUPPRESSED_KEYBOARD_INSETS, /* defaultValue= */ true);
     public static final CachedFlag sAllowTabClosingUponMinimization =
             newCachedFlag(ALLOW_TAB_CLOSING_UPON_MINIMIZATION, false);
     public static final CachedFlag sAndroidAppIntegration =
@@ -735,8 +729,6 @@ public abstract class ChromeFeatureList {
             newCachedFlag(CCT_REVAMPED_BRANDING, true);
     public static final CachedFlag sCctTabModalDialog = newCachedFlag(CCT_TAB_MODAL_DIALOG, true);
     public static final CachedFlag sCctToolbarRefactor = newCachedFlag(CCT_TOOLBAR_REFACTOR, false);
-    public static final CachedFlag sClampAutomotiveScaling =
-            newCachedFlag(CLAMP_AUTOMOTIVE_SCALING, true);
     public static final CachedFlag sClankStartupLatencyInjection =
             newCachedFlag(CLANK_STARTUP_LATENCY_INJECTION, false);
     public static final CachedFlag sCollectAndroidFrameTimelineMetrics =
@@ -764,10 +756,7 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sEdgeToEdgeBottomChin =
             newCachedFlag(EDGE_TO_EDGE_BOTTOM_CHIN, /* defaultValue= */ true);
     public static final CachedFlag sEdgeToEdgeDebugging =
-            newCachedFlag(
-                    EDGE_TO_EDGE_DEBUGGING,
-                    /* defaultValue= */ false,
-                    /* defaultValueInTests= */ true);
+            newCachedFlag(EDGE_TO_EDGE_DEBUGGING, /* defaultValue= */ true);
     public static final CachedFlag sEdgeToEdgeMonitorConfigurations =
             newCachedFlag(EDGE_TO_EDGE_MONITOR_CONFIGURATIONS, /* defaultValue= */ true);
     public static final CachedFlag sEdgeToEdgeEverywhere =
@@ -855,10 +844,7 @@ public abstract class ChromeFeatureList {
             newCachedFlag(PREFETCH_BROWSER_INITIATED_TRIGGERS, true);
     public static final CachedFlag sPriceChangeModule = newCachedFlag(PRICE_CHANGE_MODULE, true);
     public static final CachedFlag sReportNotificationContentDetectionData =
-            newCachedFlag(
-                    REPORT_NOTIFICATION_CONTENT_DETECTION_DATA,
-                    /* defaultValue= */ false,
-                    /* defaultValueInTests= */ true);
+            newCachedFlag(REPORT_NOTIFICATION_CONTENT_DETECTION_DATA, false);
     public static final CachedFlag sRightEdgeGoesForwardGestureNav =
             newCachedFlag(RIGHT_EDGE_GOES_FORWARD_GESTURE_NAV, false);
     public static final CachedFlag sSafetyHubMagicStack =
@@ -926,7 +912,6 @@ public abstract class ChromeFeatureList {
 
     public static final List<CachedFlag> sFlagsCachedFullBrowser =
             List.of(
-                    sAccountForSuppressedKeyboardInsets,
                     sAllowTabClosingUponMinimization,
                     sAndroidAppIntegration,
                     sAndroidAppIntegrationModule,
@@ -973,7 +958,6 @@ public abstract class ChromeFeatureList {
                     sCctRevampedBranding,
                     sCctTabModalDialog,
                     sCctToolbarRefactor,
-                    sClampAutomotiveScaling,
                     sClankStartupLatencyInjection,
                     sCollectAndroidFrameTimelineMetrics,
                     sCommandLineOnNonRooted,
@@ -1212,9 +1196,6 @@ public abstract class ChromeFeatureList {
     public static final IntCachedFeatureParam sCctAuthTabEnableHttpsRedirectsVerificationTimeoutMs =
             newIntCachedFeatureParam(
                     CCT_AUTH_TAB_ENABLE_HTTPS_REDIRECTS, "verification_timeout_ms", 10_000);
-    public static final IntCachedFeatureParam sClampAutomotiveScalingMaxScalingPercentage =
-            newIntCachedFeatureParam(
-                    CLAMP_AUTOMOTIVE_SCALING, "max_automotive_scaling_percentage", 150);
 
     /**
      * Parameter that lists a pipe ("|") separated list of package names from which the {@link
@@ -1484,7 +1465,7 @@ public abstract class ChromeFeatureList {
 
     public static final BooleanCachedFeatureParam sTabStripLayoutOptimizationOnExternalDisplay =
             newBooleanCachedFeatureParam(
-                    TAB_STRIP_LAYOUT_OPTIMIZATION, "enable_on_external_display", true);
+                    TAB_STRIP_LAYOUT_OPTIMIZATION, "enable_on_external_display", false);
 
     public static final StringCachedFeatureParam
             sTabStripLayoutOptimizationOnExternalDisplayOemDenylist =
@@ -1525,7 +1506,6 @@ public abstract class ChromeFeatureList {
                     sCctAdaptiveButtonEnableOpenInBrowser,
                     sCctAdaptiveButtonEnableVoice,
                     sCctAuthTabEnableHttpsRedirectsVerificationTimeoutMs,
-                    sClampAutomotiveScalingMaxScalingPercentage,
                     sCctAutoTranslateAllowAllFirstParties,
                     sCctAutoTranslatePackageNamesAllowlist,
                     sCctGoogleBottomBarButtonList,
@@ -1607,6 +1587,8 @@ public abstract class ChromeFeatureList {
             sDisableBottomControlsStackerYOffsetDispatching =
                     sBottomBrowserControlsRefactor.newBooleanParam(
                             "disable_bottom_controls_stacker_y_offset", false);
+    public static final MutableIntParamWithSafeDefault sShowNewTabAnimationsVersion =
+            sShowNewTabAnimations.newIntParam("version", 4);
     public static final MutableIntParamWithSafeDefault sTabSwitcherColorBlendAnimateDurationMs =
             sTabSwitcherColorBlendAnimate.newIntParam("animation_duration_ms", 240);
     public static final MutableIntParamWithSafeDefault sTabSwitcherColorBlendAnimateInterpolator =

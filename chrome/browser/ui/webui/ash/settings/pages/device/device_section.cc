@@ -43,7 +43,6 @@
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/display/display_features.h"
 #include "ui/display/display_switches.h"
-#include "ui/display/manager/display_manager.h"
 #include "ui/display/manager/touch_device_manager.h"
 #include "ui/events/ash/keyboard_capability.h"
 #include "ui/events/ash/keyboard_layout_util.h"
@@ -668,15 +667,13 @@ bool DoesDeviceSupportAmbientColor() {
 }
 
 bool IsTouchCalibrationAvailable() {
-  return (base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kEnableTouchCalibrationSetting) ||
-          features::IsTouchscreenCalibrationEnabled()) &&
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kEnableTouchCalibrationSetting) &&
          display::HasExternalTouchscreenDevice();
 }
 
 bool IsTouchscreenRemappingExperienceAvailable() {
-  return (features::IsTouchscreenMappingExperienceEnabled() ||
-          Shell::Get()->display_manager()->GetNumExternalDisplays() >= 2) &&
+  return features::IsTouchscreenMappingExperienceEnabled() &&
          display::HasExternalTouchscreenDevice();
 }
 

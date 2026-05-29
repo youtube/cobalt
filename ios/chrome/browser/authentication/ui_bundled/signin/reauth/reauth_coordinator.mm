@@ -21,7 +21,6 @@
 @implementation ReauthCoordinator {
   raw_ptr<Browser> _browser;
   CoreAccountInfo _account;
-  signin_metrics::AccessPoint _accessPoint;
   id<SystemIdentityInteractionManager> _identityInteractionManager;
 }
 
@@ -29,13 +28,10 @@
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
-                                   account:(const CoreAccountInfo&)account
-                               accessPoint:
-                                   (signin_metrics::AccessPoint)accessPoint {
+                                   account:(const CoreAccountInfo&)account {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _account = account;
-    _accessPoint = accessPoint;
   }
   return self;
 }
@@ -44,9 +40,6 @@
 
 - (void)start {
   [super start];
-
-  [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kStarted];
-
   _identityInteractionManager = GetApplicationContext()
                                     ->GetSystemIdentityManager()
                                     ->CreateInteractionManager();
@@ -67,9 +60,6 @@
   if (_identityInteractionManager) {
     // The operation hasn't finished yet - cancel and notify the delegate.
     [_identityInteractionManager cancelAuthActivityAnimated:NO];
-
-    [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kInterrupted];
-
     [self.delegate reauthFinishedWithResult:ReauthResult::kInterrupted];
     _identityInteractionManager = nil;
   }
@@ -89,28 +79,15 @@
   ReauthResult result;
   if (!error) {
     GaiaId id = GaiaId(identity.gaiaID);
-    if (id == _account.gaia) {
-      result = ReauthResult::kSuccess;
-      [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCompleted];
-    } else {
-      result = ReauthResult::kCancelledByUser;
-      [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCancelled];
-    }
+    result = id == _account.gaia ? ReauthResult::kSuccess
+                                 : ReauthResult::kCancelledByUser;
   } else if (ShouldHandleSigninError(error)) {
     result = ReauthResult::kError;
-    [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kError];
   } else {
     result = ReauthResult::kCancelledByUser;
-    [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCancelled];
   }
 
   [self.delegate reauthFinishedWithResult:result];
-}
-
-- (void)recordReauthFlowEvent:(signin_metrics::ReauthFlowEvent)event {
-  // TODO(crbug.com/391342053): Add logging for reauth flows that aren't started
-  // from a sign-in flow.
-  signin_metrics::RecordReauthFlowEventInSigninFlow(_accessPoint, event);
 }
 
 @end

@@ -238,16 +238,7 @@ class SharedTabGroupAccountDataSyncBridgeTest : public testing::Test {
     const LocalTabGroupID kLocalTabGroupId =
         tab_groups::test::GenerateRandomTabGroupID();
 
-    SavedTabGroup group = test::CreateTestSavedTabGroupWithNoTabs();
-    SavedTabGroupTab tab1 = test::CreateSavedTabGroupTab(
-        "www.google.com", u"Google", group.saved_guid(), /*position=*/0);
-    SavedTabGroupTab tab2 = test::CreateSavedTabGroupTab(
-        "chrome://newtab", u"new tab", group.saved_guid(), /*position=*/1);
-    tab1.SetNavigationTime(base::Time::Now() + base::Seconds(1000));
-    tab2.SetNavigationTime(base::Time::Now() + base::Seconds(1000));
-    group.AddTabLocally(tab1);
-    group.AddTabLocally(tab2);
-
+    SavedTabGroup group = test::CreateTestSavedTabGroup();
     group.SetCollaborationId(collaboration_id);
     group.SetLocalGroupId(kLocalTabGroupId);
 

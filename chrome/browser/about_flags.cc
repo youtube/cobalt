@@ -1427,6 +1427,42 @@ const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusTwoWeekWindow[] =
     {
         {"OnFocusMostVisitedRecencyWindow", "13"},
 };
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax8[] = {
+    {"OnFocusMaxSuggestions", "8"},
+    {"OnFocusMaxSearchSuggestions", "4"},
+    {"OnFocusMaxUrlSuggestions", "4"},
+};
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax4[] = {
+    {"OnFocusMaxSuggestions", "4"},
+    {"OnFocusMaxSearchSuggestions", "2"},
+    {"OnFocusMaxUrlSuggestions", "2"},
+};
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax2TwoZero[] = {
+    {"OnFocusMaxSuggestions", "2"},
+    {"OnFocusMaxSearchSuggestions", "2"},
+    {"OnFocusMaxUrlSuggestions", "0"},
+};
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax3ThreeZero[] =
+    {
+        {"OnFocusMaxSuggestions", "3"},
+        {"OnFocusMaxSearchSuggestions", "3"},
+        {"OnFocusMaxUrlSuggestions", "0"},
+};
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax4FourZero[] = {
+    {"OnFocusMaxSuggestions", "4"},
+    {"OnFocusMaxSearchSuggestions", "4"},
+    {"OnFocusMaxUrlSuggestions", "0"},
+};
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax5FourOne[] = {
+    {"OnFocusMaxSuggestions", "5"},
+    {"OnFocusMaxSearchSuggestions", "4"},
+    {"OnFocusMaxUrlSuggestions", "1"},
+};
+const FeatureEntry::FeatureParam kOmniboxUrlSuggestionsOnFocusMax5ThreeTwo[] = {
+    {"OnFocusMaxSuggestions", "5"},
+    {"OnFocusMaxSearchSuggestions", "3"},
+    {"OnFocusMaxUrlSuggestions", "2"},
+};
 const FeatureEntry::FeatureVariation kOmniboxUrlSuggestionsOnFocusVariations[] =
     {
         {"- Two day window", kOmniboxUrlSuggestionsOnFocusTwoDayWindow,
@@ -1437,63 +1473,27 @@ const FeatureEntry::FeatureVariation kOmniboxUrlSuggestionsOnFocusVariations[] =
          std::size(kOmniboxUrlSuggestionsOnFocusOneWeekWindow), nullptr},
         {"- Two week window", kOmniboxUrlSuggestionsOnFocusTwoWeekWindow,
          std::size(kOmniboxUrlSuggestionsOnFocusTwoWeekWindow), nullptr},
-};
-
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax8[] = {
-    {"OmniboxZpsMaxSuggestions", "8"},
-    {"OmniboxZpsMaxSearchSuggestions", "4"},
-    {"OmniboxZpsMaxUrlSuggestions", "4"},
-};
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax4[] = {
-    {"OmniboxZpsMaxSuggestions", "4"},
-    {"OmniboxZpsMaxSearchSuggestions", "2"},
-    {"OmniboxZpsMaxUrlSuggestions", "2"},
-};
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax2TwoZero[] = {
-    {"OmniboxZpsMaxSuggestions", "2"},
-    {"OmniboxZpsMaxSearchSuggestions", "2"},
-    {"OmniboxZpsMaxUrlSuggestions", "0"},
-};
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax3ThreeZero[] = {
-    {"OmniboxZpsMaxSuggestions", "3"},
-    {"OmniboxZpsMaxSearchSuggestions", "3"},
-    {"OmniboxZpsMaxUrlSuggestions", "0"},
-};
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax4FourZero[] = {
-    {"OmniboxZpsMaxSuggestions", "4"},
-    {"OmniboxZpsMaxSearchSuggestions", "4"},
-    {"OmniboxZpsMaxUrlSuggestions", "0"},
-};
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax5FourOne[] = {
-    {"OmniboxZpsMaxSuggestions", "5"},
-    {"OmniboxZpsMaxSearchSuggestions", "4"},
-    {"OmniboxZpsMaxUrlSuggestions", "1"},
-};
-const FeatureEntry::FeatureParam kOmniboxZpsSuggestionLimitMax5ThreeTwo[] = {
-    {"OmniboxZpsMaxSuggestions", "5"},
-    {"OmniboxZpsMaxSearchSuggestions", "3"},
-    {"OmniboxZpsMaxUrlSuggestions", "2"},
-};
-const FeatureEntry::FeatureVariation kOmniboxZpsSuggestionLimitVariations[] = {
-    {"- Max 8 Suggestions (4 search, 4 url)", kOmniboxZpsSuggestionLimitMax8,
-     std::size(kOmniboxZpsSuggestionLimitMax8), nullptr},
-    {"- Max 4 Suggestions (2 search, 2 url)", kOmniboxZpsSuggestionLimitMax4,
-     std::size(kOmniboxZpsSuggestionLimitMax4), nullptr},
-    {"- Max 2 Suggestions (2 search, 0 url)",
-     kOmniboxZpsSuggestionLimitMax2TwoZero,
-     std::size(kOmniboxZpsSuggestionLimitMax2TwoZero), nullptr},
-    {"- Max 3 Suggestions (3 search, 0 url)",
-     kOmniboxZpsSuggestionLimitMax3ThreeZero,
-     std::size(kOmniboxZpsSuggestionLimitMax3ThreeZero), nullptr},
-    {"- Max 4 Suggestions (4 search, 0 url)",
-     kOmniboxZpsSuggestionLimitMax4FourZero,
-     std::size(kOmniboxZpsSuggestionLimitMax4FourZero), nullptr},
-    {"- Max 5 Suggestions (4 search, 1 url)",
-     kOmniboxZpsSuggestionLimitMax5FourOne,
-     std::size(kOmniboxZpsSuggestionLimitMax5FourOne), nullptr},
-    {"- Max 5 Suggestions (3 search, 2 url)",
-     kOmniboxZpsSuggestionLimitMax5ThreeTwo,
-     std::size(kOmniboxZpsSuggestionLimitMax5ThreeTwo), nullptr},
+        {"- Max 8 Suggestions (One week window)",
+         kOmniboxUrlSuggestionsOnFocusMax8,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax8), nullptr},
+        {"- Max 4 Suggestions (One week window)",
+         kOmniboxUrlSuggestionsOnFocusMax4,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax4), nullptr},
+        {"- Max 2 Suggestions (2 search, 0 url)",
+         kOmniboxUrlSuggestionsOnFocusMax2TwoZero,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax2TwoZero), nullptr},
+        {"- Max 3 Suggestions (3 search, 0 url)",
+         kOmniboxUrlSuggestionsOnFocusMax3ThreeZero,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax3ThreeZero), nullptr},
+        {"- Max 4 Suggestions (4 search, 0 url)",
+         kOmniboxUrlSuggestionsOnFocusMax4FourZero,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax4FourZero), nullptr},
+        {"- Max 5 Suggestions (4 search, 1 url)",
+         kOmniboxUrlSuggestionsOnFocusMax5FourOne,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax5FourOne), nullptr},
+        {"- Max 5 Suggestions (3 search, 2 url)",
+         kOmniboxUrlSuggestionsOnFocusMax5ThreeTwo,
+         std::size(kOmniboxUrlSuggestionsOnFocusMax5ThreeTwo), nullptr},
 };
 
 const FeatureEntry::FeatureParam
@@ -1528,37 +1528,6 @@ const FeatureEntry::FeatureVariation
          std::size(kOmniboxContextualSearchOnFocusSuggestionsLimit3), nullptr},
         {"- Limit 4", kOmniboxContextualSearchOnFocusSuggestionsLimit4,
          std::size(kOmniboxContextualSearchOnFocusSuggestionsLimit4), nullptr},
-};
-
-const FeatureEntry::FeatureParam
-    kContextualSuggestionsAblateOthersWhenPresentAblateAll[] = {
-        {"AblateSearchOnly", "false"},
-};
-
-const FeatureEntry::FeatureParam
-    kContextualSuggestionsAblateOthersWhenPresentAblateSearchOnly[] = {
-        {"AblateSearchOnly", "true"},
-};
-
-const FeatureEntry::FeatureParam
-    kContextualSuggestionsAblateOthersWhenPresentAblateUrlOnly[] = {
-        {"AblateUrlOnly", "true"},
-};
-
-const FeatureEntry::FeatureVariation
-    kContextualSuggestionsAblateOthersWhenPresentVariations[] = {
-        {"- Ablate all", kContextualSuggestionsAblateOthersWhenPresentAblateAll,
-         std::size(kContextualSuggestionsAblateOthersWhenPresentAblateAll),
-         nullptr},
-        {"- Ablate search only",
-         kContextualSuggestionsAblateOthersWhenPresentAblateSearchOnly,
-         std::size(
-             kContextualSuggestionsAblateOthersWhenPresentAblateSearchOnly),
-         nullptr},
-        {"- Ablate URL only",
-         kContextualSuggestionsAblateOthersWhenPresentAblateUrlOnly,
-         std::size(kContextualSuggestionsAblateOthersWhenPresentAblateUrlOnly),
-         nullptr},
 };
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) ||
@@ -1849,28 +1818,12 @@ constexpr FeatureEntry::FeatureVariation kOmniboxDiagnosticsAndroidVaiants[] = {
     {"- InputConnection", kOmniboxDiagInputConnection,
      std::size(kOmniboxDiagInputConnection), nullptr}};
 
-// Omnibox Mobile Parity Update -->
 const FeatureEntry::FeatureParam kOmniboxMobileParityRetrieveTrueFavicon[] = {
-    {OmniboxFieldTrial::kMobileParityEnableFeedForGoogleOnly.name, "false"},
     {OmniboxFieldTrial::kMobileParityRetrieveTrueFavicon.name, "true"}};
-
-const FeatureEntry::FeatureParam kOmniboxMobileParityEnableFeedForGoogleOnly[] =
-    {{OmniboxFieldTrial::kMobileParityEnableFeedForGoogleOnly.name, "true"},
-     {OmniboxFieldTrial::kMobileParityRetrieveTrueFavicon.name, "false"}};
-
-const FeatureEntry::FeatureParam kOmniboxMobileParityEnableEverything[] = {
-    {OmniboxFieldTrial::kMobileParityEnableFeedForGoogleOnly.name, "true"},
-    {OmniboxFieldTrial::kMobileParityRetrieveTrueFavicon.name, "true"}};
-
 const FeatureEntry::FeatureVariation kOmniboxMobileParityVariants[] = {
     {"with True Favicon", kOmniboxMobileParityRetrieveTrueFavicon,
      std::size(kOmniboxMobileParityRetrieveTrueFavicon)},
-    {"with Feed only for Google", kOmniboxMobileParityEnableFeedForGoogleOnly,
-     std::size(kOmniboxMobileParityEnableFeedForGoogleOnly)},
-    {"everything", kOmniboxMobileParityEnableEverything,
-     std::size(kOmniboxMobileParityEnableEverything)},
 };
-// <-- Omnibox Mobile Parity Update
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1978,14 +1931,6 @@ const FeatureEntry::FeatureVariation kOmniboxMaxURLMatchesVariations[] = {
      nullptr},
     {"6 matches", kOmniboxMaxURLMatches6, std::size(kOmniboxMaxURLMatches6),
      nullptr}};
-
-#if BUILDFLAG(IS_ANDROID)
-const FeatureEntry::FeatureParam kOmniboxMiaZpsEnabledWithHistoryAblation[] = {
-    {OmniboxFieldTrial::kSuppressPsuggestBackfillWithMIAParam, "true"}};
-const FeatureEntry::FeatureVariation kOmniboxMiaZpsVariations[] = {
-    {"with History Ablation", kOmniboxMiaZpsEnabledWithHistoryAblation,
-     std::size(kOmniboxMiaZpsEnabledWithHistoryAblation), nullptr}};
-#endif
 
 const FeatureEntry::FeatureParam kOmniboxDynamicMaxAutocomplete90[] = {
     {"OmniboxDynamicMaxAutocompleteUrlCutoff", "0"},
@@ -3822,6 +3767,26 @@ const FeatureEntry::FeatureVariation
          nullptr},
         {" - all windowing modes", kAuxiliaryNavigationStaysInBrowserOn,
          std::size(kAuxiliaryNavigationStaysInBrowserOn), nullptr}};
+
+const FeatureEntry::FeatureParam kShowNewTabAnimationsBounce[] = {
+    {"version", "1"}};
+const FeatureEntry::FeatureParam kShowNewTabAnimationsDecelerate[] = {
+    {"version", "2"}};
+const FeatureEntry::FeatureParam kShowNewTabAnimationsBounceDecelerate[] = {
+    {"version", "3"}};
+const FeatureEntry::FeatureParam kShowNewTabAnimationsM137[] = {
+    {"version", "0"}};
+const FeatureEntry::FeatureVariation kShowNewTabAnimationsVariations[] = {
+    {"- Bouncy GTS icon with delay", kShowNewTabAnimationsBounce,
+     std::size(kShowNewTabAnimationsBounce), nullptr},
+    {"- Bouncy GTS icon with decelerate arc",
+     kShowNewTabAnimationsBounceDecelerate,
+     std::size(kShowNewTabAnimationsBounceDecelerate), nullptr},
+    {"- Decelerate arc", kShowNewTabAnimationsDecelerate,
+     std::size(kShowNewTabAnimationsDecelerate), nullptr},
+    {"- M137 with new duration", kShowNewTabAnimationsM137,
+     std::size(kShowNewTabAnimationsM137), nullptr},
+};
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -6120,13 +6085,6 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kAccessibilityIncludeLongClickActionDescription,
      kOsAndroid,
      FEATURE_VALUE_TYPE(features::kAccessibilityIncludeLongClickAction)},
-    {"enable-accessibility-populate-supplemental-description-api",
-     flag_descriptions::kAccessibilityPopulateSupplementalDescriptionApiName,
-     flag_descriptions::
-         kAccessibilityPopulateSupplementalDescriptionApiDescription,
-     kOsAndroid,
-     FEATURE_VALUE_TYPE(
-         features::kAccessibilityPopulateSupplementalDescriptionApi)},
     {"enable-accessibility-text-formatting",
      flag_descriptions::kAccessibilityTextFormattingName,
      flag_descriptions::kAccessibilityTextFormattingDescription, kOsAndroid,
@@ -6737,11 +6695,8 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::
          kContextualSuggestionsAblateOthersWhenPresentDescription,
      kOsDesktop,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         omnibox_feature_configs::ContextualSearch::
-             kContextualSuggestionsAblateOthersWhenPresent,
-         kContextualSuggestionsAblateOthersWhenPresentVariations,
-         "ContextualSuggestionsAblateOthersWhenPresent")},
+     FEATURE_VALUE_TYPE(omnibox_feature_configs::ContextualSearch::
+                            kContextualSuggestionsAblateOthersWhenPresent)},
 
     {"omnibox-contextual-search-on-focus-suggestions",
      flag_descriptions::kOmniboxContextualSearchOnFocusSuggestionsName,
@@ -6804,11 +6759,6 @@ const FeatureEntry kFeatureEntries[] = {
      kOsDesktop,
      FEATURE_VALUE_TYPE(omnibox::kFocusTriggersWebAndSRPZeroSuggest)},
 
-    {"omnibox-show-popup-on-mouse-released",
-     flag_descriptions::kOmniboxShowPopupOnMouseReleasedName,
-     flag_descriptions::kOmniboxShowPopupOnMouseReleasedDescription, kOsDesktop,
-     FEATURE_VALUE_TYPE(omnibox::kShowPopupOnMouseReleased)},
-
     {"omnibox-hide-suggestion-group-headers",
      flag_descriptions::kOmniboxHideSuggestionGroupHeadersName,
      flag_descriptions::kOmniboxHideSuggestionGroupHeadersDescription,
@@ -6822,15 +6772,6 @@ const FeatureEntry kFeatureEntries[] = {
              kOmniboxUrlSuggestionsOnFocus,
          kOmniboxUrlSuggestionsOnFocusVariations,
          "OmniboxUrlSuggestionsOnFocus")},
-
-    {"omnibox-zps-suggestion-limit",
-     flag_descriptions::kOmniboxZpsSuggestionLimit,
-     flag_descriptions::kOmniboxZpsSuggestionLimitDescription, kOsDesktop,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         omnibox_feature_configs::OmniboxZpsSuggestionLimit::
-             kOmniboxZpsSuggestionLimit,
-         kOmniboxZpsSuggestionLimitVariations,
-         "OmniboxZpsSuggestionLimit")},
 
     {"omnibox-enterprise-search-aggregator",
      flag_descriptions::kOmniboxSearchAggregatorName,
@@ -6964,15 +6905,7 @@ const FeatureEntry kFeatureEntries[] = {
 
     {"omnibox-mia-zps", flag_descriptions::kOmniboxMiaZps,
      flag_descriptions::kOmniboxMiaZpsDescription, kOsAll,
-#if BUILDFLAG(IS_ANDROID)
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         omnibox_feature_configs::MiaZPS::kOmniboxMiaZPS,
-         kOmniboxMiaZpsVariations,
-         "OmniboxMiaZpsVariations")
-#else
-     FEATURE_VALUE_TYPE(omnibox_feature_configs::MiaZPS::kOmniboxMiaZPS)
-#endif
-    },
+     FEATURE_VALUE_TYPE(omnibox_feature_configs::MiaZPS::kOmniboxMiaZPS)},
 
     {"omnibox-dynamic-max-autocomplete",
      flag_descriptions::kOmniboxDynamicMaxAutocompleteName,
@@ -7318,15 +7251,6 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_WITH_PARAMS_VALUE_TYPE(ntp_features::kNtpChromeCartModule,
                                     kNtpChromeCartModuleVariations,
                                     "DesktopNtpModules")},
-
-    {"ntp-compose-entrypoint",
-     flag_descriptions::kNtpSearchboxComposeEntrypointName,
-     flag_descriptions::kNtpSearchboxComposeEntrypointDescription, kOsDesktop,
-     FEATURE_VALUE_TYPE(ntp_features::kNtpSearchboxComposeEntrypoint)},
-
-    {"ntp-composebox", flag_descriptions::kNtpSearchboxComposeboxName,
-     flag_descriptions::kNtpSearchboxComposeboxDescription, kOsDesktop,
-     FEATURE_VALUE_TYPE(ntp_features::kNtpSearchboxComposebox)},
 
     {"ntp-drive-module", flag_descriptions::kNtpDriveModuleName,
      flag_descriptions::kNtpDriveModuleDescription, kOsDesktop,
@@ -7754,7 +7678,9 @@ const FeatureEntry kFeatureEntries[] = {
 
     {"show-new-tab-animations", flag_descriptions::kShowNewTabAnimationsName,
      flag_descriptions::kShowNewTabAnimationsDescription, kOsAndroid,
-     FEATURE_VALUE_TYPE(chrome::android::kShowNewTabAnimations)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(chrome::android::kShowNewTabAnimations,
+                                    kShowNewTabAnimationsVariations,
+                                    "ShowNewTabAnimations")},
 
     {"tab-switcher-color-blend-animate",
      flag_descriptions::kTabSwitcherColorBlendAnimateName,
@@ -12676,11 +12602,6 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kMvcUpdateViewWhenModelChangedName,
      flag_descriptions::kMvcUpdateViewWhenModelChangedDescription, kOsAndroid,
      FEATURE_VALUE_TYPE(chrome::android::kMvcUpdateViewWhenModelChanged)},
-
-    {"reload-tab-ui-resources-if-changed",
-     flag_descriptions::kReloadTabUiResourcesIfChangedName,
-     flag_descriptions::kReloadTabUiResourcesIfChangedDescription, kOsAndroid,
-     FEATURE_VALUE_TYPE(chrome::android::kReloadTabUiResourcesIfChanged)},
 #endif  // BUILDFLAG(IS_ANDROID)
 
     {"page-actions-migration", flag_descriptions::kPageActionsMigrationName,

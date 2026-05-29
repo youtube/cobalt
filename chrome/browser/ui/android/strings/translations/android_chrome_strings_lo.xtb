@@ -375,7 +375,6 @@
 <translation id="2718352093833049315">​ສະເພາະ Wi​-Fi ເທົ່ານັ້ນ</translation>
 <translation id="2718846868787000099">ເພື່ອສະແດງເນື້ອຫາເປັນພາສາທີ່ຕ້ອງການ, ເວັບໄຊທີ່ທ່ານເຂົ້າເບິ່ງສາມາດເຫັນການຕັ້ງຄ່າຂອງທ່ານໄດ້</translation>
 <translation id="2723001399770238859">ສຽງ</translation>
-<translation id="2734335652257251631">ສະແດງໂໝດການອ່ານ</translation>
 <translation id="2739887572830526131">ເກັບກຸ່ມນີ້ໄວ້ເພື່ອເພີ່ມແຖບໃນພາຍຫຼັງ ຫຼື ລຶບອອກຫາກທ່ານບໍ່ຕ້ອງການອີກຕໍ່ໄປ.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ບໍ່ພ້ອມໃຫ້ນຳໃຊ້ໃນຕອນນີ້.</translation>
 <translation id="2760805590727089264">MM / YY</translation>
@@ -1440,7 +1439,6 @@
 <translation id="7431991332293347422">ຄວບຄຸມວ່າຈະໃຫ້ໃຊ້ປະຫວັດການທ່ອງເວັບຂອງທ່ານແນວໃດເພື່ອປັບແຕ່ງການຊອກຫາ ແລະ ອື່ນໆອີກໃຫ້ເປັນແບບສ່ວນຕົວ</translation>
 <translation id="7435356471928173109">ປິດໄວ້ໂດຍຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານ</translation>
 <translation id="7437998757836447326">ອອກ​ຈາກ​ Chrome</translation>
-<translation id="7439467816829380878">ຍ້າຍແຖບໃສ່ກຸ່ມ</translation>
 <translation id="7453810262525006706">ຫຍໍ້ລົງໄປຫາມຸມມອງທາງຂ້າງ</translation>
 <translation id="7454641608352164238">ພື້ນທີ່ຫວ່າງບໍ່ພຽງພໍ</translation>
 <translation id="7454744349230173024">ອົງການຂອງທ່ານໄດ້ປິດການບັນທຶກລະຫັດຜ່ານໄວ້ແລ້ວ</translation>
@@ -1746,7 +1744,6 @@
 <translation id="8676789164135894283">ການຢັ້ງຢືນການເຂົ້າສູ່ລະບົບ</translation>
 <translation id="8683039184091909753">ຮູບ</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, ແຖບທີ່ເລືອກ</translation>
-<translation id="8693232767599693749">ເບິ່ງໂໝດການອ່ານບໍ?</translation>
 <translation id="8697753151306746444">ແບ່ງປັນໜ້າຈໍແທນ</translation>
 <translation id="869891660844655955">ວັນ​ຫມົດ​ອາ​ຍຸ</translation>
 <translation id="8699120352855309748">ບໍ່ສະເໜີແປພາສາເຫຼົ່ານີ້</translation>
@@ -1816,7 +1813,6 @@
 <translation id="9019199799064251516">ສືບຕໍ່ໂດຍບໍ່ໃຊ້ການລັອກໂປຣໄຟລ໌ລົດບໍ?</translation>
 <translation id="9022774213089566801">ເຂົ້າເບິ່ງເລື້ອຍໆ</translation>
 <translation id="9022871169049522985">ເວັບໄຊ ແລະ ຜູ້ລົງໂຄສະນາສາມາດວັດແທກປະສິດທິພາບຂອງການໂຄສະນາຂອງເຂົາເຈົ້າໄດ້</translation>
-<translation id="9027728231343310283">ຍົກເລີກ <ph name="SITE" /></translation>
 <translation id="9035378196785279980">ຍ້າຍໄປຫາ\u2026</translation>
 <translation id="9042893549633094279">ຄວາມເປັນສ່ວນຕົວ ແລະ ຄວາມປອດໄພ</translation>
 <translation id="9047347135558855162">ເລີ່ມຕົ້ນການຊອກຫາຢ່າງວ່ອງໄວໃນ Chrome</translation>
