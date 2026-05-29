@@ -14,10 +14,12 @@
 
 #include "starboard/shared/starboard/player/buffer_internal.h"
 
+#include <cstring>
 #include <mutex>
 #include <vector>
 
 #include "starboard/common/once.h"
+#include "starboard/shared/starboard/player/buffer_pool.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
@@ -44,59 +46,10 @@ constexpr uint8_t kPadding = 0x78;
 constexpr int kPaddingSize = 32;
 #endif  // defined(NDEBUG)
 
-// BufferPool is a thread-safe, fixed-size memory pool used to allocate and
-// reuse physical memory buffers for audio PCM data. This reduces heap churn
-// during playback. The pool is managed as a singleton with a lifetime spanning
-// the duration of the application.
-class BufferPool {
- public:
-  static BufferPool* Get();
-
-  uint8_t* Allocate(size_t size) {
-    SB_CHECK_LE(size, kBufferSize);
-    std::lock_guard lock(mutex_);
-    if (!free_list_.empty()) {
-      uint8_t* ptr = free_list_.back();
-      free_list_.pop_back();
-      return ptr;
-    }
-    return new uint8_t[size];
-  }
-
-  void Free(uint8_t* ptr, size_t size) {
-    SB_CHECK_LE(size, kBufferSize);
-    if (IsFromPool(ptr)) {
-      std::lock_guard lock(mutex_);
-      SB_CHECK_LT(free_list_.size(), kPoolSize);
-      free_list_.push_back(ptr);
-    } else {
-      delete[] ptr;
-    }
-  }
-
- private:
-  BufferPool() : pool_storage_(new uint8_t[kBufferSize * kPoolSize]) {
-    for (size_t i = 0; i < kPoolSize; ++i) {
-      free_list_.push_back(pool_storage_ + i * kBufferSize);
-    }
-    SB_LOG(INFO) << "BufferPool is created: buffer size=" << kBufferSize
-                 << ", pool size=" << kPoolSize;
-  }
-
-  bool IsFromPool(uint8_t* ptr) const {
-    return ptr >= pool_storage_ &&
-           ptr < pool_storage_ + kBufferSize * kPoolSize;
-  }
-
-  uint8_t* pool_storage_;
-  std::vector<uint8_t*> free_list_;
-  std::mutex mutex_;
-
-  BufferPool(const BufferPool&) = delete;
-  void operator=(const BufferPool&) = delete;
-};
-
-SB_ONCE_INITIALIZE_FUNCTION(BufferPool, BufferPool::Get)
+BufferPool* GetBufferPool() {
+  static BufferPool* instance = new BufferPool(kBufferSize, kPoolSize);
+  return instance;
+}
 
 }  // namespace
 
@@ -109,12 +62,13 @@ Buffer::Buffer(int size) : size_(size) {
   }
 
   size_t total_size = static_cast<size_t>(size) + kPaddingSize * 2;
+  data_ = nullptr;
   if (UseBufferPool() && total_size <= kBufferSize) {
-    data_ = BufferPool::Get()->Allocate(total_size);
-    is_pooled_ = true;
-  } else {
+    data_ = GetBufferPool()->Allocate(total_size);
+  }
+  is_pooled_ = (data_ != nullptr);
+  if (!data_) {
     data_ = new uint8_t[total_size];
-    is_pooled_ = false;
   }
 #if !defined(NDEBUG)
   memset(data_, kPadding, kPaddingSize);
@@ -122,20 +76,11 @@ Buffer::Buffer(int size) : size_(size) {
 #endif  // !defined(NDEBUG)
 }
 
-Buffer::Buffer(const Buffer& that) : size_(that.size_) {
-  if (!that.data_) {
-    data_ = nullptr;
-    is_pooled_ = false;
+Buffer::Buffer(const Buffer& that) : Buffer(that.data_ ? that.size_ : 0) {
+  if (!data_) {
     return;
   }
   size_t total_size = static_cast<size_t>(size_) + kPaddingSize * 2;
-  if (UseBufferPool() && total_size <= kBufferSize) {
-    data_ = BufferPool::Get()->Allocate(total_size);
-    is_pooled_ = true;
-  } else {
-    data_ = new uint8_t[total_size];
-    is_pooled_ = false;
-  }
   memcpy(data_, that.data_, total_size);
 }
 
@@ -156,16 +101,30 @@ Buffer::~Buffer() {
   }
 #endif  // !defined(NDEBUG)
   if (is_pooled_) {
-    BufferPool::Get()->Free(data_, size_ + kPaddingSize * 2);
+    GetBufferPool()->Free(data_, size_ + kPaddingSize * 2);
   } else {
     delete[] data_;
   }
 }
 
 Buffer& Buffer::operator=(Buffer&& that) {
-  std::swap(this->size_, that.size_);
-  std::swap(this->data_, that.data_);
-  std::swap(this->is_pooled_, that.is_pooled_);
+  if (this == &that) {
+    return *this;
+  }
+
+  {
+    // This moves the resource to temp, and temp is destroyed
+    // immediately at the closing brace, releasing the memory.
+    Buffer temp(std::move(*this));
+  }
+
+  size_ = that.size_;
+  data_ = that.data_;
+  is_pooled_ = that.is_pooled_;
+
+  that.size_ = 0;
+  that.data_ = nullptr;
+  that.is_pooled_ = false;
   return *this;
 }
 
