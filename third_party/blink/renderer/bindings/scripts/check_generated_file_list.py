@@ -64,6 +64,9 @@ def parse_options():
                         required=True,
                         type=str,
                         help="filepath of the check results")
+    parser.add_argument("--union_name_config",
+                        type=str,
+                        help="filepath of the union_name_map.conf")
 
     options = parser.parse_args()
 
@@ -81,7 +84,8 @@ def main():
     bind_gen.init(web_idl_database_path=options.web_idl_database,
                   root_src_dir=options.root_src_dir,
                   root_gen_dir=options.root_gen_dir,
-                  component_reldirs=component_reldirs)
+                  component_reldirs=component_reldirs,
+                  union_name_config_path=options.union_name_config)
     web_idl_database = bind_gen.package_initializer.package_initializer(
     ).web_idl_database()
     idl_definitions = {
