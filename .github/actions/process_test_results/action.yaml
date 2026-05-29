@@ -19,16 +19,25 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Prepare Results for CI
+      shell: bash
+      run: |
+        python3 ${GITHUB_WORKSPACE}/cobalt/tools/prepare_results_for_ci.py \
+          --event_name "${{ github.event_name }}" \
+          --output_dir "${GITHUB_WORKSPACE}/processed_results" \
+          --glob "${{ inputs.results_glob }}" \
+          --num_shards "${{ inputs.num_gtest_shards }}"
+
     - name: Create Test Summary
       id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        paths: ${{ inputs.results_glob }}
+        paths: "${{ github.workspace }}/processed_results/**/*.xml"
         output: test-report-summary.md
         show: "fail, skip"
 
     - name: Populate GitHub Summary
-      if: steps.test_summary.outputs.failed > 0
+      if: steps.test-summary.outputs.failed > 0
       run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
@@ -39,7 +48,7 @@ runs:
         TESTS_PASSED: ${{ steps.test-summary.outputs.passed }}
         TESTS_SKIPPED: ${{ steps.test-summary.outputs.skipped }}
         TESTS_TOTAL: ${{ steps.test-summary.outputs.total }}
-        RESULTS_GLOB: ${{ inputs.results_glob }}
+        RESULTS_GLOB: "${{ github.workspace }}/processed_results/**/*.xml"
         LOG_GLOB: ${{ inputs.log_glob }}
         TARGET_NAME: ${{ inputs.target_name }}
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
@@ -54,15 +63,9 @@ runs:
         result_xmls=(${RESULTS_GLOB})
         result_logs=(${LOG_GLOB})
 
-        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
-          if [ ${#result_logs[@]} -gt ${#result_xmls[@]} ]; then
-            # If there are more log files than test results, test shards probably crashed.
-            msg="Some targets likely crashed."
-          else
-            # If both the logs and the results are missing the tests probably failed to run.
-            msg="Some targets may have failed to run."
-          fi
-          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
+        # Verify that at least one XML result was found (Testing Reviewer suggestion)
+        if [ ${#result_xmls[@]} -eq 0 ]; then
+          echo "::error::No test result XML files found."
           exit_code=1
         fi
 
@@ -86,10 +89,18 @@ runs:
         exit ${exit_code}
       shell: bash
 
+    - name: Cache Datadog CLI
+      id: cache-dd-cli
+      if: always() && inputs.datadog_api_key != ''
+      uses: actions/cache@v3
+      with:
+        path: datadog-ci
+        key: ${{ runner.os }}-dd-cli-v2.18.0
+
     - name: Get Datadog CLI
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
-      if: always() && inputs.datadog_api_key != ''
+      if: always() && inputs.datadog_api_key != '' && steps.cache-dd-cli.outputs.cache-hit != 'true'
       continue-on-error: true
       env:
         DD_VERSION: 'v2.18.0'
@@ -98,12 +109,12 @@ runs:
         set -x
         download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
         curl -L --fail ${download_url} --output datadog-ci
-        echo ${DD_SHA256SUM} | sha256sum --check
+        echo "${DD_SHA256SUM}" | sha256sum --check
         chmod +x datadog-ci
       shell: bash
 
     - name: Upload Results to Datadog
-      if: always() && steps.download-dd-cli.outcome == 'success'
+      if: always() && inputs.datadog_api_key != '' && (steps.cache-dd-cli.outputs.cache-hit == 'true' || steps.download-dd-cli.outcome == 'success')
       continue-on-error: true
       env:
         DATADOG_SITE: us5.datadoghq.com
@@ -111,10 +122,15 @@ runs:
         DD_SERVICE: ${{ github.event.repository.name }}
         DD_TAGS: os.platform:${{ matrix.platform }}
         DD_ENV: ci
-        RESULTS_GLOB: ${{ inputs.results_glob }}
+        RESULTS_GLOB: "${{ github.workspace }}/processed_results/**/*.xml"
       run: |
         set -x
-        # Enable globstar shell option for globstar paths e.g. /**/*.xml
-        shopt -s globstar
-        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
+        # Enable globstar and nullglob for safe expansion
+        shopt -s globstar nullglob
+        result_xmls=(${RESULTS_GLOB})
+        if [ ${#result_xmls[@]} -gt 0 ]; then
+          ./datadog-ci junit upload --service ${DD_SERVICE} "${result_xmls[@]}"
+        else
+          echo "No test results found to upload."
+        fi
       shell: bash

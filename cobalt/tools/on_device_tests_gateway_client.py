@@ -221,7 +221,7 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   return params
 
 
-def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
+def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   """Builds the list of test requests based on the test type."""
   test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
   test_requests = []
@@ -454,7 +454,7 @@ def main() -> int:
     if not args.filter_json_dir:
       raise ValueError('--filter_json_dir is required for unit_test')
 
-  test_requests = _process_test_requests(args)
+  test_requests = process_test_requests(args)
   client = OnDeviceTestsGatewayClient()
 
   try:
