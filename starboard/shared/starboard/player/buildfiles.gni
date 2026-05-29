@@ -15,6 +15,8 @@
 common_player_sources = [
   "//starboard/shared/starboard/player/buffer_internal.cc",
   "//starboard/shared/starboard/player/buffer_internal.h",
+  "//starboard/shared/starboard/player/buffer_pool.cc",
+  "//starboard/shared/starboard/player/buffer_pool.h",
   "//starboard/shared/starboard/player/decoded_audio_internal.cc",
   "//starboard/shared/starboard/player/decoded_audio_internal.h",
   "//starboard/shared/starboard/player/input_buffer_internal.cc",

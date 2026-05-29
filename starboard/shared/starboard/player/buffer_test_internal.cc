@@ -73,6 +73,9 @@ TEST(BufferTest, MoveCtor) {
   for (int i = 0; i < copy.size(); ++i) {
     ASSERT_EQ(copy.data()[i], 'x');
   }
+
+  EXPECT_EQ(original.size(), 0);
+  EXPECT_EQ(original.data(), nullptr);
 }
 
 TEST(BufferTest, MoveAssignmentOperator) {
@@ -91,6 +94,45 @@ TEST(BufferTest, MoveAssignmentOperator) {
   for (int i = 0; i < copy.size(); ++i) {
     ASSERT_EQ(copy.data()[i], 'x');
   }
+
+  EXPECT_EQ(original.size(), 0);
+  EXPECT_EQ(original.data(), nullptr);
+}
+
+TEST(BufferTest, MoveAssignmentOperator_NonEmptyDest) {
+  Buffer original(128);
+  memset(original.data(), 'x', 128);
+  const uint8_t* original_data_pointer = original.data();
+
+  Buffer dest(64);
+  memset(dest.data(), 'y', 64);
+
+  dest = std::move(original);
+  ASSERT_EQ(dest.size(), 128);
+  ASSERT_NE(dest.data(), nullptr);
+  ASSERT_EQ(dest.data(), original_data_pointer);
+
+  for (int i = 0; i < dest.size(); ++i) {
+    ASSERT_EQ(dest.data()[i], 'x');
+  }
+
+  EXPECT_EQ(original.size(), 0);
+  EXPECT_EQ(original.data(), nullptr);
+}
+
+TEST(BufferTest, MoveAssignmentSelf) {
+  Buffer b(128);
+  memset(b.data(), 'x', 128);
+  const uint8_t* data_ptr = b.data();
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+  b = std::move(b);
+#pragma clang diagnostic pop
+
+  ASSERT_EQ(b.size(), 128);
+  ASSERT_EQ(b.data(), data_ptr);
+  EXPECT_EQ(b.data()[0], 'x');
 }
 
 }  // namespace
