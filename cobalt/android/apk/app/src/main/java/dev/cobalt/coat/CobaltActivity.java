@@ -502,6 +502,14 @@ public abstract class CobaltActivity extends Activity {
   protected void onResume() {
     super.onResume();
     diagnosticFinishReason = "Unknown";
+    if (mShouldReloadOnResume) {
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null) {
+        Log.i(TAG, "Reloading web contents on resume after network settings.");
+        webContents.getNavigationController().reload(true);
+      }
+      mShouldReloadOnResume = false;
+    }
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
