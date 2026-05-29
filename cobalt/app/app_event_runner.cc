@@ -30,6 +30,10 @@
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
@@ -184,9 +188,25 @@ class AppEventRunnerImpl : public AppEventRunner {
     if (client) {
       client->FlushCookiesAndLocalStorage(base::DoNothing());
     }
+#if BUILDFLAG(USE_EVERGREEN)
+    cobalt::updater::UpdaterModule* updater_module =
+        cobalt::updater::UpdaterModule::GetInstance();
+    if (updater_module) {
+      updater_module->Suspend();
+    }
+#endif
   }
 
-  void DoUnfreeze() override { content::Shell::OnUnfreeze(); }
+  void DoUnfreeze() override {
+    content::Shell::OnUnfreeze();
+#if BUILDFLAG(USE_EVERGREEN)
+    cobalt::updater::UpdaterModule* updater_module =
+        cobalt::updater::UpdaterModule::GetInstance();
+    if (updater_module) {
+      updater_module->Resume();
+    }
+#endif
+  }
 
   void OnInput(const SbEvent* event) override {
     CHECK(is_running());

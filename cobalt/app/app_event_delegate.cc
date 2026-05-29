@@ -29,10 +29,6 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"
-#endif
-
 namespace cobalt {
 
 namespace {
@@ -208,31 +204,9 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
-      // Ensure all intermediate state changes are triggered.
-      TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
-      break;
     case kSbEventTypeFreeze:
-#if BUILDFLAG(USE_EVERGREEN)
-    {
-      cobalt::updater::UpdaterModule* updater_module =
-          cobalt::updater::UpdaterModule::GetInstance();
-      if (updater_module) {
-        updater_module->Suspend();
-      }
-    }
-#endif
-      TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
-      break;
     case kSbEventTypeUnfreeze:
-#if BUILDFLAG(USE_EVERGREEN)
-    {
-      cobalt::updater::UpdaterModule* updater_module =
-          cobalt::updater::UpdaterModule::GetInstance();
-      if (updater_module) {
-        updater_module->Resume();
-      }
-    }
-#endif
+      // Ensure all intermediate state changes are triggered.
       TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
       break;
     case kSbEventTypeStop:
