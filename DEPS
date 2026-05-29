@@ -312,15 +312,15 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
-  'skia_revision': 'd13922303b8051e581e9ca6137e50ca55c4b18f3',
+  'skia_revision': '9e9f6616faa0fd26d5fc67e923737fc2803b197c',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': 'b84a050c7c182a0c0963e921906c4501f5efa945',
+  'v8_revision': '0e1db72acfd79b7dd0e988fd90bd6955c0fe695f',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': '5907c1671896d88ba4a0225a72319e1f649d8735',
+  'angle_revision': 'b7b9046efa2794f5952e825eb1ec3f858c739bb0',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -328,7 +328,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling PDFium
   # and whatever else without interference from each other.
-  'pdfium_revision': 'f376eb162cbd3b41648be83cf2209728be682a4a',
+  'pdfium_revision': '327d0ad95d028cba54abfce4f3421e707c713990',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling BoringSSL
   # and whatever else without interference from each other.
@@ -460,7 +460,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling crabbyavif
   # and whatever else without interference from each other.
-  'crabbyavif_revision': '640d2758f8d2e59d1a55ae0933673f0f65de68c4',
+  'crabbyavif_revision': '834bce1f7ea297529e5a76d7d0d8ed021d3d5259',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Speedometer main
   # and whatever else without interference from each other.
