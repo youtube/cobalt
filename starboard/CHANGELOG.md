@@ -44,6 +44,7 @@ Implementations of `DecodeTarget` for YUV planes should ensure they use
 rendering issues caused by Chromium's shader expectations.
 
 ### Added the following POSIX symbols:
+* `alarm`
 * `getrandom`
 * `getuid`
 * `if_indextoname`
