@@ -125,6 +125,7 @@ test("nplb") {
       "posix_compliance/getrandom_test.cc",
       "posix_compliance/madvise_test.cc",
       "posix_compliance/malloc_usable_size_test.cc",
+      "posix_compliance/posix_alarm_test.cc",
       "posix_compliance/posix_aligned_alloc_test.cc",
       "posix_compliance/posix_arpa_inet_test.cc",
       "posix_compliance/posix_asctime_r_test.cc",
