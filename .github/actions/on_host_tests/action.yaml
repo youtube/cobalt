@@ -67,12 +67,15 @@ runs:
         if [[ "${DRY_RUN}" == "true" ]]; then
           echo "DRY RUN: Writing dummy test results..."
           xml_path="${test_output}/mock_test_result.xml"
+          log_path="${test_output}/mock_test_log.txt"
           echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
           echo '<testsuites tests="1" failures="0" disabled="0" errors="0" time="0.001" name="AllTests">' >> "${xml_path}"
           echo '  <testsuite name="MockTestSuite" tests="1" failures="0" disabled="0" errors="0" time="0.001">' >> "${xml_path}"
           echo '    <testcase name="MockTestCase" status="run" time="0.001" classname="MockTestSuite" />' >> "${xml_path}"
           echo '  </testsuite>' >> "${xml_path}"
           echo '</testsuites>' >> "${xml_path}"
+          echo "MOCK TEST RUN LOG" > "${log_path}"
+          echo "All tests passed." >> "${log_path}"
           echo "Finished running tests (MOCKED)..."
           exit 0
         fi
