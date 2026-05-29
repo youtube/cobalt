@@ -6,10 +6,8 @@ h5vcc_updater_tests(async (t, mockH5vccUpdater) => {
   assert_implements(window.h5vcc, "window.h5vcc not supported");
   assert_implements(window.h5vcc.updater, "window.h5vcc.updater not supported");
 
-  // currently stubbed out and not implemented, so test will fail.
-  // placeholder value here till the updater plumbing is done.
-  const expected = '1';
+  const expected = 'test_url';
   mockH5vccUpdater.stubGetUpdateServerUrl(expected);
-  let actual = window.h5vcc.updater.getUpdateServerUrl();
+  let actual = await window.h5vcc.updater.getUpdateServerUrl();
   assert_equals(actual, expected);
-}, 'exercises H5vccUpdater.updateServerUrl()');
+}, 'H5vccUpdater.getUpdateServerUrl() returns the URL set in the mock.');

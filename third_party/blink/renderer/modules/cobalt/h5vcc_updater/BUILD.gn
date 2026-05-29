@@ -19,6 +19,7 @@ blink_modules_sources("h5vcc_updater") {
     "h_5_vcc_updater.cc",
     "h_5_vcc_updater.h",
   ]
-
-  deps = [ "//cobalt/browser/h5vcc_updater/public/mojom:mojom_blink" ]
+  if (use_evergreen) {
+    deps = [ "//cobalt/browser/h5vcc_updater/public/mojom:mojom_blink" ]
+  }
 }

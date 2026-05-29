@@ -111,7 +111,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMemoryPageSize);
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
-  REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
