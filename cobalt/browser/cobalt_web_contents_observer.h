@@ -18,6 +18,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
 
 namespace cobalt {
 
@@ -54,6 +57,13 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 #if BUILDFLAG(IS_ANDROIDTV)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
+  static void HandlePlatformErrorResponse(
+      SbSystemPlatformErrorResponse response,
+      void* user_data);
+  void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response);
+  bool is_platform_error_showing_ = false;
+#endif  // BUILDFLAG(IS_STARBOARD)
 };
 
 }  // namespace cobalt
