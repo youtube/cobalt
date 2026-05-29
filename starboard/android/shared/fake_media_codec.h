@@ -99,9 +99,7 @@ class FakeMediaCodec : public MediaCodec {
 // FakeMediaCodecFactory is a factory implementation used to inject
 // FakeMediaCodec instances during unit tests.
 //
-// This class is not thread-safe. It holds non-atomic raw pointers to the
-// recently created fakes for test verification without explicit
-// synchronization.
+// This class is thread-safe.
 class FakeMediaCodecFactory : public MediaCodec::Factory {
  public:
   FakeMediaCodecFactory() = default;
