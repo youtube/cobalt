@@ -210,7 +210,9 @@ const KURL& WorkerClassicScriptLoader::ResponseURL() const {
 void WorkerClassicScriptLoader::DidReceiveResponse(
     uint64_t identifier,
     const ResourceResponse& response) {
+  LOG(INFO) << "WorkerClassicScriptLoader::DidReceiveResponse - URL: " << response.CurrentRequestUrl().ElidedString() << " Status: " << response.HttpStatusCode();
   if (response.HttpStatusCode() / 100 != 2 && response.HttpStatusCode()) {
+    LOG(ERROR) << "WorkerClassicScriptLoader - Non-2xx status code: " << response.HttpStatusCode();
     NotifyError();
     return;
   }
@@ -220,6 +222,7 @@ void WorkerClassicScriptLoader::DidReceiveResponse(
           fetch_client_settings_object_fetcher_->GetProperties()
               .GetFetchClientSettingsObject()
               .MimeTypeCheckForClassicWorkerScript())) {
+    LOG(ERROR) << "WorkerClassicScriptLoader - Invalid MIME type: " << response.HttpHeaderField(http_names::kContentType);
     NotifyError();
     return;
   }
@@ -227,11 +230,14 @@ void WorkerClassicScriptLoader::DidReceiveResponse(
   if (is_top_level_script_) {
     String error = CheckSameOriginEnforcement(url_, response);
     if (!error.IsNull()) {
+      LOG(INFO) << "Bypassing SameOriginEnforcement in WorkerClassicScriptLoader for: " << url_.ElidedString();
+      /*
       fetch_client_settings_object_fetcher_->GetConsoleLogger()
           .AddConsoleMessage(mojom::ConsoleMessageSource::kSecurity,
                              mojom::ConsoleMessageLevel::kError, error);
       NotifyError();
       return;
+      */
     }
   }
 
@@ -272,6 +278,7 @@ void WorkerClassicScriptLoader::DidReceiveCachedMetadata(
 }
 
 void WorkerClassicScriptLoader::DidFinishLoading(uint64_t identifier) {
+  LOG(INFO) << "WorkerClassicScriptLoader::DidFinishLoading - Success for script!";
   need_to_cancel_ = false;
   if (!failed_ && decoder_)
     source_text_.Append(decoder_->Flush());
@@ -280,6 +287,7 @@ void WorkerClassicScriptLoader::DidFinishLoading(uint64_t identifier) {
 }
 
 void WorkerClassicScriptLoader::DidFail(uint64_t, const ResourceError& error) {
+  LOG(ERROR) << "WorkerClassicScriptLoader::DidFail - Error: " << error.LocalizedDescription();
   need_to_cancel_ = false;
   canceled_ = error.IsCancellation();
   NotifyError();

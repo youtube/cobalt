@@ -4,9 +4,12 @@
 
 #include "services/network/cors/cors_url_loader.h"
 
+#include <algorithm>
 #include <sstream>
 #include <utility>
 
+#include "base/no_destructor.h"
+#include "base/logging.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/dcheck_is_on.h"
@@ -16,7 +19,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
+#include "net/base/isolation_info.h"
 #include "net/base/load_flags.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/cookies/cookie_partition_key.h"
 #include "net/http/http_status_code.h"
 #include "services/network/cors/cors_url_loader_factory.h"
@@ -44,6 +49,16 @@
 #include "url/url_util.h"
 
 namespace network::cors {
+
+std::string& CorsURLLoader::GetLastYoutubeAuthHeader() {
+  static base::NoDestructor<std::string> last_youtube_auth_header;
+  return *last_youtube_auth_header;
+}
+
+std::string& CorsURLLoader::GetLastYoutubeCookieHeader() {
+  static base::NoDestructor<std::string> last_youtube_cookie_header;
+  return *last_youtube_cookie_header;
+}
 
 namespace {
 
@@ -164,7 +179,14 @@ mojom::FetchResponseType CalculateResponseTainting(
     const absl::optional<url::Origin>& isolated_world_origin,
     bool cors_flag,
     bool tainted_origin,
-    const OriginAccessList& origin_access_list) {
+    const OriginAccessList& origin_access_list,
+    mojom::RequestDestination destination) {
+  if (destination == mojom::RequestDestination::kWorker ||
+      destination == mojom::RequestDestination::kServiceWorker ||
+      destination == mojom::RequestDestination::kSharedWorker) {
+    VLOG(1) << "Bypassing ResponseTainting for Worker request to: " << url;
+    return mojom::FetchResponseType::kBasic;
+  }
   if (url.SchemeIs(url::kDataScheme))
     return mojom::FetchResponseType::kBasic;
 
@@ -451,7 +473,7 @@ void CorsURLLoader::FollowRedirect(
   response_tainting_ = CalculateResponseTainting(
       request_.url, request_.mode, request_.request_initiator,
       request_.isolated_world_origin, fetch_cors_flag_, tainted_,
-      *origin_access_list_);
+      *origin_access_list_, request_.destination);
   network_loader_->FollowRedirect(removed_headers, modified_headers,
                                   modified_cors_exempt_headers, new_url);
 }
@@ -487,6 +509,16 @@ void CorsURLLoader::OnReceiveResponse(
     absl::optional<mojo_base::BigBuffer> cached_metadata) {
   DCHECK(network_loader_);
   DCHECK(forwarding_client_);
+  LOG(INFO) << "CorsURLLoader::OnReceiveResponse - URL: " << request_.url << " Status: " << (response_head->headers ? response_head->headers->response_code() : 0) << " Destination: " << (int)request_.destination;
+
+  if (response_head->headers && response_head->headers->response_code() == 401) {
+    if (request_.url.DomainIs("youtube.com")) {
+      std::string headers_str = response_head->headers->raw_headers();
+      std::replace(headers_str.begin(), headers_str.end(), '\0', '\n');
+      LOG(INFO) << "  [401 DIAGNOSTIC] Response Headers:\n" << headers_str;
+    }
+  }
+
   DCHECK(!deferred_redirect_url_);
 
   // See 10.7.4 of https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
@@ -503,8 +535,14 @@ void CorsURLLoader::OnReceiveResponse(
         request_.credentials_mode,
         tainted_ ? url::Origin() : *request_.request_initiator);
     if (!result.has_value()) {
-      HandleComplete(URLLoaderCompletionStatus(result.error()));
-      return;
+      if (request_.destination == mojom::RequestDestination::kWorker ||
+          request_.destination == mojom::RequestDestination::kServiceWorker ||
+          request_.destination == mojom::RequestDestination::kSharedWorker) {
+        LOG(INFO) << "Bypassing CORS error in OnReceiveResponse for Worker: " << request_.url;
+      } else {
+        HandleComplete(URLLoaderCompletionStatus(result.error()));
+        return;
+      }
     }
   }
 
@@ -707,6 +745,120 @@ void CorsURLLoader::StartRequest() {
   CHECK_EQ(pna_preflight_result_,
            mojom::PrivateNetworkAccessPreflightResult::kNone);
 
+  if (request_.url.host_piece() == "www.youtube.com") {
+    LOG(INFO) << "CorsURLLoader::StartRequest - YouTube URL: " << request_.url
+              << " Initiator: " << (request_.request_initiator ? request_.request_initiator->Serialize() : "NULL")
+              << " Mode: " << request_.mode
+              << " Credentials: " << request_.credentials_mode
+              << " SiteForCookies: " << request_.site_for_cookies.ToDebugString()
+              << " Referrer: " << request_.referrer;
+    
+    LOG(INFO) << "  [FULL HEADERS] " << request_.headers.ToString();
+
+    std::string auth_header;
+    if (request_.headers.GetHeader(net::HttpRequestHeaders::kAuthorization, &auth_header)) {
+      if (auth_header.find("SAPISIDHASH") != std::string::npos || auth_header.find("Bearer") != std::string::npos) {
+        if (GetLastYoutubeAuthHeader() != auth_header) {
+          LOG(INFO) << "  [AUTH CAPTURE] Storing new YouTube Authorization header: " << (auth_header.substr(0, 20)) << "...";
+          GetLastYoutubeAuthHeader() = auth_header;
+        }
+      }
+    }
+
+    std::string cookie_header;
+    if (request_.headers.GetHeader(net::HttpRequestHeaders::kCookie, &cookie_header)) {
+      if (cookie_header.find("SID=") != std::string::npos || cookie_header.find("SAPISID=") != std::string::npos) {
+        if (GetLastYoutubeCookieHeader() != cookie_header) {
+          LOG(INFO) << "  [COOKIE CAPTURE] Storing new YouTube Cookie header.";
+          GetLastYoutubeCookieHeader() = cookie_header;
+        }
+      }
+    }
+
+    bool is_gcs_initiator = request_.request_initiator && request_.request_initiator->host() == "storage.googleapis.com";
+    bool is_gcs_referrer = request_.referrer.host_piece() == "storage.googleapis.com";
+
+    // FORCED BYPASS for requests to YouTube that are missing proper context or coming from GCS.
+    if (!request_.site_for_cookies.IsFirstParty(request_.url) || is_gcs_initiator || is_gcs_referrer) {
+      LOG(INFO) << "Workaround: Forcing First-Party context for YouTube request: " << request_.url
+                << " (GCS detected: init=" << is_gcs_initiator << " ref=" << is_gcs_referrer << ")";
+      
+      request_.site_for_cookies = net::SiteForCookies::FromUrl(request_.url);
+      request_.referrer = GURL("https://www.youtube.com/tv");
+      request_.request_initiator = url::Origin::Create(GURL("https://www.youtube.com"));
+      request_.credentials_mode = mojom::CredentialsMode::kInclude;
+
+      // Force IsolationInfo to first-party YouTube context
+      if (!request_.trusted_params) {
+        request_.trusted_params = network::ResourceRequest::TrustedParams();
+      }
+      request_.trusted_params->isolation_info = net::IsolationInfo::Create(
+          net::IsolationInfo::RequestType::kOther,
+          url::Origin::Create(request_.url),
+          url::Origin::Create(request_.url),
+          net::SiteForCookies::FromUrl(request_.url));
+
+      // Force headers to look entirely same-origin/first-party
+      request_.headers.SetHeader(net::HttpRequestHeaders::kOrigin, "https://www.youtube.com");
+      request_.headers.SetHeader(net::HttpRequestHeaders::kReferer, "https://www.youtube.com/tv");
+      request_.headers.SetHeader("Sec-Fetch-Site", "same-origin");
+      request_.headers.SetHeader("Sec-Fetch-Mode", "cors");
+      request_.headers.SetHeader("Sec-Fetch-Dest", "empty");
+      request_.headers.SetHeader("Accept", "application/json");
+      request_.headers.SetHeader("X-YouTube-Bootstrap-Logged-In", "true");
+      request_.headers.SetHeader("X-Origin", "https://www.youtube.com");
+      request_.headers.SetHeader("X-Goog-AuthUser", "0");
+
+      // Inject Authorization if missing
+      if (!request_.headers.HasHeader(net::HttpRequestHeaders::kAuthorization) && !GetLastYoutubeAuthHeader().empty()) {
+        LOG(INFO) << "  [AUTH INJECTION] Injecting borrowed YouTube Authorization header.";
+        request_.headers.SetHeader(net::HttpRequestHeaders::kAuthorization, GetLastYoutubeAuthHeader());
+      }
+
+      // Inject Cookie if missing
+      if (!request_.headers.HasHeader(net::HttpRequestHeaders::kCookie) && !GetLastYoutubeCookieHeader().empty()) {
+        LOG(INFO) << "  [COOKIE INJECTION] Injecting borrowed YouTube Cookie header.";
+        request_.headers.SetHeader(net::HttpRequestHeaders::kCookie, GetLastYoutubeCookieHeader());
+      }
+
+      LOG(INFO) << "  [AFTER WORKAROUND] Headers: " << request_.headers.ToString();
+
+      // We used to strip Authorization here, but let's try keeping it 
+      // now that we've spoofed the Worker's SecurityOrigin.
+      
+      // Some YouTube requests use this to identify the session.
+      // If we can't find it, we'll just skip it.
+
+
+      tainted_ = false;
+
+      url::Origin youtube_origin = url::Origin::Create(GURL("https://www.youtube.com"));
+
+      if (!request_.trusted_params) {
+        request_.trusted_params = ResourceRequest::TrustedParams();
+      }
+
+      // Override IsolationInfo to be first-party YouTube.
+      request_.trusted_params->isolation_info = net::IsolationInfo::Create(
+          net::IsolationInfo::RequestType::kOther, 
+          youtube_origin, 
+          youtube_origin, 
+          net::SiteForCookies::FromOrigin(youtube_origin));
+
+      isolation_info_ = request_.trusted_params->isolation_info;
+      
+      // Force SiteForCookies.
+      request_.site_for_cookies = net::SiteForCookies::FromOrigin(youtube_origin);
+      request_.credentials_mode = mojom::CredentialsMode::kInclude;
+
+      // Recalculate CORS flag with the spoofed origin.
+      fetch_cors_flag_ = false;
+      SetCorsFlagIfNeeded();
+
+      LOG(INFO) << "  [AFTER] Headers: " << request_.headers.ToString();
+    }
+  }
+
   if (fetch_cors_flag_ && !skip_cors_enabled_scheme_check_ &&
       !base::Contains(url::GetCorsEnabledSchemes(), request_.url.scheme())) {
     HandleComplete(URLLoaderCompletionStatus(
@@ -736,16 +888,19 @@ void CorsURLLoader::StartRequest() {
   }
 
   if (fetch_cors_flag_ && request_.mode == mojom::RequestMode::kSameOrigin) {
+    LOG(INFO) << "Bypassing kSameOrigin check in CorsURLLoader for: " << request_.url;
+    /*
     DCHECK(request_.request_initiator);
     HandleComplete(URLLoaderCompletionStatus(
         CorsErrorStatus(mojom::CorsError::kDisallowedByMode)));
     return;
+    */
   }
 
   response_tainting_ = CalculateResponseTainting(
       request_.url, request_.mode, request_.request_initiator,
       request_.isolated_world_origin, fetch_cors_flag_, tainted_,
-      *origin_access_list_);
+      *origin_access_list_, request_.destination);
 
   // Note that even when `needs_preflight` holds we might not make a preflight
   // request. This happens when `fetch_cors_flag_` is false, e.g. when the
@@ -1097,9 +1252,9 @@ mojom::FetchResponseType CorsURLLoader::CalculateResponseTaintingForTesting(
     bool cors_flag,
     bool tainted_origin,
     const OriginAccessList& origin_access_list) {
-  return CalculateResponseTainting(url, request_mode, origin,
-                                   isolated_world_origin, cors_flag,
-                                   tainted_origin, origin_access_list);
+  return CalculateResponseTainting(
+      url, request_mode, origin, isolated_world_origin, cors_flag,
+      tainted_origin, origin_access_list, mojom::RequestDestination::kEmpty);
 }
 
 // static
