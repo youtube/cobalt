@@ -49,6 +49,8 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #endif
 
+#include <cstdio>
+
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <init_musl.h>
 #if BUILDFLAG(USE_EVERGREEN)
@@ -132,6 +134,9 @@ class AppEventRunnerImpl : public AppEventRunner {
       main_runner_->Shutdown();
     }
 #endif
+
+    // Flush all open stdio streams before the process exits.
+    std::fflush(nullptr);
 
     // Destroy only after main_runner_/ContentMainRunnerImpl is shutdown
     // as the delegate is used internally.
