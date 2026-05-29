@@ -47,13 +47,6 @@ typedef int32_t SbThreadId;
 #define __SYSCALL_CONCAT(a, b) __SYSCALL_CONCAT_X(a, b)
 #define syscall(name, ...) __SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__)
 
-// Map `libc_wrapper_SYS_ioctl(int fd, op,...)` to `ioctl_op(int fd,...)` calls
-// to allow separate implementation per ioctl operation.
-#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b) a##b
-#define __LIBC_WRAPPER_SYS_IOCTL_CONCAT(a,b) __LIBC_WRAPPER_SYS_IOCTL_CONCAT_X(a,b)
-#define __LIBC_WRAPPER_SYS_IOCTL_DISP(b, op, fd_param, ...) __LIBC_WRAPPER_SYS_IOCTL_CONCAT(b,op)(fd_param, ##__VA_ARGS__)
-#define libc_wrapper_SYS_ioctl(fd, op, ...) __LIBC_WRAPPER_SYS_IOCTL_DISP(ioctl_, op, fd, ##__VA_ARGS__)
-
 // Signal that we support these sycalls. This for code that checks for existence
 // of a definition to determine whether to use fallbacks.
 #define SYS_close SYS_close
@@ -81,6 +74,7 @@ typedef int32_t SbThreadId;
 #define libc_wrapper_SYS_close(fildes) close(fildes)
 #define libc_wrapper_SYS_fcntl(fd, op, ...) fcntl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_gettid() gettid()
+#define libc_wrapper_SYS_ioctl(fd, op, ...) ioctl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
 #define libc_wrapper_SYS_read(fildes, buf, nbyte) read(fildes, buf, nbyte)
 #define libc_wrapper_SYS_readv(fildes, iov, iovcnt) readv(fildes, iov, iovcnt)

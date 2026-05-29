@@ -38,6 +38,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/socket.h>
@@ -64,6 +65,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_getrandom_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_inotify_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_ioctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
@@ -280,6 +282,7 @@ ExportedSymbols::ExportedSymbols() {
 
   // Linux APIs
   REGISTER_SYMBOL(recvmmsg);
+  REGISTER_WRAPPER(ioctl_FIONREAD);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate

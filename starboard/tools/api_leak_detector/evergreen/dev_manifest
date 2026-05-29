@@ -7,4 +7,3 @@ TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
 __cxa_thread_atexit_impl
 dlopen
 dlsym
-ioctl

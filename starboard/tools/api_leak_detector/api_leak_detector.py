@@ -138,6 +138,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'inotify_init1',
     'inotify_rm_watch',
     'isatty',
+    'ioctl_FIONREAD',
     'kill',
     'link',
     'listen',
