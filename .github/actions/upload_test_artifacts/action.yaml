@@ -108,7 +108,7 @@ runs:
           ${ARCHIVE_FLAGS}
       shell: bash
 
-    - name: Archive Browser Tests
+    - name: Archive Browser/Web Tests
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
