@@ -50,12 +50,48 @@ class MODULES_EXPORT H5vccUpdater final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
+  ScriptPromise<IDLString> getUpdaterChannel(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> setUpdaterChannel(ScriptState*,
+                                                const String&,
+                                                ExceptionState&);
+  ScriptPromise<IDLString> getUpdateStatus(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> resetInstallations(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUnsignedShort> getInstallationIndex(ScriptState*,
+                                                       ExceptionState&);
+  ScriptPromise<IDLString> getLibrarySha256(ScriptState*,
+                                            uint16_t,
+                                            ExceptionState&);
+  ScriptPromise<IDLBoolean> getAllowSelfSignedPackages(ScriptState*,
+                                                       ExceptionState&);
+  ScriptPromise<IDLUndefined> setAllowSelfSignedPackages(ScriptState*,
+                                                         bool,
+                                                         ExceptionState&);
   ScriptPromise<IDLString> getUpdateServerUrl(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> setUpdateServerUrl(ScriptState*,
+                                                 const String&,
+                                                 ExceptionState&);
+  ScriptPromise<IDLBoolean> getRequireNetworkEncryption(ScriptState*,
+                                                        ExceptionState&);
+  ScriptPromise<IDLUndefined> setRequireNetworkEncryption(ScriptState*,
+                                                          bool,
+                                                          ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
+  void OnGetUpdaterChannel(ScriptPromiseResolver<IDLString>*, const String&);
+  void OnSetUpdaterChannel(ScriptPromiseResolver<IDLUndefined>*);
+  void OnGetUpdateStatus(ScriptPromiseResolver<IDLString>*, const String&);
+  void OnResetInstallations(ScriptPromiseResolver<IDLUndefined>*);
+  void OnGetInstallationIndex(ScriptPromiseResolver<IDLUnsignedShort>*,
+                              uint16_t);
+  void OnGetLibrarySha256(ScriptPromiseResolver<IDLString>*, const String&);
+  void OnGetAllowSelfSignedPackages(ScriptPromiseResolver<IDLBoolean>*, bool);
+  void OnSetAllowSelfSignedPackages(ScriptPromiseResolver<IDLUndefined>*);
   void OnGetUpdateServerUrl(ScriptPromiseResolver<IDLString>*, const String&);
+  void OnSetUpdateServerUrl(ScriptPromiseResolver<IDLUndefined>*);
+  void OnGetRequireNetworkEncryption(ScriptPromiseResolver<IDLBoolean>*, bool);
+  void OnSetRequireNetworkEncryption(ScriptPromiseResolver<IDLUndefined>*);
 #if BUILDFLAG(USE_EVERGREEN)
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
