@@ -95,6 +95,7 @@ private:
     Config()
       : Core::JSON::Container()
       , Url()
+      , LaunchType()
       , ClientIdentifier()
       , Language()
       , ContentDir()
@@ -103,6 +104,7 @@ private:
       , AutoSuspendDelay()
       , SbMainArgs() {
       Add(_T("url"), &Url);
+      Add(_T("launchtype"), &LaunchType);
       Add(_T("clientidentifier"), &ClientIdentifier);
       Add(_T("language"), &Language);
       Add(_T("contentdir"), &ContentDir);
@@ -121,6 +123,7 @@ private:
 
   public:
     Core::JSON::String Url;
+    Core::JSON::String LaunchType;
     Core::JSON::String ClientIdentifier;
     Core::JSON::String Language;
     Core::JSON::String ContentDir;
@@ -250,6 +253,7 @@ private:
     CobaltWindow(CobaltImplementation& parent)
       : Core::Thread(0, _T("Cobalt"))
       , _url("https://www.youtube.com/tv")
+      , _launchType()
       , _parent(parent)
     {
     }
@@ -289,6 +293,13 @@ private:
       if (config.Url.IsSet() == true) {
         _url = config.Url.Value();
       }
+
+      _launchType.clear();
+      if (config.LaunchType.IsSet() == true) {
+        _launchType = config.LaunchType.Value();
+      }
+
+      _url = NormalizeUrl(_url, _T("startup"));
 
       if (config.Language.IsSet() == true) {
         string lang = config.Language.Value();
@@ -385,6 +396,62 @@ private:
 
     string Url() const { return _url; }
 
+    string NormalizeUrl(const string& url, const TCHAR reason[]) const
+    {
+      string normalized(url);
+      if (normalized.empty() == true) {
+        return normalized;
+      }
+
+      const size_t fragmentPosition = normalized.find('#');
+      const size_t queryEnd =
+          (fragmentPosition == string::npos ? normalized.length() : fragmentPosition);
+      const size_t launchPosition = normalized.find("launch=");
+      if ((launchPosition != string::npos) && (launchPosition < queryEnd)) {
+        // launch= is already present; ensure utm_content=m is also set for menu launches.
+        const size_t utmPosition = normalized.find("utm_content=");
+        if ((utmPosition == string::npos) || (utmPosition >= queryEnd)) {
+          const string separator = (normalized[queryEnd - 1] == '?' || normalized[queryEnd - 1] == '&') ? "" : "&";
+          normalized.insert(queryEnd, separator + "utm_content=m");
+          SYSLOG(Logging::Notification,
+                 (_T("Appended utm_content=m to %s URL: %s\n"), reason, normalized.c_str()));
+        }
+        return normalized;
+      }
+
+      string launchType(_launchType);
+      if (launchType.empty() == true) {
+        // Infer a menu launch when there is no explicit launch= already:
+        //   - loader=yts present: YTS-initiated launch, always a menu launch.
+        //   - no v= param: plain home-screen launch (no content video ID).
+        if (normalized.find("loader=yts") != string::npos ||
+            normalized.find("v=") == string::npos) {
+          launchType = "launch=menu&utm_content=m";
+          SYSLOG(Logging::Notification,
+                 (_T("Inferred launchtype for %s URL: %s\n"), reason, launchType.c_str()));
+        }
+      }
+
+      if (launchType.empty() == true) {
+        return normalized;
+      }
+
+      string prefix(normalized.substr(0, queryEnd));
+      string suffix(normalized.substr(queryEnd));
+      if (prefix.find('?') == string::npos) {
+        prefix += '?';
+      } else if ((prefix.back() != '?') && (prefix.back() != '&')) {
+        prefix += '&';
+      }
+      prefix += launchType;
+      normalized = prefix + suffix;
+
+      SYSLOG(Logging::Notification,
+             (_T("Applied launchtype to %s URL: %s\n"), reason, normalized.c_str()));
+
+      return normalized;
+    }
+
     bool IsPreloadEnabled() const { return _preloadEnabled; }
 
     uint16_t AutoSuspendDelayInSeconds() const { return _autoSuspendDelayInSeconds; }
@@ -458,6 +525,7 @@ private:
 
     int _exitCode { 0 };
     string _url;
+    string _launchType;
     CobaltImplementation &_parent;
     bool _preloadEnabled { false };
     uint16_t _autoSuspendDelayInSeconds { 30 };
@@ -496,8 +564,9 @@ public:
   }
 
   virtual void SetURL(const string &URL) override {
-    SYSLOG(Logging::Notification, (_T("deeplink=%s\n"), URL.c_str()));
-    SbRdkHandleDeepLink(URL.c_str());
+    const string normalized = _window.NormalizeUrl(URL, _T("deeplink"));
+    SYSLOG(Logging::Notification, (_T("deeplink=%s\n"), normalized.c_str()));
+    SbRdkHandleDeepLink(normalized.c_str());
   }
 
   virtual string GetURL() const override {
