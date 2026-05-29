@@ -18,8 +18,9 @@
 #include <android/native_window.h>
 #include <jni.h>
 
-namespace starboard {
+#include "starboard/decode_target.h"
 
+namespace starboard {
 class VideoSurfaceHolder {
  public:
   // Return true only if the video surface is available.
@@ -45,8 +46,13 @@ class VideoSurfaceHolder {
   // window.
   bool GetVideoWindowSize(int* width, int* height);
 
-  // Clear the video window by painting it Black.
-  void ClearVideoWindow(bool force_reset_surface);
+  // Cleans up the video surface. If |force_clear| is enabled, we will only
+  // clear the video window, and post the clearing task to |gpu_provider|.
+  // If |force_clear| is false, we will forcefully destroy the surface view,
+  // which will then be recreated.
+  void CleanUpVideoWindow(
+      bool force_clear,
+      SbDecodeTargetGraphicsContextProvider* gpu_provider = nullptr);
 };
 
 }  // namespace starboard

@@ -244,7 +244,7 @@ MediaCodecVideoDecoder::Create(
     const std::string& max_video_capabilities,
     std::optional<int> tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
-    bool force_reset_surface,
+    bool force_clear_surface,
     bool force_big_endian_hdr_metadata,
     int max_input_size,
     void* surface_view,
@@ -257,7 +257,7 @@ MediaCodecVideoDecoder::Create(
       PassKey<MediaCodecVideoDecoder>(), job_queue, video_stream_info,
       drm_system, output_mode, decode_target_graphics_context_provider,
       max_video_capabilities, tunnel_mode_audio_session_id,
-      force_secure_pipeline_under_tunnel_mode, force_reset_surface,
+      force_secure_pipeline_under_tunnel_mode, force_clear_surface,
       force_big_endian_hdr_metadata, max_input_size, surface_view,
       enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
       experimental_features, &error_message);
@@ -287,7 +287,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     const std::string& max_video_capabilities,
     std::optional<int> tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
-    bool force_reset_surface,
+    bool force_clear_surface,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     void* surface_view,
@@ -317,7 +317,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                                                             : 0),
       skip_flush_on_decoder_teardown_(
           experimental_features.skip_flush_on_decoder_teardown),
-      force_reset_surface_(force_reset_surface),
+      force_clear_surface_(force_clear_surface),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
@@ -390,13 +390,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_) {
-    // Forces video surface to reset after tunnel mode playbacks. This prevents
-    // video distortion on some platforms. For details, see http://b/182610842.
-    ClearVideoWindow(/*force_reset_surface=*/true);
-  } else {
-    ClearVideoWindow(force_reset_surface_);
-  }
+  // Forces video surface to reset after tunnel mode playbacks. This prevents
+  // video distortion on some platforms. For details, see http://b/182610842.
+  bool force_clear =
+      !tunnel_mode_audio_session_id_.has_value() && force_clear_surface_;
+  CleanUpVideoWindow(force_clear, decode_target_graphics_context_provider_);
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
