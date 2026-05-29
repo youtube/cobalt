@@ -64,6 +64,7 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
 
   SharedImageBackingType GetType() const override;
   void Update(std::unique_ptr<gfx::GpuFence> in_fence) override;
+  bool IsValid() const { return is_valid_; }
 
  protected:
   std::unique_ptr<GLTextureImageRepresentation> ProduceGLTexture(
@@ -88,6 +89,7 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
       passthrough_textures_;
 
   SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
+  bool is_valid_ = true;
 
 #if BUILDFLAG(IS_ANDROID)
   scoped_refptr<gpu::RefCountedLock> drdc_lock_;

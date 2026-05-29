@@ -200,6 +200,8 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
                             format_desc.data_format, format_desc.data_type,
                             gfx::Rect(plane_size));
       texture->SetImmutable(true, false);
+    } else {
+      is_valid_ = false;
     }
     textures_.push_back(texture);
   }
