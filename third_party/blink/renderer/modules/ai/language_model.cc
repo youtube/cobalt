@@ -13,7 +13,6 @@
 #include "base/types/expected_macros.h"
 #include "base/types/pass_key.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom-blink.h"
-#include "third_party/blink/public/mojom/ai/ai_common.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/ai_language_model.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -108,8 +107,7 @@ class CloneLanguageModelClient
     Cleanup();
   }
 
-  void OnError(mojom::blink::AIManagerCreateClientError error,
-               mojom::blink::QuotaErrorInfoPtr quota_error_info) override {
+  void OnError(mojom::blink::AIManagerCreateClientError error) override {
     if (!GetResolver()) {
       return;
     }
@@ -195,11 +193,10 @@ class AppendClient : public GarbageCollected<AppendClient>,
     Cleanup();
   }
 
-  void OnError(ModelStreamingResponseStatus status,
-               mojom::blink::QuotaErrorInfoPtr quota_error_info) override {
+  void OnError(ModelStreamingResponseStatus status) override {
     if (GetResolver()) {
-      GetResolver()->Reject(ConvertModelStreamingResponseErrorToDOMException(
-          status, std::move(quota_error_info)));
+      GetResolver()->Reject(
+          ConvertModelStreamingResponseErrorToDOMException(status));
     }
     Cleanup();
   }
@@ -596,6 +593,12 @@ LanguageModel::ValidateAndProcessPromptInput(
     return std::nullopt;
   }
 
+  if (!input->IsString() &&
+      !RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
+    exception_state.ThrowTypeError("Input type not supported");
+    return std::nullopt;
+  }
+
   AbortSignal* signal = options->getSignalOr(nullptr);
   if (HandleAbortSignal(signal, script_state, exception_state)) {
     return std::nullopt;
@@ -637,6 +640,12 @@ ScriptPromise<IDLUndefined> LanguageModel::append(
       MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
   auto promise = resolver->Promise();
 
+  // The API impl only accepts a string by default for now, more to come soon!
+  if (!input->IsString() &&
+      !RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
+    exception_state.ThrowTypeError("Input type not supported");
+    return promise;
+  }
   if (!language_model_remote_) {
     ThrowSessionDestroyedException(exception_state);
     return promise;
@@ -701,6 +710,13 @@ ScriptPromise<IDLDouble> LanguageModel::measureInputUsage(
     ExceptionState& exception_state) {
   if (!script_state->ContextIsValid()) {
     ThrowInvalidContextException(exception_state);
+    return EmptyPromise();
+  }
+
+  // The API impl only accepts a string by default for now, more to come soon!
+  if (!input->IsString() &&
+      !RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
+    exception_state.ThrowTypeError("Input type not supported");
     return EmptyPromise();
   }
 

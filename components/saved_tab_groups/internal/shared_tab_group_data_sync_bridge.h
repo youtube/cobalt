@@ -143,8 +143,7 @@ class SharedTabGroupDataSyncBridge : public syncer::DataTypeSyncBridge {
       syncer::DataTypeStore::WriteBatch& write_batch,
       const std::set<base::Uuid>& tab_ids_with_pending_model_update,
       const syncer::CollaborationMetadata& collaboration_metadata,
-      base::Time creation_time,
-      base::Time modification_time);
+      base::Time creation_time);
 
   // Removes all data assigned to `storage_key` from local storage
   // (SavedTabGroupModel, and DataTypeStore). If a group is removed, all its
@@ -263,8 +262,7 @@ class SharedTabGroupDataSyncBridge : public syncer::DataTypeSyncBridge {
   struct TabMissingGroup {
     TabMissingGroup(sync_pb::SharedTabGroupDataSpecifics specifics,
                     syncer::CollaborationMetadata collaboration_metadata,
-                    base::Time creation_time,
-                    base::Time modification_time);
+                    base::Time creation_time);
     TabMissingGroup(const TabMissingGroup&);
     TabMissingGroup& operator=(const TabMissingGroup&);
     TabMissingGroup(TabMissingGroup&&);
@@ -274,7 +272,6 @@ class SharedTabGroupDataSyncBridge : public syncer::DataTypeSyncBridge {
     sync_pb::SharedTabGroupDataSpecifics specifics;
     syncer::CollaborationMetadata collaboration_metadata;
     base::Time creation_time;
-    base::Time modification_time;
   };
   std::map<base::Uuid, TabMissingGroup> tabs_missing_groups_;
 

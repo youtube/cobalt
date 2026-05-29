@@ -291,14 +291,12 @@ void AddReferrerChainToEvent(
     base::Value::Dict& event) {
   base::Value::List referrers;
   for (const auto& referrer : referrer_chain) {
-    if (!referrer.url().empty() || !referrer.ip_addresses().empty()) {
-      base::Value::Dict referrer_dict;
-      referrer_dict.Set("url", referrer.url());
-      if (referrer.ip_addresses().size() > 0) {
-        referrer_dict.Set("ip", referrer.ip_addresses()[0]);
-      }
-      referrers.Append(std::move(referrer_dict));
+    base::Value::Dict referrer_dict;
+    referrer_dict.Set("url", referrer.url());
+    if (referrer.ip_addresses().size() > 0) {
+      referrer_dict.Set("ip", referrer.ip_addresses()[0]);
     }
+    referrers.Append(std::move(referrer_dict));
   }
   event.Set(kKeyReferrers, std::move(referrers));
 }

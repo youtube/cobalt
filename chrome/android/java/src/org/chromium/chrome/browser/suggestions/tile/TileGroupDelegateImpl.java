@@ -215,7 +215,6 @@ public class TileGroupDelegateImpl implements TileGroup.Delegate {
                             if (mIsDestroyed) return;
                             Runnable undoHandlerFromData = (Runnable) actionData;
                             undoHandlerFromData.run();
-                            RecordUserAction.record("Suggestions.SnackBar.UndoUnpinItem");
                         }
                     };
         }

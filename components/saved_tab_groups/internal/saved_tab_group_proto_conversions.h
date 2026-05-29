@@ -35,15 +35,11 @@ sync_pb::SavedTabGroup_SavedTabGroupColor TabGroupColorToSyncColor(
 
 SavedTabGroup DataToSavedTabGroup(const proto::SavedTabGroupData& data);
 
-proto::SavedTabGroupData SavedTabGroupToData(
-    const SavedTabGroup& group,
-    const sync_pb::SavedTabGroupSpecifics& base_specifics);
+proto::SavedTabGroupData SavedTabGroupToData(const SavedTabGroup& group);
 
 SavedTabGroupTab DataToSavedTabGroupTab(const proto::SavedTabGroupData& data);
 
-proto::SavedTabGroupData SavedTabGroupTabToData(
-    const SavedTabGroupTab& tab,
-    const sync_pb::SavedTabGroupSpecifics& base_specifics);
+proto::SavedTabGroupData SavedTabGroupTabToData(const SavedTabGroupTab& tab);
 
 std::optional<size_t> GroupPositionFromSpecifics(
     const sync_pb::SavedTabGroupSpecifics& specifics);

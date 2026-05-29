@@ -162,7 +162,6 @@ const CGFloat kSelectionUICornerRadius = 13.0;
   self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
 
   self.view.accessibilityIdentifier = kLenscontainerViewAccessibilityIdentifier;
-  self.view.clipsToBounds = YES;
 
   if (!self.selectionViewController) {
     return;
@@ -203,8 +202,6 @@ const CGFloat kSelectionUICornerRadius = 13.0;
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
-  UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
-                                  self.selectionViewController);
   [self.delegate lensOverlayContainerDidAppear:self animated:animated];
 }
 

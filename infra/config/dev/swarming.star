@@ -4,12 +4,9 @@
 
 """Permissions for Chromium dev/staging swarming pools."""
 
-load("@chromium-luci//swarming.star", "swarming")
+load("//lib/swarming.star", "swarming")
 
-swarming.root_permissions(
-    owner_group = "project-chromium-admins",
-    viewer_group = "all",
-)
+swarming.root_permissions()
 
 swarming.task_accounts(
     realm = "@root",

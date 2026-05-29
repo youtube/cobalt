@@ -60,26 +60,13 @@ void ThreadedMessagingProxyBase::Trace(Visitor* visitor) const {
   visitor->Trace(execution_context_);
 }
 
-bool ThreadedMessagingProxyBase::InitializeWorkerThread(
+void ThreadedMessagingProxyBase::InitializeWorkerThread(
     std::unique_ptr<GlobalScopeCreationParams> global_scope_creation_params,
     const std::optional<WorkerBackingThreadStartupData>& thread_startup_data,
     const std::optional<const blink::DedicatedWorkerToken>& token,
     std::unique_ptr<WorkerDevToolsParams> client_provided_devtools_params) {
   DCHECK(IsParentContextThread());
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  // This is used only if kWorkerThreadRespectTermRequest is enabled,
-  // and is dedicated worker.
-  WorkerGlobalScope* worker_scope = nullptr;
-  if (base::FeatureList::IsEnabled(
-          blink::features::kWorkerThreadRespectTermRequest)) {
-    worker_scope = DynamicTo<WorkerGlobalScope>(execution_context_.Get());
-  }
-
-  // Quickly returns if the current thread has already been terminated.
-  if (worker_scope && worker_scope->GetThread()->IsRequestedToTerminate()) {
-    return false;
-  }
 
   KURL script_url = global_scope_creation_params->script_url;
 
@@ -89,13 +76,6 @@ bool ThreadedMessagingProxyBase::InitializeWorkerThread(
   }
 
   worker_thread_ = CreateWorkerThread();
-  // The thread is shutting down. We cannot add a new thread.
-  if (worker_scope &&
-      !worker_scope->GetThread()->ChildThreadStartedOnWorkerThread(
-          worker_thread_.get())) {
-    worker_thread_.reset();
-    return false;
-  }
 
   auto devtools_params =
       client_provided_devtools_params
@@ -107,13 +87,12 @@ bool ThreadedMessagingProxyBase::InitializeWorkerThread(
   worker_thread_->Start(std::move(global_scope_creation_params),
                         thread_startup_data, std::move(devtools_params));
 
-  if (!worker_scope) {
-    if (auto* scope = DynamicTo<WorkerGlobalScope>(execution_context_.Get())) {
-      scope->GetThread()->ChildThreadStartedOnWorkerThreadLegacy(
+  if (execution_context_) {
+    if (auto* scope = DynamicTo<WorkerGlobalScope>(*execution_context_)) {
+      scope->GetThread()->ChildThreadStartedOnWorkerThread(
           worker_thread_.get());
     }
   }
-  return true;
 }
 
 void ThreadedMessagingProxyBase::CountFeature(WebFeature feature) {

@@ -23,10 +23,6 @@ class FakeMagicBoostState : public chromeos::MagicBoostState {
 
   void SetAvailability(bool available);
   void SetMagicBoostEnabled(bool enabled);
-
- protected:
-  base::expected<bool, chromeos::MagicBoostState::Error>
-  IsMagicBoostAvailableExpected() const override;
 };
 
 }  // namespace test

@@ -216,15 +216,13 @@ GtkUiPlatform* GtkUi::GetPlatform() {
 }
 
 bool GtkUi::Initialize() {
-  const auto* delegate = ui::LinuxUiDelegate::GetInstance();
-  DCHECK(delegate);
-  const auto backend = delegate->GetBackend();
-
-  if (!LoadGtk(backend) || !GtkCheckVersion(3, 20)) {
+  if (!LoadGtk() || !GtkCheckVersion(3, 20)) {
     return false;
   }
 
-  platform_ = CreateGtkUiPlatform(backend);
+  auto* delegate = ui::LinuxUiDelegate::GetInstance();
+  DCHECK(delegate);
+  platform_ = CreateGtkUiPlatform(delegate->GetBackend());
 
   // Avoid GTK initializing atk-bridge, and let AuraLinux implementation
   // do it once it is ready.

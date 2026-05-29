@@ -10,7 +10,6 @@
 #include "base/time/time.h"
 #include "build/android_buildflags.h"
 #include "build/build_config.h"
-#include "build/buildflag.h"
 #include "build/chromecast_buildflags.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/forcedark/forcedark_switches.h"
@@ -57,7 +56,7 @@ BASE_FEATURE(kComputePressureRateObfuscationMitigation,
 
 BASE_FEATURE(kCrashReportingAPIMoreContextData,
              "CrashReportingAPIMoreContextData",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOverrideCrashReportingEndpoint,
              "OverrideCrashReportingEndpoint",
@@ -732,13 +731,7 @@ BASE_FEATURE_ENUM_PARAM(
 // window's top-level site.
 BASE_FEATURE(kEnforceNoopenerOnBlobURLNavigation,
              "EnforceNoopenerOnBlobURLNavigation",
-// TODO(crbug.com/421810301): Temporarily disable this feature on ChromeOS due
-// to a regression.
-#if BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 BASE_FEATURE(kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource,
              "EventTimingIgnorePresentationTimeFromUnexpectedFrameSource",
@@ -885,10 +878,6 @@ BASE_FEATURE_PARAM(std::string,
                    &kFledgeOriginScopedKeys,
                    "FledgeOriginScopedKeyConfig",
                    "");
-
-BASE_FEATURE(kBlockPartialResponseWithoutRange,
-             "BlockPartialResponseWithoutRange",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // See in the header.
 BASE_FEATURE(kFledgeConsiderKAnonymity,
@@ -2836,11 +2825,6 @@ BASE_FEATURE(kWebviewAccelerateSmallCanvases,
 // Kill switch for crbug.com/409059706.
 BASE_FEATURE(kWorkerThreadSequentialShutdown,
              "WorkerThreadSequentialShutdown",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// WorkerThread termination respects the current thread termination request.
-BASE_FEATURE(kWorkerThreadRespectTermRequest,
-             "WorkerThreadRespectTermRequest",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNoReferrerForPreloadFromSubresource,

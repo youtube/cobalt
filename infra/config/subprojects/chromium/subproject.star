@@ -2,14 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("@chromium-luci//consoles.star", "consoles")
-load("//console-header.star", "get_header")
+load("//lib/consoles.star", "consoles")
+load("//console-header.star", "HEADER")
 load("//project.star", "settings")
 
 consoles.defaults.set(
     repo = "https://chromium.googlesource.com/chromium/src",
     refs = [settings.ref],
-    header = get_header(),
+    header = HEADER,
 )
 
 exec("./ci.star")

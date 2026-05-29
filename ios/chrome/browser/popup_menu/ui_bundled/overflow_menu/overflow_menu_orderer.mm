@@ -52,13 +52,8 @@ void AppendDestinationsToVector(const base::Value::List& from,
     if (!value.is_string()) {
       continue;
     }
-    std::optional<overflow_menu::Destination> destination =
-        overflow_menu::DestinationForStringName(value.GetString());
-    if (!destination) {
-      continue;
-    }
 
-    to.push_back(*destination);
+    to.push_back(overflow_menu::DestinationForStringName(value.GetString()));
   }
 }
 
@@ -72,13 +67,8 @@ void AddDestinationsToSet(const base::Value::List& from,
     if (!value.is_string()) {
       continue;
     }
-    std::optional<overflow_menu::Destination> destination =
-        overflow_menu::DestinationForStringName(value.GetString());
-    if (!destination) {
-      continue;
-    }
 
-    to.insert(*destination);
+    to.insert(overflow_menu::DestinationForStringName(value.GetString()));
   }
 }
 
@@ -536,13 +526,9 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
       continue;
     }
 
-    std::optional<overflow_menu::Destination> destination =
+    overflow_menu::Destination destination =
         overflow_menu::DestinationForStringName(key);
-    if (!destination) {
-      continue;
-    }
-
-    _destinationBadgeData[*destination] = badgeData.value();
+    _destinationBadgeData[destination] = badgeData.value();
   }
 
   [self loadShownDestinationsPref];
@@ -583,27 +569,14 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
 
   const base::Value::List* shownActions =
       storedActions.FindList(kShownActionsKey);
-
-  // Actions should be added only once to `actionOrderData`. If an action is
-  // both shown and hidden according to prefs, it is treated as a shown action.
-  std::unordered_set<overflow_menu::ActionType> actionsSet;
-
   if (shownActions) {
     for (const auto& value : *shownActions) {
       if (!value.is_string()) {
         continue;
       }
-      std::optional<overflow_menu::ActionType> actionType =
-          overflow_menu::ActionTypeForStringName(value.GetString());
-      if (!actionType) {
-        continue;
-      }
-      if (actionsSet.contains(*actionType)) {
-        continue;
-      }
 
-      actionsSet.insert(*actionType);
-      actionOrderData.shownActions.push_back(*actionType);
+      actionOrderData.shownActions.push_back(
+          overflow_menu::ActionTypeForStringName(value.GetString()));
     }
   }
 
@@ -614,17 +587,9 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
       if (!value.is_string()) {
         continue;
       }
-      std::optional<overflow_menu::ActionType> actionType =
-          overflow_menu::ActionTypeForStringName(value.GetString());
-      if (!actionType) {
-        continue;
-      }
-      if (actionsSet.contains(*actionType)) {
-        continue;
-      }
 
-      actionsSet.insert(*actionType);
-      actionOrderData.hiddenActions.push_back(*actionType);
+      actionOrderData.hiddenActions.push_back(
+          overflow_menu::ActionTypeForStringName(value.GetString()));
     }
   }
   _actionOrderData = actionOrderData;
@@ -710,8 +675,6 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
 // This handles new users with no stored data and new actions added.
 - (void)updateActionOrderData {
   ActionRanking availableActions = [self.actionProvider basePageActions];
-  std::set<overflow_menu::ActionType> sortedAvailableActions{
-      availableActions.begin(), availableActions.end()};
 
   // Add any available actions not present in shown or hidden to the shown list.
   std::set<overflow_menu::ActionType> knownActions(
@@ -720,10 +683,8 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
   knownActions.insert(_actionOrderData.hiddenActions.begin(),
                       _actionOrderData.hiddenActions.end());
 
-  // std::set_difference input ranges have to be sorted.
-  std::set_difference(sortedAvailableActions.begin(),
-                      sortedAvailableActions.end(), knownActions.begin(),
-                      knownActions.end(),
+  std::set_difference(availableActions.begin(), availableActions.end(),
+                      knownActions.begin(), knownActions.end(),
                       std::back_inserter(_actionOrderData.shownActions));
 
   [self flushActionsToPrefs];

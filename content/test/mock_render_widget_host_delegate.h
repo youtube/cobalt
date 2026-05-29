@@ -44,6 +44,10 @@ class MockRenderWidgetHostDelegate
       KeyboardEventProcessingResult result) {
     pre_handle_keyboard_event_result_ = result;
   }
+  void set_render_input_router_delegate_remote(
+      mojo::PendingRemote<input::mojom::RenderInputRouterDelegate> remote) {
+    rir_delegate_remote_.Bind(std::move(remote));
+  }
 
   void CreateInputEventRouter();
 
@@ -74,6 +78,8 @@ class MockRenderWidgetHostDelegate
   gfx::mojom::DelegatedInkPointRenderer* GetDelegatedInkRenderer(
       ui::Compositor* compositor) override;
   void OnInputIgnored(const blink::WebInputEvent& event) override;
+  input::mojom::RenderInputRouterDelegate* GetRenderInputRouterDelegateRemote()
+      override;
 
   //  RenderWidgetHostInputEventRouter::Delegate
   input::TouchEmulator* GetTouchEmulator(bool create_if_necessary) override;
@@ -90,6 +96,7 @@ class MockRenderWidgetHostDelegate
   raw_ptr<RenderWidgetHostImpl, DanglingUntriaged> focused_widget_ = nullptr;
   KeyboardEventProcessingResult pre_handle_keyboard_event_result_ =
       KeyboardEventProcessingResult::NOT_HANDLED;
+  mojo::Remote<input::mojom::RenderInputRouterDelegate> rir_delegate_remote_;
   StubRenderViewHostDelegateView rvh_delegate_view_;
   VisibleTimeRequestTrigger visible_time_request_trigger_;
 };

@@ -343,7 +343,4 @@ class IncognitoTabModelImpl implements IncognitoTabModelInternal {
         mDelegateModel.setActive(active);
         if (!active) destroyIncognitoIfNecessary();
     }
-
-    @Override
-    public void broadcastSessionRestoreComplete() {}
 }

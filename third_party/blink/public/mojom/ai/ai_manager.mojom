@@ -82,8 +82,7 @@ interface AIManagerCreateWriterClient {
   OnResult(pending_remote<blink.mojom.AIWriter> writer);
 
   // Called when the manager cannot create an AIWriter.
-  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
-  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
+  OnError(AIManagerCreateClientError error);
 };
 
 // The client interface that receives an AIRewriter from an AIManager.
@@ -93,8 +92,7 @@ interface AIManagerCreateRewriterClient {
   OnResult(pending_remote<blink.mojom.AIRewriter> rewriter);
 
   // Called when the manager cannot create an AIRewriter.
-  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
-  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
+  OnError(AIManagerCreateClientError error);
 };
 
 // The client interface that receives an AISummarizer from an AIManager.
@@ -104,8 +102,7 @@ interface AIManagerCreateSummarizerClient {
   OnResult(pending_remote<blink.mojom.AISummarizer> summarizer);
 
   // Called when the manager cannot create an AISummarizer.
-  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
-  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
+  OnError(AIManagerCreateClientError error);
 };
 
 // The client interface that receives an AIProofreader from an AIManager.
@@ -115,8 +112,7 @@ interface AIManagerCreateProofreaderClient {
   OnResult(pending_remote<blink.mojom.AIProofreader> proofreader);
 
   // Called when the manager cannot create an AIProofreader.
-  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
-  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
+  OnError(AIManagerCreateClientError error);
 };
 
 // The manager that could create a new session for the model.

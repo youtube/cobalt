@@ -226,11 +226,7 @@ bool IsPortAllowedForIpEndpoint(const IPEndPoint& endpoint) {
     g_need_to_reset_restrict_localhost_ports = false;
   }
 
-  if (restrict_localhost_ports->contains(port)) {
-    base::UmaHistogramSparse("Net.RestrictedLocalhostPorts", port);
-    return false;
-  }
-  return true;
+  return !restrict_localhost_ports->contains(port);
 }
 
 size_t GetCountOfExplicitlyAllowedPorts() {

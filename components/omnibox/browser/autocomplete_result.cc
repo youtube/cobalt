@@ -391,7 +391,6 @@ void AutocompleteResult::SortAndCull(
     TemplateURLService* template_url_service,
     OmniboxTriggeredFeatureService* triggered_feature_service,
     bool is_lens_active,
-    bool can_show_contextual_suggestions,
     bool mia_enabled,
     std::optional<AutocompleteMatch> default_match_to_preserve) {
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(
@@ -429,16 +428,17 @@ void AutocompleteResult::SortAndCull(
   }
 
   // Used to determine how many search / url suggestions should appear in zps
-  // if kOmniboxZpsSuggestionLimit is enabled.
-  auto zps_suggestion_limit_config =
-      omnibox_feature_configs::OmniboxZpsSuggestionLimit::Get();
+  // if kOmniboxUrlSuggestionsOnFocus is enabled.
+  auto url_suggestions_on_focus_config =
+      omnibox_feature_configs::OmniboxUrlSuggestionsOnFocus::Get();
   size_t max_search_suggestions = 8u;
   size_t max_url_suggestions = 0u;
   size_t max_suggestions = 8u;
-  if (zps_suggestion_limit_config.enabled) {
-    max_search_suggestions = zps_suggestion_limit_config.max_search_suggestions;
-    max_url_suggestions = zps_suggestion_limit_config.max_url_suggestions;
-    max_suggestions = zps_suggestion_limit_config.max_suggestions;
+  if (url_suggestions_on_focus_config.enabled) {
+    max_search_suggestions =
+        url_suggestions_on_focus_config.max_search_suggestions;
+    max_url_suggestions = url_suggestions_on_focus_config.max_url_suggestions;
+    max_suggestions = url_suggestions_on_focus_config.max_suggestions;
   }
 
   // If at zero suggest or `kGroupingFrameworkForNonZPS` is enabled and the
@@ -461,14 +461,13 @@ void AutocompleteResult::SortAndCull(
       }
     } else if constexpr (is_desktop) {
       const size_t contextual_zps_limit =
-          can_show_contextual_suggestions && !is_lens_active
-              ? omnibox_feature_configs::ContextualSearch::Get()
-                    .contextual_zps_limit
-              : 0u;
+          is_lens_active ? 0u
+                         : omnibox_feature_configs::ContextualSearch::Get()
+                               .contextual_zps_limit;
+      // Make space for the extra Lens action. It needs to be included above
+      // any contextual search matches but does not count against their limit.
       const size_t contextual_action_limit =
-          omnibox_feature_configs::ContextualSearch::Get()
-                      .show_open_lens_action &&
-                  !is_lens_active
+          omnibox_feature_configs::ContextualSearch::Get().show_open_lens_action
               ? 1u
               : 0u;
       if (omnibox::IsLensSearchbox(page_classification)) {
@@ -550,35 +549,13 @@ void AutocompleteResult::SortAndCull(
             std::ranges::any_of(matches_, [](const auto& match) {
               return match.IsContextualSearchSuggestion();
             })) {
-          if (omnibox_feature_configs::ContextualSearch::Get()
-                  .contextual_suggestions_ablate_search_only) {
-            // URL suggestions.
-            sections.push_back(std::make_unique<DesktopWebURLZpsSection>(
-                suggestion_groups_map_, max_url_suggestions));
-            // ONLY contextual search suggestions.
-            sections.push_back(
-                std::make_unique<DesktopWebSearchZpsContextualOnlySection>(
-                    suggestion_groups_map_, contextual_action_limit,
-                    contextual_zps_limit));
-          } else if (omnibox_feature_configs::ContextualSearch::Get()
-                         .contextual_suggestions_ablate_url_only) {
-            // Regular search suggestions + contextual search suggestions.
-            sections.push_back(std::make_unique<DesktopWebSearchZpsSection>(
-                suggestion_groups_map_,
-                max_search_suggestions + contextual_action_limit,
-                contextual_action_limit, contextual_zps_limit));
-          } else {
-            // ONLY contextual search suggestions.
-            sections.push_back(
-                std::make_unique<DesktopWebSearchZpsContextualOnlySection>(
-                    suggestion_groups_map_, contextual_action_limit,
-                    contextual_zps_limit));
-          }
+          sections.push_back(
+              std::make_unique<DesktopWebSearchZpsContextualOnlySection>(
+                  suggestion_groups_map_, contextual_action_limit,
+                  contextual_zps_limit));
         } else {
-          // URL suggestions.
           sections.push_back(std::make_unique<DesktopWebURLZpsSection>(
               suggestion_groups_map_, max_url_suggestions));
-          // Regular search suggestions + contextual search suggestions.
           sections.push_back(std::make_unique<DesktopWebSearchZpsSection>(
               suggestion_groups_map_,
               max_search_suggestions + contextual_action_limit,
@@ -1246,8 +1223,8 @@ size_t AutocompleteResult::CalculateNumMatchesPerUrlCount(
 }
 
 void AutocompleteResult::Reset() {
-  session_ = {};
   ClearMatches();
+  session_.Reset();
 }
 
 void AutocompleteResult::ClearMatches() {
@@ -1256,6 +1233,22 @@ void AutocompleteResult::ClearMatches() {
 #if BUILDFLAG(IS_ANDROID)
   DestroyJavaObject();
 #endif
+}
+
+AutocompleteResult::SessionData::SessionData() = default;
+
+AutocompleteResult::SessionData::~SessionData() = default;
+
+void AutocompleteResult::SessionData::Reset() {
+  zero_prefix_enabled_ = false;
+  num_zero_prefix_suggestions_shown_ = 0u;
+  zero_prefix_search_suggestions_shown_in_session_ = false;
+  zero_prefix_url_suggestions_shown_in_session_ = false;
+  typed_search_suggestions_shown_in_session_ = false;
+  typed_url_suggestions_shown_in_session_ = false;
+  contextual_search_suggestions_shown_in_session_ = false;
+  lens_action_shown_in_session_ = false;
+  gws_event_id_hashes_.clear();
 }
 
 void AutocompleteResult::SwapMatchesWith(AutocompleteResult* other) {

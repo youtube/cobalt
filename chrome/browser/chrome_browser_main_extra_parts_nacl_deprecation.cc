@@ -28,12 +28,8 @@ bool ShouldNaClBeAllowed() {
   // kDeviceNativeClientForceAllowed might not be properly initialized at this
   // point, so we also check kDeviceNativeClientForceAllowedCache which has the
   // last known value of kDeviceNativeClientForceAllowed.
-  // We also want to enable it on the first boot, where policy and cache are
-  // not yet initialized.
   if (g_browser_process->local_state()->GetBoolean(
-          prefs::kDeviceNativeClientForceAllowedCache) ||
-      g_browser_process->local_state()->GetBoolean(
-          prefs::kIsFirstBootForNacl)) {
+          prefs::kDeviceNativeClientForceAllowedCache)) {
     return true;
   }
 
@@ -79,10 +75,6 @@ void ChromeBrowserMainExtraPartsNaclDeprecation::PostEarlyInitialization() {
       prefs::kDeviceNativeClientForceAllowed);
   g_browser_process->local_state()->SetBoolean(
       prefs::kDeviceNativeClientForceAllowedCache, current_value);
-  // We want to always enable NaCl the first time this code runs.
-  // This has happened now.
-  g_browser_process->local_state()->SetBoolean(prefs::kIsFirstBootForNacl,
-                                               false);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // BUILDFLAG(ENABLE_NACL)
 }

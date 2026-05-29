@@ -18,9 +18,6 @@ namespace regional_capabilities {
 #if BUILDFLAG(IS_CHROMEOS)
 inline constexpr const char kCrOSMissingVariationData[] =
     "ChromeOS.CountryCode.MissingVariationData";
-inline constexpr const char kVpdRegionSplittingOutcome[] =
-    "ChromeOS.CountryCode.VPDRegionSplittingOutcome";
-
 // LINT.IfChange(ChromeOSFallbackCountry)
 enum class ChromeOSFallbackCountry {
   kNoStatisticsProvider = 0,
@@ -29,11 +26,8 @@ enum class ChromeOSFallbackCountry {
   kRegionTooShort = 3,
   kRegionTooLong = 4,
   kValidCountryCode = 5,
-  // kStrippedSubkeyInformation = 6, // Obsolete
-  kRegionAbsent = 7,
-  kRegionEmpty = 8,
-  kInvalidCountryCode = 9,
-  kMaxValue = kInvalidCountryCode,
+  kStrippedSubkeyInformation = 6,
+  kMaxValue = kStrippedSubkeyInformation,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/chromeos/enums.xml:ChromeOSFallbackCountry)
 #endif

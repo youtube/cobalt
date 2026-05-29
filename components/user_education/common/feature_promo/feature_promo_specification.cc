@@ -117,12 +117,12 @@ bool IsAllowedToastWithoutScreenreaderText(const base::Feature& promo_feature) {
   //
   // TODO(dfried): Merge legacy promos into this category, eliminating the entry
   // point and promo type entirely.
-
-  // TODO(crbug.com/421471598): Remove this exemption once we have a separate
-  // string for screenreader.
-  static constexpr auto kAllowedPromoNames =
-      base::MakeFixedFlatSet<std::string_view>({"IPH_TabSearchToolbarButton"});
-  return kAllowedPromoNames.contains(promo_feature.name);
+  //
+  // Add exceptions here:
+  // static constexpr auto kAllowedPromoNames =
+  //     base::MakeFixedFlatSet<std::string_view>({ });
+  // return kAllowedPromoNames.contains(promo_feature.name);
+  return false;
 }
 
 bool IsAllowedPreconditionExemption(const base::Feature& promo_feature) {

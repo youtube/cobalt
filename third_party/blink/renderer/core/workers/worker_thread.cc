@@ -443,40 +443,19 @@ scoped_refptr<base::SingleThreadTaskRunner> WorkerThread::GetTaskRunner(
   return worker_task_runners_.at(type);
 }
 
-void WorkerThread::ChildThreadStartedOnWorkerThreadLegacy(WorkerThread* child) {
+void WorkerThread::ChildThreadStartedOnWorkerThread(WorkerThread* child) {
   DCHECK(IsCurrentThread());
   child_threads_.insert(child);
   {
     base::AutoLock locker(lock_);
     DCHECK_EQ(ThreadState::kRunning, thread_state_);
+    CHECK_EQ(TerminationProgress::kNotRequested, termination_progress_);
     if (base::FeatureList::IsEnabled(
             blink::features::kWorkerThreadSequentialShutdown)) {
-      CHECK_EQ(TerminationProgress::kNotRequested, termination_progress_);
       ++num_child_threads_;
       CHECK_EQ(child_threads_.size(), num_child_threads_);
     }
   }
-}
-
-bool WorkerThread::ChildThreadStartedOnWorkerThread(WorkerThread* child) {
-  DCHECK(IsCurrentThread());
-  CHECK(base::FeatureList::IsEnabled(
-      blink::features::kWorkerThreadSequentialShutdown));
-  CHECK(base::FeatureList::IsEnabled(
-      blink::features::kWorkerThreadRespectTermRequest));
-  {
-    base::AutoLock locker(lock_);
-    // This thread is requested to terminate.
-    // No new thread can be added.
-    if (termination_progress_ != TerminationProgress::kNotRequested) {
-      return false;
-    }
-    CHECK_EQ(ThreadState::kRunning, thread_state_);
-    child_threads_.insert(child);
-    ++num_child_threads_;
-    CHECK_EQ(child_threads_.size(), num_child_threads_);
-  }
-  return true;
 }
 
 void WorkerThread::ChildThreadTerminatedOnWorkerThread(WorkerThread* child) {
@@ -484,7 +463,7 @@ void WorkerThread::ChildThreadTerminatedOnWorkerThread(WorkerThread* child) {
   child_threads_.erase(child);
   if (!base::FeatureList::IsEnabled(
           blink::features::kWorkerThreadSequentialShutdown)) {
-    if (child_threads_.empty() && IsRequestedToTerminate()) {
+    if (child_threads_.empty() && CheckRequestedToTerminate()) {
       PerformShutdownOnWorkerThread();
     }
     return;
@@ -716,7 +695,7 @@ void WorkerThread::InitializeOnWorkerThread(
     SetThreadState(ThreadState::kRunning);
   }
 
-  if (IsRequestedToTerminate()) {
+  if (CheckRequestedToTerminate()) {
     // Stop further worker tasks from running after this point. WorkerThread
     // was requested to terminate before initialization.
     // PerformShutdownOnWorkerThread() will be called soon.
@@ -924,7 +903,7 @@ void WorkerThread::SetExitCode(ExitCode exit_code) {
   exit_code_ = exit_code;
 }
 
-bool WorkerThread::IsRequestedToTerminate() {
+bool WorkerThread::CheckRequestedToTerminate() {
   base::AutoLock locker(lock_);
   return termination_progress_ != TerminationProgress::kNotRequested;
 }

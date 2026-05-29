@@ -92,8 +92,6 @@ extern const char kPreloadTopChromeWebUIExcludeOriginsName[];
 extern const base::FeatureParam<std::string>
     kPreloadTopChromeWebUIExcludeOrigins;
 
-BASE_DECLARE_FEATURE(kPreloadTopChromeWebUILessNavigations);
-
 #if !BUILDFLAG(IS_ANDROID)
 BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 #endif

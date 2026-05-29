@@ -122,9 +122,8 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
       ime::mojom::KoreanSettingsPtr settings) override;
   void DEPRECATED_ReportSuggestionOpportunity(
       ime::AssistiveSuggestionMode mode) override;
-  void DEPRECATED_ReportHistogramSample(
-      ime::mojom::BucketedHistogramPtr histogram,
-      uint16_t value) override;
+  void ReportHistogramSample(base::Histogram* histogram,
+                             uint16_t value) override;
   void UpdateQuickSettings(
       ime::mojom::InputMethodQuickSettingsPtr quick_settings) override;
 

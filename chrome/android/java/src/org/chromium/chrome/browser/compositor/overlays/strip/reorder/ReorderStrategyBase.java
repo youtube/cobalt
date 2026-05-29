@@ -33,6 +33,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.ui.base.LocalizationUtils;
+import org.chromium.ui.interpolators.Interpolators;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -348,7 +349,8 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
                         StripLayoutTab.BOTTOM_MARGIN,
                         startValue,
                         intermediateValue,
-                        ANIM_FOLIO_DETACH_MS);
+                        ANIM_FOLIO_DETACH_MS,
+                        Interpolators.EMPHASIZED_ACCELERATE);
         CompositorAnimator riseAnimation =
                 CompositorAnimator.ofFloatProperty(
                         mAnimationHost.getAnimationHandler(),
@@ -356,7 +358,8 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
                         StripLayoutTab.BOTTOM_MARGIN,
                         intermediateValue,
                         endValue,
-                        ANIM_FOLIO_DETACH_MS);
+                        ANIM_FOLIO_DETACH_MS,
+                        Interpolators.EMPHASIZED_DECELERATE);
         dropAnimation.addListener(
                 new AnimatorListenerAdapter() {
                     @Override

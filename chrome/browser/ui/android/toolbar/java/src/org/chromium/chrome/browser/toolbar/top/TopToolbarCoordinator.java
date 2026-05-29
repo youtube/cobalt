@@ -225,8 +225,7 @@ public class TopToolbarCoordinator implements Toolbar {
                             tabSupplier,
                             mNtpLoadingSupplier,
                             toolbarNavControlsEnabledSupplier,
-                            normalThemeColorProvider,
-                            /* isWebApp= */ false);
+                            normalThemeColorProvider);
         }
 
         controlContainer.setPostInitializationDependencies(

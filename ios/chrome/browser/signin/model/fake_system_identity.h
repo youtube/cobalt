@@ -52,7 +52,6 @@
 @property(nonatomic, readwrite) NSString* userEmail;
 @property(nonatomic, readwrite) NSString* userFullName;
 @property(nonatomic, readwrite) NSString* userGivenName;
-@property(nonatomic, readwrite) BOOL hasValidAuth;
 
 @end
 

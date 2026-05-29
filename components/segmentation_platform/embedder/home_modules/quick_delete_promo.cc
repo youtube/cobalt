@@ -14,7 +14,11 @@
 
 namespace {
 
-const char kEducationalTipModuleHistogramName[] =
+// The number of times the quick delete promo card can be shown to the user in
+// a single day.
+const int kShownCountLimit = 3;
+
+const char kQuickDeletePromoHistogramName[] =
     "MagicStack.Clank.NewTabPage.Module.TopImpressionV2";
 
 // TODO(crbug.com/382803396): The enum id of the quick delete promo card. Could
@@ -25,7 +29,6 @@ const char kClearBrowsingDataHistogramName[] =
     "Privacy.DeleteBrowsingData.Action";
 
 constexpr std::array<int32_t, 0> kClearBrowsingDataHistogramEnumValues{};
-constexpr std::array<int32_t, 0> kEducationalTipModuleHistogramEnumValues{};
 
 const int kClearBrowsingDataHistogramQuickDeleteId = 6;
 
@@ -63,26 +66,12 @@ std::map<SignalKey, FeatureQuery> QuickDeletePromo::GetInputs() {
   map.emplace(kCountOfClearingBrowsingDataThroughQuickDelete,
               std::move(countOfClearBrowsingDataThroughQuickDelete));
 
-  int days_to_show_ephemeral_card_once =
-      features::KDaysToShowEphemeralCardOnce.Get();
-  // Define signal for number of times all educational tip card has shown to the
-  // user in limited days.
-  DEFINE_UMA_FEATURE_ENUM_COUNT(countOfEducationalTipCardShownTimes,
-                                kEducationalTipModuleHistogramName,
-                                kEducationalTipModuleHistogramEnumValues.data(),
-                                kEducationalTipModuleHistogramEnumValues.size(),
-                                /* days= */ days_to_show_ephemeral_card_once);
-  map.emplace(kEducationalTipShownCount,
-              std::move(countOfEducationalTipCardShownTimes));
-
-  int days_to_show_quick_delete_card_once =
-      features::KDaysToShowEachEphemeralCardOnce.Get();
   // Define signal for number of times quick delete promo card has shown to the
-  // user in limited days.
-  DEFINE_UMA_FEATURE_ENUM_COUNT(
-      countOfQuickDeletePromoShownTimes, kEducationalTipModuleHistogramName,
-      &kQuickDeletePromoId, /* enum_size= */ 1,
-      /* days= */ days_to_show_quick_delete_card_once);
+  // user in last 24 hours.
+  DEFINE_UMA_FEATURE_ENUM_COUNT(countOfQuickDeletePromoShownTimes,
+                                kQuickDeletePromoHistogramName,
+                                &kQuickDeletePromoId, /* enum_size= */ 1,
+                                /* days= */ 1);
   map.emplace(kQuickDeletePromoShownCount,
               std::move(countOfQuickDeletePromoShownTimes));
 
@@ -111,26 +100,19 @@ CardSelectionInfo::ShowResult QuickDeletePromo::ComputeCardResult(
     return result;
   }
 
-  std::optional<float> result_for_is_user_signed_in =
+  std::optional<float> resultForIsUserSignedIn =
       signals.GetSignal(kIsUserSignedIn);
-  std::optional<float> result_for_count_of_clearing_browsing_data =
+  std::optional<float> resultForCountOfClearingBrowsingData =
       signals.GetSignal(kCountOfClearingBrowsingData);
-  std::optional<float>
-      result_for_count_of_clearing_browsing_data_through_quick_delete =
-          signals.GetSignal(kCountOfClearingBrowsingDataThroughQuickDelete);
-  std::optional<float> result_for_quick_delete_promo_shown_count =
+  std::optional<float> resultForCountOfClearingBrowsingDataThroughQuickDelete =
+      signals.GetSignal(kCountOfClearingBrowsingDataThroughQuickDelete);
+  std::optional<float> resultForQuickDeletePromoShownCount =
       signals.GetSignal(kQuickDeletePromoShownCount);
-  std::optional<float>
-      result_for_educational_tip_shown_count_for_quick_delete_signal =
-          signals.GetSignal(kEducationalTipShownCount);
 
-  if (!result_for_is_user_signed_in.has_value() ||
-      !result_for_count_of_clearing_browsing_data.has_value() ||
-      !result_for_count_of_clearing_browsing_data_through_quick_delete
-           .has_value() ||
-      !result_for_quick_delete_promo_shown_count.has_value() ||
-      !result_for_educational_tip_shown_count_for_quick_delete_signal
-           .has_value()) {
+  if (!resultForIsUserSignedIn.has_value() ||
+      !resultForCountOfClearingBrowsingData.has_value() ||
+      !resultForCountOfClearingBrowsingDataThroughQuickDelete.has_value() ||
+      !resultForQuickDeletePromoShownCount.has_value()) {
     result.position = EphemeralHomeModuleRank::kNotShown;
     return result;
   }
@@ -138,14 +120,11 @@ CardSelectionInfo::ShowResult QuickDeletePromo::ComputeCardResult(
   // Show the promo card if the user has never cleared browsing data or has
   // cleared browsing data but never through quick delete in the past 30 days
   // and the promo card has not been shown more than 3 times in 24 hours.
-  if (*result_for_is_user_signed_in &&
-      (result_for_count_of_clearing_browsing_data.value() == 0 ||
-       (result_for_count_of_clearing_browsing_data.value() > 0 &&
-        result_for_count_of_clearing_browsing_data_through_quick_delete
-                .value() == 0)) &&
-      result_for_quick_delete_promo_shown_count.value() < 1 &&
-      result_for_educational_tip_shown_count_for_quick_delete_signal.value() <
-          1) {
+  if (*resultForIsUserSignedIn &&
+      (resultForCountOfClearingBrowsingData.value() == 0 ||
+       (resultForCountOfClearingBrowsingData.value() > 0 &&
+        resultForCountOfClearingBrowsingDataThroughQuickDelete.value() == 0)) &&
+      resultForQuickDeletePromoShownCount.value() < kShownCountLimit) {
     result.position = EphemeralHomeModuleRank::kLast;
     return result;
   }
@@ -154,8 +133,7 @@ CardSelectionInfo::ShowResult QuickDeletePromo::ComputeCardResult(
   return result;
 }
 
-bool QuickDeletePromo::IsEnabled(bool is_in_enabled_cards_set,
-                                 int impression_count) {
+bool QuickDeletePromo::IsEnabled(int impression_count) {
   std::optional<CardSelectionInfo::ShowResult> forced_result =
       GetForcedEphemeralModuleShowResult();
 
@@ -165,8 +143,7 @@ bool QuickDeletePromo::IsEnabled(bool is_in_enabled_cards_set,
     return true;
   }
 
-  if (!base::FeatureList::IsEnabled(features::kEducationalTipModule) ||
-      !is_in_enabled_cards_set) {
+  if (!base::FeatureList::IsEnabled(features::kEducationalTipModule)) {
     return false;
   }
 

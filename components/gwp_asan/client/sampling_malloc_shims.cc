@@ -384,20 +384,17 @@ GWP_ASAN_EXPORT GuardedPageAllocator& GetMallocGpaForTesting() {
   return *gpa;
 }
 
-bool InstallMallocHooks(const AllocatorSettings& settings,
+void InstallMallocHooks(const AllocatorSettings& settings,
                         GuardedPageAllocator::OutOfMemoryCallback callback) {
   static crash_reporter::CrashKeyString<24> malloc_crash_key(kMallocCrashKey);
   gpa = new GuardedPageAllocator();
-  if (!gpa->Init(settings, std::move(callback), false)) {
-    return false;
-  }
+  gpa->Init(settings, std::move(callback), false);
   malloc_crash_key.Set(gpa->GetCrashKey());
   sampling_state.Init(settings.sampling_frequency);
   sampling_state.SetSampleSizeRestriction(settings.sampling_min_size,
                                           settings.sampling_max_size);
 
   allocator_shim::InsertAllocatorDispatch(&g_allocator_dispatch);
-  return true;
 }
 
 }  // namespace internal

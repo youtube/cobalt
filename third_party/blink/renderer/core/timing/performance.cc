@@ -36,7 +36,6 @@
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_clock.h"
@@ -112,9 +111,6 @@ constexpr size_t kLongTaskUkmSampleInterval = 100;
 
 const char kSwapsPerInsertionHistogram[] =
     "Renderer.Core.Timing.Performance.SwapsPerPerformanceEntryInsertion";
-
-const char kParserResumeByUserTiming[] =
-    "Blink.HTMLParsing.ResumedByUserTiming";
 
 bool IsMeasureOptionsEmpty(const PerformanceMeasureOptions& options) {
   return !options.hasDetail() && !options.hasEnd() && !options.hasStart() &&
@@ -926,22 +922,12 @@ PerformanceMark* Performance::mark(ScriptState* script_state,
               WTF::BindOnce(
                   [](Document* document) {
                     document->NotifyParserResumeByUserTiming();
-                    base::UmaHistogramBoolean(kParserResumeByUserTiming, false);
                   },
                   WrapPersistent(document)),
               base::Milliseconds(timeout));
         } else if (mark_name == mark_parser_restart) {
-          // If the parser is pausing, resume it. This has to be called as a new
-          // task to ensure that the script is not running to resume the parser.
-          document->GetTaskRunner(TaskType::kInternalLoading)
-              ->PostTask(FROM_HERE,
-                         WTF::BindOnce(
-                             [](Document* document) {
-                               document->NotifyParserResumeByUserTiming();
-                               base::UmaHistogramBoolean(
-                                   kParserResumeByUserTiming, true);
-                             },
-                             WrapPersistent(document)));
+          // If the parser is pausing, resume it.
+          document->NotifyParserResumeByUserTiming();
           parser_yield_task_handle_.Cancel();
         }
       }

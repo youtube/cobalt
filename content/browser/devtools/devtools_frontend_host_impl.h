@@ -13,6 +13,7 @@
 
 namespace content {
 
+class WebContents;
 
 class DevToolsFrontendHostImpl : public DevToolsFrontendHost,
                                  public blink::mojom::DevToolsFrontendHost,
@@ -47,6 +48,7 @@ class DevToolsFrontendHostImpl : public DevToolsFrontendHost,
   // blink::mojom::DevToolsFrontendHost implementation.
   void DispatchEmbedderMessage(base::Value::Dict message) override;
 
+  raw_ptr<WebContents> web_contents_;
   HandleMessageCallback handle_message_callback_;
   mojo::AssociatedReceiver<blink::mojom::DevToolsFrontendHost> receiver_{this};
 };

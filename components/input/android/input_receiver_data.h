@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "base/component_export.h"
-#include "base/memory/weak_ptr.h"
 #include "components/input/android/android_input_callback.h"
 #include "components/input/android/scoped_input_receiver.h"
 #include "components/input/android/scoped_input_receiver_callbacks.h"
@@ -53,8 +52,6 @@ class COMPONENT_EXPORT(INPUT) InputReceiverData {
   }
 
  private:
-  void DetachInputSurface();
-
   scoped_refptr<gfx::SurfaceControl::Surface> parent_input_sc_;
   scoped_refptr<gfx::SurfaceControl::Surface> input_sc_;
   ScopedInputTransferToken browser_input_token_;
@@ -62,8 +59,6 @@ class COMPONENT_EXPORT(INPUT) InputReceiverData {
   ScopedInputReceiverCallbacks callbacks_;
   ScopedInputReceiver receiver_;
   ScopedInputTransferToken viz_input_token_;
-  bool pending_destruction_ = false;
-  base::WeakPtrFactory<InputReceiverData> weak_ptr_factory_{this};
 };
 
 }  // namespace input

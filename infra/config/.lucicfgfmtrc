@@ -33,7 +33,6 @@ rules {
         # Builders
         arg: "description_html"
         arg: "executable"
-        arg: "parent"
         arg: "schedule"
         arg: "triggered_by"
         arg: "triggering_policy"

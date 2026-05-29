@@ -378,7 +378,7 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="5668404140385795438">Substituir pedido de um Website para evitar aumentar o zoom</translation>
 <translation id="5668843533782548925">Os sites são mais lentos, mas mais seguros</translation>
 <translation id="5677928146339483299">Bloqueado</translation>
-<translation id="5689516760719285838">Localização</translation>
+<translation id="5689516760719285838">Local</translation>
 <translation id="5690795753582697420">A câmara está desativada nas Definições do Android</translation>
 <translation id="5700761515355162635">Cookies de terceiros permitidos</translation>
 <translation id="5706552988683188916">Esta ação elimina os cookies e outros dados de sites de <ph name="WEBSITE" /></translation>
@@ -458,7 +458,6 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="6612358246767739896">Conteúdo protegido</translation>
 <translation id="662080504995468778">Ficar</translation>
 <translation id="6635327442719709864">Quando esta opção está ativada, os sites podem pedir para usar portas de série. Quando esta opção está desativada, os sites não podem usar portas de série.</translation>
-<translation id="6678072580827808850">Rever verificação de segurança</translation>
 <translation id="6683865262523156564">Este site está num grupo que pode ver a sua atividade. O grupo é definido por <ph name="RWS_OWNER" /></translation>
 <translation id="6689172468748959065">Fotos do perfil</translation>
 <translation id="6697925417670533197">Transferências ativas</translation>

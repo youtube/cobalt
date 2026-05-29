@@ -392,12 +392,9 @@ class DownloadProtectionServiceTestBase
         in_process_utility_thread_helper_(
             std::make_unique<content::InProcessUtilityThreadHelper>()),
         testing_profile_manager_(TestingBrowserProcess::GetGlobal()) {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        safe_browsing::kEnhancedFieldsForSecOps};
 #if BUILDFLAG(IS_ANDROID)
-    enabled_features.push_back(kMaliciousApkDownloadCheck);
+    EnableFeatures({kMaliciousApkDownloadCheck});
 #endif
-    EnableFeatures(enabled_features);
   }
 
   void SetUp() override {

@@ -385,8 +385,7 @@ void AddNewTabPageColorMixer(ui::ColorProvider* provider,
 
   /* NewTabFooter */
   mixer[kColorNewTabFooterBackground] = {kColorToolbar};
-  mixer[kColorNewTabFooterText] =
-      ui::GetColorWithMaxContrast({kColorNewTabFooterBackground});
+  mixer[kColorNewTabFooterText] = {kColorToolbarText};
 }
 
 void AddWebThemeNewTabPageColors(ui::ColorMixer& mixer, bool dark_mode) {

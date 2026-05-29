@@ -4,7 +4,6 @@
 
 #include "chromeos/components/magic_boost/test/fake_magic_boost_state.h"
 
-#include "base/types/expected.h"
 #include "chromeos/components/magic_boost/public/cpp/magic_boost_state.h"
 
 namespace chromeos {
@@ -37,13 +36,6 @@ void FakeMagicBoostState::SetAvailability(bool available) {
 
 void FakeMagicBoostState::SetMagicBoostEnabled(bool enabled) {
   UpdateMagicBoostEnabled(enabled);
-}
-
-base::expected<bool, chromeos::MagicBoostState::Error>
-FakeMagicBoostState::IsMagicBoostAvailableExpected() const {
-  // Availability needs to be set explicitly via `SetAvailability` for this
-  // fake.
-  return base::unexpected(chromeos::MagicBoostState::Error::kUninitialized);
 }
 
 }  // namespace test

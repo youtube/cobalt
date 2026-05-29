@@ -276,14 +276,8 @@ class WebUIContentsPreloadManagerPageLoadMetricsTest
 
 // Tests that the time from the WebUI is requested to when First Contentful
 // Paint (FCP) is recorded.
-// TODO(crbug.com/40168622): this times out on Chromium OS ASan LSan Tests.
-#if BUILDFLAG(IS_CHROMEOS) && defined(ADDRESS_SANITIZER)
-#define MAYBE_RequestToFCPAndLCP DISABLED_RequestToFCPAndLCP
-#else
-#define MAYBE_RequestToFCPAndLCP RequestToFCPAndLCP
-#endif
 IN_PROC_BROWSER_TEST_F(WebUIContentsPreloadManagerPageLoadMetricsTest,
-                       MAYBE_RequestToFCPAndLCP) {
+                       RequestToFCPAndLCP) {
   // Serves the test origin with files from the test data folder.
   auto url_loader_interceptor =
       content::URLLoaderInterceptor::ServeFilesFromDirectoryAtOrigin(

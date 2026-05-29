@@ -18,7 +18,6 @@
 #include "ui/base/glib/scoped_gobject.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gtk/gtk_types.h"
-#include "ui/linux/linux_ui_delegate.h"
 
 #if GTK_CHECK_VERSION(4, 1, 1)
 #define UI_GTK_CONST const
@@ -43,7 +42,7 @@ using SkColor = uint32_t;
 namespace gtk {
 
 // Loads libgtk and related libraries and returns true on success.
-bool LoadGtk(ui::LinuxUiBackend backend);
+bool LoadGtk();
 
 const base::Version& GtkVersion();
 

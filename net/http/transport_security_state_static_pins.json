@@ -31,7 +31,7 @@
 // the 'static_spki_hashes' and 'bad_static_spki_hashes' fields in 'pinsets'
 // refer to, and the timestamp at which the pins list was last updated.
 //
-// Last updated: 2025-08-17 12:58 UTC
+// Last updated: 2025-05-26 12:53 UTC
 //
 {
   "pinsets": [
@@ -39,7 +39,8 @@
       "name": "test",
       "static_spki_hashes": [
         "TestSPKI"
-      ]
+      ],
+      "report_uri": "http://report-example.test/test"
     },
     {
       "name": "google",
@@ -49,24 +50,14 @@
         "GTSRootR2",
         "GTSRootR3",
         "GTSRootR4",
-        "GlobalSignR4_owned_by_Google",
-        "WR1_GoogleTrustServices",
-        "WR2_GoogleTrustServices",
-        "WR3_GoogleTrustServices",
-        "WR4_GoogleTrustServices",
-        "WR5_GoogleTrustServices",
-        "WE1_GoogleTrustServices",
-        "WE2_GoogleTrustServices",
-        "WE3_GoogleTrustServices",
-        "WE4_GoogleTrustServices",
-        "WE5_GoogleTrustServices",
-        "AE1_GoogleTrustServices"
+        "GlobalSignR4_owned_by_Google"
       ],
       "bad_static_spki_hashes": [
         "GlobalSignExtendedValidationCA",
         "GlobalSignExtendedValidationCA_G2",
         "GlobalSignExtendedValidationCA_SHA256_G2"
-      ]
+      ],
+      "report_uri": "http://clients3.google.com/cert_upload_json"
     },
     {
       "name": "facebook",

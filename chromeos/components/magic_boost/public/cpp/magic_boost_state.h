@@ -111,9 +111,7 @@ class COMPONENT_EXPORT(MAGIC_BOOST) MagicBoostState {
   // is approved or pending).
   bool ShouldShowHmrCard();
 
-  // `IsMagicBoostAvailable` tries reading availability value again if it's not
-  // set yet. See crbug.com/429501088 for details.
-  bool IsMagicBoostAvailable();
+  bool IsMagicBoostAvailable() const;
 
   base::expected<bool, Error> magic_boost_available() const {
     return magic_boost_available_;
@@ -139,11 +137,6 @@ class COMPONENT_EXPORT(MAGIC_BOOST) MagicBoostState {
   void UpdateHMREnabled(bool enabled);
   void UpdateHMRConsentStatus(HMRConsentStatus status);
   void UpdateHMRConsentWindowDismissCount(int32_t count);
-
-  // Returns availability of Magic Boost. Returns `Error::kUninitialized` if a
-  // dependent service is not initialized yet.
-  virtual base::expected<bool, chromeos::MagicBoostState::Error>
-  IsMagicBoostAvailableExpected() const = 0;
 
  private:
   void NotifyOnIsDeleting();

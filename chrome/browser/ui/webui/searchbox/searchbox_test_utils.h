@@ -40,9 +40,7 @@ class MockSearchboxPage : public searchbox::mojom::Page {
               (searchbox::mojom::OmniboxPopupSelectionPtr,
                searchbox::mojom::OmniboxPopupSelectionPtr));
   MOCK_METHOD(void, SetInputText, (const std::string& input_text));
-  MOCK_METHOD(void,
-              SetThumbnail,
-              (const std::string& thumbnail_url, bool is_deletable));
+  MOCK_METHOD(void, SetThumbnail, (const std::string& thumbnail_url));
 };
 
 class MockAutocompleteController : public AutocompleteController {

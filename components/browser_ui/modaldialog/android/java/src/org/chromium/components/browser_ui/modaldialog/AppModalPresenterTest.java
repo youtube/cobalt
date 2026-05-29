@@ -109,8 +109,7 @@ public class AppModalPresenterTest {
                     sInsetObserver =
                             new InsetObserver(
                                     new ImmutableWeakReference<>(
-                                            sActivity.getWindow().getDecorView().getRootView()),
-                                    /* enableKeyboardOverlayMode= */ true);
+                                            sActivity.getWindow().getDecorView().getRootView()));
                     sManager.setInsetObserver(sInsetObserver);
                 });
     }

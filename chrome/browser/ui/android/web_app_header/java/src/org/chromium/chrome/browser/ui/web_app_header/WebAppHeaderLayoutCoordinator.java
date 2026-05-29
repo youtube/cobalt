@@ -41,7 +41,6 @@ import org.chromium.ui.widget.ChromeImageButton;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Root component to interact with web app header. This coordinator lazily initializes web app
@@ -169,8 +168,7 @@ public class WebAppHeaderLayoutCoordinator
                         mTabSupplier,
                         new ObservableSupplierImpl<>(),
                         mControlsEnabledSupplier,
-                        mThemeColorProvider,
-                        /* isWebApp= */ true);
+                        mThemeColorProvider);
 
         final ChromeImageButton backButton = mView.findViewById(R.id.back_button);
         mBackButtonCoordinator =
@@ -185,8 +183,7 @@ public class WebAppHeaderLayoutCoordinator
                         () -> {
                             if (mMediator != null) mMediator.onNavigationPopupShown();
                         },
-                        mHistoryDelegate,
-                        /* isWebApp= */ true);
+                        mHistoryDelegate);
 
         mMediator.setOnButtonBottomInsetChanged(this::onButtonBottomInsetChanged);
     }
@@ -209,15 +206,13 @@ public class WebAppHeaderLayoutCoordinator
 
     private void logControlsVisibilityChange(boolean wasShowingButtons) {
         if (mLastButtonVisibilityChangeTime != 0) {
-            long duration =
-                    TimeUnit.MILLISECONDS.toSeconds(
-                            SystemClock.elapsedRealtime() - mLastButtonVisibilityChangeTime);
+            long duration = SystemClock.elapsedRealtime() - mLastButtonVisibilityChangeTime;
             if (wasShowingButtons) {
                 RecordHistogram.recordLongTimesHistogram(
-                        "CustomTabs.WebAppHeader.ControlsShownTime2", duration);
+                        "CustomTabs.WebAppHeader.ControlsShownTime", duration);
             } else {
                 RecordHistogram.recordLongTimesHistogram(
-                        "CustomTabs.WebAppHeader.ControlsHiddenTime2", duration);
+                        "CustomTabs.WebAppHeader.ControlsHiddenTime", duration);
             }
         }
         mLastButtonVisibilityChangeTime = SystemClock.elapsedRealtime();

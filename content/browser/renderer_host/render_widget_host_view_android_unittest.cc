@@ -117,9 +117,9 @@ class MockMojoRenderInputRouterDelegate
   MockMojoRenderInputRouterDelegate() = default;
   ~MockMojoRenderInputRouterDelegate() override = default;
 
-  mojo::PendingAssociatedRemote<input::mojom::RenderInputRouterDelegate>
+  mojo::PendingRemote<input::mojom::RenderInputRouterDelegate>
   GetPendingRemote() {
-    return receiver_.BindNewEndpointAndPassDedicatedRemote();
+    return receiver_.BindNewPipeAndPassRemote();
   }
 
   MOCK_METHOD1(StateOnTouchTransfer,
@@ -129,7 +129,7 @@ class MockMojoRenderInputRouterDelegate
                     const viz::FrameSinkId& frame_sink_id));
   MOCK_METHOD2(ForceEnableZoomStateChanged,
                void(bool force_enable_zoom,
-                    const viz::FrameSinkId& frame_sink_id));
+                    const std::vector<viz::FrameSinkId>& frame_sink_ids));
   MOCK_METHOD1(StopFlingingOnViz, void(const viz::FrameSinkId& frame_sink_id));
   MOCK_METHOD1(RestartInputEventAckTimeoutIfNecessary,
                void(const viz::FrameSinkId& frame_sink_id));
@@ -139,8 +139,7 @@ class MockMojoRenderInputRouterDelegate
                void(const viz::FrameSinkId& frame_sink_id));
 
  private:
-  mojo::AssociatedReceiver<input::mojom::RenderInputRouterDelegate> receiver_{
-      this};
+  mojo::Receiver<input::mojom::RenderInputRouterDelegate> receiver_{this};
 };
 
 class RenderWidgetHostViewAndroidTest : public RenderViewHostImplTestHarness {
@@ -530,10 +529,8 @@ TEST_F(RenderWidgetHostViewAndroidTest, ResetGestureDetectionOnViz) {
   rwhva->SetInputTransferHandlerForTesting(handler);
 
   MockMojoRenderInputRouterDelegate rir_delegate;
-  rwhva->host()
-      ->mojo_rir_delegate()
-      ->SetRenderInputRouterDelegateRemoteForTesting(
-          rir_delegate.GetPendingRemote());
+  delegate()->set_render_input_router_delegate_remote(
+      rir_delegate.GetPendingRemote());
 
   EXPECT_CALL(*handler, IsTouchSequencePotentiallyActiveOnViz())
       .WillOnce(Return(true));
@@ -553,10 +550,8 @@ TEST_F(RenderWidgetHostViewAndroidTest, StopFlingingOnViz) {
   rwhva->SetInputTransferHandlerForTesting(handler);
 
   MockMojoRenderInputRouterDelegate rir_delegate;
-  rwhva->host()
-      ->mojo_rir_delegate()
-      ->SetRenderInputRouterDelegateRemoteForTesting(
-          rir_delegate.GetPendingRemote());
+  delegate()->set_render_input_router_delegate_remote(
+      rir_delegate.GetPendingRemote());
 
   gfx::Point point(/*x=*/100, /*y=*/100);
   ui::MotionEventAndroid::Pointer p(0, point.x(), point.y(), 10, 0, 0, 0, 0, 0);

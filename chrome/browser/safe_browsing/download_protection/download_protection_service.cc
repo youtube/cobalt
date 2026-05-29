@@ -37,7 +37,6 @@
 #include "chrome/common/url_constants.h"
 #include "components/download/public/common/download_danger_type.h"
 #include "components/download/public/common/download_item.h"
-#include "components/enterprise/connectors/core/reporting_utils.h"
 #include "components/google/core/common/google_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
@@ -570,7 +569,7 @@ void DownloadProtectionService::AddReferrerChainToPPAPIClientDownloadRequest(
 }
 
 void DownloadProtectionService::OnDangerousDownloadOpened(
-    download::DownloadItem* item,
+    const download::DownloadItem* item,
     Profile* profile) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   std::string raw_digest_sha256 = item->GetHash();
@@ -582,12 +581,6 @@ void DownloadProtectionService::OnDangerousDownloadOpened(
   auto* scan_result = static_cast<enterprise_connectors::ScanResult*>(
       item->GetUserData(enterprise_connectors::ScanResult::kKey));
 
-  google::protobuf::RepeatedPtrField<safe_browsing::ReferrerChainEntry>
-      referrer_chain;
-  if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
-    referrer_chain =
-        safe_browsing::GetOrIdentifyReferrerChainForEnterprise(*item);
-  }
   // A download with a verdict of "sensitive data warning" can be opened and
   // |item->IsDangerous()| will return |true| for it but the reported event
   // should be a "sensitive file bypass" event rather than a "dangerous file
@@ -605,8 +598,7 @@ void DownloadProtectionService::OnDangerousDownloadOpened(
             metadata.sha256, metadata.mime_type,
             extensions::SafeBrowsingPrivateEventRouter::kTriggerFileDownload,
             metadata.scan_response.request_token(), "",
-            DeepScanAccessPoint::DOWNLOAD, referrer_chain, result,
-            metadata.size,
+            DeepScanAccessPoint::DOWNLOAD, result, metadata.size,
             /*user_justification=*/std::nullopt);
 
         // There won't be multiple DLP verdicts in the same response, so no need
@@ -619,14 +611,14 @@ void DownloadProtectionService::OnDangerousDownloadOpened(
       router->OnDangerousDownloadOpened(
           item->GetURL(), item->GetTabUrl(), metadata.filename, metadata.sha256,
           metadata.mime_type, metadata.scan_response.request_token(),
-          item->GetDangerType(), metadata.size, referrer_chain);
+          item->GetDangerType(), metadata.size);
     }
   } else {
     router->OnDangerousDownloadOpened(
         item->GetURL(), item->GetTabUrl(),
         item->GetTargetFilePath().AsUTF8Unsafe(),
         base::HexEncode(raw_digest_sha256), item->GetMimeType(), /*scan_id*/ "",
-        item->GetDangerType(), item->GetTotalBytes(), referrer_chain);
+        item->GetDangerType(), item->GetTotalBytes());
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }

@@ -14,7 +14,6 @@
 
 #include "base/barrier_callback.h"
 #include "base/barrier_closure.h"
-#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
@@ -921,7 +920,6 @@ class StoragePartitionImpl::DataDeletionHelper {
       CdmStorageManager* cdm_storage_manager,
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
       network::mojom::DeviceBoundSessionManager* device_bound_session_manager,
-      KeepAliveURLLoaderService* keep_alive_url_loader_service,
       bool perform_storage_cleanup,
       const base::Time begin,
       const base::Time end);
@@ -2252,9 +2250,10 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
       return;
     }
 
-    PermissionController& permission_controller =
-        CHECK_DEREF(browser_context_->GetPermissionController());
-    auto status = permission_controller.GetPermissionStatusForCurrentDocument(
+    PermissionController* permission_controller =
+        browser_context_->GetPermissionController();
+    DCHECK(permission_controller);
+    auto status = permission_controller->GetPermissionStatusForCurrentDocument(
         content::PermissionDescriptorUtil::
             CreatePermissionDescriptorForPermissionType(
                 blink::PermissionType::LOCAL_NETWORK_ACCESS),
@@ -2269,7 +2268,7 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
       // PermissionStatus is ASK, so request the permission. Converts the result
       // into a boolean to pass back to `callback`, capturing whether the
       // permission is granted or not.
-      permission_controller.RequestPermissionFromCurrentDocument(
+      permission_controller->RequestPermissionFromCurrentDocument(
           rfh,
           PermissionRequestDescription(
               content::PermissionDescriptorUtil::
@@ -2285,39 +2284,12 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
       return;
     }
   } else if (context.type() == ContextType::kServiceWorkerContext) {
-    // TODO(crbug.com/404887282): Plumb the `frame_window_id` of the worker,
-    // if it exists, to allow this to identify the hosting frame of the worker,
-    // when available. This would allow us to additionally _request_ the
-    // permission when a fetch that happens to go through a service worker would
-    // trigger this check. This is beneficial for developers as they can use
-    // caching service workers "as expected" without needing to re-engineer
-    // their code to do a special "non-cached request" just to trigger the
-    // permission prompt. The `frame_window_id` approach is used by other
-    // methods in this file, such as OnCertificateRequested(), which require UI
-    // dialogs to handle the event. This may also be useful for handling
-    // other types of Workers that always have an associated frame (such as
-    // Dedicated Worker).
-
-    // If there is no associated worker origin, there is nothing that can be
-    // granted a permission, so just deny the permission request. This can
-    // potentially happen for things like workers loaded from data: URLs, which
-    // are opaque (but workers loaded from blob: URLs should have the origin
-    // which created the blob: URL).
-    // TODO(crbug.com/404887282): Revisit if opaque origins support is needed.
-    CHECK(context.worker_origin());
-    if (context.worker_origin()->opaque()) {
-      std::move(callback).Run(false);
-    }
-
-    PermissionController& permission_controller =
-        CHECK_DEREF(browser_context_->GetPermissionController());
-    auto status = permission_controller.GetPermissionStatusForWorker(
-        content::PermissionDescriptorUtil::
-            CreatePermissionDescriptorForPermissionType(
-                blink::PermissionType::LOCAL_NETWORK_ACCESS),
-        content::RenderProcessHost::FromID(context.process_id()),
-        context.worker_origin().value());
-    std::move(callback).Run(status == blink::mojom::PermissionStatus::GRANTED);
+    // TODO(crbug.com/404887282): Add support for gating requests from workers
+    // on whether the user previously granted the permission. This will require
+    // plumbing through the `window_id` for the fetch to identify the worker
+    // context and then using that to get the worker origin to use when calling
+    // PermissionController::GetPermissionStatusForWorker().
+    std::move(callback).Run(true);
     return;
   }
 
@@ -2594,13 +2566,11 @@ StoragePartitionImpl::CreateURLLoaderNetworkObserverForNavigationRequest(
 }
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
-StoragePartitionImpl::CreateURLLoaderNetworkObserverForServiceWorker(
-    int process_id,
-    const url::Origin& worker_origin) {
+StoragePartitionImpl::CreateAuthCertObserverForServiceWorker(int process_id) {
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver> remote;
-  url_loader_network_observers_.Add(
-      this, remote.InitWithNewPipeAndPassReceiver(),
-      URLLoaderNetworkContext(process_id, worker_origin));
+  url_loader_network_observers_.Add(this,
+                                    remote.InitWithNewPipeAndPassReceiver(),
+                                    URLLoaderNetworkContext(process_id));
   return remote;
 }
 
@@ -2618,13 +2588,14 @@ void StoragePartitionImpl::OnCanSendReportingReports(
     const std::vector<url::Origin>& origins,
     OnCanSendReportingReportsCallback callback) {
   DCHECK(initialized_);
-  PermissionController& permission_controller =
-      CHECK_DEREF(browser_context_->GetPermissionController());
+  PermissionController* permission_controller =
+      browser_context_->GetPermissionController();
+  DCHECK(permission_controller);
 
   std::vector<url::Origin> origins_out;
   for (auto& origin : origins) {
     bool allowed = permission_controller
-                       .GetPermissionResultForOriginWithoutContext(
+                       ->GetPermissionResultForOriginWithoutContext(
                            content::PermissionDescriptorUtil::
                                CreatePermissionDescriptorForPermissionType(
                                    blink::PermissionType::BACKGROUND_SYNC),
@@ -2642,11 +2613,11 @@ void StoragePartitionImpl::OnCanSendDomainReliabilityUpload(
     const url::Origin& origin,
     OnCanSendDomainReliabilityUploadCallback callback) {
   DCHECK(initialized_);
-  PermissionController& permission_controller =
-      CHECK_DEREF(browser_context_->GetPermissionController());
+  PermissionController* permission_controller =
+      browser_context_->GetPermissionController();
   std::move(callback).Run(
       permission_controller
-          .GetPermissionResultForOriginWithoutContext(
+          ->GetPermissionResultForOriginWithoutContext(
               content::PermissionDescriptorUtil::
                   CreatePermissionDescriptorForPermissionType(
                       blink::PermissionType::BACKGROUND_SYNC),
@@ -2773,8 +2744,7 @@ void StoragePartitionImpl::ClearDataImpl(
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       cdm_storage_manager_.get(),
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
-      GetDeviceBoundSessionManager(), GetKeepAliveURLLoaderService(),
-      perform_storage_cleanup, begin, end);
+      GetDeviceBoundSessionManager(), perform_storage_cleanup, begin, end);
 }
 
 void StoragePartitionImpl::DeletionHelperDone(base::OnceClosure callback) {
@@ -2960,7 +2930,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     CdmStorageManager* cdm_storage_manager,
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
     network::mojom::DeviceBoundSessionManager* device_bound_session_manager,
-    KeepAliveURLLoaderService* keep_alive_url_loader_service,
     bool perform_storage_cleanup,
     const base::Time begin,
     const base::Time end) {
@@ -3203,11 +3172,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         filter_builder ? filter_builder->BuildNetworkServiceFilter() : nullptr,
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(CreateTaskCompletionClosure(
             TracingDataType::kDeviceBoundSessions)));
-  }
-
-  if (remove_mask_ & REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY &&
-      keep_alive_url_loader_service) {
-    keep_alive_url_loader_service->ClearKeepAliveURLLoadersAttemptingRetry();
   }
 }
 
@@ -3682,11 +3646,8 @@ StoragePartitionImpl::CreateURLLoaderFactoryParams() {
   params->automatically_assign_isolation_info = true;
   params->is_orb_enabled = false;
   params->is_trusted = true;
-  // For browser-process initiated requests there is no corresponding service
-  // worker origin, so just pass an opaque origin.
   params->url_loader_network_observer =
-      CreateURLLoaderNetworkObserverForServiceWorker(params->process_id,
-                                                     url::Origin());
+      CreateAuthCertObserverForServiceWorker(params->process_id);
   params->disable_web_security =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableWebSecurity);
@@ -3833,11 +3794,8 @@ StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
-    int process_id,
-    const url::Origin& worker_origin)
-    : type_(Type::kServiceWorkerContext),
-      process_id_(process_id),
-      worker_origin_(worker_origin) {}
+    int process_id)
+    : type_(Type::kServiceWorkerContext), process_id_(process_id) {}
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
     const URLLoaderNetworkContext& other) = default;

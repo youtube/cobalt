@@ -141,17 +141,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.EntryPoint.Status" enum="GlicEntryPointStatus"
+<histogram name="Glic.EntryPoint.Impression" enum="GlicEntryPointImpression"
     expires_after="2026-01-15">
-  <owner>sanaakbani@google.com</owner>
+  <owner>erikchen@chromium.org</owner>
   <owner>iwells@google.com</owner>
   <summary>
     Recorded every 15 minutes, but only if the glic feature flag is enabled.
     This is a rough estimate of whether a user is seeing an impression of glic
-    entry points. There are three entry points for glic: Tabstrip, OS, and
-    Three-Dot. The entry points are only shown if a profile is eligible to use
-    glic. The Three-Dot menu entry is always shown but the Tabstrip and OS
-    entrypoints can be removed based on user configuration.
+    entry points. The entry point is shown if fre has not been completed, or if
+    fre has been completed and glic is enabled and pinned to the tabstrip. The
+    entry point is not shown if fre is completed and glic is either disabled or
+    unpinned from the tabstrip.
   </summary>
 </histogram>
 
@@ -198,28 +198,6 @@ chromium-metrics-reviews@google.com.
     <variant name="OnDestroy"
         summary="Recorded before the webview is destroyed."/>
   </token>
-</histogram>
-
-<histogram name="Glic.Host.WebClientUnresponsiveState"
-    enum="WebClientUnresponsiveState" expires_after="2026-05-30">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <summary>
-    Tracks the detection of the web client being unresponsive and the respective
-    state transitions into and out of the unresponsive state. Reported upon
-    detection of unresponsiveness and unresposive state transitions.
-  </summary>
-</histogram>
-
-<histogram name="Glic.Host.WebClientUnresponsiveState.Duration" units="ms"
-    expires_after="2026-05-30">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <summary>
-    Records for how long the web client was kept in an unresponsive state.
-    Recorded when the state is swtiching from unresponsive to any other
-    supported state.
-  </summary>
 </histogram>
 
 <histogram name="Glic.Metrics.Error" enum="GlicMetricsError"
@@ -467,6 +445,16 @@ chromium-metrics-reviews@google.com.
   <summary>Record the panel webui state any time it changes.</summary>
 </histogram>
 
+<histogram name="Glic.PanelWebUiState.FinishState" enum="WebUiState"
+    expires_after="2025-01-15">
+  <owner>dewittj@google.com</owner>
+  <owner>iwells@google.com</owner>
+  <summary>
+    Obsolete metric, replaced by FinishState2. Record the state when the panel
+    display is finished.
+  </summary>
+</histogram>
+
 <histogram name="Glic.PanelWebUiState.FinishState2" enum="WebUiState"
     expires_after="2026-01-15">
   <owner>dewittj@google.com</owner>
@@ -636,30 +624,6 @@ chromium-metrics-reviews@google.com.
     Records the scroll distance (in device independent pixels) for a scroll
     triggered by scrollTo()
   </summary>
-</histogram>
-
-<histogram name="Glic.ScrollTo.SessionCount" units="count"
-    expires_after="2026-01-15">
-  <owner>liuwilliam@google.com</owner>
-  <owner>adithyas@google.com</owner>
-  <summary>
-    Records the number of scrollTo() attempts in a single session. Currently
-    configured to have a max recorded value of 100.
-  </summary>
-</histogram>
-
-<histogram name="Glic.ScrollTo.UserPromptToScrollTime.{InputMode}" units="ms"
-    expires_after="2026-01-15">
-  <owner>liuwilliam@google.com</owner>
-  <owner>adithyas@google.com</owner>
-  <summary>
-    Records the time between when the user submitting input and a scroll
-    (triggered by scrollTo()) starting.
-  </summary>
-  <token key="InputMode">
-    <variant name="Audio"/>
-    <variant name="Text"/>
-  </token>
 </histogram>
 
 <histogram name="Glic.Session.AttachStateChanges" units="count"

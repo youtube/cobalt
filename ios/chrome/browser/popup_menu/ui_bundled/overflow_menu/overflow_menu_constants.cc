@@ -6,13 +6,14 @@
 
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
+#import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 
 namespace overflow_menu {
 // WARNING - PLEASE READ: Sadly, we cannot switch over strings in C++, so be
 // very careful when updating this method to ensure all enums are accounted for.
 // LINT.IfChange(stringToDestination)
-std::optional<Destination> DestinationForStringName(std::string destination) {
+Destination DestinationForStringName(std::string destination) {
   if (destination == "overflow_menu::Destination::Bookmarks") {
     return overflow_menu::Destination::Bookmarks;
   } else if (destination == "overflow_menu::Destination::History") {
@@ -36,7 +37,7 @@ std::optional<Destination> DestinationForStringName(std::string destination) {
   } else if (destination == "overflow_menu::Destination::SpotlightDebugger") {
     return overflow_menu::Destination::SpotlightDebugger;
   } else {
-    return std::nullopt;
+    NOTREACHED();
   }
 }
 // LINT.ThenChange(:destinationToString)
@@ -75,7 +76,7 @@ std::string StringNameForDestination(Destination destination) {
 // WARNING - PLEASE READ: Sadly, we cannot switch over strings in C++, so be
 // very careful when updating this method to ensure all enums are accounted for.
 // LINT.IfChange(stringToActionType)
-std::optional<ActionType> ActionTypeForStringName(std::string action) {
+ActionType ActionTypeForStringName(std::string action) {
   if (action == "Reload") {
     return overflow_menu::ActionType::Reload;
   } else if (action == "NewTab") {
@@ -119,7 +120,7 @@ std::optional<ActionType> ActionTypeForStringName(std::string action) {
   } else if (action == "AskGLIC") {
     return overflow_menu::ActionType::AskGLIC;
   } else {
-    return std::nullopt;
+    NOTREACHED();
   }
 }
 // LINT.ThenChange(/ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/overflow_menu_constants.cc:actionTypeToString)

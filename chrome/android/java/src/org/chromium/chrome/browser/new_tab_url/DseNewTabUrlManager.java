@@ -56,8 +56,7 @@ public class DseNewTabUrlManager {
     public static boolean isNewTabSearchEngineUrlAndroidEnabled() {
         return ChromeSharedPreferences.getInstance()
                         .readBoolean(ChromePreferenceKeys.IS_EEA_CHOICE_COUNTRY, false)
-                || (OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled()
-                        && OmniboxFeatures.sOmniboxParityEnableFeedOnlyForGoogle.getValue());
+                || OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled();
     }
 
     /**

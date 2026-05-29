@@ -5,7 +5,6 @@
 #ifndef IOS_CHROME_BROWSER_POPUP_MENU_UI_BUNDLED_OVERFLOW_MENU_OVERFLOW_MENU_CONSTANTS_H_
 #define IOS_CHROME_BROWSER_POPUP_MENU_UI_BUNDLED_OVERFLOW_MENU_OVERFLOW_MENU_CONSTANTS_H_
 
-#import <optional>
 #import <string>
 #import <vector>
 
@@ -58,7 +57,7 @@ enum class ActionType {
 
 // Ingests `destination` string representation and returns corresponding
 // overflow_menu::Destination enum.
-std::optional<Destination> DestinationForStringName(std::string destination);
+Destination DestinationForStringName(std::string destination);
 
 // Ingests overflow_menu::Destination `destination` and returns its string
 // representation.
@@ -66,7 +65,7 @@ std::string StringNameForDestination(Destination destination);
 
 // Ingests `action` string representation and returns corresponding
 // overflow_menu::ActionType enum.
-std::optional<ActionType> ActionTypeForStringName(std::string action);
+ActionType ActionTypeForStringName(std::string action);
 
 // Ingests overflow_menu::ActionType `action` and returns its string
 // representation.

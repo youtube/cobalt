@@ -95,7 +95,10 @@ namespace content::indexed_db::level_db {
 
 std::unique_ptr<TransactionalLevelDBFactory>& GetTransactionalLevelDBFactory() {
   static base::NoDestructor<std::unique_ptr<TransactionalLevelDBFactory>>
-      factory(std::make_unique<DefaultTransactionalLevelDBFactory>());
+      factory;
+  if (!*factory) {
+    *factory = std::make_unique<DefaultTransactionalLevelDBFactory>();
+  }
   return *factory;
 }
 

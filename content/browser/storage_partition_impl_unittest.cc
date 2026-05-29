@@ -2588,8 +2588,8 @@ TEST_F(StoragePartitionImplTest, PrivateNetworkAccessPermission) {
       browser_context()->GetDefaultStoragePartition());
 
   mojo::Remote<network::mojom::URLLoaderNetworkServiceObserver> observer(
-      partition->CreateURLLoaderNetworkObserverForServiceWorker(
-          network::mojom::kBrowserProcessId, url::Origin()));
+      partition->CreateAuthCertObserverForServiceWorker(
+          network::mojom::kBrowserProcessId));
 
   base::test::TestFuture<bool> grant_permission;
   observer->OnPrivateNetworkAccessPermissionRequired(
@@ -2660,17 +2660,16 @@ TEST_F(StoragePartitionImplLocalNetworkAccessTest,
   StoragePartitionImpl* partition = static_cast<StoragePartitionImpl*>(
       browser_context()->GetDefaultStoragePartition());
 
-  const url::Origin worker_origin =
-      url::Origin::Create(GURL("https://foo.com"));
-
   mojo::Remote<network::mojom::URLLoaderNetworkServiceObserver> observer(
-      partition->CreateURLLoaderNetworkObserverForServiceWorker(
-          network::mojom::kBrowserProcessId, worker_origin));
+      partition->CreateAuthCertObserverForServiceWorker(
+          network::mojom::kBrowserProcessId));
 
   base::test::TestFuture<bool> grant_permission;
   observer->OnLocalNetworkAccessPermissionRequired(
       base::BindOnce(grant_permission.GetCallback()));
-  EXPECT_FALSE(grant_permission.Get());
+  // TODO(crbug.com/404887282): Once support for checking permission in service
+  // workers is added, this should be changed to EXPECT_FALSE().
+  EXPECT_TRUE(grant_permission.Get());
 }
 
 TEST_F(StoragePartitionImplTest, ClearDataStorageKeyDeletesPartitionedCookies) {

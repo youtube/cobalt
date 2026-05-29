@@ -252,14 +252,12 @@ void PermissionRequestManager::AddRequest(
   bool is_main_frame =
       url::IsSameOriginWith(main_frame_origin, request->requesting_origin());
 
-  const std::optional<PermissionAction> should_auto_approve_request =
+  std::optional<PermissionAction> should_auto_approve_request =
       PermissionsClient::Get()->GetAutoApprovalStatus(
           web_contents()->GetBrowserContext(), request->requesting_origin());
 
   if (should_auto_approve_request) {
     if (should_auto_approve_request == PermissionAction::GRANTED) {
-      request->PermissionGranted(/*is_one_time=*/false);
-    } else if (should_auto_approve_request == PermissionAction::GRANTED_ONCE) {
       request->PermissionGranted(/*is_one_time=*/true);
     }
     return;
@@ -888,12 +886,6 @@ const PermissionPrompt* PermissionRequestManager::GetCurrentPrompt() const {
   return view_.get();
 }
 
-bool PermissionRequestManager::
-    IsCurrentRequestEmbeddedPermissionElementInitiated() const {
-  return IsRequestInProgress() &&
-         requests_[0]->IsEmbeddedPermissionElementInitiated();
-}
-
 std::optional<gfx::Rect>
 PermissionRequestManager::GetPromptBubbleViewBoundsInScreen() const {
   return view_ ? view_->GetViewBoundsInScreen() : std::nullopt;
@@ -1361,9 +1353,7 @@ void PermissionRequestManager::RequestFinishedIncludingDuplicates(
 }
 
 void PermissionRequestManager::AddObserver(Observer* observer) {
-  if (!observer_list_.HasObserver(observer)) {
-    observer_list_.AddObserver(observer);
-  }
+  observer_list_.AddObserver(observer);
 }
 
 void PermissionRequestManager::RemoveObserver(Observer* observer) {
@@ -1614,6 +1604,11 @@ void PermissionRequestManager::DoAutoResponseForTesting() {
   }
 }
 
+bool PermissionRequestManager::
+    IsCurrentRequestEmbeddedPermissionElementInitiated() const {
+  return IsRequestInProgress() &&
+         requests_[0]->IsEmbeddedPermissionElementInitiated();
+}
 
 bool PermissionRequestManager::IsCurrentRequestExclusiveAccess() const {
 #if !BUILDFLAG(IS_ANDROID)

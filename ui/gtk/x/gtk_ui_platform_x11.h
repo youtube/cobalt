@@ -12,8 +12,6 @@
 
 namespace gtk {
 
-class GtkEventLoopX11;
-
 // GtkUiPlatform implementation for desktop Linux X11 backends.
 class GtkUiPlatformX11 : public GtkUiPlatform {
  public:
@@ -24,7 +22,6 @@ class GtkUiPlatformX11 : public GtkUiPlatform {
 
   // GtkUiPlatform:
   void OnInitialized() override;
-  GdkWindow* GetGdkWindow(gfx::AcceleratedWidget window_id) override;
   bool SetGtkWidgetTransientFor(GtkWidget* widget,
                                 gfx::AcceleratedWidget parent) override;
   void ClearTransientFor(gfx::AcceleratedWidget parent) override;
@@ -36,8 +33,6 @@ class GtkUiPlatformX11 : public GtkUiPlatform {
 
  private:
   const raw_ref<x11::Connection> connection_;
-
-  std::unique_ptr<GtkEventLoopX11> event_loop_;
 };
 
 }  // namespace gtk

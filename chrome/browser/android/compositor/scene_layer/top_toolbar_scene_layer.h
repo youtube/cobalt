@@ -57,16 +57,7 @@ class TopToolbarSceneLayer : public SceneLayer {
                          jint progress_bar_background_y,
                          jint progress_bar_background_width,
                          jint progress_bar_background_height,
-                         jint progress_bar_background_color,
-                         jint progress_bar_static_background_x,
-                         jint progress_bar_static_background_width,
-                         jint progress_bar_static_background_color,
-                         jint progress_bar_end_indicator_x,
-                         jint progress_bar_end_indicator_y,
-                         jint progress_bar_end_indicator_width,
-                         jint progress_bar_end_indicator_height,
-                         jfloat corner_radius,
-                         jboolean progress_bar_visual_update_available);
+                         jint progress_bar_background_color);
 
   void SetContentTree(
       JNIEnv* env,

@@ -1352,7 +1352,6 @@ struct EnhancedSafeBrowsingActivePromoData
   }
 
   if (controller) {
-    CHECK(self.navigationController);
     [self configureHandlersForRootViewController:controller];
     [self.navigationController pushViewController:controller animated:YES];
   }
@@ -1468,11 +1467,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_googleServicesSettingsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_googleServicesSettingsCoordinator stop];
 
   _googleServicesSettingsCoordinator =
       [[GoogleServicesSettingsCoordinator alloc]
@@ -1485,11 +1480,7 @@ struct EnhancedSafeBrowsingActivePromoData
 - (void)showTabsSettings {
   if (_tabsCoordinator && self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_tabsCoordinator stop];
 
   _tabsCoordinator = [[TabsSettingsCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1501,11 +1492,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_addressBarPreferenceCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_addressBarPreferenceCoordinator stop];
 
   _addressBarPreferenceCoordinator = [[AddressBarPreferenceCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1517,11 +1504,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_manageSyncSettingsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_manageSyncSettingsCoordinator stop];
 
   _manageSyncSettingsCoordinator = [[ManageSyncSettingsCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1534,11 +1517,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_passwordsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_passwordsCoordinator stop];
 
   _passwordsCoordinator = [[PasswordsCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1552,11 +1531,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_safetyCheckCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_safetyCheckCoordinator stop];
 
   _safetyCheckCoordinator = [[SafetyCheckCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1613,11 +1588,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_notificationsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_notificationsCoordinator stop];
 
   _notificationsCoordinator = [[NotificationsCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1631,11 +1602,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_privacyCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_privacyCoordinator stop];
 
   _privacyCoordinator = [[PrivacyCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
@@ -1890,11 +1857,7 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_downloadsSettingsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
-
-  // Stop the coordinator before restarting it, if it exists.
-  [_downloadsSettingsCoordinator stop];
 
   _downloadsSettingsCoordinator = [[DownloadsSettingsCoordinator alloc]
       initWithBaseNavigationController:self.navigationController

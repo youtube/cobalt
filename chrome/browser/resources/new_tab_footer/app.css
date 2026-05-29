@@ -7,26 +7,21 @@
  * #scheme=relative
  * #css_wrapper_metadata_end */
 
-#container {
+#centerContainer {
   display: flex;
   justify-content: center;
   margin: 12px auto;
-}
-
-#infoContainer {
-  display: flex;
-  justify-content: center;
   max-width: 400px;
 }
 
-.notice-item {
+#centerContainer > div {
   min-width: calc-size(fit-content, min(50%, size));
   padding: 0 16px;
   position: relative;
 }
 
-.notice-item > p,
-.notice-item > button {
+#centerContainer > div > p,
+#centerContainer > div > button {
   color: var(--color-new-tab-footer-text);
   font-size: 13px;
   line-height: 20px;
@@ -46,9 +41,13 @@
   text-decoration: underline;
 }
 
-/* Add a vertical divider after each container item in the footer
+[role="link"]:hover {
+  background: var(--color-new-tab-page-button-background-hovered);
+}
+
+/* Add a vertical divider after each centerContainer item in the footer
  * except the last one. */
-#infoContainer > div:not(:last-child):after {
+#centerContainer > div:not(:last-child):after {
   background-color: var(--color-new-tab-footer-text);
   content: "";
   display: inline-block;
@@ -57,18 +56,6 @@
   right: 0;
   top: calc(50% - 6px);
   width: 1px;
-}
-
-#customizeButtons {
-  position: absolute;
-}
-
-:host-context([dir='ltr']) #customizeButtons {
-  right: 16px;
-}
-
-:host-context([dir='rtl']) #customizeButtons {
-  left: 16px;
 }
 
 #managementNoticeContainer {

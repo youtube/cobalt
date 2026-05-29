@@ -76,7 +76,6 @@ export class FeedbackToastElement extends CrLitElement {
 
   protected onHideFeedbackToastClick() {
     this.hide();
-    this.dispatchEvent(new CustomEvent('feedback-toast-dismissed'));
   }
 }
 

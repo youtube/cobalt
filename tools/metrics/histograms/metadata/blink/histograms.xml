@@ -2813,18 +2813,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Blink.HTMLParsing.ResumedByUserTiming" enum="Boolean"
-    expires_after="2025-08-07">
-  <owner>sisidovski@chromium.org</owner>
-  <owner>chrome-loading@google.com</owner>
-  <summary>
-    Records whether the parser yield is resumed by the user timing signal via
-    performance.mark(), or resumed by the scheduled timeout.
-
-    This is measured for the experiment in crbug.com/416543903.
-  </summary>
-</histogram>
-
 <histogram name="Blink.HTMLParsing.TimeToDeferredPumpTokenizer4"
     units="microseconds" expires_after="2024-12-24">
   <owner>sky@chromium.org</owner>
@@ -2889,18 +2877,6 @@ chromium-metrics-reviews@google.com.
 
     This histogram does not record metrics on machines with low-resolution
     clocks.
-  </summary>
-</histogram>
-
-<histogram name="Blink.HTMLParsing.YieldedCountByUserTiming" units="count"
-    expires_after="2025-08-07">
-  <owner>sisidovski@chromium.org</owner>
-  <owner>chrome-loading@google.com</owner>
-  <summary>
-    The count how many times the parser is yielded by the signal from the site.
-    This is triggered via performance.mark().
-
-    This is measured for the experiment in crbug.com/416543903.
   </summary>
 </histogram>
 
@@ -5108,29 +5084,6 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2024-02-25 to 2024-04-17; data may
     be missing.
-  </summary>
-</histogram>
-
-<histogram name="Blink.ThrottleFrameRate.AllowedBySecurity.API" enum="Boolean"
-    expires_after="2025-12-31">
-  <owner>gjc@google.com</owner>
-  <owner>chrome-loading@google.com</owner>
-  <summary>
-    Whether the frame rate throttling feature is allowed by the security check.
-    Recorded each time the link blocking=&quot;full-frame-rate&quot; API is
-    triggered.
-  </summary>
-</histogram>
-
-<histogram
-    name="Blink.ThrottleFrameRate.AllowedBySecurity.DocumentInitialization"
-    enum="Boolean" expires_after="2025-12-31">
-  <owner>gjc@google.com</owner>
-  <owner>chrome-loading@google.com</owner>
-  <summary>
-    Whether the frame rate throttling feature is allowed by the security check.
-    Recorded each time the browser attempts to throttle the frame rate when the
-    document is initialized and the corresponding feature is enabled.
   </summary>
 </histogram>
 

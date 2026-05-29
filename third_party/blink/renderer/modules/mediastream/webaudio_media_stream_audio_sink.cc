@@ -59,13 +59,8 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
 }
 
 WebAudioMediaStreamAudioSink::~WebAudioMediaStreamAudioSink() {
-  // Use the lock to protect access to audio_converter_.
-  {
-    base::AutoLock auto_lock(lock_);
-    if (audio_converter_.get()) {
-      audio_converter_->RemoveInput(this);
-    }
-  }
+  if (audio_converter_.get())
+    audio_converter_->RemoveInput(this);
 
   // If the track is still active, it is necessary to notify the track before
   // the source provider goes away.

@@ -112,23 +112,18 @@ class PLATFORM_EXPORT MediaStreamDescriptor final
 
   void NotifyEnabledStateChangeForWebRtcAudio(bool enabled);
 
-  void AddObserver(base::WeakPtr<WebMediaStreamObserver>);
-  void RemoveObserver(base::WeakPtr<WebMediaStreamObserver>);
+  void AddObserver(WebMediaStreamObserver*);
+  void RemoveObserver(WebMediaStreamObserver*);
 
   void Trace(Visitor*) const;
 
  private:
-  // Removes null entries and returns a copy of `observers_`.
-  // To avoid reentrancy issues, use this method when iterating over the
-  // observers and making calls that might change `observers_`.
-  Vector<base::WeakPtr<WebMediaStreamObserver>> CleanedUpObservers();
-
   Member<MediaStreamDescriptorClient> client_;
   String id_;
   int unique_id_;
   HeapVector<Member<MediaStreamComponent>> audio_components_;
   HeapVector<Member<MediaStreamComponent>> video_components_;
-  Vector<base::WeakPtr<WebMediaStreamObserver>> observers_;
+  Vector<WebMediaStreamObserver*> observers_;
   bool active_;
 };
 

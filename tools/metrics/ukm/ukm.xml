@@ -16481,18 +16481,6 @@ be describing additional metrics about the same event.
       Bucketed into exponential intervals with a standard bucket_spacing of 2.0.
     </summary>
   </metric>
-  <metric name="ZeroPrefixContextualSearchShown" enum="Boolean">
-    <summary>
-      Whether at least one zero-prefix Contextual Search suggestion was shown in
-      the Omnibox session.
-    </summary>
-  </metric>
-  <metric name="ZeroPrefixLensActionShown" enum="Boolean">
-    <summary>
-      Whether at least one zero-prefix Lens Action suggestion was shown in the
-      Omnibox session.
-    </summary>
-  </metric>
   <metric name="ZeroPrefixSearchShown" enum="Boolean">
     <summary>
       Whether at least one zero-prefix Search suggestion was shown in the
@@ -24093,13 +24081,6 @@ be describing additional metrics about the same event.
     <summary>
       Indicates when an origin deployed its 1P (AKA First Party, top-level) DT
       Token and thus was granted cookie access.
-    </summary>
-  </metric>
-  <metric name="Source" enum="FirstPartyMetadataSource">
-    <summary>
-      The source of the metadata rule that grants this cookie access. This is
-      logged for every page load with third-party cookies allowed due to a
-      global metadata or heuristics rule.
     </summary>
   </metric>
 </event>

@@ -27,8 +27,7 @@ enum class TransferInputToVizResult {
   kDownTimeAfterEventTime = 11,
   kSequenceTransferredBackFromViz = 12,
   kWebContentsIgnoringInputEvents = 13,
-  kRIRDelegateConnectionNotSetup = 14,
-  kMaxValue = kRIRDelegateConnectionNotSetup,
+  kMaxValue = kWebContentsIgnoringInputEvents,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:TransferInputToVizResult)
 

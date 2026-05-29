@@ -876,9 +876,6 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT,
                 "Use WebView's own Context for Resources rather than the embedding app's"),
         Flag.baseFeature(
-                AwFeatures.WEBVIEW_SKIP_INTERCEPTS_FOR_PREFETCH,
-                "Skip shouldInterceptRequest and other checks for prefetch requests."),
-        Flag.baseFeature(
                 BlinkFeatures.STANDARDIZED_BROWSER_ZOOM,
                 "Enable conformance to the new HTML specification for CSS zoom."),
         Flag.baseFeature("UseContextSnapshot"),
@@ -1080,10 +1077,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "PrefetchServiceWorker",
                 "Enables SpeculationRules prefetch to ServiceWorker-controlled URLs."),
-        Flag.baseFeature("TimedHTMLParserBudget"),
-        Flag.baseFeature("ServiceWorkerBackgroundUpdateForRegisteredStorageKeys"),
-        Flag.baseFeature(
-                "ServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled"),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

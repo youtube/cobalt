@@ -919,8 +919,7 @@ void SwapChainPresenter::AdjustTargetForFullScreenLetterboxing(
     std::optional<gfx::SizeF>* dest_size,
     std::optional<gfx::RectF>* target_rect) const {
   if (!base::FeatureList::IsEnabled(
-          features::kDirectCompositionLetterboxVideoOptimization) ||
-      layer_tree_->disable_dc_letterbox_video_optimization()) {
+          features::kDirectCompositionLetterboxVideoOptimization)) {
     return;
   }
 

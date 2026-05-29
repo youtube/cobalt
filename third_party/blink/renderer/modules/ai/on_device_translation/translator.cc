@@ -175,7 +175,15 @@ ScriptPromise<Translator> Translator::create(ScriptState* script_state,
     return EmptyPromise();
   }
 
-  MakeGarbageCollected<CreateTranslatorClient>(script_state, options, resolver);
+  CreateTranslatorClient* create_translator_client =
+      MakeGarbageCollected<CreateTranslatorClient>(script_state, options,
+                                                   resolver);
+
+  AIInterfaceProxy::GetTranslationManagerRemote(context)->CanCreateTranslator(
+      mojom::blink::TranslatorLanguageCode::New(options->sourceLanguage()),
+      mojom::blink::TranslatorLanguageCode::New(options->targetLanguage()),
+      WTF::BindOnce(&CreateTranslatorClient::OnGotAvailability,
+                    WrapPersistent(create_translator_client)));
 
   return resolver->Promise();
 }

@@ -382,9 +382,6 @@ extern int kDefaultMinimumTimeBetweenSuggestQueriesMs;
 // optionally subdomains) in the steady state.
 extern const char kOmniboxUIUnelideURLOnHoverThresholdMsParam[];
 
-// Parameter names used by MIA experiments.
-extern const char kSuppressPsuggestBackfillWithMIAParam[];
-
 // `FeatureParam`s
 
 // Local history zero-prefix (aka zero-suggest) and prefix suggestions.
@@ -790,11 +787,10 @@ inline constexpr base::FeatureParam<bool> kAndroidDiagInputConnection{
 // <- Diagnostics
 // ---------------------------------------------------------
 // Mobile Parity update -->
+#if BUILDFLAG(IS_ANDROID)
 inline constexpr base::FeatureParam<bool> kMobileParityRetrieveTrueFavicon{
     &omnibox::kOmniboxMobileParityUpdate, "retrieve_true_favicon", false};
-
-inline constexpr base::FeatureParam<bool> kMobileParityEnableFeedForGoogleOnly{
-    &omnibox::kOmniboxMobileParityUpdate, "enable_feed_for_google_only", true};
+#endif
 // <-- Mobile Parity update
 
 // New params should be inserted above this comment. They should be ordered

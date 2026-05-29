@@ -644,10 +644,6 @@ void WebSettingsImpl::SetAllowNonEmptyNavigatorPlugins(bool enabled) {
   settings_->SetAllowNonEmptyNavigatorPlugins(enabled);
 }
 
-void WebSettingsImpl::SetIgnorePermissionForDeviceChangedEvent(bool enabled) {
-  settings_->SetIgnorePermissionForDeviceChangedEvent(enabled);
-}
-
 void WebSettingsImpl::SetCaretBrowsingEnabled(bool enabled) {
   settings_->SetCaretBrowsingEnabled(enabled);
 }

@@ -6,9 +6,7 @@ package org.chromium.chrome.browser.toolbar;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,12 +47,9 @@ import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.toolbar.MiniOriginBarController.MiniOriginState;
 import org.chromium.chrome.browser.toolbar.MiniOriginBarController.MiniOriginWindowInsetsAnimationListener;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
-import org.chromium.content.browser.input.ImeAdapterImpl;
-import org.chromium.content.browser.webcontents.WebContentsImpl;
 import org.chromium.ui.InsetObserver;
 
 import java.util.Collections;
-import java.util.function.BooleanSupplier;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
@@ -69,8 +64,6 @@ public class MiniOriginBarControllerTest {
     @Mock private View mControlContainerView;
     @Mock private BrowserControlsSizer mBrowserControlsSizer;
     @Mock private InsetObserver mInsetObserver;
-    @Mock private WebContentsImpl mWebContents;
-    @Mock private ImeAdapterImpl mImeAdapter;
     @Captor ArgumentCaptor<TouchEventObserver> mTouchEventObserverCaptor;
     @Captor private ArgumentCaptor<FrameLayout.LayoutParams> mLayoutParamsCaptor;
 
@@ -98,8 +91,6 @@ public class MiniOriginBarControllerTest {
             new WindowInsetsAnimationCompat(WindowInsetsCompat.Type.ime(), null, 160);
     private final WindowInsetsAnimationCompat mNonImeAnimation =
             new WindowInsetsAnimationCompat(WindowInsetsCompat.Type.systemBars(), null, 160);
-    private boolean mOmniboxFocused;
-    private final BooleanSupplier mIsOmniboxFocusedSupplier = () -> mOmniboxFocused;
 
     @Before
     public void setUp() {
@@ -111,8 +102,6 @@ public class MiniOriginBarControllerTest {
         doReturn(mLocationBarLayoutParams).when(mLocationBarView).getLayoutParams();
         doReturn(mControlContainerView).when(mControlContainer).getView();
         doReturn(mControlContainerLayoutParams.width).when(mControlContainerView).getWidth();
-        doReturn(mImeAdapter).when(mWebContents).getOrSetUserData(eq(ImeAdapterImpl.class), any());
-        mIsFormFieldFocused.onWebContentsChanged(mWebContents);
         mMiniOriginBarController =
                 new MiniOriginBarController(
                         mLocationBar,
@@ -125,8 +114,7 @@ public class MiniOriginBarControllerTest {
                         mInsetObserver,
                         mControlContainerTranslationSupplier,
                         mControlContainerHeightSupplier,
-                        mIsKeyboardAccessorySheetShowing,
-                        mIsOmniboxFocusedSupplier);
+                        mIsKeyboardAccessorySheetShowing);
     }
 
     @Test
@@ -144,16 +132,14 @@ public class MiniOriginBarControllerTest {
         verify(mLocationBarView).setLayoutParams(mLayoutParamsCaptor.capture());
         assertEquals(Gravity.CENTER_VERTICAL, mLayoutParamsCaptor.getValue().gravity);
         assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, mLayoutParamsCaptor.getValue().width);
-
-        final int miniOriginBarHeight =
-                mContext.getResources().getDimensionPixelSize(R.dimen.mini_origin_bar_height);
-        final int hairlineHeight =
-                mContext.getResources().getDimensionPixelSize(R.dimen.toolbar_hairline_height);
-        assertEquals(miniOriginBarHeight, mLayoutParamsCaptor.getValue().height);
-        assertEquals(miniOriginBarHeight + hairlineHeight, mControlContainerLayoutParams.height);
+        assertEquals(
+                mContext.getResources().getDimensionPixelSize(R.dimen.mini_origin_bar_height),
+                mLayoutParamsCaptor.getValue().height);
         Assert.assertEquals(
                 MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
-        Assert.assertEquals(miniOriginBarHeight, mControlContainerHeightSupplier.get().intValue());
+        Assert.assertEquals(
+                mContext.getResources().getDimensionPixelSize(R.dimen.mini_origin_bar_height),
+                mControlContainerHeightSupplier.get().intValue());
 
         mKeyboardVisibilityDelegate.setVisibilityForTests(false);
         verify(mLocationBar).setShowOriginOnly(false);
@@ -176,7 +162,7 @@ public class MiniOriginBarControllerTest {
     }
 
     @Test
-    public void testTouchEventHidesKeyboard() {
+    public void testTouchEventEndsMiniOriginModeForSession() {
         verify(mControlContainer).addTouchEventObserver(mTouchEventObserverCaptor.capture());
         MotionEvent clickEvent = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0);
 
@@ -193,7 +179,21 @@ public class MiniOriginBarControllerTest {
                 MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
 
         assertTrue(observer.onInterceptTouchEvent(clickEvent));
-        verify(mImeAdapter).resetAndHideKeyboard();
+        Assert.assertEquals(
+                MiniOriginState.SUPPRESSED_BY_CLICK,
+                mMiniOriginBarController.getCurrentStateForTesting());
+
+        verify(mLocationBar).setShowOriginOnly(false);
+        verify(mLocationBar).setUrlBarUsesSmallText(false);
+        assertFalse(observer.onInterceptTouchEvent(clickEvent));
+
+        mKeyboardVisibilityDelegate.setVisibilityForTests(false);
+        // The effect of the click only persists until the "session" ends, e.g. via un-focusing a
+        // form or hiding the keyboard.
+        mKeyboardVisibilityDelegate.setVisibilityForTests(true);
+        Assert.assertEquals(
+                MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
+        assertTrue(observer.onInterceptTouchEvent(clickEvent));
     }
 
     @Test
@@ -255,11 +255,6 @@ public class MiniOriginBarControllerTest {
                 locationBarMiniWidth * MiniOriginBarController.LOCATION_BAR_FINAL_SCALE;
         final float finalX = (CONTROL_CONTAINER_WIDTH - finalLocationBarWidth) / 2;
         final float positionDelta = finalX - locationBarStartPosition;
-        // The url bar height is smaller than the total height of the mobar due to vertical
-        // margin.
-        final float urlBarHeight =
-                mContext.getResources().getDimensionPixelSize(R.dimen.mini_origin_bar_height) - 6;
-        doReturn(urlBarHeight).when(mLocationBar).getUrlBarHeight();
 
         animationListener.onPrepare(mImeAnimation);
         mKeyboardVisibilityDelegate.setVisibilityForTests(true);
@@ -297,7 +292,6 @@ public class MiniOriginBarControllerTest {
                         1.0f
                                 - mImeAnimation.getFraction()
                                         / MiniOriginBarController.LOCATION_BAR_SCALE_DENOMINATOR);
-        verify(mLocationBarView).setPivotY(urlBarHeight / 2);
 
         currentKeyboardHeight = 40;
         insets =
@@ -457,8 +451,6 @@ public class MiniOriginBarControllerTest {
         animationListener.onPrepare(mImeAnimation);
         Assert.assertEquals(
                 MiniOriginState.ANIMATING, mMiniOriginBarController.getCurrentStateForTesting());
-        Assert.assertEquals(
-                LayoutParams.WRAP_CONTENT, mControlContainerHeightSupplier.get().intValue());
 
         mKeyboardVisibilityDelegate.setVisibilityForTests(false);
         animationListener.onStart(mImeAnimation, bounds);
@@ -478,25 +470,6 @@ public class MiniOriginBarControllerTest {
         assertEquals(0, (int) mControlContainerTranslationSupplier.get());
         Assert.assertEquals(
                 MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
-        Assert.assertEquals(
-                mContext.getResources().getDimensionPixelSize(R.dimen.mini_origin_bar_height),
-                mControlContainerHeightSupplier.get().intValue());
-    }
-
-    @Test
-    public void testOmniboxFocused() {
-        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsSizer).getControlsPosition();
-        mMiniOriginBarController.onControlsPositionChanged(ControlsPosition.BOTTOM);
-
-        mIsFormFieldFocused.onNodeAttributeUpdated(true, false);
-        mOmniboxFocused = true;
-
-        final MiniOriginWindowInsetsAnimationListener animationListener =
-                mMiniOriginBarController.getAnimationListenerForTesting();
-
-        animationListener.onPrepare(mImeAnimation);
-        mKeyboardVisibilityDelegate.setVisibilityForTests(true);
-        verify(mLocationBar, never()).setShowOriginOnly(anyBoolean());
     }
 
     // show again, start, finish showing (predictive back)

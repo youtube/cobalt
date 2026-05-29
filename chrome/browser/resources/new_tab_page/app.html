@@ -25,9 +25,7 @@
         @open-voice-search="${this.onOpenVoiceSearch_}" ?shown="${this.realboxShown_}"
         ?had-secondary-side="${this.realboxHadSecondarySide}"
         @had-secondary-side-changed="${this.onRealboxHadSecondarySideChanged_}"
-        ?can-show-secondary-side="${this.realboxCanShowSecondarySide}"
-        ?compose-button-enabled="${this.composeButtonEnabled}"
-        ?composebox-enabled="${this.composeboxEnabled}">
+        ?can-show-secondary-side="${this.realboxCanShowSecondarySide}">
     </cr-searchbox>
     ${this.showLensUploadDialog_ ? html`
       <ntp-lens-upload-dialog id="lensUploadDialog"
@@ -91,6 +89,7 @@
         ?show-wallpaper-search-button="${this.showWallpaperSearchButton_}"
         ?wallpaper-search-button-animation-enabled="${this.wallpaperSearchButtonAnimationEnabled_}"
         @customize-click="${this.onCustomizeClick_}"
+        @show-customize-change="${this.onShowCustomizeChange_}"
         @wallpaper-search-click="${this.onWallpaperSearchClick_}">
     </ntp-customize-buttons>
     ${this.showThemeAttribution_() ? html`

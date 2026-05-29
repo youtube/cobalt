@@ -204,10 +204,7 @@ BOOL gUsingUnknownCapabilities;
   if (identity) {
     FakeSystemIdentityManager* manager = _manager.get();
     if (manager) {
-      if (manager->ContainsIdentity(identity)) {
-        manager->ClearPersistentAuthErrorForAccount(
-            CoreAccountId::FromGaiaId(GaiaId(identity.gaiaID)));
-      } else if (gUsingUnknownCapabilities) {
+      if (gUsingUnknownCapabilities) {
         manager->AddIdentityWithUnknownCapabilities(identity);
       } else {
         manager->AddIdentity(identity);

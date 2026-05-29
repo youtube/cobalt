@@ -437,10 +437,9 @@ def native_value_tag(idl_type, argument=None, apply_optional_to_last_arg=True):
             and not (idl_type.is_nullable or argument.default_value)
             and (apply_optional_to_last_arg
                  or argument != argument.owner.arguments[-1])):
-        return "IDLOptional<{}>".format(
-            _native_value_tag_impl(idl_type, argument))
+        return "IDLOptional<{}>".format(_native_value_tag_impl(idl_type))
 
-    return _native_value_tag_impl(idl_type, argument)
+    return _native_value_tag_impl(idl_type)
 
 
 def _pass_as_span_conversion_arguments(idl_type):
@@ -481,19 +480,15 @@ def _pass_as_span_conversion_arguments(idl_type):
         "AllowShared" in t.effective_annotations for t in types)
     if allow_shared:
         flags.append("PassAsSpanMarkerBase::Flags::kAllowShared")
-    # The actual value should be defined in the operation callback body according
-    # to the needs of the particular operation.
-    flags.append("${kPerformDetachCheckFlag}")
 
     return [
         " | ".join(flags) or "PassAsSpanMarkerBase::Flags::kNone", native_type
     ]
 
 
-def _native_value_tag_impl(idl_type, argument=None):
+def _native_value_tag_impl(idl_type):
     """Returns the tag type of NativeValueTraits."""
     assert isinstance(idl_type, web_idl.IdlType)
-    assert argument is None or isinstance(argument, web_idl.Argument)
 
     if idl_type.is_event_handler:
         return "IDL{}".format(idl_type.identifier)
@@ -501,7 +496,6 @@ def _native_value_tag_impl(idl_type, argument=None):
     real_type = idl_type.unwrap(typedef=True)
 
     if "PassAsSpan" in idl_type.effective_annotations:
-        assert argument, "PassAsSpan can only appear on an argument"
         conversion_arguments = _pass_as_span_conversion_arguments(idl_type)
         return "PassAsSpan<{}>".format(", ".join(conversion_arguments))
 
