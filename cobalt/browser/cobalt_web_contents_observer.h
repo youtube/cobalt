@@ -23,7 +23,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/system.h"
 #endif
 
@@ -44,29 +44,30 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
   ~CobaltWebContentsObserver() override;
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
   void DidStartNavigation(
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void RaisePlatformError();
-#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
   std::map<content::RenderFrameHost*,
            mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
       controllers_;
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
-  static void HandlePlatformErrorResponse(SbSystemPlatformErrorResponse response,
-                                          void* user_data);
+#if BUILDFLAG(IS_STARBOARD)
+  static void HandlePlatformErrorResponse(
+      SbSystemPlatformErrorResponse response,
+      void* user_data);
   void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response);
   bool is_platform_error_showing_ = false;
   int platform_error_raised_count_ = 0;
 
   base::OneShotTimer timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
-#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_STARBOARD)
 };
 
 }  // namespace cobalt
