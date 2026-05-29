@@ -17,6 +17,22 @@ namespace media {
 // this struct, then the corresponding parameters in the struct should be
 // disabled.
 struct MEDIA_EXPORT AudioProcessingSettings {
+#if BUILDFLAG(IS_COBALT)
+  // On Cobalt, audio processing (AEC, NS, AGC, etc.) is disabled by default to
+  // avoid CPU-intensive tasks on embedded devices.
+  bool echo_cancellation = false;
+  bool noise_suppression = false;
+  // Keytap removal, sometimes called "experimental noise suppression".
+  bool transient_noise_suppression = false;
+  bool automatic_gain_control = false;
+  bool high_pass_filter = false;
+  // Multi-channel is not an individual audio effect, but determines whether the
+  // processing algorithms should preserve multi-channel input audio.
+  bool multi_channel_capture_processing = false;
+  bool stereo_mirroring = false;
+
+  bool force_apm_creation = false;
+#else
   bool echo_cancellation = true;
   bool noise_suppression = true;
   // Keytap removal, sometimes called "experimental noise suppression".
@@ -38,6 +54,7 @@ struct MEDIA_EXPORT AudioProcessingSettings {
       false;
 #else
       true;
+#endif
 #endif
 
   bool operator==(const AudioProcessingSettings& b) const {
