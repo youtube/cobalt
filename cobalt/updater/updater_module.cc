@@ -205,21 +205,22 @@ UpdaterModule::~UpdaterModule() {
 }
 
 void UpdaterModule::Suspend() {
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+  if (is_updater_running_.exchange(false)) {
     base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
                               base::WaitableEvent::InitialState::NOT_SIGNALED);
     {
       base::ScopedBlockingCall scoped_blocking_call(
           FROM_HERE, base::BlockingType::MAY_BLOCK);
-      updater_thread_->task_runner()->PostTask(
-          FROM_HERE, base::BindOnce(
-                         [](UpdaterModule* module, base::WaitableEvent* event) {
-                           module->Finalize();
-                           event->Signal();
-                         },
-                         base::Unretained(this), base::Unretained(&event)));
-      event.Wait();
+      if (updater_thread_->task_runner()->PostTask(
+              FROM_HERE,
+              base::BindOnce(
+                  [](UpdaterModule* module, base::WaitableEvent* event) {
+                    module->Finalize();
+                    event->Signal();
+                  },
+                  base::Unretained(this), base::Unretained(&event)))) {
+        event.Wait();
+      }
     }
   }
 }
