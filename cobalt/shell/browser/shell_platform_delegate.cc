@@ -25,8 +25,20 @@
 
 namespace content {
 
+namespace {
+bool g_is_preload = false;
+}
+
 bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
+}
+
+void ShellPlatformDelegate::SetInitialPreload(bool is_preload) {
+  g_is_preload = is_preload;
+}
+
+bool ShellPlatformDelegate::IsInitialPreload() {
+  return g_is_preload;
 }
 
 void ShellPlatformDelegate::OnBlur() {
@@ -65,6 +77,9 @@ void ShellPlatformDelegate::OnConceal() {
 void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
+  }
+  if (g_is_preload) {
+    SetInitialPreload(false);
   }
   for (auto* shell : Shell::windows()) {
     RevealShell(shell);

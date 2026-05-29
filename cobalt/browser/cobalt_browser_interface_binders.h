@@ -20,6 +20,7 @@
 
 namespace content {
 class RenderFrameHost;
+class MojoBinderPolicyMap;
 }  // namespace content
 
 namespace cobalt {
@@ -29,6 +30,10 @@ void PopulateCobaltFrameBinders(
     absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map);
+
+// Registers Mojo binder policies for Cobalt-specific interfaces during
+// prerendering.
+void RegisterCobaltMojoBinderPolicies(content::MojoBinderPolicyMap& policy_map);
 
 }  // namespace cobalt
 

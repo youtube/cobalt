@@ -54,11 +54,7 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 
   shell_data.initial_size_ = initial_size;
 
-  if (IsVisible()) {
-    CreatePlatformWindowInternal(shell, initial_size);
-  } else {
-    shell_data.window = nullptr;
-  }
+  CreatePlatformWindowInternal(shell, initial_size);
 }
 
 void ShellPlatformDelegate::CreatePlatformWindowInternal(
@@ -69,6 +65,9 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
         std::make_unique<ShellPlatformDataAura>(platform_->default_window_size);
   }
   platform_->aura->ResizeWindow(initial_size);
+  if (IsVisible()) {
+    platform_->aura->ShowWindow();
+  }
 
   ShellData& shell_data = shell_data_map_.at(shell);
   shell_data.window = platform_->aura->host()->window();
@@ -105,7 +104,7 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
     SetContents(shell);
   }
 
-  platform_->aura->host()->Show();
+  platform_->aura->ShowWindow();
 }
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {

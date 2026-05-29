@@ -86,6 +86,8 @@ class AppEventRunnerImpl : public AppEventRunner {
   }
 
   void DoStart(const SbEvent* event) override {
+    content::ShellPlatformDelegate::SetInitialPreload(event->type ==
+                                                      kSbEventTypePreload);
     SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     init_musl();
