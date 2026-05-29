@@ -10,8 +10,10 @@ BASE_FEATURE(kCoalesceStorageAreaCommits,
              "CoalesceStorageAreaCommits",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)  
 BASE_FEATURE(kLocalStorageDeleteLockFile,
              "LocalStorageDeleteLockFile",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 }  // namespace storage
