@@ -54,7 +54,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void OnNavigationTimeout(const std::string& url);
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 #if BUILDFLAG(IS_STARBOARD)
