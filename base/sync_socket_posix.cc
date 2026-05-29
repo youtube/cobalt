@@ -27,6 +27,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/logging.h"
+
 #include <cerrno>
 #endif
 
@@ -174,9 +175,12 @@ size_t SyncSocket::Peek() {
   ssize_t number_chars = recv(handle_.get(), buffer, sizeof(buffer),
                               MSG_PEEK | MSG_TRUNC | MSG_DONTWAIT);
   if (number_chars < 0) {
-    PLOG(ERROR) << "recv failed in SyncSocket::Peek";
+    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+      PLOG(ERROR) << "recv failed in SyncSocket::Peek";
+    }
     return 0;
   }
+
   return checked_cast<size_t>(number_chars);
 }
 #else
