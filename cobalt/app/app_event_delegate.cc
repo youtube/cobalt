@@ -23,7 +23,6 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/threading/platform_thread.h"
-#include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "content/public/browser/browser_thread.h"
