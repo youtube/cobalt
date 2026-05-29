@@ -44,24 +44,28 @@ std::ostream& operator<<(
     const StarboardRendererConfig::ExperimentalFeatures& features) {
   return os << "{allow_audio_writing_on_pause="
             << ToString(features.allow_audio_writing_on_pause)
+            << ", bypass_mojo_for_media="
+            << ToString(features.bypass_mojo_for_media)
             << ", disable_low_performance_sw_decoder="
             << ToString(features.disable_low_performance_sw_decoder)
             << ", enable_av1_startup_optimization="
             << ToString(features.enable_av1_startup_optimization)
-            << ", enable_codec_output_checker="
-            << ToString(features.enable_codec_output_checker)
             << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
             << ", enable_video_renderer_vsp_adjustment="
             << ToString(features.enable_video_renderer_vsp_adjustment)
+            << ", flush_audio_track_during_seek="
+            << ToString(features.flush_audio_track_during_seek)
             << ", force_decode_to_texture="
             << ToString(features.force_decode_to_texture)
             << ", skip_flush_on_decoder_teardown="
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", skip_video_frames_over_60_fps="
             << ToString(features.skip_video_frames_over_60_fps)
+            << ", enable_trivial_optimizations="
+            << ToString(features.enable_trivial_optimizations)
             << ", use_dual_threads_for_video="
             << ToString(features.use_dual_threads_for_video)
             << ", max_samples_per_write="

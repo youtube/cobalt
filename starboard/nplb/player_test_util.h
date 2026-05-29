@@ -115,8 +115,6 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaVideoCodec video_codec,
                            const char* key_system = "");
 
-bool IsPartialAudioSupported();
-
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config);
 
 }  // namespace nplb

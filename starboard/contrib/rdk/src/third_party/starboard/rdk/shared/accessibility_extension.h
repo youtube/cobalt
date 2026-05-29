@@ -19,14 +19,8 @@
 
 #include "starboard/extension/accessibility.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 const void* GetAccessibilityApi();
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

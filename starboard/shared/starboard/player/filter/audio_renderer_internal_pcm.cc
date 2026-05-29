@@ -246,29 +246,31 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
     last_media_time_ = seek_to_time;
     ended_cb_called_ = false;
     seeking_ = true;
+
+    // The resampler maintains internal state and must be reset during a seek
+    // to avoid audio glitches. If the sink is flushed but not stopped,
+    // the callbacks might still be called by the audio thread, so the following
+    // modifications must be protected by the lock.
+    if (resampler_) {
+      resampler_.reset();
+      time_stretcher_.FlushBuffers();
+    }
+
+    total_frames_sent_to_sink_ = 0;
+    total_frames_consumed_by_sink_ = 0;
+    frames_consumed_by_sink_since_last_get_current_time_ = 0;
+    pending_decoder_outputs_ = 0;
+    audio_frame_tracker_.Reset();
+    frames_consumed_set_at_ = CurrentMonotonicTime();
+    can_accept_more_data_ = true;
+
+    is_eos_reached_on_sink_thread_ = false;
+    is_playing_on_sink_thread_ = false;
+    frames_in_buffer_on_sink_thread_ = 0;
+    offset_in_frames_on_sink_thread_ = 0;
+    frames_consumed_on_sink_thread_ = 0;
+    silence_frames_written_after_eos_on_sink_thread_ = 0;
   }
-
-  // Now the sink is stopped and the callbacks will no longer be called, so the
-  // following modifications are safe without lock.
-  if (resampler_) {
-    resampler_.reset();
-    time_stretcher_.FlushBuffers();
-  }
-
-  total_frames_sent_to_sink_ = 0;
-  total_frames_consumed_by_sink_ = 0;
-  frames_consumed_by_sink_since_last_get_current_time_ = 0;
-  pending_decoder_outputs_ = 0;
-  audio_frame_tracker_.Reset();
-  frames_consumed_set_at_ = CurrentMonotonicTime();
-  can_accept_more_data_ = true;
-
-  is_eos_reached_on_sink_thread_ = false;
-  is_playing_on_sink_thread_ = false;
-  frames_in_buffer_on_sink_thread_ = 0;
-  offset_in_frames_on_sink_thread_ = 0;
-  frames_consumed_on_sink_thread_ = 0;
-  silence_frames_written_after_eos_on_sink_thread_ = 0;
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -388,6 +390,8 @@ int64_t AudioRendererPcm::GetAudioWriteHead() {
   }
 
   SB_CHECK(decoder_sample_rate_);
+
+  std::lock_guard lock(mutex_);
   return seeking_to_time_ + audio_frame_tracker_.GetTotalOriginalFrames() *
                                 1'000'000LL / *decoder_sample_rate_;
 }
@@ -405,6 +409,7 @@ int64_t AudioRendererPcm::AdjustTimestampToAudioClock(int64_t timestamp) {
   }
   SB_CHECK(decoder_sample_rate_);
 
+  std::lock_guard lock(mutex_);
   int64_t frame_position =
       (timestamp - seeking_to_time_) * *decoder_sample_rate_ / 1'000'000LL;
   int64_t adjusted_frame_position =

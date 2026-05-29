@@ -98,12 +98,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/log_raw_format.cc",
     "//starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc",
     "//starboard/shared/starboard/media/media_get_audio_buffer_budget.cc",
-    "//starboard/shared/starboard/media/media_get_buffer_alignment.cc",
     "//starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc",
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
-    "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
-    "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
-    "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
     "//starboard/shared/starboard/microphone/microphone_close.cc",
     "//starboard/shared/starboard/microphone/microphone_create.cc",
     "//starboard/shared/starboard/microphone/microphone_destroy.cc",
@@ -258,8 +254,6 @@ static_library("starboard_platform") {
     "system_request_stop.cc",
     "text_to_speech_helper.cc",
     "text_to_speech_helper.h",
-    "thread_create_priority.cc",
-    "thread_get_id.cc",
     "thread_platform_android.cc",
     "time_zone_get_name.cc",
     "video_frame_tracker.cc",
@@ -313,6 +307,7 @@ static_library("starboard_platform") {
   ]
 
   deps = [
+    ":media_codec_video_decoder_helpers",
     "//base",
     "//third_party/opus",
   ]
@@ -381,6 +376,18 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
+static_library("media_codec_video_decoder_helpers") {
+  sources = [
+    "media_codec_video_decoder_helpers.cc",
+    "media_codec_video_decoder_helpers.h",
+  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+  ]
+}
+
 static_library("test_support") {
   testonly = true
   public_deps = [ "//testing/gtest" ]
@@ -400,6 +407,7 @@ test("starboard_platform_tests") {
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
               "media_capabilities_cache_test.cc",
+              "media_codec_video_decoder_helpers_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
@@ -415,6 +423,7 @@ test("starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
     "//starboard:starboard_group",
@@ -428,6 +437,7 @@ test("starboard_platform_tests") {
 java_cpp_enum("java_enums") {
   sources = [
     "media_codec_bridge.h",
+    "media_common.h",
     "media_drm_bridge.h",
   ]
 }

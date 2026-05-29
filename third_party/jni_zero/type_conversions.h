@@ -12,9 +12,16 @@
 #include <optional>
 #include <type_traits>
 
+#include "build/build_config.h"
 #include "third_party/jni_zero/java_refs.h"
 
 #define JNI_ZERO_ENABLE_TYPE_CONVERSIONS 1
+
+#if BUILDFLAG(IS_PARTNER_TOOLCHAIN) && !(defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+#undef JNI_ZERO_ENABLE_TYPE_CONVERSIONS
+#endif
+
+#ifdef JNI_ZERO_ENABLE_TYPE_CONVERSIONS
 
 namespace jni_zero {
 
@@ -172,4 +179,6 @@ inline T FromJniCollection(JNIEnv* env, const JavaRef<jobject>& obj) {
 
 }  // namespace jni_zero
 
+#endif  // JNI_ZERO_ENABLE_TYPE_CONVERSIONS
+//
 #endif  // JNI_ZERO_TYPE_CONVERSIONS_H_

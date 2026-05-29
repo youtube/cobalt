@@ -1380,14 +1380,15 @@ component("base") {
       "android/library_loader/library_loader_hooks.cc",
       "android/library_loader/library_loader_hooks.h",
       "android/native_uma_recorder.cc",
-      "android/scoped_java_ref.cc",
       "android/scoped_java_ref.h",
       "android/trace_event_binding.cc",
       "android/trace_event_binding.h",
     ]
 
     public_configs += [ ":copied_base_jni_include_dir" ]
-    
+
+    public_deps += [ "//third_party/jni_zero:jni_zero" ]
+
     deps += [
       ":base_jni",
       ":process_launcher_jni",
@@ -1820,7 +1821,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.

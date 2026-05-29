@@ -49,10 +49,7 @@
 #include "starboard/elf_loader/elf_loader_constants.h"
 #endif
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 static struct sigaction old_actions[2];
 
@@ -74,10 +71,7 @@ static void UninstallStopSignalHandlers() {
   ::sigaction(SIGTERM, &old_actions[1], nullptr);
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   tzset();
@@ -88,18 +82,18 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   setrlimit(RLIMIT_STACK, &stack_size);
 
   starboard::InstallSuspendSignalHandlers();
-  third_party::starboard::rdk::shared::InstallStopSignalHandlers();
+  starboard::InstallStopSignalHandlers();
 
   GError* error = NULL;
   gst_init_check(NULL, NULL, &error);
   g_free(error);
 
-  third_party::starboard::rdk::shared::Application application(callback);
+  starboard::ApplicationRdk application(callback);
   int result = application.Run(argc, argv);
 
   gst_deinit();
 
-  third_party::starboard::rdk::shared::UninstallStopSignalHandlers();
+  starboard::UninstallStopSignalHandlers();
   starboard::UninstallSuspendSignalHandlers();
 
   return result;

@@ -36,6 +36,11 @@
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
+#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
@@ -97,6 +102,10 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_settings::H5vccSettingsImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(base::BindRepeating(
       &performance::PerformanceImpl::Create, app_startup_timestamp));
+#if BUILDFLAG(USE_EVERGREEN)
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
+      base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
+#endif
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(
