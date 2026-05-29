@@ -871,7 +871,7 @@ Se la policy non viene configurata, <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POL
 I pattern URL non devono essere in conflitto con <ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" />. Nessuna policy ha la precedenza se un URL presenta corrispondenze con entrambi.
 
 Visita la pagina https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns per informazioni dettagliate sui pattern URL validi. <ph name="WILDCARD_VALUE" /> non è un valore accettato per questa policy.</translation>
-<translation id="1578495851351913403">Se configuri questa policy, viene mostrata una nuova opzione di attivazione/disattivazione dell'interfaccia utente sotto ogni display nelle impostazioni di visualizzazione. La normale modalità di mirroring trasforma tutti i display in un unico display, ma la nuova opzione consente agli utenti di escludere un display dal mirroring e di visualizzarlo come display esteso.
+<translation id="1578495851351913403">Se configuri questa policy, viene mostrata una nuova opzione di attivazione/disattivazione dell'interfaccia utente sotto ogni display nelle impostazioni di visualizzazione. La normale modalità Specchio trasforma tutti i display in un unico display, ma la nuova opzione di attivazione/disattivazione consente agli utenti di escludere un display dal mirroring e di visualizzarlo come display esteso.
 
 Se la policy viene impostata su Enabled, verrà visualizzata l'opzione di attivazione/disattivazione per ogni display, in modo da escluderlo dalla modalità di mirroring, e gli utenti potranno scegliere un display da attivare.
 
@@ -984,7 +984,6 @@ Le origini che corrispondono a pattern delle policy sia bloccati sia consentiti 
 Le origini non specificate dalla policy o dalle impostazioni utente richiederanno la precedente
 attivazione dall'utente per chiamare questa API.</translation>
 <translation id="1645793986494086629">Schema:</translation>
-<translation id="1647420986475965896">Impostazioni per i suggerimenti di AI Mode nella barra degli indirizzi e nella casella di ricerca della pagina Nuova scheda</translation>
 <translation id="1647558381546345298">La configurazione della policy consente di impostare le dimensioni della cache utilizzate da <ph name="PRODUCT_NAME" /> per archiviare sul disco i file multimediali memorizzati nella cache, a prescindere dal fatto che gli utenti abbiano specificato o meno il flag --media-cache-size. Il valore specificato in questa policy non è un limite rigido, ma un suggerimento per il sistema di memorizzazione nella cache. Tutti i valori inferiori ad alcuni megabyte vengono arrotondati.
 
       Se il valore della policy viene impostato su 0, vengono utilizzate le dimensioni della cache predefinite e gli utenti non possono apportare modifiche.
@@ -2351,7 +2350,6 @@ NOTA: le modifiche apportate a questa policy verranno applicate soltanto ai proc
       Se la policy non viene configurata, <ph name="GET_ALL_SCREENS_MEDIA_NAME" /> non è disponibile per alcuna applicazione web.
 Per migliorare la privacy, questa policy non supporterà gli aggiornamenti a metà sessione del valore della policy, pertanto le modifiche verranno applicate solo dopo che l'utente si è disconnesso e ha eseguito nuovamente l'accesso.
 L'utente avrà la certezza che, dopo l'accesso, le altre app non saranno in grado di acquisire le schermate, se ciò non era già stato consentito all'inizio della sessione.</translation>
-<translation id="2614156176932194496">Impostazioni per le integrazioni di AI Mode di Google nella barra degli indirizzi e nella casella di ricerca della pagina Nuova scheda.</translation>
 <translation id="2615240493030733717">Segnala informazioni sul fuso orario</translation>
 <translation id="2619258867868873629">La destinazione "Salva come PDF" e la destinazione "Salva su Google Drive" sui dispositivi <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="262035875928535253">Configura l'elenco di domini in cui <ph name="PRODUCT_NAME" /> deve disattivare <ph name="PASSWORD_MANAGER_NAME" />. Ciò significa che i workflow di salvataggio e compilazione verranno disattivati, in modo che le password di questi siti web non possano essere salvate o compilate automaticamente nei moduli web.
@@ -2447,16 +2445,6 @@ Il sistema eseguirà una query sui record AAAA soltanto quando può essere conne
 <translation id="2702682139813393777">Forza l'avvio degli host di messaggistica nativi di Windows tramite cmd.exe</translation>
 <translation id="270582584528242502">Non mostrare una finestra di dialogo di avviso quando l'utente sta tentando di uscire</translation>
 <translation id="2706708761587205154">Consenti la stampa solo con PIN</translation>
-<translation id="2706972066112233185">Questa policy consente di stabilire la visibilità della sezione dei consigli in AI Mode nella barra degli indirizzi e nella casella di ricerca della pagina Nuova scheda.
-
-Questa funzionalità è disponibile per tutti gli utenti che usano Google come motore di ricerca predefinito, a meno che non venga disattivata da questa policy.
-
-Se la policy non viene configurata, il relativo comportamento viene determinato dalla policy <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
-
-Se la policy viene impostata su 0 - Attivata o se non viene configurata, la funzionalità sarà disponibile per gli utenti. Se viene impostata su 1 - Disattivata, la funzionalità non sarà disponibile.
-
-0 = Consente di utilizzare la funzionalità
-1 = Non consente di utilizzare la funzionalità.</translation>
 <translation id="2707733461906745082">Separazione profilo</translation>
 <translation id="2707873794476722903">Navigazione sicura è attiva in modalità standard.</translation>
 <translation id="2709516037105925701">Compilazione automatica</translation>
@@ -3457,7 +3445,7 @@ Se la policy non viene impostata, non è possibile navigare nel browser se è at
       Quando la norma non viene impostata o non contiene intervalli di tempo:
       Le verifiche automatiche degli aggiornamenti non verranno bloccate da questa norma, ma potrebbero essere bloccate da altre norme.
       Fino a M88, questa funzionalità è attiva solo sui dispositivi <ph name="PRODUCT_OS_NAME" /> configurati come kiosk ad avvio automatico. Gli altri dispositivi non risulteranno limitati da questa norma. Tuttavia, a partire da M89, questa norma è attiva su tutti i dispositivi <ph name="PRODUCT_OS_NAME" />.</translation>
-<translation id="3456705177754697344">Non rendere disponibile per l'utente l'opzione Escludi questo display in modalità di mirroring</translation>
+<translation id="3456705177754697344">Non rendere disponibile per l'utente l'opzione Escludi questo display in modalità Specchio</translation>
 <translation id="3459509316159669723">Stampa</translation>
 <translation id="3460485593332210712">Consenti Chrome for Testing</translation>
 <translation id="3461279434465463233">Segnala lo stato dell'alimentazione</translation>
@@ -4077,7 +4065,6 @@ Tieni presente che questa policy non ha alcun effetto se <ph name="ENTERPRISE_PR
 
  Se la policy non viene configurata oppure se viene impostato un valore vuoto o non valido, non verrà aggiunto un ulteriore valore <ph name="CLIENT_INFO_IPP_ATTRIBUTE" /> alle richieste di processi di stampa.
 </translation>
-<translation id="3895626555961466729">Consenti i suggerimenti di AI Mode.</translation>
 <translation id="3896591584655529057">Attiva il salvataggio delle passkey utilizzando Gestore delle password</translation>
 <translation id="3896751141670591496">Se la policy viene attivata o se non viene configurata, vengono mostrati avvisi di sicurezza quando flag della riga di comando potenzialmente pericolosi vengono utilizzati per avviare Chrome.
 
@@ -4438,15 +4425,6 @@ Se la policy viene impostata su <ph name="DISABLE_UNPUBLISHED" /> (1), le estens
 
           Se questa policy non viene impostata, inizialmente la funzione di lettura vocale è disattivata nella schermata di accesso, ma l'utente può attivarla in qualsiasi momento.</translation>
 <translation id="4173974507809462880">Visualizza la schermata della direzione di scorrimento sul touchpad durante l'accesso</translation>
-<translation id="4175770453187201981">Questo criterio controlla le integrazioni di AI Mode di Google nella barra degli indirizzi e nella casella di ricerca della pagina Nuova scheda.
-
-Per accedere a questa funzionalità, è necessario impostare Google come motore di ricerca predefinito dell'utente.
-
-0/non impostato = la funzionalità sarà disponibile per gli utenti.
-
-1 = la funzionalità non sarà disponibile per gli utenti.
-
-Se la policy non viene configurata, il relativo comportamento viene determinato dalla policy <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="417956245902013347">Consente di attivare la funzione di accessibilità di evidenziazione del cursore di testo nella schermata di accesso.
 
           Se questa policy è impostata su true, l'evidenziazione del cursore di testo sarà sempre attivata sulla schermata di accesso.
@@ -4757,7 +4735,6 @@ Questa policy è stata rimossa nella versione M112.</translation>
 
       Questa policy richiede una configurazione aggiuntiva per essere applicata. Visita https://support.google.com/chrome/a?p=chrome_enterprise_connector_policies_setting per maggiori informazioni.</translation>
 <translation id="4402887080007986374">La versione valida dei Termini di servizio dell'account della scuola</translation>
-<translation id="4405712318246131640">Non consentire le integrazioni di AI Mode.</translation>
 <translation id="4408428864159735559">Elenco di condivisioni di file di rete preconfigurate.</translation>
 <translation id="4410236409016356088">Attiva la limitazione della larghezza di banda della rete</translation>
 <translation id="4410361389637971319">Consenti alle origini delle app web isolate di utilizzare Direct Sockets</translation>
@@ -5789,7 +5766,6 @@ Se la policy non viene configurata o se viene disattivata, i dati e i cookie pot
 
 Se questa norma non viene impostata viene utilizzata la riga di comando predefinita.</translation>
 <translation id="5151099177901233471">Attiva i report sulle informazioni relative al fuso orario del dispositivo</translation>
-<translation id="5151163911478747031">Disattiva l'attribuzione dell'estensione nel piè di pagina della pagina Nuova scheda</translation>
 <translation id="5152393033264257734">Consenti controlli dell'intercettazione DNS e barre di informazioni "http://intranetsite/" alternative</translation>
 <translation id="5152787786897382519">Chromium e Google Chrome hanno alcuni gruppi di policy che dipendono gli uni dagli altri per fornire il controllo di una funzionalità. Questi insiemi sono rappresentati dai seguenti gruppi di policy. Dato che le policy possono avere diverse origini, vengono applicati soltanto i valori provenienti dall'origine con la priorità massima. I valori dello stesso gruppo provenienti da un'origine con priorità inferiore vengono ignorati. L'ordine di priorità è definito in <ph name="POLICY_PRIORITY_DOC_URL" />.</translation>
 <translation id="5153187201534281749">Icona degli esperimenti del browser nella barra degli strumenti</translation>
@@ -5878,7 +5854,6 @@ NOTA: le modifiche apportate a questa policy verranno applicate soltanto ai proc
 <translation id="5194683382395300627">Consenti l'utilizzo di <ph name="ASSISTANT_PRODUCT_NAME" /> sul Web, ad esempio per attivare la modifica automatica delle password</translation>
 <translation id="5196630732055960309">Consenti l'API File Handling su queste app web</translation>
 <translation id="5205352023880027050">Non attivare la funzionalità EphemeralNetworkPolicies.</translation>
-<translation id="5205385499831960279">Applica limitazioni alle richieste agli endpoint della rete locale</translation>
 <translation id="5206454085187851382">Se per la policy <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME" /> viene selezionata l'opzione <ph name="PRINTERS_ALLOWLIST" />, la configurazione della policy <ph name="PRINTERS_BULK_ALLOWLIST_POLICY_NAME" /> consente di specificare le stampanti che possono essere utilizzate dagli utenti. Soltanto le stampanti con ID corrispondenti ai valori specificati in questa policy saranno a disposizione degli utenti. Gli ID devono corrispondere ai campi <ph name="ID_FIELD" /> o <ph name="GUID_FIELD" /> del file specificato nella policy <ph name="PRINTERS_BULK_CONFIGURATION_POLICY_NAME" />.</translation>
 <translation id="5207543664699568887">Consente di configurare se <ph name="PRODUCT_NAME" /> utilizzerà notifiche di sistema su Linux.
 
@@ -5994,9 +5969,9 @@ Se non viene configurata, il valore predefinito è 0 e gli utenti sono liberi di
 <translation id="5258445772095084618">Consenti agli utenti non affiliati di usare le macchine virtuali necessarie per supportare le app Linux</translation>
 <translation id="5258651513421638932">Consenti la connessione della smart card da parte delle app isolate</translation>
 <translation id="5262320080678421295">Disattiva attendibilità nei certificati emessi dall'Infrastruttura a chiave pubblica precedente di Symantec Corporation</translation>
-<translation id="5265613843467285323">Mostra un'opzione di attivazione/disattivazione dell'interfaccia utente per escludere un display in modalità di mirroring.</translation>
+<translation id="5265613843467285323">Mostra un'opzione di attivazione/disattivazione dell'interfaccia utente per escludere un display in modalità Specchio.</translation>
 <translation id="5270408671043421978">Disattiva il precaricamento dell'immagine <ph name="ARC_VM" /></translation>
-<translation id="5272332743749468542">Rendi disponibile per l'utente l'opzione Escludi questo display in modalità di mirroring</translation>
+<translation id="5272332743749468542">Rendi disponibile per l'utente l'opzione Escludi questo display in modalità Specchio</translation>
 <translation id="5273744932022326215">Consente di attivare la funzione di accessibilità di evidenziazione del cursore nella schermata di accesso.
 
           Se questa policy è impostata su true, l'evidenziazione del cursore sarà sempre attivata sulla schermata di accesso.
@@ -6555,7 +6530,6 @@ Se la policy non viene configurata o se viene impostato un elenco vuoto, all'ute
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5605676983184673391">Consenti l'esecuzione di app di Chrome nelle sessioni kiosk.</translation>
 <translation id="5607021831414604820">Attiva i report sullo stato di archiviazione del dispositivo</translation>
-<translation id="5607808178576647930">Consenti le integrazioni di AI Mode.</translation>
 <translation id="5608114828230655271">Comportamento predefinito del dispositivo</translation>
 <translation id="5609294254185484756">Consente di controllare l'esperienza utente delle funzionalità disattivate elencate nella policy <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> per le sessioni Ospite gestite (MGS).
 
@@ -6782,7 +6756,6 @@ Su <ph name="MS_WIN_NAME" />, questa policy è disponibile soltanto per le istan
 
       Nota: il fattore di regolazione minimo deve essere 100%.</translation>
 <translation id="5740636973289452345">Attiva la generazione di report sulle informazioni relative a estensioni e plug-in</translation>
-<translation id="5740716956489996914">Usa il comportamento predefinito quando determini se i siti web possono effettuare richieste agli endpoint della rete locale</translation>
 <translation id="5741110260062082926">Disattiva Orca</translation>
 <translation id="5746149754419996562">Consente la presenza di widget Glanceables su <ph name="PRODUCT_OS_NAME" />. In particolare, i widget accessibili tramite il chip di data nella barra delle app.
 Se questa policy viene attivata, i Glanceables sono attivati su <ph name="PRODUCT_OS_NAME" />.
@@ -6904,7 +6877,6 @@ Per ulteriori informazioni sulla gestione dei dati per le funzionalità di AI ge
 
       Se la policy viene impostata su Disattivata o se non viene configurata, i log di sistema non vengono segnalati.</translation>
 <translation id="5861856285460256766">Configurazione codice di accesso genitori</translation>
-<translation id="5864898931148094192">Controlla la visibilità dell'attribuzione dell'estensione nella pagina Nuova scheda</translation>
 <translation id="5868414965372171132">Configurazione di rete a livello di utente</translation>
 <translation id="5868454276721377379">Quando un utente passa da un dispositivo <ph name="PRODUCT_OS_NAME" /> a un altro, il servizio SSO mobile ripristina lo stato dell'autenticazione dell'utente nel web service dal dispositivo precedente a quello nuovo. Ciò si ottiene trasferendo i cookie dell'utente tra i dispositivi.
 
@@ -7196,13 +7168,6 @@ Questa policy è stata ritirata a partire dalla versione M124.</translation>
 <translation id="604243460476563291">Disattiva il trasferimento di file nelle connessioni di assistenza da remoto da parte degli amministratori aziendali</translation>
 <translation id="6042629184389251062">La raccolta di metriche con chiave URL non è consentita</translation>
 <translation id="6046615715547751255">Non consentire i controlli di reporting granulare</translation>
-<translation id="6047041034696466581">Questa policy consente di stabilire se nel piè di pagina della pagina Nuova scheda viene visualizzata un'attribuzione dell'estensione che modifica la pagina Nuova scheda.
-
-Per impostazione predefinita, se un'estensione ha sostituito la pagina Nuova scheda standard, nel piè di pagina viene visualizzato un messaggio che attribuisce questa modifica all'estensione specifica. Questa attribuzione include in genere un link all'estensione pertinente nel Chrome Web Store.
-
-Se questa policy non viene impostata o viene impostata su true, l'attribuzione dell'estensione sarà visibile nel piè di pagina della pagina Nuova scheda quando un'estensione ne ha il controllo.
-
-Se questa policy viene impostata su false, l'attribuzione dell'estensione nel piè di pagina della pagina Nuova scheda verrà soppressa.</translation>
 <translation id="6048199181629830227">Attiva la gestione della variazione dei picchi energetici</translation>
 <translation id="6048690591359317353">Non consentire all'utente di disconnettere o modificare manualmente una VPN</translation>
 <translation id="6049117606554031363">Attiva i report sullo stato della scheda del dispositivo</translation>
@@ -7753,7 +7718,6 @@ Vedi l'elenco di variabili che puoi utilizzare (https://www.chromium.org/adminis
 
 Se la policy non viene configurata, significa che <ph name="PRODUCT_OS_NAME" /> utilizza la directory "Download" predefinita per archiviare le acquisizioni schermo e gli utenti possono modificarla.</translation>
 <translation id="6377031865393559909">Gli utenti possono usare i modelli di scrivanie</translation>
-<translation id="6377570995433636383">Specifica se applicare limitazioni alle richieste agli endpoint della rete locale</translation>
 <translation id="6378076389057087301">Specifica se l'attività audio incide sulla gestione dell'alimentazione</translation>
 <translation id="6378393933102834628">Se la policy è impostata su True, la scorciatoia per le app viene visualizzata. Se la policy è impostata su False, tale scorciatoia non viene mai visualizzata.
 
@@ -10489,7 +10453,6 @@ Se questa norma non viene impostata, le pagine saranno sottoposte a scansione pe
       <ph name="TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />,
       <ph name="SAME_ORIGIN_TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />.
       </translation>
-<translation id="8309511882585098865">Non consentire i consigli di AI Mode.</translation>
 <translation id="8310392396850884147">Le intestazioni delle richieste CORS senza caratteri jolly sono supportate.</translation>
 <translation id="8312129124898414409">Consente di stabilire se consentire o meno l'utilizzo della generazione di chiavi sui siti web. L'utilizzo della generazione di chiavi può essere consentito o negato per tutti i siti web.
 
@@ -11226,7 +11189,6 @@ Se questa policy viene impostata su True, il modello di ricarica adattiva viene 
 Se questa policy viene impostata su False o se non viene configurata, il modello di ricarica adattiva non influisce sulla procedura di ricarica.
 
 Nota: questa policy non ha effetto se viene configurata DevicePowerBatteryChargingOptimization.</translation>
-<translation id="883025651704099882">Attiva l'attribuzione dell'estensione nel piè di pagina della pagina Nuova scheda</translation>
 <translation id="8830717323204407209">Consente agli utenti di visualizzare la promozione dell'estensione fornitore di credenziali</translation>
 <translation id="8832829916385857156">La pagina Nuova scheda mostra le schede se sono disponibili contenuti</translation>
 <translation id="8833109046074170275">Autenticazione tramite il flusso GAIA predefinito</translation>
@@ -11481,11 +11443,6 @@ Se questa policy viene disattivata, tutte le integrazioni verranno disattivate.<
       Se lo stesso pattern URL esiste sia in questa policy sia nella policy <ph name="SENSORS_BLOCKED_FOR_URLS_POLICY_NAME" />, quest'ultima ha la priorità e l'accesso ai sensori di movimento o di luce verrà bloccato.
 
       Per informazioni dettagliate sui pattern <ph name="URL_LABEL" /> validi, visita la pagina https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. I caratteri jolly (<ph name="WILDCARD_VALUE" />) sono consentiti.</translation>
-<translation id="9002299469625801504">Se questa policy viene impostata su Attivata, ogni volta che dovrebbe essere visualizzato un avviso in <ph name="DEV_TOOLS_NAME" /> a causa di controlli <ph name="LOCAL_NETWORK_ACCCESS" /> non riusciti, la richiesta principale verrà bloccata.
-
-Se questa policy viene impostata su Disattivata o se non viene configurata, le richieste di <ph name="LOCAL_NETWORK_ACCESS" /> useranno la gestione predefinita di queste richieste.
-
-Visita la pagina https://github.com/explainers-by-googlers/local-network-access per conoscere le limitazioni relative a <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="9003823644527627017">Configura VM Bruschetta su <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="9004469022085379212">Se la policy viene attivata, al dispositivo viene consentito di eseguire macchine virtuali su <ph name="PRODUCT_OS_NAME" />. Le policy <ph name="VIRTUAL_MACHINES_ALLOWED_POLICY_NAME" /> e <ph name="CROSTINI_ALLOWED_POLICY_NAME" /> devono essere attivate per utilizzare <ph name="PRODUCT_CROSTINI_NAME" />. Se la policy viene disattivata, significa che il dispositivo non può eseguire macchine virtuali. Tramite la disattivazione della policy, questa viene applicata all'avvio di nuove macchine virtuali, non a quelle già in esecuzione.
 

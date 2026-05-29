@@ -105,7 +105,7 @@ public class WebAppHeaderUtils {
 
         boolean isTrustedWebApp =
                 intentDataProvider.isWebApkActivity() || intentDataProvider.isTrustedWebActivity();
-        return isTrustedWebApp && displayMode == DisplayMode.MINIMAL_UI && isMinimalUiFlagEnabled();
+        return isMinimalUiFlagEnabled() && isTrustedWebApp && displayMode == DisplayMode.MINIMAL_UI;
     }
 
     /**

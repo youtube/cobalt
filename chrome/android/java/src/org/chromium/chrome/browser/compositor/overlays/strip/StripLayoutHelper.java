@@ -33,6 +33,7 @@ import android.text.format.DateUtils;
 import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.Interpolator;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
@@ -122,6 +123,7 @@ import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.MotionEventUtils;
 import org.chromium.ui.util.XrUtils;
@@ -1563,9 +1565,7 @@ public class StripLayoutHelper
         StripLayoutTab stripTab = findTabById(id);
         if (stripTab != null) {
             updateTabCollapsed(stripTab, collapsed, false);
-            if (!onStartup && !collapsed) {
-                runTabAddedAnimator(animationList, stripTab, /* fromTabCreation= */ true);
-            }
+            if (!onStartup && !collapsed) runTabAddedAnimator(animationList, stripTab);
         }
 
         // 4. If the new tab will be selected, scroll it to view. If the new tab will not be
@@ -1585,9 +1585,8 @@ public class StripLayoutHelper
         mUpdateHost.requestUpdate();
     }
 
-    private void runTabAddedAnimator(
-            @NonNull List<Animator> animationList, StripLayoutTab tab, boolean fromTabCreation) {
-        if (!ChromeFeatureList.sTabletTabStripAnimation.isEnabled() || !fromTabCreation) {
+    private void runTabAddedAnimator(@NonNull List<Animator> animationList, StripLayoutTab tab) {
+        if (!ChromeFeatureList.sTabletTabStripAnimation.isEnabled()) {
             animationList.add(
                     CompositorAnimator.ofFloatProperty(
                             mUpdateHost.getAnimationHandler(),
@@ -1797,16 +1796,9 @@ public class StripLayoutHelper
             final StripLayoutTab tab = mStripTabs[i];
             boolean tabSelected = selectedIndex == i;
             boolean canShowCloseButton =
-                    (tab.getWidth() >= TAB_WIDTH_MEDIUM
-                            || (tabSelected && shouldShowCloseButton(tab, i)));
-            // TODO(crbug.com/419843587): Await UX direction for close button appearance
-            if (ChromeFeatureList.sTabletTabStripAnimation.isEnabled()
-                    && tab.isDying()
-                    && !tabSelected) {
-                mStripTabs[i].setCanShowCloseButton(false, false);
-            } else {
-                mStripTabs[i].setCanShowCloseButton(canShowCloseButton, !mIsFirstLayoutPass);
-            }
+                    tab.getWidth() >= TAB_WIDTH_MEDIUM
+                            || (tabSelected && shouldShowCloseButton(tab, i));
+            mStripTabs[i].setCanShowCloseButton(canShowCloseButton, !mIsFirstLayoutPass);
         }
     }
 
@@ -1830,16 +1822,12 @@ public class StripLayoutHelper
             }
             boolean currContainerHidden = currTab.getContainerOpacity() == TAB_OPACITY_HIDDEN;
 
-            boolean hideDividerForDyingTab =
-                    ChromeFeatureList.sTabletTabStripAnimation.isEnabled() && currTab.isDying();
             // 2. Set start divider visibility.
             if (i > 0 && viewsOnStrip[i - 1] instanceof StripLayoutTab prevTab) {
                 boolean prevContainerHidden = prevTab.getContainerOpacity() == TAB_OPACITY_HIDDEN;
                 boolean prevTabHasMargin = prevTab.getTrailingMargin() > 0;
                 boolean startDividerVisible =
-                        !hideDividerForDyingTab
-                                && currContainerHidden
-                                && (prevContainerHidden || prevTabHasMargin);
+                        currContainerHidden && (prevContainerHidden || prevTabHasMargin);
                 currTab.setStartDividerVisible(startDividerVisible);
             } else {
                 currTab.setStartDividerVisible(/* visible= */ false);
@@ -1852,8 +1840,7 @@ public class StripLayoutHelper
                 boolean isLastTab = i == (viewsOnStrip.length - 1);
                 boolean endDividerVisible =
                         (isLastTab || viewsOnStrip[i + 1] instanceof StripLayoutGroupTitle)
-                                && currContainerHidden
-                                && !hideDividerForDyingTab;
+                                && currContainerHidden;
                 currTab.setEndDividerVisible(endDividerVisible);
             }
         }
@@ -3687,9 +3674,7 @@ public class StripLayoutHelper
                                 /* animate= */ true,
                                 /* deferAnimations= */ true,
                                 /* closedTab= */ null);
-                if (animationList != null) {
-                    runTabAddedAnimator(animationList, tabToAnimate, /* fromTabCreation= */ false);
-                }
+                if (animationList != null) runTabAddedAnimator(animationList, tabToAnimate);
             }
         } else {
             computeAndUpdateTabWidth(
@@ -3849,7 +3834,8 @@ public class StripLayoutHelper
                                     StripLayoutTab.WIDTH,
                                     tab.getWidth(),
                                     TAB_OVERLAP_WIDTH_DP,
-                                    NEW_ANIM_TAB_RESIZE_MS);
+                                    NEW_ANIM_TAB_RESIZE_MS,
+                                    Interpolators.STANDARD_DEFAULT_EFFECTS);
                     resizeAnimationList.add(animator);
                     continue;
                 }
@@ -3860,9 +3846,11 @@ public class StripLayoutHelper
                 }
 
                 int duration = ANIM_TAB_RESIZE_MS;
+                Interpolator interpolator = Interpolators.DECELERATE_INTERPOLATOR;
 
                 if (ChromeFeatureList.sTabletTabStripAnimation.isEnabled()) {
                     duration = NEW_ANIM_TAB_RESIZE_MS;
+                    interpolator = Interpolators.STANDARD_DEFAULT_EFFECTS;
                 }
                 animator =
                         CompositorAnimator.ofFloatProperty(
@@ -3871,7 +3859,8 @@ public class StripLayoutHelper
                                 StripLayoutTab.WIDTH,
                                 tab.getWidth(),
                                 cachedTabWidth,
-                                duration);
+                                duration,
+                                interpolator);
 
                 resizeAnimationList.add(animator);
             } else {

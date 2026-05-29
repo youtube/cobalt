@@ -11,29 +11,17 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/extensions/settings_api_bubble_helpers.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
-#include "chrome/browser/ui/webui/new_tab_footer/footer_context_menu.h"
-#include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_handler.h"
 #include "chrome/browser/ui/webui/test_support/webui_interactive_test_mixin.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/search/ntp_features.h"
-#include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/test/test_extension_dir.h"
-
-namespace {
-
-using DeepQuery = WebContentsInteractionTestUtil::DeepQuery;
-const DeepQuery kCustomizeChromeButton{
-    "new-tab-footer-app", "ntp-customize-buttons", "#customizeButton"};
-
-}  // namespace
 
 class FooterInteractiveTest
     : public WebUiInteractiveTestMixin<InteractiveBrowserTest> {
@@ -43,12 +31,6 @@ class FooterInteractiveTest
         /*enabled_features=*/{ntp_features::kNtpFooter,
                               features::kEnterpriseBadgingForNtpFooter},
         /*disabled_features=*/{features::kSideBySide});
-  }
-
-  void SetUpOnMainThread() override {
-    WebUiInteractiveTestMixin::SetUpOnMainThread();
-    browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kNtpFooterVisible,
-                                                    true);
   }
 
   void LoadNtpOverridingExtension(Profile* profile) {
@@ -103,22 +85,6 @@ class FooterInteractiveTest
                      contents_id, kCustomizeChromeSidePanelWebViewElementId));
   }
 
-  InteractiveTestApi::MultiStep OpenSidePanel(
-      const ui::ElementIdentifier& contents_id) {
-    return Steps(
-        EnsureNotPresent(kSidePanelElementId),
-        ExecuteJsAt(contents_id, kCustomizeChromeButton, "el => el.click()"),
-        WaitForShow(kSidePanelElementId));
-  }
-
-  InteractiveTestApi::MultiStep CloseSidePanel(
-      const ui::ElementIdentifier& contents_id) {
-    return Steps(
-        EnsurePresent(kSidePanelElementId),
-        ExecuteJsAt(contents_id, kCustomizeChromeButton, "el => el.click()"),
-        WaitForHide(kSidePanelElementId));
-  }
-
   new_tab_footer::NewTabFooterWebView* GetFooterView() {
     return browser()->GetBrowserView().new_tab_footer_web_view();
   }
@@ -154,6 +120,9 @@ IN_PROC_BROWSER_TEST_F(FooterInteractiveTest,
 
 IN_PROC_BROWSER_TEST_F(FooterInteractiveTest,
                        CustomizeChrome_ToggleHidesFooter) {
+  browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kNtpFooterVisible,
+                                                  true);
+
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kLocalCustomizeChromeElementId);
   const DeepQuery kFooterSection = {"customize-chrome-app", "#footer",
                                     "customize-chrome-footer",
@@ -200,63 +169,6 @@ IN_PROC_BROWSER_TEST_F(FooterInteractiveTest,
               // Ensure footer is visible.
               WaitForShow(kNtpFooterId)));
 }
-
-IN_PROC_BROWSER_TEST_F(FooterInteractiveTest, OpenAndCloseCustomizeChrome) {
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTabElementId1);
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTabElementId2);
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFooterElementId1);
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFooterElementId2);
-
-  LoadNtpOverridingExtension(browser()->profile());
-  RunTestSequence(
-      // Open the first tab.
-      Steps(
-          AddInstrumentedTab(kTabElementId1, GURL(chrome::kChromeUINewTabURL)),
-          InstrumentNonTabWebView(kFooterElementId1, kNtpFooterId)),
-      // Open the side panel in the first tab.
-      OpenSidePanel(kFooterElementId1),
-      // Open the second tab.
-      Steps(
-          AddInstrumentedTab(kTabElementId2, GURL(chrome::kChromeUINewTabURL)),
-          InstrumentNonTabWebView(kFooterElementId2, kNtpFooterId)),
-      // Open the side panel in the second tab.
-      OpenSidePanel(kFooterElementId2),
-      // Close the side panel in the second tab.
-      CloseSidePanel(kFooterElementId2),
-      // Switch to the first tab.
-      SelectTab(kTabStripElementId, 1),
-      // Close the side panel in the first tab.
-      CloseSidePanel(kFooterElementId1));
-}
-
-// Test is flaky on Mac, possibly due to the Mac handling of context menus.
-#if !BUILDFLAG(IS_MAC)
-IN_PROC_BROWSER_TEST_F(FooterInteractiveTest, ContextMenuHidesFooter) {
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kLocalFooterElementId);
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewTabElementId);
-
-  const DeepQuery kFooterContainer = {"new-tab-footer-app", "#container"};
-
-  // Disable the "NTP overridden" dialog as it can interfere with this
-  // test.
-  extensions::SetNtpPostInstallUiEnabledForTesting(false);
-  // Override the ntp with an extension.
-  LoadNtpOverridingExtension(browser()->profile());
-  RunTestSequence(
-      // Open extension ntp.
-      AddInstrumentedTab(kNewTabElementId, GURL(chrome::kChromeUINewTabURL)),
-      // Right click on footer to open context menu.
-      Steps(InstrumentNonTabWebView(kLocalFooterElementId, kNtpFooterId),
-            MoveMouseTo(kLocalFooterElementId, kFooterContainer),
-            ClickMouse(ui_controls::RIGHT)),
-      // Select the "hide footer" option.
-      Steps(WaitForShow(FooterContextMenu::kHideFooterIdForTesting),
-            SelectMenuItem(FooterContextMenu::kHideFooterIdForTesting,
-                           InputType::kMouse)),
-      // Ensure footer hides.
-      WaitForHide(kLocalFooterElementId));
-}
-#endif  // !BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 IN_PROC_BROWSER_TEST_F(FooterInteractiveTest,

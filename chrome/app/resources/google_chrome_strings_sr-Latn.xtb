@@ -56,7 +56,6 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="1682634494516646069">Google Chrome ne može da čita podatke iz svog direktorijuma sa podacima niti da ih u njih upisuje:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Kada unosite tekst u traku za adresu ili u okvir za pretragu, Chrome šalje ono što unosite u alatke za pretragu, veštačku inteligenciju i agenta organizacije da biste dobijali predloge.</translation>
 <translation id="1698376642261615901">Google Chrome je veb pregledač koji veb-stranice i aplikacije pokreće brzinom svetlosti. On je brz, stabilan i lak za korišćenje. Još bezbednije pregledajte Veb uz pomoć zaštite od malvera i „pecanja“ koja je ugrađena u Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Ponovo ćemo pokrenuti Chrome za jedan sat}one{Ponovo ćemo pokrenuti Chrome za # sat}few{Ponovo ćemo pokrenuti Chrome za # sata}other{Ponovo ćemo pokrenuti Chrome za # sati}}</translation>
 <translation id="1722488837206509557">To će vam omogućiti da birate sa dostupnih uređaja i da prikazujete sadržaj na njima.</translation>
@@ -223,7 +222,6 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="3716540481907974026">Verzija Chrome OS Flex-a</translation>
 <translation id="3718181793972440140">Ovim ćete izbrisati 1 stavku sa ovog uređaja. Da biste kasnije vratili podatke, prijavite se u Chrome kao <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome preporučuje da ga uklonite. <ph name="BEGIN_LINK" />Saznajte više o podržanim dodacima<ph name="END_LINK" />}one{Chrome preporučuje da ih uklonite. <ph name="BEGIN_LINK" />Saznajte više o podržanim dodacima<ph name="END_LINK" />}few{Chrome preporučuje da ih uklonite. <ph name="BEGIN_LINK" />Saznajte više o podržanim dodacima<ph name="END_LINK" />}other{Chrome preporučuje da ih uklonite. <ph name="BEGIN_LINK" />Saznajte više o podržanim dodacima<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Saznajte više o instaliranju Chrome-a</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Chrome OS Flex nije uspeo da sinhronizuje podatke zbog greške pri prijavljivanju.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -320,7 +318,6 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="4970880042055371251">Verzija Chrome OS-a</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Kliknite na Google menadžer lozinki</translation>
-<translation id="504867494566807945">Otvarajte linkove u Chrome-u iz bilo koje aplikacije. Radi lakšeg pristupa zakačite ga na traku zadataka.</translation>
 <translation id="5114340746415930644">Unesite pristupnu frazu da biste koristili i sačuvali Chrome podatke na nalogu, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Prijavite se u Chrome kada se prijavite u druge Google usluge</translation>
 <translation id="5126049312684316860">Chrome predučitava još više stranica koje ćete verovatno posetiti, kako bi se brže učitavale kada ih posetite</translation>
@@ -401,7 +398,6 @@ Google Chrome ne može da vrati podešavanja.</translation>
 <translation id="6075300983329039771">Vaša organizacija, <ph name="MANAGER" />, zahteva da se prijavite u Chrome</translation>
 <translation id="6113794647360055231">Upravo smo poboljšali Chrome</translation>
 <translation id="6116252277240876590">Ovaj jezik se koristi za prikazivanje menija, podešavanja, upozorenja i drugog teksta u Chrome-u</translation>
-<translation id="6127237283587442951">Podrazumevano koristite Chrome i zakačite ga</translation>
 <translation id="6134085236017727171">Da biste koristili mikrofon, odobrite Chrome-u pristup u <ph name="BEGIN_LINK" />podešavanjima sistema<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Ove kartice koriste dodatne resurse. Da biste poboljšali performanse, dozvolite Chrome-u da ih učini neaktivnim.</translation>
 <translation id="6145313976051292476">Otvarajte PDF-ove u Chrome-u</translation>
@@ -636,7 +632,6 @@ Google Chrome ne može da vrati podešavanja.</translation>
 <translation id="9090566250983691233">Saznajte zašto Chrome blokira neke fajlove</translation>
 <translation id="9106236359747881194">Izaberite tekst za pretragu</translation>
 <translation id="911206726377975832">Želite li da izbrišete i podatke pregledanja?</translation>
-<translation id="9134482777260927479">Pomoć za domaće zadatke</translation>
 <translation id="9138603949443464873">Da biste primenili promene, ponovo pokrenite Chrome</translation>
 <translation id="9148058034647219655">Izađi</translation>
 <translation id="9195993889682885387">Chrome može da proceni interesovanja na osnovu istorije pregledanja iz poslednjih nekoliko nedelja. Te informacije ostaju na uređaju.</translation>

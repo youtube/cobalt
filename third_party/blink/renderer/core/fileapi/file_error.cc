@@ -30,12 +30,9 @@
 
 #include "third_party/blink/renderer/core/fileapi/file_error.h"
 
-#include "third_party/blink/renderer/bindings/core/v8/v8_quota_exceeded_error_options.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/core/dom/quota_exceeded_error.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -242,12 +239,7 @@ void ThrowDOMException(ExceptionState& exception_state,
     message = ErrorCodeToMessage(code);
   }
 
-  DOMExceptionCode exception_code = ErrorCodeToExceptionCode(code);
-  if (exception_code == DOMExceptionCode::kQuotaExceededError) {
-    QuotaExceededError::Throw(exception_state, message);
-    return;
-  }
-  exception_state.ThrowDOMException(exception_code, message);
+  exception_state.ThrowDOMException(ErrorCodeToExceptionCode(code), message);
 }
 
 void ThrowDOMException(ExceptionState& exception_state,
@@ -267,38 +259,19 @@ void ThrowDOMException(ExceptionState& exception_state,
     message = FileErrorToMessage(error);
   }
 
-  DOMExceptionCode exception_code = FileErrorToExceptionCode(error);
-  if (exception_code == DOMExceptionCode::kQuotaExceededError) {
-    QuotaExceededError::Throw(exception_state, message);
-    return;
-  }
-  exception_state.ThrowDOMException(exception_code, message);
+  exception_state.ThrowDOMException(FileErrorToExceptionCode(error), message);
 }
 
 DOMException* CreateDOMException(FileErrorCode code) {
   DCHECK_NE(code, FileErrorCode::kOK);
-  DOMExceptionCode exception_code = ErrorCodeToExceptionCode(code);
-  String message = ErrorCodeToMessage(code);
-
-  if (exception_code == DOMExceptionCode::kQuotaExceededError &&
-      RuntimeEnabledFeatures::QuotaExceededErrorUpdateEnabled()) {
-    return QuotaExceededError::Create(
-        message, MakeGarbageCollected<QuotaExceededErrorOptions>());
-  }
-  return MakeGarbageCollected<DOMException>(exception_code, message);
+  return MakeGarbageCollected<DOMException>(ErrorCodeToExceptionCode(code),
+                                            ErrorCodeToMessage(code));
 }
 
 DOMException* CreateDOMException(base::File::Error code) {
   DCHECK_NE(code, base::File::FILE_OK);
-  DOMExceptionCode exception_code = FileErrorToExceptionCode(code);
-  String message = FileErrorToMessage(code);
-
-  if (exception_code == DOMExceptionCode::kQuotaExceededError &&
-      RuntimeEnabledFeatures::QuotaExceededErrorUpdateEnabled()) {
-    return QuotaExceededError::Create(
-        message, MakeGarbageCollected<QuotaExceededErrorOptions>());
-  }
-  return MakeGarbageCollected<DOMException>(exception_code, message);
+  return MakeGarbageCollected<DOMException>(FileErrorToExceptionCode(code),
+                                            FileErrorToMessage(code));
 }
 
 }  // namespace file_error

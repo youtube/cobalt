@@ -473,7 +473,6 @@ typedef NS_ENUM(NSInteger, ItemType) {
       break;
     }
     case ItemTypeSettingsWebInspector: {
-      [self.webInspectorStateViewCoordinator stop];
       self.webInspectorStateViewCoordinator =
           [[WebInspectorStateCoordinator alloc]
               initWithBaseNavigationController:self.navigationController

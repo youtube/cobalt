@@ -230,7 +230,7 @@ Pro začátek můžete vyzkoušet třeba tohle.</translation>
 <translation id="1720011244392820496">Zapnutí Synchronizace Wi-Fi</translation>
 <translation id="1720230731642245863">Hotspot je vypnutý</translation>
 <translation id="1731815243805539470">Přepnout na předchozího uživatele</translation>
-<translation id="1733996486177697563">Přepínejte mezi tmavým a světlým motivem. Podržte plochu a poté vyberte Tapety a styl.</translation>
+<translation id="1733996486177697563">Přepínejte mezi tmavým a světlým motivem. Podržte plochu a poté vyberte Tapeta a styl.</translation>
 <translation id="1735992454301033090">Vybraná oblast, pomocí kláves se šipkami ji přesunete</translation>
 <translation id="1736898441010944794">Adaptér <ph name="NAME" /> je viditelný pro zařízení Bluetooth.</translation>
 <translation id="1737078180382804488">Zavřít nastavení zobrazování oznámení z telefonu</translation>
@@ -243,7 +243,7 @@ Pro začátek můžete vyzkoušet třeba tohle.</translation>
 <translation id="1747827819627189109">Softwarová klávesnice je aktivována</translation>
 <translation id="1749109475624620922">Okno <ph name="WINDOW_TITLE" /> vylo přidruženo ke všem plochám</translation>
 <translation id="1750088060796401187">Je povoleno max. <ph name="MAX_DESK_LIMIT" /> ploch. Pokud chcete otevřít novou plochu, odstraňte stávající.</translation>
-<translation id="1751335846119670066">Pomoz mi přečíst</translation>
+<translation id="1751335846119670066">Pomoz mi číst</translation>
 <translation id="1755408179247123630">Zapnout poslech vybraného textu?</translation>
 <translation id="1755556344721611131">Diagnostická aplikace</translation>
 <translation id="1756833229520115364">Šablonu nelze uložit. Máte uloženo příliš mnoho oken nebo karet.</translation>
@@ -761,7 +761,6 @@ Když to neuděláte, vestavěný touchpad se za <ph name="TIMEOUT_SECONDS" /> z
 <translation id="3552189655002856821">Wi-Fi je vypnuta</translation>
 <translation id="3554215588514239132">Zobrazit nebo skrýt panel Nástroje pro vývojáře</translation>
 <translation id="3554637740840164787">Položka <ph name="ITEM_TITLE" /> byla připnuta</translation>
-<translation id="3554928024630051016">Pokud chcete přidat další zařízení USB, zkuste některé odebrat a pak připojit nové.</translation>
 <translation id="3558768885091059911">Zapnout přístup ke kameře a mikrofonu?</translation>
 <translation id="3560174576767922131">Zaznamenat video</translation>
 <translation id="3563775809269155755">Aktivovat hotspot</translation>
@@ -869,7 +868,6 @@ Připojte zařízení k napájení.</translation>
 <translation id="3861651314799684201">Stisknutím klávesy Enter spustíte nahrávání celé obrazovky</translation>
 <translation id="3870197372373144624">Zkuste zařízení vypnout.</translation>
 <translation id="3879748587602334249">Správce stahování</translation>
-<translation id="3884007280698606545">Dosáhli jste limitu zařízení USB</translation>
 <translation id="3886872229787704059">Otevřeno dnes</translation>
 <translation id="3891340733213178823">Odhlaste se dvojitým stisknutím kombinace kláves Ctrl+Shift+Q.</translation>
 <translation id="3892148308691398805">Kopírovat text</translation>
@@ -1258,7 +1256,7 @@ Je připojeno 1 zařízení.</translation>
 <translation id="5068762093486106012">Pokud budete mluvit s vypnutým zvukem, zobrazí se vám oznámení. Zvuk nikdy neopustí vaše zařízení.</translation>
 <translation id="5077416371682039027">Nastavit zobrazování nedávných fotek, médií, oznámení a aplikací z telefonu</translation>
 <translation id="5077936103761694531">Potvrdit rozlišení?</translation>
-<translation id="5078796286268621944">Nesprávný PIN</translation>
+<translation id="5078796286268621944">Nesprávný kód PIN</translation>
 <translation id="5083035541015925118">ctrl + alt + šipka nahoru</translation>
 <translation id="5083553833479578423">Odemkněte další funkce Asistenta.</translation>
 <translation id="5091636240353511739">Zobrazit PIN</translation>
@@ -1347,7 +1345,7 @@ Některé funkce jsou za účelem prodloužení výdrže baterie omezeny.</trans
 <translation id="5352250171825660495">Tmavý motiv je zapnutý</translation>
 <translation id="5354804064646502504">To může znamenat náklady na data.
 Nejsou připojena žádná zařízení.</translation>
-<translation id="5356963482258194581">Přepínejte mezi tmavým a světlým motivem. Klikněte pravým tlačítkem na plochu a vyberte Tapety a styl.</translation>
+<translation id="5356963482258194581">Přepínejte mezi tmavým a světlým motivem. Klikněte pravým tlačítkem na plochu a vyberte Tapeta a styl.</translation>
 <translation id="536019650977002321">Váš administrátor záznam zvuku nepovoluje. O další informace požádejte administrátora.</translation>
 <translation id="5361524080961918551">Řečové soubory jazyka <ph name="LANGUAGE" /> byly částečně staženy</translation>
 <translation id="5363163447017455357"><ph name="DELIMITER" /> Přejít na tuto kartu</translation>
@@ -1948,7 +1946,7 @@ Nová instalace</translation>
 <translation id="735745346212279324">Síť VPN je odpojena</translation>
 <translation id="7360036564632145207">Změnou nastavení ochrany přístupu k datům pro periferní zařízení můžete optimalizovat výkon</translation>
 <translation id="736045644501761622">Nastavit tapetu a styl</translation>
-<translation id="7368041336688136012">Používat funkce Pomoz mi přečíst a Pomoz mi psát a vytvářet obrázky pomocí AI můžou jen uživatelé starší 18 let.</translation>
+<translation id="7368041336688136012">Používat funkce Pomoz mi číst a Pomoz mi psát a vytvářet obrázky pomocí AI můžou jen uživatelé starší 18 let.</translation>
 <translation id="7371404428569700291">Zaznamenat okno</translation>
 <translation id="7372069265635026568">K dispozici je toto množství paměti: <ph name="AVAILABLE_MEMORY" /> z celkem <ph name="TOTAL_MEMORY" /></translation>
 <translation id="737315737514430195">Umožňuje přístup k mikrofonu všem aplikacím a webům s oprávněním k mikrofonu</translation>
@@ -2308,7 +2306,7 @@ Pokud zařízení chcete vypnout, znovu podržte tlačítko napájení na zaří
 <translation id="85123341071060231">Bluetooth v Chromebooku je vypnuté. Pokud chcete odemknout Chromebook, zadejte heslo.</translation>
 <translation id="8513108775083588393">Autom. otáčení</translation>
 <translation id="851458219935658693">Zobrazit okna z aktuální plochy, je vybrán přepínač</translation>
-<translation id="851660987304951246">Pomocí funkce Pomoz mi přečíst si můžete nechat rychle shrnout obsah nebo se na něco zeptat</translation>
+<translation id="851660987304951246">Pomocí funkce Pomoz mi číst si můžete nechat rychle shrnout obsah nebo se na něco zeptat</translation>
 <translation id="8517041960877371778">Je možné, že když bude zařízení <ph name="DEVICE_TYPE" /> zapnuté, nebude se nabíjet.</translation>
 <translation id="8519329096920173967">Prohledat obrazovku pomocí Google Lens</translation>
 <translation id="8535393432370007982">Zrušit řazení podle barvy</translation>

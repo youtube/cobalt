@@ -108,9 +108,6 @@ public class NotificationSettingsBridge {
         if (!BrowserStartupController.getInstance().isFullBrowserStarted()) {
             return;
         }
-        if (!SiteChannelsManager.isValidSiteChannelId(channelId)) {
-            return;
-        }
         NotificationSettingsBridgeJni.get()
                 .onChannelStateChanged(
                         channelId, SiteChannelsManager.toSiteOrigin(channelId), blocked);

@@ -27,6 +27,8 @@ namespace {
 
 using Corner = gfx::RRectF::Corner;
 
+constexpr float kEpsilon = std::numeric_limits<float>::epsilon();
+
 // The expected number of elements in the `original_layers_info_` map.
 // Currently, we expect a maximum of 8 layers to be modified when
 // synchronizing the rounded corners of a window with its transient children.
@@ -146,15 +148,22 @@ struct CircularArc {
       return kNoIntersectingPoint;
     }
 
+    // Single intersection point. Circles are tangent to each other.
+    if (std::abs(d - r1 + r2) < kEpsilon) {  // d == 0
+      float x = (c1.x() + c2.x()) / 2;
+      float y = (c1.y() + c2.y()) / 2;
+      return {{gfx::PointF(x, y)}, /*infinite_points=*/false};
+    }
+
+    // Circles intersect at two points.
+    CHECK_GT(d, std::abs(r1 - r2));
+    CHECK_LT(d, r1 + r2);
+
     float a = (Square(r1) - Square(r2) + Square(d)) / (2 * Square(d));
     float h = std::sqrt(Square(r1) - Square(a)) / d;
 
     float p5_x = c1.x() + a * distance_vec.x();
     float p5_y = c1.y() + a * distance_vec.y();
-
-    if (h == 0) {  // Single intersection point
-      return {{gfx::PointF(p5_x, p5_y)}, /*infinite_points=*/false};
-    }
 
     float p3_x = p5_x - h * distance_vec.y();
     float p3_y = p5_y + h * distance_vec.x();
@@ -442,9 +451,8 @@ bool LayerTreeSynchronizerBase::SynchronizeLayerTreeRoundedCornersImpl(
   // Currently, cc does not support rounded corners for layer whose transform
   // does not preserve 2d-axis alignment and ignores the radii.
   // (See `cc::Layer::SetRoundedCornerRadius()` comment).
-  const bool ignore_layer = layer->rounded_corner_radii().IsEmpty() ||
-                            !layer->visible() ||
-                            !transform.Preserves2dAxisAlignment();
+  const bool ignore_layer =
+      !transform.Preserves2dAxisAlignment() || !layer->visible();
   if (!ignore_layer) {
     // Get the `layer` bounds in the `root_layer_` coordinate space.
     // `transform` accounts for layer offset from its parent.

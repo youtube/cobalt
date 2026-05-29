@@ -331,15 +331,10 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
         didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kWebNavigation];
   } else if (lens::IsLensAIMSRP(URL) &&
              !base::FeatureList::IsEnabled(kLensLoadAIMInLensResultPage)) {
-    decisionHandler(web::WebStatePolicyDecider::PolicyDecision::Cancel());
-
-    // AIM SRP requires lns_surface, but we can't use Chromnient's (4), so use
-    // CHROME_SEARCH.
-    URL = net::AppendOrReplaceQueryParameter(URL, "lns_surface", "45");
     [self.delegate lensResultPageOpenURLInNewTabRequsted:URL];
     [self.delegate
          lensResultPageMediator:self
-        didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kExploreBarTab];
+        didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kWebNavigation];
   } else {
     decisionHandler(web::WebStatePolicyDecider::PolicyDecision::Allow());
   }

@@ -122,9 +122,7 @@ TEST_F(SavedTabGroupConversionTest, GroupToDataRetainsData) {
 
   proto::SavedTabGroupData proto =
       SavedTabGroupSyncBridge::SavedTabGroupToDataForTest(group);
-  EXPECT_EQ(kCurrentSavedTabGroupDataProtoVersion, proto.version());
-  EXPECT_EQ(kCurrentSavedTabGroupSpecificsProtoVersion,
-            proto.specifics().version());
+  EXPECT_EQ(1, proto.version());
 
   CompareGroups(group,
                 SavedTabGroupSyncBridge::DataToSavedTabGroupForTest(proto));
@@ -138,9 +136,7 @@ TEST_F(SavedTabGroupConversionTest, TabToDataRetainsData) {
 
   proto::SavedTabGroupData proto =
       SavedTabGroupSyncBridge::SavedTabGroupTabToDataForTest(tab);
-  EXPECT_EQ(kCurrentSavedTabGroupDataProtoVersion, proto.version());
-  EXPECT_EQ(kCurrentSavedTabGroupSpecificsProtoVersion,
-            proto.specifics().version());
+  EXPECT_EQ(1, proto.version());
 
   CompareTabs(tab,
               SavedTabGroupSyncBridge::DataToSavedTabGroupTabForTest(proto));

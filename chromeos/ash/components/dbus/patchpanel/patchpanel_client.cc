@@ -243,12 +243,6 @@ class PatchPanelClientImpl : public PatchPanelClient {
  private:
   void HandleGetDevicesResponse(GetDevicesCallback callback,
                                 dbus::Response* dbus_response) {
-    if (dbus_response == nullptr) {
-      LOG(ERROR) << "Failed to receive the GetDevices response";
-      std::move(callback).Run({});
-      return;
-    }
-
     patchpanel::GetDevicesResponse response;
     dbus::MessageReader reader(dbus_response);
     if (!reader.PopArrayOfBytesAsProto(&response)) {
@@ -263,12 +257,6 @@ class PatchPanelClientImpl : public PatchPanelClient {
 
   void HandleTagSocketResponse(TagSocketCallback callback,
                                dbus::Response* dbus_response) {
-    if (dbus_response == nullptr) {
-      LOG(ERROR) << "Failed to receive the TagSocket response";
-      std::move(callback).Run({});
-      return;
-    }
-
     patchpanel::TagSocketResponse response;
     dbus::MessageReader reader(dbus_response);
     if (!reader.PopArrayOfBytesAsProto(&response)) {

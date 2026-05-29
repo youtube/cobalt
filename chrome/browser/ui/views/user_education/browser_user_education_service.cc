@@ -1116,17 +1116,28 @@ void MaybeRegisterChromeFeaturePromos(
 
   // kIPHTabSearchToolbarButtonFeature:
   registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForToastPromo(
+      FeaturePromoSpecification::CreateForCustomAction(
           feature_engagement::kIPHTabSearchToolbarButtonFeature,
           kTabSearchButtonElementId, IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_BODY,
-          IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_BODY,
-          FeaturePromoSpecification::AcceleratorInfo())
+          IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_ACTION,
+          base::BindRepeating(
+              [](ui::ElementContext context,
+                 user_education::FeaturePromoHandle promo_handle) {
+                auto* browser =
+                    chrome::FindBrowserWithUiElementContext(context);
+                if (browser) {
+                  PinnedToolbarActionsModel::Get(browser->profile())
+                      ->UpdatePinnedState(kActionTabSearch, false);
+                }
+              }))
           .SetBubbleArrow(user_education::HelpBubbleArrow::kTopRight)
           .SetBubbleIcon(kLightbulbOutlineIcon)
           .SetBubbleTitleText(IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_TITLE)
           .SetMetadata(136, "emshack@chromium.org",
                        "Triggered when the tab search button has been moved "
-                       "into the toolbar.")));
+                       "into the toolbar.")
+          .SetPromoSubtype(
+              FeaturePromoSpecification::PromoSubtype::kActionableAlert)));
 
   // kIPHDesktopSharedHighlightingFeature:
   registry.RegisterFeature(

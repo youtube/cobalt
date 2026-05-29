@@ -1026,10 +1026,6 @@ bool ChromePaymentsAutofillClient::IsTabModalPopupDeprecated() const {
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
-bool ChromePaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable() const {
-  return true;
-}
-
 #if BUILDFLAG(IS_ANDROID)
 AutofillMessageController&
 ChromePaymentsAutofillClient::GetAutofillMessageController() {

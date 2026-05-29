@@ -796,7 +796,6 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
     return;
   }
   DCHECK(!self.privacySafeBrowsingCoordinator);
-  [self.privacySafeBrowsingCoordinator stop];
   self.privacySafeBrowsingCoordinator = [[PrivacySafeBrowsingCoordinator alloc]
       initWithBaseNavigationController:self
                                browser:self.browser];

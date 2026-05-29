@@ -52,7 +52,6 @@
 <translation id="1662146548738125461">ChromeOS Flex గురించి</translation>
 <translation id="1674870198290878346">Chrome అజ్ఞా&amp;త విండోలో లింక్‌ను తెరువు</translation>
 <translation id="1682634494516646069">Google Chrome దీని డేటా డైరెక్టరీని చదవలేదు మరియు దీనిలో రాయ‌లేదు: <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">మీరు అడ్రస్ బార్ లేదా సెర్చ్ బాక్స్‌లో టైప్ చేసినప్పుడు, Chrome మీరు టైప్ చేసే దాన్ని మీ సంస్థకు సంబంధించిన సెర్చ్, AI, ఇంకా ఏజెంట్ టూల్స్‌కు పంపి, మీకు సూచనలను అందిస్తుంది.</translation>
 <translation id="1698376642261615901">Google Chrome అనేది మెరుపు వేగంతో వెబ్‌పేజీలను మరియు యాప్‌ల‌ను అమలు చేసే వెబ్ బ్రౌజర్. ఇది వేగమైనది, సామర్థ్యం కలది మరియు ఉపయోగించడానికి సులభమైంది. Google Chromeలో నిర్మితమైన మాల్‌వేర్‌ మరియు ఫిషింగ్ భద్రతతో మరింత సురక్షితంగా వెబ్‌ను బ్రౌజ్ చేయండి.</translation>
 <translation id="1713301662689114961">{0,plural, =1{ఒక గంటలో Chrome తిరిగి ప్రారంభించబడుతుంది}other{# గంటల్లో Chrome తిరిగి ప్రారంభించబడుతుంది}}</translation>
 <translation id="1722488837206509557">ఇది అందుబాటులో ఉన్న పరికరాల నుండి ఎంచుకోవడానికి, వాటిలో కంటెంట్‌ను డిస్‌ప్లే చేయడానికి మిమ్మల్ని అనుమతిస్తుంది.</translation>
@@ -219,7 +218,6 @@
 <translation id="3716540481907974026">ChromeOS Flex వెర్షన్</translation>
 <translation id="3718181793972440140">ఇది ఈ పరికరం నుండి 1 అంశాన్ని తొలగిస్తుంది. మీ డేటాను తర్వాత తిరిగి పొందడానికి, Chromeకు <ph name="USER_EMAIL" /> లాగా సైన్ ఇన్ చేయండి.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{మీరు దాన్ని తీసివేయవలసిందిగా Chrome సిఫార్సు చేస్తోంది. <ph name="BEGIN_LINK" />సపోర్ట్ చేసే ఎక్స్‌టెన్షన్‌ల గురించి మరింత తెలుసుకోండి<ph name="END_LINK" />}other{మీరు వాటిని తీసివేయవలసిందిగా Chrome సిఫార్సు చేస్తోంది. <ph name="BEGIN_LINK" />సపోర్ట్ చేసే ఎక్స్‌టెన్షన్‌ల గురించి మరింత తెలుసుకోండి<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Chromeను ఇన్‌స్టాల్ చేయడం గురించి మరింత తెలుసుకోండి</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">సైన్ ఇన్ చేయడంలో ఎర్రర్ కారణంగా ChromeOS Flex మీ డేటాను సింక్ చేయలేకపోయింది.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -316,7 +314,6 @@
 <translation id="4970880042055371251">ChromeOS వెర్షన్</translation>
 <translation id="4990567037958725628">Google Chrome కేనరీ</translation>
 <translation id="5003967926796347400">“Google Password Manager”ను క్లిక్ చేయండి</translation>
-<translation id="504867494566807945">ఏదైనా యాప్ నుండి Chromeలో లింక్‌లను తెరవండి. అలాగే సులభంగా యాక్సెస్ చేయడానికి, అది మీ టాస్క్‌బార్‌కు పిన్ అవుతుంది.</translation>
 <translation id="5114340746415930644">మీ ఖాతా, <ph name="USER_EMAIL" />‌లో Chrome డేటాను ఉపయోగించడానికి, సేవ్ చేయడానికి మీ రహస్య పదబంధాన్ని ఎంటర్ చేయండి</translation>
 <translation id="5120334927898581447">మీరు ఇతర Google సర్వీస్‌లకు సైన్ ఇన్ చేసినప్పుడు Chromeకు సైన్ ఇన్ చేయండి</translation>
 <translation id="5126049312684316860">Chrome మీరు చూసే అవకాశం ఉన్న ఇంకా మరిన్ని పేజీలను ప్రీ - లోడ్ చేస్తుంది, తద్వారా మీరు వాటిని చూసినప్పుడు అవి మరింత త్వరగా లోడ్ అవుతాయి</translation>
@@ -393,7 +390,6 @@
 <translation id="6075300983329039771">మీ సంస్థ పాలసీ, <ph name="MANAGER" /> ప్రకారం మీరు Chromeకు సైన్ ఇన్ చేయాలి</translation>
 <translation id="6113794647360055231">Chrome ఇప్పుడు మెరుగైంది</translation>
 <translation id="6116252277240876590">Chromeలో మెనూలు, సెట్టింగ్‌లు, అలర్ట్‌లు, ఇతర టెక్స్ట్‌ను డిస్‌ప్లే చేయడానికి ఈ భాష ఉపయోగించబడుతుంది</translation>
-<translation id="6127237283587442951">పిన్ అయ్యేలా చేయడానికి ఆటోమేటిక్‌గా Chromeను ఉపయోగించండి</translation>
 <translation id="6134085236017727171">మైక్రోఫోన్‌ను ఉపయోగించడానికి, <ph name="BEGIN_LINK" />సిస్టమ్ సెట్టింగ్‌ల<ph name="END_LINK" />‌లో Chromeకు యాక్సెస్ ఇవ్వండి</translation>
 <translation id="6135456723633883042">ఈ ట్యాబ్‌లు అదనపు రిసోర్స్‌లను ఉపయోగిస్తున్నాయి. మీ పనితీరును మెరుగుపరచడానికి, వాటిని ఇన్‌యాక్టివ్‌గా ఉంచడానికి Chromeకు అనుమతినివ్వండి.</translation>
 <translation id="6145313976051292476">Chromeలో PDFలను తెరవండి</translation>

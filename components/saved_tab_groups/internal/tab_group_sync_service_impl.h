@@ -359,9 +359,7 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
   std::optional<SavedTabGroup> FindGroupWithCollaborationId(
       const syncer::CollaborationId& collaboration_id);
 
-  // Updates the last seen time for any focused tab. Invoked for remote updates.
-  // This is because if a tab is updated from remote while being focused, it
-  // should automatically be marked as seen.
+  // Updates the last seen time for any focused thab in the given tab group.
   void UpdateLastSeenTimeForAnyFocusedTabForRemoteUpdates(
       const SavedTabGroup* group,
       TriggerSource source);

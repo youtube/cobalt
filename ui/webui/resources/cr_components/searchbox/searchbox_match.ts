@@ -128,12 +128,6 @@ export class SearchboxMatchElement extends PolymerElement {
         reflectToAttribute: true,
       },
 
-      showEllipsis: {
-        type: Boolean,
-        computed:
-            `computeShowEllipsis_(showThumbnail, isLensSearchbox_, forceHideEllipsis_)`,
-      },
-
       sideType: Number,
 
       //========================================================================
@@ -146,11 +140,6 @@ export class SearchboxMatchElement extends PolymerElement {
         reflectToAttribute: true,
       },
 
-      forceHideEllipsis_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('forceHideEllipsis'),
-      },
-
       /** Rendered match contents based on autocomplete provided styling. */
       contentsHtml_: {
         type: String,
@@ -161,12 +150,6 @@ export class SearchboxMatchElement extends PolymerElement {
       descriptionHtml_: {
         type: String,
         computed: `computeDescriptionHtml_(match)`,
-      },
-
-      enableCsbMotionTweaks_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('enableCsbMotionTweaks'),
-        reflectToAttribute: true,
       },
 
       /** Remove button's 'aria-label' attribute. */
@@ -203,12 +186,9 @@ export class SearchboxMatchElement extends PolymerElement {
   declare matchIndex: number;
   declare sideType: SideType;
   declare showThumbnail: boolean;
-  declare showEllipsis: boolean;
   declare private isLensSearchbox_: boolean;
-  declare private forceHideEllipsis_: boolean;
   declare private contentsHtml_: TrustedHTML;
   declare private descriptionHtml_: TrustedHTML;
-  declare private enableCsbMotionTweaks_: boolean;
   declare private removeButtonAriaLabel_: string;
   declare private removeButtonTitle_: string;
   declare private separatorText_: string;
@@ -399,20 +379,9 @@ export class SearchboxMatchElement extends PolymerElement {
   }
 
   private computeSeparatorText_(): string {
-    return this.match &&
-            decodeString16(
-                this.match.swapContentsAndDescription ?
-                    this.match.contents :
-                    this.match.description) ?
+    return this.match && decodeString16(this.match.description) ?
         loadTimeData.getString('searchboxSeparator') :
         '';
-  }
-
-  private computeShowEllipsis_(): boolean {
-    if (this.isLensSearchbox_ && this.forceHideEllipsis_) {
-      return false;
-    }
-    return this.showThumbnail;
   }
 
   /**

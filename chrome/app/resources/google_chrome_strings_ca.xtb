@@ -52,7 +52,6 @@
 <translation id="1662146548738125461">Sobre ChromeOS Flex</translation>
 <translation id="1674870198290878346">Obre l'enllaç en una finestra d'incò&amp;gnit a Chrome</translation>
 <translation id="1682634494516646069">Google Chrome no pot llegir ni escriure en el directori de dades: <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Quan escrius a la barra d'adreces o al quadre de cerca, Chrome envia el que escrius a les eines de cerca, d'IA i d'agent de la teva organització per obtenir suggeriments.</translation>
 <translation id="1698376642261615901">Google Chrome és un navegador web que executa pàgines web i aplicacions a gran velocitat. És ràpid, estable i fàcil d'utilitzar. Navega d'una manera més segura pel web amb la protecció integrada contra programari maliciós i llocs de pesca de credencials a Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome es reiniciarà d'aquí a 1 hora}other{Chrome es reiniciarà d'aquí a # hores}}</translation>
 <translation id="1722488837206509557">Això et permetrà seleccionar un dels dispositius disponibles i mostrar-hi contingut.</translation>
@@ -219,7 +218,6 @@
 <translation id="3716540481907974026">Versió de ChromeOS Flex</translation>
 <translation id="3718181793972440140">Amb aquesta acció, se suprimirà 1 element d'aquest dispositiu. Per recuperar les teves dades més endavant, inicia la sessió a Chrome com a <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome et recomana que la suprimeixis. <ph name="BEGIN_LINK" />Més informació sobre les extensions admeses<ph name="END_LINK" />}other{Chrome et recomana que les suprimeixis. <ph name="BEGIN_LINK" />Més informació sobre les extensions admeses<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Més informació sobre com pots instal·lar Chrome</translation>
 <translation id="3780814664026482060">Chrome: <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex no ha pogut sincronitzar les teves dades a causa d'un error en iniciar la sessió.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -316,7 +314,6 @@
 <translation id="4970880042055371251">Versió de Chrome OS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Fes clic a Gestor de contrasenyes de Google</translation>
-<translation id="504867494566807945">Obre enllaços a Chrome des de qualsevol aplicació. A més, perquè sigui més fàcil accedir-hi, es fixa a la barra de tasques.</translation>
 <translation id="5114340746415930644">Introdueix la frase de contrasenya per utilitzar i desar les dades de Chrome al teu compte, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Inicia la sessió a Chrome quan iniciïs la sessió en altres serveis de Google</translation>
 <translation id="5126049312684316860">Chrome precarrega encara més pàgines que és probable que visitis perquè es carreguin més ràpidament quan ho facis</translation>
@@ -393,7 +390,6 @@
 <translation id="6075300983329039771">La teva organització, <ph name="MANAGER" />, requereix que iniciïs la sessió a Chrome</translation>
 <translation id="6113794647360055231">Chrome és millor que mai</translation>
 <translation id="6116252277240876590">Aquest idioma s'utilitza per mostrar menús, opcions de configuració, alertes i altres textos a Chrome</translation>
-<translation id="6127237283587442951">Utilitza Chrome de manera predeterminada i fixa'l</translation>
 <translation id="6134085236017727171">Per poder utilitzar el micròfon, dona accés a Chrome des de la <ph name="BEGIN_LINK" />configuració del sistema<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Aquestes pestanyes utilitzen recursos addicionals. Per millorar el rendiment, permet que Chrome les desactivi.</translation>
 <translation id="6145313976051292476">Obre els fitxers PDF a Chrome</translation>
@@ -628,7 +624,6 @@
 <translation id="9090566250983691233">Descobreix per què Chrome bloqueja alguns fitxers</translation>
 <translation id="9106236359747881194">Selecciona text per cercar</translation>
 <translation id="911206726377975832">També voleu suprimir les dades de navegació?</translation>
-<translation id="9134482777260927479">Ajuda per fer els deures</translation>
 <translation id="9138603949443464873">Torna a iniciar Chrome perquè s'apliquin els canvis</translation>
 <translation id="9148058034647219655">Surt</translation>
 <translation id="9195993889682885387">Chrome pot estimar els teus interessos basant-se en l'historial de navegació de les darreres setmanes. Aquesta informació es queda al teu telèfon.</translation>

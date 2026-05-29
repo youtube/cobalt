@@ -221,13 +221,11 @@
 <translation id="3954172517175569325">Google 계정에 저장된 비밀번호, 결제 수단, 주소가 이 기기에서 삭제됩니다. Chromium에서 다시 사용하려면 다시 로그인하세요</translation>
 <translation id="395904275706073188">보호된 페이지는 읽을 수 없습니다. 다른 페이지를 사용해 보세요.</translation>
 <translation id="3962647064319009959">Chromium이 사용자를 안전하게 보호하는 방법 알아보기</translation>
-<translation id="3971865010372729242">주소 표시줄이나 검색창에 입력하면 추천을 받을 수 있도록 Chromium에서 입력 내용을 조직의 검색, AI, 에이전트 도구로 전송합니다.</translation>
 <translation id="3975724895399328945">&amp;Google Chrome for Testing 정보</translation>
 <translation id="3997429360543082038">ChromiumOS 정보</translation>
 <translation id="4019629340646866719"><ph name="BEGIN_LINK_LINUX_OSS" />Linux 개발 환경<ph name="END_LINK_LINUX_OSS" />과 마찬가지로, ChromiumOS는 추가 <ph name="BEGIN_LINK_CROS_OSS" />오픈소스 소프트웨어<ph name="END_LINK_CROS_OSS" />를 사용하여 개발되었습니다.</translation>
 <translation id="4022972681110646219">화면 번역</translation>
 <translation id="4023601594785368013">원본 언어, <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">모든 앱에서 Chromium으로 링크를 엽니다. 또한 쉽게 액세스할 수 있도록 작업 표시줄에 고정됩니다</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />현재 설정<ph name="END_LINK" />을 보고하여 Chromium 개선에 참여</translation>
 <translation id="4050175100176540509">최신 버전에는 중요한 보안 개선사항 및 새로운 기능이 포함되어 있습니다.</translation>
 <translation id="4055805654398742145">비밀번호 관리자(&amp;A)</translation>
@@ -329,7 +327,6 @@
 <translation id="5524890928877629608">검색 영역의 왼쪽 상단: 왼쪽 <ph name="LEFT" />%, 상단 <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Chromium에서 PDF 열기</translation>
 <translation id="5579324208890605088">시작 오류: 관리자가 아닌 일반 사용자로 설치 프로그램을 실행하세요.</translation>
-<translation id="5580770360767802657">Chromium을 기본 브라우저로 사용하고 고정하세요</translation>
 <translation id="5596627076506792578">옵션 더보기</translation>
 <translation id="5605834417512968703">이미지 검색으로 검색할 항목을 선택하거나 Esc 키를 눌러 이미지 검색을 종료하세요.</translation>
 <translation id="5618818588972826921">이미지 검색으로 검색할 텍스트 또는 이미지를 선택하거나 Esc 키를 눌러 이미지 검색을 종료하세요</translation>
@@ -478,7 +475,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="7339898014177206373">새 창</translation>
 <translation id="734373864078049451">웹, 북마크 및 기타 Chromium 콘텐츠가 여기에 저장됩니다.</translation>
 <translation id="7349591376906416160">시스템 관리자가 <ph name="TARGET_URL_HOSTNAME" /> 액세스를 위해 <ph name="ALTERNATIVE_BROWSER_NAME" />을(를) 열도록 Chromium을 구성했습니다.</translation>
-<translation id="7352651011704765696">문제가 발생했습니다</translation>
+<translation id="7352651011704765696">문제가 발생했습니다.</translation>
 <translation id="7384121030444253939">이 확장 프로그램은 더 이상 지원되지 않습니다. 대신 Chromium에서는 이 프로그램을 삭제할 것을 권장합니다.</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - 개발자용 Chromium</translation>
 <translation id="7450541714075000668">텍스트 복사됨</translation>
@@ -602,7 +599,6 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="9106612006984859720">향후 Chromium 업데이트를 받으려면 Windows 10 이상이 필요합니다. 이 컴퓨터에서는 Windows 8.1을 사용 중입니다.</translation>
 <translation id="91086099826398415">새 Chromium 탭에서 링크 열기(&amp;T)</translation>
 <translation id="911206726377975832">인터넷 사용 기록도 삭제하시겠습니까?</translation>
-<translation id="9134482777260927479">과제 해결 도움 받기</translation>
 <translation id="9148058034647219655">나가기</translation>
 <translation id="9158494823179993217">시스템 관리자가 <ph name="TARGET_URL_HOSTNAME" /> 액세스를 위해 대체 브라우저를 열도록 Chromium을 구성했습니다.</translation>
 <translation id="9185526690718004400">다시 실행하여 Chromium 업데이트</translation>

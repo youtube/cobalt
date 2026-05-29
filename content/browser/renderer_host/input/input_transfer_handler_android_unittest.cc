@@ -40,8 +40,6 @@ class FakeInputTransferHandlerClient final
               SendStateOnTouchTransfer,
               (const ui::MotionEvent&, bool),
               (override));
-
-  bool IsMojoRIRDelegateConnectionSetup() override { return true; }
 };
 
 class MockJniDelegate : public InputTransferHandlerAndroid::JniDelegate {

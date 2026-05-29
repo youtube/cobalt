@@ -69,8 +69,7 @@ AISummarizer::AISummarizer(
 
 AISummarizer::~AISummarizer() {
   for (auto& responder : responder_set_) {
-    AIUtils::SendStreamingStatus(
-        responder,
+    responder->OnError(
         blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
   }
 }
@@ -105,8 +104,7 @@ void AISummarizer::Summarize(
   if (!session) {
     mojo::Remote<blink::mojom::ModelStreamingResponder> responder(
         std::move(pending_responder));
-    AIUtils::SendStreamingStatus(
-        responder,
+    responder->OnError(
         blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
     return;
   }
@@ -133,25 +131,20 @@ void AISummarizer::DidGetExecutionInputSizeForSummarize(
   }
 
   if (!session_wrapper_.session()) {
-    AIUtils::SendStreamingStatus(
-        responder,
+    responder->OnError(
         blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
     return;
   }
 
   if (!result.has_value()) {
-    AIUtils::SendStreamingStatus(
-        responder,
+    responder->OnError(
         blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
     return;
   }
 
-  uint32_t quota = blink::mojom::kWritingAssistanceMaxInputTokenSize;
-  if (result.value() > quota) {
-    AIUtils::SendStreamingStatus(
-        responder,
-        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge,
-        blink::mojom::QuotaErrorInfo::New(result.value(), quota));
+  if (result.value() > blink::mojom::kWritingAssistanceMaxInputTokenSize) {
+    responder->OnError(
+        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
     return;
   }
 
@@ -171,8 +164,7 @@ void AISummarizer::ModelExecutionCallback(
   }
 
   if (!result.response.has_value()) {
-    AIUtils::SendStreamingStatus(
-        responder,
+    responder->OnError(
         AIUtils::ConvertModelExecutionError(result.response.error().error()));
     return;
   }

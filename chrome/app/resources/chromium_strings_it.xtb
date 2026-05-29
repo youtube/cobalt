@@ -219,13 +219,11 @@
 <translation id="3954172517175569325">Le password, i metodi di pagamento e gli indirizzi che hai salvato nel tuo Account Google verranno rimossi da questo dispositivo. Per usarli di nuovo in Chromium, accedi nuovamente.</translation>
 <translation id="395904275706073188">Le pagine protette non possono essere lette. Prova con un'altra pagina.</translation>
 <translation id="3962647064319009959">Scopri in che modo Chromium ti protegge</translation>
-<translation id="3971865010372729242">Quando digiti nella barra degli indirizzi o nella casella di ricerca, Chromium invia ciò che digiti agli strumenti di ricerca, all'AI e all'agente della tua organizzazione per ricevere suggerimenti.</translation>
 <translation id="3975724895399328945">Informazioni su &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Informazioni su Chromium OS</translation>
 <translation id="4019629340646866719">La realizzazione di Chromium OS è stata possibile grazie a un <ph name="BEGIN_LINK_CROS_OSS" />software open source<ph name="END_LINK_CROS_OSS" /> aggiuntivo, noto come <ph name="BEGIN_LINK_LINUX_OSS" />ambiente di sviluppo Linux<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Traduci schermata</translation>
 <translation id="4023601594785368013">Lingua originale: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Apri i link in Chromium da qualsiasi app. Inoltre, per accedere facilmente, l'app viene bloccata nella barra delle applicazioni.</translation>
 <translation id="4036079820698952681">Contribuisci a migliorare Chromium indicando le <ph name="BEGIN_LINK" />impostazioni attuali<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">Nell'ultima versione sono stati apportati miglioramenti rilevanti in materia di sicurezza e sono state aggiunte nuove funzioni.</translation>
 <translation id="4055805654398742145">Gestore delle p&amp;assword</translation>
@@ -264,7 +262,7 @@
 <translation id="4510853178268397146">Per questa estensione non sono state pubblicate Norme di tutela della privacy, ad esempio la modalità di raccolta e utilizzo dei dati. Chromium consiglia di rimuoverla.</translation>
 <translation id="452711251841752011">Ti diamo il benvenuto in Chromium; nuova finestra del browser aperta</translation>
 <translation id="4531137820806573936">Chromium deve avere l'autorizzazione per mappare l'ambiente circostante e monitorare le tue mani</translation>
-<translation id="4534145890176164066">Chromium comprende meglio i moduli e può compilarli automaticamente per te in modo più rapido</translation>
+<translation id="4534145890176164066">Chromium comprende meglio i moduli e può compilarli automaticamente e più velocemente al tuo posto</translation>
 <translation id="4536805923587466102">Hai già eseguito l'accesso come <ph name="USER_EMAIL_ADDRESS" /> in un altro profilo Chromium</translation>
 <translation id="4548534452171747496">Chromium precarica le pagine per velocizzare la navigazione e la ricerca. <ph name="BEGIN_LINK" />Scopri di più sul precaricamento delle pagine<ph name="END_LINK" /></translation>
 <translation id="4567424176335768812">Hai eseguito l'accesso come <ph name="USER_EMAIL_ADDRESS" />. Ora puoi accedere ai tuoi Preferiti, alla tua cronologia e ad altre impostazioni su tutti i tuoi dispositivi su cui esegui l'accesso.</translation>
@@ -327,7 +325,6 @@
 <translation id="5524890928877629608">angolo in alto a sinistra dell'area di ricerca: sinistra <ph name="LEFT" />%, in alto <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Apri PDF in Chromium</translation>
 <translation id="5579324208890605088">Errore di avvio: esegui il programma di installazione come utente normale, non come amministratore.</translation>
-<translation id="5580770360767802657">Usa Chromium per impostazione predefinita e fissalo</translation>
 <translation id="5596627076506792578">Altre opzioni</translation>
 <translation id="5605834417512968703">Seleziona un elemento da cercare con la ricerca immagini o premi Esc per uscire dalla ricerca immagini</translation>
 <translation id="5618818588972826921">Seleziona un testo o un'immagine da cercare con la ricerca immagini o premi Esc per uscire dalla ricerca immagini</translation>
@@ -445,7 +442,7 @@ Alcune funzioni potrebbero non essere disponibili. Specifica un'altra directory 
 <translation id="6929417474050522668">Quando sono attive le prove, Ad measurement consente ai siti che visiti di chiedere a Chromium informazioni che li aiutino a valutare il rendimento dei loro annunci. Ad measurement limita il tracciamento tra siti trasferendo il minor numero possibile di informazioni tra i siti.</translation>
 <translation id="6940431691900807093">Dopodiché, un sito che visiti può chiedere a Chromium di conoscere i tuoi interessi per personalizzare gli annunci che ti vengono mostrati. Chromium può condividere fino a 3 interessi.</translation>
 <translation id="6964305034639999644">Apri link in una finestra di navigazione in inco&amp;gnito di Chromium</translation>
-<translation id="6965382102122355670">Ok</translation>
+<translation id="6965382102122355670">OK</translation>
 <translation id="6978145336957848883">Le password inefficaci sono facili da indovinare. Consenti a Chromium di <ph name="BEGIN_LINK" />creare e memorizzare password efficaci per te<ph name="END_LINK" />.</translation>
 <translation id="6985329841647292029">Termini di Chromium OS</translation>
 <translation id="6990124437352146030">Per questo sito Chromium ha bisogno dell'autorizzazione ad accedere al microfono</translation>
@@ -600,7 +597,6 @@ Chromium non è in grado di recuperare le impostazioni.</translation>
 <translation id="9106612006984859720">Per ricevere gli aggiornamenti futuri di Chromium, devi avere Windows 10 o versioni successive. Su questo computer è installato Windows 8.1.</translation>
 <translation id="91086099826398415">Apri link in una nuova &amp;scheda di Chromium</translation>
 <translation id="911206726377975832">Eliminare anche i tuoi dati di navigazione?</translation>
-<translation id="9134482777260927479">Aiuto per i compiti</translation>
 <translation id="9148058034647219655">Esci</translation>
 <translation id="9158494823179993217">L'amministratore di sistema ha configurato Chromium per l'apertura di un browser alternativo per accedere a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="9185526690718004400">Riavvia per aggiornare &amp;Chromium</translation>

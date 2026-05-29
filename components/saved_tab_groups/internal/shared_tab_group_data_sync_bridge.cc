@@ -163,7 +163,6 @@ SavedTabGroupTab SpecificsToSharedTabGroupTab(
     const syncer::CollaborationMetadata& collaboration_metadata,
     size_t position,
     base::Time creation_time,
-    base::Time modification_time,
     bool sanitize_url_and_title) {
   CHECK(specifics.has_tab());
 
@@ -190,7 +189,6 @@ SavedTabGroupTab SpecificsToSharedTabGroupTab(
   tab.SetCreatedByAttribution(collaboration_metadata.created_by());
   tab.SetUpdatedByAttribution(collaboration_metadata.last_updated_by());
   tab.SetUpdateTime(update_time);
-  tab.SetNavigationTime(modification_time);
   return tab;
 }
 
@@ -274,17 +272,6 @@ base::Time ExtractCreationTimeFromMetadata(
   return syncer::ProtoTimeToTime(it->second->creation_time());
 }
 
-base::Time ExtractModificationTimeFromMetadata(
-    const syncer::EntityMetadataMap& sync_metadata,
-    const std::string& storage_key) {
-  auto it = sync_metadata.find(storage_key);
-  if (it == sync_metadata.end()) {
-    return base::Time();
-  }
-
-  return syncer::ProtoTimeToTime(it->second->modification_time());
-}
-
 // Sorts stored entries by their unique position. The resulting order is:
 // 1. Tabs with valid unique positions, ordered by their unique position.
 // 2. Tabs with invalid unique positions, ordered by their update time.
@@ -331,7 +318,6 @@ void SortStoredEntriesByUniquePosition(
 // Returns tabs missing groups.
 std::vector<std::tuple<sync_pb::SharedTabGroupDataSpecifics,
                        syncer::CollaborationMetadata,
-                       base::Time,
                        base::Time>>
 LoadStoredEntries(std::vector<proto::SharedTabGroupData> stored_entries,
                   SyncBridgeTabGroupModelWrapper* model_wrapper,
@@ -391,7 +377,7 @@ LoadStoredEntries(std::vector<proto::SharedTabGroupData> stored_entries,
   // Parse tabs and find tabs missing groups. This code relies on the order of
   // the tab entries to calculate tab positions.
   std::vector<std::tuple<sync_pb::SharedTabGroupDataSpecifics,
-                         syncer::CollaborationMetadata, base::Time, base::Time>>
+                         syncer::CollaborationMetadata, base::Time>>
       tabs_missing_groups;
   std::vector<SavedTabGroupTab> tabs;
   for (const proto::SharedTabGroupData& proto : stored_entries) {
@@ -410,12 +396,10 @@ LoadStoredEntries(std::vector<proto::SharedTabGroupData> stored_entries,
 
     base::Time creation_time =
         ExtractCreationTimeFromMetadata(sync_metadata, storage_key);
-    base::Time modification_time =
-        ExtractModificationTimeFromMetadata(sync_metadata, storage_key);
     if (!group_guid_to_next_tab_position.contains(
             specifics.tab().shared_tab_group_guid())) {
       tabs_missing_groups.emplace_back(specifics, collaboration_metadata,
-                                       creation_time, modification_time);
+                                       creation_time);
       continue;
     }
 
@@ -424,7 +408,6 @@ LoadStoredEntries(std::vector<proto::SharedTabGroupData> stored_entries,
                                             .shared_tab_group_guid()];
     tabs.emplace_back(SpecificsToSharedTabGroupTab(
         specifics, collaboration_metadata, tab_position, creation_time,
-        modification_time,
         /*sanitize_url_and_title=*/false));
     group_guid_to_next_tab_position[specifics.tab().shared_tab_group_guid()]++;
   }
@@ -680,7 +663,7 @@ SharedTabGroupDataSyncBridge::ApplyIncrementalSyncChanges(
             metadata_change_list.get(), *ongoing_write_batch_,
             tab_ids_with_pending_model_update,
             change->data().collaboration_metadata.value(),
-            change->data().creation_time, change->data().modification_time)) {
+            change->data().creation_time)) {
       return error;
     }
 
@@ -1151,18 +1134,18 @@ void SharedTabGroupDataSyncBridge::OnReadAllDataAndMetadata(
   }
 
   std::vector<std::tuple<sync_pb::SharedTabGroupDataSpecifics,
-                         syncer::CollaborationMetadata, base::Time, base::Time>>
+                         syncer::CollaborationMetadata, base::Time>>
       loaded_tabs_missing_groups =
           LoadStoredEntries(std::move(stored_entries), model_wrapper_,
                             metadata_batch->GetAllMetadata());
-  for (auto& [specifics, collaboration_metadata, creation_time,
-              modification_time] : loaded_tabs_missing_groups) {
+  for (auto& [specifics, collaboration_metadata, creation_time] :
+       loaded_tabs_missing_groups) {
     base::Uuid tab_guid = base::Uuid::ParseLowercase(specifics.guid());
     CHECK(tab_guid.is_valid());
     tabs_missing_groups_.insert_or_assign(
         std::move(tab_guid),
         TabMissingGroup(std::move(specifics), std::move(collaboration_metadata),
-                        creation_time, modification_time));
+                        creation_time));
   }
 
   change_processor()->ModelReadyToSync(std::move(metadata_batch));
@@ -1270,8 +1253,7 @@ SharedTabGroupDataSyncBridge::ApplyRemoteTabUpdate(
     syncer::DataTypeStore::WriteBatch& write_batch,
     const std::set<base::Uuid>& tab_ids_with_pending_model_update,
     const syncer::CollaborationMetadata& collaboration_metadata,
-    base::Time creation_time,
-    base::Time modification_time) {
+    base::Time creation_time) {
   CHECK(specifics.has_tab());
 
   base::Uuid tab_guid = base::Uuid::ParseLowercase(specifics.guid());
@@ -1289,8 +1271,8 @@ SharedTabGroupDataSyncBridge::ApplyRemoteTabUpdate(
     // sends the tab data before the group data. In this case, the tab is stored
     // in case the group comes in later.
     tabs_missing_groups_.insert_or_assign(
-        tab_guid, TabMissingGroup(specifics, collaboration_metadata,
-                                  creation_time, modification_time));
+        tab_guid,
+        TabMissingGroup(specifics, collaboration_metadata, creation_time));
     StoreSharedTab(write_batch, specifics);
     return std::nullopt;
   }
@@ -1315,7 +1297,7 @@ SharedTabGroupDataSyncBridge::ApplyRemoteTabUpdate(
             specifics, collaboration_metadata,
             AdjustPreferredTabIndex(position_insert_before,
                                     current_tab_index.value()),
-            creation_time, modification_time,
+            creation_time,
             /*sanitize_url_and_title=*/true));
 
     // Unique positions are stored by sync in sync metadata.
@@ -1340,7 +1322,7 @@ SharedTabGroupDataSyncBridge::ApplyRemoteTabUpdate(
           PositionToInsertRemoteTab(specifics.tab().unique_position(),
                                     *existing_group,
                                     tab_ids_with_pending_model_update),
-          creation_time, modification_time,
+          creation_time,
           /*sanitize_url_and_title=*/true));
 
   return std::nullopt;
@@ -1601,8 +1583,7 @@ SharedTabGroupDataSyncBridge::ResolveTabsMissingGroups(
                                  &metadata_change_list, *ongoing_write_batch_,
                                  /*tab_ids_with_pending_model_update=*/{},
                                  tab_missing_group.collaboration_metadata,
-                                 tab_missing_group.creation_time,
-                                 tab_missing_group.modification_time)) {
+                                 tab_missing_group.creation_time)) {
       return error;
     }
   }
@@ -1674,12 +1655,10 @@ SharedTabGroupDataSyncBridge::SharedTabGroupTabToSpecifics(
 SharedTabGroupDataSyncBridge::TabMissingGroup::TabMissingGroup(
     sync_pb::SharedTabGroupDataSpecifics specifics,
     syncer::CollaborationMetadata collaboration_metadata,
-    base::Time creation_time,
-    base::Time modification_time)
+    base::Time creation_time)
     : specifics(std::move(specifics)),
       collaboration_metadata(std::move(collaboration_metadata)),
-      creation_time(creation_time),
-      modification_time(modification_time) {}
+      creation_time(creation_time) {}
 
 SharedTabGroupDataSyncBridge::TabMissingGroup::TabMissingGroup(
     const TabMissingGroup& other) = default;

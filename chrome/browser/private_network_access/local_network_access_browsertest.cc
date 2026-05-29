@@ -19,7 +19,6 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/test_data_directory.h"
-#include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
 
 // Path to a response that passes Local Network Access checks.
@@ -32,12 +31,7 @@ class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
   using WebFeature = blink::mojom::WebFeature;
 
   LocalNetworkAccessBrowserTest()
-      : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-    // Some builders run with field_trial disabled, need to  enable this
-    // manually.
-    features_.InitAndEnableFeature(
-        network::features::kLocalNetworkAccessChecks);
-  }
+      : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {}
 
   content::WebContents* web_contents() const {
     return browser()->tab_strip_model()->GetActiveWebContents();

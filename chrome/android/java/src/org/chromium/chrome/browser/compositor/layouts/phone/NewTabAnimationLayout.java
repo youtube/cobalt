@@ -65,7 +65,6 @@ import org.chromium.chrome.browser.toolbar.top.ToggleTabStackButton;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.sensitive_content.SensitiveContentClient;
 import org.chromium.components.sensitive_content.SensitiveContentFeatures;
-import org.chromium.ui.animation.RunOnNextLayout;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.interpolators.Interpolators;
@@ -100,9 +99,6 @@ public class NewTabAnimationLayout extends Layout {
     private AnimatorSet mTabCreatedForegroundAnimation;
     private AnimatorSet mTabCreatedBackgroundAnimation;
     private ObjectAnimator mFadeAnimator;
-    // Retains a strong reference to the {@link ShrinkExpandAnimator} on the class to prevent it
-    // from being prematurely GC'd when using {@link ObjectAnimator}.
-    private ShrinkExpandAnimator mExpandAnimator;
     private ShrinkExpandImageView mRectView;
     private NewBackgroundTabAnimationHostView mBackgroundHostView;
     private Runnable mAnimationRunnable;
@@ -111,7 +107,6 @@ public class NewTabAnimationLayout extends Layout {
     private @TabId int mNextTabId = Tab.INVALID_TAB_ID;
     private int mToken = TokenHolder.INVALID_TOKEN;
     private boolean mSkipForceAnimationToFinish;
-    private boolean mRunOnNextLayoutImmediatelyForTesting;
 
     /**
      * Creates an instance of the {@link NewTabAnimationLayout}.
@@ -326,7 +321,7 @@ public class NewTabAnimationLayout extends Layout {
         ensureSceneLayerExists();
 
         LayoutTab layoutTab = getLayoutTab();
-        layoutTab.set(LayoutTab.IS_ACTIVE_LAYOUT, isActive());
+        layoutTab.set(LayoutTab.IS_ACTIVE_LAYOUT_SUPPLIER, this::isActive);
         layoutTab.set(LayoutTab.CONTENT_OFFSET, browserControls.getContentOffset());
         mSceneLayer.update(layoutTab);
     }
@@ -443,26 +438,20 @@ public class NewTabAnimationLayout extends Layout {
      * Runs the queued runnable immediately, if it exists.
      *
      * <p>It checks for and executes either {@link #mTimeoutRunnable} or {@link #mAnimationRunnable}
-     * and removes the queued timeout runnable from {@link #mHandler}. If {@link
-     * #mAnimationRunnable} is found, it calls {@link RunOnNextLayout#runOnNextLayoutRunnables()} in
-     * the View to run {@link #mAnimationRunnable} and ensure a valid animation status before
-     * calling {@link AnimatorSet#end()}.
+     * and removes the queued runnable from {@link #mHandler}. If {@link #mAnimationRunnable} is
+     * found, it's executed to ensure a valid animation status before calling {@link
+     * AnimatorSet#end()}.
      */
     private void runQueuedRunnableIfExists() {
         if (mTimeoutRunnable != null) {
             mHandler.removeCallbacks(mTimeoutRunnable);
             mTimeoutRunnable.run();
         } else if (mAnimationRunnable != null) {
-            if (mRectView != null) mRectView.runOnNextLayoutRunnables();
-            if (mBackgroundHostView != null) mBackgroundHostView.runOnNextLayoutRunnables();
+            mHandler.removeCallbacks(mAnimationRunnable);
+            mAnimationRunnable.run();
         }
-        assert mTimeoutRunnable == null : "Timeout runnable exists";
-        assert mAnimationRunnable == null : "Animation runnable exists";
-    }
-
-    private void setRunOnNextLayout(RunOnNextLayout view, Runnable r) {
-        view.runOnNextLayout(r);
-        if (mRunOnNextLayoutImmediatelyForTesting) view.runOnNextLayoutRunnables();
+        assert mTimeoutRunnable == null;
+        assert mAnimationRunnable == null;
     }
 
     /**
@@ -480,7 +469,6 @@ public class NewTabAnimationLayout extends Layout {
         runQueuedRunnableIfExists();
         if (mTabCreatedForegroundAnimation != null) {
             mAnimationHostView.removeView(mRectView);
-            mRectView = null;
             mFadeAnimator = null;
             mTabCreatedForegroundAnimation.end();
         } else if (mFadeAnimator != null) {
@@ -573,12 +561,12 @@ public class NewTabAnimationLayout extends Layout {
 
         NewTabAnimationUtils.updateRects(rectStart, isRtl, initialRect, finalRect);
 
-        mExpandAnimator =
+        ShrinkExpandAnimator shrinkExpandAnimator =
                 new ShrinkExpandAnimator(
                         mRectView, initialRect, finalRect, /* searchBoxHeight= */ 0);
         ObjectAnimator rectAnimator =
                 ObjectAnimator.ofObject(
-                        mExpandAnimator,
+                        shrinkExpandAnimator,
                         ShrinkExpandAnimator.RECT,
                         new RectEvaluator(),
                         initialRect,
@@ -603,7 +591,6 @@ public class NewTabAnimationLayout extends Layout {
                     public void onAnimationEnd(Animator animation) {
                         mFadeAnimator = null;
                         mAnimationHostView.removeView(mRectView);
-                        mRectView = null;
                     }
                 });
 
@@ -616,7 +603,6 @@ public class NewTabAnimationLayout extends Layout {
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         mTabCreatedForegroundAnimation = null;
-                        mExpandAnimator = null;
                         if (mFadeAnimator != null) mFadeAnimator.start();
                         startHiding();
                         mTabModelSelector.selectModel(newIsIncognito);
@@ -635,7 +621,7 @@ public class NewTabAnimationLayout extends Layout {
         mRectView.setVisibility(View.INVISIBLE);
         mAnimationHostView.addView(mRectView);
         mRectView.reset(initialRect);
-        setRunOnNextLayout(mRectView, mAnimationRunnable);
+        mHandler.post(mAnimationRunnable);
     }
 
     /**
@@ -747,6 +733,7 @@ public class NewTabAnimationLayout extends Layout {
                 () -> {
                     if (mTimeoutRunnable == null) return;
                     mTimeoutRunnable = null;
+                    mHandler.removeCallbacks(mAnimationRunnable);
                     mAnimationRunnable = null;
                     cleanUpAnimation();
                     mCustomTabCount.release();
@@ -761,7 +748,7 @@ public class NewTabAnimationLayout extends Layout {
                     if (!visible) {
                         mHandler.removeCallbacks(mTimeoutRunnable);
                         mTimeoutRunnable = null;
-                        setRunOnNextLayout(mBackgroundHostView, mAnimationRunnable);
+                        mHandler.post(mAnimationRunnable);
                         visibilitySupplier.removeObserver(mVisibilityObserver);
                         mVisibilityObserver = null;
                     }
@@ -773,22 +760,17 @@ public class NewTabAnimationLayout extends Layout {
             // bit to disappear and decrease the timeout.
             mHandler.postDelayed(mTimeoutRunnable, ANIMATION_TIMEOUT_MS);
         } else {
-            setRunOnNextLayout(mBackgroundHostView, mAnimationRunnable);
+            mHandler.post(mAnimationRunnable);
         }
     }
 
     private void cleanUpAnimation() {
         mTabCreatedBackgroundAnimation = null;
         mAnimationHostView.removeView(mBackgroundHostView);
-        mBackgroundHostView = null;
         if (mToken != TokenHolder.INVALID_TOKEN) {
             mBrowserVisibilityDelegate.releasePersistentShowingToken(mToken);
             mToken = TokenHolder.INVALID_TOKEN;
         }
-    }
-
-    protected void setRunOnNextLayoutImmediatelyForTesting(boolean runImmediately) {
-        mRunOnNextLayoutImmediatelyForTesting = runImmediately;
     }
 
     protected void setNextTabIdForTesting(@TabId int nextTabId) {

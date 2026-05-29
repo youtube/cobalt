@@ -383,9 +383,9 @@
     {
       name: "AISummarizationAPI",
       status: {
-        "Win": "stable",
-        "Mac": "stable",
-        "Linux": "stable",
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
         "default": "",
       },
       origin_trial_feature_name: "AISummarizationAPI",
@@ -1244,7 +1244,7 @@
       // Include custom properties in CSSComputedStyleDeclaration::item/length.
       // https://crbug.com/949807
       name: "CSSEnumeratedCustomProperties",
-      status: "test",
+      status: "stable",
     },
     {
       name: "CSSExponentialFunctions",
@@ -4627,7 +4627,8 @@
       name: "SpeculationRulesTargetHint",
       origin_trial_feature_name: "SpeculationRulesTargetHint",
       base_feature: "Prerender2InNewTab",
-      status: "stable",
+      status: "experimental",
+      base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },
     {
@@ -4983,19 +4984,30 @@
     {
       name: "TranslationAPI",
       status: {
-        "Win": "stable",
-        "Mac": "stable",
-        "Linux": "stable",
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
         "default": "",
       },
       origin_trial_feature_name: "TranslationAPI",
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
+      implied_by: ["TranslationAPIV1"],
     },
     {
       name: "TranslationAPIForWorkers",
       public: true,
+    },
+    {
+      name: "TranslationAPIV1",
+      status: {
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
+        "default": "",
+      },
+      copied_from_base_feature_if: "overridden",
     },
     {
       // Ensures symbols are treated as word boundaries during traversal.
@@ -5178,10 +5190,6 @@
     {
       name: "ViewTransitionLongCallbackTimeoutForTesting",
       status: "test",
-    },
-    {
-      name: "ViewTransitionUpdateLifecycleBeforeReady",
-      status: "stable",
     },
     {
       name: "VisibilityCollapseColumn",

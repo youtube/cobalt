@@ -375,7 +375,6 @@
 <translation id="2718352093833049315">Len s Wi‑Fi</translation>
 <translation id="2718846868787000099">Weby, ktoré navštevujete, môžu vidieť vaše predvoľby a zobrazovať tak obsah vo vašich preferovaných jazykoch.</translation>
 <translation id="2723001399770238859">zvuk</translation>
-<translation id="2734335652257251631">Zobraziť režim čítania</translation>
 <translation id="2739887572830526131">Ponechajte si túto skupinu, aby ste mohli neskôr pridať karty, alebo ju odstráňte (ak ju už nepotrebujete).</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> nie je momentálne k dispozícii.</translation>
 <translation id="2760805590727089264">MM / RR</translation>
@@ -1440,7 +1439,6 @@ Ak chcete toto nastavenie zmeniť, <ph name="BEGIN_LINK" />odstráňte údaje Ch
 <translation id="7431991332293347422">Ovládajte, ako sa história prehliadania používa na prispôsobenie Vyhľadávania a ďalšieho obsahu</translation>
 <translation id="7435356471928173109">Vypnuté vaším správcom</translation>
 <translation id="7437998757836447326">Odhlásiť sa z Chromu</translation>
-<translation id="7439467816829380878">Presunúť kartu do skupiny</translation>
 <translation id="7453810262525006706">Zbaliť na bočné zobrazenie</translation>
 <translation id="7454641608352164238">Nedostatok miesta</translation>
 <translation id="7454744349230173024">Vaša organizácia vypla ukladanie hesiel</translation>
@@ -1746,7 +1744,6 @@ Ak chcete toto nastavenie zmeniť, <ph name="BEGIN_LINK" />odstráňte údaje Ch
 <translation id="8676789164135894283">Overenie prihlásenia</translation>
 <translation id="8683039184091909753">obrázok</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, vybraná karta</translation>
-<translation id="8693232767599693749">Chcete zobraziť režim čítania?</translation>
 <translation id="8697753151306746444">Zdieľajte okno alebo obrazovku</translation>
 <translation id="869891660844655955">Koniec platnosti</translation>
 <translation id="8699120352855309748">Neponúkať preklad týchto jazykov</translation>
@@ -1816,7 +1813,6 @@ Ak chcete toto nastavenie zmeniť, <ph name="BEGIN_LINK" />odstráňte údaje Ch
 <translation id="9019199799064251516">Chcete pokračovať bez zámky profilu auta?</translation>
 <translation id="9022774213089566801">Často navštevované</translation>
 <translation id="9022871169049522985">Weby a inzerenti môžu merať výkonnosť svojich reklám</translation>
-<translation id="9027728231343310283">Vrátiť web <ph name="SITE" /> späť</translation>
 <translation id="9035378196785279980">Presun do priečinka\u2026</translation>
 <translation id="9042893549633094279">Ochrana súkromia a zabezpečenie</translation>
 <translation id="9047347135558855162">Rýchle spustenie vyhľadávania v Chrome</translation>

@@ -14,7 +14,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-amd64-generic-rel",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -50,7 +50,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-amd64-generic-rel-gtest",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -81,7 +81,7 @@
               "parent": {
                 "bucket": "ci",
                 "builder": "chromeos-amd64-generic-rel",
-                "project": "chromium-m138"
+                "project": "chromium"
               }
             }
           },
@@ -89,7 +89,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-amd64-generic-rel-tast",
-              "project": "chromium-m138"
+              "project": "chromium"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -120,7 +120,7 @@
               "parent": {
                 "bucket": "ci",
                 "builder": "chromeos-amd64-generic-rel",
-                "project": "chromium-m138"
+                "project": "chromium"
               }
             }
           }
@@ -130,23 +130,22 @@
         {
           "bucket": "ci",
           "builder": "chromeos-amd64-generic-rel",
-          "project": "chromium-m138"
+          "project": "chromium"
         }
       ],
       "builder_ids_in_scope_for_testing": [
         {
           "bucket": "ci",
           "builder": "chromeos-amd64-generic-rel-gtest",
-          "project": "chromium-m138"
+          "project": "chromium"
         },
         {
           "bucket": "ci",
           "builder": "chromeos-amd64-generic-rel-tast",
-          "project": "chromium-m138"
+          "project": "chromium"
         }
       ],
-      "targets_spec_directory": "infra/config/generated/builders/try/chromeos-amd64-generic-rel-gtest-and-tast/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "src/infra/config/generated/builders/try/chromeos-amd64-generic-rel-gtest-and-tast/targets"
     }
   },
   "$build/flakiness": {

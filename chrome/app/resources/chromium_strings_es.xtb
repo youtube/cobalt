@@ -124,7 +124,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="2592940277904433508">Seguir usando Chromium</translation>
 <translation id="259935314519650377">No se ha podido guardar en caché el instalador descargado. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
 <translation id="2620436844016719705">Sistema</translation>
-<translation id="2629740064077610681">Tu organización puede ver y gestionar tus datos de navegación, como tus marcadores, tu historial y tus contraseñas. No puede ver los datos de navegación de otros perfiles de Chromium.</translation>
+<translation id="2629740064077610681">Tu organización puede ver y gestionar los datos de navegación, como los marcadores, el historial y las contraseñas. No puede ver los datos de navegación de otros perfiles de Chromium.</translation>
 <translation id="2635452620547538388">Verifica que eres tú para usar y guardar los datos de Chromium en tu cuenta (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="264613044588233783">Chromium se ejecuta más rápido y las funciones que usan JavaScript deberían funcionar según lo previsto (opción recomendada)</translation>
 <translation id="2648074677641340862">Se ha producido un error de sistema operativo durante el proceso de instalación. Vuelve a descargar Chromium.</translation>
@@ -193,7 +193,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="3497319089134299931">Usa <ph name="SHORTCUT" /> para cambiar de un perfil de Chromium a otro</translation>
 <translation id="3509308970982693815">Cierra todas las ventanas de Chromium e inténtalo de nuevo.</translation>
 <translation id="3522404737534491619">Para compartir tu ventana, permite la grabación de pantalla de Chromium en Ajustes del sistema</translation>
-<translation id="3530103706039034513">Ya has iniciado sesión como <ph name="EXISTING_USER" />. Para mantener tu información de navegación aparte, inicia sesión en Chromium con tu perfil de <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3530103706039034513">Ya has iniciado sesión con <ph name="EXISTING_USER" />.  Para mantener tu información de navegación aparte, inicia sesión en Chromium con tu perfil de <ph name="USER_EMAIL_ADDRESS" />.</translation>
 <translation id="3533435340678213462">Para proteger tu privacidad, eliminamos automáticamente tus intereses que tienen una antigüedad superior a 4 semanas. A medida que sigas navegando, es posible que un interés vuelva a aparecer en la lista. También puedes eliminar los intereses que no quieras que Chromium tenga en cuenta.</translation>
 <translation id="3561853857681580870">Para compartir tu pantalla, permite la grabación de pantalla de Chromium en Ajustes del sistema.</translation>
 <translation id="3567254597502212821">Tu historial de navegación, un registro de los sitios que has visitado usando Chromium en este dispositivo.</translation>
@@ -222,13 +222,11 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="3954172517175569325">Las contraseñas, los métodos de pago y las direcciones que hayas guardado en tu cuenta de Google se eliminarán de este dispositivo. Para usarlos de nuevo en Chromium, vuelve a iniciar sesión.</translation>
 <translation id="395904275706073188">Las páginas protegidas no se pueden leer. Prueba con otra página.</translation>
 <translation id="3962647064319009959">Descubre cómo te protege Chromium</translation>
-<translation id="3971865010372729242">Al escribir en la barra de direcciones o en el cuadro de búsqueda, Chromium envía lo que escribes a las herramientas de búsqueda, de IA y de agente de tu organización para obtener sugerencias.</translation>
 <translation id="3975724895399328945">Información de &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Información de ChromiumOS</translation>
 <translation id="4019629340646866719">ChromiumOS se ha creado gracias a <ph name="BEGIN_LINK_CROS_OSS" />software libre<ph name="END_LINK_CROS_OSS" /> adicional, como el <ph name="BEGIN_LINK_LINUX_OSS" />entorno de desarrollo de Linux<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Traducir pantalla</translation>
 <translation id="4023601594785368013">Idioma original: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Abre enlaces en Chromium desde cualquier aplicación. Además, se fija en la barra de tareas para que puedas acceder a él fácilmente.</translation>
 <translation id="4036079820698952681">Genera un informe de la <ph name="BEGIN_LINK" />configuración actual<ph name="END_LINK" /> para ayudar a mejorar Chromium</translation>
 <translation id="4050175100176540509">En la última versión puedes encontrar mejoras de seguridad importantes y nuevas funciones.</translation>
 <translation id="4055805654398742145">&amp;Gestor de contraseñas</translation>
@@ -330,7 +328,6 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="5524890928877629608">esquina superior izquierda del área de búsqueda: un <ph name="LEFT" /> % a la izquierda y un <ph name="TOP" /> % arriba</translation>
 <translation id="5527463683072221100">Abrir archivos PDF en Chromium</translation>
 <translation id="5579324208890605088">Error de arranque: ejecuta el instalador como usuario normal, no como administrador.</translation>
-<translation id="5580770360767802657">Usa Chromium de forma predeterminada y fíjalo</translation>
 <translation id="5596627076506792578">Más opciones</translation>
 <translation id="5605834417512968703">Selecciona cualquier cosa para buscarla con la búsqueda por imágenes o pulsa la tecla Esc para salir de la búsqueda por imágenes</translation>
 <translation id="5618818588972826921">Selecciona cualquier texto o imagen para buscar con la búsqueda por imágenes o pulsa la tecla Esc para salir de la búsqueda por imágenes</translation>
@@ -420,7 +417,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="656935081669708576">Puedes cambiar de perfil para ver las contraseñas de otro perfil de Chromium</translation>
 <translation id="6570579332384693436">Para corregir errores ortográficos, Chromium envía a Google el texto que escribes en los campos de texto</translation>
 <translation id="6598877126913850652">Ir a los ajustes de notificaciones de Chromium</translation>
-<translation id="6600016381025017075">Busca cualquier elemento de esta página</translation>
+<translation id="6600016381025017075">Buscar cualquier cosa en esta página</translation>
 <translation id="6613594504749178791">Los cambios se aplicarán la próxima vez que reinicies Chromium.</translation>
 <translation id="665732753414869868">Chromium necesita el permiso de la cámara para crear un mapa 3D de tu entorno</translation>
 <translation id="6669284030132180248">Si también guardas los marcadores en tu cuenta de Google, puedes hacer un seguimiento de los precios de los productos en Chromium y recibir una notificación cuando bajen</translation>
@@ -603,7 +600,6 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="9106612006984859720">Para recibir futuras actualizaciones de Chromium, deberás tener Windows 10 o una versión posterior. Este ordenador tiene Windows 8.1.</translation>
 <translation id="91086099826398415">Abrir enlace en una pes&amp;taña nueva de Chromium</translation>
 <translation id="911206726377975832">¿Quieres borrar también los datos de navegación?</translation>
-<translation id="9134482777260927479">Ayuda con los deberes</translation>
 <translation id="9148058034647219655">Salir</translation>
 <translation id="9158494823179993217">El administrador del sistema ha configurado Chromium para que abra otro navegador al acceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="9185526690718004400">Reiniciar para actualizar &amp;Chromium</translation>

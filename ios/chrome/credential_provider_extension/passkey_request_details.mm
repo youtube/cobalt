@@ -200,10 +200,6 @@
 }
 
 - (BOOL)hasMatchingPassword:(NSArray<id<Credential>>*)credentials {
-  if (!credentials.count) {
-    return NO;
-  }
-
   NSUInteger credentialIndex = [credentials indexOfObjectPassingTest:^BOOL(
                                                 id<Credential> credential,
                                                 NSUInteger idx, BOOL* stop) {
@@ -215,7 +211,7 @@
 }
 
 - (BOOL)hasExcludedPasskey:(NSArray<id<Credential>>*)credentials {
-  if (!credentials.count || !self.excludedCredentials.count) {
+  if (!self.excludedCredentials.count) {
     return NO;
   }
 
@@ -231,14 +227,11 @@
 
 #pragma mark - PasskeyRequestDetails (Testing)
 
-- (instancetype)initWithURL:(NSString*)url
-                   username:(NSString*)username
-        excludedCredentials:(NSArray<NSData*>*)excludedCredentials {
+- (instancetype)initWithURL:(NSString*)url username:(NSString*)username {
   self = [super init];
   if (self) {
     self.relyingPartyIdentifier = url;
     self.userName = username;
-    self.excludedCredentials = excludedCredentials;
   }
   return self;
 }

@@ -269,7 +269,6 @@
 #include "third_party/blink/public/common/loader/resource_type_util.h"
 #include "third_party/blink/public/common/messaging/transferable_message.h"
 #include "third_party/blink/public/common/navigation/navigation_params_mojom_traits.h"
-#include "third_party/blink/public/common/page_state/page_state_serialization.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_document_created.h"
@@ -9642,13 +9641,6 @@ void RenderFrameHostImpl::CreateNewWindow(
   TRACE_EVENT2("navigation", "RenderFrameHostImpl::CreateNewWindow",
                "render_frame_host", this, "url", params->target_url);
 
-  // TODO(crbug.com/487768779): Move all `params` validation from this function
-  // into VerifyCreateNewWindowParams.
-  if (!VerifyCreateNewWindowParams(*this, *params)) {
-    std::move(callback).Run(mojom::CreateNewWindowStatus::kBlocked, nullptr);
-    return;
-  }
-
   // These checks ensure malformed partitioned popins cannot be created.
   // Most of these checks should already have been done by the renderer.
   // See https://explainers-by-googlers.github.io/partitioned-popins/
@@ -13282,29 +13274,8 @@ RenderFrameHostImpl* RenderFrameHostImpl::GetOutermostMainFrame() {
 
 bool RenderFrameHostImpl::CanAccessFilesOfPageState(
     const blink::PageState& state) {
-  // Ensure that all of the files in the PageState were actually listed in the
-  // GetReferencedFiles list, using a set to prune duplicates.
-  // See https://crbug.com/487383169.
-  std::vector<base::FilePath> all_files;
-  if (!blink::GetAllFilesInPageState(state.ToEncodedData(), &all_files)) {
-    // All files in the PageState weren't recovered due to parsing failures.
-    // The renderer should be killed instead of proceeding with a PageState that
-    // might still contain files that could be used without being validated.
-    return false;
-  }
-  std::vector<base::FilePath> referenced_files = state.GetReferencedFiles();
-  std::set<base::FilePath> referenced_file_set(referenced_files.begin(),
-                                               referenced_files.end());
-  for (const base::FilePath& file : all_files) {
-    if (!referenced_file_set.contains(file)) {
-      // Found a file that was not in the list to be validated, so the renderer
-      // should be killed.
-      return false;
-    }
-  }
-
   return ChildProcessSecurityPolicyImpl::GetInstance()->CanReadAllFiles(
-      GetProcess()->GetDeprecatedID(), referenced_files);
+      GetProcess()->GetDeprecatedID(), state.GetReferencedFiles());
 }
 
 void RenderFrameHostImpl::GrantFileAccessFromPageState(

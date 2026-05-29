@@ -2,13 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Mixin declarations
-
-Mixins are used to define common properties that can be applied to multiple
-tests.
-"""
-
-load("@chromium-luci//targets.star", "targets")
+load("//lib/targets.star", "targets")
 
 targets.mixin(
     name = "10-x86-emulator",
@@ -519,7 +513,6 @@ targets.mixin(
 
 targets.mixin(
     name = "chromeos-generic-vm",
-    generate_pyl_entry = False,
     args = [
         "--magic-vm-cache=magic_cros_vm_cache",
     ],
@@ -1292,7 +1285,6 @@ targets.mixin(
 
 targets.mixin(
     name = "isolate_profile_data",
-    generate_pyl_entry = False,
     isolate_profile_data = True,
 )
 
@@ -2143,20 +2135,6 @@ targets.mixin(
         "--gerrit-patchset=${patch_set}",
         "--buildbucket-id=${buildbucket_build_id}",
     ],
-)
-
-targets.mixin(
-    # Tests that reach out to Skia's gold instance slowdown substantially when
-    # ran on GCE bots without external IPs. By explicitly targeting bots with
-    # external IPs in such tests, we can roll out internal IPs more broadly
-    # without affecting these Skia gold tests.
-    name = "skia_gold_test_on_linux_gce",
-    generate_pyl_entry = False,
-    swarming = targets.swarming(
-        dimensions = {
-            "gce_has_external_ip": "1",
-        },
-    ),
 )
 
 targets.mixin(

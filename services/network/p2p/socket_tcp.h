@@ -45,9 +45,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketTcpBase : public P2PSocket {
 
   ~P2PSocketTcpBase() override;
 
-  // The TCP socket is deleted on errors; in this case, false is returned.
-  [[nodiscard]] bool InitAccepted(const net::IPEndPoint& remote_address,
-                                  std::unique_ptr<net::StreamSocket> socket);
+  void InitAccepted(const net::IPEndPoint& remote_address,
+                    std::unique_ptr<net::StreamSocket> socket);
 
   // P2PSocket overrides.
   void Init(
@@ -77,40 +76,36 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketTcpBase : public P2PSocket {
   // Derived classes will provide the implementation.
   virtual bool ProcessInput(base::span<const uint8_t> input,
                             size_t* bytes_consumed) = 0;
-  [[nodiscard]] virtual bool DoSend(
-      const net::IPEndPoint& to,
-      base::span<const uint8_t> data,
-      const webrtc::AsyncSocketPacketOptions& options) = 0;
+  virtual void DoSend(const net::IPEndPoint& to,
+                      base::span<const uint8_t> data,
+                      const webrtc::AsyncSocketPacketOptions& options) = 0;
 
-  [[nodiscard]] bool WriteOrQueue(SendBuffer& send_buffer);
+  void WriteOrQueue(SendBuffer& send_buffer);
   [[nodiscard]] bool OnPacket(base::span<const uint8_t> data);
 
-  [[nodiscard]] bool SendPacket(base::span<const uint8_t> data,
-                                const P2PPacketInfo& packet_info);
+  bool SendPacket(base::span<const uint8_t> data,
+                  const P2PPacketInfo& packet_info);
 
  private:
   friend class P2PSocketTcpTestBase;
   friend class P2PSocketTcpServerTest;
 
-  // These functions return |false| in case of an error.
-  // The socket is destroyed in that case, so the caller should not use |this|.
-  [[nodiscard]] bool DoRead();
-  [[nodiscard]] bool DoWrite();
+  void DoRead();
+  void DoWrite();
 
+  // Return |false| in case of an error. The socket is destroyed in that case,
+  // so the caller should not use |this|.
   [[nodiscard]] bool HandleReadResult(int result);
   [[nodiscard]] bool HandleWriteResult(int result);
 
   // Callbacks for Connect(), Read() and Write().
-  // Socket destruction may happen in these functions, but they are
-  // invoked asynchronously, on the same thread, so we assume that
-  // socket destruction doesn't happen while a function is active.
   void OnConnected(int result);
   void OnRead(int result);
   void OnWritten(int result);
 
   // Helper method to send socket create message and start read.
-  [[nodiscard]] bool OnOpen();
-  [[nodiscard]] bool DoSendSocketCreateMsg();
+  void OnOpen();
+  bool DoSendSocketCreateMsg();
 
   P2PHostAndIPEndPoint remote_address_;
 
@@ -145,10 +140,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketTcp : public P2PSocketTcpBase {
  protected:
   bool ProcessInput(base::span<const uint8_t> input,
                     size_t* bytes_consumed) override;
-  [[nodiscard]] bool DoSend(
-      const net::IPEndPoint& to,
-      base::span<const uint8_t> data,
-      const webrtc::AsyncSocketPacketOptions& options) override;
+  void DoSend(const net::IPEndPoint& to,
+              base::span<const uint8_t> data,
+              const webrtc::AsyncSocketPacketOptions& options) override;
 };
 
 // P2PSocketStunTcp class provides the framing of STUN messages when used
@@ -174,10 +168,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketStunTcp
  protected:
   bool ProcessInput(base::span<const uint8_t> input,
                     size_t* bytes_consumed) override;
-  [[nodiscard]] bool DoSend(
-      const net::IPEndPoint& to,
-      base::span<const uint8_t> data,
-      const webrtc::AsyncSocketPacketOptions& options) override;
+  void DoSend(const net::IPEndPoint& to,
+              base::span<const uint8_t> data,
+              const webrtc::AsyncSocketPacketOptions& options) override;
 
  private:
   int GetExpectedPacketSize(base::span<const uint8_t> data, int* pad_bytes);

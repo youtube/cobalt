@@ -143,9 +143,7 @@ void EchoAIManagerImpl::CreateLanguageModel(
       }
       if (initial_size > kMaxContextSizeInTokens) {
         client_remote->OnError(
-            blink::mojom::AIManagerCreateClientError::kInitialInputTooLarge,
-            blink::mojom::QuotaErrorInfo::New(initial_size,
-                                              kMaxContextSizeInTokens));
+            blink::mojom::AIManagerCreateClientError::kInitialInputTooLarge);
         return;
       }
     }
@@ -153,15 +151,13 @@ void EchoAIManagerImpl::CreateLanguageModel(
 
   if (HasUnsupportedType(options)) {
     client_remote->OnError(
-        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
   }
   if (options && (!AreExpectedLanguagesSupported(options->expected_inputs) ||
                   !AreExpectedLanguagesSupported(options->expected_outputs))) {
     client_remote->OnError(
-        blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
   base::flat_set<blink::mojom::AILanguageModelPromptType> enabled_input_types;
@@ -281,8 +277,7 @@ void EchoAIManagerImpl::CreateWritingAssistanceClient(
                                      options->expected_context_languages,
                                      options->output_language)) {
     client_remote->OnError(
-        blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
   auto return_task =

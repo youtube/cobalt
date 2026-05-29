@@ -20,7 +20,6 @@
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/core/common/proto/realtimeapi.pb.h"
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
@@ -67,7 +66,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
   static const char kKeyThreatType[];
   static const char kKeyContentType[];
   static const char kKeyContentSize[];
-  static const char kKeyReferrers[];
   static const char kKeyTrigger[];
   static const char kKeyEventResult[];
   static const char kKeyScanId[];
@@ -115,16 +113,14 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
   void OnPolicySpecifiedPasswordChanged(const std::string& user_name);
 
   // Notifies listeners that the user just opened a dangerous download.
-  void OnDangerousDownloadOpened(
-      const GURL& download_url,
-      const GURL& tab_url,
-      const std::string& file_name,
-      const std::string& download_digest_sha256,
-      const std::string& mime_type,
-      const std::string& scan_id,
-      const download::DownloadDangerType danger_type,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain);
+  void OnDangerousDownloadOpened(const GURL& download_url,
+                                 const GURL& tab_url,
+                                 const std::string& file_name,
+                                 const std::string& download_digest_sha256,
+                                 const std::string& mime_type,
+                                 const std::string& scan_id,
+                                 const download::DownloadDangerType danger_type,
+                                 const int64_t content_size);
 
   // Notifies listeners that the user saw a security interstitial.
   void OnSecurityInterstitialShown(const GURL& url,
@@ -151,7 +147,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       safe_browsing::DeepScanAccessPoint access_point,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
       enterprise_connectors::EventResult event_result);
 
   // Notifies listeners that an analysis connector violation was bypassed.
@@ -167,7 +162,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& scan_id,
       const std::string& content_transfer_method,
       safe_browsing::DeepScanAccessPoint access_point,
-      const safe_browsing::ReferrerChain& referrer_chain,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
       std::optional<std::u16string> user_justification);
@@ -185,7 +179,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
                             const std::string& reason,
                             const std::string& content_transfer_method,
                             const int64_t content_size,
-                            const safe_browsing::ReferrerChain& referrer_chain,
                             enterprise_connectors::EventResult event_result);
 
   // Notifies listeners that the user saw a download warning.
@@ -202,7 +195,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& mime_type,
       const std::string& scan_id,
       const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
       enterprise_connectors::EventResult event_result);
   void OnDangerousDownloadEvent(
       const GURL& url,
@@ -213,7 +205,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& mime_type,
       const std::string& scan_id,
       const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
       enterprise_connectors::EventResult event_result);
 
   // Notifies listeners that the user bypassed a download warning.
@@ -229,8 +220,7 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& threat_type,
       const std::string& mime_type,
       const std::string& scan_id,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain);
+      const int64_t content_size);
   void OnDangerousDownloadWarningBypassed(
       const GURL& url,
       const GURL& tab_url,
@@ -239,8 +229,7 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const download::DownloadDangerType danger_type,
       const std::string& mime_type,
       const std::string& scan_id,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain);
+      const int64_t content_size);
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
   // Helper function to report sensitive data event that were caused by
@@ -281,7 +270,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& mime_type,
       const std::string& trigger,
       const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
       enterprise_connectors::EventResult event_result,
       const std::string& scan_id,
       const std::string& content_transfer_method);
@@ -300,7 +288,6 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& content_transfer_method,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
       enterprise_connectors::EventResult event_result);
 
   raw_ptr<content::BrowserContext> context_;

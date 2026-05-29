@@ -815,10 +815,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest,
   ExpectSyncPaused(avatar_button);
 
   std::u16string profile_switch_text(u"Profile Switch?");
-  base::ScopedClosureRunner hide_callback =
-      avatar_button->SetExplicitButtonState(
-          profile_switch_text, /*accessibility_label=*/std::nullopt,
-          /*explicit_action=*/std::nullopt);
+  base::ScopedClosureRunner hide_callback = avatar_button->ShowExplicitText(
+      profile_switch_text, /*accessibility_label=*/std::nullopt);
   EXPECT_EQ(avatar_button->GetText(), profile_switch_text);
 
   // Clearing explicit text should go back to Sync Pause.
@@ -835,10 +833,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest,
 
   EnableSyncWithImageAndClearGreeting(avatar_button, u"test@gmail.com");
   std::u16string profile_switch_text(u"Profile Switch?");
-  base::ScopedClosureRunner hide_callback =
-      avatar_button->SetExplicitButtonState(
-          profile_switch_text, /*accessibility_label=*/std::nullopt,
-          /*explicit_action=*/std::nullopt);
+  base::ScopedClosureRunner hide_callback = avatar_button->ShowExplicitText(
+      profile_switch_text, /*accessibility_label=*/std::nullopt);
   EXPECT_EQ(avatar_button->GetText(), profile_switch_text);
 
   SimulateSyncPaused();
@@ -856,9 +852,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest,
   ASSERT_EQ(avatar->GetText(), std::u16string());
 
   std::u16string new_text(u"Some New Text");
-  base::ScopedClosureRunner hide_callback = avatar->SetExplicitButtonState(
-      new_text, /*accessibility_label=*/std::nullopt,
-      /*explicit_action=*/std::nullopt);
+  base::ScopedClosureRunner hide_callback =
+      avatar->ShowExplicitText(new_text, /*accessibility_label=*/std::nullopt);
 
   EXPECT_EQ(avatar->GetText(), new_text);
   hide_callback.RunAndReset();
@@ -875,9 +870,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest,
   // the caller.
   {
     std::u16string new_text(u"Some New Text");
-    base::ScopedClosureRunner hide_callback = avatar->SetExplicitButtonState(
-        new_text, /*accessibility_label=*/std::nullopt,
-        /*explicit_action=*/std::nullopt);
+    base::ScopedClosureRunner hide_callback = avatar->ShowExplicitText(
+        new_text, /*accessibility_label=*/std::nullopt);
     EXPECT_EQ(avatar->GetText(), new_text);
   }
 
@@ -885,39 +879,29 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest,
-                       ShowExplicitTextWithExplicitAction) {
+                       ShowExplicitTextTwiceAndHide) {
   AvatarToolbarButton* avatar = GetAvatarToolbarButton(browser());
   ASSERT_EQ(avatar->GetText(), std::u16string());
-  ASSERT_FALSE(avatar->HasExplicitButtonAction());
 
-  const std::u16string text_1(u"Some New Text 1");
-  base::MockCallback<base::RepeatingClosure> mock_callback_1;
-  base::ScopedClosureRunner reset_callback_1 = avatar->SetExplicitButtonState(
-      text_1, /*accessibility_label=*/std::nullopt, mock_callback_1.Get());
-  EXPECT_EQ(avatar->GetText(), text_1);
-  EXPECT_TRUE(avatar->HasExplicitButtonAction());
-  EXPECT_CALL(mock_callback_1, Run).Times(1);
-  avatar->ButtonPressed();
+  std::u16string initial_new_text(u"Some New Text");
+  base::ScopedClosureRunner initial_hide_callback = avatar->ShowExplicitText(
+      initial_new_text, /*accessibility_label=*/std::nullopt);
 
-  const std::u16string text_2(u"Some New Text 2");
-  base::MockCallback<base::RepeatingClosure> mock_callback_2;
-  base::ScopedClosureRunner reset_callback_2 = avatar->SetExplicitButtonState(
-      text_2, /*accessibility_label=*/std::nullopt, mock_callback_2.Get());
-  EXPECT_EQ(avatar->GetText(), text_2);
-  EXPECT_TRUE(avatar->HasExplicitButtonAction());
-  EXPECT_CALL(mock_callback_2, Run).Times(1);
-  avatar->ButtonPressed();
+  EXPECT_EQ(avatar->GetText(), initial_new_text);
 
-  // Calling the first reset callback should do nothing after the second call
-  // to `SetExplicitButtonState`.
-  reset_callback_1.RunAndReset();
-  EXPECT_EQ(avatar->GetText(), text_2);
-  EXPECT_TRUE(avatar->HasExplicitButtonAction());
+  std::u16string override_new_text(u"Some New Override Text");
+  base::ScopedClosureRunner override_hide_callback = avatar->ShowExplicitText(
+      override_new_text, /*accessibility_label=*/std::nullopt);
 
-  // Calling the second reset callback should reset the text and the action.
-  reset_callback_2.RunAndReset();
+  EXPECT_EQ(avatar->GetText(), override_new_text);
+
+  // Attempting to reset the initial text should have no effect.
+  initial_hide_callback.RunAndReset();
+  EXPECT_EQ(avatar->GetText(), override_new_text);
+
+  // Resetting the last text should work fine.
+  override_hide_callback.RunAndReset();
   EXPECT_EQ(avatar->GetText(), std::u16string());
-  EXPECT_FALSE(avatar->HasExplicitButtonAction());
 }
 
 // Avatar button is not shown on Ash. No need to perform those tests as the info
@@ -1322,9 +1306,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonHistorySyncOptinBrowserTest,
   EXPECT_EQ(avatar->GetText(),
             l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_BROWSE_ACROSS_DEVICES));
   const std::u16string explicit_text(u"Explicit Text");
-  base::ScopedClosureRunner hide_callback = avatar->SetExplicitButtonState(
-      explicit_text, /*accessibility_label=*/std::nullopt,
-      /*explicit_action=*/std::nullopt);
+  base::ScopedClosureRunner hide_callback = avatar->ShowExplicitText(
+      explicit_text, /*accessibility_label=*/std::nullopt);
   // The history sync opt-in entry point should be replaced by the explicit
   // text message.
   EXPECT_EQ(avatar->GetText(), explicit_text);
@@ -1406,32 +1389,6 @@ IN_PROC_BROWSER_TEST_P(AvatarToolbarButtonHistorySyncOptinWithParamBrowserTest,
       l10n_util::GetStringUTF16(GetParam().expected_history_sync_message_id));
   EnableSync(email, account_name);
   // Once sync is turned on, the button should return to the normal state.
-  EXPECT_TRUE(avatar->GetText().empty());
-}
-
-// TODO(crbug.com/331746545): Check the flaky test issue on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_CollapsesOnSignOut DISABLED_CollapsesOnSignOut
-#else
-#define MAYBE_CollapsesOnSignOut CollapsesOnSignOut
-#endif
-IN_PROC_BROWSER_TEST_P(AvatarToolbarButtonHistorySyncOptinWithParamBrowserTest,
-                       MAYBE_CollapsesOnSignOut) {
-  AvatarToolbarButton* avatar = GetAvatarToolbarButton(browser());
-  // Normal state.
-  ASSERT_TRUE(avatar->GetText().empty());
-  const std::u16string email(u"test@gmail.com");
-  const std::u16string account_name(u"Account name");
-  const AccountInfo account_info = SigninWithImage(email, account_name);
-  EXPECT_EQ(avatar->GetText(), l10n_util::GetStringFUTF16(
-                                   IDS_AVATAR_BUTTON_GREETING, account_name));
-  avatar->TriggerTimeoutForTesting(AvatarDelayType::kNameGreeting);
-  // The greeting should be followed by the history sync opt-in entry point.
-  EXPECT_EQ(
-      avatar->GetText(),
-      l10n_util::GetStringUTF16(GetParam().expected_history_sync_message_id));
-  Signout();
-  // Once the user signs out, the button should return to the normal state.
   EXPECT_TRUE(avatar->GetText().empty());
 }
 
@@ -2176,9 +2133,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonEnterpriseBadgingBrowserTest,
     enterprise_util::SetUserAcceptedAccountManagement(browser()->profile(),
                                                       true);
     EXPECT_EQ(avatar_button->GetText(), work_label);
-    auto clear_closure = avatar_button->SetExplicitButtonState(
-        u"Explicit text", /*accessibility_label=*/std::nullopt,
-        /*explicit_action=*/std::nullopt);
+    auto clear_closure = avatar_button->ShowExplicitText(
+        u"Explicit text", /*accessibility_label=*/std::nullopt);
     EXPECT_NE(avatar_button->GetText(), work_label);
     clear_closure.RunAndReset();
     EXPECT_EQ(avatar_button->GetText(), work_label);
@@ -2194,10 +2150,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonEnterpriseBadgingBrowserTest,
     enterprise_util::SetUserAcceptedAccountManagement(browser()->profile(),
                                                       false);
     EXPECT_NE(avatar_button->GetText(), work_label);
-    base::ScopedClosureRunner clear_closure =
-        avatar_button->SetExplicitButtonState(
-            u"Explicit text", /*accessibility_label=*/std::nullopt,
-            /*explicit_action=*/std::nullopt);
+    auto clear_closure = avatar_button->ShowExplicitText(
+        u"Explicit text", /*accessibility_label=*/std::nullopt);
     EXPECT_NE(avatar_button->GetText(), work_label);
     clear_closure.RunAndReset();
     EXPECT_NE(avatar_button->GetText(), work_label);
@@ -2752,8 +2706,7 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest, AccessibilityLabels) {
   const std::u16string explicit_text(u"explicit_text");
   const std::u16string explicit_accessibility_text(u"explicit_text_acc");
   base::ScopedClosureRunner clear_explicit_text_callback =
-      avatar->SetExplicitButtonState(explicit_text, explicit_accessibility_text,
-                                     /*explicit_action=*/std::nullopt);
+      avatar->ShowExplicitText(explicit_text, explicit_accessibility_text);
 
   EXPECT_EQ(accessibility.GetCachedName(), explicit_text);
   EXPECT_EQ(accessibility.GetCachedDescription(), explicit_accessibility_text);
@@ -2765,9 +2718,7 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonBrowserTest, AccessibilityLabels) {
 
   // Explicit text without accessibility text
   base::ScopedClosureRunner clear_explicit_text_without_accessibility_callback =
-      avatar->SetExplicitButtonState(explicit_text,
-                                     /*accessibility_label=*/std::nullopt,
-                                     /*explicit_action=*/std::nullopt);
+      avatar->ShowExplicitText(explicit_text, std::nullopt);
 
   EXPECT_EQ(accessibility.GetCachedName(), explicit_text);
   EXPECT_EQ(accessibility.GetCachedDescription(),

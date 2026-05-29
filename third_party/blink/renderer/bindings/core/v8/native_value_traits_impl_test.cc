@@ -749,52 +749,5 @@ TEST(NativeValueTraitsImplTest, PassAsSpanSequenceOfUnrestricted) {
                            std::numeric_limits<double>::infinity(), 42));
 }
 
-using PassAsSpanWithDetachCheck =
-    PassAsSpan<PassAsSpanMarkerBase::Flags::kPerformDetachCheck, void>;
-
-template <typename T>
-using TypedPassAsSpanWithDetachCheck =
-    PassAsSpan<PassAsSpanMarkerBase::Flags::kPerformDetachCheck, T>;
-
-TEST(NativeValueTraitsImplTest, TypedPassAsSpanDetach) {
-  test::TaskEnvironment task_environment;
-  V8TestingScope scope;
-  NonThrowableExceptionState exception_state;
-
-  {
-    v8::Local<v8::Object> v8_object = EvaluateScriptForObject(scope, R"(
-        self.arrbuf = new Uint8Array(10000).fill(42).buffer;
-    )");
-    auto converted =
-        NativeValueTraits<PassAsSpanWithDetachCheck>::ArgumentValue(
-            scope.GetIsolate(), 0, v8_object, exception_state);
-
-    EvaluateScriptForObject(scope, "self.arrbuf.transfer(0)");
-    EXPECT_THAT(converted.as_span(), testing::IsEmpty());
-  }
-  {
-    v8::Local<v8::Object> v8_object = EvaluateScriptForObject(scope, R"(
-        self.arr1 = new Uint8Array(10000).fill(42);
-    )");
-    auto converted =
-        NativeValueTraits<PassAsSpanWithDetachCheck>::ArgumentValue(
-            scope.GetIsolate(), 0, v8_object, exception_state);
-
-    EvaluateScriptForObject(scope, "self.arr1.buffer.transfer(0)");
-    EXPECT_THAT(converted.as_span(), testing::IsEmpty());
-  }
-  {
-    v8::Local<v8::Object> v8_object = EvaluateScriptForObject(scope, R"(
-        self.arr2 = new Uint16Array(10000).fill(42);
-    )");
-    auto converted =
-        NativeValueTraits<TypedPassAsSpanWithDetachCheck<uint16_t>>::
-            ArgumentValue(scope.GetIsolate(), 0, v8_object, exception_state);
-
-    EvaluateScriptForObject(scope, "self.arr2.buffer.transfer(0)");
-    EXPECT_THAT(converted.as_span(), testing::IsEmpty());
-  }
-}
-
 }  // namespace
 }  // namespace blink

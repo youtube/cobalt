@@ -20,29 +20,16 @@ ExtensionURLLoaderThrottle::ExtensionURLLoaderThrottle(
     ExtensionThrottleManager* manager)
     : manager_(manager) {
   DCHECK(manager_);
-  manager_observation_.Observe(manager_);
 }
 
 ExtensionURLLoaderThrottle::~ExtensionURLLoaderThrottle() = default;
-
-void ExtensionURLLoaderThrottle::OnExtensionThrottleManagerDestruct(
-    ExtensionThrottleManager* manager) {
-  manager_observation_.Reset();
-  manager_ = nullptr;
-}
 
 void ExtensionURLLoaderThrottle::WillStartRequest(
     network::ResourceRequest* request,
     bool* defer) {
   start_request_url_ = request->url;
-
-  if (!manager_) {
-    return;
-  }
-
-  if (manager_->ShouldRejectRequest(start_request_url_)) {
+  if (manager_->ShouldRejectRequest(start_request_url_))
     delegate_->CancelWithError(net::ERR_TEMPORARILY_THROTTLED, kCancelReason);
-  }
 }
 
 void ExtensionURLLoaderThrottle::WillRedirectRequest(
@@ -52,10 +39,6 @@ void ExtensionURLLoaderThrottle::WillRedirectRequest(
     /*to_be_removed_request_headers=*/std::vector<std::string>*,
     /*modified_request_headers=*/net::HttpRequestHeaders*,
     /*modified_cors_exempt_request_headers=*/net::HttpRequestHeaders*) {
-  if (!manager_) {
-    return;
-  }
-
   if (manager_->ShouldRejectRedirect(start_request_url_, *redirect_info)) {
     delegate_->CancelWithError(net::ERR_TEMPORARILY_THROTTLED, kCancelReason);
   }
@@ -65,10 +48,6 @@ void ExtensionURLLoaderThrottle::WillProcessResponse(
     const GURL& response_url,
     network::mojom::URLResponseHead* response_head,
     bool* defer) {
-  if (!manager_) {
-    return;
-  }
-
   manager_->WillProcessResponse(response_url, *response_head);
 }
 

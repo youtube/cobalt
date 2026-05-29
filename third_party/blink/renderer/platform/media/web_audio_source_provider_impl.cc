@@ -24,10 +24,9 @@
 
 namespace blink {
 
-// TODO(crbug.com/420150619): Re-enable this feature.
 BASE_FEATURE(kDelayStopForMediaElementSourceNode,
              "DelayStopForMediaElementSourceNode",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // TeeFilter is a RenderCallback implementation that allows for a client to get
 // a copy of the data being rendered by the |renderer_| on Render(). This class

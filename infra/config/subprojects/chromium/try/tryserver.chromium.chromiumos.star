@@ -3,28 +3,27 @@
 # found in the LICENSE file.
 """Definitions of builders in the tryserver.chromium.chromiumos builder group."""
 
-load("@chromium-luci//branches.star", "branches")
-load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builders.star", "os")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//gn_args.star", "gn_args")
-load("@chromium-luci//html.star", "linkify_builder")
-load("@chromium-luci//try.star", "try_")
-load("//lib/siso.star", "siso")
-load("//lib/try_constants.star", "try_constants")
+load("//lib/branches.star", "branches")
+load("//lib/builder_config.star", "builder_config")
+load("//lib/builders.star", "os", "siso")
+load("//lib/try.star", "try_")
+load("//lib/consoles.star", "consoles")
+load("//lib/gn_args.star", "gn_args")
+load("//lib/html.star", "linkify_builder")
 load("//project.star", "settings")
 
 try_.defaults.set(
-    executable = try_constants.DEFAULT_EXECUTABLE,
+    executable = try_.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.chromium.chromiumos",
-    pool = try_constants.DEFAULT_POOL,
+    pool = try_.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     compilator_cores = 16,
-    execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
+    execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 2,
     orchestrator_siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
-    service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
+    service_account = try_.DEFAULT_SERVICE_ACCOUNT,
+    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
     siso_remote_linking = True,
@@ -51,6 +50,13 @@ try_.builder(
     # TODO(crbug.com/40605913): Enable DCHECKS on the two amd64-generic bots
     # when the PFQ has it enabled.
     gn_args = "ci/chromeos-amd64-generic-cfi-thin-lto-rel",
+    # TODO(b/326865026): This build seems to have a high number of fallbacks,
+    # but not enough to trigger the early fail mechanism.  The fallbacks result
+    # in slow builds and timeouts.  Fail in these cases so logs are collected
+    # for debugging.
+    reclient_bootstrap_env = {
+        "RBE_fail_early_min_fallback_ratio": "0.1",
+    },
 )
 
 try_.builder(

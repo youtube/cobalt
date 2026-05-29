@@ -52,7 +52,6 @@
 #import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
-#import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_api.h"
@@ -196,17 +195,6 @@
                                             self.templateURLService)];
   [self.headerConsumer
       setVoiceSearchIsEnabled:ios::provider::IsVoiceSearchEnabled()];
-
-  const TemplateURL* defaultSearchEngine =
-      self.templateURLService->GetDefaultSearchProvider();
-  NSString* dseName =
-      defaultSearchEngine
-          ? [NSString
-                cr_fromString16:defaultSearchEngine
-                                    ->AdjustedShortNameForLocaleDirection()]
-          : @"";
-  [self.headerConsumer setDefaultSearchEngineName:dseName];
-
   [self updateAccountImage];
   [self updateAccountErrorBadge];
   [self startObservingPrefs];
@@ -295,14 +283,6 @@
   [self.headerConsumer setLogoIsShowing:search::DefaultSearchProviderIsGoogle(
                                             self.templateURLService)];
   [self.feedControlDelegate updateFeedForDefaultSearchEngineChanged];
-
-  NSString* dseName =
-      updatedDefaultSearchEngine
-          ? [NSString
-                cr_fromString16:updatedDefaultSearchEngine
-                                    ->AdjustedShortNameForLocaleDirection()]
-          : @"";
-  [self.headerConsumer setDefaultSearchEngineName:dseName];
 }
 
 #pragma mark - IdentityManagerObserverBridgeDelegate
@@ -412,8 +392,7 @@
 
 - (void)updateAccountErrorBadge {
   if (!base::FeatureList::IsEnabled(
-          switches::kEnableErrorBadgeOnIdentityDisc) &&
-      !base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError)) {
+          switches::kEnableErrorBadgeOnIdentityDisc)) {
     return;
   }
   BOOL primaryIdentityHasError =

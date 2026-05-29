@@ -68,13 +68,12 @@ BookmarkNode* AsMutable(const BookmarkNode* node) {
 // root node or because `node` is in the process of being deleted (i.e. removed
 // from the indices), typically as a result of feature code reacting to
 // BookmarkModelObserver::BookmarkNodeRemoved().
-const BookmarkPermanentNode* GetSelfOrAncestorPermanentNode(
-    const BookmarkNode* node) {
+const BookmarkNode* GetSelfOrAncestorPermanentNode(const BookmarkNode* node) {
   CHECK(node);
   while (node && !node->is_permanent_node()) {
     node = node->parent();
   }
-  return static_cast<const BookmarkPermanentNode*>(node);
+  return node;
 }
 
 // Gets the number of user-generated folders from `node` (inclusive) along the
@@ -339,7 +338,7 @@ bool BookmarkModel::IsLocalOnlyNode(const BookmarkNode& node) const {
     return true;
   }
 
-  const BookmarkPermanentNode* ancestor_permanent_node =
+  const BookmarkNode* ancestor_permanent_node =
       GetSelfOrAncestorPermanentNode(&node);
   if (!ancestor_permanent_node) {
     // In rare cases, `node` may already be 'dettached' from the bookmark tree.
@@ -363,7 +362,11 @@ bool BookmarkModel::IsLocalOnlyNode(const BookmarkNode& node) const {
     return false;
   }
 
-  return !ancestor_permanent_node->is_account_node();
+  // If sync is off, the only remaining possibility to return false is if `node`
+  // is actually a descendant of an account permanent folder (if they exist).
+  return ancestor_permanent_node != account_bookmark_bar_node_ &&
+         ancestor_permanent_node != account_other_node_ &&
+         ancestor_permanent_node != account_mobile_node_;
 }
 
 void BookmarkModel::AddObserver(BookmarkModelObserver* observer) {
@@ -1613,8 +1616,7 @@ void BookmarkModel::CreateAccountPermanentFolders() {
   const base::Time current_timestamp = base::Time::Now();
   {
     std::unique_ptr<BookmarkPermanentNode> account_bookmark_bar_node =
-        BookmarkPermanentNode::CreateBookmarkBar(next_node_id_++,
-                                                 /*is_account_node=*/true);
+        BookmarkPermanentNode::CreateBookmarkBar(next_node_id_++);
     account_bookmark_bar_node_ = account_bookmark_bar_node.get();
     account_bookmark_bar_node_->set_date_added(current_timestamp);
     account_bookmark_bar_node_->set_visibility(DetermineIfNodeShouldBeVisible(
@@ -1626,8 +1628,7 @@ void BookmarkModel::CreateAccountPermanentFolders() {
   }
   {
     std::unique_ptr<BookmarkPermanentNode> account_other_node =
-        BookmarkPermanentNode::CreateOtherBookmarks(next_node_id_++,
-                                                    /*is_account_node=*/true);
+        BookmarkPermanentNode::CreateOtherBookmarks(next_node_id_++);
     account_other_node_ = account_other_node.get();
     account_other_node_->set_date_added(current_timestamp);
     account_other_node_->set_visibility(DetermineIfNodeShouldBeVisible(
@@ -1638,8 +1639,7 @@ void BookmarkModel::CreateAccountPermanentFolders() {
   }
   {
     std::unique_ptr<BookmarkPermanentNode> account_mobile_node =
-        BookmarkPermanentNode::CreateMobileBookmarks(next_node_id_++,
-                                                     /*is_account_node=*/true);
+        BookmarkPermanentNode::CreateMobileBookmarks(next_node_id_++);
     account_mobile_node_ = account_mobile_node.get();
     account_mobile_node_->set_date_added(current_timestamp);
     account_mobile_node_->set_visibility(DetermineIfNodeShouldBeVisible(

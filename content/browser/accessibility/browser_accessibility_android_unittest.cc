@@ -530,10 +530,10 @@ TEST_F(BrowserAccessibilityAndroidTest, TestImageInnerText_Eligible) {
           manager->GetBrowserAccessibilityRoot()->PlatformGetChild(1));
 
   EXPECT_EQ(
-      u"image_name, This image isn't labeled. Double tap on the more options "
+      u"This image isn't labeled. Double tap on the more options "
       u"button at the top of the browser to get image descriptions.",
       image_rtl->GetTextContentUTF16());
-  EXPECT_EQ(std::u16string(), image_rtl->GetSupplementalDescription());
+  EXPECT_EQ(u"image_name", image_rtl->GetSupplementalDescription());
 }
 
 TEST_F(BrowserAccessibilityAndroidTest,
@@ -648,8 +648,8 @@ TEST_F(BrowserAccessibilityAndroidTest, TestImageInnerText_Ineligible) {
           manager->GetBrowserAccessibilityRoot()->PlatformGetChild(3));
 
   EXPECT_EQ(std::u16string(), image_none->GetTextContentUTF16());
-  EXPECT_EQ(u"image_name", image_scheme->GetTextContentUTF16());
-  EXPECT_EQ(std::u16string(), image_scheme->GetSupplementalDescription());
+  EXPECT_EQ(std::u16string(), image_scheme->GetTextContentUTF16());
+  EXPECT_EQ(u"image_name", image_scheme->GetSupplementalDescription());
   EXPECT_EQ(std::u16string(), image_ineligible->GetTextContentUTF16());
   EXPECT_EQ(std::u16string(), image_silent->GetTextContentUTF16());
 }
@@ -694,9 +694,9 @@ TEST_F(BrowserAccessibilityAndroidTest,
           manager->GetBrowserAccessibilityRoot()->PlatformGetChild(1));
 
   EXPECT_EQ(u"test_annotation", image_succeeded->GetTextContentUTF16());
-  EXPECT_EQ(u"image_name, test_annotation",
+  EXPECT_EQ(u"test_annotation",
             image_succeeded_with_name->GetTextContentUTF16());
-  EXPECT_EQ(std::u16string(),
+  EXPECT_EQ(u"image_name",
             image_succeeded_with_name->GetSupplementalDescription());
 }
 
@@ -731,8 +731,7 @@ TEST_F(BrowserAccessibilityAndroidTest, TestJavaNodeCache_AttributeChange) {
 
   manager->OnAccessibilityEvents(updates_and_events);
 
-  EXPECT_EQ(2, actual.size());
-  EXPECT_TRUE(actual.contains(1));
+  EXPECT_EQ(1, actual.size());
   EXPECT_TRUE(actual.contains(2));
 }
 

@@ -375,7 +375,6 @@ Só alguém com a sua frase de acesso pode ler os dados encriptados. A Google n�
 <translation id="2718352093833049315">Apenas em Wi-Fi</translation>
 <translation id="2718846868787000099">Para apresentar conteúdo nos seus idiomas preferidos, os sites que visitar podem ver as suas preferências.</translation>
 <translation id="2723001399770238859">áudio</translation>
-<translation id="2734335652257251631">Mostrar Modo de leitura</translation>
 <translation id="2739887572830526131">Mantenha este grupo para adicionar separadores mais tarde ou elimine-o se já não precisar dele.</translation>
 <translation id="2742373789128106053">De momento, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> não está disponível.</translation>
 <translation id="2760805590727089264">MM/AA</translation>
@@ -1265,7 +1264,7 @@ Por exemplo, alguns Sites podem responder a este pedido ao mostrar-lhe anúncios
 <translation id="6710213216561001401">Anterior</translation>
 <translation id="671481426037969117">O temporizador da app <ph name="FQDN" /> terminou. Recomeça amanhã.</translation>
 <translation id="6715020873764921614">Quer transferir <ph name="FILE_NAME" /> (<ph name="FILE_SIZE" />) mesmo assim?</translation>
-<translation id="671928215901716392">Ecrã de bloqueio</translation>
+<translation id="671928215901716392">Bloquear ecrã</translation>
 <translation id="6723740634201835758">Na sua Conta Google</translation>
 <translation id="6734310707649923383">Pode ver as páginas que visitou ou eliminá-las do seu histórico</translation>
 <translation id="6738867403308150051">A transferir...</translation>
@@ -1440,7 +1439,6 @@ Para alterar esta definição, <ph name="BEGIN_LINK" />elimine os dados do Chrom
 <translation id="7431991332293347422">Controle a forma como o histórico de navegação é utilizado para personalizar a Pesquisa e muito mais.</translation>
 <translation id="7435356471928173109">Desativada pelo seu administrador.</translation>
 <translation id="7437998757836447326">Terminar sessão no Chrome</translation>
-<translation id="7439467816829380878">Mover separador para grupo</translation>
 <translation id="7453810262525006706">Reduzir para vista lateral</translation>
 <translation id="7454641608352164238">Espaço insuficiente</translation>
 <translation id="7454744349230173024">A sua organização desativou a gravação de palavras-passe</translation>
@@ -1746,7 +1744,6 @@ Para alterar esta definição, <ph name="BEGIN_LINK" />elimine os dados do Chrom
 <translation id="8676789164135894283">Validações de início de sessão</translation>
 <translation id="8683039184091909753">imagem</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, separador selecionado</translation>
-<translation id="8693232767599693749">Ver Modo de leitura?</translation>
 <translation id="8697753151306746444">Em alternativa, partilhe a janela ou o ecrã</translation>
 <translation id="869891660844655955">Data de expiração</translation>
 <translation id="8699120352855309748">Não se disponibilizar para traduzir estes idiomas</translation>
@@ -1816,7 +1813,6 @@ Para alterar esta definição, <ph name="BEGIN_LINK" />elimine os dados do Chrom
 <translation id="9019199799064251516">Continuar sem um bloqueio do perfil do carro?</translation>
 <translation id="9022774213089566801">Visitados frequentemente</translation>
 <translation id="9022871169049522985">Os sites e os anunciantes podem medir o desempenho dos respetivos anúncios</translation>
-<translation id="9027728231343310283">Anular <ph name="SITE" /></translation>
 <translation id="9035378196785279980">Mover para\u2026</translation>
 <translation id="9042893549633094279">Privacidade e segurança</translation>
 <translation id="9047347135558855162">Inicie rapidamente uma pesquisa no Chrome</translation>

@@ -140,8 +140,6 @@ class AndroidNTPZpsSection : public ZpsSectionWithLocalHistory {
  public:
   AndroidNTPZpsSection(omnibox::GroupConfigMap& group_configs,
                        bool mia_enabled);
-
-  void InitFromMatches(ACMatches& matches) override;
 };
 
 // Section expressing the Android ZPS limits and grouping for the SRP.
@@ -304,7 +302,6 @@ class DesktopNonZpsSection : public Section {
 class IOSNTPZpsSection : public ZpsSectionWithLocalHistory {
  public:
   IOSNTPZpsSection(omnibox::GroupConfigMap& group_configs, bool mia_enabled);
-  void InitFromMatches(ACMatches& matches) override;
 };
 
 // Section expressing the iPhone ZPS limits and grouping for the SRP.
@@ -350,7 +347,6 @@ class IOSIpadNTPZpsSection : public ZpsSectionWithLocalHistory {
                                 size_t total_count,
                                 omnibox::GroupConfigMap& group_configs,
                                 bool mia_enabled);
-  void InitFromMatches(ACMatches& matches) override;
 };
 
 // Section expressing the iPad ZPS limits and grouping for the SRP.

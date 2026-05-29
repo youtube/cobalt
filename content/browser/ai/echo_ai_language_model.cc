@@ -43,14 +43,13 @@ void EchoAILanguageModel::DoMockExecution(
     return;
   }
 
-  uint32_t quota = EchoAIManagerImpl::kMaxContextSizeInTokens;
-  if (input.size() > quota) {
+  if (input.size() > EchoAIManagerImpl::kMaxContextSizeInTokens) {
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge,
-        blink::mojom::QuotaErrorInfo::New(input.size(), quota));
+        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
     return;
   }
-  if (current_tokens_ > quota - input.size()) {
+  if (current_tokens_ >
+      EchoAIManagerImpl::kMaxContextSizeInTokens - input.size()) {
     current_tokens_ = input.size();
     responder->OnQuotaOverflow();
   }
@@ -70,8 +69,7 @@ void EchoAILanguageModel::Prompt(
     mojo::Remote<blink::mojom::ModelStreamingResponder> responder(
         std::move(pending_responder));
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
     return;
   }
 
@@ -142,8 +140,7 @@ void EchoAILanguageModel::Destroy() {
 
   for (auto& responder : responder_set_) {
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed,
-        /*quota_error_info=*/nullptr);
+        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
   }
   responder_set_.Clear();
 }

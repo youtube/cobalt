@@ -354,20 +354,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         menu.findItem(R.id.download_page_id).setVisible(shouldShowDownloadPageMenuItem(currentTab));
 
         menu.findItem(R.id.ntp_customization_id)
-                .setVisible(shouldShowNtpCustomizations(currentTab, isIncognito));
-    }
-
-    /**
-     * Returns True if the NTP Customization menu entry should be visible.
-     *
-     * <p>This entry is shown only when the corresponding feature flag is enabled and the user is on
-     * the regular Ntp.
-     */
-    private boolean shouldShowNtpCustomizations(@Nullable Tab currentTab, boolean isIncognito) {
-        return ChromeFeatureList.sNewTabPageCustomization.isEnabled()
-                && !isIncognito
-                && currentTab != null
-                && UrlUtilities.isNtpUrl(currentTab.getUrl());
+                .setVisible(ChromeFeatureList.sNewTabPageCustomization.isEnabled() && !isIncognito);
     }
 
     private void prepareCommonMenuItems(Menu menu, @MenuGroup int menuGroup, boolean isIncognito) {

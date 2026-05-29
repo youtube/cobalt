@@ -14,7 +14,6 @@
 #include <utility>
 
 #include "base/files/scoped_file.h"
-#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/notreached.h"
 #include "base/unguessable_token.h"
@@ -284,18 +283,13 @@ scoped_refptr<SharedBuffer> SharedBuffer::Deserialize(
   }
 
   auto handle = CreateRegionHandleFromPlatformHandles(handles, mode);
-  auto maybe_region = base::subtle::PlatformSharedMemoryRegion::TakeOrFail(
+  auto region = base::subtle::PlatformSharedMemoryRegion::Take(
       std::move(handle), mode, header.buffer_size, guid.value());
-  if (!maybe_region.has_value()) {
-    return nullptr;
-    LOG(ERROR) << "Failed to deserialize platform shared memory region: "
-               << static_cast<int>(maybe_region.error());
-  }
-  if (!maybe_region->IsValid()) {
+  if (!region.IsValid()) {
     return nullptr;
   }
 
-  return base::MakeRefCounted<SharedBuffer>(std::move(*maybe_region));
+  return base::MakeRefCounted<SharedBuffer>(std::move(region));
 }
 
 }  // namespace mojo::core::ipcz_driver

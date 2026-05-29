@@ -1022,8 +1022,7 @@ public class ToolbarManager
                             mActivityTabProvider,
                             mToolbarNavControlsEnabledSupplier,
                             /* onNavigationPopupShown= */ () -> {},
-                            historyDelegate,
-                            /* isWebApp= */ false);
+                            historyDelegate);
         }
 
         mToolbarLongPressMenuHandler =
@@ -1720,8 +1719,7 @@ public class ToolbarManager
                             mWindowAndroid.getInsetObserver(),
                             controlContainerTranslationSupplier,
                             controlContainerHeightSupplier,
-                            keyboardAccessoryStateSupplier.getIsSheetShowingSupplier(),
-                            this::isUrlBarFocused);
+                            keyboardAccessoryStateSupplier.getIsSheetShowingSupplier());
         }
     }
 

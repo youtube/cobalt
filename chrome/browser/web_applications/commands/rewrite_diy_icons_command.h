@@ -45,7 +45,6 @@ class RewriteDiyIconsCommand
 
  private:
   void OnGetShortcutInfo(std::unique_ptr<ShortcutInfo> info);
-  void OnUpdatedShortcuts(bool success);
 
   const webapps::AppId app_id_;
   std::unique_ptr<AppLock> lock_;

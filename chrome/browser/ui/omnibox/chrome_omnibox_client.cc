@@ -476,15 +476,6 @@ void ChromeOmniboxClient::CheckConditionsAndLaunchSurvey() {
       show_happiness_survey ? kHatsSurveyTriggerOnFocusZpsSuggestionsHappiness
                             : kHatsSurveyTriggerOnFocusZpsSuggestionsUtility;
 
-  const std::string& trigger_id =
-      show_happiness_survey
-          ? omnibox_feature_configs::
-                HappinessTrackingSurveyForOmniboxOnFocusZps::Get()
-                    .happiness_trigger_id
-          : omnibox_feature_configs::
-                HappinessTrackingSurveyForOmniboxOnFocusZps::Get()
-                    .utility_trigger_id;
-
   HatsService* hats_service =
       HatsServiceFactory::GetForProfile(profile_, /*create_if_necessary=*/true);
 
@@ -509,8 +500,7 @@ void ChromeOmniboxClient::CheckConditionsAndLaunchSurvey() {
         {{"page classification",
           metrics::OmniboxEventProto::PageClassification_Name(
               GetPageClassification(/*is_prefetch=*/false))},
-         {"channel", channel}},
-        trigger_id, HatsService::SurveyOptions());
+         {"channel", channel}});
   }
 }
 
@@ -800,8 +790,7 @@ void ChromeOmniboxClient::OnPopupVisibilityChanged(bool popup_is_open) {
     auto* const helper =
         OmniboxTabHelper::FromWebContents(location_bar_->GetWebContents());
     CHECK(helper);
-    helper->OnPopupVisibilityChanged(
-        popup_is_open, GetPageClassification(/*is_prefetch=*/false));
+    helper->OnPopupVisibilityChanged(popup_is_open);
   }
 }
 

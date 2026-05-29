@@ -220,13 +220,11 @@
 <translation id="3954172517175569325">Таны Google Бүртгэлдээ хадгалсан нууц үг, төлбөрийн хэрэгсэл, хаягуудыг энэ төхөөрөмжөөс хасна. Тэдгээрийг Chromium-д дахин ашиглахын тулд буцаж нэвтэрнэ үү.</translation>
 <translation id="395904275706073188">Хамгаалагдсан хуудсыг унших боломжгүй. Өөр хуудас туршиж үзнэ үү.</translation>
 <translation id="3962647064319009959">Chromium таныг хэрхэн аюулгүй байлгадаг болохыг мэдэж авна уу</translation>
-<translation id="3971865010372729242">Таныг хаяг оруулах хэсэг, хайх хэсэгт шивэх үед Chromium зөвлөмж авахын тулд таны шивсэн зүйлийг танай байгууллагын хайлт, ХОУ, агентын хэрэгслүүд рүү илгээдэг.</translation>
 <translation id="3975724895399328945">&amp;Google Chrome for Testing-н тухай</translation>
 <translation id="3997429360543082038">ChromiumOS-н тухай</translation>
 <translation id="4019629340646866719">ChromiumOS-г <ph name="BEGIN_LINK_LINUX_OSS" />Linux-н хөгжүүлэлтийн орчин <ph name="END_LINK_LINUX_OSS" /> болох нэмэлт <ph name="BEGIN_LINK_CROS_OSS" />нээлттэй эх кодын программ хангамжаар<ph name="END_LINK_CROS_OSS" /> боломжтой болгосон.</translation>
 <translation id="4022972681110646219">Дэлгэцийг орчуулах</translation>
 <translation id="4023601594785368013">Эх хэл: <ph name="LANGUAGE" /></translation>
-<translation id="4023845192681161785">Дурын аппаас холбоосыг Chromium-д нээнэ үү. Түүнчлэн хялбар хандахад зориулж үүнийг таны ажлын хэсэгт бэхэлдэг.</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />Одоогийн тохиргоог<ph name="END_LINK" /> мэдэгдэж Chromium-г сайжруулахад тусална уу</translation>
 <translation id="4050175100176540509">Хамгийн сүүлийн хувилбар дээр аюулгүй байдлын чухал сайжруулалт болон шинэ функцийг санал болгож байна.</translation>
 <translation id="4055805654398742145">Нууц үгний менежер</translation>
@@ -328,7 +326,6 @@
 <translation id="5524890928877629608">хайлтын хэсгийн зүүн дээд булан: зүүн <ph name="LEFT" />%, дээд <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">PDF-г Chromium-д нээх</translation>
 <translation id="5579324208890605088">Эхлэхэд алдаа гарлаа: суулгагчийг администратораар бус, энгийн хэрэглэгчээр ажиллуулна уу.</translation>
-<translation id="5580770360767802657">Chromium-г өгөгдмөлөөр ашиглаж, бэхлээрэй</translation>
 <translation id="5596627076506792578">Бусад сонголт</translation>
 <translation id="5605834417512968703">Зурган хайлтаар хайхыг хүссэн зүйлээ сонгох эсвэл Зурган хайлтаас гарахын тулд escape-г дарна уу</translation>
 <translation id="5618818588972826921">Зурган хайлтаар хайхын тулд дурын текст, зургийг сонгох эсвэл Зурган хайлтаас гарахын тулд escape дээр дарна уу</translation>
@@ -599,7 +596,6 @@
 <translation id="9106612006984859720">Chromium-н цаашдын шинэчлэлтийг авахын тулд танд Windows 10 эсвэл түүнээс хойших хувилбар хэрэгтэй болно. Энэ компьютер Windows 8.1-г ашиглаж байна.</translation>
 <translation id="91086099826398415">Холбоосыг шинэ Chromium болон табад нээх</translation>
 <translation id="911206726377975832">Хайлтын мэдээллээ бас устгамаар байна уу?</translation>
-<translation id="9134482777260927479">Гэрийн даалгаврын тусламж</translation>
 <translation id="9148058034647219655">гарах</translation>
 <translation id="9158494823179993217">Таны системийн админ Chromium-г<ph name="TARGET_URL_HOSTNAME" />-д хандахын тулд өөр хөтөч нээхээр тохируулсан байна.</translation>
 <translation id="9185526690718004400">&amp;Chromium-г шинэчлэхийн тулд дахин ачаалах</translation>

@@ -38,8 +38,7 @@ enum class SyncedEsbOutcome {
   // The user clicked the Turn On button on the disable dialog.
   kAcceptedTurnOn = 2,
   kDismissed = 3,
-  kAcceptedFailed = 4,
-  kMaxValue = kAcceptedFailed,
+  kMaxValue = kDismissed,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:SyncedEsbOutcome)
 
@@ -187,16 +186,14 @@ void TailoredSecurityConsentedModalAndroid::HandleSettingsClicked() {
 void TailoredSecurityConsentedModalAndroid::HandleMessageDismissed(
     messages::DismissReason dismiss_reason) {
   LogOutcome(TailoredSecurityOutcome::kDismissed, is_enable_message_);
+  message_.reset();
+  if (dismiss_callback_)
+    std::move(dismiss_callback_).Run();
   if (is_requested_by_synced_esb_) {
     LogSyncedEsbDialogOutcome(is_enable_message_, SyncedEsbOutcome::kDismissed);
     base::UmaHistogramEnumeration(
         "SafeBrowsing.SyncedEsbDialogEnabledMessageDismissReason",
         dismiss_reason);
-  }
-  message_.reset();
-  if (dismiss_callback_) {
-    // The callback may delete `this`. Do not add code after running it.
-    std::move(dismiss_callback_).Run();
   }
 }
 
@@ -205,13 +202,6 @@ void TailoredSecurityConsentedModalAndroid::HandleMessageAccepted() {
   // LogOutcome to record ChAI actions.
   LogOutcome(TailoredSecurityOutcome::kAccepted, is_enable_message_);
   if (base::FeatureList::IsEnabled(safe_browsing::kEsbAsASyncedSetting)) {
-    if (!web_contents_) {
-      // WebContents has been destroyed. The handler failed to finish running.
-      // Log this situation.
-      LogSyncedEsbDialogOutcome(is_enable_message_,
-                                SyncedEsbOutcome::kAcceptedFailed);
-      return;
-    }
     Profile* profile =
         Profile::FromBrowserContext(web_contents_->GetBrowserContext());
     SetSafeBrowsingState(profile->GetPrefs(),

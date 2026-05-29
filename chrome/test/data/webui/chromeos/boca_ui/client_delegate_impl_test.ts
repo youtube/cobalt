@@ -362,11 +362,6 @@ class MockRemoteHandler extends PageHandlerRemote {
     id;
     return Promise.resolve({error: null});
   }
-
-  override startSpotlight(crdConnectionCode: string) {
-    crdConnectionCode;
-    return Promise.resolve();
-  }
 }
 
 suite('ClientDelegateTest', function() {
@@ -887,14 +882,5 @@ suite('ClientDelegateTest', function() {
         const result =
             await clientDelegateImpl.getInstance().renotifyStudent('1');
         assertTrue(result);
-      });
-
-  test(
-      'client delegate should translate data for start spotlight', async () => {
-        let startSpotlightResponded = false;
-        await clientDelegateImpl.getInstance().startSpotlight('1').then(() => {
-          startSpotlightResponded = true;
-        });
-        assertTrue(startSpotlightResponded);
       });
 });

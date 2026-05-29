@@ -8,12 +8,9 @@
 
 @implementation FakeRefreshAccessTokenError
 
-- (instancetype)initWithIdentity:(id<SystemIdentity>)identity
-                        callback:(HandleMDMNotificationCallback)callback {
+- (instancetype)initWithCallback:(HandleMDMNotificationCallback)callback {
   if ((self = [super init])) {
-    CHECK(identity);
-    CHECK(!callback.is_null());
-    _identity = identity;
+    DCHECK(!callback.is_null());
     _callback = callback;
   }
   return self;

@@ -45,13 +45,7 @@
 
   public init(_ tabGroupItem: TabGroupItem) {
     self.item = .group(tabGroupItem)
-    if #available(iOS 19.0, *) {
-      // Converting `NSUInteger` item hashes to Swift `Int` can cause crashes
-      // due to large hash values exceeding `Int`'s capacity.
-      self.itemHash = Int(truncatingIfNeeded: GetHashForTabGroupItem(tabGroupItem))
-    } else {
-      self.itemHash = Int(GetHashForTabGroupItem(tabGroupItem))
-    }
+    self.itemHash = Int(GetHashForTabGroupItem(tabGroupItem))
   }
 
   public convenience init?(_ tabSwitcherItem: TabSwitcherItem?) {

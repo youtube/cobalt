@@ -94,11 +94,13 @@ constexpr float kMaximumWordSpacingToFontSizeRatio = 0.5;
 constexpr float kMinimumAllowedContrast = 3.;
 constexpr float kMaximumLetterSpacingToFontSizeRatio = 0.2;
 constexpr float kMinimumLetterSpacingToFontSizeRatio = -0.05;
-constexpr int kMarginVisibleContent = -4;
 constexpr int kMaxLengthToFontSizeRatio = 3;
 constexpr int kMinLengthToFontSizeRatio = 1;
 constexpr int kMaxVerticalPaddingToFontSizeRatio = 1;
 constexpr int kMaxHorizontalPaddingToFontSizeRatio = 5;
+// Needed to avoid IntersectionObserver false-positives caused by other elements
+// being too close.
+constexpr int kMinMargin = 4;
 constexpr float kIntersectionThreshold = 1.0f;
 
 constexpr float kDefaultSmallFontSize = 13;     // Default 'small' font size.
@@ -487,8 +489,6 @@ void HTMLPermissionElement::AttachLayoutTree(AttachContext& context) {
                            WrapWeakPersistent(this)),
         LocalFrameUkmAggregator::kPermissionElementIntersectionObserver,
         IntersectionObserver::Params{
-            .margin = {Length::Fixed(kMarginVisibleContent)},
-            .margin_target = IntersectionObserver::kApplyMarginToTarget,
             .thresholds = {kIntersectionThreshold},
             .semantics = IntersectionObserver::kFractionOfTarget,
             .behavior = IntersectionObserver::kDeliverDuringPostLifecycleSteps,
@@ -807,6 +807,26 @@ void HTMLPermissionElement::AdjustStyle(ComputedStyleBuilder& builder) {
 
   builder.SetOutlineOffset(builder.OutlineOffset().ClampNegativeToZero());
 
+  auto device_pixel_ratio =
+      GetDocument().GetFrame()->LocalFrameRoot().DevicePixelRatio();
+
+  builder.SetMarginLeft(AdjustedBoundedLength(
+      builder.MarginLeft(), /*lower_bound=*/kMinMargin * device_pixel_ratio,
+      /*upper_bound=*/std::nullopt,
+      /*should_multiply_by_content_size=*/false));
+  builder.SetMarginRight(AdjustedBoundedLength(
+      builder.MarginRight(), /*lower_bound=*/kMinMargin * device_pixel_ratio,
+      /*upper_bound=*/std::nullopt,
+      /*should_multiply_by_content_size=*/false));
+  builder.SetMarginTop(AdjustedBoundedLength(
+      builder.MarginTop(), /*lower_bound=*/kMinMargin * device_pixel_ratio,
+      /*upper_bound=*/std::nullopt,
+      /*should_multiply_by_content_size=*/false));
+  builder.SetMarginBottom(AdjustedBoundedLength(
+      builder.MarginBottom(), /*lower_bound=*/kMinMargin * device_pixel_ratio,
+      /*upper_bound=*/std::nullopt,
+      /*should_multiply_by_content_size=*/false));
+
   // Check and modify (if needed) properties related to the font.
   std::optional<FontDescription> new_font_description;
 
@@ -837,11 +857,6 @@ void HTMLPermissionElement::AdjustStyle(ComputedStyleBuilder& builder) {
                            kMaximumWordSpacingToFontSizeRatio);
   } else if (builder.GetFontDescription().WordSpacing() < 0) {
     builder.SetWordSpacing(0);
-  }
-
-  if (builder.GetDisplayStyle().Display() != EDisplay::kNone &&
-      builder.GetDisplayStyle().Display() != EDisplay::kInlineBlock) {
-    builder.SetDisplay(EDisplay::kInlineBlock);
   }
 
   if (builder.GetFontDescription().LetterSpacing() >
@@ -958,17 +973,6 @@ void HTMLPermissionElement::AdjustStyle(ComputedStyleBuilder& builder) {
     builder.SetCursor(ECursor::kPointer);
   }
   builder.SetCursorIsInherited(false);
-
-  if (builder.BoxShadow()) {
-    for (const auto& shadow : builder.BoxShadow()->Shadows()) {
-      if (shadow.Style() == ShadowStyle::kInset) {
-        AddConsoleError(
-            "The permission element does not support 'inset' box-shadows.");
-        builder.SetBoxShadow(Member<ShadowList>());
-        break;
-      }
-    }
-  }
 }
 
 void HTMLPermissionElement::DidRecalcStyle(const StyleRecalcChange change) {
@@ -1449,10 +1453,7 @@ void HTMLPermissionElement::OnIntersectionChanged(
   // bound is clipped by the viewport or styling effects). In this case, the
   // `isVisible` false means the element is occluded by something else or has
   // distorted visual effect applied.
-  // Note: It's unlikely we'll encounter an empty target rectangle (height or
-  // width is 0), but if it happens, we can consider the element as visible.
-  if (!latest_observation->isVisible() &&
-      !latest_observation->GetGeometry().TargetRect().IsEmpty()) {
+  if (!latest_observation->isVisible()) {
     new_intersection_visibility =
         latest_observation->intersectionRatio() >= kIntersectionThreshold
             ? IntersectionVisibility::kOccludedOrDistorted
@@ -1499,14 +1500,26 @@ void HTMLPermissionElement::OnIntersectionChanged(
 }
 
 bool HTMLPermissionElement::IsStyleValid() {
+  const ComputedStyle* style = GetComputedStyle();
+
   // No computed style when using `display: none`.
-  if (!GetComputedStyle()) {
+  if (!style) {
     base::UmaHistogramEnumeration("Blink.PermissionElement.InvalidStyleReason",
                                   InvalidStyleReason::kNoComputedStyle);
     return false;
   }
 
-  if (AreColorsNonOpaque(GetComputedStyle())) {
+  if (style->GetDisplayStyle().Display() != EDisplay::kNone &&
+      style->GetDisplayStyle().Display() != EDisplay::kInlineBlock) {
+    AddConsoleWarning(WTF::StrCat(
+        {"Invalid display style of the permission element ", GetType(),
+         ". Only 'display: inline-block' or 'display: none' is allowed"}));
+    base::UmaHistogramEnumeration("Blink.PermissionElement.InvalidStyleReason",
+                                  InvalidStyleReason::kInvalidDisplayProperty);
+    return false;
+  }
+
+  if (AreColorsNonOpaque(style)) {
     AddConsoleWarning(
         WTF::StrCat({"Color or background color of the permission element '",
                      GetType(), "' is non-opaque"}));
@@ -1516,8 +1529,7 @@ bool HTMLPermissionElement::IsStyleValid() {
     return false;
   }
 
-  if (ContrastBetweenColorAndBackgroundColor(GetComputedStyle()) <
-      kMinimumAllowedContrast) {
+  if (ContrastBetweenColorAndBackgroundColor(style) < kMinimumAllowedContrast) {
     AddConsoleWarning(
         WTF::StrCat({"Contrast between color and background color of the "
                      "permission element '",
@@ -1540,11 +1552,9 @@ bool HTMLPermissionElement::IsStyleValid() {
       GetDocument().GetFrame()->LocalFrameRoot().LayoutZoomFactor() /
       GetDocument().GetFrame()->LocalFrameRoot().CssZoomFactor();
 
-  float font_size_dip =
-      GetComputedStyle()->ComputedFontSize() / non_css_layout_zoom_factor;
+  float font_size_dip = style->ComputedFontSize() / non_css_layout_zoom_factor;
 
-  bool is_font_monospace =
-      GetComputedStyle()->GetFontDescription().IsMonospace();
+  bool is_font_monospace = style->GetFontDescription().IsMonospace();
 
   // The min size is what `font-size:small` looks like when rendered in the
   // document element of the local root frame, without any intervening

@@ -130,7 +130,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="2570922361219980984">Der Standortzugriff ist für dieses Gerät ebenfalls deaktiviert. Du kannst ihn in den <ph name="BEGIN_LINK" />Android-Einstellungen<ph name="END_LINK" /> aktivieren.</translation>
 <translation id="257931822824936280">Maximiert – zum Minimieren klicken</translation>
 <translation id="2586657967955657006">Zwischenablage</translation>
-<translation id="2588271083332682494">Überblick dank Tabgruppen</translation>
+<translation id="2588271083332682494">Mit Tabgruppen den Überblick behalten</translation>
 <translation id="2597457036804169544">Dunkles Design nicht auf Websites anwenden</translation>
 <translation id="2606760465469169465">Automatische Bestätigung</translation>
 <translation id="2621115761605608342">JavaScript für eine bestimmte Website zulassen.</translation>
@@ -385,7 +385,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="571222594670061844">Websites dürfen Aufforderungen zur Anmeldung von Identitätsdiensten anzeigen</translation>
 <translation id="5723967018671998714">Drittanbieter-Cookies sind im Inkognitomodus blockiert</translation>
 <translation id="5740126560802162366">Websites können Daten auf deinem Gerät speichern</translation>
-<translation id="5743425052258407233">Du kannst deinen Verlauf auf allen deinen Geräten abrufen und dort weitermachen, wo du aufgehört hast</translation>
+<translation id="5743425052258407233">Du kannst deinen Verlauf auf allen deinen Geräten abrufen und ganz einfach dort weitermachen, wo du vorher aufgehört hast</translation>
 <translation id="5750869797196646528">Handtracking</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> blockiert</translation>
 <translation id="5804241973901381774">Berechtigungen</translation>
@@ -458,7 +458,6 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="6612358246767739896">Geschützte Inhalte</translation>
 <translation id="662080504995468778">Bleiben</translation>
 <translation id="6635327442719709864">Wenn diese Funktion aktiviert ist, können Websites anfragen, ob sie serielle Ports verwenden dürfen. Ist sie deaktiviert, können Websites keine seriellen Ports verwenden.</translation>
-<translation id="6678072580827808850">Sicherheitscheck aufrufen</translation>
 <translation id="6683865262523156564">Diese Website ist einer Gruppe zugeordnet, die deine Aktivitäten sehen kann. Die Gruppe wird durch <ph name="RWS_OWNER" /> definiert.</translation>
 <translation id="6689172468748959065">Profilfotos</translation>
 <translation id="6697925417670533197">Aktive Downloads</translation>
@@ -475,11 +474,11 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="6842868554183332230">Websites rufen normalerweise Informationen zu deiner aktiven Nutzung eines Geräts ab, um deine Verfügbarkeit in Chat-Apps anzuzeigen</translation>
 <translation id="6864395892908308021">NFC wird von diesem Gerät nicht unterstützt</translation>
 <translation id="6870169401250095575">Karte „Sicherheitscheck“ ausblenden</translation>
-<translation id="6900883974539674431">Tabgruppen werden automatisch auf allen deinen Geräten gespeichert und aktualisiert</translation>
+<translation id="6900883974539674431">Erstelle Tabgruppen, die automatisch auf allen deinen Geräten gespeichert und aktualisiert werden</translation>
 <translation id="6912998170423641340">Websites dürfen keine Texte oder Bilder aus der Zwischenablage abrufen</translation>
 <translation id="6945221475159498467">Auswählen</translation>
 <translation id="6950072572526089586">Websites, die du besuchst, können Informationen zu deinen Aktivitäten speichern, um erwartungsgemäß zu funktionieren – beispielsweise um dafür zu sorgen, dass du angemeldet bleibst oder um Artikel in deinem Einkaufswagen zu speichern. Oft speichern Websites diese Informationen vorübergehend auf deinem Gerät.</translation>
-<translation id="6965382102122355670">OK</translation>
+<translation id="6965382102122355670">Ok</translation>
 <translation id="6980861169612950611">Websitedaten löschen? <ph name="SITE_NAME" /></translation>
 <translation id="6981982820502123353">Bedienungshilfen</translation>
 <translation id="6992289844737586249">Nachfragen, bevor Websites auf mein Mikrofon zugreifen dürfen (empfohlen)</translation>

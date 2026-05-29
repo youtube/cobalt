@@ -2,16 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("@chromium-luci//branches.star", "branches")
-load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builder_health_indicators.star", "health_spec")
-load("@chromium-luci//builders.star", "cpu", "os")
-load("@chromium-luci//ci.star", "ci")
-load("@chromium-luci//consoles.star", "consoles")
-load("@chromium-luci//gn_args.star", "gn_args")
-load("@chromium-luci//targets.star", "targets")
-load("//lib/ci_constants.star", "ci_constants")
-load("//lib/siso.star", "siso")
+load("//lib/branches.star", "branches")
+load("//lib/builder_config.star", "builder_config")
+load("//lib/builder_health_indicators.star", "health_spec")
+load("//lib/builders.star", "cpu", "os", "siso")
+load("//lib/ci.star", "ci")
+load("//lib/consoles.star", "consoles")
+load("//lib/gn_args.star", "gn_args")
+load("//lib/targets.star", "targets")
 load("//lib/xcode.star", "xcode")
 load("//project.star", "settings")
 
@@ -39,16 +37,18 @@ luci.gitiles_poller(
 )
 
 ci.defaults.set(
-    executable = ci_constants.DEFAULT_EXECUTABLE,
+    executable = ci.DEFAULT_EXECUTABLE,
     builder_group = "chromium.coverage",
-    pool = ci_constants.DEFAULT_POOL,
+    pool = ci.DEFAULT_POOL,
     cores = 32,
     ssd = True,
     execution_timeout = 20 * time.hour,
-    health_spec = health_spec.default(),
-    priority = ci_constants.DEFAULT_FYI_PRIORITY,
-    service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
-    shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
+    health_spec = health_spec.DEFAULT,
+    priority = ci.DEFAULT_FYI_PRIORITY,
+    reclient_enabled = False,
+    service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
+    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )

@@ -54,7 +54,6 @@
 <translation id="1682634494516646069">Google Chrome ei saa andmekataloogi lugeda ega sellesse kirjutada:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="1688214853608504530">Kui sisestate midagi aadressiribale või otsingukasti, saadab Chrome teie sisestuse soovituste hankimiseks teie organisatsiooni otsingu-, AI- ja agenditööriistadele.</translation>
 <translation id="1698376642261615901">Google Chrome on veebibrauser, mis käitab veebilehti ja rakendusi välgukiirusel. See on kiire, töökindel ja lihtsalt kasutatav. Veebi sirvimine on turvalisem tänu Google Chrome'i sisseehitatud pahavara- ja andmepüügivastasele kaitsele.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome käivitatakse uuesti tunni aja pärast}other{Chrome käivitatakse uuesti # tunni pärast}}</translation>
 <translation id="1722488837206509557">See võimaldab teil valida saadaolevate seadmete hulgast ja kuvada neis sisu.</translation>
@@ -221,7 +220,6 @@
 <translation id="3716540481907974026">Chrome OS Flexi versioon</translation>
 <translation id="3718181793972440140">See kustutab seadmest ühe üksuse. Hiljem oma andmete toomiseks logige Chrome'i sisse kasutajana <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome soovitab selle eemaldada. <ph name="BEGIN_LINK" />Lisateave toetatud laienduste kohta<ph name="END_LINK" />}other{Chrome soovitab need eemaldada. <ph name="BEGIN_LINK" />Lisateave toetatud laienduste kohta<ph name="END_LINK" />}}</translation>
-<translation id="3756724684201900923">Lisateave Chrome’i installimise kohta</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Chrome OS Flex ei saanud sisselogimisvea tõttu teie andmeid sünkroonida.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -244,7 +242,6 @@
 <translation id="4050175100176540509">Uusimas versioonis on saadaval olulised turvatäiendused ja uued funktsioonid.</translation>
 <translation id="4053720452172726777">Google Chrome'i kohandamine ja juhtimine</translation>
 <translation id="408393047846373801">Kõigis seadmetes paroolide ja muude võimaluste kasutamiseks logige sisse Chrome'i. See parool salvestatakse pärast sisselogimist teie Google'i kontole.</translation>
-<translation id="409936259433005390">Kas soovite varsti Windows 11-le üle minna? Laadige Chrome'i installiprogramm OneDrive'i alla, et oleksite esimesest päevast valmis.</translation>
 <translation id="4110895483821904099">Uue Chrome'i profiili seadistamine</translation>
 <translation id="4111566860456076004">Chrome ei suuda tuvastada, kust see laiendus pärineb. Laiendus võib olla ebaturvaline. Eemaldage see Chrome'ist, et see ei saaks enam näha ja muuta teie andmeid saitidel, mida külastate, sealhulgas isiklikku teavet.</translation>
 <translation id="4128488089242627000">Chrome töötab kiiremini ja JavaScripti kasutavad funktsioonid peaksid töötama kavandatud viisil (soovitatav)</translation>
@@ -318,7 +315,6 @@
 <translation id="4970880042055371251">Chrome OS-i versioon</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Klõpsake „Google'i paroolihaldur”</translation>
-<translation id="504867494566807945">Avage mis tahes rakenduse lingid Chrome'is. Lihtsaks juurdepääsuks kinnitatakse see teie tegumiribale.</translation>
 <translation id="5114340746415930644">Sisestage parool, et Chrome'i andmeid kasutada ja oma kontole <ph name="USER_EMAIL" /> salvestada</translation>
 <translation id="5120334927898581447">Chrome'i sisselogimine teistesse Google'i teenustesse sisselogimisel</translation>
 <translation id="5126049312684316860">Chrome eellaadib veelgi rohkem lehti, mida tõenäoliselt külastada soovite, et need laaditaks avamisel kiiremini</translation>
@@ -397,7 +393,6 @@ Mõned funktsioonid ei pruugi saadaval olla. Määrake muu profiilikataloog või
 <translation id="6075300983329039771">Teie organisatsioon (<ph name="MANAGER" />) nõuab, et logiksite Chrome'i sisse</translation>
 <translation id="6113794647360055231">Chrome muutus just paremaks</translation>
 <translation id="6116252277240876590">Selles keeles kuvatakse Chrome’i menüüd, seaded, hoiatused ja muu tekst</translation>
-<translation id="6127237283587442951">Kasutage vaikimisi Chrome'i ja laske see kinnitada</translation>
 <translation id="6134085236017727171">Mikrofoni kasutamiseks andke Chrome'ile <ph name="BEGIN_LINK" />süsteemiseadetes<ph name="END_LINK" /> juurdepääs</translation>
 <translation id="6135456723633883042">Need vahelehed kasutavad lisaressursse. Las Chrome teeb need toimivuse täiustamiseks interaktiivseks.</translation>
 <translation id="6145313976051292476">Ava PDF-id Chrome'is</translation>
@@ -632,7 +627,6 @@ Mõned funktsioonid ei pruugi saadaval olla. Määrake muu profiilikataloog või
 <translation id="9090566250983691233">Vaadake, miks Chrome mõned failid blokeerib</translation>
 <translation id="9106236359747881194">Valige otsimiseks tekst</translation>
 <translation id="911206726377975832">Kas kustutada ka teie sirvimisandmed?</translation>
-<translation id="9134482777260927479">Abi koduste ülesannetega</translation>
 <translation id="9138603949443464873">Muudatuste rakendamiseks käivitage Chrome uuesti</translation>
 <translation id="9148058034647219655">Välju</translation>
 <translation id="9195993889682885387">Chrome suudab prognoosida teie huvisid, võttes aluseks teie viimase mõne nädala sirvimisajaloo. See teave jääb teie seadmesse.</translation>

@@ -121,7 +121,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="WebNavigation"/>
   <int value="1" label="Omnibox"/>
   <int value="2" label="ContextMenu"/>
-  <int value="3" label="ExploreBarTab"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/lens/lens_overlay_new_tab_source.h:LensOverlayNewTabSource) -->
@@ -151,19 +150,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/lens/lens_overlay_metrics.h:LensOverlaySpeedbumpMenuSelection) -->
-
-<!-- LINT.IfChange(LensOverlayTextDirectiveResult) -->
-
-<enum name="LensOverlayTextDirectiveResult">
-  <summary>
-    The result of handling a text directive in the Lens Overlay.
-  </summary>
-  <int value="0" label="Found on page"/>
-  <int value="1" label="Opened in new tab"/>
-  <int value="2" label="Not found on page"/>
-</enum>
-
-<!-- LINT.ThenChange(//components/lens/lens_overlay_metrics.h:LensOverlayTextDirectiveResult) -->
 
 <!-- LINT.IfChange(LensOverlayUserAction) -->
 

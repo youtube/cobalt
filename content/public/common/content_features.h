@@ -224,8 +224,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kSchedQoSOnResourcedForChrome);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSecurePaymentConfirmation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSecurePaymentConfirmationDebug);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerPaymentApps);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(
-    kServiceWorkerBackgroundUpdateForRegisteredStorageKeys);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSharedArrayBuffer);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSiteInstanceGroupsForDataUrls);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDefaultSiteInstanceGroups);
@@ -302,8 +300,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityDeprecateJavaNodeCache);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityDeprecateTypeAnnounce);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityIncludeLongClickAction);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityPageZoomV2);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(
-    kAccessibilityPopulateSupplementalDescriptionApi);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityUnifiedSnapshots);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityManageBroadcastReceiverOnBackground);

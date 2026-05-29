@@ -66,11 +66,6 @@ using bookmarks::BookmarkNode;
 
 namespace {
 
-// Kill switch to disable restoration of call to bookmarkBrowserDismissed.
-BASE_FEATURE(kIOSRestoreBookmarkBrowserDismissedKillSwitch,
-             "IOSRestoreBookmarkBrowserDismissedKillSwitch",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Tracks the type of UI that is currently being presented.
 enum class PresentedState {
   NONE,
@@ -377,12 +372,6 @@ enum class PresentedState {
 
   __weak __typeof(self) weakSelf = self;
   ProceduralBlock completion = ^{
-    // If the kill switch is enabled, skip restoring the call to
-    // -bookmarkBrowserDismissed
-    if (!base::FeatureList::IsEnabled(
-            kIOSRestoreBookmarkBrowserDismissedKillSwitch)) {
-      [weakSelf bookmarkBrowserDismissed];
-    }
     if (!openUrlsAfterDismissal) {
       return;
     }
@@ -400,11 +389,8 @@ enum class PresentedState {
 }
 
 - (void)bookmarkBrowserDismissed {
-  // TODO(crbug.com/421139931): This is incorrectly called twice. As a short
-  // term workaround return early when called a second time.
-  if (self.currentPresentedState != PresentedState::BOOKMARK_BROWSER) {
-    return;
-  }
+  DCHECK_EQ(PresentedState::BOOKMARK_BROWSER, self.currentPresentedState)
+      << [self description];
   DCHECK(self.bookmarkNavigationController) << [self description];
   for (UIViewController* controller in self.bookmarkNavigationController
            .viewControllers) {
