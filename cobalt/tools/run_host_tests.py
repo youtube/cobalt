@@ -29,11 +29,12 @@ import junit_mini_parser
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(
     os.path.abspath(os.path.join(script_dir, "../../.github/scripts")))
-import generate_crash_report
+import generate_crash_report  # pylint: disable=wrong-import-position
 
 XVFB_ARGS = "-screen 0 1920x1080x24i +render +extension GLX -noreset"
 
 
+# pylint: disable=too-many-positional-arguments
 def run_test_binary(entrypoint: str,
                     shard_index: int,
                     total_shards: int,
@@ -51,15 +52,15 @@ def run_test_binary(entrypoint: str,
   if gtest_filter:
     cmd.append(f"--gtest_filter={gtest_filter}")
 
-  logging.info(f"Running: {' '.join(cmd)}")
+  logging.info("Running: %s", ' '.join(cmd))
   try:
     with open(log_output, 'w', encoding='utf-8') as log_file:
       return_code = subprocess.run(
           cmd, stdout=log_file, stderr=subprocess.STDOUT,
           check=False).returncode
     return return_code
-  except Exception as error:
-    logging.error(f"Failed to execute {entrypoint}: {error}")
+  except Exception as error:  # pylint: disable=broad-exception-caught
+    logging.error("Failed to execute %s: %s", entrypoint, error)
     return 1
 
 
@@ -75,8 +76,8 @@ def get_initial_filter(binary_name: str, filter_json_dir: Optional[str]) -> str:
         failing_tests = data.get('failing_tests', [])
         if failing_tests:
           return "-" + ":".join(failing_tests)
-    except Exception as error:
-      logging.warning(f"Failed to parse filter file {filter_file}: {error}")
+    except Exception as error:  # pylint: disable=broad-exception-caught
+      logging.warning("Failed to parse filter file %s: %s", filter_file, error)
   return "*"
 
 
@@ -98,7 +99,7 @@ def handle_run(
       failed_tests = failed_tests_map.get(binary_name, [])
       if not failed_tests:
         logging.info(
-            f"No specific failed tests found for {binary_name}, retrying all.")
+            "No specific failed tests found for %s, retrying all.", binary_name)
         gtest_filter = "*"
       else:
         gtest_filter = ":".join(failed_tests)
@@ -115,20 +116,21 @@ def handle_run(
     entrypoint = binary_path
     if os.path.exists(wrapper_path) and os.access(wrapper_path, os.X_OK):
       entrypoint = wrapper_path
-      logging.info(f"Using wrapper script: {entrypoint}")
+      logging.info("Using wrapper script: %s", entrypoint)
 
     return_code = run_test_binary(entrypoint, args.shard, args.num_gtest_shards,
                                   xml_path, log_path, gtest_filter,
                                   args.xvfb_run_path)
 
     if return_code != 0:
-      logging.warning(f"{binary_name} failed with exit code {return_code}")
+      logging.warning("%s failed with exit code %d", binary_name, return_code)
       failed_binaries.add(binary_path)
 
       # Generate crash report if XML is missing (likely crash)
       if not os.path.exists(xml_path):
         logging.info(
-            f"XML output missing for {binary_name}. Attempting to generate crash report."
+            "XML output missing for %s. Attempting to generate crash report.",
+            binary_name
         )
         crash_info = generate_crash_report.extract_crash(pathlib.Path(log_path))
         if crash_info:
@@ -139,6 +141,7 @@ def handle_run(
 
 
 def main() -> int:
+  """Main function to run host tests with retries."""
   logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
   parser = argparse.ArgumentParser(description="Run host tests with retries.")
@@ -163,7 +166,7 @@ def main() -> int:
   args = parser.parse_args()
 
   if not os.path.exists(args.test_targets_json):
-    logging.error(f"File not found: {args.test_targets_json}")
+    logging.error("File not found: %s", args.test_targets_json)
     return 1
 
   with open(args.test_targets_json, 'r', encoding='utf-8') as file:
@@ -187,7 +190,7 @@ def main() -> int:
                                                       args.filter_json_dir)
 
   for attempt in range(1, args.max_attempts + 1):
-    logging.info(f"Starting Attempt {attempt}")
+    logging.info("Starting Attempt %d", attempt)
 
     if attempt == 1 or args.event_name == "push":
       binaries_to_run = test_binaries
@@ -227,13 +230,14 @@ def main() -> int:
           # If it failed but we found no specific tests (maybe crashed),
           # keep it in failed_binaries to retry the whole binary.
           logging.info(
-              f"{binary_name} failed but no specific tests found. Retrying all."
+              "%s failed but no specific tests found. Retrying all.",
+              binary_name
           )
           failed_binaries.add(binary)
 
   if args.event_name == "pull_request":
     if failed_binaries:
-      logging.error(f"Tests failed after {args.max_attempts} attempts.")
+      logging.error("Tests failed after %d attempts.", args.max_attempts)
       return 1
     else:
       logging.info("Tests passed (possibly after retries).")

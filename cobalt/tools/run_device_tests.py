@@ -21,7 +21,7 @@ import os
 import pathlib
 import subprocess
 import sys
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List
 
 import junit_mini_parser
 import on_device_tests_gateway_client
@@ -30,7 +30,7 @@ import on_device_tests_gateway_client
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(
     os.path.abspath(os.path.join(script_dir, "../../.github/scripts")))
-import generate_crash_report
+import generate_crash_report  # pylint: disable=wrong-import-position
 
 DEFAULT_JOB_TIMEOUT_SEC = '2700'
 DEFAULT_TEST_TIMEOUT_SEC = '1800'
@@ -39,13 +39,13 @@ DEFAULT_START_TIMEOUT_SEC = '900'
 
 def download_results_from_gcs(gcs_path: str, local_dir: str) -> bool:
   """Downloads test results from GCS using gsutil."""
-  logging.info(f'Downloading results from {gcs_path} to {local_dir}')
+  logging.info("Downloading results from %s to %s", gcs_path, local_dir)
   cmd = ['gsutil', '-q', 'cp', '-r', gcs_path + '/', local_dir]
   try:
     result = subprocess.run(cmd, check=False)
     return result.returncode == 0
-  except Exception as error:
-    logging.error(f'Failed to download results from GCS: {error}')
+  except Exception as error:  # pylint: disable=broad-exception-caught
+    logging.error("Failed to download results from GCS: %s", error)
     return False
 
 
@@ -78,12 +78,12 @@ def get_failed_targets(test_output_dir: str, targets: List[str]) -> List[str]:
     ]
 
     if not target_xml_files:
-      logging.warning(f'No XML results found for {target}')
+      logging.warning("No XML results found for %s", target)
 
       # Try to find log file to generate crash report
       log_files = list(pathlib.Path(test_output_dir).rglob(f'{target}_log.txt'))
       if log_files:
-        logging.info(f'Found log for {target}, generating crash report.')
+        logging.info("Found log for %s, generating crash report.", target)
         log_path = log_files[0]
         xml_path = log_path.parent / f'{target}_testoutput.xml'
 
@@ -129,7 +129,7 @@ def main() -> int:
   try:
     targets_list = json.loads(args.targets)
   except json.JSONDecodeError as error:
-    logging.error(f'Failed to parse targets JSON: {error}')
+    logging.error("Failed to parse targets JSON: %s", error)
     return 1
 
   local_results_dir = 'results'
@@ -139,7 +139,7 @@ def main() -> int:
   any_run_failed = False
 
   for attempt in range(1, args.max_attempts + 1):
-    logging.info(f'Starting Attempt {attempt}')
+    logging.info("Starting Attempt %d", attempt)
 
     if attempt > 1:
       if args.event_name == 'pull_request' and not failed_targets:
@@ -172,7 +172,7 @@ def main() -> int:
         artifact_name=None,
         action='trigger')
 
-    logging.info(f'Triggering tests for targets: {current_targets}')
+    logging.info("Triggering tests for targets: %s", current_targets)
     # Use public method
     test_requests = on_device_tests_gateway_client.process_test_requests(
         client_args)
@@ -181,8 +181,8 @@ def main() -> int:
     try:
       client.run_trigger_command(client_args.token, client_args.label,
                                  test_requests)
-    except Exception as error:
-      logging.error(f'Failed to trigger tests: {error}')
+    except Exception as error:  # pylint: disable=broad-exception-caught
+      logging.error("Failed to trigger tests: %s", error)
       any_run_failed = True
       continue
 
@@ -197,18 +197,18 @@ def main() -> int:
       if current_failed:
         any_run_failed = True
         failed_targets = current_failed
-        logging.warning(f'Attempt {attempt} failed for: {failed_targets}')
+        logging.warning("Attempt %d failed for: %s", attempt, failed_targets)
       else:
         failed_targets = []
-        logging.info(f'Attempt {attempt} passed.')
+        logging.info("Attempt %d passed.", attempt)
     else:
-      logging.error(f'Failed to download results for attempt {attempt}')
+      logging.error("Failed to download results for attempt %d", attempt)
       any_run_failed = True
       failed_targets = current_targets  # Assume failed if we can't get results
 
   if args.event_name == 'pull_request':
     if failed_targets:
-      logging.error(f'Tests failed after {args.max_attempts} attempts.')
+      logging.error("Tests failed after %d attempts.", args.max_attempts)
       return 1
     else:
       logging.info('Tests passed (possibly after retries).')
