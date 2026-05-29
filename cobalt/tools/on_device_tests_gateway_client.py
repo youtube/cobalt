@@ -267,7 +267,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         options = (f'{package_name}.NativeTestInstrumentationTestRunner.'
                    'NativeTestActivity=org.chromium.content_browsertests_apk.'
                    'ContentBrowserTestsActivity,'
-                   f'{package_name}.NativeTest.RunInSubThread=1,'
                    f'{package_name}.NativeTestInstrumentationTestRunner.'
                    'ShardNanoTimeout=1680000000000,'
                    f'{package_name}.NativeTestInstrumentationTestRunner.'
