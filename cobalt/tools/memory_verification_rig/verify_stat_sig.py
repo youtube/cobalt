@@ -850,8 +850,11 @@ def main():
         "is_playlist": cuj_key == "multi_watch"
     }
 
-    logging.info("\n====== SECTION 1/2: BASELINE RUNS ======")
     for i in range(1, args.runs + 1):
+      logging.info("\n====== ITERATION %s/%s ======", i, args.runs)
+
+      # 1. Baseline Run
+      logging.info("\n--- [Iteration %s] BASELINE RUN ---", i)
       (rss, peak, frag, vas_frag, vas_max,
        uma_active) = execute_profiling_run(args, i, baseline_sweep_config)
       if rss:
@@ -888,8 +891,8 @@ def main():
                          frag_ratio)
       time.sleep(3)
 
-    logging.info("\n====== SECTION 2/2: EXPERIMENT RUNS ======")
-    for i in range(1, args.runs + 1):
+      # 2. Experiment Run
+      logging.info("\n--- [Iteration %s] EXPERIMENT RUN ---", i)
       (rss, peak, frag, vas_frag, vas_max,
        uma_active) = execute_profiling_run(args, i, experiment_sweep_config)
       if rss:
