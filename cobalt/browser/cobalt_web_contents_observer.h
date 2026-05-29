@@ -62,7 +62,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   std::map<content::RenderFrameHost*,
            mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
       controllers_;
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 #if BUILDFLAG(IS_STARBOARD)
