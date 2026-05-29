@@ -14,8 +14,6 @@
 # limitations under the License.
 """Unit tests for run_host_tests.py."""
 
-import json
-import os
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -23,13 +21,14 @@ import run_host_tests
 
 
 class TestRunHostTests(unittest.TestCase):
+  """Tests for run_host_tests."""
 
   @patch('os.path.exists')
   @patch(
       'builtins.open',
       new_callable=mock_open,
       read_data='{"failing_tests": ["Test1", "Test2"]}')
-  def test_get_initial_filter_valid(self, mock_file, mock_exists):
+  def test_get_initial_filter_valid(self, _mock_file, mock_exists):
     mock_exists.return_value = True
     res = run_host_tests.get_initial_filter('my_test', '/dummy/dir')
     self.assertEqual(res, '-Test1:Test2')
@@ -42,14 +41,14 @@ class TestRunHostTests(unittest.TestCase):
 
   @patch('os.path.exists')
   @patch('builtins.open', new_callable=mock_open, read_data='invalid json')
-  def test_get_initial_filter_invalid_json(self, mock_file, mock_exists):
+  def test_get_initial_filter_invalid_json(self, _mock_file, mock_exists):
     mock_exists.return_value = True
     res = run_host_tests.get_initial_filter('my_test', '/dummy/dir')
     self.assertEqual(res, '*')
 
   @patch('subprocess.run')
   @patch('builtins.open', new_callable=mock_open)
-  def test_run_test_binary(self, mock_file, mock_run):
+  def test_run_test_binary(self, _mock_file, mock_run):
     mock_run.return_value.returncode = 0
     rc = run_host_tests.run_test_binary('my_test', 0, 1, 'out.xml', 'out.txt')
     self.assertEqual(rc, 0)
@@ -57,7 +56,7 @@ class TestRunHostTests(unittest.TestCase):
 
   @patch('subprocess.run')
   @patch('builtins.open', new_callable=mock_open)
-  def test_run_test_binary_fail(self, mock_file, mock_run):
+  def test_run_test_binary_fail(self, _mock_file, mock_run):
     mock_run.return_value.returncode = 1
     rc = run_host_tests.run_test_binary('my_test', 0, 1, 'out.xml', 'out.txt')
     self.assertEqual(rc, 1)
@@ -95,7 +94,7 @@ class TestRunHostTests(unittest.TestCase):
     args.xvfb_run_path = 'xvfb-run'
     args.filter_json_dir = None
 
-    failed, created = run_host_tests.handle_run(['/path/to/test1'], 1, args, {},
+    failed, _created = run_host_tests.handle_run(['/path/to/test1'], 1, args, {},
                                                 {})
     self.assertEqual(failed, {'/path/to/test1'})
     mock_crash.extract_crash.assert_called_once()

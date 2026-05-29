@@ -14,12 +14,9 @@
 # limitations under the License.
 """Unit tests for run_device_tests.py."""
 
-import json
-import os
-import pathlib
 import sys
 import unittest
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 # Mock missing dependencies before importing run_device_tests
 mock_grpc = MagicMock()
@@ -27,16 +24,17 @@ sys.modules['grpc'] = mock_grpc
 sys.modules['on_device_tests_gateway_pb2'] = MagicMock()
 sys.modules['on_device_tests_gateway_pb2_grpc'] = MagicMock()
 
-import run_device_tests
+import run_device_tests  # pylint: disable=wrong-import-position
 
 
 class TestRunDeviceTests(unittest.TestCase):
+  """Tests for run_device_tests."""
 
   @patch('subprocess.run')
   def test_download_results_from_gcs_success(self, mock_run):
     mock_run.return_value.returncode = 0
     res = run_device_tests.download_results_from_gcs('gs://bucket/path',
-                                                     '/local/dir')
+                                                      '/local/dir')
     self.assertTrue(res)
     mock_run.assert_called_once()
 
@@ -44,7 +42,7 @@ class TestRunDeviceTests(unittest.TestCase):
   def test_download_results_from_gcs_fail(self, mock_run):
     mock_run.return_value.returncode = 1
     res = run_device_tests.download_results_from_gcs('gs://bucket/path',
-                                                     '/local/dir')
+                                                      '/local/dir')
     self.assertFalse(res)
 
   @patch('os.path.exists')
@@ -87,7 +85,7 @@ class TestRunDeviceTests(unittest.TestCase):
   @patch('run_device_tests.get_failed_targets')
   @patch('on_device_tests_gateway_client.process_test_requests')
   @patch('on_device_tests_gateway_client.OnDeviceTestsGatewayClient')
-  def test_main_success(self, mock_client, mock_process, mock_get_failed,
+  def test_main_success(self, _mock_client, mock_process, mock_get_failed,
                         mock_download):
     mock_download.return_value = True
     mock_get_failed.return_value = []

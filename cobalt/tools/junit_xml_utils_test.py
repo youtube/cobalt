@@ -23,20 +23,16 @@ import junit_xml_utils
 
 
 class TestJunitXmlUtils(unittest.TestCase):
-
-  def setUp(self):
-    self.test_dir = tempfile.TemporaryDirectory()
-
-  def tearDown(self):
-    self.test_dir.cleanup()
+  """Tests for junit_xml_utils."""
 
   def test_merge_reports(self):
-    base_xml = os.path.join(self.test_dir.name, 'base.xml')
-    retry_xml = os.path.join(self.test_dir.name, 'retry.xml')
-    output_xml = os.path.join(self.test_dir.name, 'output.xml')
+    with tempfile.TemporaryDirectory() as test_dir:
+      base_xml = os.path.join(test_dir, 'base.xml')
+      retry_xml = os.path.join(test_dir, 'retry.xml')
+      output_xml = os.path.join(test_dir, 'output.xml')
 
-    with open(base_xml, 'w') as f:
-      f.write("""<?xml version="1.0" encoding="UTF-8"?>
+      with open(base_xml, 'w', encoding='utf-8') as f:
+        f.write("""<?xml version="1.0" encoding="UTF-8"?>
 <testsuites tests="2" failures="1" errors="0">
   <testsuite name="Suite1" tests="2" failures="1" errors="0">
     <testcase name="Test1" classname="Suite1"/>
@@ -47,8 +43,8 @@ class TestJunitXmlUtils(unittest.TestCase):
 </testsuites>
 """)
 
-    with open(retry_xml, 'w') as f:
-      f.write("""<?xml version="1.0" encoding="UTF-8"?>
+      with open(retry_xml, 'w', encoding='utf-8') as f:
+        f.write("""<?xml version="1.0" encoding="UTF-8"?>
 <testsuites tests="1" failures="0" errors="0">
   <testsuite name="Suite1" tests="1" failures="0" errors="0">
     <testcase name="Test2" classname="Suite1"/>
@@ -56,38 +52,38 @@ class TestJunitXmlUtils(unittest.TestCase):
 </testsuites>
 """)
 
-    success = junit_xml_utils.merge_reports(base_xml, retry_xml, output_xml)
-    self.assertTrue(success)
+      success = junit_xml_utils.merge_reports(base_xml, retry_xml, output_xml)
+      self.assertTrue(success)
 
-    tree = ET.parse(output_xml)
-    root = tree.getroot()
+      tree = ET.parse(output_xml)
+      root = tree.getroot()
 
-    suite = root.find('testsuite')
-    self.assertIsNotNone(suite)
-    self.assertEqual(suite.get('name'), 'Suite1')
+      suite = root.find('testsuite')
+      self.assertIsNotNone(suite)
+      self.assertEqual(suite.get('name'), 'Suite1')
 
-    cases = suite.findall('testcase')
-    self.assertEqual(len(cases), 2)
+      cases = suite.findall('testcase')
+      self.assertEqual(len(cases), 2)
 
-    test2 = None
-    for case in cases:
-      if case.get('name') == 'Test2':
-        test2 = case
-        break
+      test2 = None
+      for case in cases:
+        if case.get('name') == 'Test2':
+          test2 = case
+          break
 
-    self.assertIsNotNone(test2)
-    self.assertEqual(len(test2.findall('failure')), 0)
+      self.assertIsNotNone(test2)
+      self.assertEqual(len(test2.findall('failure')), 0)
 
-    # Verify counts updated
-    self.assertEqual(suite.get('failures'), '0')
-    self.assertEqual(root.get('failures'), '0')
+      self.assertEqual(suite.get('failures'), '0')
+      self.assertEqual(root.get('failures'), '0')
 
   def test_filter_failures(self):
-    input_xml = os.path.join(self.test_dir.name, 'input.xml')
-    output_xml = os.path.join(self.test_dir.name, 'output.xml')
+    with tempfile.TemporaryDirectory() as test_dir:
+      input_xml = os.path.join(test_dir, 'input.xml')
+      output_xml = os.path.join(test_dir, 'output.xml')
 
-    with open(input_xml, 'w') as f:
-      f.write("""<?xml version="1.0" encoding="UTF-8"?>
+      with open(input_xml, 'w', encoding='utf-8') as f:
+        f.write("""<?xml version="1.0" encoding="UTF-8"?>
 <testsuites tests="3" failures="1" errors="1">
   <testsuite name="Suite1" tests="3" failures="1" errors="1">
     <testcase name="Test1" classname="Suite1"/>
@@ -101,28 +97,29 @@ class TestJunitXmlUtils(unittest.TestCase):
 </testsuites>
 """)
 
-    success = junit_xml_utils.filter_failures(input_xml, output_xml)
-    self.assertTrue(success)
+      success = junit_xml_utils.filter_failures(input_xml, output_xml)
+      self.assertTrue(success)
 
-    tree = ET.parse(output_xml)
-    root = tree.getroot()
+      tree = ET.parse(output_xml)
+      root = tree.getroot()
 
-    suite = root.find('testsuite')
-    self.assertIsNotNone(suite)
-    self.assertEqual(suite.get('tests'), '2')
+      suite = root.find('testsuite')
+      self.assertIsNotNone(suite)
+      self.assertEqual(suite.get('tests'), '2')
 
-    cases = suite.findall('testcase')
-    self.assertEqual(len(cases), 2)
-    self.assertEqual(cases[0].get('name'), 'Test2')
-    self.assertEqual(cases[1].get('name'), 'Test3')
+      cases = suite.findall('testcase')
+      self.assertEqual(len(cases), 2)
+      self.assertEqual(cases[0].get('name'), 'Test2')
+      self.assertEqual(cases[1].get('name'), 'Test3')
 
   def test_merge_reports_single_suite(self):
-    base_xml = os.path.join(self.test_dir.name, 'base.xml')
-    retry_xml = os.path.join(self.test_dir.name, 'retry.xml')
-    output_xml = os.path.join(self.test_dir.name, 'output.xml')
+    with tempfile.TemporaryDirectory() as test_dir:
+      base_xml = os.path.join(test_dir, 'base.xml')
+      retry_xml = os.path.join(test_dir, 'retry.xml')
+      output_xml = os.path.join(test_dir, 'output.xml')
 
-    with open(base_xml, 'w') as f:
-      f.write("""<?xml version="1.0" encoding="UTF-8"?>
+      with open(base_xml, 'w', encoding='utf-8') as f:
+        f.write("""<?xml version="1.0" encoding="UTF-8"?>
 <testsuite name="Suite1" tests="2" failures="1" errors="0">
   <testcase name="Test1" classname="Suite1"/>
   <testcase name="Test2" classname="Suite1">
@@ -131,28 +128,29 @@ class TestJunitXmlUtils(unittest.TestCase):
 </testsuite>
 """)
 
-    with open(retry_xml, 'w') as f:
-      f.write("""<?xml version="1.0" encoding="UTF-8"?>
+      with open(retry_xml, 'w', encoding='utf-8') as f:
+        f.write("""<?xml version="1.0" encoding="UTF-8"?>
 <testsuite name="Suite1" tests="1" failures="0" errors="0">
   <testcase name="Test2" classname="Suite1"/>
 </testsuite>
 """)
 
-    success = junit_xml_utils.merge_reports(base_xml, retry_xml, output_xml)
-    self.assertTrue(success)
+      success = junit_xml_utils.merge_reports(base_xml, retry_xml, output_xml)
+      self.assertTrue(success)
 
-    tree = ET.parse(output_xml)
-    root = tree.getroot()
+      tree = ET.parse(output_xml)
+      root = tree.getroot()
 
-    self.assertEqual(root.tag, 'testsuite')
-    self.assertEqual(root.get('failures'), '0')
+      self.assertEqual(root.tag, 'testsuite')
+      self.assertEqual(root.get('failures'), '0')
 
   def test_filter_failures_single_suite(self):
-    input_xml = os.path.join(self.test_dir.name, 'input.xml')
-    output_xml = os.path.join(self.test_dir.name, 'output.xml')
+    with tempfile.TemporaryDirectory() as test_dir:
+      input_xml = os.path.join(test_dir, 'input.xml')
+      output_xml = os.path.join(test_dir, 'output.xml')
 
-    with open(input_xml, 'w') as f:
-      f.write("""<?xml version="1.0" encoding="UTF-8"?>
+      with open(input_xml, 'w', encoding='utf-8') as f:
+        f.write("""<?xml version="1.0" encoding="UTF-8"?>
 <testsuite name="Suite1" tests="2" failures="1" errors="0">
   <testcase name="Test1" classname="Suite1"/>
   <testcase name="Test2" classname="Suite1">
@@ -161,17 +159,17 @@ class TestJunitXmlUtils(unittest.TestCase):
 </testsuite>
 """)
 
-    success = junit_xml_utils.filter_failures(input_xml, output_xml)
-    self.assertTrue(success)
+      success = junit_xml_utils.filter_failures(input_xml, output_xml)
+      self.assertTrue(success)
 
-    tree = ET.parse(output_xml)
-    root = tree.getroot()
+      tree = ET.parse(output_xml)
+      root = tree.getroot()
 
-    self.assertEqual(root.tag, 'testsuite')
-    self.assertEqual(root.get('tests'), '1')
-    cases = root.findall('testcase')
-    self.assertEqual(len(cases), 1)
-    self.assertEqual(cases[0].get('name'), 'Test2')
+      self.assertEqual(root.tag, 'testsuite')
+      self.assertEqual(root.get('tests'), '1')
+      cases = root.findall('testcase')
+      self.assertEqual(len(cases), 1)
+      self.assertEqual(cases[0].get('name'), 'Test2')
 
 
 if __name__ == '__main__':
