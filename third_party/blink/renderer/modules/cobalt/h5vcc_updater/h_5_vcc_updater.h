@@ -16,10 +16,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_UPDATER_H_5_VCC_UPDATER_H_
 
 #include "build/build_config.h"
-
-#if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"  // nogncheck
-#endif
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -27,6 +24,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -92,11 +90,11 @@ class MODULES_EXPORT H5vccUpdater final
   void OnSetUpdateServerUrl(ScriptPromiseResolver<IDLUndefined>*);
   void OnGetRequireNetworkEncryption(ScriptPromiseResolver<IDLBoolean>*, bool);
   void OnSetRequireNetworkEncryption(ScriptPromiseResolver<IDLUndefined>*);
-#if BUILDFLAG(USE_EVERGREEN)
+  void OnConnectionError();
   void EnsureReceiverIsBound();
+  HeapHashSet<Member<ScriptPromiseResolverBase>> ongoing_requests_;
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
-#endif
 };
 
 }  // namespace blink
