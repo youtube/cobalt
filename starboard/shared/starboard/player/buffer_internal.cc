@@ -42,6 +42,10 @@ constexpr uint8_t kPadding = 0x78;
 constexpr int kPaddingSize = 32;
 #endif  // defined(NDEBUG)
 
+// BufferPool is a thread-safe, fixed-size memory pool used to allocate and
+// reuse physical memory buffers for audio PCM data. This reduces heap churn
+// during playback. The pool is managed as a singleton with a lifetime spanning
+// the duration of the application.
 class BufferPool {
  public:
   static BufferPool* Get();
@@ -61,12 +65,11 @@ class BufferPool {
     SB_CHECK_LE(size, kBufferSize);
     if (IsFromPool(ptr)) {
       std::lock_guard lock(mutex_);
-      if (free_list_.size() < kPoolSize) {
-        free_list_.push_back(ptr);
-        return;
-      }
+      SB_CHECK_LT(free_list_.size(), kPoolSize);
+      free_list_.push_back(ptr);
+    } else {
+      delete[] ptr;
     }
-    delete[] ptr;
   }
 
  private:
@@ -95,6 +98,7 @@ SB_ONCE_INITIALIZE_FUNCTION(BufferPool, BufferPool::Get)
 }  // namespace
 
 Buffer::Buffer(int size) : size_(size) {
+  SB_CHECK_GE(size, 0);
   size_t total_size = static_cast<size_t>(size) + kPaddingSize * 2;
   if (kUseBufferPool && total_size <= kBufferSize) {
     data_ = BufferPool::Get()->Allocate(total_size);
@@ -110,6 +114,11 @@ Buffer::Buffer(int size) : size_(size) {
 }
 
 Buffer::Buffer(const Buffer& that) : size_(that.size_) {
+  if (!that.data_) {
+    data_ = nullptr;
+    is_pooled_ = false;
+    return;
+  }
   size_t total_size = static_cast<size_t>(size_) + kPaddingSize * 2;
   if (kUseBufferPool && total_size <= kBufferSize) {
     data_ = BufferPool::Get()->Allocate(total_size);
