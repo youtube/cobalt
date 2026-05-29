@@ -102,13 +102,6 @@ SB_ONCE_INITIALIZE_FUNCTION(BufferPool, BufferPool::Get)
 
 Buffer::Buffer(int size) : size_(size) {
   SB_CHECK_GE(size, 0);
-  static bool s_config_logged = []() {
-    SB_LOG(WARNING) << "STATS_CONFIG: Buffer initialized! kUseBufferPool = "
-                    << (UseBufferPool() ? "true" : "false")
-                    << ", kBufferSize = " << kBufferSize;
-    return true;
-  }();
-  (void)s_config_logged;
   if (size_ == 0) {
     data_ = nullptr;
     is_pooled_ = false;
