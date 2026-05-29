@@ -73,7 +73,7 @@ StubAudioSink::StubAudioSink(
       context_(context),
       audio_out_thread_(JobThread::Create(
           "stub_audio_out",
-          ThreadOptions().SetPriority(kSbThreadPriorityRealTime))) {
+          ThreadOptions().SetPriority(ThreadPriority::kRealTime))) {
   SB_CHECK(audio_out_thread_);
 
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
