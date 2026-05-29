@@ -73,6 +73,7 @@ typedef int32_t SbThreadId;
 // Simple wrappers can be directly replaced with the function name.
 #define libc_wrapper_SYS_close(fildes) close(fildes)
 #define libc_wrapper_SYS_fcntl(fd, op, ...) fcntl(fd, op, ##__VA_ARGS__)
+#define libc_wrapper_SYS_gettid() gettid()
 #define libc_wrapper_SYS_ioctl(fd, op, ...) ioctl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
 #define libc_wrapper_SYS_read(fildes, buf, nbyte) read(fildes, buf, nbyte)
