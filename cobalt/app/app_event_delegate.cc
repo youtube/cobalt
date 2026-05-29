@@ -221,12 +221,10 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       cobalt::updater::UpdaterModule* updater_module =
           cobalt::updater::UpdaterModule::GetInstance();
       if (updater_module) {
-        LOG(INFO) << "Suspending UpdaterModule singleton.";
         updater_module->Suspend();
       }
     }
 #endif
-      // Ensure all intermediate state changes are triggered.
       TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
       break;
     case kSbEventTypeUnfreeze:
@@ -235,12 +233,10 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       cobalt::updater::UpdaterModule* updater_module =
           cobalt::updater::UpdaterModule::GetInstance();
       if (updater_module) {
-        LOG(INFO) << "Resuming UpdaterModule singleton.";
         updater_module->Resume();
       }
     }
 #endif
-      // Ensure all intermediate state changes are triggered.
       TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
       break;
     case kSbEventTypeInput:
