@@ -161,28 +161,24 @@ TEST_F(PosixSetPriorityTests, ErrorOnPermissionDenied) {
 }
 
 TEST_F(PosixSetPriorityTests, SetProcessPriorityToStarboardNiceValues) {
-  if (kSbHasThreadPrioritySupport) {
-    // Normal Priority
-    int normal_nice = starboard::SbPriorityToNice(kSbThreadPriorityNormal);
-    ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, normal_nice))
-        << "setpriority failed for Normal. Errno: " << errno << " ("
-        << strerror(errno) << ")";
-    EXPECT_EQ(normal_nice, getpriority(PRIO_PROCESS, 0));
+  // Test only low priorities as the process can't go back to higher priorities.
+  // NOTE: The priority is already lowered from the normal level by the
+  //  SetProcessPrioritySuccessfully test.
 
-    // Low Priority
-    int low_nice = starboard::SbPriorityToNice(kSbThreadPriorityLow);
-    ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, low_nice))
-        << "setpriority failed for Low. Errno: " << errno << " ("
-        << strerror(errno) << ")";
-    EXPECT_EQ(low_nice, getpriority(PRIO_PROCESS, 0));
+  // Low Priority
+  int low_nice = starboard::SbPriorityToNice(starboard::ThreadPriority::kLow);
+  ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, low_nice))
+      << "setpriority failed for Low. Errno: " << errno << " ("
+      << strerror(errno) << ")";
+  EXPECT_EQ(low_nice, getpriority(PRIO_PROCESS, 0));
 
-    // Lowest Priority
-    int lowest_nice = starboard::SbPriorityToNice(kSbThreadPriorityLowest);
-    ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, lowest_nice))
-        << "setpriority failed for Lowest. Errno: " << errno << " ("
-        << strerror(errno) << ")";
-    EXPECT_EQ(lowest_nice, getpriority(PRIO_PROCESS, 0));
-  }
+  // Lowest Priority
+  int lowest_nice =
+      starboard::SbPriorityToNice(starboard::ThreadPriority::kLowest);
+  ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, lowest_nice))
+      << "setpriority failed for Lowest. Errno: " << errno << " ("
+      << strerror(errno) << ")";
+  EXPECT_EQ(lowest_nice, getpriority(PRIO_PROCESS, 0));
 }
 
 }  // namespace

@@ -38,6 +38,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/socket.h>
@@ -63,6 +64,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_getrandom_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_ioctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
@@ -101,23 +103,15 @@ namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbFileMaxName);
-  REGISTER_SYMBOL(kSbFileMaxOpen);
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
-  REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
-  REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
-  REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMemoryPageSize);
-  REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
-  REGISTER_SYMBOL(kSbPathSepChar);
-  REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
-  REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
@@ -151,15 +145,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
-  REGISTER_SYMBOL(SbMediaGetBufferAlignment);
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
-  REGISTER_SYMBOL(SbMediaGetBufferPadding);
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
-  REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -219,7 +209,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
-  REGISTER_SYMBOL(SbThreadGetId);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -292,6 +281,7 @@ ExportedSymbols::ExportedSymbols() {
 
   // Linux APIs
   REGISTER_SYMBOL(recvmmsg);
+  REGISTER_WRAPPER(ioctl_FIONREAD);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
@@ -327,6 +317,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
+  REGISTER_WRAPPER(gettid);
   REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrandom);
@@ -402,6 +393,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(sched_getaffinity);
+  REGISTER_WRAPPER(sched_getparam);
+  REGISTER_WRAPPER(sched_setparam);
+  REGISTER_WRAPPER(sched_getscheduler);
+  REGISTER_WRAPPER(sched_setscheduler);
   REGISTER_WRAPPER(readv);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(sem_destroy);

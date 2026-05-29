@@ -73,7 +73,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   bool CanAcceptMoreData() const override;
 
   // Both of the following two functions can be called on any threads.
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void SetBounds(int z_index, const Rect& rect) override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:

@@ -330,10 +330,6 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
   return supported;
 }
 
-bool IsPartialAudioSupported() {
-  return kHasPartialAudioFramesSupport;
-}
-
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
   const char* audio_dmp_filename = config.audio_filename;
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;

@@ -80,7 +80,7 @@ public class AudioTrackBridge {
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
 
-    mTunnelModeEnabled = tunnelModeAudioSessionId != -1;
+    mTunnelModeEnabled = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     int channelConfig;
     switch (channelCount) {
       case 1:

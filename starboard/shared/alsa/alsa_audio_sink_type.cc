@@ -212,7 +212,7 @@ AlsaAudioSink::AlsaAudioSink(
       sample_type_(sample_type),
       audio_out_thread_(JobThread::Create(
           "alsa_audio_out",
-          ThreadOptions().SetPriority(kSbThreadPriorityRealTime))),
+          ThreadOptions().SetPriority(ThreadPriority::kRealTime))),
       time_to_wait_us_(time_to_wait_us),
       destroying_(false),
       frame_buffer_(frame_buffers[0]),

@@ -392,7 +392,7 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
 TvosAudioSinkType::TvosAudioSinkType()
     : audio_thread_(JobThread::Create(
           "tvos_audio_out",
-          ThreadOptions().SetPriority(kSbThreadPriorityRealTime))) {
+          ThreadOptions().SetPriority(ThreadPriority::kRealTime))) {
   SB_CHECK(audio_thread_);
 
   audio_thread_->Schedule([this] { ProcessAudio(); });

@@ -68,6 +68,13 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
          !force_platform_opus_decoder;
 }
 
+bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
+                                       bool is_encrypted) {
+  return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
+      mime, is_encrypted, /*must_support_hdr=*/false,
+      /*must_support_tunnel_mode=*/true);
+}
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -470,7 +477,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool allow_flush_audio_track_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
+        experimental_features.flush_audio_track_during_seek;
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
         << " audio track during Reset().";
@@ -682,16 +690,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : nullptr;
 
     bool is_encrypted = !!j_media_crypto;
-    if (MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-            mime, is_encrypted, false, true, 0, 0, 0, 0)) {
+    if (IsTunnelModeVideoDecoderSupported(mime, is_encrypted)) {
       return true;
     }
 
     if (kForceSecurePipelineInTunnelModeWhenRequired && !is_encrypted) {
-      const bool kIsEncrypted = true;
       auto support_tunnel_mode_under_secure_pipeline =
-          MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-              mime, kIsEncrypted, false, true, 0, 0, 0, 0);
+          IsTunnelModeVideoDecoderSupported(mime, /*is_encrypted=*/true);
       if (support_tunnel_mode_under_secure_pipeline) {
         *force_secure_pipeline_under_tunnel_mode = true;
         return true;

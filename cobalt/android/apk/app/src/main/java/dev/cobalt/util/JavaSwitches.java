@@ -17,6 +17,7 @@ package dev.cobalt.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 /**
  * Defines the constant names for feature switches used in Kimono.
@@ -37,6 +38,15 @@ public class JavaSwitches {
   /** V8 flag to disable decommitting pooled pages. */
   public static final String DISABLE_V8_DECOMMIT_POOLED_PAGES = "DisableV8DecommitPooledPages";
 
+  /** flag to tune compositor offscreen interest area size in pixels. */
+  public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
+
+  /** flag to tune delay in seconds before reclaiming prepaint tiles when idle. */
+  public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
+
+  /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
+  public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
@@ -54,6 +64,26 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_DECOMMIT_POOLED_PAGES)) {
       extraCommandLineArgs.add("--js-flags=--no-decommit-pooled-pages");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
+      extraCommandLineArgs.add("--js-flags=--disable-optimizing-compilers;--no-sparkplug");
+    }
+
+    StringJoiner featureParams = new StringJoiner("/");
+    if (javaSwitches.containsKey(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS)) {
+      String size = javaSwitches.get(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS).replaceAll("[^0-9]", "");
+      featureParams.add("size_in_pixels/" + size);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.RECLAIM_DELAY_IN_SECONDS)) {
+      String delay = javaSwitches.get(JavaSwitches.RECLAIM_DELAY_IN_SECONDS).replaceAll("[^0-9]", "");
+      featureParams.add("reclaim_delay_s/" + delay);
+    }
+
+    if (featureParams.length() > 0) {
+      extraCommandLineArgs.add(
+          "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
     return extraCommandLineArgs;
