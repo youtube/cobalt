@@ -93,8 +93,9 @@
   ],
   "browser_test_targets": [
     {
-      "target": "testing/container/browser_tests:cobalt_browser_test",
-      "test_attempts": "3"
+      "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+      "test_attempts": "3",
+      "gtest_filter": "ContentMainRunnerImplBrowserTest.StartupSequence"
     }
   ],
   "yts_wpt_test_targets": [
