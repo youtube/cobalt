@@ -94,8 +94,8 @@ class TestRunHostTests(unittest.TestCase):
     args.xvfb_run_path = 'xvfb-run'
     args.filter_json_dir = None
 
-    failed, _created = run_host_tests.handle_run(['/path/to/test1'], 1, args, {},
-                                                {})
+    failed, _created = run_host_tests.handle_run(['/path/to/test1'], 1, args,
+                                                 {}, {})
     self.assertEqual(failed, {'/path/to/test1'})
     mock_crash.extract_crash.assert_called_once()
 

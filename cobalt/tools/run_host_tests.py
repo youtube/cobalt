@@ -98,8 +98,8 @@ def handle_run(
     else:  # attempt > 1 and pull_request
       failed_tests = failed_tests_map.get(binary_name, [])
       if not failed_tests:
-        logging.info(
-            "No specific failed tests found for %s, retrying all.", binary_name)
+        logging.info("No specific failed tests found for %s, retrying all.",
+                     binary_name)
         gtest_filter = "*"
       else:
         gtest_filter = ":".join(failed_tests)
@@ -130,8 +130,7 @@ def handle_run(
       if not os.path.exists(xml_path):
         logging.info(
             "XML output missing for %s. Attempting to generate crash report.",
-            binary_name
-        )
+            binary_name)
         crash_info = generate_crash_report.extract_crash(pathlib.Path(log_path))
         if crash_info:
           generate_crash_report.write_junit_xml(
@@ -229,10 +228,8 @@ def main() -> int:
         else:
           # If it failed but we found no specific tests (maybe crashed),
           # keep it in failed_binaries to retry the whole binary.
-          logging.info(
-              "%s failed but no specific tests found. Retrying all.",
-              binary_name
-          )
+          logging.info("%s failed but no specific tests found. Retrying all.",
+                       binary_name)
           failed_binaries.add(binary)
 
   if args.event_name == "pull_request":

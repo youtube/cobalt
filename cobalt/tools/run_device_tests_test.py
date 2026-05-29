@@ -34,7 +34,7 @@ class TestRunDeviceTests(unittest.TestCase):
   def test_download_results_from_gcs_success(self, mock_run):
     mock_run.return_value.returncode = 0
     res = run_device_tests.download_results_from_gcs('gs://bucket/path',
-                                                      '/local/dir')
+                                                     '/local/dir')
     self.assertTrue(res)
     mock_run.assert_called_once()
 
@@ -42,7 +42,7 @@ class TestRunDeviceTests(unittest.TestCase):
   def test_download_results_from_gcs_fail(self, mock_run):
     mock_run.return_value.returncode = 1
     res = run_device_tests.download_results_from_gcs('gs://bucket/path',
-                                                      '/local/dir')
+                                                     '/local/dir')
     self.assertFalse(res)
 
   @patch('os.path.exists')
