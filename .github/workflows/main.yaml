@@ -77,12 +77,27 @@ jobs:
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
+      - name: Check for Dry Run Label
+        id: check-dry-run
+        run: |
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ci-dry-run') }}" == "true" ]]; then
+            echo "DRY_RUN=true" >> $GITHUB_ENV
+            echo "dry_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "DRY_RUN=false" >> $GITHUB_ENV
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
       - name: Set platforms
         id: set-platforms
         shell: bash
         run: |
           set -x
-          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            platforms='["linux-x64x11"]'
+          else
+            platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          fi
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
       - name: Select build runners
         id: set-build-runners
@@ -103,10 +118,14 @@ jobs:
         shell: bash
         run: |
           set -x
-          # Attempt to load build configs from JSON. If not present use default.
-          build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
-          if [[ "${build_configs}" == "null" ]]; then
-            build_configs='["devel", "qa", "gold"]'
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            build_configs='["devel"]'
+          else
+            # Attempt to load build configs from JSON. If not present use default.
+            build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
+            if [[ "${build_configs}" == "null" ]]; then
+              build_configs='["devel", "qa", "gold"]'
+            fi
           fi
           echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
       - name: Set platform extra includes
@@ -114,7 +133,11 @@ jobs:
         shell: bash
         run: |
           set -x
-          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            includes='[{"name": "x64", "platform": "linux-x64x11"}]'
+          else
+            includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          fi
           echo "includes=${includes}" >> $GITHUB_OUTPUT
       - name: Set Docker service
         id: set-docker-service
@@ -128,63 +151,99 @@ jobs:
         shell: bash
         run: |
           set -x
-          test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_on_host="true"
+          else
+            test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
+          fi
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
       - name: Set on-device tests
         id: set-test-on-device
         shell: bash
         run: |
           set -x
-          test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_on_device="false"
+          else
+            test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
+          fi
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
       - name: Set test package
         id: set-test-package
         shell: bash
         run: |
           set -x
-          test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_package="false"
+          else
+            test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
+          fi
           echo "test_package=${test_package}" >> $GITHUB_OUTPUT
       - name: Set e2e tests
         id: set-test-e2e
         shell: bash
         run: |
           set -x
-          test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_e2e="false"
+          else
+            test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
+          fi
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
       - name: Set YTS tests
         id: set-test-yts
         shell: bash
         run: |
           set -x
-          test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_yts="false"
+          else
+            test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
+          fi
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
       - name: Set YTS Playback tests
         id: set-test-yts-playback
         shell: bash
         run: |
           set -x
-          test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_yts_playback="false"
+          else
+            test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
+          fi
           echo "test_yts_playback=${test_yts_playback}" >> $GITHUB_OUTPUT
       - name: Set Browser tests
         id: set-test-browser
         shell: bash
         run: |
           set -x
-          test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_browser="false"
+          else
+            test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
+          fi
           echo "test_browser=${test_browser}" >> $GITHUB_OUTPUT
       - name: Set YTS WPT tests
         id: set-test-yts-wpt
         shell: bash
         run: |
           set -x
-          test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            test_yts_wpt="false"
+          else
+            test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
+          fi
           echo "test_yts_wpt=${test_yts_wpt}" >> $GITHUB_OUTPUT
       - name: Set web tests
         id: set-web-tests
         shell: bash
         run: |
           set -x
-          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            web_tests="false"
+          else
+            web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
+          fi
           echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
       - name: Set root target for unit tests
         id: set-test-root-target
@@ -270,8 +329,12 @@ jobs:
         shell: bash
         run: |
           set -x
-          # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
-          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            num_gtest_shards=1
+          else
+            # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
+            num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
+          fi
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
 
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
@@ -382,6 +445,7 @@ jobs:
             fi
           fi
     outputs:
+      dry_run: ${{ steps.check-dry-run.outputs.dry_run }}
       skip_ci: ${{ steps.prune.outputs.skip_ci }}
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
@@ -502,6 +566,7 @@ jobs:
       volumes:
         - /runner-cache:/runner-cache
     env:
+      DRY_RUN: ${{ needs.initialize.outputs.dry_run }}
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       DEPOT_TOOLS_UPDATE: 0
       DEPOT_TOOLS_REPORT_BUILD: 0
@@ -851,6 +916,7 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
+      DRY_RUN: ${{ needs.initialize.outputs.dry_run }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4

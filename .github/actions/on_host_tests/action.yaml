@@ -21,10 +21,12 @@ runs:
       with:
         run_sync: 'false'
     - name: Download Artifacts
+      if: env.DRY_RUN != 'true'
       uses: actions/download-artifact@v5
       with:
         name: ${{ inputs.test_artifacts_key }}
     - name: Extract Artifacts
+      if: env.DRY_RUN != 'true'
       shell: bash
       run: |
         set -x
@@ -61,6 +63,19 @@ runs:
         # This also prevents accidental overwriting when collecting results.
         test_output="${results_dir}/shard_${{ matrix.shard }}"
         mkdir -p ${test_output}
+
+        if [[ "${DRY_RUN}" == "true" ]]; then
+          echo "DRY RUN: Writing dummy test results..."
+          xml_path="${test_output}/mock_test_result.xml"
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_path}"
+          echo '<testsuites tests="1" failures="0" disabled="0" errors="0" time="0.001" name="AllTests">' >> "${xml_path}"
+          echo '  <testsuite name="MockTestSuite" tests="1" failures="0" disabled="0" errors="0" time="0.001">' >> "${xml_path}"
+          echo '    <testcase name="MockTestCase" status="run" time="0.001" classname="MockTestSuite" />' >> "${xml_path}"
+          echo '  </testsuite>' >> "${xml_path}"
+          echo '</testsuites>' >> "${xml_path}"
+          echo "Finished running tests (MOCKED)..."
+          exit 0
+        fi
 
         failed_suites=""
         cd unit_test/
