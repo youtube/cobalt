@@ -134,6 +134,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'gmtime_r',
     'if_indextoname',
     'isatty',
+    'ioctl_FIONREAD',
     'kill',
     'link',
     'listen',
