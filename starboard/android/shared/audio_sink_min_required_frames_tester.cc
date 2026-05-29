@@ -48,7 +48,7 @@ class AudioSinkMinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(AudioSinkMinRequiredFramesTester* tester)
       : Thread("min_frames_test",
-               ThreadOptions().SetPriority(kSbThreadPriorityLowest)),
+               ThreadOptions().SetPriority(ThreadPriority::kLowest)),
         tester_(tester) {}
 
   void Run() override { tester_->TesterThreadFunc(); }

@@ -166,14 +166,15 @@ TEST_F(PosixSetPriorityTests, SetProcessPriorityToStarboardNiceValues) {
   //  SetProcessPrioritySuccessfully test.
 
   // Low Priority
-  int low_nice = starboard::SbPriorityToNice(kSbThreadPriorityLow);
+  int low_nice = starboard::SbPriorityToNice(starboard::ThreadPriority::kLow);
   ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, low_nice))
       << "setpriority failed for Low. Errno: " << errno << " ("
       << strerror(errno) << ")";
   EXPECT_EQ(low_nice, getpriority(PRIO_PROCESS, 0));
 
   // Lowest Priority
-  int lowest_nice = starboard::SbPriorityToNice(kSbThreadPriorityLowest);
+  int lowest_nice =
+      starboard::SbPriorityToNice(starboard::ThreadPriority::kLowest);
   ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, lowest_nice))
       << "setpriority failed for Lowest. Errno: " << errno << " ("
       << strerror(errno) << ")";
