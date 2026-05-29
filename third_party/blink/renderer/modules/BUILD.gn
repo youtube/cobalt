@@ -696,6 +696,13 @@ source_set("unit_tests") {
     "xr/xr_view_test.cc",
   ]
 
+  if (!enable_blink_language_detection) {
+    sources -= [
+      "ai/ai_utils_test.cc",
+      "ai/model_execution_responder_test.cc",
+    ]
+  }
+
   if (enable_compute_pressure) {
     sources += [
       "compute_pressure/pressure_observer_test.cc",
