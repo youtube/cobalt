@@ -388,6 +388,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            int max_video_input_size,
                            void* surface_view,
                            bool enable_flush_during_seek,
+                           bool enable_flushless_seek,
                            int64_t reset_delay_usec,
                            int64_t flush_delay_usec,
                            const ExperimentalFeatures& experimental_features,
@@ -405,6 +406,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       max_video_input_size_(max_video_input_size),
       surface_view_(surface_view),
       enable_flush_during_seek_(enable_flush_during_seek),
+      enable_flushless_seek_(enable_flushless_seek &&
+                             tunnel_mode_audio_session_id == -1),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
@@ -542,6 +545,15 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
+  if (is_flushless_seek_pending_.load()) {
+    // We just did a flush-less Reset(). The first buffer arriving here must be
+    // the new keyframe we are seeking to. We record its PTS so we can drop all
+    // in-flight output frames with a PTS older than or different from this new
+    // stream timeline.
+    seek_target_keyframe_pts_us_.store(input_buffers.front()->timestamp());
+    is_flushless_seek_pending_.store(false);
+  }
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
@@ -610,6 +622,7 @@ void VideoDecoder::WriteEndOfStream() {
     return;
   }
   end_of_stream_written_ = true;
+  expected_total_frames_ = input_buffer_written_;
 
   if (input_buffer_written_ == 0) {
     // In this case, |media_decoder_|'s decoder thread is not initialized,
@@ -663,9 +676,29 @@ void VideoDecoder::ResetInternal(bool skip_flush) {
     if (reset_delay_usec_ > 0) {
       usleep(reset_delay_usec_);
     }
+  }
+  if (enable_flushless_seek_ && !pending_destroy && media_decoder_) {
+    // Perform flush-less seek optimization
+    media_decoder_->ClearPendingData();
+    is_flushless_seek_pending_.store(true);
+    seek_target_keyframe_pts_us_.store(
+        kInvalidSeekTargetPts);  // Invalidate any previous target (for double
+                                 // seeks)
+  } else {
+    // If fail to flush |media_decoder_| or |media_decoder_| is null, then
+    // re-create |media_decoder_|. If the codec is kSbMediaVideoCodecAv1,
+    // set video_fps_ to 0 will call InitializeCodec(),
+    // which we do not need if flush the codec.
+    if (!enable_flush_during_seek_ || !media_decoder_ ||
+        !media_decoder_->Flush()) {
+      TeardownCodec();
+      if (reset_delay_usec_ > 0) {
+        usleep(reset_delay_usec_);
+      }
 
-    input_buffer_written_ = 0;
-    video_fps_ = 0;
+      input_buffer_written_ = 0;
+      video_fps_ = 0;
+    }
   }
   CancelPendingJobs();
 
@@ -679,6 +712,7 @@ void VideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_first_frame_rendered_.store(false);
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
+  expected_total_frames_ = -1;
   pending_input_buffers_.clear();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
@@ -802,6 +836,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
       enable_output_checker_, error_message));
   if (media_decoder_->is_valid()) {
+    media_decoder_->SetEnableFlushlessSeek(enable_flushless_seek_);
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&VideoDecoder::ReportError, this, _1, _2));
@@ -927,8 +962,30 @@ void VideoDecoder::ProcessOutputBuffer(
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
+  if (is_flushless_seek_pending_.load()) {
+    // We are waiting for the first new InputBuffer after a reset, so drop
+    // anything that is currently draining from the codec pipeline.
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
+    return;
+  }
+
+  int64_t target_pts = seek_target_keyframe_pts_us_.load();
+  if (target_pts != kInvalidSeekTargetPts) {
+    if (dequeue_output_result.presentation_time_microseconds != target_pts) {
+      // This frame was already in the hardware pipeline before the flush-less
+      // seek was initiated. Drop it, so it doesn't freeze or glitch the player.
+      media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index,
+                                              false);
+      return;
+    }
+    // We have hit the new keyframe. The old pipeline is fully drained.
+    seek_target_keyframe_pts_us_.store(kInvalidSeekTargetPts);
+  }
+
   bool is_end_of_stream =
-      dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
+      (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) ||
+      (enable_flushless_seek_ && expected_total_frames_ != -1 &&
+       decoded_output_frames_ + 1 == expected_total_frames_);
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {

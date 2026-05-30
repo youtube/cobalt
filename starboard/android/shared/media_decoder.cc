@@ -569,6 +569,16 @@ void MediaDecoder::TerminateDecoderThread() {
   }
 }
 
+void MediaDecoder::ClearPendingData() {
+  ScopedLock scoped_lock(mutex_);
+  number_of_pending_inputs_.store(0);
+  pending_inputs_.clear();
+  input_buffer_indices_.clear();
+  dequeue_output_results_.clear();
+  // We cannot clear |pending_input_to_retry_| as it's not synchronized by
+  // |mutex_|.
+}
+
 void MediaDecoder::CollectPendingData_Locked(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices,
@@ -727,9 +737,9 @@ bool MediaDecoder::ProcessOneInputBuffer(
           host_->IsBufferDecodeOnly(input_buffer));
     }
   } else {
+    int eos_flag = enable_flushless_seek_ ? 0 : BUFFER_FLAG_END_OF_STREAM;
     status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_END_OF_STREAM, false);
+        dequeue_input_result.index, kNoOffset, size, kNoPts, eos_flag, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
