@@ -162,9 +162,21 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                         limit_ad_tracking_enabled ? "1" : "0");
     }
 #if SB_API_VERSION >= 15
-    case kSbSystemPropertyDeviceType:
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        starboard::kSystemDeviceTypeAndroidTV);
+    case kSbSystemPropertyDeviceType: {
+      char key1[PROP_VALUE_MAX] = "";
+      const char* device_type = starboard::kSystemDeviceTypeUnknown;
+      JniEnvExt* env = JniEnvExt::Get();
+
+      if (GetAndroidSystemProperty("ro.oem.key1", key1, PROP_VALUE_MAX, "") &&
+          key1[0])
+        device_type = starboard::kSystemDeviceTypeTV;
+      else if (env->CallStarboardBooleanMethodOrAbort("getOperatorTier",
+                                                      "()Z") == JNI_TRUE)
+        device_type = starboard::kSystemDeviceTypeSetTopBox;
+      else
+        device_type = starboard::kSystemDeviceTypeOverTheTopBox;
+      return CopyStringAndTestIfSuccess(out_value, value_length, device_type);
+    }
 #endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
