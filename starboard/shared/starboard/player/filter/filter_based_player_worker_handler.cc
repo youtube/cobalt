@@ -264,6 +264,13 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
   } else {
     SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
 
+    if (is_changing_codec_) {
+      for (const auto& input_buffer : input_buffers) {
+        pending_video_buffers_.push_back(input_buffer);
+      }
+      return HandlerResult{true};
+    }
+
     if (!video_renderer_) {
       return HandlerResult{false, "Invalid video renderer."};
     }
@@ -390,6 +397,159 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
   }
 }
 
+void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  if (media_type == kSbMediaTypeAudio) {
+    SB_DCHECK(!audio_ended_);
+    audio_ended_ = true;
+  } else {
+    SB_DCHECK(media_type == kSbMediaTypeVideo);
+    SB_DCHECK(!video_ended_);
+    video_ended_ = true;
+  }
+
+  if (is_changing_codec_ && (!audio_renderer_ || audio_ended_) &&
+      (!video_renderer_ || video_ended_)) {
+    CompleteCodecChange();
+    return;
+  }
+
+  if ((!audio_renderer_ || audio_ended_) &&
+      (!video_renderer_ || video_ended_)) {
+    update_player_state_cb_(kSbPlayerStateEndOfStream);
+  }
+}
+
+HandlerResult FilterBasedPlayerWorkerHandler::ChangeVideoCodec(
+    SbMediaVideoCodec video_codec) {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  if (is_changing_codec_) {
+    return HandlerResult{false, "Codec change already in progress."};
+  }
+
+  is_changing_codec_ = true;
+  pending_video_codec_ = video_codec;
+
+  RemoveJobByToken(update_job_token_);
+
+  bool is_playing;
+  bool is_eos_played;
+  bool is_underflow;
+  double playback_rate;
+
+  media_time_during_codec_change_ = media_time_provider_->GetCurrentMediaTime(
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+
+  if (audio_renderer_) {
+    audio_renderer_->WriteEndOfStream();
+  }
+  if (video_renderer_) {
+    video_renderer_->WriteEndOfStream();
+  } else {
+    SB_DCHECK(video_renderer_);
+  }
+
+  return HandlerResult{true};
+}
+
+void FilterBasedPlayerWorkerHandler::CompleteCodecChange() {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(is_changing_codec_);
+
+  audio_prerolled_ = false;
+  video_prerolled_ = false;
+  audio_ended_ = false;
+  video_ended_ = false;
+
+  std::unique_ptr<PlayerComponents> old_player_components;
+  {
+    std::lock_guard lock(player_components_existence_mutex_);
+    old_player_components = std::move(player_components_);
+    media_time_provider_ = nullptr;
+    audio_renderer_ = nullptr;
+    video_renderer_ = nullptr;
+  }
+  old_player_components.reset();
+  video_stream_info_.codec = pending_video_codec_;
+
+  // Create new player_components object
+
+  std::unique_ptr<PlayerComponents::Factory> factory =
+      PlayerComponents::Factory::Create();
+  SB_DCHECK(factory);
+
+  PlayerComponents::Factory::CreationParameters creation_parameters(
+      audio_stream_info_, video_stream_info_, player_, output_mode_,
+      max_video_input_size_, experimental_features_, surface_view_,
+      decode_target_graphics_context_provider_, drm_system_);
+
+  {
+    std::lock_guard lock(player_components_existence_mutex_);
+    std::string components_error_message;
+    player_components_ = factory->CreateComponents(creation_parameters,
+                                                   &components_error_message);
+    if (!player_components_) {
+      std::string error_message =
+          FormatString("Failed to create player components with error: %s.",
+                       components_error_message.c_str());
+      update_player_error_cb_(kSbPlayerErrorDecode, error_message);
+      return;
+    }
+    media_time_provider_ = player_components_->GetMediaTimeProvider();
+    audio_renderer_ = player_components_->GetAudioRenderer();
+    video_renderer_ = player_components_->GetVideoRenderer();
+  }
+  if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
+    SB_DCHECK(audio_renderer_);
+  }
+  if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
+    SB_DCHECK(video_renderer_);
+  }
+  SB_DCHECK(media_time_provider_);
+
+  if (audio_renderer_) {
+    SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
+
+    audio_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeAudio),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeAudio));
+    audio_renderer_->SetVolume(volume_);
+  }
+  SB_LOG(INFO) << "Set playback rate to " << playback_rate_;
+  media_time_provider_->SetPlaybackRate(playback_rate_);
+  if (video_renderer_) {
+    SB_LOG(INFO) << "Initialize video renderer.";
+
+    video_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeVideo),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeVideo));
+  }
+
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
+
+  media_time_provider_->Seek(media_time_during_codec_change_);
+
+  if (video_renderer_ && !pending_video_buffers_.empty()) {
+    video_renderer_->WriteSamples(pending_video_buffers_);
+    pending_video_buffers_.clear();
+  }
+
+  is_changing_codec_ = false;
+  pending_video_codec_ = kSbMediaVideoCodecNone;
+}
+
+bool FilterBasedPlayerWorkerHandler::IsChangingCodec() const {
+  return is_changing_codec_;
+}
+
 HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -460,28 +620,6 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
     if (!paused_) {
       media_time_provider_->Play();
     }
-  }
-}
-
-void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
-  if (!BelongsToCurrentThread()) {
-    Schedule(
-        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this, media_type));
-    return;
-  }
-
-  if (media_type == kSbMediaTypeAudio) {
-    SB_LOG(INFO) << "Audio ended.";
-  } else {
-    SB_LOG(INFO) << "Video ended.";
-  }
-
-  audio_ended_ |= media_type == kSbMediaTypeAudio;
-  video_ended_ |= media_type == kSbMediaTypeVideo;
-
-  if ((!audio_renderer_ || audio_ended_) &&
-      (!video_renderer_ || video_ended_)) {
-    update_player_state_cb_(kSbPlayerStateEndOfStream);
   }
 }
 

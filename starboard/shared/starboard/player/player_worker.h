@@ -97,9 +97,11 @@ class PlayerWorker {
     virtual HandlerResult WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual HandlerResult SetPause(bool pause) = 0;
     virtual HandlerResult SetPlaybackRate(double playback_rate) = 0;
+    virtual HandlerResult ChangeVideoCodec(SbMediaVideoCodec video_codec) = 0;
     virtual void SetVolume(double volume) = 0;
 
     virtual HandlerResult SetBounds(const Bounds& bounds) = 0;
+    virtual bool IsChangingCodec() const = 0;
 
     // Once this function returns, all processing on the Handler and related
     // objects has to be stopped.  The JobQueue will be destroyed immediately
