@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/integer_value.h"
@@ -700,6 +701,7 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
     BaseDirection base_direction, LayoutUnit desired_offset,
     bool* is_placement_requirement_met, bool* is_placed,
     LayoutUnit* placed_offset) {
+  TRACE_EVENT0("cobalt::layout", "Box::TryPlaceEllipsisOrProcessPlacedEllipsis");
   // Ellipsis placement should only occur in inline level boxes.
   DCHECK(GetLevel() == kInlineLevel);
 
@@ -762,6 +764,7 @@ void Box::RenderAndAnimate(
     CompositionNode::Builder* parent_content_node_builder,
     const math::Vector2dF& offset_from_parent_node,
     ContainerBox* stacking_context) {
+  TRACE_EVENT0("cobalt::layout", "Box::RenderAndAnimate");
   DCHECK(stacking_context);
 
   math::Vector2dF border_box_offset(left().toFloat() + margin_left().toFloat(),
@@ -1478,6 +1481,7 @@ bool HasAnimatedOutline(const web_animations::AnimationSet* animation_set) {
 }  // namespace
 
 base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
+  TRACE_EVENT0("cobalt::layout", "Box::ComputeRoundedCorners");
   UsedBorderRadiusProvider border_radius_provider(GetClampedBorderBoxSize());
   render_tree::RoundedCorner border_top_left_radius;
   render_tree::RoundedCorner border_top_right_radius;
@@ -1529,7 +1533,8 @@ base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
 }
 
 base::Optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
-    const base::Optional<RoundedCorners>& rounded_corners) const {
+  const base::Optional<RoundedCorners>& rounded_corners) const {
+  TRACE_EVENT0("cobalt::layout", "Box::ComputePaddingRoundedCorners");
   base::Optional<RoundedCorners> padding_rounded_corners_if_different;
 
   if (rounded_corners && !border_insets_.zero()) {
@@ -1857,6 +1862,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const scoped_refptr<render_tree::Node>& content_node,
     const math::Vector2dF& border_offset) {
+  TRACE_EVENT0("cobalt::layout", "Box::RenderAndAnimateOverflow");
   const base::Optional<RoundedCorners> rounded_corners =
       ComputeRoundedCorners();
 
@@ -1878,6 +1884,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const scoped_refptr<render_tree::Node>& content_node,
     AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
+  TRACE_EVENT0("cobalt::layout", "Box::RenderAndAnimateOverflow");
   DCHECK(IsOverflowCropped(computed_style()));
 
   // The "overflow" property specifies whether a box is clipped to its padding
