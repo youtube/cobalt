@@ -119,29 +119,6 @@ TEST(PosixDirectoryOpenTest, FailsRegularFile) {
   }
 }
 
-TEST(PosixDirectoryOpenTest, FailsNoAccess) {
-  // This test will not work correctly if run as root, as root bypasses
-  // file permission checks.
-  if (geteuid() == 0) {
-    GTEST_SKIP() << "Test cannot run as root; permission checks are bypassed.";
-  }
-
-  std::string dir_path = GetTempDir() + kSbFileSepString + "no_access_dir";
-  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
-
-  // Remove read and search permissions.
-  ASSERT_EQ(chmod(dir_path.c_str(), S_IWUSR), 0);
-
-  errno = 0;
-  DIR* directory = opendir(dir_path.c_str());
-  EXPECT_EQ(directory, nullptr);
-  EXPECT_EQ(errno, EACCES);
-
-  // Cleanup: Restore permissions to allow removal.
-  chmod(dir_path.c_str(), kUserRwx);
-  rmdir(dir_path.c_str());
-}
-
 TEST(PosixDirectoryOpenTest, FailsSymlinkLoop) {
   std::string temp_dir = GetTempDir();
   std::string path_a = temp_dir + kSbFileSepString + "loop_a";

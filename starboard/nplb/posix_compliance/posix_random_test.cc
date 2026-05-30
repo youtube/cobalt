@@ -32,7 +32,7 @@ TEST(PosixInitStateTest, RandomReturnsValueWithinRange) {
 // Test that the same seed produces a repeatable sequence.
 TEST(PosixInitStateTest, SameSeedProducesRepeatableSequence) {
   std::vector<char> state(256);
-  initstate(123, state.data(), state.size());
+  char* old_state = initstate(123, state.data(), state.size());
   long seq1_val1 = random();
   long seq1_val2 = random();
   long seq1_val3 = random();
@@ -45,6 +45,7 @@ TEST(PosixInitStateTest, SameSeedProducesRepeatableSequence) {
   EXPECT_EQ(seq1_val1, seq2_val1);
   EXPECT_EQ(seq1_val2, seq2_val2);
   EXPECT_EQ(seq1_val3, seq2_val3);
+  setstate(old_state);
 }
 
 // Test that setstate can restore a previous state.
@@ -53,12 +54,12 @@ TEST(PosixInitStateTest, SetStateRestoresState) {
   std::vector<char> state2(256);
 
   // Generate a sequence of numbers and save the state.
-  initstate(123, state1.data(), state1.size());
+  char* old_state = initstate(123, state1.data(), state1.size());
   long val1 = random();
   long val2 = random();
 
   // Switch to a different state and generate a different sequence.
-  char* old_state = setstate(state2.data());
+  setstate(state2.data());
   initstate(456, state2.data(), state2.size());
   long val3 = random();
   long val4 = random();
@@ -67,7 +68,7 @@ TEST(PosixInitStateTest, SetStateRestoresState) {
   EXPECT_NE(val2, val4);
 
   // Restore the original state and verify the sequence continues.
-  setstate(old_state);
+  setstate(state1.data());
   long val5 = random();
   long val6 = random();
 
@@ -80,6 +81,7 @@ TEST(PosixInitStateTest, SetStateRestoresState) {
 
   EXPECT_EQ(val5, expected_val5);
   EXPECT_EQ(val6, expected_val6);
+  setstate(old_state);
 }
 
 }  // namespace
