@@ -83,206 +83,6 @@ _MANIFEST_HEADER = ('# Manifest of Leaking Files\n\n' +
 _UNKNOWN_LIBRARIES = 'unknown_library(ies)'
 _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
-# Allowed POSIX symbols in Starboard 16
-_ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
-    '__errno_location',
-    'accept',
-    'access',
-    'aligned_alloc',
-    'asctime_r',
-    'bind',
-    'calloc',
-    'chmod',
-    'clock_gettime',
-    'clock_nanosleep',
-    'close',
-    'closedir',
-    'connect',
-    'dup',
-    'dup2',
-    'epoll_create',
-    'epoll_create1',
-    'epoll_ctl',
-    'epoll_wait',
-    'eventfd',
-    'fchmod',
-    'fchown',
-    'fcntl',
-    'fdopendir',
-    'free',
-    'freeaddrinfo',
-    'freeifaddrs',
-    'fdatasync',
-    'fstat',
-    'fstatat',
-    'fsync',
-    'ftruncate',
-    'gai_strerror',
-    'getaddrinfo',
-    'getauxval',
-    'getcwd',
-    'geteuid',
-    'getifaddrs',
-    'getpeername',
-    'getpid',
-    'getrandom',
-    'getrlimit',
-    'getsockname',
-    'getsockopt',
-    'gettid',
-    'getuid',
-    'gmtime_r',
-    'if_indextoname',
-    'isatty',
-    'ioctl_FIONREAD',
-    'kill',
-    'link',
-    'listen',
-    'lseek',
-    'madvise',
-    'malloc',
-    'malloc_usable_size',
-    'memfd_create',
-    'mincore',
-    'mkdir',
-    'mkdtemp',
-    'mkostemp',
-    'mkstemp',
-    'mmap',
-    'mprotect',
-    'msync',
-    'munmap',
-    'openat',
-    'opendir',
-    'pathconf',
-    'pause',
-    'pipe',
-    'pipe2',
-    'poll',
-    'posix_memalign',
-    'prctl',
-    'pread',
-    'pthread_attr_destroy',
-    'pthread_attr_getdetachstate',
-    'pthread_attr_getschedpolicy',
-    'pthread_attr_getscope',
-    'pthread_attr_getstack',
-    'pthread_attr_getstacksize',
-    'pthread_attr_init',
-    'pthread_attr_setdetachstate',
-    'pthread_attr_setschedpolicy',
-    'pthread_attr_setscope',
-    'pthread_attr_setstack',
-    'pthread_attr_setstacksize',
-    'pthread_cond_broadcast',
-    'pthread_cond_destroy',
-    'pthread_cond_init',
-    'pthread_cond_signal',
-    'pthread_cond_timedwait',
-    'pthread_cond_wait',
-    'pthread_condattr_destroy',
-    'pthread_condattr_getclock',
-    'pthread_condattr_init',
-    'pthread_condattr_setclock',
-    'pthread_create',
-    'pthread_detach',
-    'pthread_equal',
-    'pthread_getattr_np',
-    'pthread_getname_np',
-    'pthread_getschedparam',
-    'pthread_getspecific',
-    'pthread_join',
-    'pthread_key_create',
-    'pthread_key_delete',
-    'pthread_kill',
-    'pthread_mutex_destroy',
-    'pthread_mutex_init',
-    'pthread_mutex_lock',
-    'pthread_mutex_trylock',
-    'pthread_mutex_unlock',
-    'pthread_mutexattr_destroy',
-    'pthread_mutexattr_getpshared',
-    'pthread_mutexattr_gettype',
-    'pthread_mutexattr_init',
-    'pthread_mutexattr_setpshared',
-    'pthread_mutexattr_settype',
-    'pthread_once',
-    'pthread_rwlock_destroy',
-    'pthread_rwlock_init',
-    'pthread_rwlock_rdlock',
-    'pthread_rwlock_tryrdlock',
-    'pthread_rwlock_trywrlock',
-    'pthread_rwlock_unlock',
-    'pthread_rwlock_wrlock',
-    'pthread_self',
-    'pthread_setname_np',
-    'pthread_setschedparam',
-    'pthread_setspecific',
-    'pthread_sigmask',
-    'pwrite',
-    'raise',
-    'rand',
-    'rand_r',
-    'read',
-    'readdir',
-    'readdir_r',
-    'readlink',
-    'readv',
-    'realpath',
-    'realloc',
-    'recv',
-    'recvfrom',
-    'recvmmsg',
-    'recvmsg',
-    'rename',
-    'sched_getaffinity',
-    'sched_getparam',
-    'sched_setparam',
-    'sched_get_priority_max',
-    'sched_get_priority_min',
-    'sched_getscheduler',
-    'sched_setscheduler',
-    'sched_yield',
-    'select',
-    'sem_destroy',
-    'sem_init',
-    'sem_post',
-    'sem_timedwait',
-    'sem_wait',
-    'send',
-    'sendmsg',
-    'sendto',
-    'setpriority',
-    'setsockopt',
-    'shutdown',
-    'sigaction',
-    'signal',
-    'snprintf',
-    'socket',
-    'socketpair',
-    'sprintf',
-    'srand',
-    'statvfs',
-    'statx',
-    'strftime_l',
-    'symlink',
-    'sysconf',
-    'uname',
-    'unlinkat',
-    'usleep',
-    'utimensat',
-    'vfwprintf',
-    'vsnprintf',
-    'vsscanf',
-    'vswprintf',
-    'write',
-    'writev',
-
-    # TODO: b/476129004 - __clock_gettime64 is weakly defined for 32-bit arm
-    # platforms.
-    '__clock_gettime64',
-]
-
 
 def DiffWithManifest(leaked_symbols, manifest_path):
   manifest_symbols = LoadManifest(manifest_path)
@@ -506,6 +306,29 @@ def LoadLibrariesToIgnore():
   return libs
 
 
+def LoadExportedSymbols():
+  """Parses allowed symbols from exported_symbols.cc."""
+  exported_symbols_path = os.path.join(paths.REPOSITORY_ROOT, 'starboard',
+                                       'elf_loader', 'exported_symbols.cc')
+  symbols = set()
+  pattern = re.compile(r'\bREGISTER_(?:SYMBOL|WRAPPER)\(\s*(\w+)\s*\)')
+
+  try:
+    with open(exported_symbols_path, 'r', encoding='utf-8') as f:
+      for line in f:
+        if '#define' in line:
+          continue
+        match = pattern.search(line)
+        if match:
+          symbol = match.group(1)
+          if symbol != 's':
+            symbols.add(symbol)
+  except IOError as e:
+    print(f"Error opening {exported_symbols_path}: '{e}'", file=sys.stderr)
+    sys.exit(1)
+  return symbols
+
+
 def ParseArgs():
   """Parse all of the arguments provided on the command line."""
   parser = argparse.ArgumentParser()
@@ -673,20 +496,10 @@ def main():
 
   # Build a set from all of the unresolved symbols that have the allowlisted and
   # Starboard functions and extern configuration variables filtered out.
-  def IsSbSymbol(symbol):
-    return symbol.startswith('Sb') or symbol.startswith('kSb')
-
-  def IsAllowedPosixSymbol(symbol, sb_api_version: int):
-    if sb_api_version in [16, 17, 18]:
-      return symbol in _ALLOWED_SB_GE_16_POSIX_SYMBOLS
-    else:
-      return False
+  allowed_symbols = LoadExportedSymbols()
 
   def IsAllowedSymbol(symbol):
-    if IsSbSymbol(symbol):
-      return True
-
-    if IsAllowedPosixSymbol(symbol, sb_api_version=args.sb_api_version):
+    if symbol in allowed_symbols:
       return True
 
     return False
