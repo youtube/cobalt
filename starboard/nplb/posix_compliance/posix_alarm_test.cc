@@ -109,7 +109,7 @@ TEST_F(PosixAlarmTest, AlarmFires) {
   ASSERT_EQ(sigaction(SIGALRM, &sa, nullptr), 0);
 
   // Set alarm for 1 second
-  EXPECT_EQ(alarm(1), 0);  // Should return 0 as no alarm was set
+  EXPECT_EQ(alarm(1), 0u);  // Should return 0 as no alarm was set
 
   // Wait for alarm. 1 second is 1000ms. We wait slightly longer to be safe.
   sleep(2);
@@ -124,14 +124,14 @@ TEST_F(PosixAlarmTest, AlarmCancel) {
   ASSERT_EQ(sigaction(SIGALRM, &sa, nullptr), 0);
 
   // Set alarm for 2 seconds
-  EXPECT_EQ(alarm(2), 0);
+  EXPECT_EQ(alarm(2), 0u);
 
   // Cancel alarm immediately
   // It should return the remaining time (which should be 1 or 2 depending on
   // timing, but definitely > 0 if we do it immediately).
   unsigned int remaining = alarm(0);
-  EXPECT_GT(remaining, 0);
-  EXPECT_LE(remaining, 2);
+  EXPECT_GT(remaining, 0u);
+  EXPECT_LE(remaining, 2u);
 
   // Wait for the original time to ensure it doesn't fire
   sleep(2);
@@ -147,12 +147,12 @@ TEST_F(PosixAlarmTest, AlarmOverwrites) {
   ASSERT_EQ(sigaction(SIGALRM, &sa, nullptr), 0);
 
   // Set alarm for 5 seconds
-  EXPECT_EQ(alarm(5), 0);
+  EXPECT_EQ(alarm(5), 0u);
 
   // Overwrite with alarm for 1 second
   unsigned int remaining = alarm(1);
-  EXPECT_GT(remaining, 0);
-  EXPECT_LE(remaining, 5);
+  EXPECT_GT(remaining, 0u);
+  EXPECT_LE(remaining, 5u);
 
   // The 1-second alarm should fire
   sleep(2);
@@ -161,10 +161,10 @@ TEST_F(PosixAlarmTest, AlarmOverwrites) {
 
 // Test 4: alarm returns 0 if no alarm was scheduled.
 TEST_F(PosixAlarmTest, AlarmReturnsZeroIfNoPrevious) {
-  EXPECT_EQ(alarm(0), 0);
-  EXPECT_EQ(alarm(10), 0);
+  EXPECT_EQ(alarm(0), 0u);
+  EXPECT_EQ(alarm(10), 0u);
   // Cancel it and it should return > 0
-  EXPECT_GT(alarm(0), 0);
+  EXPECT_GT(alarm(0), 0u);
 }
 
 }  // namespace
