@@ -130,10 +130,10 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/socket_join_multicast_group.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",
-    "//starboard/shared/posix/socket_receive_multi_msg_internal.cc",
-    "//starboard/shared/posix/socket_receive_multi_msg_internal.h",
     "//starboard/shared/posix/socket_receive_multi_msg.cc",
     "//starboard/shared/posix/socket_receive_multi_msg.h",
+    "//starboard/shared/posix/socket_receive_multi_msg_internal.cc",
+    "//starboard/shared/posix/socket_receive_multi_msg_internal.h",
     "//starboard/shared/posix/socket_resolve.cc",
     "//starboard/shared/posix/socket_send_to.cc",
     "//starboard/shared/posix/socket_set_broadcast.cc",
@@ -497,6 +497,33 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+
+  sources -= [
+    "//starboard/shared/starboard/player/player_get_audio_configuration.cc",
+    "//starboard/shared/starboard/player/player_get_current_frame.cc",
+    "//starboard/shared/starboard/player/player_get_info.cc",
+    "//starboard/shared/starboard/player/player_seek.cc",
+    "//starboard/shared/starboard/player/player_set_volume.cc",
+    "//starboard/shared/starboard/player/player_write_end_of_stream.cc",
+    "//starboard/shared/starboard/player/player_write_samples.cc",
+    "player_create.cc",
+    "player_destroy.cc",
+    "player_get_maximum_number_of_samples_per_write.cc",
+    "player_get_preferred_output_mode.cc",
+    "player_set_bounds.cc",
+
+    # "player_set_max_video_input_size.cc",
+    # "player_set_max_video_input_size.h",
+    "player_set_playback_rate.cc",
+  ]
+
+  sources += [
+    "exoplayer/exoplayer.cc",
+    "exoplayer/exoplayer.h",
+    "exoplayer/exoplayer_bridge.cc",
+    "exoplayer/exoplayer_bridge.h",
+    "exoplayer/player_impl.cc",
+  ]
 }
 
 static_library("starboard_base_symbolize") {
