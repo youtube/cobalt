@@ -22,6 +22,7 @@
 
 #include "base/logging.h"
 #include "starboard/common/drm.h"
+#include "starboard/common/time.h"
 
 namespace media {
 
@@ -94,13 +95,19 @@ StarboardCdm::StarboardCdm(
     const SessionKeysChangeCB& keys_change_cb,
     const SessionExpirationUpdateCB& expiration_update_cb)
     : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
-      sb_drm_(SbDrmCreateSystem(cdm_config.key_system.c_str(),
-                                this,
-                                OnSessionUpdateRequestGeneratedFunc,
-                                OnSessionUpdatedFunc,
-                                OnSessionKeyStatusesChangedFunc,
-                                OnServerCertificateUpdatedFunc,
-                                OnSessionClosedFunc)),
+      sb_drm_([&] {
+        int64_t start_us = starboard::CurrentMonotonicTime();
+        LOG(INFO) << "Calling SbDrmCreateSystem";
+        SbDrmSystem drm_system = SbDrmCreateSystem(
+            cdm_config.key_system.c_str(), this,
+            OnSessionUpdateRequestGeneratedFunc, OnSessionUpdatedFunc,
+            OnSessionKeyStatusesChangedFunc, OnServerCertificateUpdatedFunc,
+            OnSessionClosedFunc);
+        int64_t elapsed_us = starboard::CurrentMonotonicTime() - start_us;
+        LOG(INFO) << "SbDrmCreateSystem ends: elapsed(msec)="
+                  << elapsed_us / 1'000;
+        return drm_system;
+      }()),
       message_cb_{message_cb},
       closed_cb_{closed_cb},
       keys_change_cb_{keys_change_cb},
