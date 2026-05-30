@@ -28,6 +28,10 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(_WIN32)
+#include "starboard/shared/uwp/xb1_get_type.h"
+#endif
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -394,7 +398,12 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       break;
   }
 
+#if !defined(_WIN32)
   const int kMaxPlayersPerConfig = 5;
+#else
+  const int kMaxPlayersPerConfig = starboard::shared::uwp::GetXboxType() == starboard::shared::uwp::kXboxOneX ? 1 : 5;
+#endif
+
   std::vector<SbPlayer> created_players;
   int number_of_create_attempts = 0;
   int number_of_players = 0;
