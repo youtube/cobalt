@@ -15,6 +15,10 @@ inputs:
     default: 'false'
   sccache_gcs_key:
     description: GCS SA key to read/write to bucket
+outputs:
+  skip_autoninja:
+    description: "Whether autoninja build was skipped."
+    value: ${{ steps.analyze.outputs.skip_autoninja || 'false' }}
 runs:
   using: "composite"
   steps:
@@ -64,23 +68,78 @@ runs:
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          # TODO(b/382508397): Disabled for now.
-          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
-          # cat ${CHANGED_FILES_LIST}
+          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          cat ${CHANGED_FILES_LIST}
         shell: bash
+      - name: GN Analyze
+        id: analyze
+        if: github.event_name == 'pull_request'
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cobalt/src
+
+          # Default to running autoninja unless proven otherwise.
+          echo "skip_autoninja=false" >> $GITHUB_OUTPUT
+
+          # If no files changed, run build normally.
+          if [[ ! -s "${CHANGED_FILES_LIST}" ]]; then
+            exit 0
+          fi
+
+          # Prepare input.json for gn analyze.
+          # GN expects source file paths to be prefixed with '//' (e.g., //cobalt/browser/main.cc).
+          FILES_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0) | "//" + .)' < "${CHANGED_FILES_LIST}")
+
+          # We evaluate against additional_compile_targets: ["all"] to determine if the modified files
+          # affect any output in the entire Ninja build graph. test_targets is kept empty because
+          # test binaries are already built as compile targets under "all".
+          jq -n --argjson files "$FILES_JSON" '{
+            files: $files,
+            additional_compile_targets: ["all"],
+            test_targets: []
+          }' > gn_analyze_input.json
+
+          echo "GN Analyze Input:"
+          cat gn_analyze_input.json
+
+          # Run gn analyze against the configured Ninja build directory.
+          gn analyze out/${{ matrix.platform }}_${{ matrix.config }} gn_analyze_input.json gn_analyze_output.json
+
+          echo "GN Analyze Output:"
+          cat gn_analyze_output.json
+
+          # Parse status to see if changes affect the build graph.
+          STATUS=$(jq -r '.status' gn_analyze_output.json)
+          if [[ "$STATUS" == "No dependency" ]]; then
+            echo "GN Analyze reported 'No dependency'. Pruning autoninja build!"
+            echo "skip_autoninja=true" >> $GITHUB_OUTPUT
+          fi
       - name: Calculate test targets
-        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
-        if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
+        if: matrix.config == 'devel'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
-          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
           cd cobalt/src
+
+          # If GN analyze proved no dependency, emit empty test targets so downstream test runners
+          # (on-host-test, on-device-test) know there is zero work to do and exit immediately.
+          # If GN analyze proved no dependency, emit empty test targets with a 'pruned: true' flag.
+          # Downstream test runners will download this file to check if they should skip testing steps.
+          if [[ "${{ steps.analyze.outputs.skip_autoninja }}" == "true" ]]; then
+            echo "GN Analyze proved no dependency. Emitting empty test targets."
+            echo '{"test_targets": [], "pruned": true}' > "${{ inputs.test_targets_json_file }}"
+            echo "test_targets_json=[]" >> $GITHUB_OUTPUT
+            echo "test_targets_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
             echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
@@ -88,7 +147,8 @@ runs:
             exit 0
           fi
 
-          # TODO: b/382508397 - Currently, override with static test targets
+          # Copy static test targets definitions over to the output JSON file.
+          # Static test targets overwrite dynamic targets to ensure stable pre-verified test suites are executed.
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
           # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
@@ -122,7 +182,7 @@ runs:
           name: ${{ matrix.platform }}_test_targets_json
           path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
-        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 && env.DRY_RUN != 'true' }}
         id: build-test-targets
         run: |
           set -ex
@@ -131,6 +191,7 @@ runs:
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
+        if: steps.analyze.outputs.skip_autoninja != 'true' && env.DRY_RUN != 'true'
         env:
           TARGETS_JSON: ${{ inputs.targets }}
           USE_SCCACHE: ${{ inputs.enable_sccache }}
@@ -144,7 +205,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
+        if: steps.analyze.outputs.skip_autoninja != 'true' && startsWith(matrix.platform, 'android') && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }} APKs
