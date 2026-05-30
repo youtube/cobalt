@@ -58,7 +58,7 @@ class CloudReportingEnabledTest(ChromeEnterpriseTestCase):
   def test_report_and_fetch(self):
     # Domain: chromepizzatest.com / OrgUnit: CBCM-enrollment
     # CloudReporting is enabled
-    cmd = f'gsutil cat gs://{self.gsbucket}/secrets/enrollToken'
+    cmd = f'gcloud storage cat gs://{self.gsbucket}/secrets/enrollToken'
     token = self.RunCommand(self.win_config['dc'], cmd).rstrip().decode()
 
     self.SetPolicy(self.win_config['dc'], r'CloudManagementEnrollmentToken',

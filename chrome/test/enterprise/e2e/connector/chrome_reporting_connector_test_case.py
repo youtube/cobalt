@@ -29,7 +29,7 @@ class ChromeReportingConnectorTestCase(ChromeEnterpriseTestCase):
   def GetFileFromGCSBucket(self, path):
     """Get file from GCS bucket"""
     path = "gs://%s/%s" % (self.gsbucket, path)
-    cmd = r'gsutil cat ' + path
+    cmd = r'gcloud storage cat ' + path
     return self.RunCommand(self.win_config['client'], cmd).rstrip().decode()
 
   def InstallBrowserAndEnableUITest(self):

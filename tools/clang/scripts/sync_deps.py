@@ -55,7 +55,8 @@ CLANG_PLATFORM_TO_PACKAGE_FILES = {
 def GetDepsObjectInfo(object_name: str) -> str:
   url = f'{CDS_URL}/{object_name}'
   describe_url = f'gs://chromium-browser-clang/{object_name}'
-  output = subprocess.check_output(['gsutil.py', 'stat',
+  # Note: The output format of gcloud storage objects list --stat differs from gsutil stat, with known issues related to inconsistent spacing. Scripts that parse the output of gsutil stat may require adjustments to handle the new format.
+  output = subprocess.check_output(['gcloud', 'storage', 'objects', 'list', '--stat', '--fetch-encrypted-object-hashes',
                                     describe_url]).decode("utf-8")
   # Output looks like:
   # ``

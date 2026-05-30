@@ -125,7 +125,7 @@ To share publicly:
 
 ```sh
 FILENAME=descriptive_name.sizediff
-gsutil.py cp -a public-read "$FILENAME" gs://chrome-supersize/oneoffs/$USER/
+gcloud storage cp --predefined-acl=publicRead "$FILENAME" gs://chrome-supersize/oneoffs/$USER/
 echo "Share via: https://chrome-supersize.firebaseapp.com/viewer.html?load_url=https://storage.googleapis.com/chrome-supersize/oneoffs/$USER/$(basename $FILENAME)"
 ```
 
@@ -133,12 +133,12 @@ To share to Googlers only:
 
 ```sh
 FILENAME=descriptive_name.sizediff
-gsutil.py cp "$FILENAME" gs://chrome-supersize/private-oneoffs/$USER/
+gcloud storage cp "$FILENAME" gs://chrome-supersize/private-oneoffs/$USER/
 echo "Share via: https://chrome-supersize.firebaseapp.com/viewer.html?load_url=https://storage.googleapis.com/chrome-supersize/private-oneoffs/$USER/$(basename $FILENAME)"
 ```
 
 To delete a file you uploaded by mistake:
 
 ```sh
-gsutil.py rm gs://chrome-supersize/oneoffs/$USER/filename
+gcloud storage rm gs://chrome-supersize/oneoffs/$USER/filename
 ```

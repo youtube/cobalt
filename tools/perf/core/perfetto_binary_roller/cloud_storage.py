@@ -15,14 +15,14 @@ INTERNAL_BUCKET = 'chrome-telemetry'
 
 
 def _RunCommand(args):
-  gsutil_command = 'gsutil'
+  gsutil_command = 'gcloud'
   pathenv = os.getenv('PATH')
   for path in pathenv.split(os.path.pathsep):
     gsutil_path = os.path.join(path, gsutil_command)
     if os.path.exists(gsutil_path):
       break
 
-  gsutil = subprocess.Popen([gsutil_path] + args,
+  gsutil = subprocess.Popen([gsutil_path, 'storage'] + args,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
   stdout, stderr = gsutil.communicate()
@@ -57,7 +57,8 @@ def ListFiles(bucket, path='', sort_by='name'):
   """
   bucket_prefix = 'gs://%s' % bucket
   full_path = '%s/%s' % (bucket_prefix, path)
-  stdout = _RunCommand(['ls', '-l', '-d', full_path])
+  # gcloud storage ls does not support the -d flag.
+  stdout = _RunCommand(['ls', '--long', full_path])
 
   # Filter out directories and the summary line.
   file_infos = [
@@ -97,7 +98,7 @@ def Insert(bucket, remote_path, local_path, publicly_readable):
   url = 'gs://%s/%s' % (bucket, remote_path)
   command_and_args = ['cp']
   if publicly_readable:
-    command_and_args += ['-a', 'public-read']
+    command_and_args += ['--predefined-acl', 'publicRead']
   command_and_args += [local_path, url]
   _RunCommand(command_and_args)
 
