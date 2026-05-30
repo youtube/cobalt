@@ -1,0 +1,19 @@
+Name: libiamf
+URL: https://github.com/AOMediaCodec/libiamf
+Version: v1.0.1
+Revision: b10732748e77caa60a4e998020b9ab2166ccc0cc
+License: BSD
+License File: source/LICENSE
+Shipped: no
+Security Critical: yes
+
+Description:
+Contains the sources used to compile a libiamf binary for Cobalt.
+
+Local Modifications:
+Removed the following directories:
+source/tests
+source/code/dep_codecs
+source/code/dep_external
+
+Changed an include directive in source/code/src/iamf_dec/opus/opus_multistream2_decoder.c
