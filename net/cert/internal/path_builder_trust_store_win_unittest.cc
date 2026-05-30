@@ -173,7 +173,8 @@ TEST(PathBuilderResultUserDataTest, ModifyUserDataInConstructor) {
   ASSERT_TRUE(ReadTestCert("multi-root-A-by-B.pem", &a_by_b));
   SimplePathBuilderDelegate delegate(
       1024, SimplePathBuilderDelegate::DigestPolicy::kWeakAllowSha1);
-  der::GeneralizedTime verify_time = {2017, 3, 1, 0, 0, 0};
+  der::GeneralizedTime time_ = {2025, 10, 13, 0, 0, 0};
+
   TrustStoreThatStoresUserData trust_store;
 
   // |trust_store| will unconditionally store user data in the
@@ -214,7 +215,7 @@ class PathBuilderMultiRootWindowsTest : public ::testing::Test {
       c_by_e_, d_by_d_, e_by_e_, f_by_e_;
 
   DeadlineTestingPathBuilderDelegate delegate_;
-  der::GeneralizedTime time_ = {2017, 3, 1, 0, 0, 0};
+  der::GeneralizedTime time_ = {2025, 10, 13, 0, 0, 0};
 
   const InitialExplicitPolicy initial_explicit_policy_ =
       InitialExplicitPolicy::kFalse;
