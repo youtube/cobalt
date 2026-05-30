@@ -67,7 +67,7 @@ runs:
       run: |
         set -x
 
-        TEST_TARGETS_JSON=$(jq -cr '[.[] | select(.target != null and .runs_on == "device") | .target]' "${TEST_TARGETS_JSON_FILE}")
+        TEST_TARGETS_JSON=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target]' "${TEST_TARGETS_JSON_FILE}")
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
@@ -122,7 +122,7 @@ runs:
 
         # Check for missing result xml files.
         exit_code=0
-        readarray -t test_targets < <(jq -r '.[] | select(.target != null and .runs_on == "device") | .target' "${TEST_TARGETS_JSON_FILE}")
+        readarray -t test_targets < <(jq -r '.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target' "${TEST_TARGETS_JSON_FILE}")
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}

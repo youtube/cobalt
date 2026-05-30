@@ -11,7 +11,7 @@ runs:
     - name: Test target count
       id: parse-json
       run: |
-        test_targets_json="$(jq -cr '[.[] | select(.target != null) | .target]' test_targets.json)"
+        test_targets_json="$(jq -cr '[.[] | select(.target != null and .test_type == "gunittest") | .target]' test_targets.json)"
         echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
         echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
       shell: bash
