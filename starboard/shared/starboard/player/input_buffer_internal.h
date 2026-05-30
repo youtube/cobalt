@@ -55,10 +55,10 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
     return video_sample_info_;
   }
   const AudioStreamInfo& audio_stream_info() const {
-    return audio_sample_info().stream_info;
+    return audio_sample_info().stream_info();
   }
   const VideoStreamInfo& video_stream_info() const {
-    return video_sample_info().stream_info;
+    return video_sample_info().stream_info();
   }
 
   const SbDrmSampleInfo* drm_info() const {

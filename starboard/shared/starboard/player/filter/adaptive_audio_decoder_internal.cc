@@ -39,12 +39,12 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
     : JobOwner(job_queue),
-      initial_samples_per_second_(audio_stream_info.samples_per_second),
+      initial_samples_per_second_(audio_stream_info.samples_per_second()),
       drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
-      output_number_of_channels_(audio_stream_info.number_of_channels) {
-  SB_DCHECK_NE(audio_stream_info.codec, kSbMediaAudioCodecNone);
+      output_number_of_channels_(audio_stream_info.number_of_channels()) {
+  SB_DCHECK_NE(audio_stream_info.codec(), kSbMediaAudioCodecNone);
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
@@ -268,7 +268,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     return;
   }
 
-  SB_DCHECK_EQ(input_audio_stream_info_.number_of_channels,
+  SB_DCHECK_EQ(input_audio_stream_info_.number_of_channels(),
                decoded_audio->channels());
   if (!output_format_checked_) {
     SB_DCHECK(!resampler_);
@@ -281,9 +281,9 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
           decoded_audio->sample_type(), decoded_audio->storage_type(),
           decoded_sample_rate, output_sample_type_, output_storage_type_,
           output_samples_per_second_,
-          input_audio_stream_info_.number_of_channels);
+          input_audio_stream_info_.number_of_channels());
     }
-    if (input_audio_stream_info_.number_of_channels !=
+    if (input_audio_stream_info_.number_of_channels() !=
         output_number_of_channels_) {
       channel_mixer_ = AudioChannelLayoutMixer::Create(
           output_sample_type_, output_storage_type_,

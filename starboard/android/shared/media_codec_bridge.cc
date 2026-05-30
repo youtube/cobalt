@@ -117,9 +117,9 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     jobject j_media_crypto) {
   bool is_passthrough = false;
   const char* mime =
-      SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
+      SupportedAudioCodecToMimeType(audio_stream_info.codec(), &is_passthrough);
   if (!mime) {
-    SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec << ".";
+    SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec() << ".";
     return nullptr;
   }
 
@@ -128,7 +128,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
           mime, /* bitrate = */ 0);
 
   if (decoder_name.empty()) {
-    SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
+    SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec()
                   << ".";
     return nullptr;
   }
@@ -136,11 +136,11 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> configuration_data;
-  if (audio_stream_info.codec == kSbMediaAudioCodecOpus &&
-      !audio_stream_info.audio_specific_config.empty()) {
+  if (audio_stream_info.codec() == kSbMediaAudioCodecOpus &&
+      !audio_stream_info.audio_specific_config().empty()) {
     configuration_data.Reset(
-        ToJavaByteArray(env, audio_stream_info.audio_specific_config.data(),
-                        audio_stream_info.audio_specific_config.size()));
+        ToJavaByteArray(env, audio_stream_info.audio_specific_config().data(),
+                        audio_stream_info.audio_specific_config().size()));
   }
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
@@ -154,13 +154,13 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   ScopedJavaLocalRef<jobject> j_media_codec_bridge =
       Java_MediaCodecBridgeBuilder_createAudioDecoder(
           env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
-          j_decoder_name, audio_stream_info.samples_per_second,
-          audio_stream_info.number_of_channels, j_media_crypto_local,
+          j_decoder_name, audio_stream_info.samples_per_second(),
+          audio_stream_info.number_of_channels(), j_media_crypto_local,
           configuration_data);
 
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
-                  << audio_stream_info.codec << ".";
+                  << audio_stream_info.codec() << ".";
     return nullptr;
   }
 

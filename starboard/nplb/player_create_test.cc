@@ -422,7 +422,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
                        << " and "
                        << starboard::GetMediaVideoCodecName(kVideoCodecs[l]);
 
-          audio_stream_info.codec = kAudioCodecs[k];
+          audio_stream_info = CreateAudioStreamInfo(kAudioCodecs[k]);
           created_players.push_back(CallSbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_stream_info,

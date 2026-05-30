@@ -93,8 +93,8 @@ MediaCodecAudioDecoder::MediaCodecAudioDecoder(
       audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       enable_flush_during_seek_(enable_flush_during_seek),
-      output_sample_rate_(audio_stream_info.samples_per_second),
-      output_channel_count_(audio_stream_info.number_of_channels),
+      output_sample_rate_(audio_stream_info.samples_per_second()),
+      output_channel_count_(audio_stream_info.number_of_channels()),
       drm_system_(static_cast<DrmSystem*>(drm_system)) {
   SB_CHECK(error_message);
   auto result = InitializeCodec();
@@ -181,7 +181,7 @@ scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
     Schedule(consumed_cb_);
     consumed_cb_ = nullptr;
   }
-  *samples_per_second = audio_stream_info_.samples_per_second;
+  *samples_per_second = audio_stream_info_.samples_per_second();
   return result;
 }
 
@@ -251,7 +251,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
     int16_t* data = static_cast<int16_t*>(
         IncrementPointerByBytes(address, dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
-    if (2 * audio_stream_info_.samples_per_second ==
+    if (2 * audio_stream_info_.samples_per_second() ==
         static_cast<uint32_t>(output_sample_rate_)) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has
       // been created already we try to down-mix the decoded data to half of
@@ -264,13 +264,13 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
     }
 
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        audio_stream_info_.number_of_channels, sample_type_,
+        audio_stream_info_.number_of_channels(), sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
 
     memcpy(decoded_audio->data(), data, size);
     audio_frame_discarder_.AdjustForDiscardedDurations(
-        audio_stream_info_.samples_per_second, &decoded_audio);
+        audio_stream_info_.samples_per_second(), &decoded_audio);
 
     {
       std::lock_guard lock(decoded_audios_mutex_);

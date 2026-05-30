@@ -83,40 +83,40 @@ class PlayerComponents {
       CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
-      void reset_audio_codec() {
-        audio_stream_info_.codec = kSbMediaAudioCodecNone;
-      }
-      void reset_video_codec() {
-        video_stream_info_.codec = kSbMediaVideoCodecNone;
-      }
+      void reset_audio_codec() { audio_stream_info_ = AudioStreamInfo(); }
+      void reset_video_codec() { video_stream_info_ = VideoStreamInfo(); }
 
-      SbMediaAudioCodec audio_codec() const { return audio_stream_info_.codec; }
+      SbMediaAudioCodec audio_codec() const {
+        return audio_stream_info_.codec();
+      }
 
       const AudioStreamInfo& audio_stream_info() const {
-        SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
+        SB_DCHECK_NE(audio_stream_info_.codec(), kSbMediaAudioCodecNone);
         return audio_stream_info_;
       }
 
-      SbMediaVideoCodec video_codec() const { return video_stream_info_.codec; }
+      SbMediaVideoCodec video_codec() const {
+        return video_stream_info_.codec();
+      }
 
       const std::string& audio_mime() const {
-        SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
-        return audio_stream_info_.mime;
+        SB_DCHECK_NE(audio_stream_info_.codec(), kSbMediaAudioCodecNone);
+        return audio_stream_info_.mime();
       }
 
       const VideoStreamInfo& video_stream_info() const {
-        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
+        SB_DCHECK_NE(video_stream_info_.codec(), kSbMediaVideoCodecNone);
         return video_stream_info_;
       }
 
       const std::string& video_mime() const {
-        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
-        return video_stream_info_.mime;
+        SB_DCHECK_NE(video_stream_info_.codec(), kSbMediaVideoCodecNone);
+        return video_stream_info_.mime();
       }
 
       const std::string& max_video_capabilities() const {
-        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
-        return video_stream_info_.max_video_capabilities;
+        SB_DCHECK_NE(video_stream_info_.codec(), kSbMediaVideoCodecNone);
+        return video_stream_info_.max_video_capabilities();
       }
 
       SbPlayer player() const { return player_; }
@@ -128,7 +128,7 @@ class PlayerComponents {
       void* surface_view() const { return surface_view_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
-        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
+        SB_DCHECK_NE(video_stream_info_.codec(), kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
 

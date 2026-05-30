@@ -90,7 +90,7 @@ AudioRendererPassthrough::Create(JobQueue* job_queue,
   } else {
     SB_LOG(INFO) << "Creating AudioDecoderPassthrough.";
     decoder = std::make_unique<AudioDecoderPassthrough>(
-        audio_stream_info.samples_per_second);
+        audio_stream_info.samples_per_second());
   }
 
   return std::make_unique<AudioRendererPassthrough>(
@@ -107,8 +107,8 @@ AudioRendererPassthrough::AudioRendererPassthrough(
       audio_stream_info_(audio_stream_info),
       decoder_(std::move(decoder)) {
   SB_CHECK(decoder_);
-  SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
-            audio_stream_info_.codec == kSbMediaAudioCodecEac3);
+  SB_DCHECK(audio_stream_info_.codec() == kSbMediaAudioCodecAc3 ||
+            audio_stream_info_.codec() == kSbMediaAudioCodecEac3);
 }
 
 AudioRendererPassthrough::~AudioRendererPassthrough() {
@@ -344,13 +344,13 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     SB_DCHECK_GE(now, stopped_at_);
     auto time_elapsed = now - stopped_at_;
     int64_t frames_played =
-        time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
+        time_elapsed * audio_stream_info_.samples_per_second() / 1'000'000LL;
     int64_t total_frames_played =
         frames_played + playback_head_position_when_stopped_;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
     playback_time =
         audio_start_time + total_frames_played * 1'000'000LL /
-                               audio_stream_info_.samples_per_second;
+                               audio_stream_info_.samples_per_second();
     return std::max(playback_time, seek_to_time_);
   }
 
@@ -365,8 +365,9 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
-  playback_time = audio_start_time + playback_head_position * 1'000'000LL /
-                                         audio_stream_info_.samples_per_second;
+  playback_time =
+      audio_start_time + playback_head_position * 1'000'000LL /
+                             audio_stream_info_.samples_per_second();
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
@@ -411,12 +412,12 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
 
   std::unique_ptr<AudioTrackBridge> audio_track_bridge =
       AudioTrackBridge::Create(
-          audio_stream_info_.codec == kSbMediaAudioCodecAc3
+          audio_stream_info_.codec() == kSbMediaAudioCodecAc3
               ? kSbMediaAudioCodingTypeAc3
               : kSbMediaAudioCodingTypeDolbyDigitalPlus,
           /*sample_type=*/std::nullopt,  // Not required in passthrough mode
-          audio_stream_info_.number_of_channels,
-          audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
+          audio_stream_info_.number_of_channels(),
+          audio_stream_info_.samples_per_second(), kPreferredBufferSizeInBytes,
           /*tunnel_mode_audio_session_id=*/std::nullopt,
           /*is_web_audio=*/false);
 
@@ -593,7 +594,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   if (stop_called_ && !end_of_stream_played_.load()) {
     auto time_elapsed = CurrentMonotonicTime() - stopped_at_;
     auto frames_played =
-        time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
+        time_elapsed * audio_stream_info_.samples_per_second() / 1'000'000LL;
     if (frames_played + playback_head_position_when_stopped_ >=
         total_frames_written_on_audio_track_thread_) {
       end_of_stream_played_.store(true);

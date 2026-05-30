@@ -30,22 +30,39 @@ namespace starboard {
 // doesn't maintain the same binary layout as `SbMediaAudioStreamInfo`, and is
 // intended to be used across the codebase as a C++ wrapper that owns the memory
 // of all its pointer members.
-struct AudioStreamInfo {
+//
+// Lifetime/Ownership: Objects of this class are value types, typically owned
+// by player or decoder components, and can be copied or moved.
+//
+// Threading Model: This class is not thread-safe and is intended to be used
+// on a single thread or protected by external synchronization.
+class AudioStreamInfo {
+ public:
   AudioStreamInfo() = default;
   explicit AudioStreamInfo(const SbMediaAudioStreamInfo& that) { *this = that; }
   AudioStreamInfo& operator=(const SbMediaAudioStreamInfo& that);
 
   void ConvertTo(SbMediaAudioStreamInfo* audio_stream_info) const;
 
-  // The member variables are the C++ mappings of the members of
-  // `SbMediaAudioStreamInfo` defined in `media.h`.  Please refer to the comment
-  // of `SbMediaAudioStreamInfo` for more details.
-  SbMediaAudioCodec codec = kSbMediaAudioCodecNone;
-  std::string mime;
-  uint16_t number_of_channels = 0;
-  uint32_t samples_per_second = 0;
-  uint16_t bits_per_sample = 0;
-  std::vector<uint8_t> audio_specific_config;
+  SbMediaAudioCodec codec() const { return codec_; }
+  const std::string& mime() const { return mime_; }
+  uint16_t number_of_channels() const { return number_of_channels_; }
+  uint32_t samples_per_second() const { return samples_per_second_; }
+  void set_samples_per_second(uint32_t samples_per_second) {
+    samples_per_second_ = samples_per_second;
+  }
+  uint16_t bits_per_sample() const { return bits_per_sample_; }
+  const std::vector<uint8_t>& audio_specific_config() const {
+    return audio_specific_config_;
+  }
+
+ private:
+  SbMediaAudioCodec codec_ = kSbMediaAudioCodecNone;
+  std::string mime_;
+  uint16_t number_of_channels_ = 0;
+  uint32_t samples_per_second_ = 0;
+  uint16_t bits_per_sample_ = 0;
+  std::vector<uint8_t> audio_specific_config_;
 };
 
 bool operator==(const AudioStreamInfo& left, const AudioStreamInfo& right);
@@ -57,40 +74,66 @@ std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info);
 // doesn't maintain the same binary layout as `SbMediaAudioSampleInfo`, and is
 // intended to be used across the codebase as a C++ wrapper that owns the memory
 // of all its pointer members.
-struct AudioSampleInfo {
+//
+// Lifetime/Ownership: Objects of this class are value types, typically owned
+// by player or decoder components, and can be copied or moved.
+//
+// Threading Model: This class is not thread-safe and is intended to be used
+// on a single thread or protected by external synchronization.
+class AudioSampleInfo {
+ public:
   AudioSampleInfo() = default;
   explicit AudioSampleInfo(const SbMediaAudioSampleInfo& that) { *this = that; }
   AudioSampleInfo& operator=(const SbMediaAudioSampleInfo& that);
 
   void ConvertTo(SbMediaAudioSampleInfo* audio_sample_info) const;
 
-  // The member variables are the C++ mappings of the members of
-  // `SbMediaAudioSampleInfo` defined in `media.h`.  Please refer to the comment
-  // of `SbMediaAudioSampleInfo` for more details.
-  AudioStreamInfo stream_info;
-  int64_t discarded_duration_from_front = 0;  // in microseconds.
-  int64_t discarded_duration_from_back = 0;   // in microseconds.
+  const AudioStreamInfo& stream_info() const { return stream_info_; }
+  int64_t discarded_duration_from_front() const {
+    return discarded_duration_from_front_;
+  }
+  int64_t discarded_duration_from_back() const {
+    return discarded_duration_from_back_;
+  }
+
+ private:
+  AudioStreamInfo stream_info_;
+  int64_t discarded_duration_from_front_ = 0;  // in microseconds.
+  int64_t discarded_duration_from_back_ = 0;   // in microseconds.
 };
 
 // Encapsulates all information contained in `SbMediaVideoStreamInfo`.  It
 // doesn't maintain the same binary layout as `SbMediaVideoStreamInfo`, and is
 // intended to be used across the codebase as a C++ wrapper that owns the memory
 // of all its pointer members.
-struct VideoStreamInfo {
+//
+// Lifetime/Ownership: Objects of this class are value types, typically owned
+// by player or decoder components, and can be copied or moved.
+//
+// Threading Model: This class is not thread-safe and is intended to be used
+// on a single thread or protected by external synchronization.
+class VideoStreamInfo {
+ public:
   VideoStreamInfo() = default;
   explicit VideoStreamInfo(const SbMediaVideoStreamInfo& that) { *this = that; }
   VideoStreamInfo& operator=(const SbMediaVideoStreamInfo& that);
 
   void ConvertTo(SbMediaVideoStreamInfo* video_stream_info) const;
 
-  // The member variables are the C++ mappings of the members of
-  // `SbMediaVideoStreamInfo` defined in `media.h`.  Please refer to the comment
-  // of `SbMediaVideoStreamInfo` for more details.
-  SbMediaVideoCodec codec = kSbMediaVideoCodecNone;
-  std::string mime;
-  std::string max_video_capabilities;
-  Size frame_size;
-  SbMediaColorMetadata color_metadata = {};
+  SbMediaVideoCodec codec() const { return codec_; }
+  const std::string& mime() const { return mime_; }
+  const std::string& max_video_capabilities() const {
+    return max_video_capabilities_;
+  }
+  Size frame_size() const { return frame_size_; }
+  const SbMediaColorMetadata& color_metadata() const { return color_metadata_; }
+
+ private:
+  SbMediaVideoCodec codec_ = kSbMediaVideoCodecNone;
+  std::string mime_;
+  std::string max_video_capabilities_;
+  Size frame_size_;
+  SbMediaColorMetadata color_metadata_ = {};
 };
 
 bool operator==(const VideoStreamInfo& left, const VideoStreamInfo& right);
@@ -100,18 +143,26 @@ bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right);
 // doesn't maintain the same binary layout as `SbMediaVideoSampleInfo`, and is
 // intended to be used across the codebase as a C++ wrapper that owns the memory
 // of all its pointer members.
-struct VideoSampleInfo {
+//
+// Lifetime/Ownership: Objects of this class are value types, typically owned
+// by player or decoder components, and can be copied or moved.
+//
+// Threading Model: This class is not thread-safe and is intended to be used
+// on a single thread or protected by external synchronization.
+class VideoSampleInfo {
+ public:
   VideoSampleInfo() = default;
   explicit VideoSampleInfo(const SbMediaVideoSampleInfo& that) { *this = that; }
   VideoSampleInfo& operator=(const SbMediaVideoSampleInfo& that);
 
   void ConvertTo(SbMediaVideoSampleInfo* video_sample_info) const;
 
-  // The member variables are the C++ mappings of the members of
-  // `SbMediaVideoSampleInfo` defined in `media.h`.  Please refer to the comment
-  // of `SbMediaVideoSampleInfo` for more details.
-  VideoStreamInfo stream_info;
-  bool is_key_frame = false;
+  const VideoStreamInfo& stream_info() const { return stream_info_; }
+  bool is_key_frame() const { return is_key_frame_; }
+
+ private:
+  VideoStreamInfo stream_info_;
+  bool is_key_frame_ = false;
 };
 
 std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& stream_info);

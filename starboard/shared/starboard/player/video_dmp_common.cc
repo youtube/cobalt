@@ -90,20 +90,18 @@ void Read(const ReadCB& read_cb,
           AudioSampleInfo* audio_sample_info) {
   SB_DCHECK(audio_sample_info);
 
-  *audio_sample_info = AudioSampleInfo();
+  SbMediaAudioStreamInfo sb_stream = {};
 
-  AudioStreamInfo* audio_stream_info = &audio_sample_info->stream_info;
+  Read(read_cb, reverse_byte_order, &sb_stream.codec);
 
-  Read(read_cb, reverse_byte_order, &audio_stream_info->codec);
-
-  audio_stream_info->mime = "";
+  sb_stream.mime = "";
 
   // Skip `format_tag` as it's removed from `SbMediaAudioStreamInfo`.
   uint16_t format_tag_to_skip;
   Read(read_cb, reverse_byte_order, &format_tag_to_skip);
 
-  Read(read_cb, reverse_byte_order, &audio_stream_info->number_of_channels);
-  Read(read_cb, reverse_byte_order, &audio_stream_info->samples_per_second);
+  Read(read_cb, reverse_byte_order, &sb_stream.number_of_channels);
+  Read(read_cb, reverse_byte_order, &sb_stream.samples_per_second);
 
   // Skip `average_bytes` and `block_alignment` as they're removed from
   // `SbMediaAudioStreamInfo`.
@@ -112,13 +110,17 @@ void Read(const ReadCB& read_cb,
   uint16_t block_alignment_to_skip;
   Read(read_cb, reverse_byte_order, &block_alignment_to_skip);
 
-  Read(read_cb, reverse_byte_order, &audio_stream_info->bits_per_sample);
+  Read(read_cb, reverse_byte_order, &sb_stream.bits_per_sample);
 
-  uint16_t audio_specific_config_size;
-  Read(read_cb, reverse_byte_order, &audio_specific_config_size);
-  audio_stream_info->audio_specific_config.resize(audio_specific_config_size);
-  Read(read_cb, audio_stream_info->audio_specific_config.data(),
-       audio_specific_config_size);
+  Read(read_cb, reverse_byte_order, &sb_stream.audio_specific_config_size);
+  std::vector<uint8_t> config(sb_stream.audio_specific_config_size);
+  Read(read_cb, config.data(), sb_stream.audio_specific_config_size);
+  sb_stream.audio_specific_config = config.data();
+
+  SbMediaAudioSampleInfo sb_sample = {};
+  sb_sample.stream_info = sb_stream;
+
+  *audio_sample_info = AudioSampleInfo(sb_sample);
 }
 
 void Write(const WriteCB& write_cb,
@@ -130,8 +132,8 @@ void Write(const WriteCB& write_cb,
   // Write a dummy one to be compatible with the existing format.
   Write(write_cb, format_tag);
 
-  Write(write_cb, audio_stream_info.number_of_channels);
-  Write(write_cb, audio_stream_info.samples_per_second);
+  Write(write_cb, audio_stream_info.number_of_channels());
+  Write(write_cb, audio_stream_info.samples_per_second());
 
   uint32_t average_bytes_per_second = 1;
   // Write a dummy one to be compatible with the existing format.
@@ -140,13 +142,13 @@ void Write(const WriteCB& write_cb,
   // Write a dummy one to be compatible with the existing format.
   Write(write_cb, block_alignment);
 
-  Write(write_cb, audio_stream_info.bits_per_sample);
+  Write(write_cb, audio_stream_info.bits_per_sample());
 
   uint16_t audio_specific_config_size =
-      static_cast<uint16_t>(audio_stream_info.audio_specific_config.size());
+      static_cast<uint16_t>(audio_stream_info.audio_specific_config().size());
   Write(write_cb, audio_specific_config_size);
-  Write(write_cb, audio_stream_info.audio_specific_config.data(),
-        audio_stream_info.audio_specific_config.size());
+  Write(write_cb, audio_stream_info.audio_specific_config().data(),
+        audio_stream_info.audio_specific_config().size());
 }
 
 void Read(const ReadCB& read_cb,
@@ -191,16 +193,19 @@ void Read(const ReadCB& read_cb,
           VideoSampleInfo* video_sample_info) {
   SB_DCHECK(video_sample_info);
 
-  *video_sample_info = VideoSampleInfo();
-  VideoStreamInfo* video_stream_info = &video_sample_info->stream_info;
+  SbMediaVideoSampleInfo sb_sample = {};
+  SbMediaVideoStreamInfo* sb_stream = &sb_sample.stream_info;
 
-  Read(read_cb, reverse_byte_order, &video_stream_info->codec);
+  sb_stream->mime = "";
+  sb_stream->max_video_capabilities = "";
 
-  Read(read_cb, reverse_byte_order, &video_sample_info->is_key_frame);
-  Read(read_cb, reverse_byte_order, &video_stream_info->frame_size.width);
-  Read(read_cb, reverse_byte_order, &video_stream_info->frame_size.height);
+  Read(read_cb, reverse_byte_order, &sb_stream->codec);
 
-  auto& color_metadata = video_stream_info->color_metadata;
+  Read(read_cb, reverse_byte_order, &sb_sample.is_key_frame);
+  Read(read_cb, reverse_byte_order, &sb_stream->frame_width);
+  Read(read_cb, reverse_byte_order, &sb_stream->frame_height);
+
+  auto& color_metadata = sb_stream->color_metadata;
 
   Read(read_cb, reverse_byte_order, &color_metadata.bits_per_channel);
   Read(read_cb, reverse_byte_order,
@@ -241,19 +246,21 @@ void Read(const ReadCB& read_cb,
   for (int i = 0; i < 12; ++i) {
     Read(read_cb, reverse_byte_order, &color_metadata.custom_primary_matrix[i]);
   }
+
+  *video_sample_info = VideoSampleInfo(sb_sample);
 }
 
 void Write(const WriteCB& write_cb,
            SbMediaVideoCodec video_codec,
            const VideoSampleInfo& video_sample_info) {
-  const auto& video_stream_info = video_sample_info.stream_info;
+  const auto& video_stream_info = video_sample_info.stream_info();
 
   Write(write_cb, video_codec);
-  Write(write_cb, video_sample_info.is_key_frame);
-  Write(write_cb, video_stream_info.frame_size.width);
-  Write(write_cb, video_stream_info.frame_size.height);
+  Write(write_cb, video_sample_info.is_key_frame());
+  Write(write_cb, video_stream_info.frame_size().width);
+  Write(write_cb, video_stream_info.frame_size().height);
 
-  const auto& color_metadata = video_stream_info.color_metadata;
+  const auto& color_metadata = video_stream_info.color_metadata();
 
   Write(write_cb, color_metadata.bits_per_channel);
   Write(write_cb, color_metadata.chroma_subsampling_horizontal);

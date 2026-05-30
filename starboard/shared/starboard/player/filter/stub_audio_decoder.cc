@@ -78,9 +78,9 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
 StubAudioDecoder::StubAudioDecoder(JobQueue* job_queue,
                                    const AudioStreamInfo& audio_stream_info)
     : JobOwner(job_queue),
-      codec_(audio_stream_info.codec),
-      number_of_channels_(audio_stream_info.number_of_channels),
-      samples_per_second_(audio_stream_info.samples_per_second),
+      codec_(audio_stream_info.codec()),
+      number_of_channels_(audio_stream_info.number_of_channels()),
+      samples_per_second_(audio_stream_info.samples_per_second()),
       sample_type_(GetSupportedSampleType()) {
   if (codec_ == kSbMediaAudioCodecAac) {
     // Assume the frames per input buffer is always 1024 for aac.
@@ -180,8 +180,8 @@ void StubAudioDecoder::DecodeOneBuffer(
 
     decoded_audio->AdjustForDiscardedDurations(
         samples_per_second_,
-        last_input_buffer_->audio_sample_info().discarded_duration_from_front,
-        last_input_buffer_->audio_sample_info().discarded_duration_from_back);
+        last_input_buffer_->audio_sample_info().discarded_duration_from_front(),
+        last_input_buffer_->audio_sample_info().discarded_duration_from_back());
 
     if (total_input_count_ % kMaxInputBeforeMultipleDecodedAudios != 0) {
       std::lock_guard lock(decoded_audios_mutex_);
@@ -259,13 +259,14 @@ void StubAudioDecoder::DecodeEndOfStream() {
                            number_of_channels_, *frames_per_input_);
 
     auto discarded_duration_from_front =
-        last_input_buffer_->audio_sample_info().discarded_duration_from_front;
+        last_input_buffer_->audio_sample_info().discarded_duration_from_front();
     auto discarded_duration_from_back =
-        last_input_buffer_->audio_sample_info().discarded_duration_from_back;
-    SB_DCHECK(AudioDurationToFrames(
-                  discarded_duration_from_front + discarded_duration_from_back,
-                  last_input_buffer_->audio_stream_info().samples_per_second) <=
-              decoded_audio->frames());
+        last_input_buffer_->audio_sample_info().discarded_duration_from_back();
+    SB_DCHECK(
+        AudioDurationToFrames(
+            discarded_duration_from_front + discarded_duration_from_back,
+            last_input_buffer_->audio_stream_info().samples_per_second()) <=
+        decoded_audio->frames());
 
     decoded_audio->AdjustForDiscardedDurations(samples_per_second_,
                                                discarded_duration_from_front,
