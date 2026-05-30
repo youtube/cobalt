@@ -122,6 +122,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
   void OnSbWindowHandleReady(const uint64_t sb_window_handle);
+#if SB_HAS(PLAYER_WITH_URL)
+  void SetSourceUrl(const std::string& source_url);
+  void OnEncryptedMediaInitDataEncountered(const char* init_data_type,
+                                           const unsigned char* init_data,
+                                           unsigned int init_data_length);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -200,6 +206,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+#if SB_HAS(PLAYER_WITH_URL)
+  std::string source_url_;
+#endif  // SB_HAS(PLAYER_WITH_URL)
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;
