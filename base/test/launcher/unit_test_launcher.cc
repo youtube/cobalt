@@ -160,7 +160,7 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
                  bool use_job_objects,
                  RepeatingClosure timeout_callback,
                  OnceClosure gtest_init) {
-  bool force_single_process = false;
+  //bool force_single_process = false;
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kTestLauncherDebugLauncher)) {
     fprintf(stdout, "Forcing test launcher debugging mode.\n");
@@ -172,10 +172,10 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
               "Pass --test-launcher-debug-launcher to debug the launcher "
               "itself.\n");
       fflush(stdout);
-      force_single_process = true;
+      //force_single_process = true;
     }
   }
-
+/*
   if (CommandLine::ForCurrentProcess()->HasSwitch(kGTestHelpFlag) ||
       CommandLine::ForCurrentProcess()->HasSwitch(kGTestListTestsFlag) ||
       CommandLine::ForCurrentProcess()->HasSwitch(
@@ -188,6 +188,7 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
       force_single_process) {
     return std::move(run_test_suite).Run();
   }
+  */
 
   // ICU must be initialized before any attempts to format times, e.g. for logs.
   CHECK(base::i18n::InitializeICU());
