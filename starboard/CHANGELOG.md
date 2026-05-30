@@ -68,6 +68,8 @@ The following configuration constants were removed as they are no longer used by
 * `kSbPathSepString`
 
 ## Version 17
+### Removed kSbSystemPropertyAdvertisingId and kSbSystemPropertyLimitAdTracking
+The functionality is migrated to the IFA extension.
 Starboard 17 fully switches to POSIX APIs.
 
 ### Removed SbCPUFeaturesGet

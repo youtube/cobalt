@@ -38,16 +38,10 @@ typedef struct StarboardExtensionIfaApi {
   // Advertising ID or IFA, typically a 128-bit UUID
   // Please see https://iabtechlab.com/OTT-IFA for details.
   // Corresponds to 'ifa' field. Note: `ifa_type` field is not provided.
-  // In Starboard 14 this the value is retrieved through the system
-  // property `kSbSystemPropertyAdvertisingId` defined in
-  // `starboard/system.h`.
   bool (*GetAdvertisingId)(char* out_value, int value_length);
 
   // Limit advertising tracking, treated as boolean. Set to nonzero to indicate
   // a true value. Corresponds to 'lmt' field.
-  // In Starboard 14 this the value is retrieved through the system
-  // property `kSbSystemPropertyLimitAdTracking` defined in
-  // `starboard/system.h`.
   bool (*GetLimitAdTracking)(char* out_value, int value_length);
 
   // The fields below this point were added in version 2 or later.

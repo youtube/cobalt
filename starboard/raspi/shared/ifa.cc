@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/linux/shared/ifa.h"
-
-#include "starboard/common/string.h"
 #include "starboard/extension/ifa.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
 
 namespace starboard {
-
+namespace raspi {
 namespace {
 
 bool CopyStringAndTestIfSuccess(char* out_value,
@@ -32,9 +30,6 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
-// Definitions of any functions included as components in the extension
-// are added here.
-
 bool GetAdvertisingId(char* out_value, int value_length) {
   return CopyStringAndTestIfSuccess(
       out_value, value_length,
@@ -44,21 +39,14 @@ bool GetAdvertisingId(char* out_value, int value_length) {
 bool GetLimitAdTracking(char* out_value, int value_length) {
   return CopyStringAndTestIfSuccess(
       out_value, value_length,
-      GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
-}
-
-bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
-  return CopyStringAndTestIfSuccess(
-      out_value, value_length,
-      GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
+      starboard::GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
 }
 
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
-    2,  // API version that's implemented.
+    1,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
-    &GetTrackingAuthorizationStatus,
 };
 
 }  // namespace
@@ -67,4 +55,5 @@ const void* GetIfaApi() {
   return &kIfaApi;
 }
 
+}  // namespace raspi
 }  // namespace starboard
