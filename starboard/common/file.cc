@@ -147,7 +147,14 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   // Don't forget to close and remove the directory before returning!
   if (DirectoryCloseLogFailure(path, dir)) {
-    return preserve_root ? true : (rmdir(path) == 0);
+    int ret = rmdir(path);
+    // If rmdir failed, try unlinking the file in the case of a symlink.
+    // TODO: Add POSIX readlink() to determine whether the directory is a
+    // symlink.
+    if (ret < 0) {
+      ret = unlink(path);
+    }
+    return preserve_root ? true : (ret == 0);
   }
   return false;
 }
