@@ -142,7 +142,7 @@ if (is_android) {
     includes = [ "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" ]
     variables = [
       "debuggable=true",
-      "manifest_package=org.chromium.native_test",
+      "manifest_package=org.chromium.content_browsertests_apk",
       "build_type=$build_type",
     ]
   }
