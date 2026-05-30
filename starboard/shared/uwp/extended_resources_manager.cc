@@ -16,6 +16,8 @@
 
 #include <ppltasks.h>
 
+#include <memory>
+
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -47,6 +49,7 @@ using ::starboard::xb1::shared::GpuVideoDecoderBase;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
 
+const int64_t kAcquireTimeoutUsec = 10'000'000;
 const SbTime kReleaseTimeout = kSbTimeSecond;
 
 // kFrameBuffersPoolMemorySize is the size of gpu memory heap for common use
@@ -180,6 +183,20 @@ void ExtendedResourcesManager::Quit() {
   pending_extended_resources_release_.store(true);
 }
 
+void ExtendedResourcesManager::ResetNonrecoverableFailure() {
+  ScopedLock scoped_lock(mutex_);
+  if (is_nonrecoverable_failure_.load()) {
+    SB_LOG(INFO) << "Resetting nonrecoverable failure state and retry counter.";
+    is_nonrecoverable_failure_.store(false);
+    consecutive_acquire_failures_.store(0);
+  }
+}
+
+void ExtendedResourcesManager::OnNonrecoverableFailure() {
+  ScopedLock scoped_lock(mutex_);
+  OnNonrecoverableFailure_Locked();
+}
+
 void ExtendedResourcesManager::ReleaseBuffersHeap() {
   d3d12FrameBuffersHeap_.Reset();
 }
@@ -226,7 +243,7 @@ bool ExtendedResourcesManager::GetD3D12Objects(
   if (result != S_OK) {
     SB_LOG(WARNING) << "The D3D12 device is not in a good state, can not use "
                        "GPU based decoders.";
-    OnNonrecoverableFailure();
+    OnNonrecoverableFailure_Locked();
     return false;
   }
 #endif  // defined(INTERNAL_BUILD)
@@ -302,62 +319,93 @@ bool ExtendedResourcesManager::GetD3D12ObjectsInternal() {
 bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  ScopedLock scoped_lock(mutex_);
+  // Check preconditions with mutex held.
+  {
+    ScopedLock scoped_lock(mutex_);
 
-  if (HasNonrecoverableFailure()) {
-    SB_LOG(WARNING)
-        << "Encountered a nonrecoverable failure, ignoring acquire.";
-    return false;
-  }
+    if (HasNonrecoverableFailure()) {
+      SB_LOG(WARNING)
+          << "Encountered a nonrecoverable failure, ignoring acquire.";
+      return false;
+    }
 
-  if (is_extended_resources_acquired_.load()) {
-    SB_LOG(INFO) << "Skip acquiring extended resources, already acquired.";
-  } else {
+    if (is_extended_resources_acquired_.load()) {
+      SB_LOG(INFO) << "Skip acquiring extended resources, already acquired.";
+      return true;
+    }
+
     if (pending_extended_resources_release_.load()) {
       SB_LOG(INFO) << "AcquireExtendedResourcesInternal() interrupted"
                       " by pending extended resources release.";
       return false;
     }
-    auto extended_resources_mode_enable_task =
-        concurrency::create_task(::starboard::xb1::shared::Acquire());
+  }
+  // Mutex released - perform blocking operation without holding the lock
+  // to avoid blocking UI thread (e.g., during ResetNonrecoverableFailure).
 
-    Semaphore semaphore;
-    extended_resources_mode_enable_task.then(
-        [this, &semaphore](concurrency::task<bool> task) {
-          try {
-            if (task.get()) {
-              is_extended_resources_acquired_.store(true);
-              acquisition_condition_.Signal();
-              SB_LOG(INFO) << "Successfully acquired extended resources.";
-            } else {
-              // TODO: Investigate if vp9 playback should be disabled.
-              SB_LOG(INFO) << "Failed to acquire extended resources.";
-            }
-          } catch (const std::exception& e) {
-            SB_LOG(ERROR) << "Exception on acquiring extended resources: "
-                          << e.what();
-          } catch (...) {
-            SB_LOG(ERROR) << "Exception on acquiring extended resources.";
+  auto extended_resources_mode_enable_task =
+      concurrency::create_task(::starboard::xb1::shared::Acquire());
+
+  auto semaphore = std::make_shared<Semaphore>();
+  std::weak_ptr<Semaphore> weak_semaphore = semaphore;
+  extended_resources_mode_enable_task.then(
+      [this, weak_semaphore](concurrency::task<bool> task) {
+        try {
+          if (task.get()) {
+            is_extended_resources_acquired_.store(true);
+            acquisition_condition_.Signal();
+            SB_LOG(INFO) << "Successfully acquired extended resources.";
+          } else {
+            // TODO: Investigate if vp9 playback should be disabled.
+            SB_LOG(INFO) << "Failed to acquire extended resources.";
           }
-          semaphore.Put();
-        });
-    if (semaphore.TakeWait(10 * kSbTimeSecond)) {
-      acquisition_condition_.Signal();
-      // If extended resource acquisition was not successful after the wait
-      // time, signal a nonrecoverable failure, unless a release of
-      // extended resources has since been requested.
+        } catch (const std::exception& e) {
+          SB_LOG(ERROR) << "Exception on acquiring extended resources: "
+                        << e.what();
+        } catch (...) {
+          SB_LOG(ERROR) << "Exception on acquiring extended resources.";
+        }
+        if (auto semaphore = weak_semaphore.lock()) {
+          semaphore->Put();
+        }
+      });
+
+  bool timed_out = !semaphore->TakeWait(kAcquireTimeoutUsec);
+
+  // Re-acquire mutex to update state and signal condition.
+  {
+    ScopedLock scoped_lock(mutex_);
+
+    if (timed_out) {
+      // Timeout - mark as nonrecoverable failure
+      SB_LOG(ERROR) << "Extended resource mode acquisition timed out";
+      OnNonrecoverableFailure_Locked();
+    } else {
+      // Semaphore signaled - task completed, check if acquisition failed
       if (!is_extended_resources_acquired_.load() &&
           !pending_extended_resources_release_.load()) {
-        SB_LOG(WARNING) << "Extended resource mode acquisition timed out";
-        OnNonrecoverableFailure();
+        int failures = consecutive_acquire_failures_.fetch_add(1) + 1;
+        SB_LOG(WARNING) << "Extended resource mode acquisition failed"
+                        << " (attempt " << failures
+                        << " of " << kMaxConsecutiveAcquireFailures << ")";
+        // Only mark as nonrecoverable after multiple consecutive failures
+        if (failures >= kMaxConsecutiveAcquireFailures) {
+          SB_LOG(ERROR) << "Extended resource acquisition failed "
+                        << kMaxConsecutiveAcquireFailures
+                        << " times, marking as nonrecoverable.";
+          OnNonrecoverableFailure_Locked();
+        }
       }
     }
+    acquisition_condition_.Signal();
   }
 
   if (!is_extended_resources_acquired_.load()) {
     SB_LOG(INFO) << "AcquireExtendedResourcesInternal() failed.";
     return false;
   }
+  // Reset failure counter on successful acquisition
+  consecutive_acquire_failures_.store(0);
   return is_extended_resources_acquired_.load();
 }
 
@@ -447,126 +495,153 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
 
 void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  ScopedLock scoped_lock(mutex_);
-  if (!is_extended_resources_acquired_.load()) {
-    SB_LOG(INFO) << "Extended resources hasn't been acquired,"
-                 << " no need to release.";
-    return;
-  }
 
-  try {
-    // Wait until all commands on the queue has been finished.
-    if (d3d12device_ && d3d12queue_) {
-      ComPtr<ID3D12Fence> fence;
-      HRESULT hr = d3d12device_->CreateFence(0, D3D12_FENCE_FLAG_NONE,
-                                             IID_PPV_ARGS(&fence));
-      if (SUCCEEDED(hr)) {
-        HANDLE event = CreateEvent(nullptr, false, false, nullptr);
-        SB_DCHECK(event);
+  // D3D12 cleanup requires mutex to protect device objects.
+  {
+    ScopedLock scoped_lock(mutex_);
+    if (!is_extended_resources_acquired_.load()) {
+      SB_LOG(INFO) << "Extended resources hasn't been acquired,"
+                   << " no need to release.";
+      return;
+    }
 
-        // If createEvent() succeeds, we can use it to wait for the command
-        // queue to complete.
-        if (event) {
-          fence->SetEventOnCompletion(1, event);
-          d3d12queue_->Signal(fence.Get(), 1);
+    try {
+      // Wait until all commands on the queue has been finished.
+      if (d3d12device_ && d3d12queue_) {
+        ComPtr<ID3D12Fence> fence;
+        HRESULT hr = d3d12device_->CreateFence(0, D3D12_FENCE_FLAG_NONE,
+                                               IID_PPV_ARGS(&fence));
+        if (SUCCEEDED(hr)) {
+          HANDLE event = CreateEvent(nullptr, false, false, nullptr);
+          SB_DCHECK(event);
 
-          DWORD result =
-              WaitForSingleObject(event, 1000);  // Wait at most one second
-          CloseHandle(event);
-          if (result == WAIT_TIMEOUT) {
-            SB_LOG(WARNING) << "Fence event completion timeout.";
-            OnNonrecoverableFailure();
+          // If createEvent() succeeds, we can use it to wait for the command
+          // queue to complete.
+          if (event) {
+            fence->SetEventOnCompletion(1, event);
+            d3d12queue_->Signal(fence.Get(), 1);
+
+            DWORD result =
+                WaitForSingleObject(event, 1000);  // Wait at most one second
+            CloseHandle(event);
+            if (result == WAIT_TIMEOUT) {
+              SB_LOG(WARNING) << "Fence event completion timeout.";
+              OnNonrecoverableFailure_Locked();
+            }
+          } else {
+            SB_LOG(INFO) << "CreateEvent() failed with " << GetLastError();
           }
+#if defined(INTERNAL_BUILD)
+          Dav1dVideoDecoder::ReleaseShaders();
+          VpxVideoDecoder::ReleaseShaders();
+#endif  // #if defined(INTERNAL_BUILD)
+          is_av1_shader_compiled_ = false;
+          is_vp9_shader_compiled_ = false;
         } else {
-          SB_LOG(INFO) << "CreateEvent() failed with " << GetLastError();
+          SB_LOG(INFO) << "CreateFence() failed with " << hr;
         }
 #if defined(INTERNAL_BUILD)
-        Dav1dVideoDecoder::ReleaseShaders();
-        VpxVideoDecoder::ReleaseShaders();
+        // Clear frame buffers used for rendering queue
+        GpuVideoDecoderBase::ClearFrameBuffersPool();
 #endif  // #if defined(INTERNAL_BUILD)
-        is_av1_shader_compiled_ = false;
-        is_vp9_shader_compiled_ = false;
-      } else {
-        SB_LOG(INFO) << "CreateFence() failed with " << hr;
       }
-#if defined(INTERNAL_BUILD)
-      // Clear frame buffers used for rendering queue
-      GpuVideoDecoderBase::ClearFrameBuffersPool();
-#endif  // #if defined(INTERNAL_BUILD)
-    }
 
-    if (d3d12queue_) {
+      if (d3d12queue_) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-      d3d12queue_->AddRef();
-      ULONG reference_count = d3d12queue_->Release();
-      SB_LOG(INFO) << "Reference count of |d3d12queue_| is " << reference_count;
+        d3d12queue_->AddRef();
+        ULONG reference_count = d3d12queue_->Release();
+        SB_LOG(INFO) << "Reference count of |d3d12queue_| is "
+                     << reference_count;
 #endif
-      d3d12queue_.Reset();
-    }
+        d3d12queue_.Reset();
+      }
 
-    if (d3d12FrameBuffersHeap_) {
+      if (d3d12FrameBuffersHeap_) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-      d3d12FrameBuffersHeap_->AddRef();
-      ULONG reference_count = d3d12FrameBuffersHeap_->Release();
-      SB_LOG(INFO) << "Reference count of |d3d12FrameBuffersHeap_| is "
-                   << reference_count;
+        d3d12FrameBuffersHeap_->AddRef();
+        ULONG reference_count = d3d12FrameBuffersHeap_->Release();
+        SB_LOG(INFO) << "Reference count of |d3d12FrameBuffersHeap_| is "
+                     << reference_count;
 #endif
-      d3d12FrameBuffersHeap_.Reset();
-    }
+        d3d12FrameBuffersHeap_.Reset();
+      }
 
-    if (d3d12device_) {
+      if (d3d12device_) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-      d3d12device_->AddRef();
-      ULONG reference_count = d3d12device_->Release();
-      SB_LOG(INFO) << "Reference count of |d3d12device_| is "
-                   << reference_count;
+        d3d12device_->AddRef();
+        ULONG reference_count = d3d12device_->Release();
+        SB_LOG(INFO) << "Reference count of |d3d12device_| is "
+                     << reference_count;
 #endif
-      d3d12device_.Reset();
-    }
+        d3d12device_.Reset();
+      }
 
-  } catch (const std::exception& e) {
-    SB_LOG(ERROR) << "Exception on releasing extended resources: " << e.what();
-    OnNonrecoverableFailure();
-  } catch (...) {
-    SB_LOG(ERROR) << "Exception on releasing extended resources.";
-    OnNonrecoverableFailure();
+    } catch (const std::exception& e) {
+      SB_LOG(ERROR) << "Exception on releasing extended resources: "
+                    << e.what();
+      OnNonrecoverableFailure_Locked();
+    } catch (...) {
+      SB_LOG(ERROR) << "Exception on releasing extended resources.";
+      OnNonrecoverableFailure_Locked();
+    }
   }
+  // Mutex released - perform blocking operation without holding the lock
+  // to avoid blocking UI thread (e.g., during ResetNonrecoverableFailure).
 
   auto extended_resources_mode_disable_task =
       concurrency::create_task([] { ::starboard::xb1::shared::Release(); });
 
-  Semaphore semaphore;
+  auto semaphore = std::make_shared<Semaphore>();
+  std::weak_ptr<Semaphore> weak_semaphore = semaphore;
+  // Flag to track if an exception occurred in the lambda.
+  auto release_exception_flag = std::make_shared<std::atomic<bool>>(false);
   extended_resources_mode_disable_task.then(
-      [this, &semaphore](concurrency::task<void> task) {
+      [this, weak_semaphore,
+       release_exception_flag](concurrency::task<void> task) {
         try {
           acquisition_condition_.Signal();
           // ReleaseExtendedResources has no return value but a call to get()
           // will bubble up any exceptions thrown during the task.
           task.get();
           SB_LOG(INFO) << "Released extended resources.";
+          // Reset failure counter on successful release to start fresh
+          consecutive_acquire_failures_.store(0);
         } catch (const std::exception& e) {
           SB_LOG(ERROR) << "Exception on releasing extended resources: "
                         << e.what();
-          OnNonrecoverableFailure();
+          release_exception_flag->store(true);
         } catch (...) {
           SB_LOG(ERROR) << "Exception on releasing extended resources.";
-          OnNonrecoverableFailure();
+          release_exception_flag->store(true);
         }
         is_extended_resources_acquired_.store(false);
         pending_extended_resources_release_.store(false);
-        semaphore.Put();
+        if (auto semaphore = weak_semaphore.lock()) {
+          semaphore->Put();
+        }
       });
-  if (!semaphore.TakeWait(kReleaseTimeout)) {
-    acquisition_condition_.Signal();
-    // If extended resources are still acquired or the release is still pending
-    // after the wait time, signal a nonrecoverable failure.
-    if (is_extended_resources_acquired_.load() ||
-        pending_extended_resources_release_.load()) {
-      SB_LOG(WARNING) << "Extended resource mode release timed out";
-      OnNonrecoverableFailure();
+
+  bool timed_out = !semaphore->TakeWait(kReleaseTimeout);
+
+  // Re-acquire mutex for final state update.
+  {
+    ScopedLock scoped_lock(mutex_);
+
+    if (timed_out) {
+      acquisition_condition_.Signal();
+      // If extended resources are still acquired or the release is still
+      // pending after the wait time, signal a nonrecoverable failure.
+      if (is_extended_resources_acquired_.load() ||
+          pending_extended_resources_release_.load()) {
+        SB_LOG(WARNING) << "Extended resource mode release timed out";
+        OnNonrecoverableFailure_Locked();
+      }
+      is_extended_resources_acquired_.store(false);
+      pending_extended_resources_release_.store(false);
+    } else if (release_exception_flag->load()) {
+      // An exception occurred in the lambda, mark as nonrecoverable failure.
+      OnNonrecoverableFailure_Locked();
     }
-    is_extended_resources_acquired_.store(false);
-    pending_extended_resources_release_.store(false);
   }
   // After extendedResources release the codecs supportability changes.
   // So mime supportability cache must be reset.

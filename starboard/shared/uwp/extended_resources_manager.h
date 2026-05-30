@@ -46,6 +46,7 @@ class ExtendedResourcesManager {
   void AcquireExtendedResources();
   void ReleaseExtendedResources();
   void Quit();
+  void ResetNonrecoverableFailure();
   void ReleaseBuffersHeap();
 
   // Returns true when the d3d12 device, buffer heap
@@ -60,11 +61,11 @@ class ExtendedResourcesManager {
 
   // This is called when it is found that the D3D12 driver is in an
   // error state that can not be recovered from.
-  void OnNonrecoverableFailure() { is_nonrecoverable_failure_ = true; }
-  bool HasNonrecoverableFailure() { return is_nonrecoverable_failure_; }
+  void OnNonrecoverableFailure();
+  bool HasNonrecoverableFailure() { return is_nonrecoverable_failure_.load(); }
 
   // Returns false if the application should exit instead of suspend.
-  bool IsSafeToSuspend() { return !is_nonrecoverable_failure_; }
+  bool IsSafeToSuspend() { return !is_nonrecoverable_failure_.load(); }
 
  private:
   enum Event {
@@ -81,6 +82,11 @@ class ExtendedResourcesManager {
   void CompileShadersAsynchronously();
   void ReleaseExtendedResourcesInternal();
 
+  // Must be called while holding mutex_.
+  void OnNonrecoverableFailure_Locked() {
+    is_nonrecoverable_failure_.store(true);
+  }
+
   static ExtendedResourcesManager* s_instance_;
 
   shared::starboard::ThreadChecker thread_checker_;
@@ -90,7 +96,9 @@ class ExtendedResourcesManager {
   std::atomic_bool is_av1_shader_compiled_ = {false};
   std::atomic_bool is_vp9_shader_compiled_ = {false};
 
-  bool is_nonrecoverable_failure_ = false;
+  static constexpr int kMaxConsecutiveAcquireFailures = 5;
+  std::atomic<int> consecutive_acquire_failures_ = {0};
+  std::atomic_bool is_nonrecoverable_failure_ = {false};
   Queue<Event> event_queue_;
   Microsoft::WRL::ComPtr<ID3D12Device> d3d12device_;
   Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12queue_;
