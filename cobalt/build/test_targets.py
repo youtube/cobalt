@@ -18,83 +18,78 @@ import argparse
 import collections
 import json
 import queue
+import os
 
 from typing import Dict, List, Set, Tuple
 
 import networkx as nx
 
-# Limit results to the allowlist for now. Once test infra can run more
-# we'll extend or remove this list.
-# TODO: Move this list to a GN target under //cobalt.
-_ALLOW_TESTS = {
-    '//base:base_perftests',
-    '//base:base_unittests',
-    '//cobalt/renderer:renderer_browsertests',
-    # TODO: b/418842688 - Broken due to missing files.
-    # '//cobalt:cobalt_unittests',
-    # TODO: b/418842688 - Disabled temporarily.
-    # '//gpu/gles2_conform_support:gles2_conform_test',
-    '//mojo:mojo_perftests',
-    '//mojo:mojo_unittests',
-    '//net:net_unittests',
-    '//skia:skia_unittests',
-    '//starboard/nplb:nplb',
-    '//third_party/blink/renderer/platform/heap:blink_heap_perftests',
-    '//third_party/blink/renderer/platform/heap:blink_heap_unittests',
-    '//third_party/blink/renderer/platform/wtf:wtf_unittests',
-    '//third_party/blink/renderer/platform:blink_fuzzer_unittests',
-    '//third_party/blink/renderer/platform:blink_platform_nocompile_tests',
-    '//third_party/blink/renderer/platform:blink_platform_perftests',
-    '//third_party/blink/renderer/platform:blink_platform_unittests',
-    '//third_party/boringssl:boringssl_crypto_tests',
-    '//third_party/boringssl:boringssl_ssl_tests',
-    '//third_party/perfetto:perfetto_unittests',
-    '//third_party/perfetto:trace_processor_minimal_smoke_tests',
-    '//third_party/zlib:zlib_unittests',
-    '//url:url_perftests',
-    '//url:url_unittests',
-}
+# TODO: Investigate test targets on these lists.
+# _ALLOW_TESTS = {
+#     '//base:base_perftests',
+#     '//base:base_unittests',
+#     '//cobalt/renderer:renderer_browsertests',
+#     # '//cobalt:cobalt_unittests',
+#     # TODO: b/418842688 - Disabled temporarily.
+#     # '//gpu/gles2_conform_support:gles2_conform_test',
+#     '//mojo:mojo_perftests',
+#     '//mojo:mojo_unittests',
+#     '//net:net_unittests',
+#     '//skia:skia_unittests',
+#     '//starboard/nplb:nplb',
+#     '//third_party/blink/renderer/platform/heap:blink_heap_perftests',
+#     '//third_party/blink/renderer/platform/heap:blink_heap_unittests',
+#     '//third_party/blink/renderer/platform/wtf:wtf_unittests',
+#     '//third_party/blink/renderer/platform:blink_fuzzer_unittests',
+#     '//third_party/blink/renderer/platform:blink_platform_nocompile_tests',
+#     '//third_party/blink/renderer/platform:blink_platform_perftests',
+#     '//third_party/blink/renderer/platform:blink_platform_unittests',
+#     '//third_party/boringssl:boringssl_crypto_tests',
+#     '//third_party/boringssl:boringssl_ssl_tests',
+#     '//third_party/perfetto:perfetto_unittests',
+#     '//third_party/perfetto:trace_processor_minimal_smoke_tests',
+#     '//third_party/zlib:zlib_unittests',
+#     '//url:url_perftests',
+#     '//url:url_unittests',
+# }
+# _EXCLUDE_TESTS_PREFIX = {
+#     '//android_webview',
+#     '//base:base_i18n_perftests',
+#     '//build/rust',
+#     '//chrome',
+#     '//components/paint_preview',
+#     '//components/services/paint_preview_compositor',
+#     '//components/ukm',
+#     '//ipc:ipc_perftests',
+#     '//media/cast',
+#     '//mojo/core:mojo_core_unittests',
+#     '//mojo/core:mojo_perftests',
+#     '//net:net_perftests',
+#     '//pdf',
+#     '//testing/libfuzzer/tests:libfuzzer_tests',
+#     '//third_party/angle',
+#     '//third_party/dawn',
+#     '//third_party/pdfium',
+#     '//third_party/libaddressinput',
+#     '//third_party/libphonenumber',
+#     '//third_party/swiftshader',
+#     '//ui/shell_dialogs',
+#     '//weblayer',
+#     # TODO: This is a source_set. Figure out why it's included.
+#     '//starboard/common:common_test',
+# }
 
-# Exclude some paths and targets that either are not relevant or don't support
-# test sharding.
-_EXCLUDE_TESTS_PREFIX = {
-    '//android_webview',
-    '//base:base_i18n_perftests',
-    '//build/rust',
-    '//chrome',
-    '//components/paint_preview',
-    '//components/services/paint_preview_compositor',
-    '//components/ukm',
-    '//ipc:ipc_perftests',
-    '//media/cast',
-    '//mojo/core:mojo_core_unittests',
-    '//mojo/core:mojo_perftests',
-    '//net:net_perftests',
-    '//pdf',
-    '//testing/libfuzzer/tests:libfuzzer_tests',
-    '//third_party/angle',
-    '//third_party/dawn',
-    '//third_party/pdfium',
-    '//third_party/libaddressinput',
-    '//third_party/libphonenumber',
-    '//third_party/swiftshader',
-    '//ui/shell_dialogs',
-    '//weblayer',
-    # TODO: This is a source_set. Figure out why it's included.
-    '//starboard/common:common_test',
-}
+_UNRELATED_PATHS = ['components', 'content', 'skia', 'third_party', 'ui', 'v8']
+_INTERMEDIATE_TYPES = ['source_set', 'group']
+_LIBRARY_TYPES = ['shared_library', 'static_library']
 
 
 def _is_test_target(g, target) -> bool:
-  if (any(not target in _ALLOW_TESTS or target.startswith(path_prefix)
-          for path_prefix in _EXCLUDE_TESTS_PREFIX)):
-    return False
+  # TODO: This should be correct but excludes //media:media_unittests.
+  # if target not in g or not g.nodes[target]['unit_test']:
+  #   return False
 
-  # Starboard tests include a dependency on starboard_test_main, which contains
-  # the runner.
-  if ('//starboard:starboard_test_main' in g.nodes[target]['deps'] and
-      not '__library' in target):
-    return True
+  # TODO: Find better test target determiner. This does not work for modular.
 
   # To definitely find all test targets we look for the local runner target
   # On linux this target is ${target_name}__runner, on android it's
@@ -106,145 +101,115 @@ def _is_test_target(g, target) -> bool:
   return linux_runner in successors or android_runner in successors
 
 
-def _create_graph(data: dict) -> Tuple[nx.DiGraph, Dict[str, List[str]]]:
+def _create_graph(data: dict) -> nx.DiGraph:
   """Creates a directed graph from 'gn desc' json output.
   Using targets as nodes and creating edges from dependencies.
   """
   g = nx.DiGraph()
-  source_map = collections.defaultdict(list)
   for target_name, attributes in data.items():
     node_attributes = {
         'outputs': attributes.get('outputs', []),
+        'testonly': attributes.get('testonly', False),
         'type': attributes['type'],
-        'sources': attributes.get('sources', []),
+        'deps': attributes.get('deps', []),
+        'unit_test': 'UNIT_TEST' in attributes.get('defines', []),
     }
     g.add_node(target_name, **node_attributes)
     g.add_edges_from((target_name, dep) for dep in attributes['deps'])
-    for source_file in attributes.get('inputs', []):
-      source_map[source_file] += [target_name]
-    for source_file in attributes.get('sources', []):
-      source_map[source_file] += [target_name]
-    # Also keep a list of targets for each path. This is used below to find
-    # targets for an edited BUILD.gn file.
-    source_map[target_name.split(':')[0]] += [target_name]
-  return g, source_map
+  return g
 
 
-def _get_initial_targets(
-    all_test_targets: Set[str],
-    source_files: List[str],
-    source_map: Dict,
-) -> queue.Queue:
-  """Gets the initial targets to consider based on source files."""
-  target_queue = queue.Queue()
-  gni_changes = any(
-      file_path.endswith('.gni') or file_path.endswith('.gn')
-      for file_path in source_files)
-  github_changes = any(
-      file_path.startswith('.github') for file_path in source_files)
-  # Consider the entire tree if no files were provided, or if any special
-  # files were modified.
-  if len(source_files) == 0 or gni_changes or github_changes:
-    for target in all_test_targets:
-      target_queue.put(target)
-  else:
-    for source_file in source_files:
-      for target in source_map.get(f'//{source_file}', []):
-        target_queue.put(target)
-      # Add all targets from modified BUILD.gn files.
-      if source_file.endswith('BUILD.gn'):
-        gn_path = f'//{source_file}'[:-len('BUILD.gn')]
-        for target in source_map.get(gn_path, []):
-          target_queue.put(target)
-  return target_queue
+def _get_path_parts(target: str) -> List[str]:
+  """Returns the path components of a GN target, ignoring leading '//'."""
+  # Separate path from target name and split by '/', ignoring the leading '//'.
+  # //foo/bar:baz -> //foo/bar -> ['', '', 'foo', 'bar'] -> ['foo', 'bar']
+  return target.split(':')[0].split('/')[2:]
 
 
-def _create_relevant_subgraph(g: nx.DiGraph, all_test_targets: Set[str],
-                              root_target: str) -> nx.DiGraph:
-  """Creates a subgraph of the GN graph containing relevant nodes.
+def _node_type_in(g: nx.DiGraph, n: str, types: List[str]) -> bool:
+  """Returns True if the target's type is in the provided list."""
+  return g.nodes[n]['type'] in types
 
-  TODO: The graph returned by this does not seem to be meaningfully different
-        from `g`. Investigate why to reduce unnecessarily running targets.
 
-  Args:
-    g: The full GN dependency graph.
-    root_target: The root target for which to find test targets.
-
-  Returns:
-    A subgraph containing the root target, its descendants, all test targets,
-    intermediate library targets, and source_sets.
+def _get_root_slice(g: nx.DiGraph, root_target: str) -> nx.DiGraph:
+  """Calculates the slice of the graph containing the root target and its deps.
   """
-  relevant_nodes = {root_target} | all_test_targets
 
-  root_target_descendants = set(nx.descendants(g, root_target))
-  relevant_nodes |= root_target_descendants
+  def node_filter(n):
+    # TODO(find the bug): Remove testonly from cobalt targets.
+    return '/cobalt' in n or not g.nodes[n]['testonly']
 
-  # On android the test template creates an intermediate library target.
-  # This must be included to resolve the dependency chain between the targets
-  # and the tests.
-  all_test_targets_libs = set()
-  for target in all_test_targets:
-    for successor in g.successors(target):
-      if successor.startswith(f'{target}__library'):
-        all_test_targets_libs.add(successor)
-  relevant_nodes |= all_test_targets_libs
+  def edge_filter(u, v):
+    u_path = _get_path_parts(u)
+    v_path = _get_path_parts(v)
+    # Exclude edges that start and end in _UNRELATED_PATHS.
+    return not (u_path[0] in _UNRELATED_PATHS and v_path[0] in _UNRELATED_PATHS)
 
-  # For complete coverage we should also follow dependencies through
-  # source_sets. Most notable example is media_unittests which is comprised
-  # of a collection of source_sets.
-  all_source_sets = {n for n in g.nodes if g.nodes[n]['type'] == 'source_set'}
-  relevant_nodes |= all_source_sets
-  return g.subgraph(relevant_nodes)
+  root_slice_g = nx.subgraph_view(
+      g, filter_node=node_filter, filter_edge=edge_filter)
+  # Return a subgraph that only includes nodes reachable from the root target.
+  return g.subgraph(nx.dfs_postorder_nodes(root_slice_g, source=root_target))
 
 
-def _find_dependent_tests(
+def _get_test_slice(
     g: nx.DiGraph,
-    root_g: nx.DiGraph,
-    target_queue: queue.Queue,
-) -> None:
-  """Finds test targets that depend on the targets in the queue."""
-  test_targets = set()
-  executables = set()
+    all_test_targets: Set[str],
+) -> Tuple[Set[str], Dict[str, Set[str]]]:
+  """Calculates the slice of the graph containing tests and their deps."""
+  test_g_nodes = set()
+  targets_for_deps = collections.defaultdict(set)
+  target_queue = queue.Queue()
+  for target in all_test_targets:
+    target_queue.put(target)
+
   visited = set()
-  while target_queue.qsize() > 0:
+  while not target_queue.empty():
     target = target_queue.get()
     if target in visited:
       continue
     visited.add(target)
+    test_g_nodes.add(target)
 
-    if _is_test_target(g, target):
-      # Ninja target name is the same as the gn target path sans the leading //.
-      test_targets.add(target.lstrip('/'))
-      # TODO: This does not work for EG where the "main" test target is the .so
-      # file. The runnable binary is generated by the <target_name>_loader
-      # target. This also does not yield anything useful for Android where the
-      # test target does not produce any outputs.
-      # There is a workaround for this in the CI on-host test job.
-      executables |= {
-          output.lstrip('/') for output in g.nodes[target]['outputs']
-      }
-    elif target in root_g.nodes:
-      # Add all targets that depend on this current target to the queue.
-      # This could potentially be filtered on node type.
-      for predecessor in root_g.predecessors(target):
-        target_queue.put(predecessor)
+    # Only test targets or intermediate types should include deps.
+    if not (target in all_test_targets or
+            _node_type_in(g, target, _INTERMEDIATE_TYPES)):
+      continue
 
-  return sorted(list(test_targets)), sorted(list(executables))
+    for dep in g.nodes[target]['deps']:
+      target_path = _get_path_parts(target)
+      dep_path = _get_path_parts(dep)
+
+      # TODO: Make this check smarter?
+      min_path_length = 2 if target_path[0] in _UNRELATED_PATHS else 1
+      if len(os.path.commonprefix([target_path, dep_path])) < min_path_length:
+        # Require that at least the first path component matches to include a
+        # dep, or the first two for //components, //third_party, //ui.
+        continue
+
+      if not (_node_type_in(g, dep, _INTERMEDIATE_TYPES) or _node_type_in(
+          g, dep, _LIBRARY_TYPES) and not g.nodes[dep]['testonly']):
+        # Only allow source_set and non-testonly library deps.
+        continue
+
+      target_queue.put(dep)
+      # Use the test targets from the parent node if available,
+      # if not it's a test target and should be added itself.
+      targets_for_deps[dep] |= targets_for_deps.get(target, {target})
+  return test_g_nodes, targets_for_deps
 
 
-def get_test_targets_from_sources(
+def _find_dependent_tests(
     g: nx.DiGraph,
-    root_target: str,
-    source_files: List[str],
-    source_map: Dict[str, List[str]],
+    root_slice: nx.DiGraph,
+    test_slice_nodes: Set[str],
+    tests_for_deps: Dict[str, Set[str]],
 ) -> Tuple[List[str], List[str]]:
-  all_test_targets = {n for n in g.nodes if _is_test_target(g, n)}
-  root_g = _create_relevant_subgraph(g, all_test_targets, root_target)
-
-  # Find the tests that depend on the affected targets.
-  target_queue = _get_initial_targets(all_test_targets, source_files,
-                                      source_map)
-  return _find_dependent_tests(g, root_g, target_queue)
+  """Finds test targets that depend on the targets in the root slice."""
+  overlapping_deps = root_slice.nodes & test_slice_nodes
+  test_targets = list(
+      set().union(*[tests_for_deps[n] for n in overlapping_deps]))
+  executables = [g.nodes[t]['outputs'] for t in test_targets]
+  return sorted(test_targets), sorted(executables)
 
 
 def main():
@@ -263,12 +228,14 @@ def main():
       help='The root target for which to find test targets. A test target is '
       'included if it depends on a target that is in the root target\'s '
       'dependency tree.')
-  parser.add_argument(
-      '--sources',
-      type=lambda arg: arg.split(','),
-      default=[],
-      help='The source files from which to calculate affected targets, '
-      'comma-separated.')
+  # TODO: Move this to GHA
+  # gn refs out/linux-x64x11_devel/ <files> --testonly=true --all
+  # parser.add_argument(
+  #     '--sources',
+  #     type=lambda arg: arg.split(','),
+  #     default=[],
+  #     help='The source files from which to calculate affected targets, '
+  #     'comma-separated.')
   parser.add_argument(
       '--json-output',
       action='store_true',
@@ -277,16 +244,34 @@ def main():
   args = parser.parse_args()
 
   with open(args.gn_json, mode='r', encoding='utf-8') as gn_json_file:
-    g, source_map = _create_graph(json.load(gn_json_file))
+    g = _create_graph(json.load(gn_json_file))
 
-  test_targets, executables = get_test_targets_from_sources(
-      g, args.root_target, args.sources, source_map)
+  all_test_targets = {n for n in g.nodes if _is_test_target(g, n)}
+  root_slice_g = _get_root_slice(g, args.root_target)
+  test_slice_nodes, targets_for_deps = _get_test_slice(g, all_test_targets)
+  test_targets, executables = _find_dependent_tests(g, root_slice_g,
+                                                    test_slice_nodes,
+                                                    targets_for_deps)
+
+  # DEBUG
+  def set_default(obj):
+    if isinstance(obj, set):
+      return sorted(list(obj))
+    raise TypeError
+
+  paths = collections.defaultdict(set)
+  for dep in root_slice_g.nodes & test_slice_nodes:
+    paths[' -> '.join(
+        nx.shortest_path(root_slice_g, source=args.root_target,
+                         target=dep))] |= targets_for_deps[dep]
+  print(json.dumps(paths, indent=2, sort_keys=True, default=set_default))
 
   if args.json_output:
-    output = {'test_targets': test_targets, 'executables': executables}
+    output = {'test_targets': list(test_targets), 'executables': executables}
     print(json.dumps(output))
   else:
-    print('\n'.join(test_targets))
+    for test in sorted(test_targets):
+      print(test)
     print(f'Found {len(test_targets)} test targets')
 
 
