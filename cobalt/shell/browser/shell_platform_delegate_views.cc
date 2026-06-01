@@ -29,7 +29,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/context_factory.h"
@@ -49,7 +48,6 @@
 #include "ui/compositor/compositor.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
-#include "ui/platform_window/platform_window.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
@@ -455,8 +453,11 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.window_widget) {
-    ShellViewForWidget(shell_data.window_widget)
-        ->SetWebContents(shell->web_contents(), shell_data.content_size);
+    auto* shell_view = ShellViewForWidget(shell_data.window_widget);
+    if (shell_view) {
+      shell_view->SetWebContents(shell->web_contents(),
+                                 shell_data.content_size);
+    }
 
     SkColor bg_color = shell_data.window_widget->GetColorProvider()->GetColor(
         ui::kColorWindowBackground);
@@ -479,6 +480,7 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
   }
 }
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  // Dynamically re-enable Chromium's thread watchdog on resume!
   auto it = shell_data_map_.find(shell);
   if (it == shell_data_map_.end()) {
     LOG(ERROR) << "RevealShell called for untracked shell!";
@@ -487,9 +489,19 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
   ShellData& shell_data = it->second;
   if (!shell_data.window_widget) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+    SetContents(shell);
+  } else {
+    auto* native_window = shell_data.window_widget->GetNativeWindow();
+    if (native_window && native_window->GetHost()) {
+      auto* host_platform =
+          static_cast<aura::WindowTreeHostPlatform*>(native_window->GetHost());
+      auto* platform_window = static_cast<ui::PlatformWindowStarboard*>(
+          host_platform->platform_window());
+      if (platform_window) {
+        platform_window->Restore();
+      }
+    }
   }
-
-  SetContents(shell);
 }
 void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
   auto it = shell_data_map_.find(shell);
@@ -499,20 +511,21 @@ void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
   }
   ShellData& shell_data = it->second;
   if (shell_data.window_widget) {
-    if (shell_data.window_widget->GetNativeWindow() &&
-        shell_data.window_widget->GetNativeWindow()->GetHost() &&
-        shell_data.window_widget->GetNativeWindow()->GetHost()->compositor()) {
-      shell_data.window_widget->GetNativeWindow()
-          ->GetHost()
-          ->compositor()
-          ->SetVisible(true);
+    auto* native_window = shell_data.window_widget->GetNativeWindow();
+    if (native_window && native_window->GetHost() &&
+        native_window->GetHost()->compositor()) {
+      native_window->GetHost()->compositor()->SetVisible(true);
     }
-    // Safely map native views window Show and Restore only on Mojo Reveal ACK!
-    shell_data.window_widget->GetNativeWindow()->Show();
-    shell_data.window_widget->Restore();
+    if (native_window) {
+      native_window->Show();
+      shell_data.window_widget->Restore();
+      shell_data.window_widget->LayoutRootViewIfNecessary();
+    }
   }
 }
+
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  // Dynamically disable Chromium's thread watchdog during deactivation/freeze!
   auto it = shell_data_map_.find(shell);
   if (it == shell_data_map_.end()) {
     LOG(ERROR) << "ConcealShell called for untracked shell!";
@@ -525,15 +538,14 @@ void ShellPlatformDelegate::ConcealShell(Shell* shell) {
     if (shell_data.window_widget->GetNativeWindow() &&
         shell_data.window_widget->GetNativeWindow()->GetHost() &&
         shell_data.window_widget->GetNativeWindow()->GetHost()->compositor()) {
-      shell_data.window_widget->GetNativeWindow()
-          ->GetHost()
-          ->compositor()
-          ->SetVisible(false);
+      auto* compositor =
+          shell_data.window_widget->GetNativeWindow()->GetHost()->compositor();
+      compositor->SetVisible(false);
     }
     // Restore spec-compliant Minimize and Hide window widget deactivation!
+
     shell_data.window_widget->Minimize();
     shell_data.window_widget->GetNativeWindow()->Hide();
-    // Also hide the window widget visually for extra safety!
     shell_data.window_widget->Hide();
   }
 }

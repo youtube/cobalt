@@ -91,7 +91,7 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
   aura::Window* content = shell->web_contents()->GetNativeView();
-  if (!platform_->aura) {
+  if (!platform_ || !platform_->aura) {
     return;
   }
   aura::Window* parent = platform_->aura->host()->window();
@@ -99,9 +99,7 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
     parent->AddChild(content);
   }
 
-  if (!waiting_for_reveal_ack_) {
-    content->Show();
-  }
+  content->Show();
 }
 
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
@@ -112,12 +110,20 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
   }
 }
 void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
-  static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host())
-      ->platform_window()
-      ->Show(true);
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return;
+  }
+  auto* host =
+      static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host());
+  if (host && host->platform_window()) {
+    host->platform_window()->Show(true);
+  }
 }
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return;
+  }
   platform_->aura->host()->Hide();
 }
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(

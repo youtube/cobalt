@@ -15,11 +15,11 @@
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
 #include "base/logging.h"
+#include "base/threading/hang_watcher.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
-#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -27,11 +27,8 @@
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-#include "ui/aura/window.h"
-#include "ui/aura/window_tree_host.h"
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
-#include "ui/platform_window/platform_window.h"
 #endif
 
 namespace content {
@@ -94,6 +91,12 @@ void ShellPlatformDelegate::OnConceal() {
   if (!IsVisible()) {
     return;
   }
+
+  // Register as lifecycle manager observer to receive OnAllFramesConcealed
+  // callback!
+  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+
   // Save the set of WebContents that were visible before conceal.
   // This is used on reveal to decide which WebContents we should wait for
   // Reveal ACK from. We only wait for those that were actually active/visible.
@@ -103,10 +106,12 @@ void ShellPlatformDelegate::OnConceal() {
         content::Visibility::VISIBLE) {
       previously_visible_web_contents_.insert(shell->web_contents());
     }
+    // Trigger logical JS conceal.
     shell->web_contents()->WasHidden();
-    ConcealShell(shell);
+    // Note: ConcealShell() is called asynchronously inside
+    // OnAllFramesConcealed() after all frames have completed their deactivation
+    // ACKs.
   }
-  is_visible_ = false;
 }
 
 void ShellPlatformDelegate::OnReveal() {
@@ -124,7 +129,6 @@ void ShellPlatformDelegate::OnReveal() {
             static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
         started_waiting = true;
       }
-
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
       auto* platform_window = GetPlatformWindowStarboard(shell);
       if (platform_window) {
@@ -139,6 +143,10 @@ void ShellPlatformDelegate::OnReveal() {
 
 void ShellPlatformDelegate::OnFreeze() {
   CHECK(!IsVisible());
+
+  // In frozen state the process may not be scheduled for execution, so we
+  // tell the hang watcher to ignore this period of inactivity.
+  base::HangWatcher::Suspend();
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(true);
   }
@@ -146,6 +154,9 @@ void ShellPlatformDelegate::OnFreeze() {
 
 void ShellPlatformDelegate::OnUnfreeze() {
   CHECK(!IsVisible());
+
+  // Resume the hangwatcher.
+  base::HangWatcher::Resume();
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(false);
   }
@@ -230,6 +241,15 @@ void ShellPlatformDelegate::ClearWaitingForRevealAck() {
 #endif
 }
 
+void ShellPlatformDelegate::OnProactiveMapWindow(
+    content::WebContents* web_contents) {
+  Shell* shell = Shell::FromWebContents(web_contents);
+  if (shell) {
+    SetContents(shell);
+    MapWindowShell(shell);
+  }
+}
+
 void ShellPlatformDelegate::OnAllFramesVisible(
     content::WebContents* web_contents) {
   // Called by CobaltLifecycleManager when all frames in the specified
@@ -237,11 +257,6 @@ void ShellPlatformDelegate::OnAllFramesVisible(
   // initiated in OnReveal.
   ClearWaitingForRevealAck();
   is_visible_ = true;
-
-  Shell* shell = Shell::FromWebContents(web_contents);
-  if (shell) {
-    MapWindowShell(shell);
-  }
 
   // If an OS focus event arrived while we were waiting, apply it now that
   // the page is ready.
@@ -253,6 +268,19 @@ void ShellPlatformDelegate::OnAllFramesVisible(
   }
 
   // Stop observing as we only need one notification per reveal.
+  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+}
+
+void ShellPlatformDelegate::OnAllFramesConcealed(
+    content::WebContents* web_contents) {
+  Shell* shell = Shell::FromWebContents(web_contents);
+  if (shell) {
+    ConcealShell(shell);
+  }
+  is_visible_ = false;
+
+  // Stop observing as we only need one notification per conceal.
   cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
       static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
 }

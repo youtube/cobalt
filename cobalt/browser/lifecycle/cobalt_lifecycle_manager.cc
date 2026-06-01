@@ -16,12 +16,10 @@
 
 #include "base/no_destructor.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
-#include "url/gurl.h"
 
 namespace cobalt {
 
@@ -359,11 +357,13 @@ void CobaltLifecycleManager::StartWaitingForAck(
 
   auto* tracker = GetOrCreateTracker(web_contents);
 
-  if (ack_type == PendingAck::kUnfreeze) {
-    tracker->set_is_unfreezing(true);
-  }
-
   if (ack_type == PendingAck::kReveal) {
+    // Proactively tell observers to map the platform window first, which
+    // enables standard Chromium visibility IPCs to propagate to the renderer!
+    for (auto& observer : observers_) {
+      observer.OnProactiveMapWindow(web_contents);
+    }
+
     auto* main_frame = main_frames_[web_contents];
     if (main_frame) {
       pending_ack_frames_[web_contents].insert(main_frame);
@@ -387,29 +387,17 @@ void CobaltLifecycleManager::StartWaitingForAck(
   }
 
   if (pending_ack_frames_[web_contents].empty()) {
-    if (tracker->is_unfreezing() &&
-        (ack_type == PendingAck::kUnfreeze || ack_type == PendingAck::kBlur ||
-         ack_type == PendingAck::kReveal)) {
-      // This can happen if the renderer disconnected its Mojo pipe during
-      // freeze. We must wait for the renderer to reconnect and call FrameReady
-      // before we can expect any ACKs.
-      LOG(WARNING) << "StartWaitingForAck: No connected frames during "
-                      "transition! Waiting for FrameReady... for "
-                   << static_cast<int>(ack_type);
-      return;
-    } else {
-      // If there are no connected frames (e.g., during startup before any
-      // frames are created or if all frames crashed), we complete the ACK
-      // immediately to avoid hanging the transition.
-      LOG(WARNING) << "StartWaitingForAck: No connected frames! Completing "
-                      "immediately for "
-                   << static_cast<int>(ack_type);
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&CobaltLifecycleManager::CompleteAckImmediately,
-                         weak_factory_.GetWeakPtr(), web_contents, ack_type));
-      return;
-    }
+    // If there are no connected frames (e.g., during startup before any
+    // frames are created or if all frames crashed), we complete the ACK
+    // immediately to avoid hanging the transition.
+    LOG(WARNING) << "StartWaitingForAck: No connected frames! Completing "
+                    "immediately for "
+                 << static_cast<int>(ack_type);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&CobaltLifecycleManager::CompleteAckImmediately,
+                       weak_factory_.GetWeakPtr(), web_contents, ack_type));
+    return;
   }
   // Post a 2-second timer as a fallback for all ACKs.
   content::GetUIThreadTaskRunner({})->PostDelayedTask(
@@ -435,14 +423,6 @@ void CobaltLifecycleManager::CompleteAckImmediately(
   }
   pending_acks_[web_contents] = PendingAck::kNone;
   pending_ack_frames_.erase(web_contents);
-
-  if (ack_type == PendingAck::kReveal || ack_type == PendingAck::kConceal ||
-      ack_type == PendingAck::kCookieFlush) {
-    auto* tracker = GetOrCreateTracker(web_contents);
-    if (tracker) {
-      tracker->set_is_unfreezing(false);
-    }
-  }
 
   switch (ack_type) {
     case PendingAck::kUnfreeze:
@@ -501,7 +481,7 @@ void CobaltLifecycleManager::OnAckTimeout(
   content::WebContents* wc = web_contents.get();
   if (pending_acks_[wc] == ack_type) {
     LOG(WARNING) << "Timeout fired for ack = " << static_cast<int>(ack_type)
-                 << " for wc = " << wc << ". Proceeding anyway.";
+                 << ". Proceeding anyway.";
     pending_ack_frames_[wc].clear();
     CheckCompletion(wc);
   }

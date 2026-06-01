@@ -23,11 +23,9 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/threading/platform_thread.h"
-#include "base/time/time.h"
 #include "cobalt/app/app_event_runner.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/web_contents.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 
@@ -124,6 +122,11 @@ bool AppEventDelegate::IsFrozen() const {
 AppEventDelegate::ApplicationState AppEventDelegate::GetState() const {
   base::AutoLock lock(lock_);
   return application_state_;
+}
+
+PendingAck AppEventDelegate::pending_ack() const {
+  base::AutoLock lock(lock_);
+  return runner_ ? runner_->pending_ack() : PendingAck::kNone;
 }
 
 bool AppEventDelegate::IsFrozenLocked() const {

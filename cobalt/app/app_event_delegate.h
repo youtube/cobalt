@@ -27,7 +27,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
-#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
 
@@ -104,10 +103,7 @@ class AppEventDelegate {
     base::AutoLock lock(lock_);
     return is_transitioning_;
   }
-  PendingAck pending_ack() const {
-    base::AutoLock lock(lock_);
-    return runner_ ? runner_->pending_ack() : PendingAck::kNone;
-  }
+  PendingAck pending_ack() const;
 
  private:
   static const char* GetStateString(ApplicationState state);

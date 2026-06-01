@@ -15,7 +15,6 @@
 #include "cobalt/app/app_event_runner.h"
 
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
-#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"

@@ -29,7 +29,6 @@
 #include "ui/base/ime/init/input_method_factory.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/ozone/public/ozone_platform.h"
-#include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 #include "ui/wm/core/base_focus_rules.h"
 #include "ui/wm/core/focus_controller.h"

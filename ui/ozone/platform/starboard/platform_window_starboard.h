@@ -57,6 +57,7 @@ class PlatformWindowStarboard : public PlatformWindow,
   bool HasCapture() const override;
   void Maximize() override;
   void Minimize() override;
+  void DestroySbWindowInstance();
   void Restore() override;
   PlatformWindowState GetPlatformWindowState() const override;
   void Activate() override;

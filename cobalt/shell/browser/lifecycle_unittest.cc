@@ -134,6 +134,12 @@ TEST_F(LifecycleTest, Conceal) {
   EXPECT_CALL(*platform_, ConcealShell(shell_));
   Shell::OnConceal();
 
+  // Symmetrical unit-test trigger: since there are no active Blink frames to
+  // dispatch Mojo visibility ACKs, we manually invoke the observer callback
+  // on the platform manager base class.
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
 }
