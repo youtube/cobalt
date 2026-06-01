@@ -130,6 +130,7 @@ source_set("common_test") {
     "bidirectional_fit_reuse_allocator_test.cc",
     "drm_test.cc",
     "expected_test.cc",
+    "file_atomic_replace_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",

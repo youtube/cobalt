@@ -161,7 +161,6 @@ source_set("starboard_headers_only") {
     "egl.h",
     "event.h",
     "export.h",
-    "file.h",
     "gles.h",
     "input.h",
     "key.h",
