@@ -77,7 +77,9 @@ void RemoveUnexpectedRenderedFrames(
 
 VideoFrameTracker::VideoFrameTracker(int max_tracked_frames)
     : max_tracked_frames_(max_tracked_frames) {
-  frames_to_be_rendered_.reserve(max_tracked_frames_ + 1);
+  frames_to_be_rendered_.reserve(max_tracked_frames_);
+  rendered_frames_on_decoder_thread_.reserve(max_tracked_frames_);
+  rendered_frames_on_tracker_thread_.reserve(max_tracked_frames_);
   SB_LOG_IF(WARNING, max_tracked_frames_ > kMaxTrackerSizeThreshold)
       << "VideoFrameTracker created with large size (" << max_tracked_frames_
       << "). Large sizes can degrade std::vector performance due to shifting "
@@ -97,7 +99,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
     return;
   }
 
-  if (frames_to_be_rendered_.size() >
+  if (frames_to_be_rendered_.size() >=
       static_cast<size_t>(max_tracked_frames_)) {
     SB_LOG(WARNING)
         << "Evicting frame from VideoFrameTracker due to queue overflow: "
