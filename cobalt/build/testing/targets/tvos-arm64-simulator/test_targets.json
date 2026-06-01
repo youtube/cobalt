@@ -4,13 +4,19 @@
   },
   {
     "target": "base:base_perftests",
-    "executable": "out/arm64-simulator_devel/bin/base_perftests"
+    "executable": "out/arm64-simulator_devel/bin/base_perftests",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
     "target": "base:base_unittests",
-    "executable": "out/arm64-simulator_devel/bin/base_unittests"
+    "executable": "out/arm64-simulator_devel/bin/base_unittests",
+    "runs_on": "host",
+    "test_type": "gunittest"
   },
   {
-    "target": "cobalt/testing/browser_tests:cobalt_browsertests"
+    "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+    "runs_on": "host",
+    "test_type": "browsertest"
   }
 ]

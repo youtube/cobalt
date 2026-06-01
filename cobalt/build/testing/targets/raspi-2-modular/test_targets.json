@@ -4,6 +4,8 @@
   },
   {
     "target": "starboard/nplb:nplb_loader",
-    "executable": "out/raspi-2-modular_devel/nplb_loader"
+    "executable": "out/raspi-2-modular_devel/nplb_loader",
+    "runs_on": "device",
+    "test_type": "gunittest"
   }
 ]
