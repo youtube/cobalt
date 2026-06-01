@@ -741,6 +741,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     data = pending_input.codec_config.data();
     size = pending_input.codec_config.size();
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    SB_CHECK(input_buffer);
     data = input_buffer->data();
     size = input_buffer->size();
   } else if (pending_input.type == PendingInput::kWriteEndOfStream) {

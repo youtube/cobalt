@@ -34,6 +34,14 @@ const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 // a different data structure should be considered.
 constexpr int kMaxTrackerSizeThreshold = 512;
 
+// Pre-allocates capacity to prevent heap allocations during initial std::vector
+// growth. This threshold is large enough to typically avoid any subsequent
+// reallocations during playback, while still allowing std::vector to safely
+// grow dynamically under the hood if exceeded. The typical peak number of
+// rendered frames in a 200ms update window is 12 (at 60fps). 24 provides a safe
+// 2x margin to completely avoid allocations on the time-sensitive JNI thread.
+constexpr int kInitialRenderedFramesCapacity = 24;
+
 void RemoveUnexpectedRenderedFrames(
     const std::vector<int64_t>& frames_to_render,
     std::vector<int64_t>* rendered_frames) {
@@ -78,13 +86,13 @@ void RemoveUnexpectedRenderedFrames(
 VideoFrameTracker::VideoFrameTracker(int max_tracked_frames)
     : max_tracked_frames_(max_tracked_frames) {
   frames_to_be_rendered_.reserve(max_tracked_frames_);
-  rendered_frames_on_decoder_thread_.reserve(max_tracked_frames_);
-  rendered_frames_on_tracker_thread_.reserve(max_tracked_frames_);
   SB_LOG_IF(WARNING, max_tracked_frames_ > kMaxTrackerSizeThreshold)
       << "VideoFrameTracker created with large size (" << max_tracked_frames_
       << "). Large sizes can degrade std::vector performance due to shifting "
          "elements. "
       << "Consider reducing the size or switching to other data type.";
+  rendered_frames_on_decoder_thread_.reserve(kInitialRenderedFramesCapacity);
+  rendered_frames_on_tracker_thread_.reserve(kInitialRenderedFramesCapacity);
 }
 
 int64_t VideoFrameTracker::seek_to_time() const {
