@@ -24,14 +24,7 @@
 #include <unistd.h>
 
 
-// TODO: b/457772688 remove when using starboard includes from Angle is fixed.
-#define COBALT_HACK_FOR_ANGLE_STARBOARD_INCLUDE
 
-#if defined(COBALT_HACK_FOR_ANGLE_STARBOARD_INCLUDE)
-typedef int32_t SbThreadId;
-#else
-#include "starboard/thread.h"
-#endif
 
 // Map |syscall()| to |libc_wrapper_SYS_foo()|.
 //

@@ -303,7 +303,6 @@
 #include "starboard/common/string.h" // nogncheck
 #include "starboard/log.h" // nogncheck
 #include "starboard/system.h" // nogncheck
-#include "starboard/thread.h" // nogncheck
 #endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <cerrno>
