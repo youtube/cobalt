@@ -1,0 +1,144 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef STARBOARD_ANDROID_SHARED_FAKE_MEDIA_CODEC_H_
+#define STARBOARD_ANDROID_SHARED_FAKE_MEDIA_CODEC_H_
+
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <vector>
+
+#include "starboard/android/shared/media_codec.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/jni_zero/jni_zero.h"
+
+namespace starboard {
+
+// FakeMediaCodec is a thread-safe simulation of Android's MediaCodec,
+// used to verify decoder logic in JVM-free native unit tests.
+//
+// This class is thread-safe.
+class FakeMediaCodec : public MediaCodec {
+ public:
+  struct QueuedInput {
+    int index;
+    int offset;
+    int size;
+    int64_t pts;
+    int flags;
+  };
+
+  explicit FakeMediaCodec(Handler* handler);
+  ~FakeMediaCodec() override = default;
+
+  // MediaCodec implementation
+  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
+  void* GetInputBufferAddress(jint index, size_t* capacity) override;
+  jint QueueInputBuffer(jint index,
+                        jint offset,
+                        jint size,
+                        jlong presentation_time_microseconds,
+                        jint flags,
+                        jboolean is_decode_only) override;
+  jint QueueSecureInputBuffer(jint index,
+                              jint offset,
+                              const SbDrmSampleInfo& drm_sample_info,
+                              jlong presentation_time_microseconds,
+                              jboolean is_decode_only) override;
+
+  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) override;
+  void ReleaseOutputBuffer(jint index, jboolean render) override;
+  void ReleaseOutputBufferAtTimestamp(jint index,
+                                      jlong render_timestamp_ns) override;
+
+  void SetPlaybackRate(double playback_rate) override;
+  bool Restart() override;
+  jint Flush() override;
+  std::optional<FrameSize> GetOutputSize() override;
+  std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
+
+  // Test control methods
+  void SimulateInputBufferAvailable(int index);
+  void SimulateOutputAvailable(int index,
+                               int flags,
+                               int offset,
+                               int64_t pts,
+                               int size);
+  bool WaitForInputQueue(size_t num_packets, int timeout_ms);
+  bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
+
+  std::vector<QueuedInput> GetQueuedInputs();
+  std::vector<int> GetReleasedOutputs();
+
+ private:
+  static constexpr int kNumBuffers = 8;
+  static constexpr size_t kBufferSize = 8192;
+
+  Handler* const handler_;
+  std::mutex mutex_;
+  std::condition_variable cond_var_;
+  std::vector<std::vector<uint8_t>> buffers_{kNumBuffers};
+  std::deque<QueuedInput> queued_inputs_;
+  std::vector<int> released_outputs_;
+};
+
+// FakeMediaCodecFactory is a factory implementation used to inject
+// FakeMediaCodec instances during unit tests.
+//
+// This class is thread-safe.
+class FakeMediaCodecFactory : public MediaCodec::Factory {
+ public:
+  FakeMediaCodecFactory() = default;
+  ~FakeMediaCodecFactory() override = default;
+
+  std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
+      const AudioStreamInfo& audio_stream_info,
+      MediaCodec::Handler* handler,
+      jobject j_media_crypto) override;
+
+  NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
+      SbMediaVideoCodec video_codec,
+      const Size& frame_size_hint,
+      int fps,
+      const std::optional<Size>& max_frame_size,
+      MediaCodec::Handler* handler,
+      jobject j_surface,
+      jobject j_media_crypto,
+      const SbMediaColorMetadata* color_metadata,
+      bool enable_frame_renderer_listener,
+      bool require_secured_decoder,
+      bool require_software_codec,
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool force_big_endian_hdr_metadata,
+      int max_video_input_size,
+      bool skip_video_frames_over_60_fps) override;
+
+  FakeMediaCodec* last_created_audio_codec() const {
+    return last_created_audio_codec_;
+  }
+  FakeMediaCodec* last_created_video_codec() const {
+    return last_created_video_codec_;
+  }
+
+ private:
+  std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
+  std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
+};
+
+}  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_FAKE_MEDIA_CODEC_H_
