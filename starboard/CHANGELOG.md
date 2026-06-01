@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 18
 
+### Removed SbFileAtomicReplace from Starboard API
+Moved `SbFileAtomicReplace` from `starboard/file.h` to `starboard/common/file.h`.
+Platforms no longer need to implement this API.
+
 ### Removed kHasPartialAudioFramesSupport
 The `kHasPartialAudioFramesSupport` configuration constant has been removed.
 All Starboard implementations are now expected to support partial audio frames.
