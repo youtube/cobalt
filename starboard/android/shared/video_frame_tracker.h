@@ -23,10 +23,7 @@ namespace starboard {
 
 class VideoFrameTracker {
  public:
-  explicit VideoFrameTracker(int max_pending_frames_size)
-      : max_pending_frames_size_(max_pending_frames_size) {
-    frames_to_be_rendered_.reserve(max_pending_frames_size_);
-  }
+  explicit VideoFrameTracker(int max_tracked_frames);
 
   int64_t seek_to_time() const;
 
@@ -42,9 +39,10 @@ class VideoFrameTracker {
   void UpdateDroppedFrames_Locked();  // Requires |state_mutex_|.
 
   std::mutex state_mutex_;
+  // NOTE: std::vector is used to avoid heap allocations during playback.
   std::vector<int64_t> frames_to_be_rendered_;  // Guarded by |state_mutex_|.
 
-  const int max_pending_frames_size_;
+  const int max_tracked_frames_;
   int dropped_frames_ = 0;                // Guarded by |state_mutex_|.
   std::atomic<int64_t> seek_to_time_{0};  // microseconds
 

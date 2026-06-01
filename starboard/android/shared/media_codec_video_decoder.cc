@@ -1037,7 +1037,7 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 void MediaCodecVideoDecoder::OnInputBufferQueued(int64_t timestamp_us) {
   if (is_video_frame_tracker_enabled_) {
-    SB_DCHECK(video_frame_tracker_);
+    SB_CHECK(video_frame_tracker_);
     video_frame_tracker_->OnInputBuffer(timestamp_us);
   }
 }

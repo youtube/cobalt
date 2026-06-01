@@ -18,7 +18,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <list>
 #include <mutex>
 #include <vector>
 
@@ -29,8 +28,12 @@ namespace {
 
 const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
-// TODO: b/409362474 - Add unit test once starboard unittests are enable on
-// Android.
+// Benchmark tests show VideoFrameTracker with std::vector outperforms
+// the std::list version for sizes up to 512, while also eliminating
+// per-frame heap allocations. If the capacity exceeds this threshold,
+// a different data structure should be considered.
+constexpr int kMaxTrackerSizeThreshold = 512;
+
 void RemoveUnexpectedRenderedFrames(
     const std::vector<int64_t>& frames_to_render,
     std::vector<int64_t>* rendered_frames) {
@@ -72,6 +75,16 @@ void RemoveUnexpectedRenderedFrames(
 }
 }  // namespace
 
+VideoFrameTracker::VideoFrameTracker(int max_tracked_frames)
+    : max_tracked_frames_(max_tracked_frames) {
+  frames_to_be_rendered_.reserve(max_tracked_frames_ + 1);
+  SB_LOG_IF(WARNING, max_tracked_frames_ > kMaxTrackerSizeThreshold)
+      << "VideoFrameTracker created with large size (" << max_tracked_frames_
+      << "). Large sizes can degrade std::vector performance due to shifting "
+         "elements. "
+      << "Consider reducing the size or switching to other data type.";
+}
+
 int64_t VideoFrameTracker::seek_to_time() const {
   return seek_to_time_;
 }
@@ -85,12 +98,12 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
   }
 
   if (frames_to_be_rendered_.size() >
-      static_cast<size_t>(max_pending_frames_size_)) {
+      static_cast<size_t>(max_tracked_frames_)) {
     SB_LOG(WARNING)
         << "Evicting frame from VideoFrameTracker due to queue overflow: "
         << "evicted_timestamp=" << frames_to_be_rendered_.front()
         << ", new_timestamp=" << timestamp
-        << ", max_size=" << max_pending_frames_size_;
+        << ", max_size=" << max_tracked_frames_;
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
     frames_to_be_rendered_.erase(frames_to_be_rendered_.begin());
@@ -136,18 +149,18 @@ int VideoFrameTracker::UpdateAndGetDroppedFrames() {
 
 void VideoFrameTracker::UpdateDroppedFrames_Locked() {
   {
-    std::lock_guard lock_rendered(rendered_frames_mutex_);
+    std::lock_guard lock(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
 
-  while (!frames_to_be_rendered_.empty() &&
-         frames_to_be_rendered_.front() < seek_to_time_.load()) {
-    // It is possible that the initial frame rendered time is before the
-    // seek to time, when the platform decides to render a frame earlier
-    // than the seek to time during preroll. This shouldn't be an issue
-    // after we align seek time to the next video key frame.
-    frames_to_be_rendered_.erase(frames_to_be_rendered_.begin());
-  }
+  // It is possible that the initial frame rendered time is before the
+  // seek to time, when the platform decides to render a frame earlier
+  // than the seek to time during preroll. This shouldn't be an issue
+  // after we align seek time to the next video key frame.
+  auto iter =
+      std::lower_bound(frames_to_be_rendered_.begin(),
+                       frames_to_be_rendered_.end(), seek_to_time_.load());
+  frames_to_be_rendered_.erase(frames_to_be_rendered_.begin(), iter);
 
   RemoveUnexpectedRenderedFrames(frames_to_be_rendered_,
                                  &rendered_frames_on_tracker_thread_);
