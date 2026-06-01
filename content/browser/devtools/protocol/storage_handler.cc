@@ -1453,7 +1453,11 @@ void StorageHandler::ClearSharedStorageEntries(
           std::move(callback)));
 }
 
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
+
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (enable) {
     auto* manager = GetSharedStorageRuntimeManager();
     if (!manager) {
@@ -1469,6 +1473,9 @@ Response StorageHandler::SetSharedStorageTracking(bool enable) {
     shared_storage_observation_.Reset();
   }
   return Response::Success();
+#else
+  return Response::ServerError("Shared storage is disabled.");
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::ResetSharedStorageBudget(

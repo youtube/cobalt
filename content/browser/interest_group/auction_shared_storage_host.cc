@@ -11,12 +11,16 @@
 #include "services/network/public/mojom/shared_storage.mojom.h"
 #include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
 
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
+
 namespace content {
 
 namespace {
 
 using AccessScope = blink::SharedStorageAccessScope;
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 blink::mojom::WebFeature ToWebFeature(
     auction_worklet::mojom::AuctionWorkletFunction auction_worklet_function) {
   switch (auction_worklet_function) {
@@ -32,6 +36,7 @@ blink::mojom::WebFeature ToWebFeature(
   }
   NOTREACHED();
 }
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 }  // namespace
 
@@ -59,11 +64,15 @@ void AuctionSharedStorageHost::BindNewReceiver(
                                     .worklet_origin = worklet_origin});
 }
 
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
+
 void AuctionSharedStorageHost::SharedStorageUpdate(
     network::mojom::SharedStorageModifierMethodWithOptionsPtr
         method_with_options,
     auction_worklet::mojom::AuctionWorkletFunction
         source_auction_worklet_function) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   GlobalRenderFrameHostId main_frame_id =
       receiver_set_.current_context()
           .auction_runner_rfh->GetOutermostMainFrame()
@@ -82,6 +91,7 @@ void AuctionSharedStorageHost::SharedStorageUpdate(
   GetContentClient()->browser()->LogWebFeatureForCurrentPage(
       receiver_set_.current_context().auction_runner_rfh,
       ToWebFeature(source_auction_worklet_function));
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void AuctionSharedStorageHost::SharedStorageBatchUpdate(
@@ -90,6 +100,7 @@ void AuctionSharedStorageHost::SharedStorageBatchUpdate(
     const std::optional<std::string>& with_lock,
     auction_worklet::mojom::AuctionWorkletFunction
         source_auction_worklet_function) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   GlobalRenderFrameHostId main_frame_id =
       receiver_set_.current_context()
           .auction_runner_rfh->GetOutermostMainFrame()
@@ -108,6 +119,7 @@ void AuctionSharedStorageHost::SharedStorageBatchUpdate(
   GetContentClient()->browser()->LogWebFeatureForCurrentPage(
       receiver_set_.current_context().auction_runner_rfh,
       ToWebFeature(source_auction_worklet_function));
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 }  // namespace content
