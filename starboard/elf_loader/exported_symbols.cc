@@ -53,7 +53,6 @@
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
-#include "starboard/file.h"
 #include "starboard/gles.h"
 #include "starboard/log.h"
 #include "starboard/microphone.h"
@@ -132,7 +131,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDrmUpdateSession);
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
-  REGISTER_SYMBOL(SbFileAtomicReplace);
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
   REGISTER_SYMBOL(SbLog);
