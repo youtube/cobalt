@@ -98,7 +98,7 @@ void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
   const auto& last_input_buffer = input_buffers.back();
   if (last_input_buffer->sample_type() == kSbMediaTypeVideo) {
     total_video_frames_ += number_of_sample_infos;
-    frame_size_ = last_input_buffer->video_stream_info().frame_size;
+    frame_size_ = last_input_buffer->video_stream_info().frame_size();
   }
 
   worker_->WriteSamples(std::move(input_buffers));

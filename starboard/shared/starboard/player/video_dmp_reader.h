@@ -104,12 +104,12 @@ class VideoDmpReader {
 
   SbMediaAudioCodec audio_codec() const { return dmp_info_.audio_codec; }
   const AudioStreamInfo& audio_stream_info() const {
-    return dmp_info_.audio_sample_info.stream_info;
+    return dmp_info_.audio_sample_info.stream_info();
   }
   const VideoStreamInfo& video_stream_info() {
     EnsureSampleLoaded(kSbMediaTypeVideo, 0);
     SB_DCHECK(!video_access_units_.empty());
-    return video_access_units_[0].video_sample_info().stream_info;
+    return video_access_units_[0].video_sample_info().stream_info();
   }
   int64_t audio_bitrate() const { return dmp_info_.audio_bitrate; }
   std::string audio_mime_type() const;

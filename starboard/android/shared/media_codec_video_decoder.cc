@@ -268,7 +268,7 @@ MediaCodecVideoDecoder::Create(
   // For AV1, |media_decoder_| is null after creation because its initialization
   // is deferred. For all other codecs, a null |media_decoder_| indicates a
   // failure.
-  if (video_stream_info.codec != kSbMediaVideoCodecAv1 &&
+  if (video_stream_info.codec() != kSbMediaVideoCodecAv1 &&
       !video_decoder->media_decoder_) {
     return Failure(
         "Video decoder was not created, but no error message was provided.");
@@ -297,7 +297,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     const ExperimentalFeatures& experimental_features,
     std::string* error_message)
     : JobOwner(job_queue),
-      video_codec_(video_stream_info.codec),
+      video_codec_(video_stream_info.codec()),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -480,7 +480,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
-        input_buffers.front()->video_stream_info().color_metadata;
+        input_buffers.front()->video_stream_info().color_metadata();
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
@@ -796,12 +796,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
-  std::optional<Size> max_frame_size =
-      ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
+  std::optional<Size> max_frame_size = ParseMaxResolution(
+      max_video_capabilities_, video_stream_info.frame_size());
 
   auto result = MediaCodecDecoder::CreateForVideo(
-      job_queue(), /*host=*/this, video_stream_info.codec,
-      video_stream_info.frame_size, max_frame_size, video_fps_,
+      job_queue(), /*host=*/this, video_stream_info.codec(),
+      video_stream_info.frame_size(), max_frame_size, video_fps_,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),

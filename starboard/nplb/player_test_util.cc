@@ -235,7 +235,7 @@ SbPlayer CallSbPlayerCreate(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* context_provider) {
   if (audio_stream_info) {
-    SB_CHECK_EQ(audio_stream_info->codec, audio_codec);
+    SB_CHECK_EQ(audio_stream_info->codec(), audio_codec);
   } else {
     SB_CHECK_EQ(audio_codec, kSbMediaAudioCodecNone);
   }
@@ -247,8 +247,11 @@ SbPlayer CallSbPlayerCreate(
     creation_param.audio_stream_info = *audio_stream_info;
   }
   creation_param.drm_system = drm_system;
-  creation_param.video_stream_info.max_video_capabilities =
-      max_video_capabilities;
+
+  SbMediaVideoStreamInfo sb_video_info = {};
+  creation_param.video_stream_info.ConvertTo(&sb_video_info);
+  sb_video_info.max_video_capabilities = max_video_capabilities;
+  creation_param.video_stream_info = starboard::VideoStreamInfo(sb_video_info);
 
   SbPlayerCreationParam param = {};
   creation_param.ConvertTo(&param);

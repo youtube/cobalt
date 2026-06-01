@@ -143,8 +143,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
             : kSbMediaAudioSampleTypeInt16Deprecated;
 
     int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        audio_stream_info.number_of_channels, sample_type,
-        audio_stream_info.samples_per_second);
+        audio_stream_info.number_of_channels(), sample_type,
+        audio_stream_info.samples_per_second());
 
     if (is_tunnel_mode_enabled_) {
       // AudioTrack.setPlaybackParams() might need extra buffer to support
@@ -154,8 +154,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
       min_frames_required = std::max<int>(
           min_frames_required,
           AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
-              env, sample_type, audio_stream_info.number_of_channels,
-              audio_stream_info.samples_per_second) *
+              env, sample_type, audio_stream_info.number_of_channels(),
+              audio_stream_info.samples_per_second()) *
               kMaxPlaybackSpeed);
     }
 
@@ -503,11 +503,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
-        if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
+        if (UseLibopusDecoder(audio_stream_info.codec(), drm_system,
                               force_platform_opus_decoder)) {
           return OpusAudioDecoder::Create(job_queue, audio_stream_info);
-        } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
-                   audio_stream_info.codec == kSbMediaAudioCodecOpus) {
+        } else if (audio_stream_info.codec() == kSbMediaAudioCodecAac ||
+                   audio_stream_info.codec() == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
               job_queue, audio_stream_info, drm_system,
               enable_flush_during_seek);
@@ -516,7 +516,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
-                        << audio_stream_info.codec;
+                        << audio_stream_info.codec();
         }
         return nullptr;
       };
@@ -717,7 +717,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     JNIEnv* env = AttachCurrentThread();
     std::optional<int> tunnel_mode_audio_session_id =
         AudioOutputManager::GetInstance()->GenerateTunnelModeAudioSessionId(
-            env, creation_parameters.audio_stream_info().number_of_channels);
+            env, creation_parameters.audio_stream_info().number_of_channels());
 
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:

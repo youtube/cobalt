@@ -178,9 +178,9 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   // the call to MediaCodecBridge::CreateAudioMediaCodecBridge() above.
   // TODO: Determine if we should send the audio specific configuration here
   // only when |audio_codec| == kSbMediaAudioCodecAac.
-  if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&
-      !audio_stream_info.audio_specific_config.empty()) {
-    pending_inputs_.emplace_back(audio_stream_info.audio_specific_config);
+  if (audio_stream_info.codec() != kSbMediaAudioCodecOpus &&
+      !audio_stream_info.audio_specific_config().empty()) {
+    pending_inputs_.emplace_back(audio_stream_info.audio_specific_config());
     ++number_of_pending_inputs_;
   }
 }

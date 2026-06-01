@@ -109,11 +109,11 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
       PlayerComponents::Factory::Create();
   SB_DCHECK(factory);
 
-  if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
+  if (audio_stream_info_.codec() != kSbMediaAudioCodecNone) {
     // TODO: This is not ideal as we should really handle the creation failure
     // of audio sink inside the audio renderer to give the renderer a chance to
     // resample the decoded audio.
-    const int required_audio_channels = audio_stream_info_.number_of_channels;
+    const int required_audio_channels = audio_stream_info_.number_of_channels();
     const int supported_audio_channels = SbAudioSinkGetMaxChannels();
     if (required_audio_channels > supported_audio_channels) {
       SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
@@ -143,10 +143,10 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
     audio_renderer_ = player_components_->GetAudioRenderer();
     video_renderer_ = player_components_->GetVideoRenderer();
   }
-  if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
+  if (audio_stream_info_.codec() != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_renderer_);
   }
-  if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
+  if (video_stream_info_.codec() != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_renderer_);
   }
   SB_DCHECK(media_time_provider_);

@@ -83,17 +83,17 @@ std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer) {
      << " sample @ timestamp: " << buffer.timestamp() << " in " << buffer.size()
      << " bytes ==========\n";
   if (buffer.sample_type() == kSbMediaTypeAudio) {
-    os << "codec: " << buffer.audio_stream_info().codec << ", mime: '"
-       << buffer.audio_stream_info().mime << "'\n";
-    os << buffer.audio_stream_info().samples_per_second << '\n';
+    os << "codec: " << buffer.audio_stream_info().codec() << ", mime: '"
+       << buffer.audio_stream_info().mime() << "'\n";
+    os << buffer.audio_stream_info().samples_per_second() << '\n';
   } else {
     SB_DCHECK_EQ(buffer.sample_type(), kSbMediaTypeVideo);
 
-    os << "codec: " << buffer.video_stream_info().codec << ", mime: '"
-       << buffer.video_stream_info().mime << "'"
+    os << "codec: " << buffer.video_stream_info().codec() << ", mime: '"
+       << buffer.video_stream_info().mime() << "'"
        << ", max_video_capabilities: '"
-       << buffer.video_stream_info().max_video_capabilities << "'\n";
-    os << buffer.video_stream_info().frame_size << '\n';
+       << buffer.video_stream_info().max_video_capabilities() << "'\n";
+    os << buffer.video_stream_info().frame_size() << '\n';
   }
   if (buffer.has_drm_info_) {
     os << "iv: "

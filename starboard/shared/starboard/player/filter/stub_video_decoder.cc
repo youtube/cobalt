@@ -84,7 +84,7 @@ SbDecodeTarget StubVideoDecoder::GetCurrentDecodeTarget() {
 void StubVideoDecoder::DecodeBuffers(const InputBuffers& input_buffers) {
   for (const auto& input_buffer : input_buffers) {
     auto& video_sample_info = input_buffer->video_sample_info();
-    if (video_sample_info.is_key_frame) {
+    if (video_sample_info.is_key_frame()) {
       if (video_stream_info_ != input_buffer->video_stream_info()) {
         SB_LOG(INFO) << "New video sample info: " << video_sample_info;
         video_stream_info_ = input_buffer->video_stream_info();
@@ -130,20 +130,20 @@ void StubVideoDecoder::DecodeEndOfStream() {
 
 scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
     int64_t timestamp) const {
-  int bits_per_channel = video_stream_info_.color_metadata.bits_per_channel;
+  int bits_per_channel = video_stream_info_.color_metadata().bits_per_channel;
   if (bits_per_channel == 0) {
     // Assume 8 bits when |bits_per_channel| is unknown (0).
     bits_per_channel = 8;
   }
   int uv_stride = bits_per_channel > 8
-                      ? video_stream_info_.frame_size.width
-                      : video_stream_info_.frame_size.width / 2;
+                      ? video_stream_info_.frame_size().width
+                      : video_stream_info_.frame_size().width / 2;
   int y_stride = uv_stride * 2;
-  std::string data(y_stride * video_stream_info_.frame_size.height, 0);
+  std::string data(y_stride * video_stream_info_.frame_size().height, 0);
 
   return CpuVideoFrame::CreateYV12Frame(
-      bits_per_channel, video_stream_info_.frame_size.width,
-      video_stream_info_.frame_size.height, y_stride, uv_stride, timestamp,
+      bits_per_channel, video_stream_info_.frame_size().width,
+      video_stream_info_.frame_size().height, y_stride, uv_stride, timestamp,
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()));

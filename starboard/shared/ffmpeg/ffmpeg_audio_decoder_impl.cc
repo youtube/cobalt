@@ -39,7 +39,7 @@ SbMediaAudioSampleType GetSupportedSampleType() {
 }
 
 AVCodecID GetFfmpegCodecIdByMediaCodec(const AudioStreamInfo& stream_info) {
-  SbMediaAudioCodec audio_codec = stream_info.codec;
+  SbMediaAudioCodec audio_codec = stream_info.codec();
 
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
@@ -55,20 +55,20 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(const AudioStreamInfo& stream_info) {
     case kSbMediaAudioCodecMp3:
       return AV_CODEC_ID_MP3;
     case kSbMediaAudioCodecPcm:
-      if (stream_info.bits_per_sample == 16) {
+      if (stream_info.bits_per_sample() == 16) {
         return AV_CODEC_ID_PCM_S16LE;
       } else {
         SB_LOG(ERROR) << "PCM is only supported for 16-bit audio ("
-                      << stream_info.bits_per_sample
+                      << stream_info.bits_per_sample()
                       << " bits per sample was requested)";
         return AV_CODEC_ID_NONE;
       }
     case kSbMediaAudioCodecFlac:
-      if (stream_info.bits_per_sample == 16) {
+      if (stream_info.bits_per_sample() == 16) {
         return AV_CODEC_ID_FLAC;
       } else {
         SB_LOG(ERROR) << "FLAC is only supported for 16-bit audio ("
-                      << stream_info.bits_per_sample
+                      << stream_info.bits_per_sample()
                       << " bits per sample was requested)";
         return AV_CODEC_ID_NONE;
       }
@@ -95,7 +95,7 @@ FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
   SB_DCHECK_NE(GetFfmpegCodecIdByMediaCodec(audio_stream_info_),
                AV_CODEC_ID_NONE)
-      << "Unsupported audio codec " << audio_stream_info_.codec;
+      << "Unsupported audio codec " << audio_stream_info_.codec();
   SB_CHECK(ffmpeg_);
 }
 
@@ -229,7 +229,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
 #endif
   int decoded_audio_size = ffmpeg_->av_samples_get_buffer_size(
       NULL, channel_count, av_frame.nb_samples, codec_context_->sample_fmt, 1);
-  audio_stream_info_.samples_per_second = codec_context_->sample_rate;
+  audio_stream_info_.set_samples_per_second(codec_context_->sample_rate);
 
   if (decoded_audio_size <= 0) {
     // TODO: Consider fill it with silence.
@@ -256,9 +256,9 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
         GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
   }
   decoded_audio->AdjustForDiscardedDurations(
-      audio_stream_info_.samples_per_second,
-      input_buffer.audio_sample_info().discarded_duration_from_front,
-      input_buffer.audio_sample_info().discarded_duration_from_back);
+      audio_stream_info_.samples_per_second(),
+      input_buffer.audio_sample_info().discarded_duration_from_front(),
+      input_buffer.audio_sample_info().discarded_duration_from_back());
   decoded_audios_.push(decoded_audio);
   Schedule(output_cb_);
 }
@@ -287,7 +287,7 @@ scoped_refptr<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = audio_stream_info_.samples_per_second;
+  *samples_per_second = audio_stream_info_.samples_per_second();
   return result;
 }
 
@@ -355,34 +355,35 @@ bool FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
       // If we request FLT for 16-bit FLAC, FFmpeg will pick S32 as the closest
       // option. Since the rest of this pipeline doesn't support S32, we should
       // use S16 as the desired format.
-      || audio_stream_info_.codec == kSbMediaAudioCodecFlac) {
+      || audio_stream_info_.codec() == kSbMediaAudioCodecFlac) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
   } else {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
   }
 
 #if LIBAVCODEC_VERSION_MAJOR >= 61
-  codec_context_->ch_layout.nb_channels = audio_stream_info_.number_of_channels;
+  codec_context_->ch_layout.nb_channels =
+      audio_stream_info_.number_of_channels();
 #else
-  codec_context_->channels = audio_stream_info_.number_of_channels;
+  codec_context_->channels = audio_stream_info_.number_of_channels();
 #endif
-  codec_context_->sample_rate = audio_stream_info_.samples_per_second;
+  codec_context_->sample_rate = audio_stream_info_.samples_per_second();
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
 
   if ((codec_context_->codec_id == AV_CODEC_ID_OPUS ||
        codec_context_->codec_id == AV_CODEC_ID_VORBIS) &&
-      !audio_stream_info_.audio_specific_config.empty()) {
+      !audio_stream_info_.audio_specific_config().empty()) {
     // AV_INPUT_BUFFER_PADDING_SIZE is not defined in ancient avcodec.h.  Use a
     // large enough padding here explicitly.
     const int kAvInputBufferPaddingSize = 256;
     codec_context_->extradata_size =
-        audio_stream_info_.audio_specific_config.size();
+        audio_stream_info_.audio_specific_config().size();
     codec_context_->extradata = static_cast<uint8_t*>(ffmpeg_->av_malloc(
         codec_context_->extradata_size + kAvInputBufferPaddingSize));
     SB_DCHECK(codec_context_->extradata);
     memcpy(codec_context_->extradata,
-           audio_stream_info_.audio_specific_config.data(),
+           audio_stream_info_.audio_specific_config().data(),
            codec_context_->extradata_size);
     memset(codec_context_->extradata + codec_context_->extradata_size, 0,
            kAvInputBufferPaddingSize);

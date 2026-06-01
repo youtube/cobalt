@@ -173,7 +173,7 @@ std::string VideoDmpReader::audio_mime_type() const {
   }
 
   ss << " channels="
-     << dmp_info_.audio_sample_info.stream_info.number_of_channels;
+     << dmp_info_.audio_sample_info.stream_info().number_of_channels();
   return ss.str();
 }
 
@@ -204,8 +204,8 @@ std::string VideoDmpReader::video_mime_type() {
   }
   if (number_of_video_buffers() > 0) {
     const auto& video_stream_info = this->video_stream_info();
-    ss << "width=" << video_stream_info.frame_size.width
-       << "; height=" << video_stream_info.frame_size.height << ";";
+    ss << "width=" << video_stream_info.frame_size().width
+       << "; height=" << video_stream_info.frame_size().height << ";";
   }
   ss << " framerate=" << dmp_info_.video_fps;
   return ss.str();
@@ -278,7 +278,7 @@ bool VideoDmpReader::ParseOneRecord() {
         Read(read_cb_, reverse_byte_order_.value(),
              &dmp_info_.audio_sample_info);
         SB_DCHECK_EQ(dmp_info_.audio_codec,
-                     dmp_info_.audio_sample_info.stream_info.codec);
+                     dmp_info_.audio_sample_info.stream_info().codec());
       }
       break;
     case kRecordTypeVideoConfig:
@@ -356,7 +356,7 @@ void VideoDmpReader::Parse() {
       if (it->timestamp() > last_frame_timestamp) {
         last_frame_timestamp = it->timestamp();
       }
-      if (it->video_sample_info().is_key_frame) {
+      if (it->video_sample_info().is_key_frame()) {
         break;
       }
     }

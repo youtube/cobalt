@@ -27,109 +27,66 @@
 
 namespace starboard {
 
-namespace {
-
-void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
-  SB_DCHECK(dest);
-
-  if (source.audio_specific_config_size > 0) {
-    SB_DCHECK(source.audio_specific_config);
-  }
-
-  dest->codec = source.codec;
-
-  if (dest->codec == kSbMediaAudioCodecNone) {
-    dest->mime.clear();
-    dest->audio_specific_config.clear();
-    return;
-  }
-
-  SB_DCHECK(source.mime);
-
-  dest->mime = source.mime;
-  dest->number_of_channels = source.number_of_channels;
-  dest->samples_per_second = source.samples_per_second;
-  dest->bits_per_sample = source.bits_per_sample;
-
-  auto config = static_cast<const uint8_t*>(source.audio_specific_config);
-  dest->audio_specific_config.assign(
-      config, config + source.audio_specific_config_size);
-}
-
-void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
-  SB_DCHECK(dest);
-
-  dest->codec = source.codec;
-
-  if (dest->codec == kSbMediaVideoCodecNone) {
-    dest->mime.clear();
-    dest->max_video_capabilities.clear();
-    return;
-  }
-
-  SB_DCHECK(source.mime);
-  SB_DCHECK(source.max_video_capabilities);
-
-  dest->mime = source.mime;
-  dest->max_video_capabilities = source.max_video_capabilities;
-  dest->frame_size = {source.frame_width, source.frame_height};
-  dest->color_metadata = source.color_metadata;
-}
-
-void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
-  SB_DCHECK(dest);
-
-  *dest = {};
-
-  dest->codec = source.codec;
-  dest->mime = source.mime.c_str();
-  dest->number_of_channels = source.number_of_channels;
-  dest->samples_per_second = source.samples_per_second;
-  dest->bits_per_sample = source.bits_per_sample;
-  if (!source.audio_specific_config.empty()) {
-    dest->audio_specific_config = source.audio_specific_config.data();
-    dest->audio_specific_config_size =
-        static_cast<uint16_t>(source.audio_specific_config.size());
-  }
-}
-
-void Assign(const VideoStreamInfo& source, SbMediaVideoStreamInfo* dest) {
-  SB_DCHECK(dest);
-
-  *dest = {};
-
-  dest->codec = source.codec;
-  dest->mime = source.mime.c_str();
-  dest->max_video_capabilities = source.max_video_capabilities.c_str();
-  dest->frame_width = source.frame_size.width;
-  dest->frame_height = source.frame_size.height;
-  dest->color_metadata = source.color_metadata;
-}
-
-}  // namespace
-
 AudioStreamInfo& AudioStreamInfo::operator=(
     const SbMediaAudioStreamInfo& that) {
-  Assign(that, this);
+  if (that.audio_specific_config_size > 0) {
+    SB_DCHECK(that.audio_specific_config);
+  }
+
+  codec_ = that.codec;
+
+  if (codec_ == kSbMediaAudioCodecNone) {
+    mime_.clear();
+    audio_specific_config_.clear();
+    return *this;
+  }
+
+  SB_DCHECK(that.mime);
+
+  mime_ = that.mime;
+  number_of_channels_ = that.number_of_channels;
+  samples_per_second_ = that.samples_per_second;
+  bits_per_sample_ = that.bits_per_sample;
+
+  if (that.audio_specific_config_size > 0) {
+    auto config = static_cast<const uint8_t*>(that.audio_specific_config);
+    audio_specific_config_.assign(config,
+                                  config + that.audio_specific_config_size);
+  } else {
+    audio_specific_config_.clear();
+  }
   return *this;
 }
 
 void AudioStreamInfo::ConvertTo(
     SbMediaAudioStreamInfo* audio_stream_info) const {
-  Assign(*this, audio_stream_info);
+  SB_DCHECK(audio_stream_info);
+
+  *audio_stream_info = {};
+
+  audio_stream_info->codec = codec_;
+  audio_stream_info->mime = mime_.c_str();
+  audio_stream_info->number_of_channels = number_of_channels_;
+  audio_stream_info->samples_per_second = samples_per_second_;
+  audio_stream_info->bits_per_sample = bits_per_sample_;
+  if (!audio_specific_config_.empty()) {
+    audio_stream_info->audio_specific_config = audio_specific_config_.data();
+    audio_stream_info->audio_specific_config_size =
+        static_cast<uint16_t>(audio_specific_config_.size());
+  }
 }
 
 bool operator==(const AudioStreamInfo& left, const AudioStreamInfo& right) {
-  if (left.codec == kSbMediaAudioCodecNone &&
-      right.codec == kSbMediaAudioCodecNone) {
+  if (left.codec() == kSbMediaAudioCodecNone &&
+      right.codec() == kSbMediaAudioCodecNone) {
     return true;
   }
 
-  return left.codec == right.codec && left.mime == right.mime &&
-         left.number_of_channels == right.number_of_channels &&
-         left.samples_per_second == right.samples_per_second &&
-         left.bits_per_sample == right.bits_per_sample &&
-         left.audio_specific_config == right.audio_specific_config;
+  return left.codec() == right.codec() && left.mime() == right.mime() &&
+         left.number_of_channels() == right.number_of_channels() &&
+         left.samples_per_second() == right.samples_per_second() &&
+         left.bits_per_sample() == right.bits_per_sample() &&
+         left.audio_specific_config() == right.audio_specific_config();
 }
 
 bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
@@ -137,19 +94,19 @@ bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
 }
 
 std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info) {
-  return os << "{codec=" << GetMediaAudioCodecName(info.codec)
-            << ", mime=" << (info.mime.empty() ? "(empty)" : info.mime)
-            << ", channels=" << info.number_of_channels
+  return os << "{codec=" << GetMediaAudioCodecName(info.codec())
+            << ", mime=" << (info.mime().empty() ? "(empty)" : info.mime())
+            << ", channels=" << info.number_of_channels()
             << ", samples_per_second="
-            << FormatWithDigitSeparators(info.samples_per_second)
-            << ", bits_per_sample=" << info.bits_per_sample << "}";
+            << FormatWithDigitSeparators(info.samples_per_second())
+            << ", bits_per_sample=" << info.bits_per_sample() << "}";
 }
 
 AudioSampleInfo& AudioSampleInfo::operator=(
     const SbMediaAudioSampleInfo& that) {
-  stream_info = that.stream_info;
-  discarded_duration_from_front = that.discarded_duration_from_front;
-  discarded_duration_from_back = that.discarded_duration_from_back;
+  stream_info_ = that.stream_info;
+  discarded_duration_from_front_ = that.discarded_duration_from_front;
+  discarded_duration_from_back_ = that.discarded_duration_from_back;
 
   return *this;
 }
@@ -159,34 +116,57 @@ void AudioSampleInfo::ConvertTo(
   SB_DCHECK(audio_sample_info);
 
   *audio_sample_info = {};
-  stream_info.ConvertTo(&audio_sample_info->stream_info);
+  stream_info_.ConvertTo(&audio_sample_info->stream_info);
   audio_sample_info->discarded_duration_from_front =
-      discarded_duration_from_front;
+      discarded_duration_from_front_;
   audio_sample_info->discarded_duration_from_back =
-      discarded_duration_from_back;
+      discarded_duration_from_back_;
 }
 
 VideoStreamInfo& VideoStreamInfo::operator=(
     const SbMediaVideoStreamInfo& that) {
-  Assign(that, this);
+  codec_ = that.codec;
+
+  if (codec_ == kSbMediaVideoCodecNone) {
+    mime_.clear();
+    max_video_capabilities_.clear();
+    return *this;
+  }
+
+  SB_DCHECK(that.mime);
+  SB_DCHECK(that.max_video_capabilities);
+
+  mime_ = that.mime;
+  max_video_capabilities_ = that.max_video_capabilities;
+  frame_size_ = {that.frame_width, that.frame_height};
+  color_metadata_ = that.color_metadata;
   return *this;
 }
 
 void VideoStreamInfo::ConvertTo(
     SbMediaVideoStreamInfo* video_stream_info) const {
-  Assign(*this, video_stream_info);
+  SB_DCHECK(video_stream_info);
+
+  *video_stream_info = {};
+
+  video_stream_info->codec = codec_;
+  video_stream_info->mime = mime_.c_str();
+  video_stream_info->max_video_capabilities = max_video_capabilities_.c_str();
+  video_stream_info->frame_width = frame_size_.width;
+  video_stream_info->frame_height = frame_size_.height;
+  video_stream_info->color_metadata = color_metadata_;
 }
 
 bool operator==(const VideoStreamInfo& left, const VideoStreamInfo& right) {
-  if (left.codec == kSbMediaVideoCodecNone &&
-      right.codec == kSbMediaVideoCodecNone) {
+  if (left.codec() == kSbMediaVideoCodecNone &&
+      right.codec() == kSbMediaVideoCodecNone) {
     return true;
   }
 
-  return left.codec == right.codec && left.mime == right.mime &&
-         left.max_video_capabilities == right.max_video_capabilities &&
-         left.frame_size == right.frame_size &&
-         left.color_metadata == right.color_metadata;
+  return left.codec() == right.codec() && left.mime() == right.mime() &&
+         left.max_video_capabilities() == right.max_video_capabilities() &&
+         left.frame_size() == right.frame_size() &&
+         left.color_metadata() == right.color_metadata();
 }
 
 bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right) {
@@ -195,8 +175,8 @@ bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right) {
 
 VideoSampleInfo& VideoSampleInfo::operator=(
     const SbMediaVideoSampleInfo& that) {
-  stream_info = that.stream_info;
-  is_key_frame = that.is_key_frame;
+  stream_info_ = that.stream_info;
+  is_key_frame_ = that.is_key_frame;
   return *this;
 }
 
@@ -205,28 +185,28 @@ void VideoSampleInfo::ConvertTo(
   SB_DCHECK(video_sample_info);
 
   *video_sample_info = {};
-  stream_info.ConvertTo(&video_sample_info->stream_info);
-  video_sample_info->is_key_frame = is_key_frame;
+  stream_info_.ConvertTo(&video_sample_info->stream_info);
+  video_sample_info->is_key_frame = is_key_frame_;
 }
 
 std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& sample_info) {
-  const auto& stream_info = sample_info.stream_info;
+  const auto& stream_info = sample_info.stream_info();
 
-  if (stream_info.codec == kSbMediaVideoCodecNone) {
-    return os << "codec: " << GetMediaVideoCodecName(stream_info.codec);
+  if (stream_info.codec() == kSbMediaVideoCodecNone) {
+    return os << "codec: " << GetMediaVideoCodecName(stream_info.codec());
   }
 
-  os << "codec: " << GetMediaVideoCodecName(stream_info.codec) << ", ";
-  os << "mime: " << stream_info.mime
-     << ", max video capabilities: " << stream_info.max_video_capabilities
+  os << "codec: " << GetMediaVideoCodecName(stream_info.codec()) << ", ";
+  os << "mime: " << stream_info.mime()
+     << ", max video capabilities: " << stream_info.max_video_capabilities()
      << ", ";
 
-  if (sample_info.is_key_frame) {
+  if (sample_info.is_key_frame()) {
     os << "key frame, ";
   }
 
-  os << stream_info.frame_size << ' ';
-  os << '(' << stream_info.color_metadata << ')';
+  os << stream_info.frame_size() << ' ';
+  os << '(' << stream_info.color_metadata() << ')';
 
   return os;
 }
@@ -362,10 +342,10 @@ std::string GetMixedRepresentation(const uint8_t* data,
 
 bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
                                              const AudioStreamInfo& right) {
-  return left.codec != right.codec ||
-         left.samples_per_second != right.samples_per_second ||
-         left.number_of_channels != right.number_of_channels ||
-         left.audio_specific_config != right.audio_specific_config;
+  return left.codec() != right.codec() ||
+         left.samples_per_second() != right.samples_per_second() ||
+         left.number_of_channels() != right.number_of_channels() ||
+         left.audio_specific_config() != right.audio_specific_config();
 }
 
 int AudioDurationToFrames(int64_t duration, int samples_per_second) {

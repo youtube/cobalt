@@ -52,7 +52,7 @@ std::optional<VideoConfig> VideoConfig::Create(
     const VideoStreamInfo& video_stream_info,
     const uint8_t* data,
     size_t data_size) {
-  return Create(video_stream_info.codec, video_stream_info.frame_size, data,
+  return Create(video_stream_info.codec(), video_stream_info.frame_size(), data,
                 data_size);
 }
 

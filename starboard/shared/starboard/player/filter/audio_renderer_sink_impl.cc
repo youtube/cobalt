@@ -69,11 +69,11 @@ void AudioRendererSinkImpl::GetAudioRendererParams(
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
   int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-      audio_stream_info.number_of_channels,
+      audio_stream_info.number_of_channels(),
       SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
           ? kSbMediaAudioSampleTypeFloat32
           : kSbMediaAudioSampleTypeInt16Deprecated,
-      audio_stream_info.samples_per_second);
+      audio_stream_info.samples_per_second());
   // Audio renderer would sleep for a while if it thinks there're enough
   // frames in the sink. The sleeping time is 1/4 of |max_cached_frames|. So, to
   // maintain required min buffer size of audio sink, the |max_cached_frames|

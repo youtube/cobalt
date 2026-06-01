@@ -145,7 +145,7 @@ scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = audio_stream_info_.samples_per_second;
+  *samples_per_second = audio_stream_info_.samples_per_second();
   return result;
 }
 
@@ -178,14 +178,14 @@ void OpusAudioDecoder::Reset() {
 OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
     const AudioStreamInfo& audio_stream_info) {
   int error;
-  int channels = audio_stream_info.number_of_channels;
+  int channels = audio_stream_info.number_of_channels();
   if (channels > 8 || channels < 1) {
     SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
     return nullptr;
   }
 
   OpusMSDecoder* decoder = opus_multistream_decoder_create(
-      audio_stream_info.samples_per_second, channels,
+      audio_stream_info.samples_per_second(), channels,
       vorbis_mappings[channels - 1].nb_streams,
       vorbis_mappings[channels - 1].nb_coupled_streams,
       vorbis_mappings[channels - 1].mapping, &error);
@@ -239,9 +239,9 @@ bool OpusAudioDecoder::DecodeInternal(
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_stream_info_.number_of_channels, GetSampleType(),
+      audio_stream_info_.number_of_channels(), GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_stream_info_.number_of_channels * frames_per_au_ *
+      audio_stream_info_.number_of_channels() * frames_per_au_ *
           GetBytesPerSample(GetSampleType()));
 
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
@@ -271,13 +271,13 @@ bool OpusAudioDecoder::DecodeInternal(
   }
 
   frames_per_au_ = decoded_frames;
-  decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
+  decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels() *
                           frames_per_au_ * GetBytesPerSample(GetSampleType()));
   const auto& sample_info = input_buffer->audio_sample_info();
   decoded_audio->AdjustForDiscardedDurations(
-      audio_stream_info_.samples_per_second,
-      sample_info.discarded_duration_from_front,
-      sample_info.discarded_duration_from_back);
+      audio_stream_info_.samples_per_second(),
+      sample_info.discarded_duration_from_front(),
+      sample_info.discarded_duration_from_back());
   decoded_audios_.push(decoded_audio);
   output_cb_();
   return true;

@@ -81,7 +81,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       experimental_features_(ExperimentalFeatures{}),
       job_queue_(job_queue),
       drm_system_(drm_system) {
-  SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
+  SB_DCHECK_NE(audio_stream_info_.codec(), kSbMediaAudioCodecNone);
   SB_CHECK(job_queue_);
 }
 
@@ -106,7 +106,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
       drm_system_(drm_system) {
-  SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
+  SB_DCHECK_NE(video_stream_info_.codec(), kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK_NE(output_mode_, kSbPlayerOutputModeInvalid);
   SB_CHECK(job_queue_);
@@ -135,8 +135,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
       drm_system_(drm_system) {
-  SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
-            video_stream_info_.codec != kSbMediaVideoCodecNone);
+  SB_DCHECK(audio_stream_info_.codec() != kSbMediaAudioCodecNone ||
+            video_stream_info_.codec() != kSbMediaVideoCodecNone);
   SB_CHECK(job_queue_);
 }
 
