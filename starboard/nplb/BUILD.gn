@@ -84,6 +84,10 @@ test("nplb") {
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
+
+    # These helper files are used by the player tests.
+    "posix_compliance/posix_thread_helpers.cc",
+    "posix_compliance/posix_thread_helpers.h",
   ]
 
   # All platforms use the Starboard Media functionality.
@@ -97,7 +101,6 @@ test("nplb") {
       "configuration_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
-      "file_atomic_replace_test.cc",
       "file_delete_recursive_test.cc",
       "file_helpers.cc",
       "flat_map_test.cc",
@@ -162,6 +165,8 @@ test("nplb") {
       "posix_compliance/posix_file_write_test.cc",
       "posix_compliance/posix_free_test.cc",
       "posix_compliance/posix_getcwd_test.cc",
+      "posix_compliance/posix_gettid_test.cc",
+      "posix_compliance/posix_ioctl_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
       "posix_compliance/posix_locale_helpers.cc",
@@ -201,6 +206,10 @@ test("nplb") {
       "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_resource_limit_test.cc",
       "posix_compliance/posix_sched_getaffinity_test.cc",
+      "posix_compliance/posix_sched_getparam_test.cc",
+      "posix_compliance/posix_sched_getscheduler_test.cc",
+      "posix_compliance/posix_sched_setparam_test.cc",
+      "posix_compliance/posix_sched_setscheduler_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -242,8 +251,6 @@ test("nplb") {
       "posix_compliance/posix_thread_detach_test.cc",
       "posix_compliance/posix_thread_get_current_test.cc",
       "posix_compliance/posix_thread_get_name_test.cc",
-      "posix_compliance/posix_thread_helpers.cc",
-      "posix_compliance/posix_thread_helpers.h",
       "posix_compliance/posix_thread_is_equal_test.cc",
       "posix_compliance/posix_thread_join_test.cc",
       "posix_compliance/posix_thread_kill_test.cc",
@@ -311,7 +318,6 @@ test("nplb") {
       "system_network_status_test.cc",
       "system_sign_with_certification_secret_key_test.cc",
       "system_symbolize_test.cc",
-      "thread_get_id_test.cc",
       "thread_test.cc",
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",

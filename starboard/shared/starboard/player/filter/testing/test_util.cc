@@ -276,10 +276,6 @@ VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   return video_stream_info;
 }
 
-bool IsPartialAudioSupported() {
-  return true;
-}
-
 scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
                                                size_t index) {
   SB_DCHECK(dmp_reader);

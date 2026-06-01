@@ -34,6 +34,6 @@
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
 bool SbWindowDestroy(SbWindow window) {
-  return third_party::starboard::rdk::shared::Application::Get()->DestroySbWindow(
+  return starboard::ApplicationRdk::Get()->DestroySbWindow(
       window);
 }

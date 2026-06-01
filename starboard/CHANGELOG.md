@@ -9,6 +9,14 @@ since the version previous to it.
 
 ## Version 18
 
+### Removed SbFileAtomicReplace from Starboard API
+Moved `SbFileAtomicReplace` from `starboard/file.h` to `starboard/common/file.h`.
+Platforms no longer need to implement this API.
+
+### Removed kHasPartialAudioFramesSupport
+The `kHasPartialAudioFramesSupport` configuration constant has been removed.
+All Starboard implementations are now expected to support partial audio frames.
+
 ### Cleanup starboard/configuration.h
 Removed deprecated feature macros and derived configurations, including
 `SB_STRINGIFY`, `SB_PREFERRED_RGBA_BYTE_ORDER_*`, `SB_RESTRICT`, `SB_LIKELY`,
@@ -44,6 +52,10 @@ rendering issues caused by Chromium's shader expectations.
 * `getuid`
 * `if_indextoname`
 * `if_nametoindex`
+* `sched_getparam`
+* `sched_setparam`
+* `sched_getscheduler`
+* `sched_setscheduler`
 * `statx`
 
 ### Added AV2 to SbMediaVideoCodec
@@ -52,6 +64,7 @@ This prepares Cobalt for future AV2 playback support.
 ### Removed unused configuration constants
 The following configuration constants were removed as they are no longer used by Cobalt core:
 * `kSbFileMaxOpen`
+* `kSbHasThreadPrioritySupport`
 * `kSbMaxThreadLocalKeys`
 * `kSbMaxThreadNameLength`
 * `kSbNetworkReceiveBufferSize`

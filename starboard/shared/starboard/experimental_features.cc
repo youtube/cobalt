@@ -14,11 +14,9 @@
 
 #include "starboard/shared/starboard/experimental_features.h"
 
-#include <memory>
 #include <optional>
+#include <type_traits>
 
-#include "base/no_destructor.h"
-#include "base/threading/thread_local.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental_features.h"
 
@@ -26,23 +24,12 @@ namespace starboard {
 
 namespace {
 
-base::ThreadLocalOwnedPointer<ExperimentalFeatures>&
-GetExperimentalFeaturesTLS() {
-  static base::NoDestructor<base::ThreadLocalOwnedPointer<ExperimentalFeatures>>
-      experimental_features_tls;
-  return *experimental_features_tls;
-}
-
-ExperimentalFeatures* GetOrCreateExperimentalFeatures() {
-  auto& tls = GetExperimentalFeaturesTLS();
-  ExperimentalFeatures* ptr = tls.Get();
-  if (ptr) {
-    return ptr;
-  }
-
-  tls.Set(std::make_unique<ExperimentalFeatures>());
-  return tls.Get();
-}
+static_assert(
+    std::is_trivially_destructible<std::optional<ExperimentalFeatures>>::value,
+    "g_experimental_features must be trivially destructible.");
+static_assert(sizeof(ExperimentalFeatures) < 256,
+              "ExperimentalFeatures is too large for thread-local storage.");
+thread_local std::optional<ExperimentalFeatures> g_experimental_features;
 
 std::optional<int> FromIntPointer(const int* val) {
   if (!val) {
@@ -81,8 +68,6 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->disable_low_performance_sw_decoder;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
-  experiment_features.enable_codec_output_checker =
-      extension_features->enable_codec_output_checker;
   experiment_features.enable_video_renderer_vsp_adjustment =
       extension_features->enable_video_renderer_vsp_adjustment;
   experiment_features.flush_audio_track_during_seek =
@@ -95,6 +80,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->skip_flush_on_decoder_teardown;
   experiment_features.skip_video_frames_over_60_fps =
       extension_features->skip_video_frames_over_60_fps;
+  experiment_features.enable_trivial_optimizations =
+      FromBoolPointer(extension_features->enable_trivial_optimizations);
   experiment_features.use_dual_threads_for_video =
       FromBoolPointer(extension_features->use_dual_threads_for_video);
   experiment_features.video_decoder_initial_preroll_count =
@@ -104,15 +91,14 @@ void SetExperimentalFeaturesForCurrentThread(
   experiment_features.video_renderer_min_input_buffers =
       FromIntPointer(extension_features->video_renderer_min_input_buffers);
 
-  *GetOrCreateExperimentalFeatures() = experiment_features;
+  g_experimental_features = experiment_features;
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
-  ExperimentalFeatures* current = GetExperimentalFeaturesTLS().Get();
-  SB_CHECK(current)
+  SB_CHECK(g_experimental_features.has_value())
       << "ExperimentalFeatures are not set. This method was likely "
          "called on the wrong thread or a race condition occurred.";
-  return *current;
+  return *g_experimental_features;
 }
 
 const void* GetExperimentalFeaturesConfigurationApi() {

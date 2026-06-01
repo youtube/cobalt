@@ -39,8 +39,7 @@ class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
         bidirectional_fit_reuse_allocator_(&fallback_allocator_,
                                            initial_capacity,
                                            small_allocation_threshold,
-                                           allocation_increment,
-                                           /*enable_decommit_on_idle=*/false) {}
+                                           allocation_increment) {}
 
   ~MediaBufferPoolBidirectionalReuseAllocator() {
     SB_DCHECK_EQ(GetAllocated(), 0u);

@@ -195,6 +195,7 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
       static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
 
   AddAllocatedBlock(allocated_block);
+  TryToDecommitOneBlock();
 
   return user_address;
 }
@@ -218,13 +219,13 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       total_allocated_in_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
-      EnumerateFallbackAllocations(
-          [this](intptr_t index, void* address, size_t size) {
-            AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
-          });
-
       if (enable_decommit_on_idle_) {
-        DecommitFallbackAllocations();
+        ReclaimFallbackBlocks();
+      } else {
+        EnumerateFallbackAllocations(
+            [this](intptr_t index, void* address, size_t size) {
+              AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
+            });
       }
     } else {
       for (auto address_to_free : pending_frees_) {
@@ -374,7 +375,8 @@ bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
   --total_allocated_blocks_;
 
   if (enable_decommit_on_idle_ && total_allocated_in_bytes_ == 0) {
-    DecommitFallbackAllocations();
+    free_blocks_.clear();
+    ReclaimFallbackBlocks();
   }
 
   return true;
@@ -384,9 +386,31 @@ EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
     Allocator* fallback_allocator,
     size_t initial_capacity,
     size_t allocation_increment,
+    size_t max_capacity)
+    : EmbeddedMetadataReuseAllocatorBase(
+          fallback_allocator,
+          initial_capacity,
+          allocation_increment,
+          max_capacity,
+          /*enable_decommit_on_idle=*/false,
+          /*retain_blocks=*/0,
+          /*conservative_decommit_blocks=*/0,
+          /*aggressive_decommit_on_suspend=*/false) {}
+
+EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
+    Allocator* fallback_allocator,
+    size_t initial_capacity,
+    size_t allocation_increment,
     size_t max_capacity,
-    bool enable_decommit_on_idle)
-    : ReuseAllocatorBase(fallback_allocator, max_capacity),
+    bool enable_decommit_on_idle,
+    size_t retain_blocks,
+    size_t conservative_decommit_blocks,
+    bool aggressive_decommit_on_suspend)
+    : ReuseAllocatorBase(fallback_allocator,
+                         max_capacity,
+                         retain_blocks,
+                         conservative_decommit_blocks,
+                         aggressive_decommit_on_suspend),
       allocation_increment_(allocation_increment),
       enable_decommit_on_idle_(enable_decommit_on_idle) {
   if (initial_capacity > 0) {
