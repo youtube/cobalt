@@ -21,6 +21,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 
 namespace starboard {
 
@@ -51,8 +52,9 @@ bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
     return false;
   }
 
-  bool is_low_resolution = mime_type->GetParamIntValue("width", 1920) <= 432 &&
-                           mime_type->GetParamIntValue("height", 1080) <= 240;
+  bool is_low_resolution =
+      mime_type->GetParamIntValue("width", Resolution::k1080p.width) <= 432 &&
+      mime_type->GetParamIntValue("height", Resolution::k1080p.height) <= 240;
   bool is_low_fps = mime_type->GetParamIntValue("framerate", 30) <= 15;
 
   if (!is_low_resolution || !is_low_fps) {
@@ -102,7 +104,7 @@ std::optional<Size> ParseMaxResolution(
     return max_size;
   }
 
-  if (frame_size.width <= 0 || frame_size.height <= 0) {
+  if (frame_size.IsEmpty()) {
     SB_LOG(WARNING)
         << "Failed to parse max resolutions due to invalid frame resolutions ("
         << frame_size << ").";

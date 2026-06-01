@@ -66,5 +66,34 @@ TEST(SizeTest, StreamInsertion) {
   EXPECT_EQ("1280x720", ss.str());
 }
 
+TEST(SizeTest, IsEmpty) {
+  EXPECT_TRUE(Size(0, 0).IsEmpty());
+  EXPECT_TRUE(Size(-1, 10).IsEmpty());
+  EXPECT_TRUE(Size(10, -1).IsEmpty());
+  EXPECT_FALSE(Size(1, 1).IsEmpty());
+}
+
+TEST(SizeTest, GetArea) {
+  EXPECT_EQ(0, Size(0, 0).GetArea());
+  EXPECT_EQ(12, Size(3, 4).GetArea());
+}
+
+TEST(SizeTest, FitsWithin) {
+  Size size(10, 10);
+  EXPECT_TRUE(size.FitsWithin(Size(10, 10)));
+  EXPECT_TRUE(size.FitsWithin(Size(15, 15)));
+
+  EXPECT_FALSE(size.FitsWithin(Size(9, 10)));
+  EXPECT_FALSE(size.FitsWithin(Size(10, 9)));
+  EXPECT_FALSE(size.FitsWithin(Size(5, 5)));
+}
+
+TEST(SizeTest, Zero) {
+  EXPECT_EQ(0, Size::Zero().width);
+  EXPECT_EQ(0, Size::Zero().height);
+  EXPECT_TRUE(Size::Zero().IsEmpty());
+  EXPECT_EQ(0, Size::Zero().GetArea());
+}
+
 }  // namespace
 }  // namespace starboard
