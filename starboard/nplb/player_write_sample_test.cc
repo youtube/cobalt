@@ -393,6 +393,136 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   secondary_player_thread.WaitForFinish();
 }
 
+TEST_P(SbPlayerWriteSampleTest, VideoCodecSwitching) {
+  if (!GetParam().video_filename || strlen(GetParam().video_filename) == 0) {
+    GTEST_SKIP() << "Audio-only config, skipping video codec switching test.";
+  }
+  if (GetParam().audio_filename && strlen(GetParam().audio_filename) > 0) {
+    GTEST_SKIP() << "Skipping video codec switching test on audio+video config "
+                    "to avoid redundancy.";
+  }
+
+  const char* initial_video_filename = GetParam().video_filename;
+  starboard::VideoDmpReader initial_dmp_reader(
+      initial_video_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  SbMediaVideoCodec initial_codec = initial_dmp_reader.video_codec();
+
+  bool transition_supported = true;
+  std::string failed_target_mime;
+  const char* target_video_filename = FindVideoTransitionTarget(
+      initial_dmp_reader.video_mime_type().c_str(), initial_codec,
+      GetParam().output_mode, GetParam().key_system, &transition_supported,
+      &failed_target_mime);
+
+  if (!target_video_filename) {
+    if (!transition_supported) {
+      GTEST_SKIP() << "ChangeType transition from '"
+                   << initial_dmp_reader.video_mime_type() << "' to '"
+                   << failed_target_mime
+                   << "' is not supported on this platform.";
+    }
+    GTEST_SKIP()
+        << "Could not find a supported target video codec different from "
+        << initial_codec;
+  }
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  // Write first batch of samples (30 video samples).
+  const int kVideoSamplesToWrite = 30;
+  GroupedSamples samples_part1;
+  samples_part1.AddVideoSamples(0, kVideoSamplesToWrite);
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part1));
+
+  // Switch video dmp reader to target video.
+  player_fixture.SwitchVideoDmp(target_video_filename);
+
+  // Write second batch of samples and EOS.
+  GroupedSamples samples_part2;
+  samples_part2.AddVideoSamples(kVideoSamplesToWrite, kVideoSamplesToWrite);
+  samples_part2.AddVideoEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
+TEST_P(SbPlayerWriteSampleTest, AudioCodecSwitching) {
+  if (!GetParam().audio_filename || strlen(GetParam().audio_filename) == 0) {
+    GTEST_SKIP() << "Video-only config, skipping audio codec switching test.";
+  }
+  if (GetParam().video_filename && strlen(GetParam().video_filename) > 0) {
+    GTEST_SKIP() << "Skipping audio codec switching test on audio+video config "
+                    "to avoid redundancy.";
+  }
+
+  const char* initial_audio_filename = GetParam().audio_filename;
+  starboard::VideoDmpReader initial_dmp_reader(
+      initial_audio_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  SbMediaAudioCodec initial_codec = initial_dmp_reader.audio_codec();
+
+  bool transition_supported = true;
+  std::string failed_target_mime;
+  const char* target_audio_filename = FindAudioTransitionTarget(
+      initial_dmp_reader.audio_mime_type().c_str(), initial_codec,
+      GetParam().output_mode, GetParam().key_system, &transition_supported,
+      &failed_target_mime);
+
+  if (!target_audio_filename) {
+    if (!transition_supported) {
+      GTEST_SKIP() << "ChangeType transition from '"
+                   << initial_dmp_reader.audio_mime_type() << "' to '"
+                   << failed_target_mime
+                   << "' is not supported on this platform.";
+    }
+    GTEST_SKIP()
+        << "Could not find a supported target audio codec different from "
+        << initial_codec;
+  }
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  const int64_t kDurationToPlay = 500'000;  // 0.5 seconds
+  int audio_samples_part1_count =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+
+  ASSERT_GE(initial_dmp_reader.number_of_audio_buffers(),
+            static_cast<size_t>(audio_samples_part1_count + 2));
+
+  GroupedSamples samples_part1;
+  samples_part1.AddAudioSamples(0, audio_samples_part1_count);
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part1));
+
+  // Calculate offset before switching.
+  int64_t timestamp_offset =
+      player_fixture.GetAudioSampleTimestamp(audio_samples_part1_count);
+
+  SB_DLOG(INFO) << "Switching audio source to: " << target_audio_filename;
+  // Switch audio dmp reader to target audio.
+  player_fixture.SwitchAudioDmp(target_audio_filename);
+
+  // Write second batch of samples and EOS.
+  GroupedSamples samples_part2;
+  int audio_samples_part2_count =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+
+  samples_part2.AddAudioSamples(0, audio_samples_part2_count, timestamp_offset,
+                                0, 0);
+  samples_part2.AddAudioEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
 INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
                          SbPlayerWriteSampleTest,
                          ValuesIn(GetAllPlayerTestConfigs()),

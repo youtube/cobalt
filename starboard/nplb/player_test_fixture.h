@@ -87,6 +87,9 @@ class SbPlayerTestFixture {
   void WaitForPlayerEndOfStream();
   int64_t GetCurrentMediaTime() const;
 
+  void SwitchVideoDmp(const char* new_video_filename);
+  void SwitchAudioDmp(const char* new_audio_filename);
+
   void SetAudioWriteDuration(int64_t duration);
 
   SbPlayer GetPlayer() const { return player_; }
@@ -197,6 +200,7 @@ class SbPlayerTestFixture {
   std::string max_video_capabilities_;
   std::unique_ptr<starboard::VideoDmpReader> audio_dmp_reader_;
   std::unique_ptr<starboard::VideoDmpReader> video_dmp_reader_;
+  std::vector<std::unique_ptr<starboard::VideoDmpReader>> retired_dmp_readers_;
   starboard::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
