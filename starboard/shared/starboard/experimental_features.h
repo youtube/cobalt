@@ -39,6 +39,7 @@ struct ExperimentalFeatures {
   bool reset_audio_decoder = false;
   bool skip_flush_on_decoder_teardown = false;
   bool skip_video_frames_over_60_fps = false;
+  std::optional<bool> enable_simd_based_audio_format_switching;
   std::optional<bool> enable_trivial_optimizations;
   std::optional<bool> use_dual_threads_for_video;
   std::optional<int> video_decoder_initial_preroll_count;
@@ -56,6 +57,15 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
 
 // Get the extension API for configuring experimental features.
 const void* GetExperimentalFeaturesConfigurationApi();
+
+// Retrieves the global configuration for SIMD-based audio format switching.
+//
+// Note: Under the current experimental framework, this global setting is
+// initialized by propagating a per-playback configuration. Storing this
+// globally avoids polluting deep callchains with parameter injection,
+// mimicking the design of starboard::Feature (which is slated to deprecate
+// the ExperimentalFeatures mechanism).
+std::optional<bool> GetSimdBasedAudioFormatSwitchingSetting();
 
 }  // namespace starboard
 

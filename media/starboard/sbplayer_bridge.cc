@@ -825,6 +825,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.skip_video_frames_over_60_fps;
     extension_features.enable_trivial_optimizations =
         ToBoolPointer(experimental_features_.enable_trivial_optimizations);
+    extension_features.enable_simd_based_audio_format_switching = ToBoolPointer(
+        experimental_features_.enable_simd_based_audio_format_switching);
     extension_features.use_dual_threads_for_video =
         ToBoolPointer(experimental_features_.use_dual_threads_for_video);
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
