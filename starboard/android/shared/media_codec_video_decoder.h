@@ -263,6 +263,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
+  bool SignalIfNeedMoreInput(const scoped_refptr<VideoFrame>& frame = nullptr);
+
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
 };
 
