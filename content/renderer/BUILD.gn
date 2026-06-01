@@ -14,6 +14,7 @@ import("//services/screen_ai/buildflags/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/webrtc/webrtc.gni")
 import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
+import("//third_party/blink/public/public_features.gni")
 
 if (is_component_build) {
   link_target_type = "source_set"
@@ -577,6 +578,10 @@ target(link_target_type, "renderer") {
 
   if (enable_ipc_fuzzer) {
     configs += [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
+  }
+
+  if (!enable_interest_groups) {
+    deps -= [ "//content/services/auction_worklet:auction_worklet" ]
   }
 }
 

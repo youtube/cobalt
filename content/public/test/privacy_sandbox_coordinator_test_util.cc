@@ -19,8 +19,6 @@
 #include "base/json/json_writer.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
-#include "content/browser/interest_group/bidding_and_auction_server_key_fetcher.h"
-#include "content/browser/interest_group/interest_group_auction.h"
 #include "content/public/browser/interest_group_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/origin.h"

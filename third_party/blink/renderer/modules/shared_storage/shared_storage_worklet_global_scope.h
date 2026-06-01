@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 namespace blink {
 
@@ -46,7 +47,9 @@ class ScriptCachedMetadataHandler;
 class SharedStorageWorkletNavigator;
 class PrivateAggregation;
 class Crypto;
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 class StorageInterestGroup;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 // mojom::blink::SharedStorageWorkletService implementation. Responsible for
 // handling worklet operations. This object lives on the worklet thread.
@@ -127,9 +130,18 @@ class MODULES_EXPORT SharedStorageWorkletGlobalScope final
   SharedStorage* sharedStorage(ScriptState*, ExceptionState&);
   PrivateAggregation* privateAggregation(ScriptState*, ExceptionState&);
   Crypto* crypto(ScriptState*, ExceptionState&);
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   ScriptPromise<IDLSequence<StorageInterestGroup>> interestGroups(
       ScriptState*,
       ExceptionState&);
+
+  static ScriptPromise<IDLSequence<StorageInterestGroup>> interestGroups(
+      ScriptState* script_state,
+      SharedStorageWorkletGlobalScope& receiver,
+      ExceptionState& exception_state) {
+    return receiver.interestGroups(script_state, exception_state);
+  }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   SharedStorageWorkletNavigator* Navigator(ScriptState*, ExceptionState&);
 
   // Returns the unique ID for the currently running operation.

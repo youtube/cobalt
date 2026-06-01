@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/shared_storage/shared_storage_worklet_global_scope.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <stdint.h>
 
@@ -36,14 +37,18 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_no_argument_constructor.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/bindings/core/v8/worker_or_worklet_script_controller.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_auction_ad.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_auction_ad_interest_group_size.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_protected_audience_private_aggregation_config.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "third_party/blink/renderer/bindings/modules/v8/v8_auction_ad.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_auction_ad_interest_group_size.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_protected_audience_private_aggregation_config.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_run_function_for_shared_storage_run_operation.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_run_function_for_shared_storage_select_url_operation.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_storage_interest_group.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_union_auctionad_longlong.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_view_or_click_counts.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "third_party/blink/renderer/bindings/modules/v8/v8_storage_interest_group.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_union_auctionad_longlong.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_view_or_click_counts.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "third_party/blink/renderer/core/context_features/context_feature_settings.h"
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/workers/global_scope_creation_params.h"
@@ -73,6 +78,7 @@ namespace {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 enum class InterestGroupsResultStatus {
   kFailureDuringAddModule = 0,
   kFailurePermissionsPolicyDenied = 1,
@@ -172,6 +178,7 @@ void ConvertMojomViewOrClickCountsToIDL(
   out->setPast30Days(in.past_30_days);
   out->setPast90Days(in.past_90_days);
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 std::optional<ScriptValue> Deserialize(
     v8::Isolate* isolate,
@@ -731,6 +738,7 @@ Crypto* SharedStorageWorkletGlobalScope::crypto(
   return crypto_.Get();
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 ScriptPromise<IDLSequence<StorageInterestGroup>>
 SharedStorageWorkletGlobalScope::interestGroups(
     ScriptState* script_state,
@@ -1122,6 +1130,7 @@ SharedStorageWorkletGlobalScope::interestGroups(
 
   return promise;
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 SharedStorageWorkletNavigator* SharedStorageWorkletGlobalScope::Navigator(
     ScriptState* script_state,

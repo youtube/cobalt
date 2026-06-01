@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//third_party/blink/public/public_features.gni")
+
 declare_args() {
   # Enable V8 to produce hints regarding which functions to compile eagerly.
   produce_v8_compile_hints = !is_android
@@ -264,13 +266,38 @@ bindings_unittest_files = get_path_info(
         "abspath")
 
 # Exclusion patterns used in Cobalt builds to omit interfaces.
-cobalt_bindings_exclude_patterns = [
-  "*_rtc_*",
-  "*v8_rtc_*",
-  "*peer_connection*",
-  "*explicit_congestion_notification*",
-  "*v8_union_mediastreamtrack_string*",
-]
+cobalt_bindings_exclude_patterns = []
+
+if (!use_webrtc_peer_connection) {
+  cobalt_bindings_exclude_patterns += [
+    "*_rtc_*",
+    "*v8_rtc_*",
+    "*peer_connection*",
+    "*explicit_congestion_notification*",
+    "*v8_union_mediastreamtrack_string*",
+  ]
+}
+
+if (!enable_interest_groups) {
+  cobalt_bindings_exclude_patterns += [
+    "*ad_auction*",
+    "*auction_ad*",
+    "*protected_audience*",
+    "*storage_interest_group*",
+    "*view_or_click_counts*",
+    "*_ads*",
+    "*auctionad*",
+    "*ad_targeting*",
+    "*real_time_reporting*",
+    "*ad_properties*",
+    "*buyer_debug_mode*",
+    "*report_buyers*",
+    "*ad_request_config*",
+    "*ad_signals*",
+    "*adproperties*",
+    "*navigator_auction*",
+  ]
+}
 
 cobalt_webnn_exclude_patterns = [
   "*v8_ml.*",

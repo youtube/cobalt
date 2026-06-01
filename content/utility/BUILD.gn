@@ -13,6 +13,7 @@ import("//printing/buildflags/buildflags.gni")
 import("//services/accessibility/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
 import("//services/video_effects/args.gni")
+import("//third_party/blink/public/public_features.gni")
 
 source_set("utility") {
   # Only the public target should depend on this. All other targets (even
@@ -175,6 +176,10 @@ source_set("utility") {
 
   if (is_win) {
     deps += [ ":delegate_data" ]
+  }
+
+  if (!enable_interest_groups) {
+    deps -= [ "//content/services/auction_worklet" ]
   }
 }
 

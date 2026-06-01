@@ -16,7 +16,10 @@
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)  // nogncheck
 #include "content/browser/interest_group/interest_group_features.h"
+#endif
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -594,6 +597,7 @@ void Navigator::DidNavigate(
           .ShouldClearProxiesOnCommit(),
       navigation_request->commit_params().frame_policy, allow_paint_holding);
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // Reset the old frame host's weak pointer to auction initiator page when it
   // is a cross-document navigation and the frame does not go into bfcache.
   if ((base::FeatureList::IsEnabled(features::kDetectInconsistentPageImpl)) &&
@@ -601,6 +605,7 @@ void Navigator::DidNavigate(
       !old_frame_host->IsInBackForwardCache()) {
     old_frame_host->set_auction_initiator_page(nullptr);
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // The main frame, same site, and cross-site navigation checks for user
   // activation mirror the checks in DocumentLoader::CommitNavigation() (note:
