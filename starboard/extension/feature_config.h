@@ -111,6 +111,13 @@ STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
                   false)
 
+// When enabled, Cobalt pools physical memory allocations for decoded audio
+// buffers inside a thread-safe fixed-size pool, preventing progressive heap
+// fragmentation on restricted-memory devices.
+STARBOARD_FEATURE(kEnableDecodedAudioBufferPool,
+                  "EnableDecodedAudioBufferPool",
+                  false)
+
 // By default, Cobalt destroys and recreates AudioTrack during Seek().
 // Set the following variable to true to force it to Flush() AudioTrack
 // during Seek().
