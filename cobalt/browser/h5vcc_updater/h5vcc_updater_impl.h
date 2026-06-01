@@ -41,7 +41,14 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   H5vccUpdaterImpl(const H5vccUpdaterImpl&) = delete;
   H5vccUpdaterImpl& operator=(const H5vccUpdaterImpl&) = delete;
 
-  void GetUpdateServerUrl(GetUpdateServerUrlCallback) override;
+  void GetUpdaterChannel(GetUpdaterChannelCallback callback) override;
+  void SetUpdaterChannel(const std::string& channel,
+                         SetUpdaterChannelCallback callback) override;
+  void GetUpdateStatus(GetUpdateStatusCallback callback) override;
+  void ResetInstallations(ResetInstallationsCallback callback) override;
+  void GetInstallationIndex(GetInstallationIndexCallback callback) override;
+  void GetLibrarySha256(unsigned short index,
+                        GetLibrarySha256Callback callback) override;
 
  private:
   H5vccUpdaterImpl(content::RenderFrameHost& render_frame_host,
@@ -50,7 +57,6 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
 
   THREAD_CHECKER(thread_checker_);
 };
-
 }  // namespace h5vcc_updater
 
 #endif  // COBALT_BROWSER_H5VCC_UPDATER_H5VCC_UPDATER_IMPL_H_
