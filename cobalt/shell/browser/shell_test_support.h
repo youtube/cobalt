@@ -41,7 +41,6 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/views/views_delegate.h"
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
@@ -100,14 +99,18 @@ class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
 class MojoInitializer {
  public:
   MojoInitializer() {
+#if defined(USE_AURA)
     if (!aura::Env::HasInstance()) {
       aura_env_ = aura::Env::CreateInstance();
     }
+#endif
     mojo::core::Init();
   }
 
  private:
+#if defined(USE_AURA)
   std::unique_ptr<aura::Env> aura_env_;
+#endif
 };
 
 class ShellTestBase : public ::testing::Test {

@@ -65,18 +65,21 @@ group("cobalt_shell_lib_deps") {
     "//base:base_static",
     "//cc/base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/crash_annotator/public/mojom:mojom",
+    "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/lifecycle:lifecycle",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
-    "//components/embedder_support:embedder_support",
+    "//components/embedder_support",
     "//components/embedder_support:user_agent",
-    "//components/js_injection/browser:browser",
+    "//components/js_injection/browser",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
-    "//components/network_hints/browser:browser",
+    "//components/network_hints/browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
     "//components/performance_manager",
@@ -102,6 +105,7 @@ group("cobalt_shell_lib_deps") {
     "//third_party/blink/public/strings",
     "//ui/gfx",
     "//ui/gfx/geometry",
+    "//ui/platform_window",
     "//url",
     "//v8",
   ]
@@ -111,7 +115,6 @@ group("cobalt_shell_lib_deps") {
       "//ui/base",
       "//ui/base/clipboard",
       "//ui/base/ime/init",
-      "//ui/platform_window",
     ]
   }
 
@@ -126,7 +129,7 @@ group("cobalt_shell_lib_deps") {
   if (is_ios) {
     public_deps += [
       "//services/tracing/public/cpp",
-      "//services/tracing/public/mojom:mojom",
+      "//services/tracing/public/mojom",
     ]
   }
 
@@ -145,6 +148,9 @@ group("cobalt_shell_lib_deps") {
       "//ui/events",
       "//ui/wm",
     ]
+    if (is_starboard) {
+      public_deps += [ "//ui/ozone/platform/starboard" ]
+    }
 
     if (shell_use_toolkit_views) {
       public_deps += [
@@ -400,7 +406,7 @@ repack("pak") {
     "//base/tracing/protos:chrome_track_event_resources",
     "//components/ukm/debug:resources",
     "//content:content_resources",
-    "//content/browser/resources:resources",
+    "//content/browser/resources",
     "//content/browser/resources/media:resources",
     "//content/browser/webrtc/resources",
     "//content/test:web_ui_mojo_test_resources",

@@ -570,6 +570,10 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
 void ShellPlatformDelegate::RevealShell(Shell* shell) {}
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+void ShellPlatformDelegate::MapWindowShell(Shell* shell) {}
+void ShellPlatformDelegate::DidCreateOrAttachWebContents(
+    Shell* shell,
+    WebContents* web_contents) {}
 
 void ShellPlatformDelegate::CreatePlatformWindowInternal(
     Shell* shell,
