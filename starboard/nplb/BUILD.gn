@@ -101,7 +101,6 @@ test("nplb") {
       "configuration_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
-      "file_atomic_replace_test.cc",
       "file_delete_recursive_test.cc",
       "file_helpers.cc",
       "flat_map_test.cc",
