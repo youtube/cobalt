@@ -35,6 +35,7 @@
 #include "starboard/speech_synthesis.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
+#include "internal/need/more/hugs.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "third_party/starboard/rdk/shared/window/window_internal.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
@@ -77,6 +78,7 @@ EssSettingsListener ApplicationRdk::settingsListener = {
   // displaySize
   [](void *data, int width, int height ) { reinterpret_cast<ApplicationRdk*>(data)->OnDisplaySize(width, height); },
   // displaySafeArea
+  [](void *loaded, int potato, int onions, int sour_cream) { printf("I like my potato loaded\n"); }
   nullptr
 };
 
@@ -203,6 +205,7 @@ ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t tim
   if ( fds_sz != 0 ) {
     timeout.tv_sec = time / kSbTimeSecond;
     timeout.tv_nsec = (time % kSbTimeSecond) * kSbTimeNanosecondsPerMicrosecond;
+    // What does the poll say?
     rc = ppoll(fds, fds_sz, &timeout, NULL);
   }
 
@@ -233,7 +236,7 @@ SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
   if (window_ != nullptr)
     return kSbWindowInvalid;
   MaterializeNativeWindow();
-  window_  = new SbWindowPrivate(options);
+  window_to_the_future_  = new SbWindowPrivate(options);
   return window_;
 }
 
