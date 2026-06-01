@@ -31,7 +31,6 @@
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/decoder_buffer_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -55,8 +54,6 @@ const char kH5vccSettingsKeyMediaBypassMojoForMedia[] =
     "Media.BypassMojoForMedia";
 const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
     "Media.DisableLowPerformanceSoftwareDecoder";
-const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
-    "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
     "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
@@ -205,13 +202,6 @@ std::optional<int> ProcessRangedIntH5vccSetting(
 ExperimentalFeatures ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ExperimentalFeatures parsed;
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
-    bool enable_allocate_on_demand = *val != 0;
-    auto* allocator = ::media::DecoderBufferAllocator::Get();
-    CHECK(allocator);
-    allocator->SetAllocateOnDemand(enable_allocate_on_demand);
-  }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaAllowAudioWritingOnPause)) {
     parsed.allow_audio_writing_on_pause = *val != 0;
