@@ -245,7 +245,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
-  static constexpr TimeDelta kMediaTimeCheckInterval = base::Microseconds(100);
+  static constexpr TimeDelta kMediaTimeCheckInterval = base::Milliseconds(100);
   // Timestamp for the last written audio.
   TimeDelta timestamp_of_last_written_audio_;
   // Indicates if video end of stream has been written into the underlying
