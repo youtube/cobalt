@@ -28,6 +28,7 @@
 #include "media/base/test_helpers.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/sbplayer_interface.h"
+#include "starboard/extension/experimental_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -39,11 +40,44 @@ struct SbPlayerPrivate {
   ~SbPlayerPrivate() = default;
 };
 
+class ExperimentalFeaturesMock {
+ public:
+  MOCK_METHOD(void,
+              SetExperimentalFeatures,
+              (const StarboardExtensionExperimentalFeatures*),
+              ());
+};
+ExperimentalFeaturesMock* g_experimental_features_mock = nullptr;
+
+extern "C" void SetExperimentalFeaturesForCurrentThreadMock(
+    const StarboardExtensionExperimentalFeatures* experimental_features) {
+  if (g_experimental_features_mock) {
+    g_experimental_features_mock->SetExperimentalFeatures(
+        experimental_features);
+  }
+}
+
+static StarboardExtensionExperimentalFeaturesConfigurationApi
+    g_experimental_features_api = {
+        kStarboardExtensionExperimentalFeaturesConfigurationName, 1,
+        &SetExperimentalFeaturesForCurrentThreadMock};
+
+bool g_enable_experimental_features_extension = false;
+
+extern "C" const void* SbSystemGetExtension(const char* name) {
+  if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
+      0) {
+    return g_enable_experimental_features_extension
+               ? &g_experimental_features_api
+               : nullptr;
+  }
+  return nullptr;
+}
+
 namespace media {
 
 namespace {
 
-using ::base::test::TaskEnvironment;
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -53,50 +87,72 @@ using ::testing::StrictMock;
 
 class MockSbPlayerInterface : public SbPlayerInterface {
  public:
-  MOCK_METHOD8(Create,
-               SbPlayer(SbWindow,
-                        const SbPlayerCreationParam*,
-                        SbPlayerDeallocateSampleFunc,
-                        SbPlayerDecoderStatusFunc,
-                        SbPlayerStatusFunc,
-                        SbPlayerErrorFunc,
-                        void*,
-                        SbDecodeTargetGraphicsContextProvider*));
-  MOCK_METHOD1(GetPreferredOutputMode,
-               SbPlayerOutputMode(const SbPlayerCreationParam*));
-  MOCK_METHOD1(Destroy, void(SbPlayer));
-  MOCK_METHOD3(Seek, void(SbPlayer, base::TimeDelta, int));
-  MOCK_METHOD4(WriteSamples,
-               void(SbPlayer, SbMediaType, const SbPlayerSampleInfo*, int));
-  MOCK_METHOD2(GetMaximumNumberOfSamplesPerWrite, int(SbPlayer, SbMediaType));
-  MOCK_METHOD2(WriteEndOfStream, void(SbPlayer, SbMediaType));
-  MOCK_METHOD6(SetBounds, void(SbPlayer, int, int, int, int, int));
-  MOCK_METHOD2(SetPlaybackRate, bool(SbPlayer, double));
-  MOCK_METHOD2(SetVolume, void(SbPlayer, double));
-  MOCK_METHOD2(GetInfo, void(SbPlayer, SbPlayerInfo*));
-  MOCK_METHOD1(GetCurrentFrame, SbDecodeTarget(SbPlayer));
-  MOCK_METHOD3(GetAudioConfiguration,
-               bool(SbPlayer, int, SbMediaAudioConfiguration*));
+  MOCK_METHOD(SbPlayer,
+              Create,
+              (SbWindow,
+               const SbPlayerCreationParam*,
+               SbPlayerDeallocateSampleFunc,
+               SbPlayerDecoderStatusFunc,
+               SbPlayerStatusFunc,
+               SbPlayerErrorFunc,
+               void*,
+               SbDecodeTargetGraphicsContextProvider*),
+              (override));
+  MOCK_METHOD(SbPlayerOutputMode,
+              GetPreferredOutputMode,
+              (const SbPlayerCreationParam*),
+              (override));
+  MOCK_METHOD(void, Destroy, (SbPlayer), (override));
+  MOCK_METHOD(void, Seek, (SbPlayer, base::TimeDelta, int), (override));
+  MOCK_METHOD(void,
+              WriteSamples,
+              (SbPlayer, SbMediaType, const SbPlayerSampleInfo*, int),
+              (override));
+  MOCK_METHOD(int,
+              GetMaximumNumberOfSamplesPerWrite,
+              (SbPlayer, SbMediaType),
+              (override));
+  MOCK_METHOD(void, WriteEndOfStream, (SbPlayer, SbMediaType), (override));
+  MOCK_METHOD(void, SetBounds, (SbPlayer, int, int, int, int, int), (override));
+  MOCK_METHOD(bool, SetPlaybackRate, (SbPlayer, double), (override));
+  MOCK_METHOD(void, SetVolume, (SbPlayer, double), (override));
+  MOCK_METHOD(void, GetInfo, (SbPlayer, SbPlayerInfo*), (override));
+  MOCK_METHOD(SbDecodeTarget, GetCurrentFrame, (SbPlayer), (override));
+  MOCK_METHOD(bool,
+              GetAudioConfiguration,
+              (SbPlayer, int, SbMediaAudioConfiguration*),
+              (override));
 
 #if SB_HAS(PLAYER_WITH_URL)
-  MOCK_METHOD6(CreateUrlPlayer,
-               SbPlayer(const char*,
-                        SbWindow,
-                        SbPlayerStatusFunc,
-                        SbPlayerEncryptedMediaInitDataEncounteredCB,
-                        SbPlayerErrorFunc,
-                        void*));
-  MOCK_METHOD2(SetUrlPlayerDrmSystem, void(SbPlayer, SbDrmSystem));
-  MOCK_METHOD1(GetUrlPlayerOutputModeSupported, bool(SbPlayerOutputMode));
-  MOCK_METHOD2(GetUrlPlayerExtraInfo, void(SbPlayer, SbUrlPlayerExtraInfo*));
+  MOCK_METHOD(SbPlayer,
+              CreateUrlPlayer,
+              (const char*,
+               SbWindow,
+               SbPlayerStatusFunc,
+               SbPlayerEncryptedMediaInitDataEncounteredCB,
+               SbPlayerErrorFunc,
+               void*),
+              (override));
+  MOCK_METHOD(void, SetUrlPlayerDrmSystem, (SbPlayer, SbDrmSystem), (override));
+  MOCK_METHOD(bool,
+              GetUrlPlayerOutputModeSupported,
+              (SbPlayerOutputMode),
+              (override));
+  MOCK_METHOD(void,
+              GetUrlPlayerExtraInfo,
+              (SbPlayer, SbUrlPlayerExtraInfo*),
+              (override));
 #endif  // SB_HAS(PLAYER_WITH_URL)
 };
 
 class MockHost : public SbPlayerBridge::Host {
  public:
-  MOCK_METHOD2(OnNeedData, void(DemuxerStream::Type, int));
-  MOCK_METHOD1(OnPlayerStatus, void(SbPlayerState));
-  MOCK_METHOD2(OnPlayerError, void(SbPlayerError, const std::string&));
+  MOCK_METHOD(void, OnNeedData, (DemuxerStream::Type, int), (override));
+  MOCK_METHOD(void, OnPlayerStatus, (SbPlayerState), (override));
+  MOCK_METHOD(void,
+              OnPlayerError,
+              (SbPlayerError, const std::string&),
+              (override));
 };
 
 class SbPlayerBridgeTest : public testing::Test {
@@ -108,13 +164,19 @@ class SbPlayerBridgeTest : public testing::Test {
     ON_CALL(mock_interface_, GetMaximumNumberOfSamplesPerWrite(_, _))
         .WillByDefault(Return(1));
     ON_CALL(mock_interface_, SetPlaybackRate(_, _)).WillByDefault(Return(true));
+
+    g_experimental_features_mock = &mock_experimental_features_;
   }
 
-  ~SbPlayerBridgeTest() override = default;
+  void TearDown() override {
+    g_experimental_features_mock = nullptr;
+    g_enable_experimental_features_extension = false;
+  }
 
   std::unique_ptr<SbPlayerBridge> CreateSbPlayerBridge(
       SbPlayer fake_player,
-      SbPlayerOutputMode output_mode = kSbPlayerOutputModePunchOut) {
+      SbPlayerOutputMode output_mode = kSbPlayerOutputModePunchOut,
+      SbPlayerBridge::ExperimentalFeatures experimental_features = {}) {
     EXPECT_CALL(mock_interface_, GetPreferredOutputMode(_))
         .WillRepeatedly(Return(output_mode));
 
@@ -138,12 +200,14 @@ class SbPlayerBridgeTest : public testing::Test {
         /*allow_resume_after_suspend=*/false,
         /*default_output_mode=*/output_mode,
         /*max_video_capabilities=*/"",
-        /*max_video_input_size=*/0, SbPlayerBridge::ExperimentalFeatures{});
+        /*max_video_input_size=*/0, experimental_features);
   }
 
-  TaskEnvironment task_environment_{TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   StrictMock<MockSbPlayerInterface> mock_interface_;
   StrictMock<MockHost> mock_host_;
+  StrictMock<ExperimentalFeaturesMock> mock_experimental_features_;
 
   // Callbacks saved from SbPlayerInterface::Create
   SbPlayerDeallocateSampleFunc sample_deallocate_func_ = nullptr;
@@ -155,12 +219,10 @@ class SbPlayerBridgeTest : public testing::Test {
 
 TEST_F(SbPlayerBridgeTest, CreateAndDestroy) {
   auto fake_player = std::make_unique<SbPlayerPrivate>();
-
   auto bridge = CreateSbPlayerBridge(fake_player.get());
   EXPECT_TRUE(bridge->IsValid());
 
   EXPECT_CALL(mock_interface_, Destroy(fake_player.get()));
-  bridge.reset();
 }
 
 TEST_F(SbPlayerBridgeTest, PlayerStatusCallback) {
@@ -247,9 +309,10 @@ TEST_F(SbPlayerBridgeTest, WriteBuffers) {
                           const SbPlayerSampleInfo* sample_infos,
                           int number_of_sample_infos) {
         EXPECT_EQ(sample_type, kSbMediaTypeAudio);
-        EXPECT_EQ(number_of_sample_infos, 1);
+        ASSERT_EQ(number_of_sample_infos, 1);
+        ASSERT_NE(sample_infos, nullptr);
         EXPECT_EQ(sample_infos[0].buffer_size, 4);
-        EXPECT_EQ(sample_infos[0].timestamp, 10000);
+        EXPECT_EQ(sample_infos[0].timestamp, 10'000);
       }));
 
   bridge->WriteBuffers(DemuxerStream::AUDIO, buffers);
@@ -295,10 +358,14 @@ TEST_F(SbPlayerBridgeTest, SuspendAndResume) {
       .WillOnce(Return(true));
   EXPECT_CALL(mock_interface_, GetInfo(fake_player.get(), _))
       .WillOnce(Invoke([](SbPlayer player, SbPlayerInfo* out_info) {
+        ASSERT_NE(out_info, nullptr);
         out_info->total_video_frames = 10;
         out_info->dropped_video_frames = 2;
-        out_info->current_media_timestamp = 50000;
+        out_info->current_media_timestamp = 50'000;
       }));
+
+  // Suspend calls Destroy. We must set expectation here because it happens
+  // during the test.
   EXPECT_CALL(mock_interface_, Destroy(fake_player.get()));
 
   bridge->Suspend();
@@ -316,6 +383,30 @@ TEST_F(SbPlayerBridgeTest, SuspendAndResume) {
   EXPECT_TRUE(bridge->IsValid());
 
   EXPECT_CALL(mock_interface_, Destroy(new_fake_player.get()));
+}
+
+TEST_F(SbPlayerBridgeTest, ExperimentalFeatures) {
+  g_enable_experimental_features_extension = true;
+
+  SbPlayerBridge::ExperimentalFeatures features;
+  features.allow_audio_writing_on_pause = true;
+  features.enable_flush_during_seek = true;
+
+  EXPECT_CALL(mock_experimental_features_, SetExperimentalFeatures(_))
+      .WillOnce(Invoke(
+          [](const StarboardExtensionExperimentalFeatures* ext_features) {
+            ASSERT_NE(ext_features, nullptr);
+            EXPECT_TRUE(ext_features->allow_audio_writing_on_pause);
+            EXPECT_TRUE(ext_features->flush_decoder_during_reset);
+            EXPECT_FALSE(ext_features->disable_low_performance_sw_decoder);
+          }));
+
+  auto fake_player = std::make_unique<SbPlayerPrivate>();
+  auto bridge = CreateSbPlayerBridge(fake_player.get(),
+                                     kSbPlayerOutputModePunchOut, features);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(mock_interface_, Destroy(fake_player.get()));
 }
 
 }  // namespace
