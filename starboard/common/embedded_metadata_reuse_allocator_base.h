@@ -123,8 +123,16 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   EmbeddedMetadataReuseAllocatorBase(Allocator* fallback_allocator,
                                      size_t initial_capacity,
                                      size_t allocation_increment,
-                                     size_t max_capacity,
-                                     bool enable_decommit_on_idle);
+                                     size_t max_capacity);
+  EmbeddedMetadataReuseAllocatorBase(
+      Allocator* fallback_allocator,
+      size_t initial_capacity,
+      size_t allocation_increment,
+      size_t max_capacity,
+      bool enable_decommit_on_idle,
+      size_t retain_blocks,
+      size_t conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend = false);
   ~EmbeddedMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
