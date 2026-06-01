@@ -301,7 +301,6 @@
 #include "starboard/common/log.h" // nogncheck
 #include "starboard/common/spin_lock.h" // nogncheck
 #include "starboard/common/string.h" // nogncheck
-#include "starboard/file.h" // nogncheck
 #include "starboard/log.h" // nogncheck
 #include "starboard/system.h" // nogncheck
 #include "starboard/thread.h" // nogncheck
