@@ -139,7 +139,7 @@ bool OpenMaxVideoDecoder::TryToDeliverOneFrame() {
 // static
 void* OpenMaxVideoDecoder::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "omx_video_decoder");
-  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
+  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(ThreadPriority::kHigh));
   OpenMaxVideoDecoder* decoder =
       reinterpret_cast<OpenMaxVideoDecoder*>(context);
   decoder->RunLoop();

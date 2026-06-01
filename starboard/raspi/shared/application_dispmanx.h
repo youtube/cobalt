@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "starboard/common/rect.h"
 #include "starboard/configuration.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/shared/internal_only.h"
@@ -52,10 +53,7 @@ class ApplicationDispmanx : public QueueApplication {
   void AcceptFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
                    int z_index,
-                   int x,
-                   int y,
-                   int width,
-                   int height) override;
+                   const Rect& rect) override;
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override;
