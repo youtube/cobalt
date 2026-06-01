@@ -151,34 +151,22 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   // TODO(https://crbug.com/1411454): Clarify which users of
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
-  auto memory_initializer = memory_system::Initializer();
+  memory_system::Initializer()
+      .SetDispatcherParameters(
+          memory_system::DispatcherParameters::
+              PoissonAllocationSamplerInclusion::kEnforce,
+          memory_system::DispatcherParameters::
+              AllocationTraceRecorderInclusion::kIgnore,
+          process_type
 #if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          cobalt::features::kCobaltMemoryAttributionManager)) {
-    memory_initializer.SetDispatcherParameters(
-        memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
-            kEnforce,
-        memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
-            kIgnore,
-        process_type,
-        memory_system::CobaltMemoryAttributionInclusion::kInclude);
-  } else {
-    memory_initializer.SetDispatcherParameters(
-        memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
-            kEnforce,
-        memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
-            kIgnore,
-        process_type);
-  }
-#else
-  memory_initializer.SetDispatcherParameters(
-      memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
-          kEnforce,
-      memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
-          kIgnore,
-      process_type);
+          ,
+          base::FeatureList::IsEnabled(
+              cobalt::features::kCobaltMemoryAttributionManager)
+              ? memory_system::CobaltMemoryAttributionInclusion::kInclude
+              : memory_system::CobaltMemoryAttributionInclusion::kDoNotInclude
 #endif
-  memory_initializer.Initialize(memory_system_);
+          )
+      .Initialize(memory_system_);
 
   return std::nullopt;
 }
