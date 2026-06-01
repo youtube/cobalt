@@ -49,7 +49,6 @@
 #include <unistd.h>
 
 #include "starboard/configuration.h"
-#include "starboard/file.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include <sys/resource.h>
