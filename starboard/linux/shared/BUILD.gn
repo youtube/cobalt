@@ -204,6 +204,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/media_is_changetype_transition_supported.cc",
     "//starboard/shared/stub/speech_synthesis_cancel.cc",
     "//starboard/shared/stub/speech_synthesis_is_supported.cc",
     "//starboard/shared/stub/speech_synthesis_speak.cc",

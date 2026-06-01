@@ -65,6 +65,20 @@ std::string GetSbPlayerTestConfigName(
 
 void SkipTestIfNotSupported(const SbPlayerTestConfig& config);
 
+const char* FindVideoTransitionTarget(const char* initial_mime,
+                                      SbMediaVideoCodec initial_codec,
+                                      SbPlayerOutputMode output_mode,
+                                      const char* key_system,
+                                      bool* transition_supported,
+                                      std::string* failed_target_mime);
+
+const char* FindAudioTransitionTarget(const char* initial_mime,
+                                      SbMediaAudioCodec initial_codec,
+                                      SbPlayerOutputMode output_mode,
+                                      const char* key_system,
+                                      bool* transition_supported,
+                                      std::string* failed_target_mime);
+
 void DummyDeallocateSampleFunc(SbPlayer player,
                                void* context,
                                const void* sample_buffer);

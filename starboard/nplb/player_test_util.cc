@@ -342,4 +342,68 @@ bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
          audio_codec == kSbMediaAudioCodecEac3;
 }
 
+const char* FindVideoTransitionTarget(const char* initial_mime,
+                                      SbMediaVideoCodec initial_codec,
+                                      SbPlayerOutputMode output_mode,
+                                      const char* key_system,
+                                      bool* transition_supported,
+                                      std::string* failed_target_mime) {
+  *transition_supported = true;
+  for (const char* candidate_filename : GetVideoTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaVideoCodec candidate_codec = candidate_reader.video_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.video_mime_type().c_str(), key_system) &&
+          IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
+                                candidate_codec, key_system)) {
+        if (!SbMediaIsChangeTypeTransitionSupported(
+                initial_mime, candidate_reader.video_mime_type().c_str())) {
+          *transition_supported = false;
+          if (failed_target_mime) {
+            *failed_target_mime = candidate_reader.video_mime_type();
+          }
+          continue;
+        }
+        return candidate_filename;
+      }
+    }
+  }
+  return nullptr;
+}
+
+const char* FindAudioTransitionTarget(const char* initial_mime,
+                                      SbMediaAudioCodec initial_codec,
+                                      SbPlayerOutputMode output_mode,
+                                      const char* key_system,
+                                      bool* transition_supported,
+                                      std::string* failed_target_mime) {
+  *transition_supported = true;
+  for (const char* candidate_filename : GetStereoAudioTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaAudioCodec candidate_codec = candidate_reader.audio_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.audio_mime_type().c_str(), key_system) &&
+          IsOutputModeSupported(output_mode, candidate_codec,
+                                kSbMediaVideoCodecNone, key_system)) {
+        if (!SbMediaIsChangeTypeTransitionSupported(
+                initial_mime, candidate_reader.audio_mime_type().c_str())) {
+          *transition_supported = false;
+          if (failed_target_mime) {
+            *failed_target_mime = candidate_reader.audio_mime_type();
+          }
+          continue;
+        }
+        return candidate_filename;
+      }
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace nplb

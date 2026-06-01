@@ -354,6 +354,28 @@ int64_t SbPlayerTestFixture::GetCurrentMediaTime() const {
   return info.current_media_timestamp;
 }
 
+void SbPlayerTestFixture::SwitchVideoDmp(const char* new_video_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(video_dmp_reader_);
+  SB_DCHECK(new_video_filename && strlen(new_video_filename) > 0);
+  if (video_dmp_reader_) {
+    retired_dmp_readers_.push_back(std::move(video_dmp_reader_));
+  }
+  video_dmp_reader_.reset(new VideoDmpReader(
+      new_video_filename, VideoDmpReader::kEnableReadOnDemand));
+}
+
+void SbPlayerTestFixture::SwitchAudioDmp(const char* new_audio_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(audio_dmp_reader_);
+  SB_DCHECK(new_audio_filename && strlen(new_audio_filename) > 0);
+  if (audio_dmp_reader_) {
+    retired_dmp_readers_.push_back(std::move(audio_dmp_reader_));
+  }
+  audio_dmp_reader_.reset(new VideoDmpReader(
+      new_audio_filename, VideoDmpReader::kEnableReadOnDemand));
+}
+
 void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_GT(duration, 0);
