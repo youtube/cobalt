@@ -24,6 +24,10 @@
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace base {
 
 class MessagePump;
@@ -111,6 +115,11 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // TODO(gab): allow non-joinable instances to be deleted without causing
     // user-after-frees (proposal @ https://crbug.com/629139#c14)
     bool joinable = true;
+
+#if BUILDFLAG(IS_COBALT)
+    ::base::memory::MemoryContext memory_context =
+        ::base::memory::MemoryContext::kUnknown;
+#endif
 
     bool IsValid() const { return !moved_from; }
 
@@ -324,6 +333,11 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // The name of the thread.  Used for debugging purposes.
   const std::string name_;
+
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::MemoryContext memory_context_ =
+      ::base::memory::MemoryContext::kUnknown;
+#endif
 
   // Signaled when the created thread gets ready to use the message loop.
   mutable WaitableEvent start_event_;
