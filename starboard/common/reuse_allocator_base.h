@@ -42,8 +42,16 @@ class ReuseAllocatorBase : public Allocator {
   // Allocator methods.
   size_t GetCapacity() const override { return capacity_; }
 
+  // Immediately decommit all remaining decommitable blocks (e.g. on app
+  // suspend).
+  void DecommitAllDecommitableBlocks();
+
  protected:
-  ReuseAllocatorBase(Allocator* fallback_allocator, size_t max_capacity);
+  ReuseAllocatorBase(Allocator* fallback_allocator,
+                     size_t max_capacity,
+                     size_t retain_blocks,
+                     size_t conservative_decommit_blocks,
+                     bool aggressive_decommit_on_suspend = false);
   ~ReuseAllocatorBase() override;
 
   bool CapacityExceeded() const {
@@ -63,8 +71,11 @@ class ReuseAllocatorBase : public Allocator {
   std::pair<void*, intptr_t> AllocateFallbackBlock(size_t* size_to_try,
                                                    size_t alignment);
 
-  // Triggers decommitting of backing allocations when idle (subclass-driven).
-  void DecommitFallbackAllocations();
+  // Reclaims all backing allocations to the base idle pool (subclass-driven).
+  void ReclaimFallbackBlocks();
+
+  // Step counter to amortize decommits across sequential active allocations.
+  void TryToDecommitOneBlock();
 
   // Enumerates fallback backing allocations. Templated to allow zero-cost
   // compiler inlining for capturing lambdas and avoid std::function overhead.
@@ -77,9 +88,25 @@ class ReuseAllocatorBase : public Allocator {
   }
 
  private:
+  enum BlockState {
+    // Actively allocated and managed by subclass.
+    kActiveInUse,
+    // Reclaimed to base pool, retained fully committed in memory.
+    kIdleRetained,
+    // Reclaimed to base pool, pending MADV_FREE decommit.
+    kIdlePendingFree,
+    // Reclaimed to base pool, pending MADV_DONTNEED decommit.
+    kIdlePendingDecommit,
+    // Reclaimed to base pool, successfully decommitted via MADV_FREE.
+    kIdleFreed,
+    // Reclaimed to base pool, successfully decommitted via MADV_DONTNEED.
+    kIdleDecommitted,
+  };
+
   struct FallbackAllocation {
     void* address;
     size_t size;
+    BlockState state = kActiveInUse;
 
     FallbackAllocation(void* init_address, size_t init_size)
         : address(init_address), size(init_size) {}
@@ -93,6 +120,15 @@ class ReuseAllocatorBase : public Allocator {
   // memory pool capacity expand.
   const size_t max_capacity_;
 
+  // How many blocks to retain (not decommit) when the pool becomes idle.
+  const size_t retain_blocks_ = 0;
+
+  // How many blocks to decommit with MADV_FREE after retaining.
+  const size_t conservative_decommit_blocks_ = 0;
+
+  // Whether to aggressively decommit all idle blocks on app suspend.
+  const bool aggressive_decommit_on_suspend_ = false;
+
   // A list of all backing memory blocks allocated from the fallback allocator.
   // We keep track of this so we can decommit on idle and free them upon
   // destruction.
@@ -101,6 +137,12 @@ class ReuseAllocatorBase : public Allocator {
   // How many total bytes we currently have allocated from the fallback
   // allocator.
   size_t capacity_ = 0;
+
+  // Counter to amortize decommits over multiple allocations.
+  size_t allocation_counter_ = 0;
+
+  // Set to true when idle reclamation stages blocks for decommit.
+  bool has_pending_decommits_ = false;
 };
 
 }  // namespace starboard
