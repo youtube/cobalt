@@ -32,6 +32,8 @@
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
+#include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl_base.h"
+#include "cobalt/browser/on_screen_keyboard/public/mojom/on_screen_keyboard.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -148,6 +150,8 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));
+  binder_map->Add<on_screen_keyboard::mojom::OnScreenKeyboard>(
+      base::BindRepeating(&on_screen_keyboard::OnScreenKeyboardImpl::Create));
 }
 
 }  // namespace cobalt

@@ -14,7 +14,10 @@
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
+#include <CoreGraphics/CGGeometry.h>
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#include <dispatch/dispatch.h>
 
 #include "base/containers/contains.h"
 #include "base/files/file.h"
@@ -32,6 +35,7 @@
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_widget_types.h"
 
 #if !defined(__has_feature) || !__has_feature(objc_arc)
@@ -74,9 +78,209 @@ const char kAllTracingCategories[] = "*";
 
 @end
 
-@interface ContentShellWindowDelegate : UIViewController <UITextFieldDelegate> {
+// A protocol for monitoring changes in CobaltSearchContainerViewController's
+// lifecycle.
+@protocol CobaltSearchContainerViewControllerDelegate <NSObject>
+
+// Invoked when CobaltSearchContainerViewController's -viewDidAppear is called.
+- (void)searchDidAppear;
+
+// Invoked when CobaltSearchContainerViewController's -viewDidDisappear is
+// called.
+- (void)searchDidDisappear;
+
+@end
+
+// The UISearchContainerViewController used by Kabuki's search page for the
+// native on-screen keyboard.
+@interface CobaltSearchContainerViewController : UISearchContainerViewController
+
+// A delegate that receives notifications about changes to this view
+// controller's lifecycle.
+@property(weak, nonatomic) id<CobaltSearchContainerViewControllerDelegate>
+    delegate;
+
+@end
+
+@implementation CobaltSearchContainerViewController
+
+#pragma mark - UIViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
+  [_delegate searchDidAppear];
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+  [super viewDidDisappear:animated];
+  [_delegate searchDidDisappear];
+}
+
+@end
+
+// A protocol used by CobaltSearchController to forward Menu key presses
+// received via its -pressesBegan and -pressesEnded methods.
+//
+// Menu keys need to be handled differently by Cobalt since they must be
+// forwarded to Kabuki even if the search bar is focused.
+@protocol CobaltSearchControllerPressesDelegate <NSObject>
+
+- (void)searchControllerMenuPressesBegan:(NSSet<UIPress*>*)presses
+                               withEvent:(UIPressesEvent*)event;
+
+- (void)searchControllerMenuPressesEnded:(NSSet<UIPress*>*)presses
+                               withEvent:(UIPressesEvent*)event;
+
+@end
+
+@interface CobaltSearchController : UISearchController
+
+// The delegate that will receive notifications about Menu key presses.
+@property(nonatomic) id<CobaltSearchControllerPressesDelegate>
+    menuKeyPressDelegate;
+
+@end
+
+@implementation CobaltSearchController
+
+#pragma mark - UIResponder
+
+// See CobaltSearchResultsController for why these methods are necessary.
+
+- (void)pressesBegan:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* menuPresses = [NSMutableSet setWithCapacity:1];
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [menuPresses addObject:press];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (menuPresses.count > 0) {
+    [self.menuKeyPressDelegate searchControllerMenuPressesBegan:menuPresses
+                                                      withEvent:event];
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesBegan:nonMenuPresses withEvent:event];
+  }
+}
+
+- (void)pressesEnded:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* menuPresses = [NSMutableSet setWithCapacity:1];
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [menuPresses addObject:press];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (menuPresses.count > 0) {
+    [self.menuKeyPressDelegate searchControllerMenuPressesEnded:menuPresses
+                                                      withEvent:event];
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesEnded:nonMenuPresses withEvent:event];
+  }
+}
+
+@end
+
+@protocol CobaltSearchResultsControllerFocusDelegate <NSObject>
+
+- (void)resultsDidReceiveFocus;
+
+- (void)resultsDidLoseFocus;
+
+@end
+
+@interface CobaltSearchResultsController : UIViewController
+
+@property(nonatomic, weak) id<CobaltSearchResultsControllerFocusDelegate>
+    focusDelegate;
+
+@end
+
+@implementation CobaltSearchResultsController
+
+#pragma mark - UIResponder
+
+// These -pressesBegan and -pressesEnded implementations work together with
+// CobaltSearchController's and ContentShellWindowDelegate's.
+//
+// CobaltSearchController's -presses{Began,Ended} handle Menu key presses
+// specially by forwarding them to Kabuki via ContentShellWindowDelegate's
+// implementation of CobaltSearchResultsControllerFocusDelegate.
+//
+// RenderWidgetUIView will eventually receive these events and pass them up, but
+// since the web contents view will be part of CobaltSearchController's view
+// hierarchy the event will reach its -pressesBegan and -pressesEnded and
+// recurse forever. This special case is intercepted and disposed of here
+// because this view controller sits between RenderWidgetUIView and
+// CobaltSearchController.
+- (void)pressesBegan:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      return;
+    }
+  }
+  [super pressesBegan:presses withEvent:event];
+}
+
+- (void)pressesEnded:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      return;
+    }
+  }
+  [super pressesEnded:presses withEvent:event];
+}
+
+#pragma mark - UIFocusEnvironment
+
+- (void)didUpdateFocusInContext:(UIFocusUpdateContext*)context
+       withAnimationCoordinator:(UIFocusAnimationCoordinator*)coordinator {
+  if ([context.nextFocusedView isDescendantOfView:self.view]) {
+    if (![context.previouslyFocusedView isDescendantOfView:self.view]) {
+      [_focusDelegate resultsDidReceiveFocus];
+    }
+  } else if ([context.previouslyFocusedView isDescendantOfView:self.view]) {
+    [_focusDelegate resultsDidLoseFocus];
+  }
+}
+
+@end
+
+@interface ContentShellWindowDelegate
+    : UIViewController <UITextFieldDelegate,
+                        UISearchResultsUpdating,
+                        SBDOnScreenKeyboardManager,
+                        CobaltSearchControllerPressesDelegate,
+                        CobaltSearchResultsControllerFocusDelegate,
+                        CobaltSearchContainerViewControllerDelegate> {
  @private
   raw_ptr<content::Shell> _shell;
+
+  CobaltSearchResultsController* _searchResultsViewController;
+  CobaltSearchController* _searchController;
+  CobaltSearchContainerViewController* _searchContainerViewController;
+  enum class SearchKeyboardVisibilityState {
+    // The native search keyboard is not being shown.
+    kHidden,
+    // The native search keyboard is being created but is not visible yet.
+    kCreating,
+    // The native search keyboard has been created and is visible.
+    kVisible,
+  } _keyboardVisibilityState;
+  void (^_showOnScreenKeyboardCompletionHandler)(void);
+  void (^_focusOnScreenKeyboardCompletionHandler)(void);
 }
 // Toolbar containing navigation buttons and |urlField|.
 @property(nonatomic, strong) UIStackView* toolbarBackgroundView;
@@ -92,10 +296,15 @@ const char kAllTracingCategories[] = "*";
 @property(nonatomic, strong) UIButton* menuButton;
 // Text field used for navigating to URLs.
 @property(nonatomic, strong) UITextField* urlField;
+// Container for the native search UI elements.
+@property(nonatomic, strong) UIView* searchView;
 // Container for |webView|.
 @property(nonatomic, strong) UIView* contentView;
 // Manages tracing and tracing state.
 @property(nonatomic, strong) TracingHandler* tracingHandler;
+// SBDOnScreenKeyboardManagerDelegate implementation.
+@property(nonatomic, weak) id<SBDOnScreenKeyboardManagerDelegate>
+    keyboardManagerDelegate;
 
 + (UIColor*)backgroundColorDefault;
 + (UIColor*)backgroundColorTracing;
@@ -117,6 +326,7 @@ const char kAllTracingCategories[] = "*";
 
 @implementation ContentShellWindowDelegate
 @synthesize backButton = _backButton;
+@synthesize searchView = _searchView;
 @synthesize contentView = _contentView;
 @synthesize urlField = _urlField;
 @synthesize forwardButton = _forwardButton;
@@ -251,6 +461,17 @@ const char kAllTracingCategories[] = "*";
     [_contentView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
   ]];
 
+  // The native search bar, shown only in the main search page.
+  SBDGetApplication().onScreenKeyboardManager = self;
+  _searchView = [[UIView alloc] initWithFrame:_contentView.bounds];
+  _searchView.accessibilityIdentifier = @"Search Container";
+  // _searchContainer.backgroundColor = [UIColor redColor];
+  // Ensure the view expands when _contentView is resized (using constraints
+  // also works).
+  _searchView.autoresizingMask =
+      UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+  [_contentView addSubview:_searchView];
+
   // UIView that will contain the video rendered by SbPlayer. The non-tvOS code
   // path renders the video as an underlay, so add it before the web contents
   // view. Each video will be rendered as a subview of this view.
@@ -263,12 +484,26 @@ const char kAllTracingCategories[] = "*";
   [SBDGetApplication() setPlayerContainerView:playerContainerView];
 
   UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
+  // web_contents_view.alpha = 0.75;
+  // web_contents_view.autoresizingMask = UIViewAutoresizingNone;
   [_contentView addSubview:web_contents_view];
+  // web_contents_view.translatesAutoresizingMaskIntoConstraints = NO;
+  // [NSLayoutConstraint activateConstraints:@[
+  //   [web_contents_view.topAnchor
+  //       constraintEqualToAnchor:_contentView.topAnchor],
+  //   [web_contents_view.leadingAnchor
+  //       constraintEqualToAnchor:_contentView.leadingAnchor],
+  //   [web_contents_view.trailingAnchor
+  //       constraintEqualToAnchor:_contentView.trailingAnchor],
+  //   [web_contents_view.bottomAnchor
+  //       constraintEqualToAnchor:_contentView.bottomAnchor],
+  // ]];
 }
 
 - (id)initWithShell:(content::Shell*)shell {
   if ((self = [super init])) {
     _shell = shell;
+    _keyboardVisibilityState = SearchKeyboardVisibilityState::kHidden;
   }
   return self;
 }
@@ -464,6 +699,352 @@ const char kAllTracingCategories[] = "*";
       CGRectMake(CGRectGetWidth(_menuButton.bounds) / 2,
                  CGRectGetHeight(_menuButton.bounds), 1, 1);
   return alertController;
+}
+
+#pragma mark - SBDOnScreenKeyboardManager
+
+- (void)showOnScreenKeyboard:(NSString*)searchText
+               keyboardStyle:(UIUserInterfaceStyle)keyboardStyle
+               colorOverride:(UIColor*)colorOverride
+           completionHandler:(void (^)())completionHandler {
+  if (_keyboardVisibilityState != SearchKeyboardVisibilityState::kHidden) {
+    // From C25 (b/182076373):
+    // For some languages such as Hebrew, setting the search bar text to the
+    // same value may result in the text being cleared. Work around this bug.
+    if (![_searchController.searchBar.text isEqualToString:searchText]) {
+      _searchController.searchBar.text = searchText;
+    }
+    completionHandler();
+    return;
+  }
+
+  // This block comes from C25. The original commit has no associated bug and
+  // only mentions "make sure show/hide are always done even if when the event
+  // is originally received the keyboard isBeingPresented or Dismissed".
+  if (_searchController.isBeingPresented ||
+      _searchController.isBeingDismissed) {
+    __weak __typeof(self) weakself = self;
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+          ContentShellWindowDelegate* strongself = weakself;
+          if (!strongself) {
+            return;
+          }
+          [strongself showOnScreenKeyboard:searchText
+                             keyboardStyle:keyboardStyle
+                             colorOverride:colorOverride
+                         completionHandler:completionHandler];
+        });
+    return;
+  }
+
+  _keyboardVisibilityState = SearchKeyboardVisibilityState::kCreating;
+  _showOnScreenKeyboardCompletionHandler = completionHandler;
+
+  _searchResultsViewController = [[CobaltSearchResultsController alloc] init];
+  _searchResultsViewController.focusDelegate = self;
+  _searchController = [[CobaltSearchController alloc]
+      initWithSearchResultsController:_searchResultsViewController];
+  _searchController.searchBar.text = searchText;
+  _searchController.obscuresBackgroundDuringPresentation = NO;
+  _searchController.hidesNavigationBarDuringPresentation = NO;
+  _searchController.overrideUserInterfaceStyle = keyboardStyle;
+  _searchController.view.backgroundColor = colorOverride;
+  _searchController.searchResultsUpdater = self;
+  _searchController.menuKeyPressDelegate = self;
+
+  _searchContainerViewController = [[CobaltSearchContainerViewController alloc]
+      initWithSearchController:_searchController];
+  _searchContainerViewController.delegate = self;
+
+  [self addChildViewController:_searchContainerViewController];
+  [_searchContainerViewController didMoveToParentViewController:self];
+  [_searchView addSubview:_searchContainerViewController.view];
+  _searchController.active = YES;
+}
+
+- (void)hideOnScreenKeyboard {
+  if (_keyboardVisibilityState == SearchKeyboardVisibilityState::kHidden) {
+    return;
+  }
+
+  // This block comes from C25. The original commit has no associated bug and
+  // only mentions "make sure show/hide are always done even if when the event
+  // is originally received the keyboard isBeingPresented or Dismissed".
+  if (_searchController.isBeingPresented ||
+      _searchController.isBeingDismissed) {
+    __weak __typeof(self) weakself = self;
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+          ContentShellWindowDelegate* strongself = weakself;
+          if (!strongself) {
+            return;
+          }
+          [strongself hideOnScreenKeyboard];
+        });
+    return;
+  }
+
+  _keyboardVisibilityState = SearchKeyboardVisibilityState::kHidden;
+  [_searchContainerViewController.view removeFromSuperview];
+  _searchController.active = NO;
+  [_searchContainerViewController willMoveToParentViewController:nil];
+  [_searchContainerViewController removeFromParentViewController];
+}
+
+- (void)focusOnScreenKeyboard:(void (^)(void))completionHandler {
+  if (_keyboardVisibilityState == SearchKeyboardVisibilityState::kHidden) {
+    completionHandler();
+    return;
+  } else if (_keyboardVisibilityState ==
+             SearchKeyboardVisibilityState::kCreating) {
+    _focusOnScreenKeyboardCompletionHandler = completionHandler;
+    return;
+  }
+
+  // Disable user interaction in the web contents view just while updating focus
+  // so that it switches back to the keyboard view.
+  _shell->web_contents()->GetNativeView().Get().userInteractionEnabled = NO;
+  [self setNeedsFocusUpdate];
+  [self updateFocusIfNeeded];
+  _shell->web_contents()->GetNativeView().Get().userInteractionEnabled = YES;
+
+  completionHandler();
+}
+
+- (CGRect)boundingRect {
+  if (_keyboardVisibilityState != SearchKeyboardVisibilityState::kVisible) {
+    return CGRectMake(0, 0, 0, 0);
+  }
+
+  // From C25:
+  // UISearchControl has three different keyboard layouts:
+  //
+  // case 1: Siri remote.
+  // +-------------------------------+
+  // | Searchbar (shows search text) |
+  // +-------------------------------+
+  // |           Keyboard            |
+  // +-------------------------------+
+  // |        Search Results         |
+  // |             ...               |
+  // +-------------------------------+
+  //
+  // case 2: Non-Siri remote, with LTR language in device's general
+  // setting.
+  // +-------------------------------+
+  // | Searchbar (shows search text) |
+  // +--------------+----------------+
+  // |   Keyboard   |     Search     |
+  // |              |     Results    |
+  // |     ...      |       ...      |
+  // +--------------+----------------+
+  //
+  // case 3: Non-Siri remote, with RTL language in device's general
+  // setting.
+  // +-------------------------------+
+  // | Searchbar (shows search text) |
+  // +--------------+----------------+
+  // |   Search     |     Keyboard   |
+  // |   Results    |                |
+  // |     ...      |       ...      |
+  // +--------------+----------------+
+
+  UIView* resultsView = _searchResultsViewController.view;
+  CGRect resultsFrameInMainScreen =
+      [resultsView convertRect:resultsView.frame
+             toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];
+
+  // Infer the keyboard frame based on the search result's frame.
+  CGSize screenSize = UIScreen.mainScreen.bounds.size;
+  CGRect keyboardFrame;
+  CGFloat resultsFrameLeftPadding = resultsFrameInMainScreen.origin.x;
+  CGFloat resultsFrameRightPadding = screenSize.width -
+                                     resultsFrameInMainScreen.origin.x -
+                                     resultsFrameInMainScreen.size.width;
+
+  if (resultsFrameInMainScreen.origin.x == 0) {
+    // This is the horizontal keyboard layout illustrated in case 1.
+    // Specify keyboard frame as including keyboard and search bar.
+    keyboardFrame =
+        CGRectMake(0, 0, screenSize.width, resultsFrameInMainScreen.origin.y);
+  } else {
+    if (resultsFrameLeftPadding > resultsFrameRightPadding) {
+      // This is the LTR grid keyboard layout illustrated in case 2.
+      // Specify keyboard frame as only the keyboard area. This allows the
+      // caller to infer the space taken up by the search bar.
+      keyboardFrame =
+          CGRectMake(0, resultsFrameInMainScreen.origin.y,
+                     resultsFrameInMainScreen.origin.x,
+                     screenSize.height - resultsFrameInMainScreen.origin.y);
+    } else {
+      // This is the RTL grid keyboard layout illustrated in case 3.
+      // Specify keyboard frame as only the keyboard area. This allows the
+      // caller to infer the space taken up by the search bar.
+      keyboardFrame =
+          CGRectMake(resultsFrameInMainScreen.origin.x +
+                         resultsFrameInMainScreen.size.width,
+                     resultsFrameInMainScreen.origin.y,
+                     screenSize.width - resultsFrameInMainScreen.size.width -
+                         resultsFrameInMainScreen.origin.x,
+                     screenSize.height - resultsFrameInMainScreen.origin.y);
+    }
+  }
+
+  // Convert from points to pixels.
+  CGFloat scale = UIScreen.mainScreen.scale;
+  return CGRectMake(static_cast<int>(keyboardFrame.origin.x * scale),
+                    static_cast<int>(keyboardFrame.origin.y * scale),
+                    static_cast<int>(keyboardFrame.size.width * scale),
+                    static_cast<int>(keyboardFrame.size.height * scale));
+}
+
+- (BOOL)isShowing {
+  return _keyboardVisibilityState != SearchKeyboardVisibilityState::kHidden;
+}
+
+#pragma mark - CobaltSearchControllerPressesDelegate
+
+- (void)searchControllerMenuPressesBegan:(NSSet<UIPress*>*)presses
+                               withEvent:(UIPressesEvent*)event {
+  UIView* native_rwhv =
+      _shell->web_contents()->GetRenderWidgetHostView()->GetNativeView().Get();
+  [native_rwhv pressesBegan:presses withEvent:event];
+}
+
+- (void)searchControllerMenuPressesEnded:(NSSet<UIPress*>*)presses
+                               withEvent:(UIPressesEvent*)event {
+  UIView* native_rwhv =
+      _shell->web_contents()->GetRenderWidgetHostView()->GetNativeView().Get();
+  [native_rwhv pressesEnded:presses withEvent:event];
+}
+
+#pragma mark - CobaltSearchResultsControllerFocusDelegate
+
+- (void)resultsDidLoseFocus {
+  [_keyboardManagerDelegate keyboardFocused];
+}
+
+- (void)resultsDidReceiveFocus {
+  [_keyboardManagerDelegate keyboardBlurred];
+}
+
+#pragma mark - UISearchResultsUpdating
+
+- (void)updateSearchResultsForSearchController:
+    (UISearchController*)searchController {
+  if (_keyboardVisibilityState == SearchKeyboardVisibilityState::kHidden) {
+    return;
+  }
+
+  if (searchController.searchBar.text.length == 0) {
+    return;
+  }
+
+  // From C25 (b/185122939):
+  // Debouncing searchResults to avoid sending too many intermediate input
+  // events to Kabuki and a bug where voice search queries are cleared.
+  static constexpr NSTimeInterval kSearchResultDebounceTime = 0.5;
+  static NSDate* searchResultLastDate;
+  static NSString* searchResultLastString;
+  searchResultLastDate = [NSDate date];
+  __weak id<SBDOnScreenKeyboardManagerDelegate> weakKeyboardManagerDelegate =
+      _keyboardManagerDelegate;
+  dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW,
+                    (int64_t)(kSearchResultDebounceTime * NSEC_PER_SEC)),
+      dispatch_get_main_queue(), ^{
+        if (-searchResultLastDate.timeIntervalSinceNow <=
+            kSearchResultDebounceTime) {
+          return;
+        }
+        NSString* searchString = searchController.searchBar.text;
+        if (searchResultLastString &&
+            [searchResultLastString isEqualToString:searchString]) {
+          return;
+        }
+        searchResultLastString = searchString;
+        [weakKeyboardManagerDelegate keyboardTextChanged:[searchString copy]];
+      });
+}
+
+#pragma mark - CobaltSearchContainerViewControllerDelegate
+
+- (void)searchDidAppear {
+  [_contentView bringSubviewToFront:_searchView];
+  [self setNeedsFocusUpdate];
+  [self updateFocusIfNeeded];
+
+  UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
+  [_searchResultsViewController.view addSubview:web_contents_view];
+  // Use constraints instead of an autoresizing mask for more control:
+  // `web_contents_view`'s trailingAnchor needs to follow
+  // `_searchController.view`'s, not `_searchResultsViewController.view`s.
+  //
+  // This makes a difference when using the system keyboard in grid mode (either
+  // because a non-Siri remote is being used or because this was specifically
+  // chosen in system settings), as in this case we follow C25's behavior of
+  // extending the web contents beyond the area allocated to the search results
+  // and making it reach the end of the page's width, in both RTL and LTR modes.
+  web_contents_view.translatesAutoresizingMaskIntoConstraints = NO;
+  [NSLayoutConstraint activateConstraints:@[
+    [web_contents_view.topAnchor
+        constraintEqualToAnchor:_searchResultsViewController.view.topAnchor],
+    [web_contents_view.leadingAnchor
+        constraintEqualToAnchor:_searchResultsViewController.view
+                                    .leadingAnchor],
+    [web_contents_view.trailingAnchor
+        constraintEqualToAnchor:_searchController.view.trailingAnchor],
+    [web_contents_view.bottomAnchor
+        constraintEqualToAnchor:_searchResultsViewController.view.bottomAnchor],
+  ]];
+
+  _shell->web_contents()
+      ->GetRenderWidgetHostView()
+      ->SetAllowAutomaticViewBoundsUpdates(false);
+
+  _keyboardVisibilityState = SearchKeyboardVisibilityState::kVisible;
+  if (_showOnScreenKeyboardCompletionHandler) {
+    _showOnScreenKeyboardCompletionHandler();
+    _showOnScreenKeyboardCompletionHandler = nil;
+  }
+  if (_focusOnScreenKeyboardCompletionHandler) {
+    _focusOnScreenKeyboardCompletionHandler();
+    _focusOnScreenKeyboardCompletionHandler = nil;
+  }
+}
+
+- (void)searchDidDisappear {
+  [_contentView sendSubviewToBack:_searchView];
+
+  [self setNeedsFocusUpdate];
+  [self updateFocusIfNeeded];
+
+  UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
+  // Although this should be similar to the setup in -viewDidLoad, using the
+  // original autoresize mask does not seem to have the desired effect (maybe
+  // because `_contentView` itself is not resized in this case).
+  web_contents_view.translatesAutoresizingMaskIntoConstraints = NO;
+  [_contentView addSubview:web_contents_view];
+  [NSLayoutConstraint activateConstraints:@[
+    [web_contents_view.topAnchor
+        constraintEqualToAnchor:_contentView.topAnchor],
+    [web_contents_view.leadingAnchor
+        constraintEqualToAnchor:_contentView.leadingAnchor],
+    [web_contents_view.trailingAnchor
+        constraintEqualToAnchor:_contentView.trailingAnchor],
+    [web_contents_view.bottomAnchor
+        constraintEqualToAnchor:_contentView.bottomAnchor],
+  ]];
+
+  _shell->web_contents()
+      ->GetRenderWidgetHostView()
+      ->SetAllowAutomaticViewBoundsUpdates(true);
+
+  _searchResultsViewController = nil;
+  _keyboardVisibilityState = SearchKeyboardVisibilityState::kHidden;
 }
 
 @end

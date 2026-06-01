@@ -16,15 +16,13 @@
 #define STARBOARD_TVOS_SHARED_STARBOARD_APPLICATION_H_
 
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 #include "starboard/system.h"
 
 @class SBDDrmManager;
 @class SBDEglAdapter;
 @class SBDPlayerManager;
-@class UIPress;
-@class UIPressesEvent;
-@class UIView;
 @protocol SBDStarboardApplication;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -43,6 +41,36 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 }  // extern "C"
 #endif
 
+@protocol SBDOnScreenKeyboardManagerDelegate
+
+- (void)keyboardBlurred;
+
+- (void)keyboardFocused;
+
+- (void)keyboardTextChanged:(NSString*)text;
+
+@end
+
+@protocol SBDOnScreenKeyboardManager
+
+@property(nonatomic, weak) id<SBDOnScreenKeyboardManagerDelegate>
+    keyboardManagerDelegate;
+
+@property(nonatomic, readonly) CGRect boundingRect;
+
+@property(nonatomic, readonly) BOOL isShowing;
+
+- (void)showOnScreenKeyboard:(NSString*)searchText
+               keyboardStyle:(UIUserInterfaceStyle)keyboardStyle
+               colorOverride:(UIColor*)colorOverride
+           completionHandler:(void (^)(void))completionHandler;
+
+- (void)hideOnScreenKeyboard;
+
+- (void)focusOnScreenKeyboard:(void (^)(void))completionHandler;
+
+@end
+
 /**
  *  @brief A Starboard application.
  */
@@ -57,6 +85,10 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  *  @brief Enables Starboard to manage platform players.
  */
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
+
+// The object responsible for managing (showing, hiding etc) the native
+// on-screen keyboard used in the search page.
+@property(nonatomic) id<SBDOnScreenKeyboardManager> onScreenKeyboardManager;
 
 // Sets the UIView to which player views will be added to.
 - (void)setPlayerContainerView:(UIView*)view;

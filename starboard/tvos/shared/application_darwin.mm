@@ -53,6 +53,7 @@
 
 @synthesize drmManager = _drmManager;
 @synthesize playerManager = _playerManager;
+@synthesize onScreenKeyboardManager = _onScreenKeyboardManager;
 
 - (instancetype)init {
   self = [super init];
