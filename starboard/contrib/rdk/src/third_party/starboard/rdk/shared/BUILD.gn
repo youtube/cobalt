@@ -196,7 +196,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/decode_target_release.cc",
     "//starboard/shared/stub/log_raw_dump_stack.cc",
-    "//starboard/shared/stub/media_is_changetype_transition_supported.cc",
+    "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/microphone_close.cc",
     "//starboard/shared/stub/microphone_create.cc",
     "//starboard/shared/stub/microphone_destroy.cc",

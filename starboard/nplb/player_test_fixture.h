@@ -50,6 +50,7 @@ class SbPlayerTestFixture {
     struct VideoSamplesDescriptor {
       int start_index = 0;
       int samples_count = 0;
+      int64_t timestamp_offset = 0;
       bool is_end_of_stream = false;
     };
 
@@ -60,7 +61,9 @@ class SbPlayerTestFixture {
                                     int64_t discarded_duration_from_front,
                                     int64_t discarded_duration_from_back);
     GroupedSamples& AddAudioEOS();
-    GroupedSamples& AddVideoSamples(int start_index, int number_of_samples);
+    GroupedSamples& AddVideoSamples(int start_index,
+                                    int number_of_samples,
+                                    int64_t timestamp_offset = 0);
     GroupedSamples& AddVideoEOS();
 
     friend class GroupedSamplesIterator;
@@ -97,6 +100,7 @@ class SbPlayerTestFixture {
   bool HasVideo() const { return video_dmp_reader_ != nullptr; }
 
   int64_t GetAudioSampleTimestamp(int index) const;
+  int64_t GetVideoSampleTimestamp(int index) const;
   int ConvertDurationToAudioBufferCount(int64_t duration) const;
   int ConvertDurationToVideoBufferCount(int64_t duration) const;
 
@@ -162,7 +166,9 @@ class SbPlayerTestFixture {
                          int64_t timestamp_offset,
                          int64_t discarded_duration_from_front,
                          int64_t discarded_duration_from_back);
-  void WriteVideoSamples(int start_index, int samples_to_write);
+  void WriteVideoSamples(int start_index,
+                         int samples_to_write,
+                         int64_t timestamp_offset = 0);
   void WriteEndOfStream(SbMediaType media_type);
 
   // Checks if there are pending callback events and, if so, logs the received

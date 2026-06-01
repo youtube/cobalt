@@ -14,7 +14,6 @@
 
 #include "starboard/media.h"
 
-bool SbMediaIsChangeTypeTransitionSupported(const char* current_mime,
-                                            const char* new_mime) {
+bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
   return false;
 }
