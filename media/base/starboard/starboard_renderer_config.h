@@ -41,6 +41,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     bool force_decode_to_texture = false;
     bool skip_flush_on_decoder_teardown = false;
     bool skip_video_frames_over_60_fps = false;
+    std::optional<bool> enable_simd_based_audio_format_switching;
     std::optional<bool> enable_trivial_optimizations;
     std::optional<bool> use_dual_threads_for_video;
     std::optional<int> max_samples_per_write;

@@ -366,6 +366,263 @@ TEST(DecodedAudioTest, Clone) {
   }
 }
 
-}  // namespace
+TEST(DecodedAudioTest, SwitchFormatTo_NeonSimdExhaustive) {
+  // 1. Test conversions starting from Int16 Planar containing all possible
+  // int16_t values.
+  int total_samples = 65536;
+  int size_in_bytes = total_samples * sizeof(int16_t);
 
+  scoped_refptr<DecodedAudio> int16_planar_base(new DecodedAudio(
+      kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+      kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, size_in_bytes));
+
+  int16_t* int16_data = int16_planar_base->data_as_int16();
+  for (int i = 0; i < total_samples; ++i) {
+    int16_data[i] = static_cast<int16_t>(i - 32768);
+  }
+
+  // Test Case 1: Int16 Planar -> Float32 Interleaved (Combined Conversion)
+  {
+    scoped_refptr<DecodedAudio> ref_float_interleaved =
+        int16_planar_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeFloat32,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_float_interleaved =
+        int16_planar_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeFloat32,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_float_interleaved->size_in_bytes(),
+              simd_float_interleaved->size_in_bytes());
+    const float* ref_data = ref_float_interleaved->data_as_float32();
+    const float* simd_data = simd_float_interleaved->data_as_float32();
+    int num_floats = ref_float_interleaved->size_in_bytes() / sizeof(float);
+    for (int i = 0; i < num_floats; ++i) {
+      ASSERT_FLOAT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 2: Int16 Planar -> Float32 Planar (Sample Type conversion only)
+  {
+    scoped_refptr<DecodedAudio> ref_float_planar =
+        int16_planar_base->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                          kSbMediaAudioFrameStorageTypePlanar,
+                                          /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_float_planar =
+        int16_planar_base->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                          kSbMediaAudioFrameStorageTypePlanar,
+                                          /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_float_planar->size_in_bytes(),
+              simd_float_planar->size_in_bytes());
+    const float* ref_data = ref_float_planar->data_as_float32();
+    const float* simd_data = simd_float_planar->data_as_float32();
+    int num_floats = ref_float_planar->size_in_bytes() / sizeof(float);
+    for (int i = 0; i < num_floats; ++i) {
+      ASSERT_FLOAT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // 2. Test conversions starting from Float32 containing clamping values.
+  // We will populate floats from -2.0f to 2.0f.
+  int num_float_samples =
+      8000;  // Must be multiple of 8 for SIMD loop alignment
+  int float_size_in_bytes = num_float_samples * sizeof(float);
+  scoped_refptr<DecodedAudio> float_interleaved_base(
+      new DecodedAudio(kChannels, kSbMediaAudioSampleTypeFloat32,
+                       kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec,
+                       float_size_in_bytes));
+
+  float* float_data = float_interleaved_base->data_as_float32();
+  for (int i = 0; i < num_float_samples; ++i) {
+    float_data[i] = -2.0f + 4.0f * (static_cast<float>(i) / num_float_samples);
+  }
+
+  // Test Case 3: Float32 Interleaved -> Int16 Planar (Combined Conversion)
+  {
+    scoped_refptr<DecodedAudio> ref_int16_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypePlanar, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_int16_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypePlanar, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_int16_planar->size_in_bytes(),
+              simd_int16_planar->size_in_bytes());
+    const int16_t* ref_data = ref_int16_planar->data_as_int16();
+    const int16_t* simd_data = simd_int16_planar->data_as_int16();
+    int num_ints = ref_int16_planar->size_in_bytes() / sizeof(int16_t);
+    for (int i = 0; i < num_ints; ++i) {
+      ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 4: Float32 Interleaved -> Int16 Interleaved (Sample Type
+  // conversion only)
+  {
+    scoped_refptr<DecodedAudio> ref_int16_interleaved =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_int16_interleaved =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_int16_interleaved->size_in_bytes(),
+              simd_int16_interleaved->size_in_bytes());
+    const int16_t* ref_data = ref_int16_interleaved->data_as_int16();
+    const int16_t* simd_data = simd_int16_interleaved->data_as_int16();
+    int num_ints = ref_int16_interleaved->size_in_bytes() / sizeof(int16_t);
+    for (int i = 0; i < num_ints; ++i) {
+      ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 5: Int16 Planar -> Int16 Interleaved (Layout conversion only)
+  {
+    scoped_refptr<DecodedAudio> ref_int16_interleaved =
+        int16_planar_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_int16_interleaved =
+        int16_planar_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_int16_interleaved->size_in_bytes(),
+              simd_int16_interleaved->size_in_bytes());
+    const int16_t* ref_data = ref_int16_interleaved->data_as_int16();
+    const int16_t* simd_data = simd_int16_interleaved->data_as_int16();
+    int num_ints = ref_int16_interleaved->size_in_bytes() / sizeof(int16_t);
+    for (int i = 0; i < num_ints; ++i) {
+      ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 6: Int16 Interleaved -> Int16 Planar (Layout conversion only)
+  {
+    scoped_refptr<DecodedAudio> int16_interleaved =
+        int16_planar_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> ref_planar = int16_interleaved->SwitchFormatTo(
+        kSbMediaAudioSampleTypeInt16Deprecated,
+        kSbMediaAudioFrameStorageTypePlanar, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_planar = int16_interleaved->SwitchFormatTo(
+        kSbMediaAudioSampleTypeInt16Deprecated,
+        kSbMediaAudioFrameStorageTypePlanar, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_planar->size_in_bytes(), simd_planar->size_in_bytes());
+    const int16_t* ref_data = ref_planar->data_as_int16();
+    const int16_t* simd_data = simd_planar->data_as_int16();
+    int num_ints = ref_planar->size_in_bytes() / sizeof(int16_t);
+    for (int i = 0; i < num_ints; ++i) {
+      ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 3: Float32 Interleaved -> Int16 Planar (Combined Conversion)
+  {
+    scoped_refptr<DecodedAudio> ref_int16_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypePlanar, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_int16_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypePlanar, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_int16_planar->size_in_bytes(),
+              simd_int16_planar->size_in_bytes());
+    const int16_t* ref_data = ref_int16_planar->data_as_int16();
+    const int16_t* simd_data = simd_int16_planar->data_as_int16();
+    int num_ints = ref_int16_planar->size_in_bytes() / sizeof(int16_t);
+    for (int i = 0; i < num_ints; ++i) {
+      ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 4: Float32 Interleaved -> Int16 Interleaved (Sample Type
+  // conversion only)
+  {
+    scoped_refptr<DecodedAudio> ref_int16_interleaved =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_int16_interleaved =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_int16_interleaved->size_in_bytes(),
+              simd_int16_interleaved->size_in_bytes());
+    const int16_t* ref_data = ref_int16_interleaved->data_as_int16();
+    const int16_t* simd_data = simd_int16_interleaved->data_as_int16();
+    int num_ints = ref_int16_interleaved->size_in_bytes() / sizeof(int16_t);
+    for (int i = 0; i < num_ints; ++i) {
+      ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 7: Float32 Interleaved -> Float32 Planar (Layout conversion only)
+  {
+    scoped_refptr<DecodedAudio> ref_float_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
+            /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_float_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
+            /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_float_planar->size_in_bytes(),
+              simd_float_planar->size_in_bytes());
+    const float* ref_data = ref_float_planar->data_as_float32();
+    const float* simd_data = simd_float_planar->data_as_float32();
+    int num_floats = ref_float_planar->size_in_bytes() / sizeof(float);
+    for (int i = 0; i < num_floats; ++i) {
+      ASSERT_FLOAT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+
+  // Test Case 8: Float32 Planar -> Float32 Interleaved (Layout conversion only)
+  {
+    scoped_refptr<DecodedAudio> float_planar =
+        float_interleaved_base->SwitchFormatTo(
+            kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
+            /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> ref_interleaved = float_planar->SwitchFormatTo(
+        kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/false);
+
+    scoped_refptr<DecodedAudio> simd_interleaved = float_planar->SwitchFormatTo(
+        kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved, /*enable_simd=*/true);
+
+    ASSERT_EQ(ref_interleaved->size_in_bytes(),
+              simd_interleaved->size_in_bytes());
+    const float* ref_data = ref_interleaved->data_as_float32();
+    const float* simd_data = simd_interleaved->data_as_float32();
+    int num_floats = ref_interleaved->size_in_bytes() / sizeof(float);
+    for (int i = 0; i < num_floats; ++i) {
+      ASSERT_FLOAT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+    }
+  }
+}
+
+}  // namespace
 }  // namespace starboard

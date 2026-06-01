@@ -591,7 +591,9 @@ void AudioRendererPcm::OnFirstOutput(
         decoded_sample_type, decoded_storage_type, decoded_sample_rate,
         kSbMediaAudioSampleTypeFloat32,
         kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
-        channels_);
+        channels_,
+        experimental_features_.enable_simd_based_audio_format_switching
+            .value_or(false));
     SB_DCHECK(resampler_);
   } else {
     resampler_.reset(new IdentityAudioResampler);
@@ -708,7 +710,9 @@ void AudioRendererPcm::ProcessAudioData() {
               kSbMediaAudioFrameStorageTypeInterleaved)) {
         resampled_audio = resampled_audio->SwitchFormatTo(
             kSbMediaAudioSampleTypeFloat32,
-            kSbMediaAudioFrameStorageTypeInterleaved);
+            kSbMediaAudioFrameStorageTypeInterleaved,
+            experimental_features_.enable_simd_based_audio_format_switching
+                .value_or(false));
       }
       time_stretcher_.EnqueueBuffer(resampled_audio);
     }
@@ -789,7 +793,9 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   if (!decoded_audio->IsFormat(sink_sample_type_,
                                kSbMediaAudioFrameStorageTypeInterleaved)) {
     decoded_audio = decoded_audio->SwitchFormatTo(
-        sink_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved);
+        sink_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
+        experimental_features_.enable_simd_based_audio_format_switching
+            .value_or(false));
   }
   const uint8_t* source_buffer = decoded_audio->data();
   int frames_to_append = decoded_audio->frames();

@@ -83,16 +83,18 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
                 SbMediaAudioFrameStorageType storage_type) const;
   scoped_refptr<DecodedAudio> SwitchFormatTo(
       SbMediaAudioSampleType new_sample_type,
-      SbMediaAudioFrameStorageType new_storage_type) const
-      SB_WARN_UNUSED_RESULT;
+      SbMediaAudioFrameStorageType new_storage_type,
+      bool enable_simd = false) const SB_WARN_UNUSED_RESULT;
 
   scoped_refptr<DecodedAudio> Clone() const;
 
  private:
   scoped_refptr<DecodedAudio> SwitchSampleTypeTo(
-      SbMediaAudioSampleType new_sample_type) const;
+      SbMediaAudioSampleType new_sample_type,
+      bool enable_simd = false) const;
   scoped_refptr<DecodedAudio> SwitchStorageTypeTo(
-      SbMediaAudioFrameStorageType new_storage_type) const;
+      SbMediaAudioFrameStorageType new_storage_type,
+      bool enable_simd = false) const;
 
   const int channels_;
   const SbMediaAudioSampleType sample_type_;

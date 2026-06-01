@@ -46,13 +46,8 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
                        const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
-                       const OutputFormatAdjustmentCallback&
-                           output_adjustment_callback = nullptr);
-  AdaptiveAudioDecoder(JobQueue* job_queue,
-                       const AudioStreamInfo& audio_stream_info,
-                       SbDrmSystem drm_system,
-                       const AudioDecoderCreator& audio_decoder_creator,
-                       bool enable_reset_audio_decoder,
+                       bool enable_reset_audio_decoder = false,
+                       bool enable_simd_based_audio_format_switching = false,
                        const OutputFormatAdjustmentCallback&
                            output_adjustment_callback = nullptr);
   ~AdaptiveAudioDecoder() override;
@@ -95,6 +90,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool output_format_checked_ = false;
   bool first_input_written_ = false;
   bool enable_reset_audio_decoder_ = false;
+  bool enable_simd_based_audio_format_switching_ = false;
 };
 
 }  // namespace starboard
