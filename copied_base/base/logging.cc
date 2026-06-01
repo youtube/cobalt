@@ -86,7 +86,6 @@ typedef FILE* FileHandle;
 #include "starboard/common/time.h"  // nogncheck
 #include "starboard/configuration.h"  // nogncheck
 #include "starboard/configuration_constants.h"  // nogncheck
-#include "starboard/file.h"  // nogncheck
 #include "starboard/system.h"  // nogncheck
 #endif
 
