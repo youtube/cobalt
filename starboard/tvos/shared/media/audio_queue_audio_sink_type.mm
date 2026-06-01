@@ -30,7 +30,6 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
