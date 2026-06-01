@@ -371,7 +371,7 @@ test("nplb") {
 
   data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
-  if (sb_is_evergreen_compatible) {
+  if (is_starboard) {
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
       "nplb_evergreen_compat_tests/executable_memory_test.cc",
