@@ -626,10 +626,14 @@ AudioParameters AudioProcessor::GetDefaultOutputFormat(
 #if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
                                    std::min(media::kAudioProcessingSampleRateHz,
                                             input_format.sample_rate())
+#elif BUILDFLAG(IS_COBALT)
+                                   input_format.sample_rate()
 #else
                                    media::kAudioProcessingSampleRateHz
 #endif
                                    : input_format.sample_rate();
+
+  LOG(INFO) << "SAMSUNG DEBUG - output_sample_rate is " << output_sample_rate;
 
   media::ChannelLayoutConfig output_channel_layout_config;
   if (!need_webrtc_audio_processing) {
