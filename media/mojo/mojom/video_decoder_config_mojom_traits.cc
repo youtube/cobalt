@@ -4,6 +4,8 @@
 
 #include "media/mojo/mojom/video_decoder_config_mojom_traits.h"
 
+#include "media/media_buildflags.h"
+
 namespace mojo {
 
 // static
@@ -69,6 +71,15 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
 
   if (hdr_metadata)
     output->set_hdr_metadata(hdr_metadata.value());
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  output->set_from_changeType(input.from_changeType());
+
+  std::string mime_type;
+  if (!input.ReadMimeType(&mime_type))
+    return false;
+  output->set_mime_type(mime_type);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!output->IsValidConfig())
     return false;
