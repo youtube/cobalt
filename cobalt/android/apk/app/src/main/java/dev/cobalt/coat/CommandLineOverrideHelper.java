@@ -85,6 +85,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--initial-old-space-size=64");
         paramOverrides.add("--max-old-space-size=512");
 
+        // Disable decommitting pooled pages to prevent virtual memory fragmentation.
+        paramOverrides.add("--no-decommit-pooled-pages");
+
         return paramOverrides;
     }
 
