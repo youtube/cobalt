@@ -32,7 +32,6 @@
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
-#include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {

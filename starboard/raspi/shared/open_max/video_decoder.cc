@@ -19,7 +19,6 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/thread.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 

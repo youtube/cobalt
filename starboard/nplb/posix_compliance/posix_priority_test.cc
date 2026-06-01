@@ -19,7 +19,6 @@
 
 #include "starboard/common/thread.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

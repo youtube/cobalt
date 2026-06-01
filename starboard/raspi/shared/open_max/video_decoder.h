@@ -32,7 +32,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 

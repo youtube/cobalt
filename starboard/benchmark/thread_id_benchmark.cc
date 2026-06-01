@@ -15,7 +15,6 @@
 #include <unistd.h>
 
 #include "starboard/common/gettid.h"
-#include "starboard/thread.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
@@ -30,11 +29,11 @@ void BM_ThreadGetId(::benchmark::State& state) {
 BENCHMARK(BM_ThreadGetId);
 
 // 2. Simple TLS cache
-SbThreadId GetThreadId() {
+pid_t GetThreadId() {
   // NOTE: We can cache the thread ID in thread-local storage since Cobalt
   // doesn't use fork().
-  thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
-  if (tls_thread_id == kSbThreadInvalidId) {
+  thread_local pid_t tls_thread_id = 0;
+  if (tls_thread_id == 0) {
     tls_thread_id = gettid();
   }
   return tls_thread_id;
