@@ -549,10 +549,9 @@ SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 //
 // |current_mime|: The current active stream MIME configuration. Must not be
 // NULL.
-
 // |new_mime|: The target stream MIME configuration. Must not be NULL.
-SB_EXPORT bool SbMediaIsChangeTypeTransitionSupported(const char* current_mime,
-                                                      const char* new_mime);
+SB_EXPORT bool SbMediaCanChangeType(const char* current_mime,
+                                    const char* new_mime);
 
 // Returns the number of audio outputs currently available on this device.
 // Even if the number of outputs or their audio configurations can't be

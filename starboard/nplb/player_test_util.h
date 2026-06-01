@@ -65,19 +65,24 @@ std::string GetSbPlayerTestConfigName(
 
 void SkipTestIfNotSupported(const SbPlayerTestConfig& config);
 
-const char* FindVideoTransitionTarget(const char* initial_mime,
-                                      SbMediaVideoCodec initial_codec,
-                                      SbPlayerOutputMode output_mode,
-                                      const char* key_system,
-                                      bool* transition_supported,
-                                      std::string* failed_target_mime);
+// Helper struct that stores data for valid codec transitions.
+struct TransitionSearchResult {
+  const char* target_filename = nullptr;
+  bool transition_supported = true;
+  std::string failed_target_mime;
+};
 
-const char* FindAudioTransitionTarget(const char* initial_mime,
-                                      SbMediaAudioCodec initial_codec,
-                                      SbPlayerOutputMode output_mode,
-                                      const char* key_system,
-                                      bool* transition_supported,
-                                      std::string* failed_target_mime);
+TransitionSearchResult FindVideoTransitionTarget(
+    const char* initial_mime,
+    SbMediaVideoCodec initial_codec,
+    SbPlayerOutputMode output_mode,
+    const char* key_system);
+
+TransitionSearchResult FindAudioTransitionTarget(
+    const char* initial_mime,
+    SbMediaAudioCodec initial_codec,
+    SbPlayerOutputMode output_mode,
+    const char* key_system);
 
 void DummyDeallocateSampleFunc(SbPlayer player,
                                void* context,
