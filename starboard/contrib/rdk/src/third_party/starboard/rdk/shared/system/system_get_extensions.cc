@@ -44,14 +44,14 @@
 #include "third_party/starboard/rdk/shared/accessibility_extension.h"
 #include "third_party/starboard/rdk/shared/configuration.h"
 #include "third_party/starboard/rdk/shared/platform_service.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
 #endif
 
 const void* SbSystemGetExtension(const char* name) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   const elf_loader::EvergreenConfig* evergreen_config =
       elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&

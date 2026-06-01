@@ -35,7 +35,7 @@
 #include "starboard/loader_app/read_evergreen_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 
 namespace loader_app {
 namespace {
@@ -496,4 +496,4 @@ INSTANTIATE_TEST_CASE_P(SlotManagementTests,
 
 }  // namespace
 }  // namespace loader_app
-#endif  // #if SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // #if BUILDFLAG(IS_STARBOARD)

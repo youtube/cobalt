@@ -23,7 +23,7 @@ _common_loader_app_sources = [
   "system_get_extension_shim.h",
 ]
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   group("common_loader_app_dependencies") {
     public_deps = [
       ":installation_manager",
@@ -56,7 +56,7 @@ static_library("record_loader_app_status") {
   deps = [ "//starboard:starboard_group" ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   source_set("loader_app_sources") {
     sources = _common_loader_app_sources
     deps = [
@@ -183,7 +183,7 @@ static_library("installation_manager") {
   ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   source_set("installation_manager_test") {
     testonly = true
     sources = [
@@ -219,7 +219,7 @@ static_library("slot_management") {
     "//starboard/elf_loader:sabi_string",
   ]
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
+  if (is_starboard && current_toolchain == starboard_toolchain &&
       use_crashpad) {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
@@ -256,7 +256,7 @@ static_library("pending_restart") {
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   static_library("memory_tracker_thread") {
     sources = [
       "memory_tracker_thread.cc",

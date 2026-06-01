@@ -28,7 +28,7 @@
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 
 #define NUMBER_INSTALLS_PARAMS ::testing::Values(2, 3, 4, 5, 6)
 
@@ -646,4 +646,4 @@ INSTANTIATE_TEST_CASE_P(NumberOfMaxInstallations,
 
 }  // namespace loader_app
 
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // BUILDFLAG(IS_STARBOARD)
