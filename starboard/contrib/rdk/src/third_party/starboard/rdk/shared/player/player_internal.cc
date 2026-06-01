@@ -428,6 +428,8 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
   src->priv->pad_number++;
   gst_bin_add(GST_BIN(element), appsrc);
 
+  GST_DEBUG_OBJECT(element, "added appsrc media_type=%u, %" GST_PTR_FORMAT, media_type, appsrc);
+
   GstElement* src_elem = appsrc;
   GstElement* decryptor = inject_decryptor ? CreateDecryptorElement(nullptr) : nullptr;
   GstElement* payloader = nullptr;
@@ -620,34 +622,49 @@ static void gst_cobalt_src_class_init(GstCobaltSrcClass* klass) {
   eklass->change_state = GST_DEBUG_FUNCPTR(gst_cobalt_src_change_state);
 }
 
-void ParseMaxVideoCapabilities(const char* caps_str, uint32_t *w, uint32_t *h, uint32_t *f) {
-  auto parse_entry = [&w, &h, &f](std::string& entry) {
-    auto end = std::remove_if(entry.begin(), entry.end(),
-      [](unsigned char c) { return std::isspace(c) || c == '"' || c == '\''; });
-    if (end != entry.end()) {
-      *end = '\0';
+struct MaxVideoCapabilities {
+  std::optional<uint32_t> width;
+  std::optional<uint32_t> height;
+  std::optional<uint32_t> framerate;
+  std::optional<uint32_t> streaming;
+
+  bool Parse(const char* caps_str) {
+    auto parse_entry = [this](std::string& entry) {
+      auto end = std::remove_if(entry.begin(), entry.end(),
+        [](unsigned char c) { return std::isspace(c) || c == '"' || c == '\''; });
+      if (end != entry.end()) {
+        *end = '\0';
+      }
+      auto mid = std::find(entry.begin(), end, '=');
+      if (mid == entry.begin() || (mid + 1) == end) {
+        return;
+      }
+      auto key_len = static_cast<size_t>(std::distance(entry.begin(), mid));
+      if ( ::strncasecmp("framerate", entry.c_str(), key_len) == 0 ) {
+        framerate = strtoul(&(*(mid + 1)), nullptr, 10);
+      }
+      else if ( ::strncasecmp("width", entry.c_str(), key_len) == 0 ) {
+        width = strtoul(&(*(mid + 1)), nullptr, 10);
+      }
+      else if ( ::strncasecmp("height", entry.c_str(), key_len) == 0 ) {
+        height = strtoul(&(*(mid + 1)), nullptr, 10);
+      }
+      else if ( ::strncasecmp("streaming", entry.c_str(), key_len) == 0 ) {
+        streaming = strtoul(&(*(mid + 1)), nullptr, 10);
+      }
+    };
+    std::istringstream ss(caps_str);
+    std::string txt;
+    while(std::getline(ss, txt, ';')) {
+      parse_entry(txt);
     }
-    auto mid = std::find(entry.begin(), end, '=');
-    if (mid == entry.begin() || (mid + 1) == end) {
-      return;
-    }
-    auto key_len = static_cast<size_t>(std::distance(entry.begin(), mid));
-    if ( f && ::strncasecmp("framerate", entry.c_str(), key_len) == 0 ) {
-      *f = strtoul(&(*(mid + 1)), nullptr, 10);
-    }
-    else if ( w && ::strncasecmp("width", entry.c_str(), key_len) == 0 ) {
-      *w = strtoul(&(*(mid + 1)), nullptr, 10);
-    }
-    else if ( h && ::strncasecmp("height", entry.c_str(), key_len) == 0 ) {
-      *h = strtoul(&(*(mid + 1)), nullptr, 10);
-    }
-  };
-  std::istringstream ss(caps_str);
-  std::string txt;
-  while(std::getline(ss, txt, ';')) {
-    parse_entry(txt);
+    return IsValid();
   }
-}
+
+  bool IsValid() const {
+    return width || height || framerate;
+  }
+};
 
 #if defined(GST_HAS_HDR_SUPPORT) && GST_HAS_HDR_SUPPORT
 static GstVideoColorRange RangeIdToGstVideoColorRange(SbMediaRangeId value) {
@@ -800,9 +817,9 @@ static void AddVideoInfoToGstCaps(const SbMediaVideoStreamInfo& info, GstCaps* c
     NULL);
 
   if (info.max_video_capabilities && *info.max_video_capabilities) {
-    uint32_t framerate = 0;
-    ParseMaxVideoCapabilities(info.max_video_capabilities, nullptr, nullptr, &framerate);
-    gst_caps_set_simple (caps, "framerate", GST_TYPE_FRACTION, framerate, 1, NULL);
+    MaxVideoCapabilities max_caps;
+    if (max_caps.Parse(info.max_video_capabilities) && max_caps.framerate)
+      gst_caps_set_simple (caps, "framerate", GST_TYPE_FRACTION, *max_caps.framerate, 1, NULL);
   }
 }
 
@@ -1232,6 +1249,7 @@ class PlayerImpl : public Player {
 
   bool ChangePipelineState(GstState state);
   guint DispatchOnWorkerThread(Task* task) const;
+  void InvokeOnWorkerThreadAndWait(Task* task);
   GstClockTime GetPosition();
   bool WriteSample(SbMediaType sample_type,
                    GstBuffer* buffer,
@@ -1484,7 +1502,9 @@ PlayerImpl::PlayerImpl(SbPlayer player,
 
   if (max_video_capabilities && *max_video_capabilities) {
     max_video_capabilities_ = max_video_capabilities;
-    ConfigureLimitedVideo();
+    MaxVideoCapabilities max_caps;
+    if (max_caps.Parse(max_video_capabilities) && max_caps.width && max_caps.height)
+      ConfigureLimitedVideo();
   }
 
   if (audio_codec_ == kSbMediaAudioCodecNone) {
@@ -1540,6 +1560,9 @@ PlayerImpl::PlayerImpl(SbPlayer player,
   if (playback_thread_.joinable()) {
     while(!g_main_loop_is_running(main_loop_))
       g_usleep(1);
+  }
+  else {
+    SB_NOTREACHED();
   }
   GetPlayerRegistry()->Add(this);
 }
@@ -1829,6 +1852,43 @@ guint PlayerImpl::DispatchOnWorkerThread(Task* task) const {
   return id;
 }
 
+void PlayerImpl::InvokeOnWorkerThreadAndWait(Task* task) {
+  struct InvokeContext {
+    std::mutex mutex;
+    std::condition_variable cv;
+    Task* task;
+    bool done;
+  } ctx;
+
+  ctx.task = task;
+  ctx.done = false;
+
+  g_main_context_invoke_full(
+    main_loop_context_,
+    G_PRIORITY_HIGH,
+    [](gpointer data) -> gboolean {
+      auto* ctx = static_cast<InvokeContext*>(data);
+      GST_TRACE("%d", SbThreadGetId());
+      ctx->task->PrintInfo();
+      ctx->task->Do();
+      {
+        std::unique_lock<std::mutex> lock(ctx->mutex);
+        ctx->done = true;
+        ctx->cv.notify_one();
+      }
+      return G_SOURCE_REMOVE;
+    },
+    &ctx,
+    nullptr);
+
+  // Wait for completion
+  std::unique_lock<std::mutex> lock(ctx.mutex);
+  while (!ctx.done)
+      ctx.cv.wait(lock, [&ctx] { return ctx.done; } );
+
+  delete task;
+}
+
 // static
 gboolean PlayerImpl::FinishSourceSetup(gpointer user_data) {
   PlayerImpl* self = static_cast<PlayerImpl*>(user_data);
@@ -1973,6 +2033,8 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
     if (g_str_has_prefix(GST_ELEMENT_NAME(element), "brcmaudiosink")) {
       g_object_set(G_OBJECT(element), "async", TRUE, nullptr);
     }
+
+    gst_base_sink_set_last_sample_enabled(GST_BASE_SINK(element), FALSE);
   }
 
   if (GST_IS_BASE_PARSE(element)) {
@@ -1985,11 +2047,14 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
 
     if (strstr(klass_str, "Video")) {
       if (!self->max_video_capabilities_.empty() &&
-          g_object_class_find_property(oclass, "maxVideoWidth") &&
-          g_object_class_find_property(oclass, "maxVideoHeight")) {
-            uint32_t width = 0, height = 0;
-            ParseMaxVideoCapabilities(self->max_video_capabilities_.c_str(), &width, &height, nullptr);
-            g_object_set(G_OBJECT(element), "maxVideoWidth", width, "maxVideoHeight", height, nullptr);
+          g_object_class_find_property(oclass, "max-video-width") &&
+          g_object_class_find_property(oclass, "max-video-height")) {
+            MaxVideoCapabilities max_caps;
+            if (max_caps.Parse(self->max_video_capabilities_.c_str()) && max_caps.width && max_caps.height)
+              g_object_set(G_OBJECT(element),
+                           "max-video-width",  *max_caps.width,
+                           "max-video-height", *max_caps.height,
+                           nullptr);
         }
     }
 
@@ -2095,10 +2160,16 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
   // in this case just drop the sample
   if (audio_codec_ == kSbMediaAudioCodecNone && sample_type == kSbMediaTypeAudio) {
     sample_deallocate_func_(player_, context_, sample_infos[0].buffer);
+    // keep demuxer going
+    std::lock_guard lock(mutex_);
+    DecoderNeedsData(MediaType::kAudio);
     return;
   }
   if (video_codec_ == kSbMediaVideoCodecNone && sample_type == kSbMediaTypeVideo) {
     sample_deallocate_func_(player_, context_, sample_infos[0].buffer);
+    // keep demuxer going
+    std::lock_guard lock(mutex_);
+    DecoderNeedsData(MediaType::kVideo);
     return;
   }
 
@@ -2387,23 +2458,27 @@ void PlayerImpl::HandleInititialSeek() {
     SB_DCHECK(seek_position_ == .0);
     AddBufferingProbe(0, ticket_);
     state_ = State::kInitialPreroll;
-    DispatchOnWorkerThread(
-      new PlayerStatusTask(player_status_func_, player_,
-                           ticket_, context_,
-                           kSbPlayerStatePrerolling));
     seek_position_ = GST_CLOCK_TIME_NONE;
     if (GST_STATE(pipeline_) < GST_STATE_PAUSED &&
         GST_STATE_PENDING(pipeline_) < GST_STATE_PAUSED) {
       mutex_.unlock();
-      ChangePipelineState(GST_STATE_PAUSED);
+      // Trigger initial state change to pause on worker thread to serialize source setup
+      InvokeOnWorkerThreadAndWait(new FunctionTask([this]{
+        ChangePipelineState(GST_STATE_PAUSED);
+      }, __func__));
       mutex_.lock();
     }
+    // Notify player state change
+    DispatchOnWorkerThread(
+      new PlayerStatusTask(player_status_func_, player_,
+                           ticket_, context_,
+                           kSbPlayerStatePrerolling));
     return;
   }
 
-  // Ask for data.
   if (state_ == State::kInitialPreroll) {
-    MediaType need_data = GetBothMediaTypeTakingCodecsIntoAccount();
+    // Ask for data.
+    MediaType need_data = static_cast<MediaType>(static_cast<int>(GetBothMediaTypeTakingCodecsIntoAccount()) & (~has_enough_data_));
     DecoderNeedsData(need_data);
   }
 
@@ -2480,7 +2555,6 @@ void PlayerImpl::Seek(int64_t seek_to_timestamp, int ticket) {
     decoder_state_data_ = 0;
     eos_data_ = 0;
     is_seek_pending_ = false;
-
     rate = rate_;
 
     if (state_ == State::kInitial || GST_STATE(pipeline_) < GST_STATE_PAUSED) {
@@ -2528,6 +2602,14 @@ bool PlayerImpl::SetRate(double rate) {
   old_rate = rate_;
   rate_ = rate;
   pending_rate_ = .0;
+
+  if (state_ == State::kInitial) {
+    mutex_.unlock();
+    SB_DCHECK(rate == .0);
+    SB_DCHECK(GST_STATE(pipeline_) < GST_STATE_PAUSED);
+    GST_DEBUG_OBJECT(pipeline_, "Ignore SetRate(%f) before initial seek", rate);
+    return true;
+  }
 
   if (rate == .0) {
     mutex_.unlock();

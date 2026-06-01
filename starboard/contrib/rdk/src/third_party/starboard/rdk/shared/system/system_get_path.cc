@@ -115,37 +115,6 @@ bool IsValidContentDirectory(const char* path) {
   return (stat(testFontsFullPath.c_str(), &info) == 0);
 }
 
-// Gets the path to the content directory.
-bool GetContentDirectory(char* out_path, int path_size) {
-  // `COBALT_CONTENT_DIR` is used to provide the path of content directory in
-  // PATH-like format. This is not a evergreen standard but required for RDK
-  // plugin environment where cobalt plugin uses `COBALT_CONTENT_DIR` env to
-  // set the content path.
-  const char* paths = std::getenv("COBALT_CONTENT_DIR");
-  if (paths && paths[0] != '\0') {
-    // Treat the environment variable as PATH-like search variable
-    std::stringstream pathsStream(paths);
-    std::string contentPath;
-    while (getline(pathsStream, contentPath, ':')) {
-      if (IsValidContentDirectory(contentPath.c_str())) {
-        return (starboard::strlcat<char>(out_path, contentPath.c_str(),
-                                         path_size) < path_size);
-      }
-    }
-    SB_LOG(WARNING) << "GetContentDirectory: COBALT_CONTENT_DIR=" << paths
-                    << " don't have cobalt libs";
-  }
-
-  if (GetExecutableDirectory(out_path, path_size) &&
-      IsValidContentDirectory(out_path)) {
-    return true;
-  }
-
-  out_path[0] = '\0';
-  // Default path as expected by cobalt plugin
-  return (starboard::strlcat<char>(out_path, "/usr/share/content/data",
-                                   path_size) < path_size);
-}
 
 // Gets the path to the cache directory, using the home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
@@ -197,7 +166,6 @@ bool GetStorageDirectory(char* out_path, int path_size) {
 
 // Gets path to the files directory, using the home directory.
 bool GetFilesDirectory(char* out_path, int path_size) {
-
   const char* files_path = std::getenv("COBALT_FILES_DIR");
   if (files_path) {
     if (starboard::strlcat<char>(out_path, files_path, path_size) < path_size) {
@@ -234,7 +202,7 @@ bool GetExecutableName(char* out_path, int path_size) {
   }
 
   const char* last_slash = strrchr(path.data(), '/');
-  if (starboard::strlcpy<char>(out_path, last_slash + 1, path_size) >= path_size) {
+  if (::starboard::strlcpy<char>(out_path, last_slash + 1, path_size) >= path_size) {
     return false;
   }
   return true;
@@ -263,7 +231,53 @@ bool GetTemporaryDirectory(char* out_path, int path_size) {
 }
 }  // namespace
 
+namespace third_party {
+namespace starboard {
+namespace rdk {
+namespace shared {
+namespace system {
+// Gets the path to the content directory.
+bool GetContentDirectory(char* out_path, int path_size) {
+  // `COBALT_CONTENT_DIR` is used to provide the path of content directory in
+  // PATH-like format. This is not a evergreen standard but required for RDK
+  // plugin environment where cobalt plugin uses `COBALT_CONTENT_DIR` env to
+  // set the content path.
+  const char* paths = std::getenv("COBALT_CONTENT_DIR");
+  if (paths && paths[0] != '\0') {
+    // Treat the environment variable as PATH-like search variable
+    std::stringstream pathsStream(paths);
+    std::string contentPath;
+    while (getline(pathsStream, contentPath, ':')) {
+      if (IsValidContentDirectory(contentPath.c_str())) {
+        return (::starboard::strlcat<char>(out_path, contentPath.c_str(),
+                                         path_size) < path_size);
+      }
+    }
+    SB_LOG(WARNING) << "GetContentDirectory: COBALT_CONTENT_DIR=" << paths
+                    << " don't have cobalt libs";
+  }
+
+  if (GetExecutableDirectory(out_path, path_size) &&
+      IsValidContentDirectory(out_path)) {
+    return true;
+  }
+
+  out_path[0] = '\0';
+  // Default path as expected by cobalt plugin
+  return (::starboard::strlcat<char>(out_path, "/usr/share/content/data",
+                                   path_size) < path_size);
+}
+
+}  // namespace system
+}  // namespace shared
+}  // namespace rdk
+}  // namespace starboard
+}  // namespace third_party
+
+
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
+  using third_party::starboard::rdk::shared::system::GetContentDirectory;
+
   if (!out_path || !path_size) {
     return false;
   }

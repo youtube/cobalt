@@ -41,6 +41,8 @@
 #include <cstring>
 #include <essos-app.h>
 
+// disable until essos updated
+#undef EGL_PLATFORM_WAYLAND_EXT
 #ifdef EGL_PLATFORM_WAYLAND_EXT
 extern "C" EssAppPlatformDisplayType EssContextGetAppPlatformDisplayType( EssCtx *ctx ) __attribute__((weak));
 #endif
