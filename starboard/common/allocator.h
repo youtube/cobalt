@@ -77,7 +77,9 @@ class Allocator {
 
   // Hints to the allocator that the physical memory backing this range is no
   // longer needed, but the virtual address space should remain reserved.
-  virtual void Decommit(void* memory, size_t size) {}
+  // When |conservative| is true, the allocator may use a softer decommit
+  // option like MADV_FREE if supported.
+  virtual void Decommit(void* memory, size_t size, bool conservative) {}
 
   // Returns the allocator's total capacity for allocations.  It will always
   // be true that GetSize() <= GetCapacity(), though it is possible for

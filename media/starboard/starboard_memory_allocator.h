@@ -67,7 +67,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   }
   void Free(void* memory) override { free(memory); }
 
-  void Decommit(void* memory, size_t size) override {
+  void Decommit(void* memory, size_t size, bool conservative) override {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     uintptr_t start = reinterpret_cast<uintptr_t>(memory);
     CHECK(enable_decommit_);
@@ -80,6 +80,11 @@ class StarboardMemoryAllocator : public starboard::Allocator {
     size_t aligned_size = AlignDown(size, page_size_);
 
     if (aligned_size > 0) {
+      // MADV_FREE is not supported on all kernel versions/configurations. If it
+      // fails, fallback to MADV_DONTNEED to ensure memory is still decommitted.
+      if (conservative && madvise(memory, aligned_size, MADV_FREE) == 0) {
+        return;
+      }
       madvise(memory, aligned_size, MADV_DONTNEED);
     }
   }
