@@ -69,6 +69,8 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
 #include "net/base/net_errors.h"
 #include "net/base/schemeful_site.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
@@ -1452,10 +1454,6 @@ void StorageHandler::ClearSharedStorageEntries(
           &DispatchSharedStorageCallback<ClearSharedStorageEntriesCallback>,
           std::move(callback)));
 }
-
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
-
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (enable) {

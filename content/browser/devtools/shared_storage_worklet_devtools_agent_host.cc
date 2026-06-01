@@ -51,8 +51,6 @@ SharedStorageWorkletDevToolsAgentHost::SharedStorageWorkletDevToolsAgentHost(
 SharedStorageWorkletDevToolsAgentHost::
     ~SharedStorageWorkletDevToolsAgentHost() = default;
 
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 
 BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138

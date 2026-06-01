@@ -64,8 +64,6 @@ void AuctionSharedStorageHost::BindNewReceiver(
                                     .worklet_origin = worklet_origin});
 }
 
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 
 void AuctionSharedStorageHost::SharedStorageUpdate(
     network::mojom::SharedStorageModifierMethodWithOptionsPtr
