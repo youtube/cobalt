@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/modules/webgl/webgl2_rendering_context.h"
 
 #include "third_party/blink/public/platform/platform.h"
@@ -24,6 +25,9 @@
 #include "third_party/blink/renderer/modules/webgl/khr_parallel_shader_compile.h"
 #include "third_party/blink/renderer/modules/webgl/nv_shader_noperspective_interpolation.h"
 #include "third_party/blink/renderer/modules/webgl/oes_draw_buffers_indexed.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
+#endif
 #include "third_party/blink/renderer/modules/webgl/oes_sample_variables.h"
 #include "third_party/blink/renderer/modules/webgl/oes_shader_multisample_interpolation.h"
 #include "third_party/blink/renderer/modules/webgl/oes_texture_float_linear.h"
@@ -98,6 +102,9 @@ void WebGL2RenderingContext::RegisterContextExtensions() {
   RegisterExtension<KHRParallelShaderCompile>();
   RegisterExtension<NVShaderNoperspectiveInterpolation>();
   RegisterExtension<OESDrawBuffersIndexed>();
+#if BUILDFLAG(IS_COBALT)
+  RegisterExtension<OESEGLImageExternal>();
+#endif
   RegisterExtension<OESSampleVariables>();
   RegisterExtension<OESShaderMultisampleInterpolation>();
   RegisterExtension<OESTextureFloatLinear>();

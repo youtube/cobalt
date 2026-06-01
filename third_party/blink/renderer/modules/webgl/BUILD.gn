@@ -199,4 +199,11 @@ blink_modules_sources("webgl") {
     "//third_party/blink/renderer/modules/xr:xr",
   ]
   allow_circular_includes_from = deps
+
+  if (is_cobalt) {
+    sources += [
+      "oes_egl_image_external.cc",
+      "oes_egl_image_external.h",
+    ]
+  }
 }

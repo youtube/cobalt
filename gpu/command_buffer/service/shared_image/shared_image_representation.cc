@@ -163,6 +163,9 @@ gles2::Texture* GLTextureImageRepresentation::GetTexture() {
 
 void GLTextureImageRepresentation::UpdateClearedStateOnEndAccess() {
   auto* texture = GetTexture();
+  if (!texture) {
+    return;
+  }
   // Operations on the gles2::Texture may have cleared or uncleared it. Make
   // sure this state is reflected back in the SharedImage.
   gfx::Rect cleared_rect = texture->GetLevelClearedRect(texture->target(), 0);
@@ -173,6 +176,9 @@ void GLTextureImageRepresentation::UpdateClearedStateOnEndAccess() {
 
 void GLTextureImageRepresentation::UpdateClearedStateOnBeginAccess() {
   auto* texture = GetTexture();
+  if (!texture) {
+    return;
+  }
   // Operations outside of the gles2::Texture may have cleared or uncleared it.
   // Make sure this state is reflected back in gles2::Texture.
   gfx::Rect cleared_rect = ClearedRect();
