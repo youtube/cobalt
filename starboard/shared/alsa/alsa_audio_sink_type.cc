@@ -31,7 +31,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/alsa/alsa_util.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace {
