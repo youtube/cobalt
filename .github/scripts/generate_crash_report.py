@@ -28,7 +28,7 @@ END_MARKERS = (
 )
 
 
-def _extract_crash(log_path: pathlib.Path) -> Optional[Tuple[str, str, str]]:
+def extract_crash(log_path: pathlib.Path) -> Optional[Tuple[str, str, str]]:
   """
   Identifies the crashed test and its log output from a gtest log file.
   A crashed test will have a run marker but no end marker.
@@ -83,7 +83,7 @@ if __name__ == '__main__':
         help='Path to the output XML report file.')
     args = parser.parse_args()
 
-    crash_info = _extract_crash(args.log_path)
+    crash_info = extract_crash(args.log_path)
     if crash_info:
       args.xml_path.parent.mkdir(parents=True, exist_ok=True)
       write_junit_xml(args.xml_path, *crash_info)
