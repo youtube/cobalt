@@ -76,12 +76,13 @@ def _handle_browsertests(
     out_dir: str,
     destination_dir: str,
     compression: str,
+    archive_name: str = 'cobalt_browsertests_deps',
 ):
   # Handle cobalt_browsertests using the specialized script.
   collect_script = os.path.join(source_dir, 'cobalt', 'testing',
                                 'browser_tests', 'tools',
                                 'collect_test_artifacts.py')
-  output_name = f'cobalt_browsertests_deps.tar.{compression}'
+  output_name = f'{archive_name}.tar.{compression}'
   cmd = [
       sys.executable, collect_script, out_dir, '-o', output_name,
       '--output_dir', destination_dir, '--compression', compression
@@ -147,16 +148,24 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests') and not use_android_deps_path:
-      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
-      # If this was the only target, we are done.
-      if len(targets) == 1:
-        return
-      continue
+    if target.endswith(':cobalt_browsertests'):
+      if not use_android_deps_path:
+        _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+        # If this was the only target, we are done.
+        if len(targets) == 1:
+          return
+        continue
+      else:
+        # Generate host runner archive and lightweight device archive
+        _handle_browsertests(
+            source_dir,
+            out_dir,
+            destination_dir,
+            compression,
+            archive_name='cobalt_browsertests_host_deps')
 
     # Junit tests have some exceptions to normal packaging steps.
     is_junit_test = 'junit' in target
-
     target_path, target_name = target.split(':')
     target_path = target_path.lstrip('/')
     # Paths are configured in test.gni:

@@ -181,11 +181,15 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   # TODO: b/432536319 - Use flag to determine file ending.
 
   if args.device_family == 'android':
-    return [
+    res = [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'build_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
+    if target_name == 'cobalt_browsertests':
+      res.append(f'host_test_runner={args.gcs_archive_path}/'
+                 'cobalt_browsertests_host_deps.tar.gz')
+    return res
   elif is_modular_raspi and args.device_family == 'raspi':
     return [
         f'bin={args.gcs_archive_path}/{target_name}',
