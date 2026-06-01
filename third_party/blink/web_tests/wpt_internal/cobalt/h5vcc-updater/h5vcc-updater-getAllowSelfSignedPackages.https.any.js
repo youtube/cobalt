@@ -10,5 +10,5 @@ h5vcc_updater_tests(async (t, mockH5vccUpdater) => {
 
 h5vcc_updater_mojo_disconnection_tests(async (t) => {
   return promise_rejects_exactly(
-    t, 'API not supported for this platform.', window.h5vcc.updater.getAllowSelfSignedPackages());
+    t, 'API not supported for this build configuration. Enabled for sideloading only.', window.h5vcc.updater.getAllowSelfSignedPackages());
 }, 'getAllowSelfSignedPackages() rejects when unimplemented due to pipe closure');
