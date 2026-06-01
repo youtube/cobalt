@@ -195,7 +195,9 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
 
  private:
   // h5vcc_runtime::H5vccRuntimeObserver implementation.
+  void OnProactiveMapWindow(content::WebContents* web_contents) override;
   void OnAllFramesVisible(content::WebContents* web_contents) override;
+  void OnAllFramesConcealed(content::WebContents* web_contents) override;
 
   // Flag to remember that an OS-initiated focus event arrived while we were
   // waiting for Reveal ACK. If true, focus will be applied to the window

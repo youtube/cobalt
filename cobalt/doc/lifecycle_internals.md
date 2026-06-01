@@ -74,6 +74,16 @@ Cobalt separates lifecycle coordination into a strict **three-tier boundary mode
 2.  **Synchronous Thread-Blocking Execution** (`AppEventRunnerImpl`): A platform-specific orchestrator that translates state directives into physical actions (Aura window visibility, Cookies and LocalStorage flushes). It **synchronously sleeps the main UI thread** inside a whitelisted nested `base::RunLoop` until the platform actions are fully completed.
 3.  **Viewport Mojo Observation** (`CobaltLifecycleManager`): A browser-side viewport state manager that binds to renderer-side Mojo pipes (`CobaltLifecycleController`) to aggregate visible layout ACKs across multiple blink frames and broadcast completion events.
 
+
+### Non-Destructive Platform Window and Views Widget Preservation
+
+During background deactivation transitions (Conceal and Freeze), Cobalt implements a **non-destructive state preservation model**:
+*   **The Design**: The platform `Window` object and the Chromium `views::Widget` hierarchy **are kept fully alive in memory** in the background, while only the physical EGL graphics surfaces and hardware compositor planes are destroyed and released back to the TV operating system.
+*   **System Rationale (Why we preserve the Views Layout Tree)**:
+    1.  **Near-Instant Wake-up**: Re-instantiating the entire Views widget hierarchy, re-allocating Aura render tree hosts, and re-executing styling and layout passes upon resume would simply be unnecessarily slow. Keeping the tree alive allows us to simply re-bind the graphics plane and paint the pre-existing layout instantly.
+    2.  **Interactive State Preservation**: Keeps user scroll positions, active remote control focus, modal overlays, and half-filled form states perfectly preserved, preventing user disorientation upon wake-up.
+    3.  **Renderer-Layout Synchronization**: In a Web-runtime browser like Cobalt, the Renderer context (DOM trees, active JavaScript states, active media playback structures, and Mojo IPC pipes) must be kept alive in the background during suspension. If the Renderer's DOM tree remains alive, but we destroy the underlying Views Layout representation, the DOM elements would become completely desynchronized from their visual layout blocks. Re-aligning a fresh Views tree against an existing DOM tree is highly complex, prone to memory leaks, and breaks event-routing pipelines. Keeping both layers alive in memory guarantees absolute synchronization across the browser process, enabling flawless resume transitions.
+
 ---
 
 ## 3. Architectural Coordination Flowchart

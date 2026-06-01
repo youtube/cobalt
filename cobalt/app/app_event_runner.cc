@@ -205,18 +205,12 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoConceal() override {
-    for (auto* web_contents : GetWebContents()) {
-      web_contents->WasHidden();
-    }
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
   }
 
   void DoReveal() override {
     content::Shell::OnReveal();
-    for (auto* web_contents : GetWebContents()) {
-      web_contents->WasShown();
-    }
     WaitForAck(PendingAck::kReveal);
   }
 

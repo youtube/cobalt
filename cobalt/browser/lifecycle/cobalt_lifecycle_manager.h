@@ -56,6 +56,10 @@ class CobaltLifecycleManagerObserver {
   // Called when all frames of a specific WebContents have completed reveal.
   virtual void OnAllFramesVisible(content::WebContents* web_contents) = 0;
 
+  // Called to proactively map/show the platform window during reveal
+  // transitions to enable standard Chromium visibility IPCs to propagate.
+  virtual void OnProactiveMapWindow(content::WebContents* web_contents) {}
+
   // Called when the main frame of a WebContents is registered.
   virtual void OnMainFrameRegistered(content::WebContents* web_contents) {}
 
@@ -147,10 +151,7 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   void PageResumed() override;
   void FrameReady() override;
 
-  // Observers are notified when all frames of a WebContents become visible.
-  // Supported observers:
-  // - ShellPlatformDelegate: to unblock native window focus.
-  // - AppEventDelegate: to unblock lifecycle transitions.
+  // Adds/removes observers.
   void AddObserver(CobaltLifecycleManagerObserver* observer);
   void RemoveObserver(CobaltLifecycleManagerObserver* observer);
 
@@ -210,11 +211,6 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     // Called when the remote controller for a frame disconnects.
     void OnControllerDisconnect(content::RenderFrameHost* frame);
 
-    bool is_unfreezing() const { return is_unfreezing_; }
-    void set_is_unfreezing(bool is_unfreezing) {
-      is_unfreezing_ = is_unfreezing;
-    }
-
    private:
     CobaltLifecycleManager* manager_;
 
@@ -228,8 +224,6 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     base::flat_set<content::RenderFrameHost*> resumed_frames_;
     base::flat_set<content::RenderFrameHost*> visible_frames_;
     base::flat_set<content::RenderFrameHost*> focused_frames_;
-
-    bool is_unfreezing_ = false;
   };
 
   WebContentsTracker* GetOrCreateTracker(content::WebContents* web_contents);
