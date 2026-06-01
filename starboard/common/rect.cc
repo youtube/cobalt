@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
-#include "starboard/thread.h"
-// clang-format on
+#include "starboard/common/rect.h"
 
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <ostream>
 
-SbThreadId SbThreadGetId() {
-  // This is not portable outside of Linux.
-  return static_cast<SbThreadId>(syscall(SYS_gettid));
+namespace starboard {
+
+std::ostream& operator<<(std::ostream& os, const Rect& rect) {
+  return os << "{x=" << rect.x << ", y=" << rect.y << ", size=" << rect.size
+            << "}";
 }
+
+}  // namespace starboard

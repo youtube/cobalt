@@ -9435,3 +9435,6 @@ wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
 
 # Cobalt bug: b/405997906.
 wpt_internal/cobalt/h5vcc-system/* [ Failure ]
+
+# Cobalt bug: b/479816505.
+wpt_internal/cobalt/h5vcc-updater/* [ Crash Failure ]

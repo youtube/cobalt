@@ -42,6 +42,10 @@ component("modules") {
 
   sources += blink_modules_sources_bindings
 
+  if (is_cobalt) {
+    sources += [ "cobalt_modules_stubs.cc" ]
+  }
+
   configs += [
     ":modules_implementation",
 
@@ -183,6 +187,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
       "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard",
     ]
 
@@ -192,6 +197,7 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
+    sub_modules -= [ "//third_party/blink/renderer/modules/ml" ]
   }
 
   if (!use_webrtc_peer_connection) {
@@ -789,6 +795,7 @@ source_set("unit_tests") {
 
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
+    deps -= [ "//third_party/blink/renderer/modules/ml:unit_tests" ]
   }
 
   if (!use_webrtc_peer_connection) {

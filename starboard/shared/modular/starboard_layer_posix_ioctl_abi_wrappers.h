@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pthread.h>
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_IOCTL_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_IOCTL_ABI_WRAPPERS_H_
 
-#include "starboard/thread.h"
+#include <sys/ioctl.h>
 
-SbThreadId SbThreadGetId() {
-  mach_port_t machTID = pthread_mach_thread_np(pthread_self());
-  return static_cast<SbThreadId>(machTID);
-}
+#include "starboard/export.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+SB_EXPORT int __abi_wrap_ioctl_FIONREAD(int fd, int* arg);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_IOCTL_ABI_WRAPPERS_H_

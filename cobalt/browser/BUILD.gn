@@ -71,6 +71,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_storage/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/browser/h5vcc_updater",
+    "//cobalt/browser/h5vcc_updater/public/mojom",
     "//cobalt/browser/mojom",
     "//cobalt/browser/on_screen_keyboard",
     "//cobalt/browser/on_screen_keyboard/public/mojom",

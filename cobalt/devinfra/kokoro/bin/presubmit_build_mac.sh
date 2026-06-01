@@ -80,7 +80,9 @@ EOF
   # Extract test targets from JSON.
   local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
   if [[ -f "${test_targets_json}" ]]; then
-    local json_targets=$(python3 -c "import json, re; print(' '.join(t.split(':')[-1] for t in json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())).get('test_targets', [])))")
+    # Extract test targets from the JSON file (list of dicts schema)
+    # and format them as a space-separated list of target names (after the colon).
+    local json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
     GN_TARGET="${GN_TARGET:-} ${json_targets}"
   fi
 
