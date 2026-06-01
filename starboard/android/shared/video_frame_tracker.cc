@@ -31,8 +31,9 @@ const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
 // TODO: b/409362474 - Add unit test once starboard unittests are enable on
 // Android.
-void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
-                                    std::vector<int64_t>* rendered_frames) {
+void RemoveUnexpectedRenderedFrames(
+    const std::vector<int64_t>& frames_to_render,
+    std::vector<int64_t>* rendered_frames) {
   SB_CHECK(rendered_frames);
   if (rendered_frames->empty()) {
     return;
@@ -76,7 +77,7 @@ int64_t VideoFrameTracker::seek_to_time() const {
 }
 
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
-  std::lock_guard lock(mutex_);
+  std::lock_guard lock(state_mutex_);
 
   if (frames_to_be_rendered_.empty()) {
     frames_to_be_rendered_.push_back(timestamp);
@@ -92,7 +93,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
         << ", max_size=" << max_pending_frames_size_;
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
-    frames_to_be_rendered_.pop_front();
+    frames_to_be_rendered_.erase(frames_to_be_rendered_.begin());
   }
 
   // Sort by |timestamp|, because |timestamp| won't be monotonic if there are
@@ -109,7 +110,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
     }
   }
 
-  frames_to_be_rendered_.emplace_front(timestamp);
+  frames_to_be_rendered_.emplace(frames_to_be_rendered_.begin(), timestamp);
 }
 
 void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
@@ -118,7 +119,7 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void VideoFrameTracker::Seek(int64_t seek_to_time) {
-  std::lock_guard lock(mutex_);
+  std::lock_guard lock(state_mutex_);
 
   // Ensure that all dropped frames before seeking are captured.
   UpdateDroppedFrames_Locked();
@@ -128,14 +129,12 @@ void VideoFrameTracker::Seek(int64_t seek_to_time) {
 }
 
 int VideoFrameTracker::UpdateAndGetDroppedFrames() {
-  std::lock_guard lock(mutex_);
+  std::lock_guard lock(state_mutex_);
   UpdateDroppedFrames_Locked();
   return dropped_frames_;
 }
 
 void VideoFrameTracker::UpdateDroppedFrames_Locked() {
-  // Assumes mutex_ is locked by the caller.
-
   {
     std::lock_guard lock_rendered(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
@@ -147,7 +146,7 @@ void VideoFrameTracker::UpdateDroppedFrames_Locked() {
     // seek to time, when the platform decides to render a frame earlier
     // than the seek to time during preroll. This shouldn't be an issue
     // after we align seek time to the next video key frame.
-    frames_to_be_rendered_.pop_front();
+    frames_to_be_rendered_.erase(frames_to_be_rendered_.begin());
   }
 
   RemoveUnexpectedRenderedFrames(frames_to_be_rendered_,

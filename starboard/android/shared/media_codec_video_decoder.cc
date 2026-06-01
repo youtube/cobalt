@@ -107,6 +107,13 @@ const int kNonInitialPrerollFrameCount = 1;
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
 const int kMaxPendingInputsSize = 128;
+// The maximum number of pending frames in VideoFrameTracker.
+// Since the tracker now only tracks frames once they are actually queued to the
+// hardware decoder (OnInputBufferQueued), the number of active frames in flight
+// is limited by the hardware capacity (InCodec + BufferedOutput + Surface
+// queue, which is typically < 40 in practice). 128 provides a safe 3x margin.
+// For details, see http://b/515102461#comment6
+constexpr int kMaxTrackerPendingFrames = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -360,7 +367,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
+        std::make_unique<VideoFrameTracker>(kMaxTrackerPendingFrames);
   }
 
   if (require_software_codec_) {
