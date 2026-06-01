@@ -90,13 +90,34 @@ EOF
 
   if [[ "${GN_TARGET}" == *"cobalt_browsertests"* ]]; then
     echo "Running Cobalt Browser Tests in Simulator..."
+    # Execute test and dump XML locally inside out_dir to avoid simulator sandbox cross-volume permission rejections
+    local raw_xml_dir="${out_dir}/test_output/cobalt_browsertests"
+    mkdir -p "${raw_xml_dir}"
     time "${out_dir}"/iossim \
      -x tvos \
      -d "Apple TV 4K (3rd generation)" \
      -v \
      -i \
-     -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
-     "${out_dir}"/cobalt_browsertests.app
+     -c "--gtest_filter=ContentMainRunnerImplBrowserTest.*" \
+     -c "--gtest_output=xml:${raw_xml_dir}/sponge_log.xml" \
+     "${out_dir}"/cobalt_browsertests.app || true
+
+    # Copy the generated XML to clean top-level artifact folder so ResultStore renders a polished "browser_test" tab
+    local clean_xml_dir="${KOKORO_ARTIFACTS_DIR}/cobalt_browsertests"
+    mkdir -p "${clean_xml_dir}"
+    if [[ -f "${raw_xml_dir}/sponge_log.xml" ]]; then
+      cp "${raw_xml_dir}/sponge_log.xml" "${clean_xml_dir}/sponge_log.xml"
+      echo "=== Successfully copied sponge_log.xml to ${clean_xml_dir} ==="
+    else
+      echo "=== sponge_log.xml not found in ${raw_xml_dir}, searching sandbox environments ==="
+      local found_xml=$(find "$HOME/Library/Developer/CoreSimulator" /Volumes/BuildData "${KOKORO_ROOT:-$HOME}" -name "sponge_log.xml" 2>/dev/null | head -n 1 || true)
+      if [[ -n "${found_xml}" ]]; then
+        cp "${found_xml}" "${clean_xml_dir}/sponge_log.xml"
+        echo "=== Successfully recovered and copied sponge_log.xml from sandbox: ${found_xml} ==="
+      else
+        echo "=== WARNING: sponge_log.xml was not generated anywhere across the system ==="
+      fi
+    fi
   fi
 
   # TODO(b/507872651): Revisit this and see if we could shard tests on multiple bots.
