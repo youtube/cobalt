@@ -18,8 +18,8 @@
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_view_host_delegate.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
-#include "content/public/common/content_milestone_features.h"
 #include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_features.h"
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -430,7 +430,9 @@ int32_t PageImpl::GetSavedQueryResultIndexOrStoreCallback(
   // operation.
   return it->second.index;
 #else
-  return -2;
+  // Return -2 to indicate that shared storage is disabled/unavailable.
+  constexpr int32_t kSharedStorageDisabled = -2;
+  return kSharedStorageDisabled;
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 

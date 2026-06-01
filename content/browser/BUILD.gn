@@ -2520,41 +2520,42 @@ source_set("browser") {
   ]
 
   if (disable_privacy_sandbox_apis) {
-    _filtered_sources = filter_exclude(sources, [
-      "browsing_topics/*",
-      "attribution_reporting/*_sql*.cc",
-      "attribution_reporting/*_sql*.h",
-      "attribution_reporting/*_sender*.cc",
-      "attribution_reporting/*_sender*.h",
-      "attribution_reporting/attribution_manager_impl.cc",
-      "attribution_reporting/attribution_manager_impl.h",
-      "attribution_reporting/rate_limit_table.cc",
-      "attribution_reporting/rate_limit_table.h",
-      "attribution_reporting/os_registrations_table.cc",
-      "attribution_reporting/os_registrations_table.h",
-      "aggregation_service/*_sql*.cc",
-      "aggregation_service/*_sql*.h",
-      "aggregation_service/*_sender*.cc",
-      "aggregation_service/*_sender*.h",
-      "aggregation_service/*_fetcher*.cc",
-      "aggregation_service/*_fetcher*.h",
-      "aggregation_service/aggregation_service_impl.cc",
-      "private_aggregation/private_aggregation_budget_storage.cc",
-      "private_aggregation/private_aggregation_budget_storage.h",
-      "private_aggregation/private_aggregation_manager_impl.cc",
-      "shared_storage/*.cc",
-      "shared_storage/shared_storage_budget_charger.h",
-      "shared_storage/shared_storage_code_cache_host_proxy.h",
-      "shared_storage/shared_storage_document_service_impl.h",
-      "shared_storage/shared_storage_event_params.h",
-      "shared_storage/shared_storage_features.h",
-      "shared_storage/shared_storage_lock_manager.h",
-      "shared_storage/shared_storage_render_thread_worklet_driver.h",
-      "shared_storage/shared_storage_saved_query_data.h",
-      "shared_storage/shared_storage_url_loader_factory_proxy.h",
-      "shared_storage/shared_storage_worklet_host.h",
-    ])
-    sources = []
+    _filtered_sources = filter_exclude(
+            sources,
+            [
+              "browsing_topics/*",
+              "attribution_reporting/*_sql*.cc",
+              "attribution_reporting/*_sql*.h",
+              "attribution_reporting/*_sender*.cc",
+              "attribution_reporting/*_sender*.h",
+              "attribution_reporting/attribution_manager_impl.cc",
+              "attribution_reporting/attribution_manager_impl.h",
+              "attribution_reporting/rate_limit_table.cc",
+              "attribution_reporting/rate_limit_table.h",
+              "attribution_reporting/os_registrations_table.cc",
+              "attribution_reporting/os_registrations_table.h",
+              "aggregation_service/*_sql*.cc",
+              "aggregation_service/*_sql*.h",
+              "aggregation_service/*_sender*.cc",
+              "aggregation_service/*_sender*.h",
+              "aggregation_service/*_fetcher*.cc",
+              "aggregation_service/*_fetcher*.h",
+              "aggregation_service/aggregation_service_impl.cc",
+              "private_aggregation/private_aggregation_budget_storage.cc",
+              "private_aggregation/private_aggregation_budget_storage.h",
+              "private_aggregation/private_aggregation_manager_impl.cc",
+              "shared_storage/*.cc",
+              "shared_storage/shared_storage_budget_charger.h",
+              "shared_storage/shared_storage_code_cache_host_proxy.h",
+              "shared_storage/shared_storage_document_service_impl.h",
+              "shared_storage/shared_storage_event_params.h",
+              "shared_storage/shared_storage_features.h",
+              "shared_storage/shared_storage_lock_manager.h",
+              "shared_storage/shared_storage_render_thread_worklet_driver.h",
+              "shared_storage/shared_storage_saved_query_data.h",
+              "shared_storage/shared_storage_url_loader_factory_proxy.h",
+              "shared_storage/shared_storage_worklet_host.h",
+            ])
     sources = _filtered_sources
     deps -= [ "//components/browsing_topics/common:common" ]
   }
@@ -2712,13 +2713,13 @@ source_set("browser") {
       "//ui/linux:linux_ui",
     ]
   } else {
-  if (is_linux) {
-    sources += [ "speech/tts_linux.cc" ]
-    deps += [
-      "//third_party/speech-dispatcher",
-      "//ui/linux:linux_ui",
-    ]
-  }
+    if (is_linux) {
+      sources += [ "speech/tts_linux.cc" ]
+      deps += [
+        "//third_party/speech-dispatcher",
+        "//ui/linux:linux_ui",
+      ]
+    }
   }
 
   # ChromeOS also defines linux but their memory-monitors conflict.
@@ -3280,7 +3281,7 @@ source_set("browser") {
     }
   }
 
-  if ((is_linux && !is_cobalt_hermetic_build || is_chromeos) && use_aura) {
+  if (((is_linux && !is_cobalt_hermetic_build) || is_chromeos) && use_aura) {
     deps += [ "//third_party/fontconfig" ]
   }
 
@@ -3511,9 +3512,7 @@ source_set("browser") {
       deps += [ "//gpu/vulkan/init" ]
     }
     if (is_cobalt) {
-      deps += [
-        "//third_party/jni_zero:cobalt_for_google3_buildflags",
-      ]
+      deps += [ "//third_party/jni_zero:cobalt_for_google3_buildflags" ]
     }
     libs += [ "jnigraphics" ]
   } else {
@@ -3832,9 +3831,9 @@ group("for_content_tests") {
   ]
   if (is_cobalt) {
     visibility += [
+      "//cobalt:cobalt_unittests",
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
-      "//cobalt:cobalt_unittests",
     ]
 
     if (is_android) {

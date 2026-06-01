@@ -8,11 +8,10 @@
 #include "content/browser/shared_storage/shared_storage_lock_manager.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 #include "content/browser/storage_partition_impl.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
 #include "services/network/public/mojom/shared_storage.mojom.h"
 #include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
-
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 
 namespace content {
 
@@ -63,7 +62,6 @@ void AuctionSharedStorageHost::BindNewReceiver(
                     ReceiverContext{.auction_runner_rfh = auction_runner_rfh,
                                     .worklet_origin = worklet_origin});
 }
-
 
 void AuctionSharedStorageHost::SharedStorageUpdate(
     network::mojom::SharedStorageModifierMethodWithOptionsPtr

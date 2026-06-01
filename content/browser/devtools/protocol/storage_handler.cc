@@ -95,7 +95,7 @@ using SetCookiesCallback = Storage::Backend::SetCookiesCallback;
 
 struct UsageListInitializer {
   const char* type;
-  int64_t blink::mojom::UsageBreakdown::*usage_member;
+  int64_t blink::mojom::UsageBreakdown::* usage_member;
 };
 
 UsageListInitializer initializers[] = {

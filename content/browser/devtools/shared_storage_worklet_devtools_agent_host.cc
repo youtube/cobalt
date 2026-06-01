@@ -18,10 +18,9 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/render_process_host.h"
-#include "third_party/blink/public/mojom/devtools/devtools_agent.mojom.h"
-
-#include "content/public/common/content_milestone_features.h"
 #include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#include "third_party/blink/public/mojom/devtools/devtools_agent.mojom.h"
 
 namespace content {
 
@@ -50,7 +49,6 @@ SharedStorageWorkletDevToolsAgentHost::SharedStorageWorkletDevToolsAgentHost(
 
 SharedStorageWorkletDevToolsAgentHost::
     ~SharedStorageWorkletDevToolsAgentHost() = default;
-
 
 BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -126,6 +124,7 @@ void SharedStorageWorkletDevToolsAgentHost::WorkletReadyForInspection(
 }
 
 void SharedStorageWorkletDevToolsAgentHost::WorkletDestroyed() {
+  CHECK(worklet_host_);
   worklet_host_ = nullptr;
 
   for (auto* inspector : protocol::InspectorHandler::ForAgentHost(this)) {
