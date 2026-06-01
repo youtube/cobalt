@@ -4,9 +4,7 @@ inputs:
   nightly:
     description: "Indicates if this is a nightly job."
     required: true
-  test_targets_json_file:
-    description: "The path to the test targets JSON file."
-    required: true
+
   gcs_results_path:
     description: "GCS path for the test results."
     required: true
@@ -45,7 +43,6 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
@@ -67,7 +64,8 @@ runs:
       run: |
         set -x
 
-        TEST_TARGETS_JSON=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target]' "${TEST_TARGETS_JSON_FILE}")
+        test_targets_json_file="test_targets.json"
+        TEST_TARGETS_JSON=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target]' "${test_targets_json_file}")
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
@@ -106,12 +104,11 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
-      env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -uxe
         shopt -s globstar nullglob
 
+        test_targets_json_file="test_targets.json"
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
@@ -122,7 +119,7 @@ runs:
 
         # Check for missing result xml files.
         exit_code=0
-        readarray -t test_targets < <(jq -r '.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target' "${TEST_TARGETS_JSON_FILE}")
+        readarray -t test_targets < <(jq -r '.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target' "${test_targets_json_file}")
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
