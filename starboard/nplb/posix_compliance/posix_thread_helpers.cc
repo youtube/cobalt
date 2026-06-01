@@ -18,8 +18,12 @@
 
 #include <cstddef>
 
-#include "starboard/thread.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/run_in_background_thread_and_wait.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace nplb {
 
@@ -84,6 +88,39 @@ void WaiterContext::WaitForReturnSignal() {
   }
   --unreturned_waiters;
   EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+}
+
+void AbstractTestThread::Start() {
+  pthread_create(&thread_, nullptr, ThreadEntryPoint, this);
+  if (0 == thread_) {
+    ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
+  }
+}
+
+void AbstractTestThread::WaitForFinish() {
+#if BUILDFLAG(IS_IOS_TVOS)
+  RunInBackgroundThreadAndWait([this] { Join(); });
+#else
+  Join();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+}
+
+void AbstractTestThread::Join() {
+  if (pthread_join(thread_, nullptr) != 0) {
+    ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
+  }
+}
+
+// static
+void* AbstractTestThread::ThreadEntryPoint(void* ptr) {
+#if defined(__APPLE__)
+  pthread_setname_np("AbstractTestThread");
+#else
+  pthread_setname_np(pthread_self(), "AbstractTestThread");
+#endif
+  AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
+  this_ptr->Run();
+  return NULL;
 }
 
 }  // namespace nplb

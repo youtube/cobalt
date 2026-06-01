@@ -60,7 +60,9 @@
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browsing_data/clear_site_data_handler.h"
 #include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_site_data_manager_impl.h"
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/buckets/bucket_manager.h"
 #include "content/browser/cache_storage/cache_storage_control_wrapper.h"
 #include "content/browser/code_cache/generated_code_cache.h"
@@ -129,6 +131,8 @@
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/storage_usage_info.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -1496,11 +1500,13 @@ void StoragePartitionImpl::Initialize(
   }
 
   // The Topics API is not available in Incognito mode.
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!is_in_memory() &&
       base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
     browsing_topics_site_data_manager_ =
         std::make_unique<BrowsingTopicsSiteDataManagerImpl>(path);
   }
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   GeneratedCodeCacheSettings settings =
       GetContentClient()->browser()->GetGeneratedCodeCacheSettings(
@@ -1882,11 +1888,13 @@ InterestGroupManager* StoragePartitionImpl::GetInterestGroupManager() {
   return interest_group_manager_.get();
 }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 BrowsingTopicsSiteDataManager*
 StoragePartitionImpl::GetBrowsingTopicsSiteDataManager() {
   DCHECK(initialized_);
   return browsing_topics_site_data_manager_.get();
 }
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 ContentIndexContextImpl* StoragePartitionImpl::GetContentIndexContext() {
   DCHECK(initialized_);

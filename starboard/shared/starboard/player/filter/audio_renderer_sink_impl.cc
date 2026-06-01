@@ -83,21 +83,6 @@ void AudioRendererSinkImpl::GetAudioRendererParams(
   *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
-bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
-    SbMediaAudioSampleType audio_sample_type) const {
-  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
-}
-
-bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type) const {
-  return SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type);
-}
-
-int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
-    int sampling_frequency_hz) const {
-  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
-}
-
 bool AudioRendererSinkImpl::HasStarted() const {
   return SbAudioSinkIsValid(audio_sink_);
 }
@@ -139,6 +124,21 @@ void AudioRendererSinkImpl::Start(
   audio_sink_->SetVolume(volume_);
 }
 
+bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
+    SbMediaAudioSampleType audio_sample_type) const {
+  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
+}
+
+bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
+    SbMediaAudioFrameStorageType audio_frame_storage_type) const {
+  return SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type);
+}
+
+int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
+    int sampling_frequency_hz) const {
+  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
+}
+
 void AudioRendererSinkImpl::Stop() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
@@ -147,13 +147,6 @@ void AudioRendererSinkImpl::Stop() {
     audio_sink_ = kSbAudioSinkInvalid;
     render_callback_ = NULL;
   }
-}
-
-void AudioRendererSinkImpl::Reset() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
-  // TODO: b/330793785 - Flush AudioSink on ATV
-  Stop();
 }
 
 void AudioRendererSinkImpl::SetVolume(double volume) {
@@ -167,9 +160,6 @@ void AudioRendererSinkImpl::SetVolume(double volume) {
 
 void AudioRendererSinkImpl::SetPlaybackRate(double playback_rate) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(playback_rate == 0.0 || playback_rate == 1.0)
-      << "Playback rate on audio sink can only be set to 0 or 1, "
-      << "but is now set to " << playback_rate;
 
   playback_rate_ = playback_rate;
   if (HasStarted()) {

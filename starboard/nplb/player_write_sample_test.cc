@@ -168,9 +168,6 @@ TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
-  if (!IsPartialAudioSupported()) {
-    GTEST_SKIP() << "The platform doesn't support partial audio.";
-  }
   if (IsAudioPassthroughUsed(GetParam())) {
     GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
@@ -242,9 +239,6 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
-  if (!IsPartialAudioSupported()) {
-    GTEST_SKIP() << "The platform doesn't support partial audio.";
-  }
   if (IsAudioPassthroughUsed(GetParam())) {
     GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
@@ -389,8 +383,8 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   primary_player_thread.Start();
   secondary_player_thread.Start();
 
-  primary_player_thread.Join();
-  secondary_player_thread.Join();
+  primary_player_thread.WaitForFinish();
+  secondary_player_thread.WaitForFinish();
 }
 
 INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,

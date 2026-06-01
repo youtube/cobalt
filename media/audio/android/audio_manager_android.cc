@@ -918,8 +918,9 @@ void AudioManagerAndroid::PreStartStream(
   }
 
   // Release the stream outside the lock to avoid deadlock, as
-  // ReleaseInputStream also acquires pre_started_streams_lock_.
-  ReleaseInputStream(stream);
+  // Close() eventually calls ReleaseInputStream which acquires
+  // pre_started_streams_lock_.
+  stream->Close();
 }
 
 AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;

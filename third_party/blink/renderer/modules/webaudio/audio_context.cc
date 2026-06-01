@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -29,7 +30,9 @@
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/permissions/permission_utils.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_listener.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_playout_stats.h"
@@ -38,7 +41,9 @@
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_destination_node.h"
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.h"
 #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_node.h"
-#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"

@@ -14,8 +14,6 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
-#include "base/notreached.h"
-#include "build/build_config.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -89,11 +87,6 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       script_state, exception_state.GetContext());
   ScriptPromise<IDLDouble> promise = resolver->Promise();
 
-#if BUILDFLAG(IS_IOS_TVOS)
-  // TODO - b/487001977: Implement startup time measurement for tvOS.
-  resolver->Reject(MakeGarbageCollected<DOMException>(
-      DOMExceptionCode::kNotSupportedError, "Not implemented on iOS/tvOS."));
-#else
   int64_t startup_timestamp = 0;
   BindRemotePerformance(script_state)
       ->GetAppStartupTimeStamp(&startup_timestamp);
@@ -103,7 +96,6 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       base::TimeTicks::FromInternalValue(startup_timestamp),
       true /* allow_negative_value */,
       context->CrossOriginIsolatedCapability()));
-#endif
 
   return promise;
 }

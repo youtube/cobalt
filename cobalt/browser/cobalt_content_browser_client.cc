@@ -74,6 +74,11 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#include "content/public/browser/storage_partition.h"
+#endif  // BUILDFLAG(USE_EVERGREEN)
+
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
@@ -307,9 +312,11 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
   network_context_params->accept_language = GetApplicationLocale();
-
-  // Always enable the HTTP cache.
-  network_context_params->http_cache_enabled = true;
+  // Disable the HTTP cache by default, or if kDisableHttpCache is explicitly
+  // requested.
+  network_context_params->http_cache_enabled =
+      !base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableHttpCache);
 
   auto cookie_manager_params = network::mojom::CookieManagerParams::New();
   cookie_manager_params->block_third_party_cookies = true;
@@ -376,6 +383,17 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+#if BUILDFLAG(USE_EVERGREEN)
+  // Create the updater module singleton if not already created.
+  auto* storage_partition =
+      web_contents->GetPrimaryMainFrame()->GetStoragePartition();
+  if (storage_partition && !updater::UpdaterModule::GetInstance()) {
+    LOG(INFO) << "Creating UpdaterModule singleton.";
+    updater::UpdaterModule::CreateInstance(
+        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+        updater::kDefaultUpdateCheckDelay);
+  }
+#endif
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(

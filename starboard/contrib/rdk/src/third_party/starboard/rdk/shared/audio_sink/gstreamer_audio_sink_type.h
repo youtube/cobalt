@@ -36,11 +36,7 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace audio_sink {
 
 class GStreamerAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
@@ -78,10 +74,6 @@ class GStreamerAudioSinkType : public SbAudioSinkPrivate::Type {
   ~GStreamerAudioSinkType() = default;
 };
 
-}  // namespace audio_sink
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_AUDIO_SINK_GSTREAMER_AUDIO_SINK_TYPE_H_

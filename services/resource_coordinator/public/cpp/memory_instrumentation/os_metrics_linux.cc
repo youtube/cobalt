@@ -62,6 +62,7 @@ using mojom::VmRegion;
 using mojom::VmRegionPtr;
 
 #if BUILDFLAG(IS_COBALT)
+FILE* g_proc_smaps_rollup_for_testing = nullptr;
 const size_t kPssValidationThresholdKb = 30720;
 
 base::Lock& GetTestingGlobalsLock() {
@@ -87,15 +88,27 @@ void GetSmapsRollup(base::ProcessHandle handle,
                     size_t* pss,
                     size_t* swap_pss) {
   std::string content;
-  std::string file_name =
-      "/proc/" +
-      (handle == base::kNullProcessHandle ? "self"
-                                          : base::NumberToString(handle)) +
-      "/smaps_rollup";
-  if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
-    return;
+  bool use_mock = false;
+  {
+    base::AutoLock lock(GetTestingGlobalsLock());
+    if (g_proc_smaps_rollup_for_testing) {
+      use_mock = true;
+      fseek(g_proc_smaps_rollup_for_testing, 0, SEEK_SET);
+      base::ReadStreamToString(g_proc_smaps_rollup_for_testing, &content);
+    }
+  }
+
+  if (!use_mock) {
+    std::string file_name =
+        "/proc/" +
+        (handle == base::kNullProcessHandle ? "self"
+                                            : base::NumberToString(handle)) +
+        "/smaps_rollup";
+    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
+      *pss = size_t(0);
+      *swap_pss = size_t(0);
+      return;
+    }
   }
 
   if (content.empty()) {
@@ -562,7 +575,10 @@ void GetSmapsRollup(base::ProcessId pid,
 
 LibChrobaltMem GetLibChrobaltMem(base::ProcessId pid) {
   SmapsRollup rollup;
-  GetSmapsRollup(pid, "libchrobalt.so", &rollup);
+  GetSmapsRollup(pid, "libchrobalt", &rollup);
+  if (rollup.pss_kb == 0 && rollup.rss_kb == 0) {
+    GetSmapsRollup(pid, "libcobalt", &rollup);
+  }
   return {rollup.pss_kb, rollup.rss_kb};
 }
 
@@ -573,7 +589,7 @@ uint32_t GetPartitionAllocRss(base::ProcessId pid) {
 }
 #else  // BUILDFLAG(IS_ANDROID)
 namespace {
-constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
+constexpr char kLibChrobaltPattern[] = "libchrobalt";
 constexpr char kPartitionAllocPattern[] = "partition_alloc";
 constexpr char kV8Pattern[] = "v8";
 constexpr char kScudoPattern[] = "scudo";
@@ -610,7 +626,8 @@ enum class RegionType {
 };
 
 RegionType GetRegionType(const char* line) {
-  if (absl::StrContains(line, kLibChrobaltPattern)) {
+  if (absl::StrContains(line, kLibChrobaltPattern) ||
+      absl::StrContains(line, "libcobalt")) {
     return RegionType::kLibChrobalt;
   }
   if (absl::StrContains(line, kPartitionAllocPattern)) {
@@ -749,17 +766,20 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
       }
     }
   }
-  dump->libchrobalt_pss_kb = base::saturated_cast<uint32_t>(libchrobalt_pss_kb);
-  dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(libchrobalt_rss_kb);
-  dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(pa_rss_kb);
-  dump->v8_rss_kb = base::saturated_cast<uint32_t>(v8_rss_kb);
-  dump->malloc_rss_kb = base::saturated_cast<uint32_t>(malloc_rss_kb);
-  dump->code_other_rss_kb = base::saturated_cast<uint32_t>(code_other_rss_kb);
-  dump->fonts_rss_kb = base::saturated_cast<uint32_t>(fonts_rss_kb);
-  dump->ashmem_jit_rss_kb = base::saturated_cast<uint32_t>(ashmem_jit_rss_kb);
-  dump->android_runtime_rss_kb =
-      base::saturated_cast<uint32_t>(android_runtime_rss_kb);
-  dump->stacks_rss_kb = base::saturated_cast<uint32_t>(stacks_rss_kb);
+  base::flat_map<std::string, uint64_t> detailed_stats;
+  detailed_stats["pss:lib_chrobalt"] = libchrobalt_pss_kb;
+  detailed_stats["rss:lib_chrobalt"] = libchrobalt_rss_kb;
+  detailed_stats["rss:partition_alloc"] = pa_rss_kb;
+  detailed_stats["rss:v8"] = v8_rss_kb;
+  detailed_stats["rss:malloc"] = malloc_rss_kb;
+  detailed_stats["rss:code_other"] = code_other_rss_kb;
+  detailed_stats["rss:fonts"] = fonts_rss_kb;
+  detailed_stats["rss:ashmem_jit"] = ashmem_jit_rss_kb;
+  detailed_stats["rss:android_runtime"] = android_runtime_rss_kb;
+  detailed_stats["rss:stacks"] = stacks_rss_kb;
+
+  dump->detailed_stats_kb = std::move(detailed_stats);
+  dump->last_detailed_dump_time = base::TimeTicks::Now();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
@@ -774,6 +794,14 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 #endif
   g_proc_smaps_for_testing = f;
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void OSMetrics::SetSmapsRollupForTesting(FILE* f) {
+  base::AutoLock lock(GetTestingGlobalsLock());
+  g_proc_smaps_rollup_for_testing = f;
+}
+#endif
 
 #if BUILDFLAG(IS_COBALT)
 // static
@@ -810,14 +838,19 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
 #if BUILDFLAG(IS_COBALT)
+  dump->vm_size_kb =
+      base::saturated_cast<uint32_t>(info->vm_size_bytes / 1024);
   // TODO(cleanup): Remove this legacy code when appropriate.
 #if BUILDFLAG(IS_ANDROID)
   PopulateCobaltSmapsMetrics(handle, dump);
 #else  // BUILDFLAG(IS_LINUX)
   LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
-  dump->libchrobalt_pss_kb = lib_mem.pss_kb;
-  dump->libchrobalt_rss_kb = lib_mem.rss_kb;
-  dump->partition_alloc_rss_kb = GetPartitionAllocRss(handle);
+  base::flat_map<std::string, uint64_t> detailed_stats;
+  detailed_stats["pss:lib_chrobalt"] = lib_mem.pss_kb;
+  detailed_stats["rss:lib_chrobalt"] = lib_mem.rss_kb;
+  detailed_stats["rss:partition_alloc"] = GetPartitionAllocRss(handle);
+  dump->detailed_stats_kb = std::move(detailed_stats);
+  dump->last_detailed_dump_time = base::TimeTicks::Now();
 #endif  // BUILDFLAG(IS_LINUX)
 #endif  // BUILDFLAG(IS_COBALT)
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
@@ -878,6 +911,10 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   }
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    // We intentionally ignore the return value of FillDetailedMetrics. If detailed
+    // metrics collection or validation fails, we gracefully fall back to basic
+    // metrics (which are populated by FillOSMemoryDump above) rather than failing
+    // the entire OS memory dump request.
     FillDetailedMetrics(handle, flags, dump, delegate);
   }
 
@@ -987,29 +1024,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   static base::NoDestructor<base::Lock> detailed_metrics_lock;
   base::AutoLock lock(*detailed_metrics_lock);
 
-  base::File file_to_scan;
-  {
-    base::AutoLock testing_lock(GetTestingGlobalsLock());
-    if (g_proc_smaps_for_testing) {
-      // Create a base::File from the mocked FILE*.
-      // Duplicate the FD to not interfere with the original stream.
-      int fd = dup(fileno(g_proc_smaps_for_testing));
-      if (fd >= 0) {
-        file_to_scan = base::File(fd);
-        file_to_scan.Seek(base::File::FROM_BEGIN, 0);
-      }
-    }
-  }
-
-  if (!file_to_scan.IsValid()) {
-    std::string file_name =
-        "/proc/" +
-        (handle == base::kNullProcessHandle ? "self"
-                                            : base::NumberToString(handle)) +
-        "/smaps";
-    file_to_scan = base::File(base::FilePath(file_name),
-                              base::File::FLAG_OPEN | base::File::FLAG_READ);
-  }
+  base::File file_to_scan = GetSmapsFileForScanning();
 
   base::flat_map<std::string, uint64_t> stats;
   delegate->GetAndResetStats(&stats);
@@ -1020,37 +1035,15 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
       return true;
     }
     for (const auto& entry : results.value()) {
+      if (!delegate) {
+        break;
+      }
       delegate->OnSmapsEntry(entry.name, entry.metrics);
     }
     delegate->GetAndResetStats(&stats);
   }
 
-  // Populate legacy libchrobalt fields from the results collected by the delegate.
-  auto it_pss = stats.find("pss:lib_chrobalt");
-  if (it_pss != stats.end()) {
-    dump->libchrobalt_pss_kb = base::saturated_cast<uint32_t>(it_pss->second);
-  }
-  auto it_rss = stats.find("rss:lib_chrobalt");
-  if (it_rss != stats.end()) {
-    dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(it_rss->second);
-  }
 
-  auto it_pa = stats.find("rss:partition_alloc");
-  if (it_pa != stats.end()) {
-    dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(it_pa->second);
-  }
-  auto it_malloc = stats.find("rss:malloc");
-  if (it_malloc != stats.end()) {
-    dump->malloc_rss_kb = base::saturated_cast<uint32_t>(it_malloc->second);
-  }
-  auto it_v8 = stats.find("rss:v8");
-  if (it_v8 != stats.end()) {
-    dump->v8_rss_kb = base::saturated_cast<uint32_t>(it_v8->second);
-  }
-  auto it_stacks = stats.find("rss:stacks");
-  if (it_stacks != stats.end()) {
-    dump->stacks_rss_kb = base::saturated_cast<uint32_t>(it_stacks->second);
-  }
 
   if (!flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
     return true;
@@ -1084,11 +1077,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
     return false;
   }
 
-  base::flat_map<std::string, uint64_t> categories_kb;
-  for (const auto& entry : stats) {
-    categories_kb[entry.first] = entry.second;
-  }
-  dump->detailed_stats_kb = std::move(categories_kb);
+  dump->detailed_stats_kb = std::move(stats);
   dump->last_detailed_dump_time = base::TimeTicks::Now();
 
   return true;
@@ -1113,6 +1102,16 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
       return OSMetrics::MappedAndResidentPagesDumpState::kAccessPagemapDenied;
     }
   }
+#if BUILDFLAG(IS_COBALT)
+  // Disable stdio buffering for the pagemap file.
+  // In musl libc, buffered reads (like fread) are optimized using readv, which
+  // splits the read such that the first segment has size N-1. For special files
+  // like /proc/self/pagemap, the Linux kernel strictly enforces that all reads
+  // must be in multiples of 8 bytes. An unaligned read size (like N-1) will
+  // fail with EINVAL. Making the stream unbuffered forces musl to perform
+  // direct, aligned reads, avoiding this issue.
+  setvbuf(pagemap_file.get(), NULL, _IONBF, 0);
+#endif  // BUILDFLAG(IS_COBALT)
 
   const size_t kPageSize = base::GetPageSize();
   const size_t start_page = start_address / kPageSize;
@@ -1123,17 +1122,35 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
   // The pagemap has one 64 bit entry per page or 8 bytes.
   auto offset = static_cast<long>(start_page * 8);
   if (fseek(pagemap_file.get(), offset, SEEK_SET) != 0) {
+#if BUILDFLAG(IS_COBALT)
+    PLOG(ERROR) << "Error in fseek " << kPagemap << " to offset " << offset;
+#else
     DLOG(ERROR) << "Error in fseek " << kPagemap;
+#endif  // BUILDFLAG(IS_COBALT)
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 
   // |entries| will be 2kB/MB (if |kPageSize| = 4096),
   // that would only be ~80kB on Android, and up to 200kB on Linux (for 100MB)
   std::vector<uint64_t> entries(total_pages);
+#if BUILDFLAG(IS_COBALT)
+  size_t read_bytes = fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get());
+  if (read_bytes != total_pages) {
+    PLOG(ERROR) << "Error in fread " << kPagemap << ", read " << read_bytes << " of " << total_pages << " entries";
+    if (ferror(pagemap_file.get())) {
+      LOG(ERROR) << "pagemap_file has error indicator set";
+    }
+    if (feof(pagemap_file.get())) {
+      LOG(ERROR) << "pagemap_file has EOF indicator set";
+    }
+    return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
+  }
+#else
   if (fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()) !=
       total_pages) {
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
+#endif  // BUILDFLAG(IS_COBALT)
 
   accessed_pages_bitmap->resize(1 + (total_pages - 1) / 8);
   for (size_t page = 0; page < total_pages; page++) {

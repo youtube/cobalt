@@ -23,19 +23,13 @@
 
 #include <string>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 class LinuxKeyMapping {
 public:
   static void MapKeyCodeAndModifiers(uint32_t& key_code, uint32_t& modifiers);
 };
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_LINUXKEYMAPPING_H_

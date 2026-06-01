@@ -49,6 +49,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
+
+    virtual void DecommitAllDecommitableBlocks() = 0;
   };
 
   using StrategyCreateCB =
@@ -65,6 +67,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   void Suspend();
   void Resume();
+  void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
   Handle Allocate(DemuxerStream::Type type,
@@ -74,7 +77,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void Write(Handle handle, const void* data, size_t size) override;
 
   int GetBufferAlignment() const override;
-  int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.
@@ -87,7 +89,11 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   void SetAllocateOnDemand(bool enabled);
-  static void EnableDecommitableAllocatorStrategy();
+  static void EnableConfigurableDecommitStrategy(
+      int block_size,
+      int retain_blocks,
+      int conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend);
   static void EnableMediaBufferPoolStrategy();
 
  private:

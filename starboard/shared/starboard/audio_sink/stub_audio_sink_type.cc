@@ -26,7 +26,6 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace {
@@ -73,7 +72,7 @@ StubAudioSink::StubAudioSink(
       context_(context),
       audio_out_thread_(JobThread::Create(
           "stub_audio_out",
-          ThreadOptions().SetPriority(kSbThreadPriorityRealTime))) {
+          ThreadOptions().SetPriority(ThreadPriority::kRealTime))) {
   SB_CHECK(audio_out_thread_);
 
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });

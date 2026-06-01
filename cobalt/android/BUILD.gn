@@ -77,6 +77,7 @@ android_library("cobalt_main_java") {
     "//base:process_launcher_java",
     "//base/version_info/android:version_constants_java",
     "//build/android:build_java",
+    "//cobalt/shell/android:cobalt_shell_assets",
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
@@ -194,11 +195,7 @@ android_library("cobalt_apk_java") {
 }
 
 android_assets("coat_assets") {
-  sources = [
-    "apk/app/src/app/assets/not_empty.txt",
-    "apk/app/src/app/assets/test/not_empty.txt",
-    "apk/app/src/app/assets/web/cobalt_logo_1024.png",
-  ]
+  sources = [ "apk/app/src/app/assets/web/cobalt_logo_1024.png" ]
   disable_compression = true
 }
 
@@ -253,16 +250,9 @@ android_apk("cobalt_apk") {
   deps = [
     ":coat_assets",
     ":cobalt_apk_java",
-    "//cobalt/shell/android:cobalt_shell_assets",
-    "//cobalt/shell/android:cobalt_shell_java",
     "//components/crash/android:java",
     "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
     "//components/metrics:metrics_java",
-    "//content/public/android:content_java",
-    "//media/capture/video/android:capture_java",
-    "//net/android:net_java",
-    "//third_party/mesa_headers",
-    "//ui/android:ui_java",
   ]
 
   # This is the packaging strategy used by Chrome on Android L through M. In a

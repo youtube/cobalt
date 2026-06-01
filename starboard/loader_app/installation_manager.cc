@@ -29,7 +29,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
@@ -604,8 +603,8 @@ bool InstallationManager::SaveInstallationStore() {
   installation_store_.SerializeToArray(buf.data(),
                                        installation_store_.ByteSize());
 
-  if (!SbFileAtomicReplace(store_path_.c_str(), buf.data(),
-                           installation_store_.ByteSize())) {
+  if (!starboard::FileAtomicReplace(store_path_.c_str(), buf.data(),
+                                    installation_store_.ByteSize())) {
     SB_LOG(ERROR)
         << "SaveInstallationStore: Failed to store installation store: "
         << store_path_;

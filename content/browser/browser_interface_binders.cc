@@ -16,6 +16,8 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
@@ -28,7 +30,9 @@
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_document_host.h"
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/contacts/contacts_manager_impl.h"
 #include "content/browser/content_index/content_index_service_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
@@ -1189,12 +1193,14 @@ void PopulateBinderMapWithContext(
       &EmptyBinderForFrame<blink::mojom::CredentialManager>));
   map->Add<blink::mojom::LCPCriticalPathPredictorHost>(base::BindRepeating(
       &EmptyBinderForFrame<blink::mojom::LCPCriticalPathPredictorHost>));
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kBrowsingTopics) &&
       base::FeatureList::IsEnabled(
           blink::features::kBrowsingTopicsDocumentAPI)) {
     map->Add<blink::mojom::BrowsingTopicsDocumentService>(
         base::BindRepeating(&BrowsingTopicsDocumentHost::CreateMojoService));
   }
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(
       base::BindRepeating(&DirectSocketsServiceImpl::CreateForFrame));
