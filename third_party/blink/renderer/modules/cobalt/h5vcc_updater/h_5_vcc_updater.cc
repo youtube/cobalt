@@ -116,7 +116,7 @@ ScriptPromise<IDLBoolean> H5vccUpdater::getAllowSelfSignedPackages(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureSideloadingReceiverIsBound();
 
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->GetAllowSelfSignedPackages(
@@ -149,7 +149,7 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdateServerUrl(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureSideloadingReceiverIsBound();
 
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->GetUpdateServerUrl(
@@ -182,7 +182,7 @@ ScriptPromise<IDLBoolean> H5vccUpdater::getRequireNetworkEncryption(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureSideloadingReceiverIsBound();
 
   ongoing_sideloading_requests_.insert(resolver);
   remote_h5vcc_updater_sideloading_->GetRequireNetworkEncryption(
