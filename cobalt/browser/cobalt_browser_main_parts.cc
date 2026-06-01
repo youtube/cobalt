@@ -144,9 +144,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartStorageMigration();
 
   proactive_reclaim_timer_.Start(
-      FROM_HERE, base::Seconds(30), base::BindRepeating([]() {
-        base::MemoryPressureListener::NotifyMemoryPressure(
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      FROM_HERE, base::Seconds(60), base::BindRepeating([]() {
         ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
       }));
 
