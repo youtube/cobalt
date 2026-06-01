@@ -4,7 +4,9 @@ inputs:
   nightly:
     description: "Indicates if this is a nightly job."
     required: true
-
+  test_targets:
+    description: "The test targets to run (JSON array)."
+    required: true
   gcs_results_path:
     description: "GCS path for the test results."
     required: true
@@ -64,16 +66,13 @@ runs:
       run: |
         set -x
 
-        test_targets_json_file="test_targets.json"
-        TEST_TARGETS_JSON=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target]' "${test_targets_json_file}")
-
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
           --device_family '${{ inputs.test_device_family }}' \
-          --targets "${TEST_TARGETS_JSON}" \
+          --targets '${{ inputs.test_targets }}' \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
           --label chrobalt_on_device_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
@@ -108,7 +107,6 @@ runs:
         set -uxe
         shopt -s globstar nullglob
 
-        test_targets_json_file="test_targets.json"
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
@@ -119,7 +117,7 @@ runs:
 
         # Check for missing result xml files.
         exit_code=0
-        readarray -t test_targets < <(jq -r '.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target' "${test_targets_json_file}")
+        readarray -t test_targets < <(echo '${{ inputs.test_targets }}' | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
