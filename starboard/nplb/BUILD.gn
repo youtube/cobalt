@@ -166,6 +166,7 @@ test("nplb") {
       "posix_compliance/posix_free_test.cc",
       "posix_compliance/posix_getcwd_test.cc",
       "posix_compliance/posix_gettid_test.cc",
+      "posix_compliance/posix_inotify_test.cc",
       "posix_compliance/posix_ioctl_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
