@@ -17,14 +17,14 @@
 // Implement a macro to allow '__pthread_self()->tid' to
 // be used unchanged from musl internal code.
 
+#include <sys/types.h>
 #include <unistd.h>
-#include "starboard/thread.h"
 
 // Define a minimal stub structure that only has the 'tid' member.
 // The original code expects __pthread_self() to return a pointer
 // to a struct that has a 'tid' field.
 typedef struct {
-  SbThreadId tid;
+  pid_t tid;
 } StarboardPthreadStub;
 
 // Define the __pthread_self() macro.

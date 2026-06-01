@@ -42,7 +42,6 @@
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {

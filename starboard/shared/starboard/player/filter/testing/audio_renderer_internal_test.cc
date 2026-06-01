@@ -25,7 +25,6 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_renderer_sink.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
