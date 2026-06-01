@@ -310,7 +310,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (!sb_is_modular || sb_is_evergreen_compatible) {
+  if (!sb_is_modular || is_starboard) {
     sources += [
       "main_rdk.cc",
     ]
@@ -375,7 +375,7 @@ group("loader_app_rdk_plugin") {
   data_deps = [":loader_app($starboard_toolchain)"]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   target("shared_library", "loader_app") {
     output_dir = root_build_dir
     deps = [ "//starboard/loader_app:loader_app_sources" ]

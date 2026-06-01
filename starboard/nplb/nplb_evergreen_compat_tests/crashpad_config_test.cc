@@ -23,7 +23,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if !SB_IS(EVERGREEN_COMPATIBLE)
+#if !BUILDFLAG(IS_STARBOARD)
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
