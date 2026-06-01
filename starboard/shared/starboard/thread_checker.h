@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "starboard/common/gettid.h"

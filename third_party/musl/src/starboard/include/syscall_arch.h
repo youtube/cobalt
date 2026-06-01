@@ -23,9 +23,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-
-
-
 // Map |syscall()| to |libc_wrapper_SYS_foo()|.
 //
 // On Starboard, we have individual implementations for each function callable
