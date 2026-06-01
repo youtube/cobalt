@@ -15,10 +15,16 @@ import("//third_party/blink/renderer/bindings/idl_in_core.gni")
 import("//third_party/blink/renderer/bindings/idl_in_extensions_chromeos.gni")
 import("//third_party/blink/renderer/bindings/idl_in_extensions_webview.gni")
 import("//third_party/blink/renderer/bindings/idl_in_modules.gni")
+import("//third_party/blink/public/public_features.gni")
 
 visibility = [ "//third_party/blink/renderer/*" ]
 
 bindings_gen_dir = get_path_info(".", "gen_dir")
+
+_union_name_config = "union_name_map.conf"
+if (!enable_blink_language_detection) {
+  _union_name_config = "union_name_map_cobalt.conf"
+}
 
 template("collect_idl_files") {
   action_with_pydeps(target_name) {
@@ -165,13 +171,15 @@ template("generate_bindings") {
 
     inputs = [
       web_idl_database,
-      "union_name_map.conf",
+      _union_name_config,
     ]
     outputs = invoker.outputs
 
     args = [
       "--web_idl_database",
       rebase_path(web_idl_database, root_build_dir),
+      "--union_name_config",
+      rebase_path(_union_name_config, root_build_dir),
       "--root_src_dir",
       rebase_path("//", root_build_dir),
       "--root_gen_dir",
@@ -290,6 +298,7 @@ action_with_pydeps("check_generated_file_list") {
 
   inputs = [
     web_idl_database,
+    _union_name_config,
     "//third_party/blink/renderer/bindings/generated_in_core.gni",
     "//third_party/blink/renderer/bindings/generated_in_extensions_chromeos.gni",
     "//third_party/blink/renderer/bindings/generated_in_extensions_webview.gni",
@@ -427,6 +436,8 @@ action_with_pydeps("check_generated_file_list") {
   args = [
     "--web_idl_database",
     rebase_path(web_idl_database, root_build_dir),
+    "--union_name_config",
+    rebase_path(_union_name_config, root_build_dir),
     "--root_src_dir",
     rebase_path("//", root_build_dir),
     "--root_gen_dir",
