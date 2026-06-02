@@ -4,8 +4,8 @@ inputs:
   nightly:
     description: "Indicates if this is a nightly job."
     required: true
-  test_targets:
-    description: "The test targets to run (JSON array)."
+  test_targets_json:
+    description: "The test targets in a JSON array."
     required: true
   gcs_results_path:
     description: "GCS path for the test results."
@@ -45,6 +45,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
@@ -72,7 +73,7 @@ runs:
           trigger \
           --test_type ${TEST_TYPE} \
           --device_family '${{ inputs.test_device_family }}' \
-          --targets '${{ inputs.test_targets }}' \
+          --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
           --label chrobalt_on_device_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
@@ -103,6 +104,8 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
+      env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
         set -uxe
         shopt -s globstar nullglob
@@ -117,7 +120,7 @@ runs:
 
         # Check for missing result xml files.
         exit_code=0
-        readarray -t test_targets < <(echo '${{ inputs.test_targets }}' | jq -r '.[]')
+        readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
