@@ -42,6 +42,7 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -3990,8 +3991,8 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  // If disable-http-cache-except-js-and-html is set, only allow HTML and JS/ECMAScript
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("disable-http-cache-except-js-and-html")) {
+  // If disable-http-cache is set, only allow HTML and JS/ECMAScript
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("disable-http-cache")) {
     std::string mime_type;
     if (headers.GetMimeType(&mime_type)) {
       bool is_html = (mime_type == "text/html");
