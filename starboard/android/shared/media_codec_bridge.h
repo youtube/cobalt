@@ -58,14 +58,7 @@ class MediaCodecBridge : public MediaCodec {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
-      bool enable_frame_renderer_listener,
-      bool require_secured_decoder,
-      bool require_software_codec,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool force_big_endian_hdr_metadata,
-      int max_video_input_size,
-      bool skip_video_frames_over_60_fps,
-      bool ignore_mediacodec_callbacks_during_flushing);
+      const VideoPlatformOptions& platform_options);
 
   explicit MediaCodecBridge(Handler* handler);
   ~MediaCodecBridge() override;
@@ -73,7 +66,7 @@ class MediaCodecBridge : public MediaCodec {
   void Initialize(jobject j_media_codec_bridge);
 
   // MediaCodec implementation
-  LinearBuffer GetInputBufferAddress(jint index) override;
+  DataSpan GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -86,7 +79,7 @@ class MediaCodecBridge : public MediaCodec {
                               jlong presentation_time_microseconds,
                               jboolean is_decode_only) override;
 
-  LinearBuffer GetOutputBufferAddress(jint index) override;
+  DataSpan GetOutputBufferAddress(jint index) override;
   void ReleaseOutputBuffer(jint index, jboolean render) override;
   void ReleaseOutputBufferAtTimestamp(jint index,
                                       jlong render_timestamp_ns) override;

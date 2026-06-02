@@ -31,7 +31,7 @@ FakeMediaCodec::FakeMediaCodec(Handler* handler)
   }
 }
 
-LinearBuffer FakeMediaCodec::GetInputBufferAddress(jint index) {
+DataSpan FakeMediaCodec::GetInputBufferAddress(jint index) {
   std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return {};
@@ -71,7 +71,7 @@ jint FakeMediaCodec::QueueSecureInputBuffer(
   return -1;  // Not supported in Fake
 }
 
-LinearBuffer FakeMediaCodec::GetOutputBufferAddress(jint index) {
+DataSpan FakeMediaCodec::GetOutputBufferAddress(jint index) {
   std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return {};
@@ -179,13 +179,7 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
-    bool enable_frame_renderer_listener,
-    bool require_secured_decoder,
-    bool require_software_codec,
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    bool skip_video_frames_over_60_fps) {
+    const MediaCodec::VideoPlatformOptions& platform_options) {
   SB_LOG(INFO) << "[FakeMediaCodec] CreateVideoMediaCodec called";
   auto fake = std::make_unique<FakeMediaCodec>(handler);
   last_created_video_codec_ = fake.get();

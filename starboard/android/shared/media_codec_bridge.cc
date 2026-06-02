@@ -169,13 +169,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
-    bool enable_frame_renderer_listener,
-    bool require_secured_decoder,
-    bool require_software_codec,
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    bool skip_video_frames_over_60_fps) {
+    const MediaCodec::VideoPlatformOptions& platform_options) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
@@ -206,7 +200,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
           mastering_metadata.white_point_chromaticity_y,
           mastering_metadata.luminance_max, mastering_metadata.luminance_min,
           color_metadata->max_cll, color_metadata->max_fall,
-          force_big_endian_hdr_metadata));
+          platform_options.force_big_endian_hdr_metadata));
     }
   }
 
@@ -225,10 +219,12 @@ MediaCodecBridge::CreateVideoMediaCodec(
       max_frame_size ? max_frame_size->width : -1,
       max_frame_size ? max_frame_size->height : -1, j_surface_local,
       j_media_crypto_local, j_color_info,
-      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
-      max_video_input_size, enable_frame_renderer_listener,
-      skip_video_frames_over_60_fps,
-      ignore_mediacodec_callbacks_during_flushing,
+      platform_options.tunnel_mode_audio_session_id.value_or(
+          TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
+      platform_options.max_input_size,
+      platform_options.enable_frame_renderer_listener,
+      platform_options.skip_video_frames_over_60_fps,
+      platform_options.ignore_mediacodec_callbacks_during_flushing,
       j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
@@ -247,15 +243,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
                << ", frame_size_hint=" << frame_size_hint << ", fps=" << fps
                << ", max_frame_size=" << max_frame_size
                << ", has_color_metadata=" << ToString(!!color_metadata)
-               << ", require_secured_decoder="
-               << ToString(require_secured_decoder)
-               << ", require_software_codec="
-               << ToString(require_software_codec)
-               << ", tunnel_mode_audio_session_id="
-               << ToString(tunnel_mode_audio_session_id)
-               << ", force_big_endian_hdr_metadata="
-               << ToString(force_big_endian_hdr_metadata)
-               << ", max_video_input_size=" << max_video_input_size;
+               << ", platform_options=" << platform_options;
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
@@ -281,7 +269,7 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
-LinearBuffer MediaCodecBridge::GetInputBufferAddress(jint index) {
+DataSpan MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -358,7 +346,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-LinearBuffer MediaCodecBridge::GetOutputBufferAddress(jint index) {
+DataSpan MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =

@@ -72,22 +72,13 @@ class MediaCodecDecoderTest : public ::testing::Test {
     uint8_t* buffer = new uint8_t[size];
     memset(buffer, 0, size);
 
-    struct TestSampleInfo {
-      SbMediaType type = kSbMediaTypeAudio;
-      const void* buffer;
-      int buffer_size;
-      int64_t timestamp;
-      AudioSampleInfo audio_sample_info;
-      VideoSampleInfo video_sample_info;
-      const SbDrmSampleInfo* drm_info = nullptr;
-      int side_data_count = 0;
-      const SbPlayerSampleSideData* side_data = nullptr;
-    } sample_info;
-
+    SbPlayerSampleInfo sample_info = {};
+    sample_info.type = kSbMediaTypeAudio;
     sample_info.buffer = buffer;
     sample_info.buffer_size = size;
     sample_info.timestamp = timestamp;
-    sample_info.audio_sample_info.stream_info = kDefaultAudioStreamInfo;
+    kDefaultAudioStreamInfo.ConvertTo(
+        &sample_info.audio_sample_info.stream_info);
 
     auto deallocate_func = [](SbPlayer player, void* context,
                               const void* sample_buffer) {

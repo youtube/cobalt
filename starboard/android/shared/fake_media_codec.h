@@ -38,7 +38,7 @@ class FakeMediaCodec : public MediaCodec {
   ~FakeMediaCodec() override = default;
 
   // MediaCodec implementation
-  LinearBuffer GetInputBufferAddress(jint index) override;
+  DataSpan GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -51,7 +51,7 @@ class FakeMediaCodec : public MediaCodec {
                               jlong presentation_time_microseconds,
                               jboolean is_decode_only) override;
 
-  LinearBuffer GetOutputBufferAddress(jint index) override;
+  DataSpan GetOutputBufferAddress(jint index) override;
   void ReleaseOutputBuffer(jint index, jboolean render) override;
   void ReleaseOutputBufferAtTimestamp(jint index,
                                       jlong render_timestamp_ns) override;
@@ -124,13 +124,7 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
-      bool enable_frame_renderer_listener,
-      bool require_secured_decoder,
-      bool require_software_codec,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool force_big_endian_hdr_metadata,
-      int max_video_input_size,
-      bool skip_video_frames_over_60_fps) override;
+      const MediaCodec::VideoPlatformOptions& platform_options) override;
 
   FakeMediaCodec* last_created_audio_codec() const {
     return last_created_audio_codec_;
