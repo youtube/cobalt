@@ -390,6 +390,8 @@ int64_t AudioRendererPcm::GetAudioWriteHead() {
   }
 
   SB_CHECK(decoder_sample_rate_);
+
+  std::lock_guard lock(mutex_);
   return seeking_to_time_ + audio_frame_tracker_.GetTotalOriginalFrames() *
                                 1'000'000LL / *decoder_sample_rate_;
 }
@@ -407,6 +409,7 @@ int64_t AudioRendererPcm::AdjustTimestampToAudioClock(int64_t timestamp) {
   }
   SB_CHECK(decoder_sample_rate_);
 
+  std::lock_guard lock(mutex_);
   int64_t frame_position =
       (timestamp - seeking_to_time_) * *decoder_sample_rate_ / 1'000'000LL;
   int64_t adjusted_frame_position =
@@ -578,13 +581,17 @@ void AudioRendererPcm::OnFirstOutput(
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
 
+  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32 and
+  // kSbMediaAudioFrameStorageTypeInterleaved, so we resample the audio to that
+  // format to avoid unnecessary extra conversion.
   if (decoded_sample_rate != destination_sample_rate ||
-      decoded_sample_type != sink_sample_type_ ||
+      decoded_sample_type != kSbMediaAudioSampleTypeFloat32 ||
       decoded_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
     resampler_ = AudioResampler::Create(
         decoded_sample_type, decoded_storage_type, decoded_sample_rate,
-        sink_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
-        destination_sample_rate, channels_);
+        kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
+        channels_);
     SB_DCHECK(resampler_);
   } else {
     resampler_.reset(new IdentityAudioResampler);

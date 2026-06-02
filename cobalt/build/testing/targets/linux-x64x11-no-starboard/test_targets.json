@@ -1,7 +1,5 @@
-{
-  "test_targets": [
-    ":blink_web_tests"
-  ],
-  "executables": [
-  ]
-}
+[
+  {
+    "target": ":blink_web_tests"
+  }
+]

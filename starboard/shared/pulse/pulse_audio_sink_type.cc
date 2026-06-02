@@ -33,7 +33,6 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
@@ -476,7 +475,7 @@ bool PulseAudioSinkType::Initialize() {
   }
 
   audio_thread_ = JobThread::Create(
-      "pulse_audio", ThreadOptions().SetPriority(kSbThreadPriorityRealTime));
+      "pulse_audio", ThreadOptions().SetPriority(ThreadPriority::kRealTime));
   audio_thread_->Schedule([this] { ProcessAudio(); });
 
   return true;

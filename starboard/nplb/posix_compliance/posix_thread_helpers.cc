@@ -19,7 +19,6 @@
 #include <cstddef>
 
 #include "build/build_config.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)

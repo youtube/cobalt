@@ -303,13 +303,9 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   return can_accept_more_data;
 }
 
-void VideoRendererImpl::SetBounds(int z_index,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height) {
+void VideoRendererImpl::SetBounds(int z_index, const Rect& rect) {
   if (sink_) {
-    sink_->SetBounds(z_index, x, y, width, height);
+    sink_->SetBounds(z_index, rect);
   }
 }
 
