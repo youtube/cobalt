@@ -50,7 +50,6 @@ runs:
       run: |
         set -eux
         cd cobalt/src/
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         mapfile -t targets < <(jq -r '.[] | select(.executable != null and .runs_on == "device") | .executable' "${TEST_TARGETS_JSON_FILE}")
         for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
@@ -65,18 +64,17 @@ runs:
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        cd cobalt/src/
 
-        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
+        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No host GUnit targets to archive. Skipping."
           exit 0
         fi
 
-        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+        time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${TARGETS}" \
           ${ARCHIVE_FLAGS}
@@ -91,18 +89,17 @@ runs:
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        cd cobalt/src/
 
-        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
+        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No device GUnit targets to archive. Skipping."
           exit 0
         fi
 
-        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+        time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${TARGETS}" \
           ${ARCHIVE_FLAGS}
@@ -117,18 +114,17 @@ runs:
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        cd cobalt/src/
 
-        TARGETS=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
+        TARGETS=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${json_file}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No browser/web targets to archive. Skipping."
           exit 0
         fi
 
-        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+        time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${TARGETS}" \
           ${ARCHIVE_FLAGS}
