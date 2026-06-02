@@ -26,7 +26,9 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/timer/timer.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
 #include "starboard/system.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
@@ -129,6 +131,16 @@ void CobaltWebContentsObserver::HandlePlatformErrorResponse(
 void CobaltWebContentsObserver::OnPlatformErrorResponse(
     SbSystemPlatformErrorResponse response) {
   is_platform_error_showing_ = false;
+#if !BUILDFLAG(IS_ANDROID)
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
+    web_contents()->GetController().Reload(content::ReloadType::NORMAL,
+                                           /*check_for_repost=*/false);
+  } else {
+    LOG(INFO) << "Platform error response is NEGATIVE/CANCEL. Stopping app...";
+    SbSystemRequestStop(0);
+  }
+#endif
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 

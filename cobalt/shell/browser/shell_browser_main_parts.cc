@@ -93,6 +93,8 @@ class NetworkChangeNotifierFactoryStarboard
     initial_type = SbSystemNetworkIsDisconnected()
                        ? net::NetworkChangeNotifier::CONNECTION_NONE
                        : net::NetworkChangeNotifier::CONNECTION_UNKNOWN;
+    LOG(INFO) << "Starting with connection type connected : "
+              << (SbSystemNetworkIsDisconnected() ? "none" : "unknown");
     return std::make_unique<net::NetworkChangeNotifierPassive>(initial_type,
                                                                initial_subtype);
   }
