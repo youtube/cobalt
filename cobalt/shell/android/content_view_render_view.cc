@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
@@ -79,17 +80,23 @@ void ContentViewRenderView::OnPhysicalBackingSizeChanged(
 
 void ContentViewRenderView::SurfaceCreated(JNIEnv* env,
                                            const JavaParamRef<jobject>& obj) {
+  LOG(WARNING) << "ContentViewRenderView::SurfaceCreated";
   current_surface_format_ = 0;
   InitCompositor();
 }
 
 void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
                                              const JavaParamRef<jobject>& obj) {
-  // When we switch from Chrome to other app we can't detach child surface
-  // controls because it leads to a visible hole: b/157439199. To avoid this we
-  // don't detach surfaces if the surface is going to be destroyed, they will be
-  // detached and freed by OS.
-  compositor_->PreserveChildSurfaceControls();
+  LOG(WARNING) << "ContentViewRenderView::SurfaceDestroyed";
+  // Only preserve child surfaces on Android 12 (API 31) and above
+  // where the OS cleanup is reliable.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >= 31) {
+    compositor_->PreserveChildSurfaceControls();
+  } else {
+    LOG(WARNING)
+        << "Android version <= 11 detected. Disabling "
+           "PreserveChildSurfaceControls to prevent SurfaceView leaks.";
+  }
 
   compositor_->SetSurface(nullptr, false, nullptr);
   current_surface_format_ = 0;
@@ -103,6 +110,8 @@ void ContentViewRenderView::SurfaceChanged(
     jint height,
     const JavaParamRef<jobject>& surface,
     const JavaParamRef<jobject>& host_input_token) {
+  LOG(WARNING) << "ContentViewRenderView::SurfaceChanged: format=" << format
+               << " w=" << width << " h=" << height;
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
     compositor_->SetSurface(

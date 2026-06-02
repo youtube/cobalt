@@ -32,6 +32,8 @@ public class ContentViewRenderView extends FrameLayout {
 
     protected SurfaceBridge mSurfaceBridge;
     protected WebContents mWebContents;
+    private boolean mOverlayVideoModeEnabled = false;
+    private boolean mIsRecreatingSurface = false;
 
     private int mWidth;
     private int mHeight;
@@ -201,10 +203,25 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     /**
+     * Set the Z-order of the surface view. Recreates the SurfaceView if the Z-order changes
+     * to work around Android 10 dynamic Z-order bugs.
+     */
+    public void setUiResourceZOrder(boolean onTop) {
+        // Only apply the Z-order recreation workaround on Android 11 (API 30) and below.
+        // Android 12 (API 31) and above have reliable OS cleanup and do not suffer from the leak,
+        // so we preserve the original smooth, flash-free behavior on newer devices.
+        if (android.os.Build.VERSION.SDK_INT <= 30) {
+            mSurfaceBridge.setZOrderMediaOverlay(this, onTop);
+        }
+    }
+
+    /**
      * Enter or leave overlay video mode.
      * @param enabled Whether overlay mode is enabled.
      */
     public void setOverlayVideoMode(boolean enabled) {
+        android.util.Log.i("CobaltContentView", "setOverlayVideoMode: " + enabled);
+        mOverlayVideoModeEnabled = enabled;
         int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
         getSurfaceView().getHolder().setFormat(format);
         ContentViewRenderViewJni.get().setOverlayVideoMode(
@@ -213,6 +230,15 @@ public class ContentViewRenderView extends FrameLayout {
 
     @CalledByNative
     private void didSwapFrame() {
+        if (mIsRecreatingSurface) {
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    setBackgroundResource(0);
+                    mIsRecreatingSurface = false;
+                }
+            });
+        }
         if (getSurfaceView().getBackground() != null) {
             post(new Runnable() {
                 @Override
@@ -229,6 +255,7 @@ public class ContentViewRenderView extends FrameLayout {
     protected static class SurfaceBridge {
         private SurfaceView mSurfaceView;
         private SurfaceHolder.Callback mSurfaceCallback;
+        private boolean mCurrentZOrder = false;
 
         protected SurfaceView getSurfaceView() {
             return mSurfaceView;
@@ -236,7 +263,10 @@ public class ContentViewRenderView extends FrameLayout {
 
         protected void initialize(ContentViewRenderView renderView) {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
-            mSurfaceView.setZOrderMediaOverlay(true);
+            boolean initialZOrder = android.os.Build.VERSION.SDK_INT >= 31;
+            android.util.Log.i("CobaltContentView", "SurfaceBridge.initialize: setting ZOrderMediaOverlay to " + initialZOrder);
+            mSurfaceView.setZOrderMediaOverlay(initialZOrder);
+            mCurrentZOrder = initialZOrder;
 
             renderView.addView(mSurfaceView,
                     new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
@@ -252,6 +282,40 @@ public class ContentViewRenderView extends FrameLayout {
 
         protected void disconnect() {
             mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
+        }
+
+        protected void setZOrderMediaOverlay(ContentViewRenderView renderView, boolean onTop) {
+            if (mSurfaceView == null) return;
+            if (mCurrentZOrder == onTop) {
+                android.util.Log.i("CobaltContentView", "SurfaceBridge.setZOrderMediaOverlay: already in state " + onTop);
+                return;
+            }
+            android.util.Log.i("CobaltContentView", "SurfaceBridge.setZOrderMediaOverlay: recreating SurfaceView to set ZOrderMediaOverlay to " + onTop);
+
+            renderView.mIsRecreatingSurface = true;
+            renderView.setBackgroundColor(android.graphics.Color.BLACK); // Cover the transition flash
+
+            boolean isVisible = mSurfaceView.getVisibility() == VISIBLE;
+            renderView.removeView(mSurfaceView);
+            if (mSurfaceCallback != null) {
+                mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
+            }
+
+            mSurfaceView = renderView.createSurfaceView(renderView.getContext());
+            mSurfaceView.setZOrderMediaOverlay(onTop);
+            mSurfaceView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            int format = renderView.mOverlayVideoModeEnabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
+            mSurfaceView.getHolder().setFormat(format);
+
+            renderView.addView(mSurfaceView,
+                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+
+            if (mSurfaceCallback != null) {
+                mSurfaceView.getHolder().addCallback(mSurfaceCallback);
+            }
+            mSurfaceView.setVisibility(isVisible ? VISIBLE : GONE);
+            mCurrentZOrder = onTop;
         }
     }
 
