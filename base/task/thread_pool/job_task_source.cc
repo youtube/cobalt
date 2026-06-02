@@ -20,6 +20,9 @@
 #include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "base/trace_event/base_tracing.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 namespace base::internal {
 
@@ -98,6 +101,10 @@ JobTaskSource::JobTaskSource(const Location& from_here,
             CheckedLock::AssertNoLockHeldOnCurrentThread();
             // Each worker task has its own delegate with associated state.
             JobDelegate job_delegate{self, self->delegate_};
+#if BUILDFLAG(IS_COBALT)
+            base::memory::ScopedMemoryContext scoped_context(
+                self->task_metadata_.memory_context);
+#endif
             self->worker_task_.Run(&job_delegate);
           },
           base::Unretained(this))),
@@ -146,6 +153,9 @@ bool JobTaskSource::WillJoin() {
 
 bool JobTaskSource::RunJoinTask() {
   JobDelegate job_delegate{this, nullptr};
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(task_metadata_.memory_context);
+#endif
   worker_task_.Run(&job_delegate);
 
   // It is safe to read |state_| without a lock since this variable is atomic
