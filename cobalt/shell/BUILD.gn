@@ -67,8 +67,6 @@ group("cobalt_shell_lib_deps") {
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
-    "//components/embedder_support",
-    "//components/embedder_support:user_agent",
     "//components/js_injection/browser",
     "//components/keyed_service/content",
     "//components/metrics",
