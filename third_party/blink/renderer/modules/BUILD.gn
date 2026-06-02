@@ -7,7 +7,6 @@ import("//build/config/python.gni")
 import("//media/media_options.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
-import("//third_party/blink/public/public_features.gni")
 import("//third_party/blink/renderer/bindings/bindings.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
@@ -207,7 +206,7 @@ component("modules") {
     sub_modules -= [ "//third_party/blink/renderer/modules/peerconnection" ]
   }
 
-  if (!enable_blink_language_detection) {
+  if (is_cobalt) {
     sub_modules -= [ "//third_party/blink/renderer/modules/ai" ]
   }
 
@@ -696,7 +695,7 @@ source_set("unit_tests") {
     "xr/xr_view_test.cc",
   ]
 
-  if (!enable_blink_language_detection) {
+  if (is_cobalt) {
     sources -= [
       "ai/ai_utils_test.cc",
       "ai/model_execution_responder_test.cc",

@@ -1264,6 +1264,8 @@ component("platform") {
     "keyboard_codes.h",
     "language.cc",
     "language.h",
+    "language_detection/language_detection_model.cc",
+    "language_detection/language_detection_model.h",
     "link_hash.cc",
     "link_hash.h",
     "media/media_player_client.h",
@@ -1791,8 +1793,13 @@ component("platform") {
     "//cc",
     "//cc/ipc",
     "//cc/mojo_embedder",
+    "//components/language_detection/content/common",
+    "//components/language_detection/content/common:common_blink",
+    "//components/language_detection/content/renderer",
+    "//components/language_detection/core",
     "//components/paint_preview/common",
     "//components/search_engines:search_engine_utils",
+    "//components/translate/core/language_detection:language_detection",
     "//components/viz/client",
     "//components/viz/common",
     "//components/webrtc:net_address_utils",
@@ -1965,12 +1972,12 @@ component("platform") {
   configs -= [ "//build/config/compiler:default_symbols" ]
   configs += blink_symbols_config
 
-  if (enable_blink_language_detection) {
-    sources += [
+  if (is_cobalt) {
+    sources -= [
       "language_detection/language_detection_model.cc",
       "language_detection/language_detection_model.h",
     ]
-    deps += [
+    deps -= [
       "//components/language_detection/content/common",
       "//components/language_detection/content/common:common_blink",
       "//components/language_detection/content/renderer",
