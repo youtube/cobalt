@@ -12,7 +12,7 @@ config build = common.build {
     {
       define_artifacts = {
         regex = [
-          '**/*sponge_log.xml',Expand commentComment on line R15
+          '**/*sponge_log.xml',
         ]
       }
     }
