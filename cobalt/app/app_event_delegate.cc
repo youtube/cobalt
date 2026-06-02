@@ -290,6 +290,7 @@ AppEventDelegate::ApplicationState AppEventDelegate::GetNextState(
         NOTREACHED();
     }
   }
+  return current_state;
 }
 
 void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
