@@ -87,12 +87,12 @@ if (!is_android) {
       deps += [ "//third_party/musl:headers" ]
     }
     if (is_starboard) {
-      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+      deps += [ "//ui/ozone/platform/starboard" ]
     }
 
     data_deps = [
       "//cobalt/shell:pak",
-      "//tools/v8_context_snapshot:v8_context_snapshot",
+      "//tools/v8_context_snapshot",
     ]
   }
 
@@ -144,7 +144,7 @@ source_set("common") {
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//cobalt/utility",
-    "//components/memory_system:memory_system",
+    "//components/memory_system",
     "//content/public/app",
     "//gpu/command_buffer/service",
     "//media",
@@ -160,7 +160,7 @@ source_set("common") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    deps += [ "//ui/ozone/platform/starboard" ]
   }
 }
 
@@ -204,6 +204,7 @@ test("cobalt_unittests") {
       "//cobalt/app/app_event_delegate_unittest.cc",
       "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
+      "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
@@ -257,7 +258,7 @@ test("cobalt_unittests") {
     "//content/public/common:switches",
     "//content/test:test_support",
     "//gpu/config",
-    "//sandbox/policy:policy",
+    "//sandbox/policy",
     "//ui/events/devices",
   ]
 

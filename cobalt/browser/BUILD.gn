@@ -41,6 +41,8 @@ source_set("browser") {
 
   public_deps = [
     "//cobalt/browser/h5vcc_metrics",
+    "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/lifecycle",
     "//content/public/browser",
   ]
 
@@ -77,7 +79,7 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
-    "//components/variations/service:service",
+    "//components/variations/service",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]

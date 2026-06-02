@@ -20,11 +20,13 @@ namespace {}  // namespace
 void SbEventHandle(const SbEvent* event) {
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
-  static cobalt::AppEventDelegate* s_lifecycle_delegate = nullptr;
-  if (!s_lifecycle_delegate) {
-    s_lifecycle_delegate = new cobalt::AppEventDelegate();
+  static cobalt::AppEventDelegate* s_lifecycle_delegate =
+      new cobalt::AppEventDelegate();
+
+  if (s_lifecycle_delegate) {
+    s_lifecycle_delegate->HandleEvent(event);
   }
-  s_lifecycle_delegate->HandleEvent(event);
+
   if (event->type == kSbEventTypeStop) {
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;

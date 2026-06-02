@@ -53,6 +53,9 @@
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_absolute_controller.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_controller.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_inspector_agent.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"
+#endif
 #include "third_party/blink/renderer/modules/document_metadata/document_metadata_server.h"
 #include "third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/html_media_element_encrypted_media.h"
@@ -231,6 +234,10 @@ void ModulesInitializer::Initialize() {
 
 void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
   if (frame.IsMainFrame()) {
+#if BUILDFLAG(IS_COBALT)
+    frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
+        &CobaltLifecycleController::BindReceiver, WrapWeakPersistent(&frame)));
+#endif
     frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
         &DocumentMetadataServer::BindReceiver, WrapWeakPersistent(&frame)));
   }

@@ -15,7 +15,11 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
+#include <map>
+
+#include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace cobalt {
 
@@ -33,6 +37,11 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       delete;
 
   ~CobaltWebContentsObserver() override;
+
+ private:
+  std::map<content::RenderFrameHost*,
+           mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
+      controllers_;
 };
 
 }  // namespace cobalt

@@ -452,6 +452,32 @@ bool HangWatcher::IsEnabled() {
   return g_use_hang_watcher.load(std::memory_order_relaxed);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// static
+void HangWatcher::Suspend() {
+  // suspends hang watching when the application is frozen.
+  g_use_hang_watcher.store(false, std::memory_order_relaxed);
+}
+
+// static
+void HangWatcher::Resume() {
+  if (g_instance) {
+    // resumes hang watching when the application is unfrozen, explicitly
+    // ignoring pre-freeze deadlines to prevent false hang reports.
+    base::AutoLock auto_lock(g_instance->watch_state_lock_);
+    base::TimeTicks latest_deadline;
+    for (const auto& state : g_instance->watch_states_) {
+      base::TimeTicks deadline = state->GetDeadline();
+      if (deadline > latest_deadline) {
+        latest_deadline = deadline;
+      }
+    }
+    g_instance->deadline_ignore_threshold_ = latest_deadline;
+  }
+  g_use_hang_watcher.store(true, std::memory_order_relaxed);
+}
+#endif
+
 // static
 bool HangWatcher::IsThreadPoolHangWatchingEnabled() {
   return g_threadpool_log_level.load(std::memory_order_relaxed) !=
@@ -914,6 +940,14 @@ HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
 
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+#if BUILDFLAG(IS_COBALT)
+  // suspends monitoring when the application is frozen.
+  if (!IsEnabled()) {
+    return;
+  }
+#endif
+
   AutoLock auto_lock(watch_state_lock_);
 
   // If all threads unregistered since this function was invoked there's
