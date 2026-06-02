@@ -448,10 +448,8 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
                                  shell_data.content_size);
     }
 
-    SkColor bg_color = shell_data.window_widget->GetColorProvider()->GetColor(
-        ui::kColorWindowBackground);
     views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
-        shell->web_contents(), bg_color);
+        shell->web_contents(), SK_ColorTRANSPARENT);
   }
 }
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
