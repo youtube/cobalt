@@ -139,6 +139,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLogRaw);
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);
+  REGISTER_SYMBOL(SbMediaCanChangeType);
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
