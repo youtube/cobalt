@@ -64,7 +64,7 @@ StarboardRendererClient::StarboardRendererClient(
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
-  LOG(INFO) << "StarboardRendererClient constructed.";
+  LOG(INFO) << "StarboardRendererClient constructed. 11 22";
 }
 
 StarboardRendererClient::~StarboardRendererClient() {
