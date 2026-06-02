@@ -44,6 +44,8 @@ extern "C" {
 #define MUSL_SCHED_OTHER 0
 #define MUSL_SCHED_FIFO 1
 #define MUSL_SCHED_RR 2
+#define MUSL_SCHED_BATCH 3
+#define MUSL_SCHED_IDLE 5
 
 // Max size of the native mutex type.
 #define MUSL_MUTEX_MAX_SIZE 80

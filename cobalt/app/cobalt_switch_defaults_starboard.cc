@@ -116,6 +116,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
+      // Disable decommitting pooled pages to prevent virtual memory
+      // fragmentation.
+      {blink::switches::kJavaScriptFlags, "--no-decommit-pooled-pages"},
   };
   return kCobaltSwitchDefaults;
 }

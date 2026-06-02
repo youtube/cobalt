@@ -50,8 +50,6 @@ std::ostream& operator<<(
             << ToString(features.disable_low_performance_sw_decoder)
             << ", enable_av1_startup_optimization="
             << ToString(features.enable_av1_startup_optimization)
-            << ", enable_codec_output_checker="
-            << ToString(features.enable_codec_output_checker)
             << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
@@ -62,10 +60,14 @@ std::ostream& operator<<(
             << ToString(features.flush_audio_track_during_seek)
             << ", force_decode_to_texture="
             << ToString(features.force_decode_to_texture)
+            << ", ignore_mediacodec_callbacks_during_flushing="
+            << ToString(features.ignore_mediacodec_callbacks_during_flushing)
             << ", skip_flush_on_decoder_teardown="
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", skip_video_frames_over_60_fps="
             << ToString(features.skip_video_frames_over_60_fps)
+            << ", enable_trivial_optimizations="
+            << ToString(features.enable_trivial_optimizations)
             << ", use_dual_threads_for_video="
             << ToString(features.use_dual_threads_for_video)
             << ", max_samples_per_write="

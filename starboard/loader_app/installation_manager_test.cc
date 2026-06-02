@@ -25,7 +25,6 @@
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -67,8 +66,8 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     ASSERT_GT(IM_MAX_INSTALLATION_STORE_SIZE, installation_store.ByteSize());
     installation_store.SerializeToArray(buf, installation_store.ByteSize());
 
-    ASSERT_TRUE(SbFileAtomicReplace(installation_store_path_.c_str(), buf,
-                                    installation_store.ByteSize()));
+    ASSERT_TRUE(starboard::FileAtomicReplace(
+        installation_store_path_.c_str(), buf, installation_store.ByteSize()));
   }
 
   void ReadStorageState(cobalt::loader::InstallationStore* installation_store) {

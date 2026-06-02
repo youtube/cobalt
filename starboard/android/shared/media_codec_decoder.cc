@@ -25,7 +25,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
-#include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -81,7 +80,7 @@ class MediaCodecDecoder::DecoderThread : public Thread {
  public:
   DecoderThread(std::string_view name,
                 std::function<void()> runnable,
-                std::optional<SbThreadPriority> priority = std::nullopt)
+                std::optional<ThreadPriority> priority = std::nullopt)
       : Thread(name,
                priority ? ThreadOptions().SetPriority(priority.value())
                         : ThreadOptions()),
@@ -132,8 +131,8 @@ MediaCodecDecoder::CreateForVideo(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool enable_output_checker,
-    bool skip_video_frames_over_60_fps) {
+    bool skip_video_frames_over_60_fps,
+    bool ignore_mediacodec_callbacks_during_flushing) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -142,7 +141,8 @@ MediaCodecDecoder::CreateForVideo(
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       enable_frame_renderer_listener, force_big_endian_hdr_metadata,
       max_video_input_size, flush_delay_usec, use_dual_threads,
-      enable_output_checker, skip_video_frames_over_60_fps, &error_message);
+      skip_video_frames_over_60_fps,
+      ignore_mediacodec_callbacks_during_flushing, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -206,8 +206,8 @@ MediaCodecDecoder::MediaCodecDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
-    bool enable_output_checker,
     bool skip_video_frames_over_60_fps,
+    bool ignore_mediacodec_callbacks_during_flushing,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -235,7 +235,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       enable_frame_renderer_listener, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size,
-      enable_output_checker, skip_video_frames_over_60_fps);
+      skip_video_frames_over_60_fps,
+      ignore_mediacodec_callbacks_during_flushing);
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
@@ -305,14 +306,14 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
           "VidDecIn", [this] { InputThreadFunc(); });
       video_input_thread_->Start();
       video_output_thread_ = std::make_unique<DecoderThread>(
-          "VidDecOut", [this] { OutputThreadFunc(); }, kSbThreadPriorityHigh);
+          "VidDecOut", [this] { OutputThreadFunc(); }, ThreadPriority::kHigh);
       video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
     decoder_thread_ = std::make_unique<DecoderThread>(
         GetDecoderName(media_type_), [this] { DecoderThreadFunc(); },
-        media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
-                                         : kSbThreadPriorityHigh);
+        media_type_ == kSbMediaTypeAudio ? ThreadPriority::kNormal
+                                         : ThreadPriority::kHigh);
     decoder_thread_->Start();
   }
 
@@ -929,7 +930,8 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
+    setpriority(PRIO_PROCESS, 0,
+                ThreadPriorityToNiceValue(ThreadPriority::kHigh));
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);
