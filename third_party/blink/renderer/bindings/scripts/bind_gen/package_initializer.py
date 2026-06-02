@@ -61,8 +61,7 @@ class PackageInitializer(object):
 
     def __init__(self, web_idl_database_path, root_src_dir, root_gen_dir,
                  component_reldirs, enable_style_format,
-                 enable_code_generation_tracing,
-                 union_name_config_path=None):
+                 enable_code_generation_tracing):
         """
         Args:
             web_idl_database_path: File path to the web_idl.Database.
@@ -76,7 +75,6 @@ class PackageInitializer(object):
             enable_code_generation_tracing: Enable tracing of code generation
                 to see which Python code generates which line of generated
                 code.
-            union_name_config_path: Optional file path to union_name_map.conf.
         """
 
         self._web_idl_database_path = web_idl_database_path
@@ -85,7 +83,6 @@ class PackageInitializer(object):
         self._component_reldirs = component_reldirs
         self._enable_style_format = enable_style_format
         self._enable_code_generation_tracing = enable_code_generation_tracing
-        self._union_name_config_path = union_name_config_path
 
     def init(self):
         if PackageInitializer._the_instance:
@@ -101,12 +98,9 @@ class PackageInitializer(object):
         PackageInitializer._the_web_idl_database = (
             web_idl.Database.read_from_file(self._web_idl_database_path))
 
-        if self._union_name_config_path:
-            union_name_config = self._union_name_config_path
-        else:
-            union_name_config = os.path.abspath(
-                os.path.join(self._root_src_dir, "third_party", "blink",
-                             "renderer", "bindings", "union_name_map.conf"))
+        union_name_config = os.path.abspath(
+            os.path.join(self._root_src_dir, "third_party", "blink",
+                         "renderer", "bindings", "union_name_map.conf"))
         union_name_mapper = UnionNameMapper.init(
             union_name_config, PackageInitializer._the_web_idl_database)
         PathManager.init(root_src_dir=self._root_src_dir,

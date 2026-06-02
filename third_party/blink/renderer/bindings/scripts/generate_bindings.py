@@ -69,9 +69,6 @@ def parse_options(valid_tasks):
         default=False,
         help=('run everything in a single process, which makes debugging '
               'easier'))
-    parser.add_argument('--union_name_config',
-                        type=str,
-                        help='filepath of the union_name_map.conf')
     parser.add_argument('tasks',
                         nargs='+',
                         choices=valid_tasks,
@@ -111,8 +108,7 @@ def main():
         root_gen_dir=options.root_gen_dir,
         component_reldirs=component_reldirs,
         enable_style_format=options.format_generated_files,
-        enable_code_generation_tracing=options.enable_code_generation_tracing,
-        union_name_config_path=options.union_name_config)
+        enable_code_generation_tracing=options.enable_code_generation_tracing)
 
     task_queue = bind_gen.TaskQueue(single_process=options.single_process)
 
