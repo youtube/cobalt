@@ -91,31 +91,62 @@ class AppEventDelegate {
   // Receives a Starboard event and handles it.
   void HandleEvent(const SbEvent* event);
 
+  void DoTeardown();
+
   bool IsRunning() const;
   bool IsVisible() const;
   bool IsFocused() const;
   bool IsFrozen() const;
 
   ApplicationState GetState() const;
+  bool is_transitioning() const {
+    base::AutoLock lock(lock_);
+    return is_transitioning_;
+  }
+  PendingAck pending_ack() const;
 
  private:
   static const char* GetStateString(ApplicationState state);
+  static void TeardownCallback(void* data);
 
   void HandleEventLocked(const SbEvent* event);
-  void TransitionToLifeCycleState(ApplicationState state);
+
+  // Starts a transition of the application state from its current state to the
+  // target |state| by traversing all intermediate states in strict linear
+  // order. If this is a deactivating transition (e.g. Conceal or Freeze), it
+  // synchronously blocks the calling OS (Starboard) thread using a nested
+  // base::RunLoop until the target state is reached or a safety timeout occurs.
+  // Activating transitions are executed asynchronously.
+  void TransitionToLifeCycleState(ApplicationState state)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Wrapper that sets |application_state_| with the side effect of recording
   // this new state as a crash annotation.
   // TODO: b/486236529 - Consider enforcing that |application_state_| can only
   // be modified from within this method. This would prevent developers from
   // inadvertently updating the member variable but not the crash annotation.
+  //
+  // SetApplicationState must only be called on the UI thread.
   void SetApplicationState(ApplicationState state);
   void SetApplicationStateAnnotation(ApplicationState state);
 
-  // Helper that executes a single lifecycle step on the UI thread and then
-  // schedules the next step if the target state has not yet been reached.
-  void ExecuteNextStepOnUIThread();
-  void ExecuteNextStepOnUIThreadLocked(bool schedule_next_step);
+  // Central state-coordination method. Analyzes the current state and target
+  // state to determine the next single linear step, and schedules/executes it.
+  // It also signals the deactivation wait run loop to wake up when the
+  // transition reaches its target state.
+  void ExecuteNextStepLocked();
+
+  // Executes the actual side effects of a single linear transition step (such
+  // as calling runner callbacks and routing frame visibility/focus) on the UI
+  // thread. If required by the step (e.g., concealing or unfreezing), it
+  // initiates Mojo ACK tracking with the renderers and sets up pending ACK
+  // expectations.
+  void ExecuteStepOnUIThread(ApplicationState next_state, bool is_activating);
+
+  // Helpers to reduce duplication.
+  ApplicationState GetNextState(ApplicationState current_state,
+                                bool is_activating) const;
+  void ExecuteEventRunner(ApplicationState next_state, bool is_activating);
 
   bool IsRunningLocked() const;
   bool IsVisibleLocked() const;
@@ -131,8 +162,7 @@ class AppEventDelegate {
   ApplicationState application_state_ = ApplicationState::kInitial;
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
-
-  base::OnceClosure transition_quit_closure_;
+  base::OnceClosure quit_closure_;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.
