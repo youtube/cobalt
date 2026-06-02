@@ -74,68 +74,53 @@ runs:
         done
       shell: bash
     - name: Archive Host Tests
-      if: inputs.upload_on_host_test_artifacts == 'true'
+      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_gtest_targets != ''
       env:
-        TARGETS: ${{ steps.parse-targets.outputs.host_gtest_targets }}
+        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_gtest_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-        if [[ -z "${TARGETS}" ]]; then
-          echo "No host GUnit targets to archive. Skipping."
-          exit 0
-        fi
-
         time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --targets "${TARGETS}" \
+          --targets "${HOST_TARGETS}" \
           ${ARCHIVE_FLAGS}
       shell: bash
 
     - name: Archive Device Tests
-      if: inputs.upload_on_device_test_artifacts == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true' && steps.parse-targets.outputs.device_gtest_targets != ''
       env:
-        TARGETS: ${{ steps.parse-targets.outputs.device_gtest_targets }}
+        DEVICE_TARGETS: ${{ steps.parse-targets.outputs.device_gtest_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-        if [[ -z "${TARGETS}" ]]; then
-          echo "No device GUnit targets to archive. Skipping."
-          exit 0
-        fi
-
         time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --targets "${TARGETS}" \
+          --targets "${DEVICE_TARGETS}" \
           ${ARCHIVE_FLAGS}
       shell: bash
 
     - name: Archive Browser/Web Tests
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
+      if: (inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true') && steps.parse-targets.outputs.browser_web_targets != ''
       env:
-        TARGETS: ${{ steps.parse-targets.outputs.browser_web_targets }}
+        BROWSER_WEB_TEST_TARGETS: ${{ steps.parse-targets.outputs.browser_web_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-        if [[ -z "${TARGETS}" ]]; then
-          echo "No browser/web targets to archive. Skipping."
-          exit 0
-        fi
-
         time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --targets "${TARGETS}" \
+          --targets "${BROWSER_WEB_TEST_TARGETS}" \
           ${ARCHIVE_FLAGS}
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
