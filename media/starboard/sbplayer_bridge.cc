@@ -24,6 +24,8 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
+#include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/starboard/buildflags.h"
@@ -55,6 +57,8 @@ using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
 
+constexpr size_t kDeallocationBatchThreshold = 16;
+
 // Reason for existence: Guarantees automatic clearing of an underlying vector
 // upon exiting a scoped execution block, preventing stale or dangling pointers.
 //
@@ -75,6 +79,40 @@ class ScopedVectorClearer {
  private:
   std::vector<T>& vec_;
 };
+
+bool TryRemoveBufferAt(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
+                       uint64_t* cached_bytes_decoded,
+                       DecoderBuffer::Allocator::Handle handle,
+                       size_t index) {
+  if (buffer_queue->size() <= index ||
+      (*buffer_queue)[index].handle != handle) {
+    return false;
+  }
+  *cached_bytes_decoded += (*buffer_queue)[index].buffer->size();
+  if (index == 0) {
+    buffer_queue->pop_front();
+  } else {
+    buffer_queue->erase(buffer_queue->begin() + index);
+  }
+  return true;
+}
+
+bool TryRemoveBufferScan(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
+                         uint64_t* cached_bytes_decoded,
+                         DecoderBuffer::Allocator::Handle handle,
+                         size_t start_index) {
+  if (buffer_queue->size() <= start_index) {
+    return false;
+  }
+  for (size_t i = start_index; i < buffer_queue->size(); ++i) {
+    if ((*buffer_queue)[i].handle == handle) {
+      *cached_bytes_decoded += (*buffer_queue)[i].buffer->size();
+      buffer_queue->erase(buffer_queue->begin() + i);
+      return true;
+    }
+  }
+  return false;
+}
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 class StatisticsWrapper {
@@ -153,7 +191,8 @@ SbPlayerBridge::SbPlayerBridge(
           on_encrypted_media_init_data_encountered_cb),
       cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
-      is_url_based_(true) {
+      is_url_based_(true),
+      enable_batched_buffer_deallocation_(false) {
   DCHECK(host_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
@@ -218,7 +257,9 @@ SbPlayerBridge::SbPlayerBridge(
       is_url_based_(false),
 #endif  // SB_HAS(PLAYER_WITH_URL
       max_video_capabilities_(max_video_capabilities),
-      experimental_features_(experimental_features)
+      experimental_features_(experimental_features),
+      enable_batched_buffer_deallocation_(
+          experimental_features_.enable_trivial_optimizations.value_or(false))
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -226,6 +267,17 @@ SbPlayerBridge::SbPlayerBridge(
 {
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
+
+  if (enable_batched_buffer_deallocation_) {
+    audio_decoding_buffers_.reserve(64);
+    video_decoding_buffers_.reserve(256);
+    pending_deallocations_.reserve(kDeallocationBatchThreshold);
+    processing_deallocations_.reserve(kDeallocationBatchThreshold);
+    process_pending_deallocations_cb_ = base::BindPostTask(
+        task_runner_,
+        base::BindRepeating(&SbPlayerBridge::ProcessPendingBatchedDeallocations,
+                            weak_factory_.GetWeakPtr()));
+  }
 
   audio_stream_info_.codec = kSbMediaAudioCodecNone;
   video_stream_info_.codec = kSbMediaVideoCodecNone;
@@ -899,10 +951,18 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->handle(), buffer, /*usage_count=*/1, sample_type);
-        !inserted) {
-      ++iter->second.usage_count;
+    if (enable_batched_buffer_deallocation_) {
+      if (sample_type == kSbMediaTypeAudio) {
+        audio_decoding_buffers_.push_back({buffer->handle(), buffer});
+      } else {
+        video_decoding_buffers_.push_back({buffer->handle(), buffer});
+      }
+    } else {
+      if (auto [iter, inserted] = decoding_buffers_.try_emplace(
+              buffer->handle(), buffer, /*usage_count=*/1, sample_type);
+          !inserted) {
+        ++iter->second.usage_count;
+      }
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1150,6 +1210,25 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
     LogStartupLatency();
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
+
+  if (enable_batched_buffer_deallocation_ &&
+      (state == kSbPlayerStatePrerolling ||
+       state == kSbPlayerStateEndOfStream)) {
+    {
+      base::AutoLock auto_lock(pending_deallocations_lock_);
+      if (state == kSbPlayerStatePrerolling) {
+        // Re-enable batch deallocations for subsequent playback after previous
+        // completion (e.g., reaching EOS).
+        batch_deallocations_enabled_ = true;
+      } else {
+        // Immediate flush is necessary upon reaching EndOfStream to ensure the
+        // accuracy of decoded byte statistics.
+        batch_deallocations_enabled_ = false;
+      }
+    }
+    ProcessPendingBatchedDeallocations();
+  }
+
   host_->OnPlayerStatus(state);
 }
 
@@ -1169,6 +1248,38 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (enable_batched_buffer_deallocation_) {
+    auto handle =
+        reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer);
+
+    // Check index 0 and 1 of audio and video queues first (empirical profile
+    // confirms index 0 covers ~96% and index 1 covers ~4%, so both cover ~100%
+    // of the cases).
+    if (TryRemoveBufferAt(&audio_decoding_buffers_,
+                          &cached_audio_bytes_decoded_, handle, 0) ||
+        TryRemoveBufferAt(&video_decoding_buffers_,
+                          &cached_video_bytes_decoded_, handle, 0) ||
+        TryRemoveBufferAt(&audio_decoding_buffers_,
+                          &cached_audio_bytes_decoded_, handle, 1) ||
+        TryRemoveBufferAt(&video_decoding_buffers_,
+                          &cached_video_bytes_decoded_, handle, 1)) {
+      return;
+    }
+
+    // Fallback scan for extreme exceptions (index >= 2)
+    if (TryRemoveBufferScan(&audio_decoding_buffers_,
+                            &cached_audio_bytes_decoded_, handle, 2) ||
+        TryRemoveBufferScan(&video_decoding_buffers_,
+                            &cached_video_bytes_decoded_, handle, 2)) {
+      return;
+    }
+
+    LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
+               << "sample_buffer " << sample_buffer;
+    NOTREACHED();
+    return;
+  }
 
   DecodingBuffers::iterator iter = decoding_buffers_.find(
       reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
@@ -1286,11 +1397,59 @@ void SbPlayerBridge::OnDeallocateSampleTask(const void* sample_buffer) {
   OnDeallocateSample(sample_buffer);
 }
 
+void SbPlayerBridge::ProcessPendingBatchedDeallocations() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(enable_batched_buffer_deallocation_);
+  DCHECK(processing_deallocations_.empty());
+
+  {
+    base::AutoLock auto_lock(pending_deallocations_lock_);
+    if (pending_deallocations_.empty()) {
+      deallocation_task_pending_ = false;
+      return;
+    }
+    processing_deallocations_.swap(pending_deallocations_);
+    deallocation_task_pending_ = false;
+  }
+
+  for (const void* sample_buffer : processing_deallocations_) {
+    OnDeallocateSample(sample_buffer);
+  }
+  processing_deallocations_.clear();
+}
+
+void SbPlayerBridge::EnqueueSampleForBatchedDeallocation(
+    const void* sample_buffer) {
+  DCHECK(enable_batched_buffer_deallocation_);
+
+  // TODO(b/514758473): Experiment whether we should free the buffer
+  // immediately in this function instead of posting a task.
+  {
+    base::AutoLock auto_lock(pending_deallocations_lock_);
+    pending_deallocations_.push_back(sample_buffer);
+    if (deallocation_task_pending_) {
+      return;
+    }
+    if (batch_deallocations_enabled_ &&
+        pending_deallocations_.size() < kDeallocationBatchThreshold) {
+      return;
+    }
+    deallocation_task_pending_ = true;
+  }
+  process_pending_deallocations_cb_.Run();
+}
+
 // static
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
   SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+
+  if (sbplayer_bridge->enable_batched_buffer_deallocation_) {
+    sbplayer_bridge->EnqueueSampleForBatchedDeallocation(sample_buffer);
+    return;
+  }
+
   sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(
