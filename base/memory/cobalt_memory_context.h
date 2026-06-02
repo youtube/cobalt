@@ -44,6 +44,16 @@ enum class MemoryContext : uint8_t {
 BASE_EXPORT MemoryContext GetCurrentMemoryContext();
 BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 
+// Scoped helper class to temporarily set the current thread's MemoryContext.
+// The previous context is restored when this object goes out of scope.
+//
+// Lifetime and Ownership:
+// Typically allocated on the stack as a local variable. It should not outlive
+// the scope in which it is defined.
+//
+// Threading Model:
+// Thread-affine. This class only affects the thread on which it is constructed
+// and destroyed.
 class BASE_EXPORT ScopedMemoryContext {
  public:
   explicit ScopedMemoryContext(MemoryContext context);
