@@ -32,10 +32,6 @@ const char kSbFileSepChar = '/';
 // The string form of SB_FILE_SEP_CHAR.
 const char* kSbFileSepString = "/";
 
-// On default Linux desktop, you must be a superuser in order to set real time
-// scheduling on threads.
-const bool kSbHasThreadPrioritySupport = false;
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
@@ -61,6 +57,3 @@ const uint32_t kSbMaxThreads = 90;
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
 SB_EXPORT extern const bool kSbCanMapExecutableMemory = true;
-
-// Platform can support partial audio frames
-SB_EXPORT extern const bool kHasPartialAudioFramesSupport = true;

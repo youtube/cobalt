@@ -77,6 +77,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/decode_target_get_info.cc",
+    "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/storage_write_record.cc",
     "//starboard/shared/stub/system_symbolize.cc",
     "accessibility_extension.cc",
@@ -149,7 +150,6 @@ static_library("starboard_platform") {
     "system_get_path.mm",
     "system_get_property.mm",
     "system_request_conceal.mm",
-    "thread_get_id.cc",
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
   ]

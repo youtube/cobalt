@@ -43,9 +43,12 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-using namespace third_party::starboard::rdk::shared;
-
 namespace {
+using ::starboard::AdvertisingId;
+using ::starboard::AuthService;
+using ::starboard::DeviceIdentification;
+using ::starboard::DeviceInfo;
+using ::starboard::SystemProperties;
 
 const char kPlatformName[] = "Linux";
 
@@ -212,7 +215,7 @@ bool GetCertificationScope(char* out_value, int value_length) {
   if ( cert_scope_file_name == nullptr )
     cert_scope_file_name = "/opt/drm/0681000006810001.bin";
 
-  ::starboard::ScopedFile file(cert_scope_file_name, O_RDONLY);
+  starboard::ScopedFile file(cert_scope_file_name, O_RDONLY);
   if ( !file.IsValid() ) {
     SB_LOG(INFO) << "Cannot open cert scope file '" << cert_scope_file_name << "'";
     return false;

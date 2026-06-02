@@ -284,5 +284,14 @@ cobalt_hardware_exclude_patterns = [
   "*v8_usb.*",
   "*v8_usb_*",
   "*v8_watch_advertisements_options*",
-  "*v8_ml*",
+]
+
+cobalt_webnn_exclude_patterns = [
+  "*v8_ml.*",
+  "*v8_ml_*",
+]
+
+cobalt_webxr_exclude_patterns = [
+  "*v8_xr.*",
+  "*v8_xr_*",
 ]

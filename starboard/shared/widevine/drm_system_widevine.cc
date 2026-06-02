@@ -14,6 +14,8 @@
 
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <mutex>
 #include <string>
@@ -218,7 +220,7 @@ DrmSystemWidevine::DrmSystemWidevine(
           session_key_statuses_changed_callback),
       server_certificate_updated_callback_(server_certificate_updated_callback),
       session_closed_callback_(session_closed_callback),
-      ticket_thread_id_(SbThreadGetId()) {
+      ticket_thread_id_(gettid()) {
   SB_DCHECK(!company_name.empty());
   SB_DCHECK(!model_name.empty());
 
@@ -682,7 +684,7 @@ void DrmSystemWidevine::onDirectIndividualizationRequest(
 
 void DrmSystemWidevine::SetTicket(const std::string& sb_drm_session_id,
                                   int ticket) {
-  SB_DCHECK_EQ(SbThreadGetId(), ticket_thread_id_)
+  SB_DCHECK_EQ(gettid(), ticket_thread_id_)
       << "Ticket should only be set from the constructor thread.";
   sb_drm_session_id_to_ticket_map_[sb_drm_session_id] = ticket;
 }
@@ -690,7 +692,7 @@ void DrmSystemWidevine::SetTicket(const std::string& sb_drm_session_id,
 int DrmSystemWidevine::GetAndResetTicket(const std::string& sb_drm_session_id) {
   // Returning no ticket is a valid way to indicate that a host's method was
   // called spontaneously by CDM, potentially from the timer thread.
-  if (SbThreadGetId() != ticket_thread_id_) {
+  if (gettid() != ticket_thread_id_) {
     return kSbDrmTicketInvalid;
   }
   auto iter = sb_drm_session_id_to_ticket_map_.find(sb_drm_session_id);

@@ -38,6 +38,15 @@ blink_modules_sources("v8") {
     sources = []
     sources = _rtc_filtered
   }
+
+  if (is_cobalt) {
+    _filtered_cobalt_sources = filter_exclude(
+        sources,
+        cobalt_webnn_exclude_patterns + cobalt_webxr_exclude_patterns)
+    sources = []
+    sources = _filtered_cobalt_sources
+  }
+
   deps = [
     ":generated",
     "//third_party/blink/renderer/platform",
