@@ -4,6 +4,8 @@
 #ifndef SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 #define SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
+
 #include <vector>
 
 #include "base/component_export.h"
@@ -24,9 +26,9 @@ FORWARD_DECLARE_TEST(ProfilingJsonExporterTest, MemoryMaps);
 }
 
 namespace memory_instrumentation {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 class DetailedMetricsDelegate;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // This class provides synchronous access to memory metrics for a process with a
 // given |pid|. These interfaces have platform-specific restrictions:
 //  * On Android, due to sandboxing restrictions, processes can only access
@@ -55,7 +57,7 @@ class COMPONENT_EXPORT(
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
                                mojom::RawOSMemDump* dump);
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
                                mojom::RawOSMemDump* dump,
@@ -75,7 +77,7 @@ class COMPONENT_EXPORT(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static void SetProcSmapsForTesting(FILE*);
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
   static void SetSmapsRollupForTesting(FILE*);
   static base::File GetSmapsFileForScanning();
@@ -86,7 +88,7 @@ class COMPONENT_EXPORT(
         // BUILDFLAG(IS_ANDROID)
 
  private:
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static bool FillDetailedMetrics(base::ProcessHandle handle,
                                   const MemDumpFlagSet& flags,
                                   mojom::RawOSMemDump* dump,

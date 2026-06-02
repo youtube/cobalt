@@ -249,8 +249,8 @@ test("cobalt_browsertests") {
     sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
-  if (!is_ios) {
-    # This currently tests Linux-specific information and operations.
+  if (is_linux || is_android) {
+    # This currently tests Linux/Android-specific information and operations.
     sources += [ "granular_memory_browsertest.cc" ]
   }
 
