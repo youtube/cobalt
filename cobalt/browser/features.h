@@ -48,6 +48,9 @@ extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
 // Sets memory metrics collection interval in seconds (default 5 min).
 extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
 
+// Enables Cobalt Memory Attribution Manager.
+extern const base::Feature kCobaltMemoryAttributionManager;
+
 }  // namespace features
 }  // namespace cobalt
 
