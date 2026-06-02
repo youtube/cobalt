@@ -1103,6 +1103,16 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
       return OSMetrics::MappedAndResidentPagesDumpState::kAccessPagemapDenied;
     }
   }
+#if BUILDFLAG(IS_COBALT)
+  // Disable stdio buffering for the pagemap file.
+  // In musl libc, buffered reads (like fread) are optimized using readv, which
+  // splits the read such that the first segment has size N-1. For special files
+  // like /proc/self/pagemap, the Linux kernel strictly enforces that all reads
+  // must be in multiples of 8 bytes. An unaligned read size (like N-1) will
+  // fail with EINVAL. Making the stream unbuffered forces musl to perform
+  // direct, aligned reads, avoiding this issue.
+  setvbuf(pagemap_file.get(), NULL, _IONBF, 0);
+#endif  // BUILDFLAG(IS_COBALT)
 
   const size_t kPageSize = base::GetPageSize();
   const size_t start_page = start_address / kPageSize;
@@ -1113,17 +1123,35 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
   // The pagemap has one 64 bit entry per page or 8 bytes.
   auto offset = static_cast<long>(start_page * 8);
   if (fseek(pagemap_file.get(), offset, SEEK_SET) != 0) {
+#if BUILDFLAG(IS_COBALT)
+    PLOG(ERROR) << "Error in fseek " << kPagemap << " to offset " << offset;
+#else
     DLOG(ERROR) << "Error in fseek " << kPagemap;
+#endif  // BUILDFLAG(IS_COBALT)
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 
   // |entries| will be 2kB/MB (if |kPageSize| = 4096),
   // that would only be ~80kB on Android, and up to 200kB on Linux (for 100MB)
   std::vector<uint64_t> entries(total_pages);
+#if BUILDFLAG(IS_COBALT)
+  size_t read_bytes = fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get());
+  if (read_bytes != total_pages) {
+    PLOG(ERROR) << "Error in fread " << kPagemap << ", read " << read_bytes << " of " << total_pages << " entries";
+    if (ferror(pagemap_file.get())) {
+      LOG(ERROR) << "pagemap_file has error indicator set";
+    }
+    if (feof(pagemap_file.get())) {
+      LOG(ERROR) << "pagemap_file has EOF indicator set";
+    }
+    return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
+  }
+#else
   if (fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()) !=
       total_pages) {
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
+#endif  // BUILDFLAG(IS_COBALT)
 
   accessed_pages_bitmap->resize(1 + (total_pages - 1) / 8);
   for (size_t page = 0; page < total_pages; page++) {

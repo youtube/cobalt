@@ -45,7 +45,7 @@ class JobThread {
   static std::unique_ptr<JobThread> Create(
       std::string_view thread_name,
       const ThreadOptions& options =
-          ThreadOptions().SetPriority(kSbThreadPriorityNormal));
+          ThreadOptions().SetPriority(ThreadPriority::kNormal));
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
