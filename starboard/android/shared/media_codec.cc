@@ -48,13 +48,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
-    bool enable_frame_renderer_listener,
-    bool require_secured_decoder,
-    bool require_software_codec,
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    bool skip_video_frames_over_60_fps) {
+    const MediaCodec::VideoPlatformOptions& platform_options) {
   if (max_frame_size) {
     SB_CHECK_GT(max_frame_size->width, 0);
     SB_CHECK_GT(max_frame_size->height, 0);
@@ -66,21 +60,21 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
                    GetMediaVideoCodecName(video_codec));
   }
 
-  const bool must_support_secure = require_secured_decoder;
+  const bool must_support_secure = platform_options.require_secured_decoder;
   const bool must_support_hdr = color_metadata;
   const bool must_support_tunnel_mode =
-      tunnel_mode_audio_session_id.has_value();
+      platform_options.tunnel_mode_audio_session_id.has_value();
 
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-          mime, must_support_secure, must_support_hdr, require_software_codec,
-          must_support_tunnel_mode);
+          mime, must_support_secure, must_support_hdr,
+          platform_options.require_software_codec, must_support_tunnel_mode);
   if (decoder_name.empty() && color_metadata) {
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
         mime, must_support_secure, /*must_support_hdr=*/false,
-        require_software_codec, must_support_tunnel_mode);
+        platform_options.require_software_codec, must_support_tunnel_mode);
   }
-  if (decoder_name.empty() && require_software_codec) {
+  if (decoder_name.empty() && platform_options.require_software_codec) {
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
         mime, must_support_secure, /*must_support_hdr=*/false,
         /*require_software_codec=*/false, must_support_tunnel_mode);
@@ -95,11 +89,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   // We only use Java MediaCodec (JNI) for now.
   auto jni_result = MediaCodecBridge::CreateVideoMediaCodec(
       video_codec, decoder_name, mime, frame_size_hint, fps, max_frame_size,
-      handler, j_surface, j_media_crypto, color_metadata,
-      enable_frame_renderer_listener, require_secured_decoder,
-      require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size,
-      skip_video_frames_over_60_fps);
+      handler, j_surface, j_media_crypto, color_metadata, platform_options);
   if (jni_result) {
     return std::move(jni_result.value());
   }
@@ -126,20 +116,11 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
-    bool enable_frame_renderer_listener,
-    bool require_secured_decoder,
-    bool require_software_codec,
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    bool skip_video_frames_over_60_fps) {
+    const MediaCodec::VideoPlatformOptions& platform_options) {
   DefaultMediaCodecFactory factory;
   return factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size, handler, j_surface,
-      j_media_crypto, color_metadata, enable_frame_renderer_listener,
-      require_secured_decoder, require_software_codec,
-      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
-      max_video_input_size, skip_video_frames_over_60_fps);
+      j_media_crypto, color_metadata, platform_options);
 }
 
 // static
@@ -159,6 +140,26 @@ std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os << "{display_size=" << size.display_size
             << ", has_crop_values=" << starboard::ToString(size.has_crop_values)
             << "}";
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const MediaCodec::VideoPlatformOptions& options) {
+  return os << "{max_input_size=" << options.max_input_size
+            << ", skip_video_frames_over_60_fps="
+            << starboard::ToString(options.skip_video_frames_over_60_fps)
+            << ", ignore_mediacodec_callbacks_during_flushing="
+            << starboard::ToString(
+                   options.ignore_mediacodec_callbacks_during_flushing)
+            << ", enable_frame_renderer_listener="
+            << starboard::ToString(options.enable_frame_renderer_listener)
+            << ", require_secured_decoder="
+            << starboard::ToString(options.require_secured_decoder)
+            << ", require_software_codec="
+            << starboard::ToString(options.require_software_codec)
+            << ", force_big_endian_hdr_metadata="
+            << starboard::ToString(options.force_big_endian_hdr_metadata)
+            << ", tunnel_mode_audio_session_id="
+            << starboard::ToString(options.tunnel_mode_audio_session_id) << "}";
 }
 
 }  // namespace starboard

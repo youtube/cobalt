@@ -23,15 +23,23 @@ constexpr int kNumBuffers = 8;
 constexpr size_t kBufferSize = 8192;
 }  // namespace
 
-FakeMediaCodec::FakeMediaCodec(Handler* handler)
-    : handler_(handler), buffers_(kNumBuffers) {
+FakeMediaCodec::FakeMediaCodec(Handler* handler,
+                               std::atomic<FakeMediaCodec*>* tracker)
+    : handler_(handler), buffers_(kNumBuffers), tracker_(tracker) {
   SB_CHECK(handler_);
   for (int i = 0; i < kNumBuffers; ++i) {
     buffers_[i].resize(kBufferSize);
   }
 }
 
-LinearBuffer FakeMediaCodec::GetInputBufferAddress(jint index) {
+FakeMediaCodec::~FakeMediaCodec() {
+  if (tracker_) {
+    FakeMediaCodec* expected = this;
+    tracker_->compare_exchange_strong(expected, nullptr);
+  }
+}
+
+DataSpan FakeMediaCodec::GetInputBufferAddress(jint index) {
   std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return {};
@@ -58,7 +66,7 @@ jint FakeMediaCodec::QueueInputBuffer(jint index,
   input.is_decode_only = is_decode_only;
   queued_inputs_.push_back(input);
 
-  cond_var_.notify_all();
+  cv_.notify_all();
   return 0;  // Success
 }
 
@@ -71,7 +79,7 @@ jint FakeMediaCodec::QueueSecureInputBuffer(
   return -1;  // Not supported in Fake
 }
 
-LinearBuffer FakeMediaCodec::GetOutputBufferAddress(jint index) {
+DataSpan FakeMediaCodec::GetOutputBufferAddress(jint index) {
   std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return {};
@@ -82,14 +90,14 @@ LinearBuffer FakeMediaCodec::GetOutputBufferAddress(jint index) {
 void FakeMediaCodec::ReleaseOutputBuffer(jint index, jboolean render) {
   std::lock_guard lock(mutex_);
   released_outputs_.push_back({index, static_cast<bool>(render), -1});
-  cond_var_.notify_all();
+  cv_.notify_all();
 }
 
 void FakeMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
                                                     jlong render_timestamp_ns) {
   std::lock_guard lock(mutex_);
   released_outputs_.push_back({index, true, render_timestamp_ns});
-  cond_var_.notify_all();
+  cv_.notify_all();
 }
 
 void FakeMediaCodec::SetPlaybackRate(double playback_rate) {}
@@ -130,17 +138,17 @@ void FakeMediaCodec::SimulateOutputAvailable(int index,
 
 bool FakeMediaCodec::WaitForInputQueue(size_t num_packets, int timeout_ms) {
   std::unique_lock<std::mutex> lock(mutex_);
-  return cond_var_.wait_for(
+  return cv_.wait_for(
       lock, std::chrono::milliseconds(timeout_ms),
       [this, num_packets]() { return queued_inputs_.size() >= num_packets; });
 }
 
 bool FakeMediaCodec::WaitForOutputReleased(size_t num_packets, int timeout_ms) {
   std::unique_lock<std::mutex> lock(mutex_);
-  return cond_var_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
-                            [this, num_packets]() {
-                              return released_outputs_.size() >= num_packets;
-                            });
+  return cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
+                      [this, num_packets]() {
+                        return released_outputs_.size() >= num_packets;
+                      });
 }
 
 int FakeMediaCodec::GetNumBuffers() const {
@@ -164,7 +172,8 @@ std::unique_ptr<MediaCodec> FakeMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     MediaCodec::Handler* handler,
     jobject j_media_crypto) {
-  auto fake = std::make_unique<FakeMediaCodec>(handler);
+  auto fake =
+      std::make_unique<FakeMediaCodec>(handler, &last_created_audio_codec_);
   last_created_audio_codec_ = fake.get();
   return fake;
 }
@@ -179,15 +188,10 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
-    bool enable_frame_renderer_listener,
-    bool require_secured_decoder,
-    bool require_software_codec,
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    bool skip_video_frames_over_60_fps) {
+    const MediaCodec::VideoPlatformOptions& platform_options) {
   SB_LOG(INFO) << "[FakeMediaCodec] CreateVideoMediaCodec called";
-  auto fake = std::make_unique<FakeMediaCodec>(handler);
+  auto fake =
+      std::make_unique<FakeMediaCodec>(handler, &last_created_video_codec_);
   last_created_video_codec_ = fake.get();
   return std::move(fake);
 }

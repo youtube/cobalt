@@ -75,7 +75,7 @@ struct DequeueOutputResult {
   int32_t num_bytes;
 };
 
-struct LinearBuffer {
+struct DataSpan {
   void* address = nullptr;
   size_t capacity = 0;
 };
@@ -87,6 +87,17 @@ struct LinearBuffer {
 // This class is not thread-safe.
 class MediaCodec {
  public:
+  struct VideoPlatformOptions {
+    int max_input_size = 0;
+    bool skip_video_frames_over_60_fps = false;
+    bool ignore_mediacodec_callbacks_during_flushing = false;
+    bool enable_frame_renderer_listener = false;
+    bool require_secured_decoder = false;
+    bool require_software_codec = false;
+    bool force_big_endian_hdr_metadata = false;
+    std::optional<int> tunnel_mode_audio_session_id;
+  };
+
   static constexpr int32_t kBufferFlagCodecConfig = 2;
   static constexpr int32_t kBufferFlagEndOfStream = 4;
 
@@ -123,13 +134,7 @@ class MediaCodec {
         jobject j_surface,
         jobject j_media_crypto,
         const SbMediaColorMetadata* color_metadata,
-        bool enable_frame_renderer_listener,
-        bool require_secured_decoder,
-        bool require_software_codec,
-        std::optional<int> tunnel_mode_audio_session_id,
-        bool force_big_endian_hdr_metadata,
-        int max_video_input_size,
-        bool skip_video_frames_over_60_fps) = 0;
+        const VideoPlatformOptions& platform_options) = 0;
   };
 
   static std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
@@ -146,19 +151,13 @@ class MediaCodec {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
-      bool enable_frame_renderer_listener,
-      bool require_secured_decoder,
-      bool require_software_codec,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool force_big_endian_hdr_metadata,
-      int max_video_input_size,
-      bool skip_video_frames_over_60_fps);
+      const VideoPlatformOptions& platform_options);
 
   static bool IsFrameRenderedCallbackEnabled();
 
   virtual ~MediaCodec() = default;
 
-  virtual LinearBuffer GetInputBufferAddress(jint index) = 0;
+  virtual DataSpan GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,
@@ -171,7 +170,7 @@ class MediaCodec {
                                       jlong presentation_time_microseconds,
                                       jboolean is_decode_only) = 0;
 
-  virtual LinearBuffer GetOutputBufferAddress(jint index) = 0;
+  virtual DataSpan GetOutputBufferAddress(jint index) = 0;
   virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
   virtual void ReleaseOutputBufferAtTimestamp(jint index,
                                               jlong render_timestamp_ns) = 0;
@@ -207,14 +206,11 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
-      bool enable_frame_renderer_listener,
-      bool require_secured_decoder,
-      bool require_software_codec,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool force_big_endian_hdr_metadata,
-      int max_video_input_size,
-      bool skip_video_frames_over_60_fps) override;
+      const MediaCodec::VideoPlatformOptions& platform_options) override;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const MediaCodec::VideoPlatformOptions& options);
 
 }  // namespace starboard
 

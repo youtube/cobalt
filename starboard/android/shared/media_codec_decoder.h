@@ -102,7 +102,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
-      bool skip_video_frames_over_60_fps);
+      bool skip_video_frames_over_60_fps,
+      bool ignore_mediacodec_callbacks_during_flushing);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     MediaCodec::Factory& media_codec_factory,
@@ -135,6 +136,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
       bool skip_video_frames_over_60_fps,
+      bool ignore_mediacodec_callbacks_during_flushing,
       std::string* error_message);
   ~MediaCodecDecoder();
 
