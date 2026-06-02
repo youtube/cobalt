@@ -105,6 +105,15 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
   std::move(callback).Run(false);
 }
 
+void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  std::string friendly_name =
+      starboard::GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+  DLOG_IF(INFO, friendly_name == "")
+      << "Failed to get kSbSystemPropertyFriendlyName.";
+  std::move(callback).Run(friendly_name);
+}
+
 void H5vccSystemImpl::GetUserOnExitStrategy(
     GetUserOnExitStrategyCallback callback) {
   std::move(callback).Run(GetUserOnExitStrategyInternal());

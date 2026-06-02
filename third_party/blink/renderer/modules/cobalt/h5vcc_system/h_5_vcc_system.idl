@@ -38,6 +38,10 @@ interface H5vccSystem : EventTarget {
   Promise<boolean> getLimitAdTracking();
   readonly attribute boolean? limitAdTracking;
 
+  // Gets the device friendly name from the platform.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getFriendlyName();
+
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getTrackingAuthorizationStatus();
   readonly attribute DOMString? trackingAuthorizationStatus;
