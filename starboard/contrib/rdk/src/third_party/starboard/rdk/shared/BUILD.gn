@@ -376,9 +376,16 @@ group("loader_app_rdk_plugin") {
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  target("shared_library", "loader_app") {
-    output_dir = root_build_dir
-    deps = [ "//starboard/loader_app:loader_app_sources" ]
-    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+  if (starboard_level_final_executable_type == "shared_library") {
+    group("loader_app") {
+      deps = [ "//starboard/loader_app:loader_app" ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+    }
+  } else {
+    target("shared_library", "loader_app") {
+      output_dir = root_build_dir
+      deps = [ "//starboard/loader_app:loader_app_sources" ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+    }
   }
 }
