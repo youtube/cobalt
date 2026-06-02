@@ -43,6 +43,24 @@ runs:
         echo "flags=${flags}" >> $GITHUB_OUTPUT
       shell: bash
 
+    - name: Parse Test Targets
+      id: parse-targets
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        set -x
+        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
+
+        host_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
+        echo "host_gtest_targets=${host_gtest_targets}" >> $GITHUB_OUTPUT
+
+        device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
+        echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
+
+        browser_web_targets=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${json_file}")
+        echo "browser_web_targets=${browser_web_targets}" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
@@ -58,15 +76,12 @@ runs:
     - name: Archive Host Tests
       if: inputs.upload_on_host_test_artifacts == 'true'
       env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        TARGETS: ${{ steps.parse-targets.outputs.host_gtest_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-
-        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
-        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No host GUnit targets to archive. Skipping."
           exit 0
@@ -83,15 +98,12 @@ runs:
     - name: Archive Device Tests
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        TARGETS: ${{ steps.parse-targets.outputs.device_gtest_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-
-        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
-        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No device GUnit targets to archive. Skipping."
           exit 0
@@ -108,15 +120,12 @@ runs:
     - name: Archive Browser/Web Tests
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        TARGETS: ${{ steps.parse-targets.outputs.browser_web_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
-
-        json_file="${GITHUB_WORKSPACE}/cobalt/src/${TEST_TARGETS_JSON_FILE}"
-        TARGETS=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${json_file}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No browser/web targets to archive. Skipping."
           exit 0
