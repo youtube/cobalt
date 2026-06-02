@@ -219,7 +219,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool CheckMediaAccessPermission(RenderFrameHost*,
                                   const GURL&,
                                   blink::mojom::MediaStreamType) override;
-  bool ShouldFocusPageAfterCrash(WebContents* source) override;
+  bool ShouldFocusPageAfterCrash() override;
 
   static gfx::Size GetShellDefaultSize();
 

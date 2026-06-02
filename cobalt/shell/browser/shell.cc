@@ -1037,7 +1037,7 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
   return true;
 }
 
-bool Shell::ShouldFocusPageAfterCrash(WebContents* source) {
+bool Shell::ShouldFocusPageAfterCrash() {
   return !g_platform->IsWaitingForRevealAck();
 }
 
