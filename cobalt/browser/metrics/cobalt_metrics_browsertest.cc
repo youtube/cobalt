@@ -28,6 +28,7 @@
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/test/browser_test.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -43,11 +44,13 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     if (auto* instrumentation =
             memory_instrumentation::MemoryInstrumentation::GetInstance()) {
       static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
       instrumentation->SetDetailedMetricsDelegate(delegate.get());
     }
+#endif
   }
 
  private:
