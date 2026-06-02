@@ -15,7 +15,7 @@ config build = common.build {
     ]
     destinations = [{
       gcs = {
-        gcs_root_dir = 'cobalt-unittest-storage/artifacts'
+        gcs_root_dir = 'cobalt-kokoro-tmp/artifacts'
       }
     }]
   }]
