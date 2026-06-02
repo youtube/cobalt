@@ -25,12 +25,6 @@
 
 namespace cobalt {
 
-struct CategoryPattern {
-  const char* label;
-  const char* pattern;
-  bool is_prefix;
-};
-
 // Cobalt-specific implementation of the DetailedMetricsDelegate.
 // Categorizes /proc/self/smaps mappings into Cobalt-specific categories.
 class CobaltDetailedMetricsDelegate
