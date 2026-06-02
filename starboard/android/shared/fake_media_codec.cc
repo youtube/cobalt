@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/fake_media_codec.h"
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
@@ -108,7 +109,7 @@ jint FakeMediaCodec::Flush() {
 }
 
 std::optional<FrameSize> FakeMediaCodec::GetOutputSize() {
-  return FrameSize(1920, 1080, false);
+  return FrameSize({1920, 1080}, false);
 }
 
 std::optional<AudioOutputFormatResult> FakeMediaCodec::GetAudioOutputFormat() {

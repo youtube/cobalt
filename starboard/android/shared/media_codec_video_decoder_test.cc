@@ -33,30 +33,25 @@ using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 
+const VideoStreamInfo kDefaultVideoStreamInfo = [] {
+  VideoStreamInfo info;
+  info.codec = kSbMediaVideoCodecH264;
+  info.frame_size = {1920, 1080};
+  info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
+  info.color_metadata.transfer = kSbMediaTransferIdBt709;
+  info.color_metadata.matrix = kSbMediaMatrixIdBt709;
+  info.color_metadata.range = kSbMediaRangeIdLimited;
+  return info;
+}();
+
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    video_stream_info_.codec = kSbMediaVideoCodecH264;
-    video_stream_info_.frame_size = {1920, 1080};
-    // Initialize color metadata to identity to avoid re-initialization on first
-    // write
-    video_stream_info_.color_metadata.primaries = kSbMediaPrimaryIdBt709;
-    video_stream_info_.color_metadata.transfer = kSbMediaTransferIdBt709;
-    video_stream_info_.color_metadata.matrix = kSbMediaMatrixIdBt709;
-    video_stream_info_.color_metadata.range = kSbMediaRangeIdLimited;
-  }
-
-  void TearDown() override {
-    decoder_.reset();
-    fake_factory_ = nullptr;
-  }
-
   void CreateDecoder() {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
-        video_stream_info_,
+        kDefaultVideoStreamInfo,
         /*drm_system=*/kSbDrmSystemInvalid,
         kSbPlayerOutputModePunchOut,
         /*decode_target_graphics_context_provider=*/nullptr,
@@ -102,14 +97,15 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     sample_info.buffer = buffer;
     sample_info.buffer_size = size;
     sample_info.timestamp = timestamp;
-    sample_info.video_sample_info.stream_info = video_stream_info_;
+    sample_info.video_sample_info.stream_info = kDefaultVideoStreamInfo;
 
     auto deallocate_func = [](SbPlayer player, void* context,
                               const void* sample_buffer) {
       delete[] static_cast<const uint8_t*>(sample_buffer);
     };
 
-    return new InputBuffer(deallocate_func, nullptr, nullptr, sample_info);
+    return make_scoped_refptr<InputBuffer>(deallocate_func, /*player=*/nullptr,
+                                           /*context=*/nullptr, sample_info);
   }
 
   FakeMediaCodec* GetFakeVideoCodec() {
@@ -118,7 +114,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
-  VideoStreamInfo video_stream_info_;
+
   std::unique_ptr<MediaCodecVideoDecoder> decoder_;
 };
 

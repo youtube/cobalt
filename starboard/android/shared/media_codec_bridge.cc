@@ -415,8 +415,8 @@ std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
     return std::nullopt;
   }
 
-  return FrameSize(Java_MediaFormatWrapper_width(env, result),
-                   Java_MediaFormatWrapper_height(env, result),
+  return FrameSize({Java_MediaFormatWrapper_width(env, result),
+                    Java_MediaFormatWrapper_height(env, result)},
                    Java_MediaFormatWrapper_formatHasCropValues(env, result));
 }
 

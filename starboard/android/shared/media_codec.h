@@ -20,8 +20,6 @@
 #include <ostream>
 #include <string>
 
-#include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
 #include "starboard/media.h"
@@ -52,19 +50,11 @@ struct FrameSize {
   Size display_size;
   bool has_crop_values = false;
 
-  FrameSize() : display_size({0, 0}), has_crop_values(false) {}
-  FrameSize(int width, int height, bool has_crop_values)
-      : display_size({width, height}), has_crop_values(has_crop_values) {
-    SB_CHECK_GE(width, 0);
-    SB_CHECK_GE(height, 0);
-  }
+  FrameSize();
+  FrameSize(Size display_size, bool has_crop_values);
 };
 
-inline std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
-  return os << "{display_size=" << size.display_size
-            << ", has_crop_values=" << (size.has_crop_values ? "true" : "false")
-            << "}";
-}
+std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
 struct AudioOutputFormatResult {
   jint sample_rate;
