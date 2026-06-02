@@ -350,7 +350,7 @@ using GetTidType = decltype(absl::base_internal::GetTID());
 ABSL_CONST_INIT static std::atomic<GetTidType> failed_tid(0);
 
 static int GetCpuNumber() {
-#ifdef ABSL_HAVE_SCHED_GETCPU
+#if defined(ABSL_HAVE_SCHED_GETCPU) && !defined(STARBOARD)
   return sched_getcpu();
 #elif defined(ABSL_HAVE_PTHREAD_CPU_NUMBER_NP)
   size_t cpu_num;
