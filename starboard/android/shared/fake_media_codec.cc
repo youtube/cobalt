@@ -151,20 +151,19 @@ bool FakeMediaCodec::WaitForOutputReleased(size_t num_packets, int timeout_ms) {
                       });
 }
 
-int FakeMediaCodec::GetNumBuffers() const {
-  return kNumBuffers;
+std::vector<FakeMediaCodec::QueuedInput> FakeMediaCodec::ConsumeQueuedInputs() {
+  std::lock_guard lock(mutex_);
+  std::vector<QueuedInput> result;
+  result.swap(queued_inputs_);
+  return result;
 }
 
-std::vector<FakeMediaCodec::QueuedInput> FakeMediaCodec::GetQueuedInputs()
-    const {
+std::vector<FakeMediaCodec::ReleasedOutput>
+FakeMediaCodec::ConsumeReleasedOutputs() {
   std::lock_guard lock(mutex_);
-  return queued_inputs_;
-}
-
-std::vector<FakeMediaCodec::ReleasedOutput> FakeMediaCodec::GetReleasedOutputs()
-    const {
-  std::lock_guard lock(mutex_);
-  return released_outputs_;
+  std::vector<ReleasedOutput> result;
+  result.swap(released_outputs_);
+  return result;
 }
 
 // FakeMediaCodecFactory

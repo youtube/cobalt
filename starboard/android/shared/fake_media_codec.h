@@ -73,8 +73,6 @@ class FakeMediaCodec : public MediaCodec {
   bool WaitForInputQueue(size_t num_packets, int timeout_ms);
   bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
 
-  int GetNumBuffers() const;
-
   struct QueuedInput {
     int index;
     int offset;
@@ -83,14 +81,14 @@ class FakeMediaCodec : public MediaCodec {
     int flags;
     bool is_decode_only;
   };
-  std::vector<QueuedInput> GetQueuedInputs() const;
+  std::vector<QueuedInput> ConsumeQueuedInputs();
 
   struct ReleasedOutput {
     int index;
     bool render;
     int64_t timestamp_ns;
   };
-  std::vector<ReleasedOutput> GetReleasedOutputs() const;
+  std::vector<ReleasedOutput> ConsumeReleasedOutputs();
 
  private:
   Handler* const handler_;

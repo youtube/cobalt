@@ -109,7 +109,6 @@ TEST_F(MediaCodecDecoderTest, InitializesCorrectly) {
 
   FakeMediaCodec* fake_codec = GetFakeAudioCodec();
   ASSERT_NE(fake_codec, nullptr);
-  EXPECT_EQ(fake_codec->GetNumBuffers(), 8);
 }
 
 TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
@@ -138,7 +137,7 @@ TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
   // 3. Wait for FakeMediaCodec to receive the queued input
   ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
 
-  auto queued_inputs = fake_codec->GetQueuedInputs();
+  auto queued_inputs = fake_codec->ConsumeQueuedInputs();
   ASSERT_EQ(queued_inputs.size(), 1U);
   EXPECT_EQ(queued_inputs[0].index, 0);
   EXPECT_EQ(queued_inputs[0].pts, 10000);
@@ -176,7 +175,7 @@ TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
 
   // Verify output was released back to fake codec
   ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  auto released_outputs = fake_codec->GetReleasedOutputs();
+  auto released_outputs = fake_codec->ConsumeReleasedOutputs();
   ASSERT_EQ(released_outputs.size(), 1U);
   EXPECT_EQ(released_outputs[0].index, 0);
   EXPECT_FALSE(released_outputs[0].render);
