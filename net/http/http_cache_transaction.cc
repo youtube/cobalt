@@ -3996,7 +3996,8 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     std::string mime_type;
     if (headers.GetMimeType(&mime_type)) {
       bool is_html = (mime_type == "text/html");
-      bool is_js = (mime_type.ends_with("javascript") || mime_type.ends_with("ecmascript"));
+      bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
+          || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
       if (!is_html && !is_js) {
         return true; // Do not write to cache / doom existing entry
       }
