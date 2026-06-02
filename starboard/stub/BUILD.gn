@@ -61,6 +61,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/log_raw.cc",
     "//starboard/shared/stub/log_raw_dump_stack.cc",
     "//starboard/shared/stub/log_raw_format.cc",
+    "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/media_can_play_mime_and_key_system.cc",
     "//starboard/shared/stub/media_get_audio_buffer_budget.cc",
     "//starboard/shared/stub/media_get_audio_configuration.cc",
