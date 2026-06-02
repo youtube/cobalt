@@ -81,7 +81,9 @@ source_set("unit_tests") {
   ]
 }
 
-source_set("constants") {
-  sources = [ "constants.h" ]
+if (is_cobalt) {
+  source_set("constants") {
+    sources = [ "constants.h" ]
+  }
 }
 
