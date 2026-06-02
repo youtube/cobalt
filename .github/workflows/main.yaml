@@ -541,14 +541,14 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets: ${{ steps.test-target-json.outputs.device_gunittest_targets }}
+          test_targets: ${{ steps.test-target-json.outputs.device_gtest_targets }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.device_gunittest_targets }}
+      test_targets_json: ${{ steps.test-target-json.outputs.device_gtest_targets }}
 
   e2e-test:
     needs: [initialize, build]

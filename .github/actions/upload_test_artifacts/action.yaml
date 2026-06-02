@@ -68,7 +68,7 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
 
-        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gunittest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No host GUnit targets to archive. Skipping."
           exit 0
@@ -94,7 +94,7 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
 
-        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gunittest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
+        TARGETS=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${TEST_TARGETS_JSON_FILE}")
         if [[ -z "${TARGETS}" ]]; then
           echo "No device GUnit targets to archive. Skipping."
           exit 0
