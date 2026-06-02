@@ -39,6 +39,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   bool enable_video_renderer_vsp_adjustment;
   bool flush_audio_track_during_seek;
   bool flush_decoder_during_reset;
+  bool ignore_mediacodec_callbacks_during_flushing;
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;
   bool skip_video_frames_over_60_fps;
