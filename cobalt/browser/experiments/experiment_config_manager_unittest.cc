@@ -532,8 +532,9 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetString(kExperimentConfigMinVersion, future_version);
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.RollbackDetected", true,
-                                       1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Finch.ConfigOutcome",
+      static_cast<int>(FinchConfigOutcome::kEmptyConfigRollback), 1);
 }
 
 TEST_F(ExperimentConfigManagerTest,
@@ -688,7 +689,7 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kEmptyConfig);
 }
 
-TEST_F(ExperimentConfigManagerTest, HistogramsConfigLoadedAndSafeModeRegular) {
+TEST_F(ExperimentConfigManagerTest, HistogramsConfigOutcomeRegular) {
   base::Value::Dict feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
@@ -703,11 +704,9 @@ TEST_F(ExperimentConfigManagerTest, HistogramsConfigLoadedAndSafeModeRegular) {
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kRegularConfig);
 
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigLoaded", true, 1);
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.SafeModeTriggered", false,
-                                       1);
   histogram_tester_.ExpectUniqueSample(
-      "Cobalt.Finch.ConfigDiscarded.Expiration", false, 1);
+      "Cobalt.Finch.ConfigOutcome",
+      static_cast<int>(FinchConfigOutcome::kRegularConfig), 1);
 }
 
 TEST_F(ExperimentConfigManagerTest, HistogramsSafeModeTriggered) {
@@ -717,11 +716,9 @@ TEST_F(ExperimentConfigManagerTest, HistogramsSafeModeTriggered) {
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
 
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigLoaded", true, 1);
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.SafeModeTriggered", true,
-                                       1);
   histogram_tester_.ExpectUniqueSample(
-      "Cobalt.Finch.ConfigDiscarded.Expiration", false, 1);
+      "Cobalt.Finch.ConfigOutcome",
+      static_cast<int>(FinchConfigOutcome::kSafeConfig), 1);
 }
 
 TEST_F(ExperimentConfigManagerTest, HistogramsConfigDiscardedExpiration) {
@@ -739,11 +736,9 @@ TEST_F(ExperimentConfigManagerTest, HistogramsConfigDiscardedExpiration) {
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigLoaded", false, 1);
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.SafeModeTriggered", false,
-                                       1);
   histogram_tester_.ExpectUniqueSample(
-      "Cobalt.Finch.ConfigDiscarded.Expiration", true, 1);
+      "Cobalt.Finch.ConfigOutcome",
+      static_cast<int>(FinchConfigOutcome::kEmptyConfigExpired), 1);
 }
 
 TEST_F(ExperimentConfigManagerTest, HistogramsConfigDiscardedDowngrade) {
@@ -754,13 +749,9 @@ TEST_F(ExperimentConfigManagerTest, HistogramsConfigDiscardedDowngrade) {
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigLoaded", false, 1);
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.SafeModeTriggered", false,
-                                       1);
-  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.RollbackDetected", true,
-                                       1);
   histogram_tester_.ExpectUniqueSample(
-      "Cobalt.Finch.ConfigDiscarded.Expiration", false, 1);
+      "Cobalt.Finch.ConfigOutcome",
+      static_cast<int>(FinchConfigOutcome::kEmptyConfigRollback), 1);
 }
 
 }  // namespace cobalt

@@ -18,7 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
@@ -104,12 +104,11 @@ void H5vccExperimentsImpl::SetExperimentState(
     base::TimeDelta time_since_last_write =
         base::Time::Now() - previous_fetch_time;
     if (time_since_last_write.is_positive()) {
-      UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.TimeBetweenWritesInHours",
-                                  time_since_last_write.InHours(), 1, 24 * 30,
-                                  50);
+      base::UmaHistogramCustomTimes("Cobalt.Finch.TimeBetweenWrites",
+                                    time_since_last_write, base::Hours(1),
+                                    base::Days(30), 50);
     }
   }
-  UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.WriteToStorage", true);
 
   experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
                                   base::Time::Now().ToInternalValue());
