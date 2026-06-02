@@ -109,6 +109,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
     "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/system_get_total_gpu_memory.cc",
     "//starboard/shared/stub/system_get_used_gpu_memory.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
