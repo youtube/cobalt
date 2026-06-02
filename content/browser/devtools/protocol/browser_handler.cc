@@ -29,7 +29,10 @@
 #include "content/browser/devtools/devtools_manager.h"
 #include "content/browser/devtools/protocol/devtools_download_manager_delegate.h"
 #include "content/browser/gpu/gpu_process_host.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/public/browser/browser_context.h"
@@ -612,6 +615,7 @@ void BrowserHandler::AddPrivacySandboxCoordinatorKeyConfig(
     const std::string& in_key_config,
     std::optional<std::string> browser_context_id,
     std::unique_ptr<AddPrivacySandboxCoordinatorKeyConfigCallback> callback) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   BrowserContext* browser_context = nullptr;
   Response response = FindBrowserContext(browser_context_id, &browser_context);
   if (!response.IsSuccess()) {
@@ -657,6 +661,9 @@ void BrowserHandler::AddPrivacySandboxCoordinatorKeyConfig(
                 }
               },
               std::move(callback)));
+#else
+  callback->sendFailure(Response::ServerError("Interest Groups are disabled"));
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 void BrowserHandler::OnDownloadUpdated(download::DownloadItem* item) {

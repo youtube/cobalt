@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <functional>
 #include <map>
@@ -18,12 +19,14 @@
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/test/mock_attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/test/mock_attribution_manager.h"
-#include "content/browser/interest_group/test_interest_group_private_aggregation_manager.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/test_renderer_host.h"
-#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/test_interest_group_private_aggregation_manager.h"  // nogncheck
+#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/test/test_content_browser_client.h"
 #include "net/base/isolation_info.h"
 #include "net/base/network_isolation_key.h"
@@ -46,6 +49,7 @@ namespace {
 
 using ::testing::_;
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 using FinalizedPrivateAggregationRequests =
     FencedFrameReporter::FinalizedPrivateAggregationRequests;
 
@@ -80,6 +84,7 @@ auto ElementsAreRequests(Ts&... requests) {
   // Need to use `std::ref` as `mojo::StructPtr`s are move-only.
   return testing::UnorderedElementsAre(testing::Eq(std::ref(requests))...);
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 class InterestGroupEnabledContentBrowserClient
     : public TestContentBrowserClient {
@@ -196,8 +201,10 @@ class FencedFrameReporterTest : public RenderViewHostTestHarness {
   const url::Origin report_destination3_origin_ =
       url::Origin::Create(report_destination3_);
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   TestInterestGroupPrivateAggregationManager private_aggregation_manager_{
       main_frame_origin_};
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   InterestGroupEnabledContentBrowserClient test_content_browser_client_;
   raw_ptr<ContentBrowserClient> old_content_browser_client_;
@@ -407,6 +414,7 @@ TEST_F(FencedFrameReporterTest, SendReports) {
                   report_destination2_, "event_data3");
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 // Test reports in the FLEDGE case, where reporting URL maps are received before
 // SendReport() calls.
 TEST_F(FencedFrameReporterTest, SendFledgeReportsAfterMapsReceived) {
@@ -1402,6 +1410,7 @@ TEST_F(FencedFrameReporterTest, SendReportsRecordHistogramsEnum) {
       blink::FencedFrameBeaconReportingResult::kDestinationEnumFailure, 1);
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 TEST_F(FencedFrameReporterTest, SendReportsRecordHistogramsURL) {
   scoped_refptr<FencedFrameReporter> reporter =
       FencedFrameReporter::CreateForFledge(
@@ -1553,6 +1562,7 @@ TEST_F(FencedFrameReporterTest, SendReportsRecordHistogramsAutomaticBeacon) {
       blink::kFencedFrameBeaconReportingHttpResultUMA,
       blink::FencedFrameBeaconReportingResult::kAutomaticFailure, 1);
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 }  // namespace
 }  // namespace content

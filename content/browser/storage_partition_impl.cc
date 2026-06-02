@@ -79,7 +79,9 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/host_zoom_level_context.h"
 #include "content/browser/indexed_db/indexed_db_control_wrapper.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/reconnectable_url_loader_factory.h"
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
@@ -1482,6 +1484,7 @@ void StoragePartitionImpl::Initialize(
         this, path, special_storage_policy_);
   }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     // Auction worklets on non-Android use dedicated processes; on Android due
     // to high cost of process launch they try to reuse renderers.
@@ -1498,6 +1501,7 @@ void StoragePartitionImpl::Initialize(
                             // context owns this storage partition.
                             base::Unretained(browser_context_)));
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // The Topics API is not available in Incognito mode.
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -1885,7 +1889,11 @@ StoragePartitionImpl::GetDeviceBoundSessionManager() {
 
 InterestGroupManager* StoragePartitionImpl::GetInterestGroupManager() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   return interest_group_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 #if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -2490,11 +2498,13 @@ void StoragePartitionImpl::OnSharedStorageHeaderReceived(
 void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
     network::AdAuctionEventRecord event_record,
     const std::optional<url::Origin>& top_frame_origin) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   DCHECK(browser_context());
   interest_group_manager_->RecordViewClick(
       *browser_context(),
       url_loader_network_observers_.current_context().navigation_or_document(),
       top_frame_origin, std::move(event_record));
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -2767,7 +2777,12 @@ void StoragePartitionImpl::ClearDataImpl(
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(), special_storage_policy_.get(),
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-      interest_group_manager_.get(), attribution_manager_.get(),
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+      interest_group_manager_.get(),
+#else
+      nullptr,
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
+      attribution_manager_.get(),
       aggregation_service_.get(), private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3026,6 +3041,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
                 CreateTaskCompletionClosure(TracingDataType::kCookies))));
   }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // It is not expected to only delete internal interest group data, or to
   // request interest group removal to be extra-thorough w/o asking for
   // interest group removal.
@@ -3058,6 +3074,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
       interest_group_manager->ClearPermissionsCache();
     }
   }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   if ((remove_mask_ & REMOVE_DATA_MASK_MEDIA_LICENSES)) {

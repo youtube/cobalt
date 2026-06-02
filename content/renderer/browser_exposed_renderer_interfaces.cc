@@ -28,7 +28,10 @@
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/service_worker/embedded_worker_instance_client_impl.h"
 #include "content/renderer/worker/shared_worker_factory_impl.h"
-#include "content/services/auction_worklet/auction_worklet_service_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/services/auction_worklet/auction_worklet_service_impl.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -192,12 +195,12 @@ void ExposeRendererInterfacesToBrowser(
   binders->Add<mojom::ResourceUsageReporter>(
       base::BindRepeating(&CreateResourceUsageReporter, render_thread),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_INTEREST_GROUPS)
   binders->Add<auction_worklet::mojom::AuctionWorkletService>(
       base::BindRepeating(
           &auction_worklet::AuctionWorkletServiceImpl::CreateForRenderer),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   auto task_runner_for_service_worker_startup =
       base::ThreadPool::CreateSingleThreadTaskRunner(

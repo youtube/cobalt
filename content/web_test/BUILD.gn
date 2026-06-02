@@ -8,6 +8,7 @@ import("//mojo/public/tools/bindings/mojom.gni")
 import("//ppapi/buildflags/buildflags.gni")  # For the enable_plugins variable.
 import("//printing/buildflags/buildflags.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
+import("//third_party/blink/public/public_features.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
@@ -272,6 +273,13 @@ static_library("web_test_browser") {
     deps += [
       "//cobalt/browser/h5vcc_runtime/public/mojom",
       "//cobalt/testing/h5vcc_runtime:stub_h5vcc_runtime",
+    ]
+  }
+
+  if (!enable_interest_groups) {
+    sources -= [
+      "browser/web_test_privacy_sandbox.cc",
+      "browser/web_test_privacy_sandbox.h",
     ]
   }
 }

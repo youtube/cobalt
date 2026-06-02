@@ -3773,6 +3773,21 @@ source_set("browser") {
   if (is_chromeos) {
     deps += [ "//ash/constants:constants" ]
   }
+
+  if (!enable_interest_groups) {
+    deps -= [
+      "//content/services/auction_worklet/public/cpp",
+      "//content/services/auction_worklet/public/mojom",
+      "//content/browser/interest_group:interest_group_proto",
+    ]
+    _filtered_sources = filter_exclude(sources, [
+      "interest_group/*",
+      "devtools/auction_worklet_devtools_agent_host.cc",
+      "devtools/auction_worklet_devtools_agent_host.h",
+    ])
+    sources = []
+    sources = _filtered_sources
+  }
 }
 
 if (is_android) {

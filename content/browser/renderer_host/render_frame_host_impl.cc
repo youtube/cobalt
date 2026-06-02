@@ -95,7 +95,9 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
-#include "content/browser/interest_group/ad_auction_document_data.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/ad_auction_document_data.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/loader/file_url_loader_factory.h"
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -238,6 +240,7 @@
 #include "net/cookies/cookie_setting_override.h"
 #include "net/net_buildflags.h"
 #include "ppapi/buildflags/buildflags.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "render_frame_host_impl.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -9953,6 +9956,7 @@ void RenderFrameHostImpl::SendLegacyTechEvent(
 
 void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
     const std::string& event_type) {
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   if (!base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi) ||
       !blink::features::kPrivateAggregationApiEnabledInProtectedAudience
            .Get()) {
@@ -10001,6 +10005,9 @@ void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
 
   fenced_frame_properties->fenced_frame_reporter()
       ->SendPrivateAggregationRequestsForEvent(event_type);
+#else
+  mojo::ReportBadMessage("Protected Audience / Private Aggregation is disabled.");
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 }
 
 std::vector<FencedFrame*> RenderFrameHostImpl::GetFencedFrames() const {
@@ -15450,6 +15457,7 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility());
       }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
       if (fenced_frame_properties->ad_auction_data().has_value()) {
         AdAuctionDocumentData::CreateForCurrentDocument(
             this,
@@ -15460,6 +15468,7 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility()
                 .interest_group_name);
       }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
     }
 
     // Continue observing the events for the committed navigation.

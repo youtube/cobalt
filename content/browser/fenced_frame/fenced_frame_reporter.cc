@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <iterator>
 #include <map>
@@ -38,7 +39,9 @@
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
-#include "content/browser/interest_group/interest_group_pa_report_util.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/interest_group_pa_report_util.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/private_aggregation/private_aggregation_budget_key.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -48,7 +51,9 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
-#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -270,6 +275,7 @@ scoped_refptr<FencedFrameReporter> FencedFrameReporter::CreateForSharedStorage(
   return reporter;
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 scoped_refptr<FencedFrameReporter> FencedFrameReporter::CreateForFledge(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     BrowserContext* browser_context,
@@ -298,6 +304,7 @@ scoped_refptr<FencedFrameReporter> FencedFrameReporter::CreateForFledge(
       ReportingDestinationInfo());
   return reporter;
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 FencedFrameReporter::FencedFrameReporter(
     base::PassKey<FencedFrameReporter> pass_key,
@@ -862,6 +869,7 @@ void FencedFrameReporter::RemoveObserverForTesting(
   observers_.RemoveObserver(observer);
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 void FencedFrameReporter::OnForEventPrivateAggregationRequestsReceived(
     std::map<std::string, FinalizedPrivateAggregationRequests>
         private_aggregation_event_map) {
@@ -919,6 +927,7 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
   // multiple times only triggers sending the event's requests once.
   private_aggregation_event_map_.erase(it);
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 const std::vector<blink::FencedFrame::ReportingDestination>
 FencedFrameReporter::ReportingDestinations() {
@@ -974,6 +983,7 @@ FencedFrameReporter::GetAdMacrosForTesting() {
   return out;
 }
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
 std::set<std::string> FencedFrameReporter::GetReceivedPaEventsForTesting()
     const {
   return received_pa_events_;
@@ -990,6 +1000,7 @@ FencedFrameReporter::GetPrivateAggregationEventMapForTesting() {
   }
   return out;
 }
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
 void FencedFrameReporter::NotifyFencedFrameReportingBeaconFailed(
     const std::optional<AttributionReportingData>& attribution_reporting_data) {

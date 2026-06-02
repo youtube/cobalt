@@ -18,8 +18,11 @@
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
-#include "content/browser/interest_group/devtools_enums.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
+#include "content/browser/interest_group/devtools_enums.h"  // nogncheck
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 #include "content/public/browser/global_routing_id.h"
@@ -41,7 +44,9 @@ namespace protocol {
 class StorageHandler
     : public DevToolsDomainHandler,
       public Storage::Backend,
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
       public content::InterestGroupManagerImpl::InterestGroupObserver,
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
       public AttributionObserver,
       public content::SharedStorageRuntimeManager::
           SharedStorageObserverInterface {
@@ -170,6 +175,7 @@ class StorageHandler
   void SendPendingAttributionReports(
       std::unique_ptr<SendPendingAttributionReportsCallback>) override;
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   void NotifyInterestGroupAuctionEventOccurred(
       base::Time event_time,
       content::InterestGroupAuctionEventType type,
@@ -181,6 +187,7 @@ class StorageHandler
       content::InterestGroupAuctionFetchType type,
       const std::string& request_id,
       const std::vector<std::string>& devtools_auction_ids);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   Response SetProtectedAudienceKAnonymity(
       const std::string& in_owner_origin,
@@ -191,7 +198,9 @@ class StorageHandler
   // See definition for lifetime information.
   class CacheStorageObserver;
   class IndexedDBObserver;
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   class InterestGroupObserver;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   class SharedStorageObserver;
   class QuotaManagerObserver;
 
@@ -205,6 +214,7 @@ class StorageHandler
   storage::QuotaManagerProxy* GetQuotaManagerProxy();
   AttributionManager* GetAttributionManager();
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // content::InterestGroupManagerImpl::InterestGroupObserver
   void OnInterestGroupAccessed(
       base::optional_ref<const std::string> auction_id,
@@ -215,6 +225,7 @@ class StorageHandler
       base::optional_ref<const url::Origin> component_seller_origin,
       std::optional<double> bid,
       base::optional_ref<const std::string> bid_currency) override;
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
 
   // AttributionObserver
   void OnSourceHandled(
@@ -271,10 +282,12 @@ class StorageHandler
 
   void ResetAttributionReporting();
 
+#if BUILDFLAG(ENABLE_INTEREST_GROUPS)
   // This doesn't update `interest_group_auction_tracking_enabled_` and does not
   // have to work on `storage_partition_`, unlike the public version.
   Response SetInterestGroupTrackingInternal(StoragePartition* storage_partition,
                                             bool enable);
+#endif  // BUILDFLAG(ENABLE_INTEREST_GROUPS)
   void GotAllCookies(
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
