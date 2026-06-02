@@ -73,6 +73,8 @@ const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
     "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
+const char kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing[] =
+    "Media.IgnoreMediaCodecCallbacksDuringFlushing";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
     "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
@@ -252,6 +254,11 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
     parsed.force_decode_to_texture = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing)) {
+    parsed.ignore_mediacodec_callbacks_during_flushing = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {

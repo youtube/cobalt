@@ -187,7 +187,8 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     std::optional<int> tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
-    bool skip_video_frames_over_60_fps) {
+    bool skip_video_frames_over_60_fps,
+    bool ignore_mediacodec_callbacks_during_flushing) {
   if (max_frame_size) {
     SB_CHECK_GT(max_frame_size->width, 0);
     SB_CHECK_GT(max_frame_size->height, 0);
@@ -279,7 +280,9 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       j_media_crypto_local, j_color_info,
       tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       max_video_input_size, enable_frame_renderer_listener,
-      skip_video_frames_over_60_fps, j_create_media_codec_bridge_result);
+      skip_video_frames_over_60_fps,
+      ignore_mediacodec_callbacks_during_flushing,
+      j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
