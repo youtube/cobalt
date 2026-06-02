@@ -65,6 +65,7 @@ runs:
         failed_suites=""
         cd unit_test/
 
+        # TODO: Refactor this to accept the parsed list of targets as an input instead of parsing here in bash.
         test_targets_json="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
         test_binaries=$(jq -cr '[.[] | select(.executable != null and .runs_on == "host" and .test_type == "gtest") | .executable] | join(" ")' "${test_targets_json}")
         for test_binary_path in ${test_binaries}; do
