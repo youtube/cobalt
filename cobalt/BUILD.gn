@@ -246,6 +246,7 @@ source_set("common") {
 
   deps = [
     "//base",
+    "//cobalt/browser:features",
     "//cobalt/browser:switches",
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
@@ -262,6 +263,7 @@ source_set("common") {
     "//sandbox/policy",
     "//services/device/time_zone_monitor",
     "//starboard:starboard_headers_only",
+    "//starboard/common:common",
     "//third_party/blink/public/common",
     "//ui/gl",
   ]
@@ -349,6 +351,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
+    "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/metrics:test_support",

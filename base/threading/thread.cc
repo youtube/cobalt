@@ -28,6 +28,10 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/dynamic_annotations.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
 #include <optional>
 
@@ -120,7 +124,12 @@ Thread::Options::Options(Options&& other)
       message_pump_factory(std::move(other.message_pump_factory)),
       stack_size(std::move(other.stack_size)),
       thread_type(std::move(other.thread_type)),
-      joinable(std::move(other.joinable)) {
+      joinable(std::move(other.joinable))
+#if BUILDFLAG(IS_COBALT)
+      ,
+      memory_context(std::move(other.memory_context))
+#endif
+{
   other.moved_from = true;
 }
 
@@ -133,6 +142,9 @@ Thread::Options& Thread::Options::operator=(Thread::Options&& other) {
   stack_size = std::move(other.stack_size);
   thread_type = std::move(other.thread_type);
   joinable = std::move(other.joinable);
+#if BUILDFLAG(IS_COBALT)
+  memory_context = std::move(other.memory_context);
+#endif
   other.moved_from = true;
 
   return *this;
@@ -221,6 +233,10 @@ bool Thread::StartWithOptions(Options options) {
   }
 
   joinable_ = options.joinable;
+
+#if BUILDFLAG(IS_COBALT)
+  memory_context_ = options.memory_context;
+#endif
 
   return true;
 }
@@ -367,6 +383,22 @@ void Thread::ThreadMain() {
   // See https://crbug.com/333597498.
   PlatformThread::SetName(name_.c_str());
   ABSL_ANNOTATE_THREAD_NAME(name_.c_str());  // Tell the name to race detector.
+
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::MemoryContext thread_context = memory_context_;
+  if (thread_context == ::base::memory::MemoryContext::kUnknown) {
+    if (name_.find("Network") != std::string::npos || name_.find("IOThread") != std::string::npos) {
+      thread_context = ::base::memory::MemoryContext::kNetwork;
+    } else if (name_.find("Media") != std::string::npos || name_.find("Audio") != std::string::npos || name_.find("Video") != std::string::npos) {
+      thread_context = ::base::memory::MemoryContext::kMedia;
+    } else if (name_.find("Compositor") != std::string::npos || name_.find("Gpu") != std::string::npos || name_.find("Graphics") != std::string::npos) {
+      thread_context = ::base::memory::MemoryContext::kGraphics;
+    } else if (name_.find("Storage") != std::string::npos || name_.find("Database") != std::string::npos || name_.find("Sql") != std::string::npos || name_.find("IndexedDB") != std::string::npos) {
+      thread_context = ::base::memory::MemoryContext::kStorage;
+    }
+  }
+  ::base::memory::ScopedMemoryContext scoped_context(thread_context);
+#endif
 
   // Make GetThreadId() available to avoid deadlocks. It could be called any
   // place in the following thread initialization code.

@@ -16,8 +16,10 @@
 
 #include <memory>
 
+#include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
@@ -26,6 +28,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -120,6 +123,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
 
+  cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
+
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();
   CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
@@ -137,6 +142,11 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   }
 
   StartStorageMigration();
+
+  proactive_reclaim_timer_.Start(
+      FROM_HERE, base::Seconds(60), base::BindRepeating([]() {
+        ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+      }));
 
   return result;
 }

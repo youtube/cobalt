@@ -21,10 +21,13 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
@@ -33,6 +36,7 @@
 #include "content/public/common/main_function_params.h"
 #include "content/public/gpu/content_gpu_client.h"
 #include "content/public/renderer/content_renderer_client.h"
+#include "starboard/common/thread.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
@@ -56,6 +60,43 @@
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 namespace cobalt {
+
+namespace {
+void CobaltThreadMemoryContextCallback(starboard::ThreadMemoryContext context) {
+  base::memory::MemoryContext base_context =
+      base::memory::MemoryContext::kUnknown;
+  switch (context) {
+    case starboard::ThreadMemoryContext::kUnknown:
+      base_context = base::memory::MemoryContext::kUnknown;
+      break;
+    case starboard::ThreadMemoryContext::kDOM:
+      base_context = base::memory::MemoryContext::kDOM;
+      break;
+    case starboard::ThreadMemoryContext::kLayout:
+      base_context = base::memory::MemoryContext::kLayout;
+      break;
+    case starboard::ThreadMemoryContext::kMedia:
+      base_context = base::memory::MemoryContext::kMedia;
+      break;
+    case starboard::ThreadMemoryContext::kScript:
+      base_context = base::memory::MemoryContext::kScript;
+      break;
+    case starboard::ThreadMemoryContext::kNetwork:
+      base_context = base::memory::MemoryContext::kNetwork;
+      break;
+    case starboard::ThreadMemoryContext::kGraphics:
+      base_context = base::memory::MemoryContext::kGraphics;
+      break;
+    case starboard::ThreadMemoryContext::kStorage:
+      base_context = base::memory::MemoryContext::kStorage;
+      break;
+    case starboard::ThreadMemoryContext::kPlatformStarboard:
+      base_context = base::memory::MemoryContext::kPlatformStarboard;
+      break;
+  }
+  base::memory::SetCurrentMemoryContext(base_context);
+}
+}  // namespace
 
 CobaltMainDelegate::CobaltMainDelegate(
     absl::optional<int64_t> startup_timestamp,
@@ -118,6 +159,8 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(15);
 #endif
+  starboard::RegisterThreadMemoryContextCallback(
+      CobaltThreadMemoryContextCallback);
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -150,11 +193,20 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
   memory_system::Initializer()
-      .SetDispatcherParameters(memory_system::DispatcherParameters::
-                                   PoissonAllocationSamplerInclusion::kEnforce,
-                               memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore,
-                               process_type)
+      .SetDispatcherParameters(
+          memory_system::DispatcherParameters::
+              PoissonAllocationSamplerInclusion::kEnforce,
+          memory_system::DispatcherParameters::
+              AllocationTraceRecorderInclusion::kIgnore,
+          process_type
+#if BUILDFLAG(IS_COBALT)
+          ,
+          base::FeatureList::IsEnabled(
+              cobalt::features::kCobaltMemoryAttributionManager)
+              ? memory_system::CobaltMemoryAttributionInclusion::kInclude
+              : memory_system::CobaltMemoryAttributionInclusion::kDoNotInclude
+#endif
+          )
       .Initialize(memory_system_);
 
   return std::nullopt;

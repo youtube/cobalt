@@ -192,6 +192,10 @@
 #include "ui/gfx/geometry/quad_f.h"
 #include "ui/gfx/geometry/rect_f.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 // Used to check for dirty layouts violating document lifecycle rules.
 // If arg evaluates to true, the program will continue. If arg evaluates to
 // false, program will crash if DCHECK_IS_ON() or return false from the current
@@ -203,6 +207,7 @@
       return false;                 \
     }                               \
   } while (false)
+
 
 namespace blink {
 namespace {
@@ -807,6 +812,11 @@ void LocalFrameView::UpdateLayout() {
   DCHECK(frame_);
   DCHECK_EQ(frame_->View(), this);
   DCHECK(frame_->GetPage());
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kLayout);
+#endif
 
   Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
 
@@ -2658,6 +2668,12 @@ bool LocalFrameView::AnyFrameIsPrintingOrPaintingPreview() {
 void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   DCHECK(ScriptForbiddenScope::WillBeScriptForbidden());
   DCHECK(LocalFrameTreeAllowsThrottling());
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+#endif
+
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::RunPaintLifecyclePhase");
   // While printing or capturing a paint preview of a document, the paint walk
   // is done into a special canvas. There is no point doing a normal paint step

@@ -372,12 +372,14 @@ void InitializeTrustStoreAndroid() {
   // ObserveCertDBChanges on the singleton TrustStoreAndroid.
   GetGlobalTrustStoreAndroidForCRS()->ObserveCertDBChanges();
 
+#if BUILDFLAG(IS_COBALT)
   static bool initialized = false;
   if (initialized) {
     return;
   }
 
   initialized = true;
+#endif  // BUILDFLAG(IS_COBALT)
   base::ThreadPool::PostTask(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},

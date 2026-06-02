@@ -32,6 +32,9 @@
 #include <algorithm>
 
 #include "base/auto_reset.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/containers/adapters.h"
 #include "base/hash/hash.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
@@ -4033,6 +4036,10 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
     UpdateViewportSize();
     NthIndexCache nth_index_cache(GetDocument());
     if (NeedsStyleRecalc()) {
+#if BUILDFLAG(IS_COBALT)
+      base::memory::ScopedMemoryContext scoped_context(
+          base::memory::MemoryContext::kBlinkStyle);
+#endif
       TRACE_EVENT0("blink,blink_style", "Document::recalcStyle");
       SCOPED_BLINK_UMA_HISTOGRAM_TIMER_HIGHRES("Style.RecalcTime");
       Element* viewport_defining = GetDocument().ViewportDefiningElement();

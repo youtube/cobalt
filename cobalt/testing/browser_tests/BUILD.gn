@@ -218,6 +218,7 @@ test("cobalt_browsertests") {
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
+    "//cobalt/browser/memory_attribution_browsertest.cc",
 
     # TODO(b/511244766): separate target for perf test.
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
@@ -232,6 +233,7 @@ test("cobalt_browsertests") {
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
+    "granular_memory_browsertest.cc",
     "navigation_browsertest.cc",
 
     #"session_history_browsertest.cc",
@@ -247,11 +249,6 @@ test("cobalt_browsertests") {
 
   if (is_starboard) {
     sources += [ "cobalt_browser_tests_main.cc" ]
-  }
-
-  if (!is_ios) {
-    # This currently tests Linux-specific information and operations.
-    sources += [ "granular_memory_browsertest.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -283,6 +280,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
+    "//cobalt/memory",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
