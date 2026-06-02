@@ -45,6 +45,10 @@ public class JavaSwitches {
   /** flag to tune delay in seconds before reclaiming prepaint tiles when idle. */
   public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
 
+  /** flag to disable GPU memory buffer compositor resources. */
+  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
+      "DisableGpuMemoryBufferCompositorResources";
+
   /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
   public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
 
@@ -73,6 +77,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
       extraCommandLineArgs.add("--js-flags=--disable-optimizing-compilers;--no-sparkplug");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
+      extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
     }
 
     StringJoiner featureParams = new StringJoiner("/");
