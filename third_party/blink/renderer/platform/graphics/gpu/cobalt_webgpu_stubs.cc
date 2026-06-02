@@ -1,4 +1,4 @@
-
+#include "base/logging.h"
 #include "dawn/dawn_proc.h"  // nogncheck
 
 // The sanitizer is disabled for calls to procs.* since those functions may be
@@ -10,6 +10,7 @@
 // A fake wgpuCreateInstance that prints a warning so folks know that they are using dawn_procs and
 // should either use a different target to link against, or call dawnProcSetProcs.
 __attribute__((weak)) WGPUInstance  CreateInstanceThatWarns(const WGPUInstanceDescriptor* desc) {
+    LOG(WARNING) << "wgpuCreateInstance called on stubbed dawn_procs!";
     return nullptr;
 }
 
