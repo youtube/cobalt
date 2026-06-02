@@ -22,32 +22,51 @@ namespace cobalt {
 
 namespace {
 
+bool MatchStartsWith(absl::string_view name, absl::string_view pattern) {
+  return absl::StartsWith(name, pattern);
+}
+
+bool MatchContains(absl::string_view name, absl::string_view pattern) {
+  return absl::StrContains(name, pattern);
+}
+
+bool MatchEndsWith(absl::string_view name, absl::string_view pattern) {
+  return absl::EndsWith(name, pattern);
+}
+
+struct CategoryPattern {
+  const char* label;
+  const char* pattern;
+  bool (*match_func)(absl::string_view, absl::string_view);
+};
+
 // Ordered by probability/impact for early exit optimization.
 static constexpr CategoryPattern kCobaltPatterns[] = {
-    {"v8", "[anon:v8]", /*is_prefix=*/true},
-    {"partition_alloc", "[anon:partition_alloc]", /*is_prefix=*/true},
-    {"lib_chrobalt", "libchrobalt.so", /*is_prefix=*/false},
-    {"lib_chrobalt", "libcobalt.so", /*is_prefix=*/false},
-    {"graphics", "/dev/kgsl-3d0", /*is_prefix=*/false},
-    {"graphics", "/dev/mali0", /*is_prefix=*/false},
-    {"graphics", "/dev/nvgpu", /*is_prefix=*/false},
-    {"graphics", "/dev/pvr", /*is_prefix=*/false},
-    {"graphics", "/dev/dri/", /*is_prefix=*/false},
-    {"fonts", "/system/fonts/", /*is_prefix=*/true},
-    {"fonts", ".ttf", /*is_prefix=*/false},
-    {"fonts", ".ttc", /*is_prefix=*/false},
-    {"malloc", "[anon:scudo]", /*is_prefix=*/true},
-    {"malloc", "[heap]", /*is_prefix=*/true},
-    {"malloc", "jemalloc", /*is_prefix=*/false},
-    {"android_runtime", "[anon:dalvik-", /*is_prefix=*/true},
-    {"android_runtime", ".art", /*is_prefix=*/false},
-    {"android_runtime", ".oat", /*is_prefix=*/false},
-    {"android_runtime", ".vdex", /*is_prefix=*/false},
-    {"android_runtime", ".odex", /*is_prefix=*/false},
-    {"ashmem_jit", "/dev/ashmem/", /*is_prefix=*/false},
-    {"ashmem_jit", "memfd:jit", /*is_prefix=*/false},
-    {"stacks", "[stack]", /*is_prefix=*/true},
-    {"stacks", "stack_and_tls", /*is_prefix=*/false},
+    {"v8", "[anon:v8]", MatchStartsWith},
+    {"partition_alloc", "[anon:partition_alloc]", MatchStartsWith},
+    {"lib_chrobalt", "libchrobalt", MatchContains},
+    {"lib_chrobalt", "libcobalt", MatchContains},
+    {"lib_chrobalt", "/cobalt", MatchEndsWith},
+    {"graphics", "/dev/kgsl-3d0", MatchContains},
+    {"graphics", "/dev/mali0", MatchContains},
+    {"graphics", "/dev/nvgpu", MatchContains},
+    {"graphics", "/dev/pvr", MatchContains},
+    {"graphics", "/dev/dri/", MatchContains},
+    {"fonts", "/system/fonts/", MatchStartsWith},
+    {"fonts", ".ttf", MatchContains},
+    {"fonts", ".ttc", MatchContains},
+    {"malloc", "[anon:scudo]", MatchStartsWith},
+    {"malloc", "[heap]", MatchStartsWith},
+    {"malloc", "jemalloc", MatchContains},
+    {"android_runtime", "[anon:dalvik-", MatchStartsWith},
+    {"android_runtime", ".art", MatchContains},
+    {"android_runtime", ".oat", MatchContains},
+    {"android_runtime", ".vdex", MatchContains},
+    {"android_runtime", ".odex", MatchContains},
+    {"ashmem_jit", "/dev/ashmem/", MatchContains},
+    {"ashmem_jit", "memfd:jit", MatchContains},
+    {"stacks", "[stack]", MatchStartsWith},
+    {"stacks", "stack_and_tls", MatchContains},
 };
 
 }  // namespace
@@ -64,16 +83,9 @@ void CobaltDetailedMetricsDelegate::OnSmapsEntry(
     label = "anonymous_other";
   } else {
     for (const auto& cp : kCobaltPatterns) {
-      if (cp.is_prefix) {
-        if (absl::StartsWith(name, cp.pattern)) {
-          label = cp.label;
-          break;
-        }
-      } else {
-        if (absl::StrContains(name, cp.pattern)) {
-          label = cp.label;
-          break;
-        }
+      if (cp.match_func(name, cp.pattern)) {
+        label = cp.label;
+        break;
       }
     }
   }

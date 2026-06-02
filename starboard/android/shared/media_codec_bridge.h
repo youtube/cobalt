@@ -128,13 +128,14 @@ class MediaCodecBridge {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
+      bool enable_frame_renderer_listener,
       bool require_secured_decoder,
       bool require_software_codec,
       std::optional<int> tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
-      bool enable_output_checker,
-      bool skip_video_frames_over_60_fps);
+      bool skip_video_frames_over_60_fps,
+      bool ignore_mediacodec_callbacks_during_flushing);
 
   ~MediaCodecBridge();
 
@@ -182,8 +183,6 @@ class MediaCodecBridge {
                                  jlong presentation_time_us,
                                  jlong render_at_system_time_ns);
   void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
-
-  static jboolean IsFrameRenderedCallbackEnabled();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.

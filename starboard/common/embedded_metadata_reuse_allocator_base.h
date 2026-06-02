@@ -15,28 +15,34 @@
 #ifndef STARBOARD_COMMON_EMBEDDED_METADATA_REUSE_ALLOCATOR_BASE_H_
 #define STARBOARD_COMMON_EMBEDDED_METADATA_REUSE_ALLOCATOR_BASE_H_
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <set>
 #include <vector>
 
 #include "starboard/common/allocator.h"
 #include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
-#include "starboard/configuration.h"
+#include "starboard/common/reuse_allocator_base.h"
 
 namespace starboard {
 
 // TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
 //                             enabled.
 
-// The base class of memory-pool based allocators, where the underlying memory
-// pool can be efficiently and safely accessed by the CPU, so the allocation
-// metadata can be kept alongside the allocated memory.  It is passed a fallback
-// allocator that it can request additional memory from as needed.
-class EmbeddedMetadataReuseAllocatorBase : public Allocator {
+// Base class for memory-pool based allocators with embedded metadata.
+//
+// Reason for existence: Accommodates cases where the underlying memory pool can
+// be efficiently and safely accessed by the CPU, allowing allocation
+// bookkeeping metadata to be stored directly in-place alongside the allocated
+// memory buffers.
+//
+// Expected lifetime and ownership: Typically instantiated and owned by media
+// pipeline strategies (such as DecoderBufferAllocator), and held for the entire
+// app lifetime across multiple playback sessions.
+//
+// Threading model: Not thread-safe. Callers must provide external
+// synchronization if methods are called from concurrent threads.
+class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
  public:
   void* Allocate(size_t size) override;
   void* Allocate(size_t size, size_t alignment) override;
@@ -44,33 +50,14 @@ class EmbeddedMetadataReuseAllocatorBase : public Allocator {
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
-  size_t GetCapacity() const override { return capacity_in_bytes_; }
   size_t GetAllocated() const override { return total_allocated_in_bytes_; }
-
-  bool CapacityExceeded() const {
-    return max_capacity_in_bytes_ &&
-           (capacity_in_bytes_ > max_capacity_in_bytes_);
-  }
 
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override;
 
   bool TryFree(void* memory);
 
-  size_t max_capacity() const { return max_capacity_in_bytes_; }
-
  protected:
-  // The metadata of an allocated block stored at the very beginning of the
-  // block when it's allocated.  It natually maintains a double linked list to
-  // allow traverse through all allocated blocks.
-  struct BlockMetadata {
-    const EmbeddedMetadataReuseAllocatorBase* signature;
-    intptr_t fallback_index;
-    intptr_t size;
-    BlockMetadata* previous;
-    BlockMetadata* next;
-  };
-
   class MemoryBlock {
    public:
     MemoryBlock() = default;
@@ -136,8 +123,16 @@ class EmbeddedMetadataReuseAllocatorBase : public Allocator {
   EmbeddedMetadataReuseAllocatorBase(Allocator* fallback_allocator,
                                      size_t initial_capacity,
                                      size_t allocation_increment,
-                                     size_t max_capacity,
-                                     bool enable_decommit_on_idle);
+                                     size_t max_capacity);
+  EmbeddedMetadataReuseAllocatorBase(
+      Allocator* fallback_allocator,
+      size_t initial_capacity,
+      size_t allocation_increment,
+      size_t max_capacity,
+      bool enable_decommit_on_idle,
+      size_t retain_blocks,
+      size_t conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend = false);
   ~EmbeddedMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -153,12 +148,15 @@ class EmbeddedMetadataReuseAllocatorBase : public Allocator {
                                                bool* allocate_from_front) = 0;
 
  private:
-  // Pointer and size of the block allocated from the fallback allocator.
-  struct FallbackAllocation {
-    void* address;
-    size_t size;
-
-    FallbackAllocation(void* addr, size_t s) : address(addr), size(s) {}
+  // The metadata of an allocated block stored at the very beginning of the
+  // block when it's allocated.  It natually maintains a double linked list to
+  // allow traverse through all allocated blocks.
+  struct BlockMetadata {
+    const EmbeddedMetadataReuseAllocatorBase* signature;
+    intptr_t fallback_index;
+    intptr_t size;
+    BlockMetadata* previous;
+    BlockMetadata* next;
   };
 
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
@@ -176,24 +174,10 @@ class EmbeddedMetadataReuseAllocatorBase : public Allocator {
   // of blocks.
   std::vector<void*> pending_frees_;
 
-  // We will allocate from the given allocator whenever we can't find pre-used
-  // memory to allocate.
-  Allocator* const fallback_allocator_;
   const size_t allocation_increment_;
 
-  // If non-zero, this is an upper bound on how large we will let the capacity
-  // expand.
-  const size_t max_capacity_in_bytes_;
-
   // Whether to decommit memory when the pool becomes idle.
-  const bool enable_decommit_on_idle_ = false;
-
-  // A list of allocations made from the fallback allocator.  We keep track of
-  // this so that we can free them all upon our destruction.
-  std::vector<FallbackAllocation> fallback_allocations_;
-
-  // How much we have allocated from the fallback allocator.
-  size_t capacity_in_bytes_ = 0;
+  const bool enable_decommit_on_idle_;
 
   // How many bytes has been allocated from us.
   size_t total_allocated_in_bytes_ = 0;

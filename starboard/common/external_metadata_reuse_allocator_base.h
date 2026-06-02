@@ -15,28 +15,33 @@
 #ifndef STARBOARD_COMMON_EXTERNAL_METADATA_REUSE_ALLOCATOR_BASE_H_
 #define STARBOARD_COMMON_EXTERNAL_METADATA_REUSE_ALLOCATOR_BASE_H_
 
-#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <set>
-#include <vector>
 
 #include "starboard/common/allocator.h"
 #include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
-#include "starboard/configuration.h"
+#include "starboard/common/reuse_allocator_base.h"
 
 namespace starboard {
 
 // TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
 //                             enabled.
 
-// The base class of allocators designed to accommodate cases where the memory
-// allocated may not be efficient or safe to access via the CPU.  It solves
-// this problem by maintaining all allocation meta data is outside of the
-// allocated memory.  It is passed a fallback allocator that it can request
-// additional memory from as needed.
-class ExternalMetadataReuseAllocatorBase : public Allocator {
+// Base class for memory-pool based allocators with external metadata tracking.
+//
+// Reason for existence: Accommodates cases where allocated memory may not be
+// efficient or safe to access directly via the CPU (e.g., specialized GPU or
+// media buffers). Solves this by maintaining all allocation bookkeeping
+// metadata in an external data structure outside the allocated buffers.
+//
+// Expected lifetime and ownership: Typically instantiated and owned by media
+// pipeline buffer pools, and held for the entire app lifetime across multiple
+// playback sessions.
+//
+// Threading model: Not thread-safe. Callers must provide external
+// synchronization if methods are called from concurrent threads.
+class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
  public:
   void* Allocate(size_t size) override;
   void* Allocate(size_t size, size_t alignment) override;
@@ -44,19 +49,12 @@ class ExternalMetadataReuseAllocatorBase : public Allocator {
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
-  size_t GetCapacity() const override { return capacity_; }
   size_t GetAllocated() const override { return total_allocated_; }
-
-  bool CapacityExceeded() const {
-    return max_capacity_ && (capacity_ > max_capacity_);
-  }
 
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override;
 
   bool TryFree(void* memory);
-
-  size_t max_capacity() const { return max_capacity_; }
 
  protected:
   class MemoryBlock {
@@ -123,8 +121,16 @@ class ExternalMetadataReuseAllocatorBase : public Allocator {
   ExternalMetadataReuseAllocatorBase(Allocator* fallback_allocator,
                                      size_t initial_capacity,
                                      size_t allocation_increment,
-                                     size_t max_capacity,
-                                     bool enable_decommit_on_idle);
+                                     size_t max_capacity);
+  ExternalMetadataReuseAllocatorBase(
+      Allocator* fallback_allocator,
+      size_t initial_capacity,
+      size_t allocation_increment,
+      size_t max_capacity,
+      bool enable_decommit_on_idle,
+      size_t retain_blocks,
+      size_t conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend = false);
   ~ExternalMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -140,12 +146,6 @@ class ExternalMetadataReuseAllocatorBase : public Allocator {
                                                bool* allocate_from_front) = 0;
 
  private:
-  // Pointer and size of the block allocated from the fallback allocator.
-  struct FallbackAllocation {
-    void* address;
-    size_t size;
-  };
-
   // Map from pointers we returned to the user, back to memory blocks.
   typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
 
@@ -157,28 +157,13 @@ class ExternalMetadataReuseAllocatorBase : public Allocator {
 
   AllocatedBlockMap allocated_blocks_;
   FreeBlockSet free_blocks_;
-
-  // We will allocate from the given allocator whenever we can't find pre-used
-  // memory to allocate.
-  Allocator* const fallback_allocator_;
   const size_t allocation_increment_;
 
-  // If non-zero, this is an upper bound on how large we will let the capacity
-  // expand.
-  const size_t max_capacity_;
-
   // Whether to decommit memory when the pool becomes idle.
-  const bool enable_decommit_on_idle_ = false;
-
-  // A list of allocations made from the fallback allocator.  We keep track of
-  // this so that we can free them all upon our destruction.
-  std::vector<FallbackAllocation> fallback_allocations_;
-
-  // How much we have allocated from the fallback allocator.
-  size_t capacity_;
+  const bool enable_decommit_on_idle_;
 
   // How much has been allocated from us.
-  size_t total_allocated_;
+  size_t total_allocated_ = 0;
 };
 
 }  // namespace starboard

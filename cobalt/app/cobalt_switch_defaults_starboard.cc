@@ -84,12 +84,17 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
       {::switches::kDisableFeatures, "Vulkan"},
-      // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
-      // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
-      // creation, but egl extension required to support the attribute is
-      // missing and causes errors. So Enable it by default.
       {::switches::kEnableFeatures,
-       "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
+       "LimitImageDecodeCacheSize:mb/24, "
+       // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
+       // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
+       // creation, but egl extension required to support the attribute is
+       // missing and causes errors. So Enable it by default. (More context in
+       // b/444042898)
+       "DefaultEnableANGLEValidation, "
+       "SmallerInterestArea, "
+       "ReclaimPrepaintTilesWhenIdle, "
+       "ReclaimOldPrepaintTiles"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
@@ -111,6 +116,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
+      // Disable decommitting pooled pages to prevent virtual memory
+      // fragmentation.
+      {blink::switches::kJavaScriptFlags, "--no-decommit-pooled-pages"},
   };
   return kCobaltSwitchDefaults;
 }

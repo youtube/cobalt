@@ -65,15 +65,13 @@ SbPlayerCreate(SbWindow window,
   }
 
   if (audio_codec != kSbMediaAudioCodecNone &&
-      !third_party::starboard::rdk::shared::media::
-      GstRegistryHasElementForMediaType(audio_codec)) {
+      !starboard::GstRegistryHasElementForMediaType(audio_codec)) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
   }
 
   if (video_codec != kSbMediaVideoCodecNone &&
-      !third_party::starboard::rdk::shared::media::
-      GstRegistryHasElementForMediaType(video_codec)) {
+      !starboard::GstRegistryHasElementForMediaType(video_codec)) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
   }

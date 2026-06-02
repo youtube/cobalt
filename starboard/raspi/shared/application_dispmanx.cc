@@ -95,10 +95,7 @@ void ApplicationDispmanx::OnResume() {
 void ApplicationDispmanx::AcceptFrame(SbPlayer player,
                                       const scoped_refptr<VideoFrame>& frame,
                                       int z_index,
-                                      int x,
-                                      int y,
-                                      int width,
-                                      int height) {
+                                      const Rect& rect) {
   video_renderer_->Update(frame);
 }
 

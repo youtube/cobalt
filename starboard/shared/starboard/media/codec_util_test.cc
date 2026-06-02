@@ -26,7 +26,6 @@ namespace {
 constexpr uint8_t kIdrStartCode = 0x65;
 constexpr uint8_t kSpsStartCode = 0x67;
 constexpr uint8_t kPpsStartCode = 0x68;
-constexpr auto kAnnexB = AvcParameterSets::kAnnexB;
 
 const std::vector<uint8_t> kSpsInAnnexB = {0, 0, 0, 1, kSpsStartCode, 10, 11};
 const std::vector<uint8_t> kPpsInAnnexB = {0, 0, 0, 1, kPpsStartCode, 20};

@@ -42,9 +42,6 @@ SB_EXPORT extern const char kSbFileSepChar;
 // The string form of SB_FILE_SEP_CHAR.
 SB_EXPORT extern const char* kSbFileSepString;
 
-// Whether the current platform supports thread priorities.
-SB_EXPORT extern const bool kSbHasThreadPrioritySupport;
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
@@ -72,8 +69,5 @@ SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 // Whether this platform can map executable memory. This is required for
 // platforms that want to JIT.
 SB_EXPORT extern const bool kSbCanMapExecutableMemory;
-
-// Platform can support partial audio frames
-SB_EXPORT extern const bool kHasPartialAudioFramesSupport;
 
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_
