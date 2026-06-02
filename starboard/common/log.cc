@@ -27,7 +27,6 @@
 #include "starboard/common/gettid.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>

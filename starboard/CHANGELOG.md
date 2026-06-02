@@ -31,6 +31,10 @@ The `SbThreadSetPriority` API is no longer used. Instead, the standard POSIX
 The `SbThreadGetPriority` API is no longer used. Instead, the standard POSIX
 `getpriority` API should be used directly.
 
+### Removed SbThreadId
+The `SbThreadId` type, `kSbThreadInvalidId` macro, and `SbThreadIsValidId` function
+are no longer used. Instead, standard POSIX `pid_t` and `gettid()` should be used.
+
 ### Removed SbThreadSampler and SbThreadContext
 The SbThreadSampler and SbThreadContext APIs are no longer used. Instead,
 POSIX APIs are used directly.
@@ -48,6 +52,7 @@ Implementations of `DecodeTarget` for YUV planes should ensure they use
 rendering issues caused by Chromium's shader expectations.
 
 ### Added the following POSIX symbols:
+* `alarm`
 * `getrandom`
 * `getuid`
 * `if_indextoname`

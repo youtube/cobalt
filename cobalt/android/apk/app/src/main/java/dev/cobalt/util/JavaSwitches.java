@@ -25,12 +25,16 @@ import java.util.StringJoiner;
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
+
+  /** flag to delete stale leveldb LOCK file on startup. */
+  public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
   /** flag to enable fast track mic capture. */
   public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
@@ -54,12 +58,20 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
+      extraCommandLineArgs.add("--enable-features=LocalStorageDeleteLockFile");
+    }
+
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
       extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--disable-http-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_DECOMMIT_POOLED_PAGES)) {
