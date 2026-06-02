@@ -69,6 +69,7 @@ test("nplb") {
     # TODO: Separate functions tested by media buffer test into multiple
     # files.
     "media_buffer_test.cc",
+    "media_can_change_type_test.cc",
     "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
     "media_set_audio_write_duration_test.cc",
