@@ -85,9 +85,9 @@ runs:
       run: |
         set -x
         cd cobalt/src
-        time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${HOST_TARGETS}" \
           ${ARCHIVE_FLAGS}
@@ -103,9 +103,9 @@ runs:
       run: |
         set -x
         cd cobalt/src
-        time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${DEVICE_TARGETS}" \
           ${ARCHIVE_FLAGS}
@@ -121,9 +121,9 @@ runs:
       run: |
         set -x
         cd cobalt/src
-        time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets "${BROWSER_WEB_TEST_TARGETS}" \
           ${ARCHIVE_FLAGS}
