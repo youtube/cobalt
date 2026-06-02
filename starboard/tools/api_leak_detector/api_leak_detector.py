@@ -86,6 +86,7 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 # Allowed POSIX symbols in Starboard 16
 _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     '__errno_location',
+    '_Exit',
     'accept',
     'access',
     'alarm',
