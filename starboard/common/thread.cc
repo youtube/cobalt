@@ -34,7 +34,6 @@
 namespace starboard {
 
 namespace {
-
 #if defined(__APPLE__)
 // Returns a value between 0 and 1 that is used by SetThreadPriority() to scale
 // the desired thread priority between what sched_get_priority_min() and
@@ -96,7 +95,12 @@ bool SetThreadPriority(ThreadPriority priority) {
 #endif  // defined(__APPLE__)
 }
 
+ThreadMemoryContextCallback g_memory_context_callback = nullptr;
 }  // namespace
+
+void RegisterThreadMemoryContextCallback(ThreadMemoryContextCallback callback) {
+  g_memory_context_callback = callback;
+}
 
 int ThreadPriorityToNiceValue(ThreadPriority priority) {
   // Nice value settings are shared between Android and Linux.
@@ -130,7 +134,10 @@ struct Thread::Data {
 };
 
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      memory_context_(options.memory_context),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
@@ -198,6 +205,10 @@ void* Thread::ThreadEntryPoint(void* context) {
                << (this_ptr->priority_ && priority_set
                        ? std::to_string(static_cast<int>(*this_ptr->priority_))
                        : "(default)");
+
+  if (g_memory_context_callback) {
+    g_memory_context_callback(this_ptr->memory_context_);
+  }
 
   this_ptr->Run();
 
