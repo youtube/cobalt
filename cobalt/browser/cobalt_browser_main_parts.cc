@@ -128,9 +128,6 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
     memory_instrumentation::MemoryInstrumentation::GetInstance()
         ->SetDetailedMetricsDelegate(delegate.get());
-  } else {
-    LOG(WARNING) << "MemoryInstrumentation instance not available in "
-                    "PreMainMessageLoopRun!";
   }
 #endif
 

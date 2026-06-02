@@ -20,7 +20,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 namespace content {
 
 namespace {
@@ -289,4 +288,3 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace content
-#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
