@@ -533,22 +533,25 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Parse Test Target JSON
-        id: test-target-json
+      - name: Parse Test Target JSON (Device GTest)
+        id: parse-device-targets
         uses: ./.github/actions/test_targets_json
+        with:
+          test_type: gtest
+          runs_on: device
       - name: Run On-Device Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
+        if: ${{ fromJson(steps.parse-device-targets.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets: ${{ steps.test-target-json.outputs.device_gtest_targets }}
+          test_targets: ${{ steps.parse-device-targets.outputs.test_targets_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.device_gtest_targets }}
+      test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
 
   e2e-test:
     needs: [initialize, build]
@@ -743,11 +746,14 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Parse Test Target JSON
-        id: test-target-json
+      - name: Parse Test Target JSON (Host GTest)
+        id: parse-host-targets
         uses: ./.github/actions/test_targets_json
+        with:
+          test_type: gtest
+          runs_on: host
       - name: Run On-Host Tests
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
+        if: ${{ fromJson(steps.parse-host-targets.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_host_tests
         with:
           nightly: ${{ inputs.nightly }}
@@ -755,7 +761,7 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
     outputs:
-      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.parse-host-targets.outputs.test_targets_json }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
