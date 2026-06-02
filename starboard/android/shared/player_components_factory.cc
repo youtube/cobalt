@@ -448,6 +448,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     const auto& experimental_features =
         creation_parameters.experimental_features();
+    bool enable_simd_based_audio_format_switching =
+        experimental_features.enable_simd_based_audio_format_switching.value_or(
+            false);
     bool enable_reset_audio_decoder =
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         experimental_features.reset_audio_decoder ||
@@ -524,7 +527,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
           job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
-          enable_reset_audio_decoder);
+          enable_reset_audio_decoder, enable_simd_based_audio_format_switching);
 
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(

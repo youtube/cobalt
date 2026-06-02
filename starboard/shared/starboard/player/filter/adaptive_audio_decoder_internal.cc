@@ -37,29 +37,19 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
+    bool enable_reset_audio_decoder,
+    bool enable_simd_based_audio_format_switching,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
     : JobOwner(job_queue),
       initial_samples_per_second_(audio_stream_info.samples_per_second),
       drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
-      output_number_of_channels_(audio_stream_info.number_of_channels) {
+      output_number_of_channels_(audio_stream_info.number_of_channels),
+      enable_reset_audio_decoder_(enable_reset_audio_decoder),
+      enable_simd_based_audio_format_switching_(
+          enable_simd_based_audio_format_switching) {
   SB_DCHECK_NE(audio_stream_info.codec, kSbMediaAudioCodecNone);
-}
-
-AdaptiveAudioDecoder::AdaptiveAudioDecoder(
-    JobQueue* job_queue,
-    const AudioStreamInfo& audio_stream_info,
-    SbDrmSystem drm_system,
-    const AudioDecoderCreator& audio_decoder_creator,
-    bool enable_reset_audio_decoder,
-    const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : AdaptiveAudioDecoder(job_queue,
-                           audio_stream_info,
-                           drm_system,
-                           audio_decoder_creator,
-                           output_adjustment_callback) {
-  enable_reset_audio_decoder_ = enable_reset_audio_decoder;
 }
 
 AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
@@ -281,7 +271,8 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
           decoded_audio->sample_type(), decoded_audio->storage_type(),
           decoded_sample_rate, output_sample_type_, output_storage_type_,
           output_samples_per_second_,
-          input_audio_stream_info_.number_of_channels);
+          input_audio_stream_info_.number_of_channels,
+          enable_simd_based_audio_format_switching_);
     }
     if (input_audio_stream_info_.number_of_channels !=
         output_number_of_channels_) {

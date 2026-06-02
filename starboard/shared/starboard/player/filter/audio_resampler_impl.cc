@@ -38,9 +38,11 @@ class AudioResamplerImpl : public AudioResampler {
                      SbMediaAudioSampleType destination_sample_type,
                      SbMediaAudioFrameStorageType destination_storage_type,
                      int destination_sample_rate,
-                     int channels)
+                     int channels,
+                     bool enable_simd)
       : destination_sample_type_(destination_sample_type),
         destination_storage_type_(destination_storage_type),
+        enable_simd_(enable_simd),
         interleaved_resampler_(static_cast<double>(source_sample_rate) /
                                    static_cast<double>(destination_sample_rate),
                                channels) {}
@@ -53,6 +55,7 @@ class AudioResamplerImpl : public AudioResampler {
  private:
   const SbMediaAudioSampleType destination_sample_type_;
   const SbMediaAudioFrameStorageType destination_storage_type_;
+  const bool enable_simd_;
 
   InterleavedSincResampler interleaved_resampler_;
 
@@ -73,11 +76,12 @@ std::unique_ptr<AudioResampler> AudioResampler::Create(
     SbMediaAudioSampleType destination_sample_type,
     SbMediaAudioFrameStorageType destination_storage_type,
     int destination_sample_rate,
-    int channels) {
+    int channels,
+    bool enable_simd) {
   return std::unique_ptr<AudioResampler>(new AudioResamplerImpl(
       source_sample_type, source_storage_type, source_sample_rate,
       destination_sample_type, destination_storage_type,
-      destination_sample_rate, channels));
+      destination_sample_rate, channels, enable_simd));
 }
 
 scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
@@ -103,7 +107,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
       if (!resampled_audio->IsFormat(destination_sample_type_,
                                      destination_storage_type_)) {
         resampled_audio = resampled_audio->SwitchFormatTo(
-            destination_sample_type_, destination_storage_type_);
+            destination_sample_type_, destination_storage_type_, enable_simd_);
       }
       return resampled_audio;
     }
@@ -120,9 +124,9 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
   // interleaved.
   if (!audio_input->IsFormat(kSbMediaAudioSampleTypeFloat32,
                              kSbMediaAudioFrameStorageTypeInterleaved)) {
-    audio_input =
-        audio_input->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                    kSbMediaAudioFrameStorageTypeInterleaved);
+    audio_input = audio_input->SwitchFormatTo(
+        kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved, enable_simd_);
   }
 
   audio_inputs_.push_back(audio_input);
@@ -157,7 +161,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
     if (!resampled_audio->IsFormat(destination_sample_type_,
                                    destination_storage_type_)) {
       resampled_audio = resampled_audio->SwitchFormatTo(
-          destination_sample_type_, destination_storage_type_);
+          destination_sample_type_, destination_storage_type_, enable_simd_);
     }
 
     audio_inputs_.pop_front();

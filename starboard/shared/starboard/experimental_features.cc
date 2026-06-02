@@ -80,6 +80,9 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->skip_flush_on_decoder_teardown;
   experiment_features.skip_video_frames_over_60_fps =
       extension_features->skip_video_frames_over_60_fps;
+  experiment_features.enable_simd_based_audio_format_switching =
+      FromBoolPointer(
+          extension_features->enable_simd_based_audio_format_switching);
   experiment_features.enable_trivial_optimizations =
       FromBoolPointer(extension_features->enable_trivial_optimizations);
   experiment_features.use_dual_threads_for_video =

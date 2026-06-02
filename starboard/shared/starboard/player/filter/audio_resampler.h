@@ -59,7 +59,8 @@ class AudioResampler {
       SbMediaAudioSampleType destination_sample_type,
       SbMediaAudioFrameStorageType destination_storage_type,
       int destination_sample_rate,
-      int channels);
+      int channels,
+      bool enable_simd = false);
 };
 
 }  // namespace starboard

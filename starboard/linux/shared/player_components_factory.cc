@@ -52,6 +52,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const CreationParameters& creation_parameters) override {
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
+    bool enable_simd_based_audio_format_switching =
+        creation_parameters.experimental_features()
+            .enable_simd_based_audio_format_switching.value_or(false);
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       auto decoder_creator =
@@ -81,7 +84,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
           job_queue, creation_parameters.audio_stream_info(),
-          creation_parameters.drm_system(), decoder_creator);
+          creation_parameters.drm_system(), decoder_creator,
+          /*enable_reset_audio_decoder=*/false,
+          enable_simd_based_audio_format_switching);
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkImpl>();
     }
