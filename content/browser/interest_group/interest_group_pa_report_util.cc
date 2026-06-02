@@ -22,9 +22,13 @@
 #include "base/notreached.h"
 #include "base/numerics/clamped_math.h"
 #include "components/aggregation_service/aggregation_coordinator_utils.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/browser/private_aggregation/private_aggregation_host.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
+#endif
 #include "content/common/content_export.h"
 #include "content/services/auction_worklet/public/cpp/private_aggregation_reporting.h"
 #include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
@@ -461,6 +465,7 @@ bool IsPrivateAggregationRequestReservedOnce(
              auction_worklet::mojom::ReservedNonErrorEventType::kReservedOnce;
 }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void SplitContributionsIntoBatchesThenSendToHost(
     std::vector<auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr>
         requests,
@@ -540,6 +545,7 @@ void SplitContributionsIntoBatchesThenSendToHost(
     remote_host.reset();
   }
 }
+#endif
 
 bool HasValidFilteringId(
     const auction_worklet::mojom::PrivateAggregationRequestPtr& request) {

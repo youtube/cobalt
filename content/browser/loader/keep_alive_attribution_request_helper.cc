@@ -24,14 +24,18 @@
 #include "components/attribution_reporting/features.h"
 #include "components/attribution_reporting/registration_eligibility.mojom-forward.h"
 #include "components/attribution_reporting/suitable_origin.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_background_registrations_id.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
+#endif
 #include "content/browser/renderer_host/document_associated_data.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/weak_document_ptr.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
 #include "third_party/blink/public/common/features.h"
@@ -40,6 +44,7 @@
 
 namespace content {
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 namespace {
 
 using ::attribution_reporting::AttributionSrcRequestStatus;
@@ -263,5 +268,37 @@ void KeepAliveAttributionRequestHelper::RecordAttributionSrcRequestStatus(
 KeepAliveAttributionRequestHelper::~KeepAliveAttributionRequestHelper() {
   OnComplete();
 }
+#else
+// static
+std::unique_ptr<KeepAliveAttributionRequestHelper>
+KeepAliveAttributionRequestHelper::CreateIfNeeded(
+    network::mojom::AttributionReportingEligibility,
+    const GURL&,
+    const std::optional<base::UnguessableToken>&,
+    const std::optional<std::string>&,
+    const std::optional<AttributionSuitableContext>&,
+    WeakDocumentPtr) {
+  return nullptr;
+}
+
+KeepAliveAttributionRequestHelper::KeepAliveAttributionRequestHelper(
+    BackgroundRegistrationsId id,
+    AttributionDataHostManager* attribution_data_host_manager,
+    const GURL& reporting_url,
+    bool is_navigation_tied,
+    WeakDocumentPtr weak_document_ptr) {}
+
+KeepAliveAttributionRequestHelper::~KeepAliveAttributionRequestHelper() =
+    default;
+
+void KeepAliveAttributionRequestHelper::OnReceiveRedirect(
+    scoped_refptr<net::HttpResponseHeaders> headers,
+    const GURL& redirect_url) {}
+
+void KeepAliveAttributionRequestHelper::OnReceiveResponse(
+    scoped_refptr<net::HttpResponseHeaders> headers) {}
+
+void KeepAliveAttributionRequestHelper::OnError() {}
+#endif
 
 }  // namespace content

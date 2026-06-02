@@ -16,15 +16,17 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
-#include "content/public/common/content_milestone_features.h"
 #include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "components/viz/host/gpu_client.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_internals.mojom.h"
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
+#endif
 #include "content/browser/background_fetch/background_fetch_service_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
@@ -52,8 +54,10 @@
 #include "content/browser/picture_in_picture/picture_in_picture_service_impl.h"
 #include "content/browser/preloading/anchor_element_interaction_host_impl.h"
 #include "content/browser/preloading/speculation_rules/speculation_host_impl.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_internals.mojom.h"
 #include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
+#endif
 #include "content/browser/process_internals/process_internals.mojom.h"
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_context.h"
@@ -633,9 +637,8 @@ BindServiceWorkerReceiverForStorageKeyAndBucketContext(
         DCHECK_CURRENTLY_ON(BrowserThread::UI);
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host) {
+        if (!process_host)
           return;
-        }
         (process_host->*method)(info.storage_key, *host, std::move(receiver));
       },
       base::Unretained(host), method);
@@ -1249,11 +1252,13 @@ void PopulateBinderMapWithContext(
   map->Add<device::mojom::VRService>(
       base::BindRepeating(&EmptyBinderForFrame<device::mojom::VRService>));
 #endif
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   RegisterWebUIControllerInterfaceBinder<
       private_aggregation_internals::mojom::Factory,
       PrivateAggregationInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<attribution_internals::mojom::Factory,
                                          AttributionInternalsUI>(map);
+#endif
   RegisterWebUIControllerInterfaceBinder<storage::mojom::IdbInternalsHandler,
                                          indexed_db::IndexedDBInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<::mojom::ProcessInternalsHandler,

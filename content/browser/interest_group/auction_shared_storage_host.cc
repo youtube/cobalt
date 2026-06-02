@@ -5,8 +5,10 @@
 #include "content/browser/interest_group/auction_shared_storage_host.h"
 
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_lock_manager.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
+#endif
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"

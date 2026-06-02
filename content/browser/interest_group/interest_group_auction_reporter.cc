@@ -40,7 +40,11 @@
 #include "content/browser/interest_group/interest_group_pa_report_util.h"
 #include "content/browser/interest_group/interest_group_storage.h"
 #include "content/browser/interest_group/noiser_and_bucketer.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
+#endif
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/privacy_sandbox_invoking_api.h"
 #include "content/public/common/content_client.h"
@@ -397,6 +401,7 @@ void InterestGroupAuctionReporter::OnFledgePrivateAggregationRequests(
              std::vector<
                  auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr>>
         private_aggregation_requests) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // Empty vectors should've been filtered out.
   DCHECK(std::ranges::none_of(private_aggregation_requests,
                               [](auto& it) { return it.second.empty(); }));
@@ -411,6 +416,7 @@ void InterestGroupAuctionReporter::OnFledgePrivateAggregationRequests(
         /*reporting_origin=*/agg_key.reporting_origin,
         std::move(agg_key.aggregation_coordinator_origin), main_frame_origin);
   }
+#endif
 }
 
 /* static */

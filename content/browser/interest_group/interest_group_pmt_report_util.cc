@@ -12,8 +12,8 @@
 #include "base/uuid.h"
 #include "components/cbor/values.h"
 #include "components/cbor/writer.h"
-#include "content/browser/aggregation_service/public_key.h"
 #include "content/services/auction_worklet/public/cpp/private_model_training_reporting.h"
+#include "third_party/boringssl/src/include/openssl/hpke.h"
 namespace content {
 
 namespace {

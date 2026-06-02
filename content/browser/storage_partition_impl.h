@@ -33,10 +33,10 @@
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/worker_host/dedicated_worker_service_impl.h"
 #include "content/common/content_export.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -76,7 +76,7 @@ class DeviceBoundSessionAccessObserver;
 namespace storage {
 struct BucketClientInfo;
 class SharedStorageManager;
-}
+}  // namespace storage
 
 namespace content {
 
@@ -151,6 +151,7 @@ class CONTENT_EXPORT StoragePartitionImpl
       BackgroundSyncContextImpl* background_sync_context);
   void OverrideSharedWorkerServiceForTesting(
       std::unique_ptr<SharedWorkerServiceImpl> shared_worker_service);
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideSharedStorageRuntimeManagerForTesting(
       std::unique_ptr<SharedStorageRuntimeManager>
           shared_storage_runtime_manager);
@@ -164,6 +165,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   void OverridePrivateAggregationManagerForTesting(
       std::unique_ptr<PrivateAggregationManagerImpl>
           private_aggregation_manager);
+#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideDeviceBoundSessionManagerForTesting(
       std::unique_ptr<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager);

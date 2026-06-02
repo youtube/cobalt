@@ -431,8 +431,7 @@ int32_t PageImpl::GetSavedQueryResultIndexOrStoreCallback(
   return it->second.index;
 #else
   // Return -2 to indicate that shared storage is disabled/unavailable.
-  constexpr int32_t kSharedStorageDisabled = -2;
-  return kSharedStorageDisabled;
+  return -2;
 #endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 

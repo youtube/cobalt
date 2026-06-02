@@ -28,19 +28,25 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/types/pass_key.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_beacon_id.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_host.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
+#endif
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
 #include "content/browser/interest_group/interest_group_pa_report_util.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_budget_key.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
+#endif
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -310,8 +316,12 @@ FencedFrameReporter::FencedFrameReporter(
     const std::optional<url::Origin>& winner_aggregation_coordinator_origin,
     const std::optional<std::vector<url::Origin>>& allowed_reporting_origins)
     : url_loader_factory_(std::move(url_loader_factory)),
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       attribution_manager_(
           AttributionManager::FromBrowserContext(browser_context)),
+#else
+      attribution_manager_(nullptr),
+#endif
       browser_context_(browser_context),
       main_frame_origin_(main_frame_origin),
       private_aggregation_manager_(private_aggregation_manager),
@@ -408,7 +418,9 @@ bool FencedFrameReporter::SendReport(
     return false;
   }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   static base::AtomicSequenceNumber unique_id_counter;
+#endif
 
   std::optional<AttributionReportingData> attribution_reporting_data;
 
@@ -418,6 +430,7 @@ bool FencedFrameReporter::SendReport(
   WebContents* web_contents =
       WebContents::FromRenderFrameHost(request_initiator_frame);
   if (web_contents) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     network::mojom::AttributionSupport attribution_reporting_support =
         static_cast<WebContentsImpl*>(web_contents)->GetAttributionSupport();
     auto suitable_context =
@@ -437,6 +450,7 @@ bool FencedFrameReporter::SendReport(
           .attribution_reporting_support = attribution_reporting_support,
       });
     }
+#endif
   }
 
   url::Origin request_initiator =
@@ -759,6 +773,7 @@ bool FencedFrameReporter::SendReportInternal(
 
   network::SimpleURLLoader* simple_url_loader_ptr = simple_url_loader.get();
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   AttributionDataHostManager* attribution_data_host_manager =
       attribution_manager_ ? attribution_manager_->GetDataHostManager()
                            : nullptr;
@@ -812,6 +827,7 @@ bool FencedFrameReporter::SendReportInternal(
             attribution_reporting_data->beacon_id, std::move(simple_url_loader),
             initiator_frame_tree_node_id, devtools_request_id));
   } else {
+#endif
     // Send out the reporting beacon.
     simple_url_loader_ptr->DownloadHeadersOnly(
         url_loader_factory_.get(),
@@ -832,7 +848,9 @@ bool FencedFrameReporter::SendReportInternal(
             },
             event_variant, std::move(simple_url_loader),
             initiator_frame_tree_node_id, devtools_request_id));
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
+#endif
 
   // The associated histograms will be sent out in the FencedFrameReporter
   // destructor.
@@ -897,6 +915,7 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEvent(
 
 void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
     const std::string& pa_event_type) {
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK(private_aggregation_manager_);
   DCHECK(winner_origin_.has_value() &&
          winner_origin_.value().scheme() == url::kHttpsScheme);
@@ -918,6 +937,7 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
   // requests more than once. As a result, receiving the same event type
   // multiple times only triggers sending the event's requests once.
   private_aggregation_event_map_.erase(it);
+#endif
 }
 
 const std::vector<blink::FencedFrame::ReportingDestination>
@@ -997,6 +1017,7 @@ void FencedFrameReporter::NotifyFencedFrameReportingBeaconFailed(
     return;
   }
 
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   AttributionDataHostManager* attribution_data_host_manager =
       attribution_manager_ ? attribution_manager_->GetDataHostManager()
                            : nullptr;
@@ -1008,6 +1029,7 @@ void FencedFrameReporter::NotifyFencedFrameReportingBeaconFailed(
       attribution_reporting_data->beacon_id,
       /*reporting_url=*/GURL(), /*headers=*/nullptr,
       /*is_final_response=*/true);
+#endif
 }
 
 void FencedFrameReporter::NotifyIsBeaconQueued(

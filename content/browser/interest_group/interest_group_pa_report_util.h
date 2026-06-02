@@ -161,8 +161,9 @@ CONTENT_EXPORT bool ShouldKeepRequestOnlyIfReservedOnceRep(
 CONTENT_EXPORT bool IsPrivateAggregationRequestReservedOnce(
     const auction_worklet::mojom::PrivateAggregationRequest& request);
 
-// Splits a vector of requests into those with matching debug mode details and
-// then forwards to a new mojo pipe.
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 CONTENT_EXPORT void SplitContributionsIntoBatchesThenSendToHost(
     std::vector<auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr>
         requests,
@@ -170,6 +171,7 @@ CONTENT_EXPORT void SplitContributionsIntoBatchesThenSendToHost(
     const url::Origin& reporting_origin,
     std::optional<url::Origin> aggregation_coordinator_origin,
     const url::Origin& main_frame_origin);
+#endif
 
 // Returns true if request has a valid filtering ID.
 CONTENT_EXPORT bool HasValidFilteringId(

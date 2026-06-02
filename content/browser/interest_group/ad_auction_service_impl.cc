@@ -45,7 +45,11 @@
 #include "content/browser/interest_group/protected_audience_network_util.h"
 #include "content/browser/loader/reconnectable_url_loader_factory.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
+#endif
 #include "content/browser/renderer_host/page_impl.h"
 #include "content/browser/renderer_host/policy_container_host.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -808,8 +812,13 @@ AdAuctionServiceImpl::AdAuctionServiceImpl(
           origin(),
           this),
       auction_nonce_manager_(GetFrame()),
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       private_aggregation_manager_(PrivateAggregationManager::GetManager(
-          *render_frame_host.GetBrowserContext())) {
+          *render_frame_host.GetBrowserContext()))
+#else
+      private_aggregation_manager_(nullptr)
+#endif
+{
   // Construct `ref_counted_trusted_url_loader_factory_` here because
   // `weak_ptr_factory_` is not yet initialized during the member initializer
   // list above.

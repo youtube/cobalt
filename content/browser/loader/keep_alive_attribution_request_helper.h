@@ -13,8 +13,18 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/unguessable_token.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_background_registrations_id.h"
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
+#else
+namespace content {
+class AttributionSuitableContext;
+using BackgroundRegistrationsId = int64_t;
+}  // namespace content
+#endif
 #include "content/common/content_export.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
