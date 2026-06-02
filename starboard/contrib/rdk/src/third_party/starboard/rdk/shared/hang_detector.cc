@@ -32,7 +32,6 @@
 #include "starboard/common/once.h"
 #include <sys/resource.h>
 #include "starboard/common/thread.h"
-#include "starboard/thread.h"
 
 #include "third_party/starboard/rdk/shared/log_override.h"
 
