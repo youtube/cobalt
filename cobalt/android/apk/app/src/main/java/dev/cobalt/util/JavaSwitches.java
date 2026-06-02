@@ -52,6 +52,15 @@ public class JavaSwitches {
   /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
   public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
 
+  /** flag to limit GPU image cache items */
+  public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
+
+  /** flag to limit GPU image cache working set budget bytes */
+  public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES = "DecodedImageWorkingSetBudgetBytes";
+
+  /** flag to allow scaling clipped images in GpuImageDecodeCache */
+  public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
@@ -81,6 +90,19 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
       extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS)) {
+      String limit = javaSwitches.get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS).replaceAll("[^0-9]", "");
+      extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
+    }
+    if (javaSwitches.containsKey(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)) {
+      String budget = javaSwitches.get(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES).replaceAll("[^0-9]", "");
+      extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES)) {
+      extraCommandLineArgs.add("--enable-scaling-clipped-images");
     }
 
     StringJoiner featureParams = new StringJoiner("/");
