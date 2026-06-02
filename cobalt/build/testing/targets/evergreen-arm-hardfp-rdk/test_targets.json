@@ -41,6 +41,10 @@
     "test_type": "gtest"
   },
   {
+    "target": "services/resource_coordinator:cobalt_memory_instrumentation_unittests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/cobalt_memory_instrumentation_unittests_loader.py"
+  },
+  {
     "target": "skia:skia_unittests_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py",
     "runs_on": "device",

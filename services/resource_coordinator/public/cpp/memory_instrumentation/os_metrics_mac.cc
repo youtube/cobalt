@@ -8,6 +8,7 @@
 #endif
 
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 
 #include <mach/mach.h>
 #include <sys/param.h>
@@ -236,7 +237,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   return FillOSMemoryDump(current_handle, flags, nullptr, dump);
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // static
 bool OSMetrics::FillOSMemoryDump(
     base::ProcessHandle handle,

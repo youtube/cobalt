@@ -196,6 +196,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // mode.
   const bool skip_video_frames_over_60_fps_;
 
+  // Enable the workaround to ignore stale/dirty MediaCodec callback messages
+  // queued on the main thread during a flush.
+  const bool ignore_mediacodec_callbacks_during_flushing_;
+
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.

@@ -57,6 +57,10 @@
     "test_type": "gtest"
   },
   {
+    "target": "services/resource_coordinator:cobalt_memory_instrumentation_unittests",
+    "executable": "out/android-arm_devel/cobalt_memory_instrumentation_unittests_apk/cobalt_memory_instrumentation_unittests-debug.apk"
+  },
+  {
     "target": "skia:skia_unittests",
     "executable": "out/android-arm_devel/skia_unittests_apk/skia_unittests-debug.apk",
     "runs_on": "device",

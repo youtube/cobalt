@@ -114,6 +114,10 @@
     "test_type": "gtest"
   },
   {
+    "target": "services/resource_coordinator:cobalt_memory_instrumentation_unittests",
+    "executable": "out/linux-x64x11_devel/cobalt_memory_instrumentation_unittests"
+  },
+  {
     "target": "skia:skia_unittests",
     "executable": "out/linux-x64x11_devel/skia_unittests",
     "runs_on": "host",

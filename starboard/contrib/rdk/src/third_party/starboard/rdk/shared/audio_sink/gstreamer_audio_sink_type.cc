@@ -49,12 +49,10 @@
 #include <unistd.h>
 
 #include "starboard/configuration.h"
-#include "starboard/file.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include <sys/resource.h>
 #include "starboard/common/thread.h"
-#include "starboard/thread.h"
 
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 
@@ -279,7 +277,7 @@ GStreamerAudioSink::~GStreamerAudioSink() {
 // static
 void* GStreamerAudioSink::AudioThreadEntryPoint(void* context) {
   SB_DCHECK(context);
-  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(ThreadPriority::kRealTime));
+  setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(ThreadPriority::kRealTime));
 
   GStreamerAudioSink* sink = reinterpret_cast<GStreamerAudioSink*>(context);
   GST_TRACE_OBJECT(sink->pipeline_, "TID: %d", gettid());
