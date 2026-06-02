@@ -744,6 +744,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.enable_video_renderer_vsp_adjustment;
     extension_features.flush_decoder_during_reset =
         experimental_features_.enable_flush_during_seek;
+    extension_features.ignore_mediacodec_callbacks_during_flushing =
+        experimental_features_.ignore_mediacodec_callbacks_during_flushing;
     extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
     extension_features.flush_audio_track_during_seek =
