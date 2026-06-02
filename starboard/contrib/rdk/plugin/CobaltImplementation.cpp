@@ -23,6 +23,8 @@
 #include <interfaces/IFocus.h>
 #endif
 
+#include "third_party/starboard/rdk/shared/rdkservices.h"
+
 extern "C" {
 
 int  StarboardMain(int argc, char **argv);
@@ -293,6 +295,13 @@ private:
       if (config.Language.IsSet() == true) {
         string lang = config.Language.Value();
         Core::SystemInfo::SetEnvironment(_T("LANG"), lang);
+      } else {
+        // Fall back to the platform's presentation language from UserSettings.
+        std::string lang;
+        if (third_party::starboard::rdk::shared::UserSettings::GetPresentationLanguage(lang)) {
+          SYSLOG(Logging::Notification, (_T("Cobalt: using UserSettings language: %s\n"), lang.c_str()));
+          Core::SystemInfo::SetEnvironment(_T("LANG"), lang);
+        }
       }
 
       if (config.ContentDir.IsSet() == true) {

@@ -14,7 +14,10 @@
 
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 
+#include <locale.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <functional>
 #include <memory>
@@ -224,6 +227,30 @@ SharedState& GetSharedState() {
 }
 
 std::string GetShellLanguage() {
+  // Look up the process locale and normalise to a BCP-47 language tag.
+  auto is_valid = [](const char* s) {
+    return s && *s && strcmp(s, "C") != 0 && strcmp(s, "POSIX") != 0;
+  };
+  auto normalize = [](std::string_view s) {
+    auto end = s.find_first_of(".@");
+    std::string out(s.substr(0, end));
+    for (char& c : out) {
+      if (c == '_') {
+        c = '-';
+      }
+    }
+    return out;
+  };
+  const char* id = setlocale(LC_MESSAGES, nullptr);
+  if (is_valid(id)) {
+    return normalize(id);
+  }
+  for (const char* var : {"LC_ALL", "LC_MESSAGES", "LANG"}) {
+    id = getenv(var);
+    if (is_valid(id)) {
+      return normalize(id);
+    }
+  }
   return "en-us,en";
 }
 

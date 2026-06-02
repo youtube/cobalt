@@ -69,7 +69,7 @@ const char kDeviceIdentificationCallsign[] = "DeviceIdentification.1";
 const char kNetworkCallsign[] = "org.rdk.Network.1";
 const char kTTSCallsign[] = "org.rdk.TextToSpeech.1";
 const char kAuthServiceCallsign[] = "org.rdk.AuthService.1";
-const char kUserSetingsCallsign[] = "org.rdk.UserSettings.1";
+const char kUserSettingsCallsign[] = "org.rdk.UserSettings.1";
 const char kDeviceInfoCallsign[] = "DeviceInfo.1";
 const char kBluetoothCallsign[] = "org.rdk.Bluetooth.1";
 
@@ -1495,7 +1495,7 @@ private:
   std::mutex mutex_;
   std::vector<std::string> subscriptions_ { };
   bool needs_refresh_ { true };
-  ServiceLink link_ { kUserSetingsCallsign };
+  ServiceLink link_ { kUserSettingsCallsign };
 
   struct StateChangedInfo : public Core::JSON::Container {
     StateChangedInfo()
@@ -1555,14 +1555,14 @@ private:
 
       if (Core::ERROR_UNAVAILABLE == rc || kPriviligedRequestErrorCode == rc) {
         needs_refresh_ = false;
-        SB_LOG(ERROR) << "Failed to subscribe to '" << kUserSetingsCallsign
+        SB_LOG(ERROR) << "Failed to subscribe to '" << kUserSettingsCallsign
                       << "." << name << "' event, rc = " << rc
                       << " ( " << Core::ErrorToString(rc) << " )";
         return false;
       }
 
       if (Core::ERROR_NONE != rc && Core::ERROR_DUPLICATE_KEY != rc) {
-        SB_LOG(ERROR) << "Failed to subscribe to '" << kUserSetingsCallsign
+        SB_LOG(ERROR) << "Failed to subscribe to '" << kUserSettingsCallsign
                       << "." << name << "' event, rc = " << rc
                       << " ( " << Core::ErrorToString(rc) << " ).";
         continue;
@@ -1625,6 +1625,17 @@ public:
     link_.Teardown();
     needs_refresh_ = true;
     subscriptions_.clear();
+  }
+
+  bool GetPresentationLanguage(std::string& out) {
+    Core::JSON::String result;
+    uint32_t rc = link_.Get(kDefaultTimeoutMs, "getPresentationLanguage", result);
+    if (Core::ERROR_NONE != rc) {
+      SB_LOG(ERROR) << "UserSettings.getPresentationLanguage failed, rc=" << rc;
+      return false;
+    }
+    out = result.Value();
+    return !out.empty();
   }
 };
 
@@ -1769,6 +1780,10 @@ bool DeviceInfo::GetAudioConfiguration(int index, SbMediaAudioConfiguration* out
 
 bool DeviceInfo::GetBrandName(std::string& out) {
   return GetDeviceInfo()->GetBrandName(out);
+}
+
+bool UserSettings::GetPresentationLanguage(std::string& out) {
+  return GetUserSettings()->GetPresentationLanguage(out);
 }
 
 void TeardownJSONRPCLink() {
