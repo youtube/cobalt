@@ -228,6 +228,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+    "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/lifecycle",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
