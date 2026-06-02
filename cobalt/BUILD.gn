@@ -263,6 +263,7 @@ source_set("common") {
     "//sandbox/policy",
     "//services/device/time_zone_monitor",
     "//starboard:starboard_headers_only",
+    "//starboard/common:common",
     "//third_party/blink/public/common",
     "//ui/gl",
   ]
