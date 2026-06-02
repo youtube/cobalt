@@ -877,7 +877,7 @@ void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetAvailable(
   aura::WindowTreeHostPlatform::OnAcceleratedWidgetAvailable(widget);
 }
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_COBALT)
 void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
   // In non-destructive suspend/resume lifecycles, the platform graphics
   // surface (AcceleratedWidget) may be destroyed and re-created dynamically
@@ -893,13 +893,6 @@ void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
 void DesktopWindowTreeHostPlatform::OnWillDestroyAcceleratedWidget() {
   desktop_native_widget_aura_->OnHostWillClose();
 }
-
-#if BUILDFLAG(IS_COBALT)
-void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
-  open_windows().remove(GetAcceleratedWidget());
-  aura::WindowTreeHostPlatform::OnAcceleratedWidgetDestroyed();
-}
-#endif
 
 void DesktopWindowTreeHostPlatform::OnActivationChanged(bool active) {
   if (active) {
