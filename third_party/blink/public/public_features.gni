@@ -15,9 +15,6 @@ use_minikin_hyphenation = !is_apple
 declare_args() {
   # If true, WebRTC PeerConnection and related modules are enabled.
   use_webrtc_peer_connection = !is_cobalt
-
-  # If true, Blink language detection is enabled.
-  enable_blink_language_detection = !is_cobalt
 }
 
 
