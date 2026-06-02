@@ -4,8 +4,6 @@
 #ifndef SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 #define SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
-
 #include <vector>
 
 #include "base/component_export.h"
@@ -15,6 +13,7 @@
 #include "base/process/process_metrics.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 
 #if BUILDFLAG(IS_APPLE)
