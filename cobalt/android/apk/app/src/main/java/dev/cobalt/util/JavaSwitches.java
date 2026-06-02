@@ -39,9 +39,6 @@ public class JavaSwitches {
   /** flag to enable fast track mic capture. */
   public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
 
-  /** V8 flag to disable decommitting pooled pages. */
-  public static final String DISABLE_V8_DECOMMIT_POOLED_PAGES = "DisableV8DecommitPooledPages";
-
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -72,10 +69,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
       extraCommandLineArgs.add("--disable-http-cache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_DECOMMIT_POOLED_PAGES)) {
-      extraCommandLineArgs.add("--js-flags=--no-decommit-pooled-pages");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
