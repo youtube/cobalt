@@ -45,6 +45,7 @@ runs:
 
     - name: Parse Test Targets
       id: parse-targets
+      if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
