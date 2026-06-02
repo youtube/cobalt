@@ -342,4 +342,66 @@ bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
          audio_codec == kSbMediaAudioCodecEac3;
 }
 
+TransitionSearchResult FindVideoTransitionTarget(
+    const char* initial_mime,
+    SbMediaVideoCodec initial_codec,
+    SbPlayerOutputMode output_mode,
+    const char* key_system) {
+  TransitionSearchResult result;
+  for (const char* candidate_filename : GetVideoTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaVideoCodec candidate_codec = candidate_reader.video_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.video_mime_type().c_str(), key_system) &&
+          IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
+                                candidate_codec, key_system)) {
+        if (!SbMediaCanChangeType(initial_mime,
+                                  candidate_reader.video_mime_type().c_str())) {
+          result.transition_supported = false;
+          result.failed_target_mime = candidate_reader.video_mime_type();
+          continue;
+        }
+        result.target_filename = candidate_filename;
+        result.transition_supported = true;
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
+TransitionSearchResult FindAudioTransitionTarget(
+    const char* initial_mime,
+    SbMediaAudioCodec initial_codec,
+    SbPlayerOutputMode output_mode,
+    const char* key_system) {
+  TransitionSearchResult result;
+  for (const char* candidate_filename : GetStereoAudioTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaAudioCodec candidate_codec = candidate_reader.audio_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.audio_mime_type().c_str(), key_system) &&
+          IsOutputModeSupported(output_mode, candidate_codec,
+                                kSbMediaVideoCodecNone, key_system)) {
+        if (!SbMediaCanChangeType(initial_mime,
+                                  candidate_reader.audio_mime_type().c_str())) {
+          result.transition_supported = false;
+          result.failed_target_mime = candidate_reader.audio_mime_type();
+          continue;
+        }
+        result.target_filename = candidate_filename;
+        result.transition_supported = true;
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
 }  // namespace nplb
