@@ -127,6 +127,7 @@ TEST_F(MediaCodecVideoDecoderTest, InitializesCorrectly) {
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
+  EXPECT_EQ(fake_codec->GetNumBuffers(), 8);
 }
 
 TEST_F(MediaCodecVideoDecoderTest, BasicDecodingFlow) {
@@ -145,7 +146,7 @@ TEST_F(MediaCodecVideoDecoderTest, BasicDecodingFlow) {
   decoder_->Initialize(
       [&](VideoDecoder::Status status, const scoped_refptr<VideoFrame>& frame) {
         if (frame && !frame->is_end_of_stream()) {
-          std::lock_guard<std::mutex> lock(output_mutex);
+          std::lock_guard lock(output_mutex);
           frame_received = true;
           received_frame = frame;
           output_cv.notify_all();
@@ -190,7 +191,8 @@ TEST_F(MediaCodecVideoDecoderTest, BasicDecodingFlow) {
   ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
   auto released_outputs = fake_codec->GetReleasedOutputs();
   ASSERT_EQ(released_outputs.size(), 1U);
-  EXPECT_EQ(released_outputs[0], 0);
+  EXPECT_EQ(released_outputs[0].index, 0);
+  EXPECT_FALSE(released_outputs[0].render);
 
   EXPECT_FALSE(error_called);
 }

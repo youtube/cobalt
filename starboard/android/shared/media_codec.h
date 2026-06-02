@@ -85,6 +85,11 @@ struct DequeueOutputResult {
   int32_t num_bytes;
 };
 
+struct LinearBuffer {
+  void* address = nullptr;
+  size_t capacity = 0;
+};
+
 // MediaCodec is an abstract interface for Android MediaCodec functionality,
 // providing a unified API for both JNI-based (MediaCodecBridge) and NDK-based
 // (NdkMediaCodec) implementations. It is typically owned by MediaCodecDecoder.
@@ -163,8 +168,7 @@ class MediaCodec {
 
   virtual ~MediaCodec() = default;
 
-  virtual jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) = 0;
-  virtual void* GetInputBufferAddress(jint index, size_t* capacity) = 0;
+  virtual LinearBuffer GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,
@@ -177,7 +181,7 @@ class MediaCodec {
                                       jlong presentation_time_microseconds,
                                       jboolean is_decode_only) = 0;
 
-  virtual jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) = 0;
+  virtual LinearBuffer GetOutputBufferAddress(jint index) = 0;
   virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
   virtual void ReleaseOutputBufferAtTimestamp(jint index,
                                               jlong render_timestamp_ns) = 0;

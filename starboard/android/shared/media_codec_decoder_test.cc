@@ -116,6 +116,7 @@ TEST_F(MediaCodecDecoderTest, InitializesCorrectly) {
 
   FakeMediaCodec* fake_codec = GetFakeAudioCodec();
   ASSERT_NE(fake_codec, nullptr);
+  EXPECT_EQ(fake_codec->GetNumBuffers(), 8);
 }
 
 TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
@@ -159,7 +160,7 @@ TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
   EXPECT_CALL(host_, ProcessOutputBuffer(_, _))
       .WillOnce(
           Invoke([&](MediaCodec* codec, const DequeueOutputResult& output) {
-            std::lock_guard<std::mutex> lock(output_mutex);
+            std::lock_guard lock(output_mutex);
             output_processed = true;
             processed_output = output;
             // Test code usually releases output buffer
@@ -183,7 +184,8 @@ TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
   ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
   auto released_outputs = fake_codec->GetReleasedOutputs();
   ASSERT_EQ(released_outputs.size(), 1U);
-  EXPECT_EQ(released_outputs[0], 0);
+  EXPECT_EQ(released_outputs[0].index, 0);
+  EXPECT_FALSE(released_outputs[0].render);
 
   EXPECT_FALSE(error_called);
 }

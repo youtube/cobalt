@@ -281,30 +281,23 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
-ScopedJavaLocalRef<jobject> MediaCodecBridge::GetInputBuffer(jint index) {
+LinearBuffer MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_,
-                                              index);
-}
-
-void* MediaCodecBridge::GetInputBufferAddress(jint index, size_t* capacity) {
-  SB_CHECK(capacity);
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> byte_buffer = GetInputBuffer(index);
+  ScopedJavaLocalRef<jobject> byte_buffer =
+      Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index);
   if (byte_buffer.is_null()) {
-    return nullptr;
+    return {};
   }
   jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
   if (cap < 0) {
-    return nullptr;
+    return {};
   }
   void* address = env->GetDirectBufferAddress(byte_buffer.obj());
   if (!address) {
-    return nullptr;
+    return {};
   }
-  *capacity = static_cast<size_t>(cap);
-  return address;
+  return {address, static_cast<size_t>(cap)};
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -365,11 +358,23 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
+LinearBuffer MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_,
-                                               index);
+  ScopedJavaLocalRef<jobject> byte_buffer =
+      Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index);
+  if (byte_buffer.is_null()) {
+    return {};
+  }
+  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
+  if (cap < 0) {
+    return {};
+  }
+  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+  if (!address) {
+    return {};
+  }
+  return {address, static_cast<size_t>(cap)};
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

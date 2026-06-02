@@ -755,9 +755,8 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   // were called and had it stored in |pending_input_to_retry_|.
   if (!input_buffer_already_written &&
       pending_input.type != PendingInput::kWriteEndOfStream) {
-    size_t capacity = 0;
-    void* address = media_codec_bridge_->GetInputBufferAddress(
-        dequeue_input_result.index, &capacity);
+    const auto [address, capacity] =
+        media_codec_bridge_->GetInputBufferAddress(dequeue_input_result.index);
     if (!address) {
       SB_LOG(ERROR) << "Unable to get MediaCodec input buffer address.";
       // There could be dirty callbacks right after flush, thus the
