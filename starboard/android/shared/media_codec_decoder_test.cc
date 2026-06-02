@@ -55,17 +55,17 @@ class MockHost : public MediaCodecDecoder::Host {
               (override));
 };
 
+const AudioStreamInfo kDefaultAudioStreamInfo = [] {
+  AudioStreamInfo info;
+  info.codec = kSbMediaAudioCodecAac;
+  info.samples_per_second = 44100;
+  info.number_of_channels = 2;
+  return info;
+}();
+
 class MediaCodecDecoderTest : public ::testing::Test {
  protected:
   MediaCodecDecoderTest() {}
-
-  void SetUp() override {
-    audio_stream_info_.codec = kSbMediaAudioCodecAac;
-    audio_stream_info_.samples_per_second = 44100;
-    audio_stream_info_.number_of_channels = 2;
-  }
-
-  void TearDown() override { decoder_.reset(); }
 
   scoped_refptr<InputBuffer> CreateDummyAudioInputBuffer(int64_t timestamp,
                                                          int size) {
@@ -87,14 +87,15 @@ class MediaCodecDecoderTest : public ::testing::Test {
     sample_info.buffer = buffer;
     sample_info.buffer_size = size;
     sample_info.timestamp = timestamp;
-    sample_info.audio_sample_info.stream_info = audio_stream_info_;
+    sample_info.audio_sample_info.stream_info = kDefaultAudioStreamInfo;
 
     auto deallocate_func = [](SbPlayer player, void* context,
                               const void* sample_buffer) {
       delete[] static_cast<const uint8_t*>(sample_buffer);
     };
 
-    return new InputBuffer(deallocate_func, nullptr, nullptr, sample_info);
+    return make_scoped_refptr<InputBuffer>(deallocate_func, /*player=*/nullptr,
+                                           /*context=*/nullptr, sample_info);
   }
 
   FakeMediaCodec* GetFakeAudioCodec() {
@@ -104,13 +105,14 @@ class MediaCodecDecoderTest : public ::testing::Test {
   JobQueue job_queue_;
   FakeMediaCodecFactory factory_;
   NiceMock<MockHost> host_;
-  AudioStreamInfo audio_stream_info_;
+
   std::unique_ptr<MediaCodecDecoder> decoder_;
 };
 
 TEST_F(MediaCodecDecoderTest, InitializesCorrectly) {
-  auto result = MediaCodecDecoder::CreateForAudio(
-      factory_, &job_queue_, &host_, audio_stream_info_, kSbDrmSystemInvalid);
+  auto result = MediaCodecDecoder::CreateForAudio(factory_, &job_queue_, &host_,
+                                                  kDefaultAudioStreamInfo,
+                                                  kSbDrmSystemInvalid);
   ASSERT_TRUE(result);
   decoder_ = std::move(result.value());
 
@@ -120,8 +122,9 @@ TEST_F(MediaCodecDecoderTest, InitializesCorrectly) {
 }
 
 TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
-  auto result = MediaCodecDecoder::CreateForAudio(
-      factory_, &job_queue_, &host_, audio_stream_info_, kSbDrmSystemInvalid);
+  auto result = MediaCodecDecoder::CreateForAudio(factory_, &job_queue_, &host_,
+                                                  kDefaultAudioStreamInfo,
+                                                  kSbDrmSystemInvalid);
   ASSERT_TRUE(result);
   decoder_ = std::move(result.value());
 

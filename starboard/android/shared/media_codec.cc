@@ -147,4 +147,18 @@ bool MediaCodec::IsFrameRenderedCallbackEnabled() {
   return android_get_device_api_level() >= 34;
 }
 
+FrameSize::FrameSize() : FrameSize(Size(), /*has_crop_values=*/false) {}
+
+FrameSize::FrameSize(Size display_size, bool has_crop_values)
+    : display_size(display_size), has_crop_values(has_crop_values) {
+  SB_CHECK_GE(display_size.width, 0);
+  SB_CHECK_GE(display_size.height, 0);
+}
+
+std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
+  return os << "{display_size=" << size.display_size
+            << ", has_crop_values=" << starboard::ToString(size.has_crop_values)
+            << "}";
+}
+
 }  // namespace starboard
