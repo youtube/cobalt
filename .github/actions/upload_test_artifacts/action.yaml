@@ -118,6 +118,8 @@ runs:
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
       run: |
         set -x
+        # TODO: Invoke the packager from this directory because there is an issue with the packaging steps for browsertests and webtests that assumes the location from which it is called.
+        cd cobalt/src
         time vpython3 -u ${GITHUB_WORKSPACE}/cobalt/src/cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir ${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/ \
