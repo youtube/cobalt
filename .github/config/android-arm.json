@@ -9,7 +9,7 @@
   "test_e2e": true,
   "test_yts": true,
   "test_yts_playback": true,
-  "test_browser": false,
+  "test_browser": true,
   "test_yts_wpt": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "e2e_test_targets": [
@@ -92,8 +92,9 @@
   ],
   "browser_test_targets": [
     {
-      "target": "testing/container/browser_tests:cobalt_browser_test",
-      "test_attempts": "3"
+      "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+      "test_attempts": "3",
+      "gtest_filter": "ContentMainRunnerImplBrowserTest.StartupSequence"
     }
   ],
   "yts_wpt_test_targets": [
