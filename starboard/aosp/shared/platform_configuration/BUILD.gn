@@ -13,5 +13,20 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  configs = [ "//starboard/android/shared/platform_configuration" ]
+  configs = [
+    "//starboard/android/shared/platform_configuration",
+    ":no_pedantic_warnings",
+  ]
+}
+
+config("no_pedantic_warnings") {
+  cflags = [
+    "-Wno-implicit-fallthrough",
+    "-Wno-missing-braces",
+    "-Wno-return-type",
+    "-Wno-sometimes-uninitialized",
+    "-Wno-vla-cxx-extension",
+    "-Wno-unreachable-code-return",
+    "-Wno-unused-function",
+  ]
 }
