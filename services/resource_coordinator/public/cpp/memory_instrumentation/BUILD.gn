@@ -2,6 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/buildflag_header.gni")
+
+buildflag_header("memory_instrumentation_features") {
+  header = "memory_instrumentation_features.h"
+  _enable_detailed_metrics = is_cobalt && (is_linux || is_android)
+  flags = [ "COBALT_DETAILED_MEMORY_METRICS=$_enable_detailed_metrics" ]
+}
+
 component("memory_instrumentation") {
   sources = [
     "client_process_impl.cc",
@@ -56,6 +64,7 @@ component("memory_instrumentation") {
     "//mojo/public/cpp/bindings",
     "//services/resource_coordinator/public/mojom",
     "//services/tracing/public/cpp",
+    ":memory_instrumentation_features",
   ]
 }
 
