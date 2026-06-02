@@ -73,8 +73,7 @@ class MediaCodecBridge : public MediaCodec {
   void Initialize(jobject j_media_codec_bridge);
 
   // MediaCodec implementation
-  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
-  void* GetInputBufferAddress(jint index, size_t* capacity) override;
+  LinearBuffer GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -87,7 +86,7 @@ class MediaCodecBridge : public MediaCodec {
                               jlong presentation_time_microseconds,
                               jboolean is_decode_only) override;
 
-  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) override;
+  LinearBuffer GetOutputBufferAddress(jint index) override;
   void ReleaseOutputBuffer(jint index, jboolean render) override;
   void ReleaseOutputBufferAtTimestamp(jint index,
                                       jlong render_timestamp_ns) override;

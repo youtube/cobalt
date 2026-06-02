@@ -239,17 +239,16 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   if (dequeue_output_result.num_bytes > 0) {
-    ScopedJavaLocalRef<jobject> byte_buffer(
-        media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
+    void* address =
+        media_codec_bridge->GetOutputBufferAddress(dequeue_output_result.index)
+            .address;
 
-    if (byte_buffer.is_null()) {
+    if (!address) {
       ReportError(kSbPlayerErrorDecode,
                   "Failed to process audio output buffer.");
       return;
     }
 
-    JNIEnv* env = jni_zero::AttachCurrentThread();
-    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     int16_t* data = static_cast<int16_t*>(
         IncrementPointerByBytes(address, dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;

@@ -34,20 +34,11 @@ namespace starboard {
 // This class is thread-safe.
 class FakeMediaCodec : public MediaCodec {
  public:
-  struct QueuedInput {
-    int index;
-    int offset;
-    int size;
-    int64_t pts;
-    int flags;
-  };
-
   explicit FakeMediaCodec(Handler* handler);
   ~FakeMediaCodec() override = default;
 
   // MediaCodec implementation
-  jni_zero::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index) override;
-  void* GetInputBufferAddress(jint index, size_t* capacity) override;
+  LinearBuffer GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -60,7 +51,7 @@ class FakeMediaCodec : public MediaCodec {
                               jlong presentation_time_microseconds,
                               jboolean is_decode_only) override;
 
-  jni_zero::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index) override;
+  LinearBuffer GetOutputBufferAddress(jint index) override;
   void ReleaseOutputBuffer(jint index, jboolean render) override;
   void ReleaseOutputBufferAtTimestamp(jint index,
                                       jlong render_timestamp_ns) override;
@@ -81,19 +72,33 @@ class FakeMediaCodec : public MediaCodec {
   bool WaitForInputQueue(size_t num_packets, int timeout_ms);
   bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
 
-  std::vector<QueuedInput> GetQueuedInputs();
-  std::vector<int> GetReleasedOutputs();
+  int GetNumBuffers() const;
+
+  struct QueuedInput {
+    int index;
+    int offset;
+    int size;
+    int64_t pts;
+    int flags;
+    bool is_decode_only;
+  };
+  std::vector<QueuedInput> GetQueuedInputs() const;
+
+  struct ReleasedOutput {
+    int index;
+    bool render;
+    int64_t timestamp_ns;
+  };
+  std::vector<ReleasedOutput> GetReleasedOutputs() const;
 
  private:
-  static constexpr int kNumBuffers = 8;
-  static constexpr size_t kBufferSize = 8192;
-
   Handler* const handler_;
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable cond_var_;
-  std::vector<std::vector<uint8_t>> buffers_{kNumBuffers};
-  std::deque<QueuedInput> queued_inputs_;
-  std::vector<int> released_outputs_;
+
+  std::vector<std::vector<uint8_t>> buffers_;     // Guarded by |mutex_|.
+  std::vector<QueuedInput> queued_inputs_;        // Guarded by |mutex_|.
+  std::vector<ReleasedOutput> released_outputs_;  // Guarded by |mutex_|.
 };
 
 // FakeMediaCodecFactory is a factory implementation used to inject

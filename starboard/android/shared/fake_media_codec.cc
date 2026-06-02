@@ -17,27 +17,25 @@
 #include "starboard/common/log.h"
 
 namespace starboard {
+namespace {
+constexpr int kNumBuffers = 8;
+constexpr size_t kBufferSize = 8192;
+}  // namespace
 
-FakeMediaCodec::FakeMediaCodec(Handler* handler) : handler_(handler) {
+FakeMediaCodec::FakeMediaCodec(Handler* handler)
+    : handler_(handler), buffers_(kNumBuffers) {
   SB_CHECK(handler_);
   for (int i = 0; i < kNumBuffers; ++i) {
     buffers_[i].resize(kBufferSize);
   }
 }
 
-jni_zero::ScopedJavaLocalRef<jobject> FakeMediaCodec::GetInputBuffer(
-    jint index) {
-  return {};
-}
-
-void* FakeMediaCodec::GetInputBufferAddress(jint index, size_t* capacity) {
-  SB_CHECK(capacity);
-  std::lock_guard<std::mutex> lock(mutex_);
+LinearBuffer FakeMediaCodec::GetInputBufferAddress(jint index) {
+  std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
-    return nullptr;
+    return {};
   }
-  *capacity = kBufferSize;
-  return buffers_[index].data();
+  return {buffers_[index].data(), kBufferSize};
 }
 
 jint FakeMediaCodec::QueueInputBuffer(jint index,
@@ -46,12 +44,9 @@ jint FakeMediaCodec::QueueInputBuffer(jint index,
                                       jlong presentation_time_microseconds,
                                       jint flags,
                                       jboolean is_decode_only) {
-  SB_LOG(INFO) << "[FakeMediaCodec] QueueInputBuffer called for index " << index
-               << ", size " << size << ", pts "
-               << presentation_time_microseconds;
-  std::lock_guard<std::mutex> lock(mutex_);
-  EXPECT_GE(index, 0);
-  EXPECT_LT(index, kNumBuffers);
+  std::lock_guard lock(mutex_);
+  SB_CHECK_GE(index, 0);
+  SB_CHECK_LT(index, kNumBuffers);
 
   QueuedInput input;
   input.index = index;
@@ -59,6 +54,7 @@ jint FakeMediaCodec::QueueInputBuffer(jint index,
   input.size = size;
   input.pts = presentation_time_microseconds;
   input.flags = flags;
+  input.is_decode_only = is_decode_only;
   queued_inputs_.push_back(input);
 
   cond_var_.notify_all();
@@ -74,30 +70,38 @@ jint FakeMediaCodec::QueueSecureInputBuffer(
   return -1;  // Not supported in Fake
 }
 
-jni_zero::ScopedJavaLocalRef<jobject> FakeMediaCodec::GetOutputBuffer(
-    jint index) {
-  return {};
+LinearBuffer FakeMediaCodec::GetOutputBufferAddress(jint index) {
+  std::lock_guard lock(mutex_);
+  if (index < 0 || index >= kNumBuffers) {
+    return {};
+  }
+  return {buffers_[index].data(), kBufferSize};
 }
 
 void FakeMediaCodec::ReleaseOutputBuffer(jint index, jboolean render) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  released_outputs_.push_back(index);
+  std::lock_guard lock(mutex_);
+  released_outputs_.push_back({index, static_cast<bool>(render), -1});
   cond_var_.notify_all();
 }
 
 void FakeMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
                                                     jlong render_timestamp_ns) {
-  ReleaseOutputBuffer(index, true);
+  std::lock_guard lock(mutex_);
+  released_outputs_.push_back({index, true, render_timestamp_ns});
+  cond_var_.notify_all();
 }
 
 void FakeMediaCodec::SetPlaybackRate(double playback_rate) {}
 
 bool FakeMediaCodec::Restart() {
+  std::lock_guard lock(mutex_);
+  SB_CHECK(queued_inputs_.empty());
+  SB_CHECK(released_outputs_.empty());
   return true;
 }
 
 jint FakeMediaCodec::Flush() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   queued_inputs_.clear();
   released_outputs_.clear();
   return 0;
@@ -138,13 +142,19 @@ bool FakeMediaCodec::WaitForOutputReleased(size_t num_packets, int timeout_ms) {
                             });
 }
 
-std::vector<FakeMediaCodec::QueuedInput> FakeMediaCodec::GetQueuedInputs() {
-  std::lock_guard<std::mutex> lock(mutex_);
-  return std::vector<QueuedInput>(queued_inputs_.begin(), queued_inputs_.end());
+int FakeMediaCodec::GetNumBuffers() const {
+  return kNumBuffers;
 }
 
-std::vector<int> FakeMediaCodec::GetReleasedOutputs() {
-  std::lock_guard<std::mutex> lock(mutex_);
+std::vector<FakeMediaCodec::QueuedInput> FakeMediaCodec::GetQueuedInputs()
+    const {
+  std::lock_guard lock(mutex_);
+  return queued_inputs_;
+}
+
+std::vector<FakeMediaCodec::ReleasedOutput> FakeMediaCodec::GetReleasedOutputs()
+    const {
+  std::lock_guard lock(mutex_);
   return released_outputs_;
 }
 
