@@ -13,10 +13,14 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <sstream>
+#include <string>
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/application.h"
 
 namespace {
 
@@ -43,6 +47,23 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_height,
                                 int bits_per_pixel) {
   auto get_overlaid_video_buffer_budget = []() {
+    auto* application = starboard::Application::Get();
+    if (application) {
+      auto* command_line = application->GetCommandLine();
+      if (command_line->HasSwitch("max-video-buffer-budget-mb")) {
+        std::string value =
+            command_line->GetSwitchValue("max-video-buffer-budget-mb");
+        std::stringstream ss(value);
+        int budget_mb = 0;
+        if (ss >> budget_mb && budget_mb > 0) {
+          SB_LOG(INFO)
+              << "CommandLine \"max-video-buffer-budget-mb\" is set to "
+              << budget_mb << " MB.";
+          return budget_mb * 1024 * 1024;
+        }
+      }
+    }
+
     int buffer_budget = starboard::RuntimeResourceOverlay::GetInstance()
                             ->max_video_buffer_budget();
     if (buffer_budget == 0) {
