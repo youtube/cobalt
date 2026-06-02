@@ -272,12 +272,14 @@ cobalt_bindings_exclude_patterns = [
   "*v8_union_mediastreamtrack_string*",
 ]
 
-cobalt_webnn_exclude_patterns = [
+cobalt_webgpu_exclude_patterns = [
+  "*v8_canvas_2d_gpu_*",
+  "*v8_gpu.*",
+  "*v8_gpu_*",
   "*v8_ml.*",
   "*v8_ml_*",
-]
-
-cobalt_webxr_exclude_patterns = [
   "*v8_xr.*",
   "*v8_xr_*",
+  "*v8_union_*gpu*",
 ]
+
