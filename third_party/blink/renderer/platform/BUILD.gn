@@ -1864,6 +1864,15 @@ component("platform") {
     deps += [ "//third_party/dawn/src/dawn:proc" ]
   }
 
+  if (is_cobalt) {
+    if (use_dawn) {
+      deps -= [ "//third_party/dawn/src/dawn/wire" ]
+    } else {
+      deps -= [ "//third_party/dawn/src/dawn:proc" ]
+      sources += [ "graphics/gpu/cobalt_webgpu_stubs.cc" ]
+    }
+  }
+
   if (is_android) {
     deps += [ "//third_party/cpu_features:ndk_compat" ]
     sources += [
