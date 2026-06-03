@@ -15,7 +15,11 @@
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
 namespace {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+static const size_t kMaxNumberOfAudioFifoBuffers = 50;
+#else
 static const size_t kMaxNumberOfAudioFifoBuffers = 10;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 namespace blink {
@@ -35,7 +39,11 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
   WebLocalFrame* const web_frame = WebLocalFrame::FrameForCurrentContext();
   if (web_frame) {
     sink_params_.Reset(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                       media::ChannelLayoutConfig::Mono(),
+#else
                        media::ChannelLayoutConfig::Stereo(),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
                        context_sample_rate, kWebAudioRenderBufferSize);
   }
   // Connect the source provider to the track as a sink.

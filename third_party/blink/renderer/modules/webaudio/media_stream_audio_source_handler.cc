@@ -14,9 +14,13 @@ namespace blink {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr unsigned kDefaultNumberOfOutputChannels = 1;
+#else
 // Default to stereo. This could change depending on the format of the
 // MediaStream's audio track.
 constexpr unsigned kDefaultNumberOfOutputChannels = 2;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
 
@@ -29,6 +33,10 @@ MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
       audio_source_provider_(std::move(audio_source_provider)) {
   SendLogMessage(String::Format("%s", __func__));
   AddOutput(kDefaultNumberOfOutputChannels);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SetInternalChannelCountMode(ChannelCountMode::kExplicit);
+  channel_count_ = kDefaultNumberOfOutputChannels;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   Initialize();
 }
