@@ -413,6 +413,10 @@ target(link_target_type, "gles2_sources") {
     "//ui/gl/init",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//third_party/dawn/src/dawn:proc" ]
+  }
+
   deps += [ "//third_party/angle:translator" ]
 
   if (use_ozone) {
