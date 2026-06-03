@@ -24,15 +24,37 @@ SandboxQuotaObserver::SandboxQuotaObserver(
     scoped_refptr<base::SequencedTaskRunner> update_notify_runner,
     ObfuscatedFileUtil* sandbox_file_util,
     FileSystemUsageCache* file_system_usage_cache)
-    : quota_manager_proxy_(std::move(quota_manager_proxy)),
+    : RefCountedDeleteOnSequence(update_notify_runner),
+      quota_manager_proxy_(std::move(quota_manager_proxy)),
       update_notify_runner_(std::move(update_notify_runner)),
       sandbox_file_util_(sandbox_file_util),
       file_system_usage_cache_(file_system_usage_cache) {}
 
 SandboxQuotaObserver::~SandboxQuotaObserver() = default;
 
+void SandboxQuotaObserver::AddRef() const {
+  base::RefCountedDeleteOnSequence<SandboxQuotaObserver>::AddRef();
+}
+
+void SandboxQuotaObserver::Release() const {
+  base::RefCountedDeleteOnSequence<SandboxQuotaObserver>::Release();
+}
+
+void SandboxQuotaObserver::Disable() {
+  base::AutoLock lock(is_disabled_lock_);
+  is_disabled_ = true;
+  // References to `this` may outlive these, nulling them avoids dangling
+  // pointers.
+  sandbox_file_util_ = nullptr;
+  file_system_usage_cache_ = nullptr;
+}
+
 void SandboxQuotaObserver::OnStartUpdate(const FileSystemURL& url) {
   DCHECK(update_notify_runner_->RunsTasksInCurrentSequence());
+  base::AutoLock lock(is_disabled_lock_);
+  if (is_disabled_) {
+    return;
+  }
   base::FileErrorOr<base::FilePath> usage_file_path = GetUsageCachePath(url);
   if (!usage_file_path.has_value() || usage_file_path->empty())
     return;
@@ -41,6 +63,10 @@ void SandboxQuotaObserver::OnStartUpdate(const FileSystemURL& url) {
 
 void SandboxQuotaObserver::OnUpdate(const FileSystemURL& url, int64_t delta) {
   DCHECK(update_notify_runner_->RunsTasksInCurrentSequence());
+  base::AutoLock lock(is_disabled_lock_);
+  if (is_disabled_) {
+    return;
+  }
 
   if (quota_manager_proxy_.get()) {
     quota_manager_proxy_->NotifyBucketModified(
@@ -64,6 +90,10 @@ void SandboxQuotaObserver::OnUpdate(const FileSystemURL& url, int64_t delta) {
 
 void SandboxQuotaObserver::OnEndUpdate(const FileSystemURL& url) {
   DCHECK(update_notify_runner_->RunsTasksInCurrentSequence());
+  base::AutoLock lock(is_disabled_lock_);
+  if (is_disabled_) {
+    return;
+  }
 
   base::FileErrorOr<base::FilePath> usage_file_path = GetUsageCachePath(url);
   if (!usage_file_path.has_value() || usage_file_path->empty())
@@ -79,6 +109,10 @@ void SandboxQuotaObserver::OnEndUpdate(const FileSystemURL& url) {
 }
 
 void SandboxQuotaObserver::OnAccess(const FileSystemURL& url) {
+  base::AutoLock lock(is_disabled_lock_);
+  if (is_disabled_) {
+    return;
+  }
   if (quota_manager_proxy_.get()) {
     quota_manager_proxy_->NotifyBucketAccessed(url.GetBucket(),
                                                base::Time::Now());
