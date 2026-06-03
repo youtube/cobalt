@@ -5,7 +5,7 @@
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 
 #if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h" // nogncheck
 #include "cobalt/shell/buildflags.h"
 #endif
 

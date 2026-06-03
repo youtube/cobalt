@@ -318,7 +318,7 @@ void CategorizedWorkerPoolJob::FlushForTesting() {
 void CategorizedWorkerPoolJob::ScheduleTasks(NamespaceToken token,
                                              TaskGraph* graph) {
 #if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphicsCompositor);
 #endif
   TRACE_EVENT2("disabled-by-default-cc.debug",
                "CategorizedWorkerPool::ScheduleTasks", "num_nodes",

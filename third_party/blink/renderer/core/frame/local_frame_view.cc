@@ -668,6 +668,9 @@ bool LocalFrameView::LayoutFromRootObject(LayoutObject& root) {
   "blink,benchmark,rail," TRACE_DISABLED_BY_DEFAULT("blink.debug.layout")
 
 void LocalFrameView::PerformLayout() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   ScriptForbiddenScope forbid_script;
 
   has_pending_layout_ = false;

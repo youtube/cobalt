@@ -181,7 +181,7 @@ bool SingleThreadTaskGraphRunner::RunTaskWithLockAcquired() {
     base::AutoUnlock unlock(lock_);
 #if BUILDFLAG(IS_COBALT)
     base::memory::ScopedMemoryContext scoped_context(
-        base::memory::MemoryContext::kGraphics);
+        base::memory::MemoryContext::kGraphicsCompositor);
 #endif
     prioritized_task.task->RunOnWorkerThread();
   }

@@ -267,7 +267,7 @@ void V8Platform::PostTaskOnWorkerThreadImpl(
           [](std::unique_ptr<v8::Task> task) {
 #if BUILDFLAG(IS_COBALT)
             base::memory::ScopedMemoryContext scoped_context(
-                base::memory::MemoryContext::kScript);
+                base::memory::MemoryContext::kScriptHeap);
 #endif
             task->Run();
           },
@@ -285,7 +285,7 @@ void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
           [](std::unique_ptr<v8::Task> task) {
 #if BUILDFLAG(IS_COBALT)
             base::memory::ScopedMemoryContext scoped_context(
-                base::memory::MemoryContext::kScript);
+                base::memory::MemoryContext::kScriptHeap);
 #endif
             task->Run();
           },
@@ -308,7 +308,7 @@ std::unique_ptr<v8::JobHandle> V8Platform::CreateJobImpl(
              base::JobDelegate* delegate) {
 #if BUILDFLAG(IS_COBALT)
             base::memory::ScopedMemoryContext scoped_context(
-                base::memory::MemoryContext::kScript);
+                base::memory::MemoryContext::kScriptHeap);
 #endif
             JobDelegateImpl delegate_impl(delegate);
             job_task->Run(&delegate_impl);

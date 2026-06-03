@@ -10,7 +10,7 @@
 #include "include/v8-internal.h"
 #include "include/v8-traced-handle.h"
 #if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h" // nogncheck
 #include "cobalt/shell/buildflags.h"
 #endif
 #include "src/base/logging.h"

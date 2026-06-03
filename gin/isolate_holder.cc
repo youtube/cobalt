@@ -109,7 +109,7 @@ IsolateHolder::IsolateHolder(
     scoped_refptr<base::SingleThreadTaskRunner> best_effort_task_runner)
     : access_mode_(access_mode), isolate_type_(isolate_type) {
 #if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kScript);
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kScriptHeap);
 #endif
   CHECK(Initialized())
       << "You need to invoke gin::IsolateHolder::Initialize first";

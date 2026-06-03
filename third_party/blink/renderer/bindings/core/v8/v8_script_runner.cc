@@ -128,6 +128,10 @@ v8::MaybeLocal<v8::Script> CompileScriptInternal(
     bool can_use_crowdsourced_compile_hints,
     std::optional<inspector_compile_script_event::V8ConsumeCacheResult>*
         cache_result) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
   // Record the script compilation in ScriptState (accessible via
   // internals.idl).
   {
@@ -555,6 +559,9 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
     ClassicScript* classic_script,
     ExecuteScriptPolicy policy,
     RethrowErrorsOption rethrow_errors) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kScriptHeap);
+#endif
   CHECK(script_state);
 
   // |script_state->GetContext()| must be initialized here already, typically

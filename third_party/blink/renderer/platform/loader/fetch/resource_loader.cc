@@ -319,7 +319,7 @@ void ResourceLoader::Trace(Visitor* visitor) const {
 
 void ResourceLoader::Start() {
 #if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkLoader);
 #endif
   const ResourceRequestHead& request = resource_->GetResourceRequest();
 
@@ -781,7 +781,7 @@ void ResourceLoader::DidReceiveResponse(
     std::variant<mojo::ScopedDataPipeConsumerHandle, SegmentedBuffer> body,
     std::optional<mojo_base::BigBuffer> cached_metadata) {
 #if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkLoader);
 #endif
   DCHECK(!response.IsNull());
 
@@ -1091,7 +1091,7 @@ void ResourceLoader::DidReceiveResponseInternal(
 
 void ResourceLoader::DidReceiveData(base::span<const char> data) {
 #if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkLoader);
 #endif
   DidReceiveDataImpl(data);
 }

@@ -120,8 +120,8 @@ def verify_cuj(cuj_name,
         f"--memory-metrics-interval=5,--remote-debugging-port={port}")
     run_cmd(adb_base + [
         "shell", "am", "start", "-n",
-        "dev.cobalt.coat/dev.cobalt.app.MainActivity", "--esa", "url", url,
-        "--esa", "commandLineArgs", target_args
+        "dev.cobalt.coat/dev.cobalt.app.MainActivity", "--esa", "url",
+        f"'{url}'", "--esa", "commandLineArgs", f"'{target_args}'"
     ])
 
   # Wait for startup

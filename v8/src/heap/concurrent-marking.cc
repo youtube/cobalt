@@ -5,7 +5,7 @@
 #include "src/heap/concurrent-marking.h"
 
 #if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h" // nogncheck
 #endif
 
 #include <algorithm>

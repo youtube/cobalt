@@ -1368,7 +1368,7 @@ Element* TreeScope::CreateElement(const QualifiedName& q_name,
                                   const AtomicString& is) {
 #if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kDOM);
+      base::memory::MemoryContext::kBlinkDOM);
 #endif
   CustomElementDefinition* definition = nullptr;
   if (flags.IsCustomElements() &&
@@ -1393,7 +1393,7 @@ DocumentFragment* Document::createDocumentFragment() {
 Text* Document::createTextNode(const String& data) {
 #if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kDOM);
+      base::memory::MemoryContext::kBlinkDOM);
 #endif
   return Text::Create(*this, data);
 }
