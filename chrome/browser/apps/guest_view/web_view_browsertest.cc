@@ -23,6 +23,7 @@
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -157,6 +158,7 @@
 #include "services/device/public/cpp/test/scoped_geolocation_overrider.h"
 #include "services/device/public/mojom/hid.mojom.h"
 #include "services/device/public/mojom/serial.mojom.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
@@ -6186,12 +6188,29 @@ IN_PROC_BROWSER_TEST_F(GuestViewExtensionNameCollisionTest,
   EXPECT_EQ("PASSED", test_passed);
 }
 
-class PrivateNetworkAccessWebViewTest : public WebViewTest {
+class LocalNetworkAccessWebViewTest : public WebViewTest {
  public:
-  PrivateNetworkAccessWebViewTest() {
-    features_.InitWithFeatureStates(
-        {{features::kBlockInsecurePrivateNetworkRequests, true},
-         {features::kGuestViewMPArch, GetParam()}});
+  LocalNetworkAccessWebViewTest() {
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
+        {network::features::kLocalNetworkAccessChecks,
+         {{"LocalNetworkAccessChecksWarn", "false"}}}};
+    std::vector<base::test::FeatureRef> disabled_features;
+    if (GetParam()) {
+      enabled_features.push_back({features::kGuestViewMPArch, {}});
+
+    } else {
+      disabled_features.push_back(features::kGuestViewMPArch);
+    }
+    features_.InitWithFeaturesAndParameters(std::move(enabled_features),
+                                            std::move(disabled_features));
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    WebViewTest::SetUpCommandLine(command_line);
+    // Clear default from InProcessBrowserTest as test doesn't want 127.0.0.1 in
+    // the public address space
+    command_line->AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
+                                    "");
   }
 
  private:
@@ -6199,18 +6218,18 @@ class PrivateNetworkAccessWebViewTest : public WebViewTest {
 };
 
 INSTANTIATE_TEST_SUITE_P(/* no prefix */,
-                         PrivateNetworkAccessWebViewTest,
+                         LocalNetworkAccessWebViewTest,
                          testing::Bool(),
-                         PrivateNetworkAccessWebViewTest::DescribeParams);
+                         LocalNetworkAccessWebViewTest::DescribeParams);
 
-// Verify that Private Network Access has the correct understanding of guests.
-// The local/private/public classification should not be affected by being
+// Verify that Local Network Access has the correct understanding of guests.
+// The loopback/local/public classification should not be affected by being
 // within a guest. See https://crbug.com/1167698 for details.
 //
 // Note: This test is put in this file for convenience of reusing the entire
 // app testing infrastructure. Other similar tests that do not require that
-// infrastructure live in PrivateNetworkAccessBrowserTest.*
-IN_PROC_BROWSER_TEST_P(PrivateNetworkAccessWebViewTest, ClassificationInGuest) {
+// infrastructure live in LocalNetworkAccessBrowserTest.*
+IN_PROC_BROWSER_TEST_P(LocalNetworkAccessWebViewTest, ClassificationInGuest) {
   LoadAppWithGuest("web_view/simple");
   content::RenderFrameHost* guest_frame_host = GetGuestRenderFrameHost();
   ASSERT_TRUE(guest_frame_host);
@@ -6226,12 +6245,11 @@ IN_PROC_BROWSER_TEST_P(PrivateNetworkAccessWebViewTest, ClassificationInGuest) {
   // The webview "simple" page is a first navigation to a raw data url. It is
   // currently considered public (internally
   // `network::mojom::IPAddressSpace::kUnknown`).
-  // For now, unknown -> local is not blocked, so this fetch succeeds. See also
-  // https://crbug.com/1178814.
-  EXPECT_EQ(true, content::EvalJs(guest_frame_host,
-                                  content::JsReplace(
-                                      "fetch($1).then(response => response.ok)",
-                                      fetch_url)));
+  EXPECT_THAT(content::EvalJs(
+                  guest_frame_host,
+                  content::JsReplace("fetch($1).then(response => response.ok)",
+                                     fetch_url)),
+              content::EvalJsResult::IsError());
 }
 
 // Verify that navigating a <webview> subframe to a disallowed extension
@@ -6249,7 +6267,8 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, LoadDisallowedExtensionURLInSubframe) {
   const extensions::Extension* extension = LoadExtension(
       test_data_dir_.AppendASCII("web_accessible_resources/subframe"));
   ASSERT_TRUE(extension);
-  GURL extension_url = extension->GetResourceURL("web_accessible_page.html");
+  GURL extension_url =
+      extension->ResolveExtensionURL("web_accessible_page.html");
 
   GURL iframe_url(embedded_test_server()->GetURL("/title1.html"));
 
@@ -6634,8 +6653,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWebViewTest, SimpleNavigations) {
       starting_instance->IsRelatedSiteInstance(main_frame->GetSiteInstance()));
   EXPECT_EQ(starting_instance->GetStoragePartitionConfig(),
             main_frame->GetSiteInstance()->GetStoragePartitionConfig());
-  EXPECT_EQ(starting_instance->GetOrCreateProcess()->GetStoragePartition(),
-            main_frame->GetProcess()->GetStoragePartition());
+  EXPECT_EQ(
+      starting_instance->GetOrCreateProcessForTesting()->GetStoragePartition(),
+      main_frame->GetProcess()->GetStoragePartition());
 
   // Ensure the guest SiteInstance reflects the proper site and actually uses
   // site isolation.
@@ -6840,8 +6860,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWebViewTest, BrowsingInstanceSwap) {
   EXPECT_FALSE(first_instance->IsRelatedSiteInstance(second_instance.get()));
   EXPECT_EQ(first_instance->GetStoragePartitionConfig(),
             second_instance->GetStoragePartitionConfig());
-  EXPECT_EQ(first_instance->GetOrCreateProcess()->GetStoragePartition(),
-            second_instance->GetProcess()->GetStoragePartition());
+  EXPECT_EQ(
+      first_instance->GetOrCreateProcessForTesting()->GetStoragePartition(),
+      second_instance->GetProcess()->GetStoragePartition());
 }
 
 // Helper class to count the number of guest processes created.
@@ -6929,8 +6950,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWebViewTest, NavigateToAboutBlank) {
   EXPECT_FALSE(first_instance->IsRelatedSiteInstance(third_instance.get()));
   EXPECT_EQ(first_instance->GetStoragePartitionConfig(),
             third_instance->GetStoragePartitionConfig());
-  EXPECT_EQ(first_instance->GetOrCreateProcess()->GetStoragePartition(),
-            third_instance->GetProcess()->GetStoragePartition());
+  EXPECT_EQ(
+      first_instance->GetOrCreateProcessForTesting()->GetStoragePartition(),
+      third_instance->GetProcess()->GetStoragePartition());
 
   // Ask embedder to navigate the webview back to about:blank.  This should
   // stay in the same SiteInstance.

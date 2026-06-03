@@ -56,8 +56,8 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.components.browser_ui.modaldialog.test.R;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ImmutableWeakReference;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
@@ -109,7 +109,8 @@ public class AppModalPresenterTest {
                     sInsetObserver =
                             new InsetObserver(
                                     new ImmutableWeakReference<>(
-                                            sActivity.getWindow().getDecorView().getRootView()));
+                                            sActivity.getWindow().getDecorView().getRootView()),
+                                    /* enableKeyboardOverlayMode= */ true);
                     sManager.setInsetObserver(sInsetObserver);
                 });
     }
@@ -333,7 +334,7 @@ public class AppModalPresenterTest {
     }
 
     private static Matcher<View> hasCurrentTextColor(int expected) {
-        return new BoundedMatcher<View, Button>(Button.class) {
+        return new BoundedMatcher<>(Button.class) {
             private int mColor;
 
             @Override

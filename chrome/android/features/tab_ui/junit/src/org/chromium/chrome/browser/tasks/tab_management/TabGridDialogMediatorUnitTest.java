@@ -102,7 +102,7 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeaturesJni;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
-import org.chromium.chrome.browser.tab_ui.TabUiThemeUtils;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -885,7 +885,7 @@ public class TabGridDialogMediatorUnitTest {
     public void tabPendingClosure_DialogVisible() {
         mModel.set(TabGridDialogProperties.IS_DIALOG_VISIBLE, true);
 
-        mTabModelObserverCaptor.getValue().tabPendingClosure(mTab1);
+        mTabModelObserverCaptor.getValue().tabPendingClosure(mTab1, TabClosingSource.UNKNOWN);
 
         verify(mSnackbarManager).showSnackbar(any(Snackbar.class));
     }
@@ -894,7 +894,7 @@ public class TabGridDialogMediatorUnitTest {
     public void tabPendingClosure_DialogInvisible() {
         mModel.set(TabGridDialogProperties.IS_DIALOG_VISIBLE, false);
 
-        mTabModelObserverCaptor.getValue().tabPendingClosure(mTab1);
+        mTabModelObserverCaptor.getValue().tabPendingClosure(mTab1, TabClosingSource.UNKNOWN);
 
         verify(mSnackbarManager, never()).showSnackbar(any(Snackbar.class));
     }
@@ -1264,50 +1264,6 @@ public class TabGridDialogMediatorUnitTest {
         // Assert that a color and the incognito status were set.
         assertThat(mModel.get(TabGridDialogProperties.IS_INCOGNITO), equalTo(false));
         assertThat(mModel.get(TabGridDialogProperties.TAB_GROUP_COLOR_ID), equalTo(COLOR_2));
-
-        assertNull(mModel.get(TabGridDialogProperties.ANIMATION_BACKGROUND_COLOR));
-
-        assertThat(mModel.get(TabGridDialogProperties.IS_DIALOG_VISIBLE), equalTo(true));
-        // Scrim click runnable should be set as the current scrim runnable.
-        assertThat(
-                mModel.get(TabGridDialogProperties.SCRIMVIEW_CLICK_RUNNABLE),
-                equalTo(mMediator.getScrimClickRunnableForTesting()));
-        // Animation source view should be updated with specific view.
-        assertThat(mModel.get(TabGridDialogProperties.ANIMATION_SOURCE_VIEW), equalTo(mView));
-        // Dialog title should be updated.
-        assertThat(mModel.get(TabGridDialogProperties.HEADER_TITLE), equalTo(DIALOG_TITLE2));
-        // Prepare dialog invoked.
-        verify(mDialogController).prepareDialog();
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.FORCE_LIST_TAB_SWITCHER})
-    @DisableFeatures({ChromeFeatureList.DISABLE_LIST_TAB_SWITCHER})
-    public void showDialog_FromListGts() {
-        // Mock that the dialog is hidden and animation source view, header title and scrim click
-        // runnable are all null.
-        mModel.set(TabGridDialogProperties.IS_DIALOG_VISIBLE, false);
-        mModel.set(TabGridDialogProperties.ANIMATION_SOURCE_VIEW, null);
-        mModel.set(TabGridDialogProperties.HEADER_TITLE, null);
-        mModel.set(TabGridDialogProperties.SCRIMVIEW_CLICK_RUNNABLE, null);
-        // Mock that tab1 and tab2 are in a group.
-        List<Tab> tabGroup = new ArrayList<>(Arrays.asList(mTab1, mTab2));
-        createTabGroup(tabGroup, TAB1_ID, TAB_GROUP_ID);
-
-        when(mTabGroupModelFilter.getTabGroupColorWithFallback(mTab1.getRootId()))
-                .thenReturn(COLOR_2);
-        assertTrue(mMediator.onReset(tabGroup));
-
-        // Assert that a color and the incognito status were set.
-        assertThat(mModel.get(TabGridDialogProperties.IS_INCOGNITO), equalTo(false));
-        assertThat(mModel.get(TabGridDialogProperties.TAB_GROUP_COLOR_ID), equalTo(COLOR_2));
-
-        int backgroundColor =
-                TabUiThemeUtils.getCardViewBackgroundColor(
-                        mActivity, /* isIncognito= */ false, /* isSelected= */ false);
-        assertEquals(
-                mModel.get(TabGridDialogProperties.ANIMATION_BACKGROUND_COLOR).intValue(),
-                backgroundColor);
 
         assertThat(mModel.get(TabGridDialogProperties.IS_DIALOG_VISIBLE), equalTo(true));
         // Scrim click runnable should be set as the current scrim runnable.
@@ -1905,12 +1861,9 @@ public class TabGridDialogMediatorUnitTest {
         resetForDataSharing(/* isShared= */ true, GROUP_MEMBER1);
         verify(mDialogController)
                 .addMessageCardItem(/* position= */ eq(0), mMessageCardModelCaptor.capture());
-        assertTrue(mModel.get(TabGridDialogProperties.SHOW_SHARE_BUTTON));
+        assertFalse(mModel.get(TabGridDialogProperties.SHOW_SHARE_BUTTON));
         assertFalse(mModel.get(TabGridDialogProperties.SHOW_SEND_FEEDBACK));
-        assertEquals(
-                R.string.tab_grid_manage_button_text,
-                mModel.get(TabGridDialogProperties.SHARE_BUTTON_STRING_RES));
-        assertFalse(mModel.get(TabGridDialogProperties.SHOW_IMAGE_TILES));
+        assertTrue(mModel.get(TabGridDialogProperties.SHOW_IMAGE_TILES));
         String text = mMessageCardModelCaptor.getValue().get(DESCRIPTION_TEXT).toString();
         assertTrue(text, text.contains("4"));
 
@@ -2091,7 +2044,7 @@ public class TabGridDialogMediatorUnitTest {
     public void onLongPress_tabGroupParityEnabled() {
         CancelLongPressTabItemEventListener cancelLongPress =
                 mMediator.onLongPressEvent(TAB1_ID, mCardView, mTabGridContextMenuCoordinator);
-        verify(mTabGridContextMenuCoordinator).showMenu(any(), eq(TAB1_ID));
+        verify(mTabGridContextMenuCoordinator).showMenu(any(), eq(TAB1_ID), anyBoolean());
 
         assertNotNull(cancelLongPress);
         cancelLongPress.cancelLongPress();
@@ -2102,7 +2055,7 @@ public class TabGridDialogMediatorUnitTest {
     public void onLongPress_tabGroupParityDisabled() {
         CancelLongPressTabItemEventListener cancelLongPress =
                 mMediator.onLongPressEvent(TAB1_ID, mCardView);
-        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), eq(TAB1_ID));
+        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), eq(TAB1_ID), anyBoolean());
         assertNull(cancelLongPress);
     }
 

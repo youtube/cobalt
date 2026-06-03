@@ -24,8 +24,38 @@ source_set("ui_bundled_interface") {
   ]
 }
 
+source_set("placeholder_service") {
+  sources = [
+    "placeholder_service.h",
+    "placeholder_service.mm",
+    "placeholder_service_factory.h",
+    "placeholder_service_factory.mm",
+    "placeholder_service_observer_bridge.h",
+    "placeholder_service_observer_bridge.mm",
+  ]
+
+  deps = [
+    "//base",
+    "//components/keyed_service/core",
+    "//components/omnibox/common",
+    "//components/search_engines",
+    "//components/strings",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/favicon/model",
+    "//ios/chrome/browser/search_engines/model",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/common/ui/favicon",
+    "//rlz/buildflags",
+    "//ui/base",
+  ]
+}
+
 source_set("model") {
   sources = [
+    "autocomplete_controller_observer_bridge.h",
+    "autocomplete_controller_observer_bridge.mm",
     "autocomplete_match_formatter.h",
     "autocomplete_match_formatter.mm",
     "autocomplete_result_wrapper.h",
@@ -48,13 +78,11 @@ source_set("model") {
     "omnibox_image_fetcher.mm",
     "omnibox_pedal_annotator.h",
     "omnibox_pedal_annotator.mm",
-    "omnibox_popup_view_ios.h",
-    "omnibox_popup_view_ios.mm",
     "omnibox_text_controller.h",
     "omnibox_text_controller.mm",
     "omnibox_text_controller_delegate.h",
-    "omnibox_view_ios.h",
-    "omnibox_view_ios.mm",
+    "omnibox_text_model.h",
+    "omnibox_text_model.mm",
     "pedal_section_extractor.h",
     "pedal_section_extractor.mm",
     "pedal_suggestion_wrapper.h",
@@ -67,6 +95,7 @@ source_set("model") {
     ":omnibox_pedal_swift",
     ":swift_dependencies",
     "//base",
+    "//components/application_locale_storage",
     "//components/bookmarks/browser",
     "//components/dom_distiller/core",
     "//components/favicon/ios",
@@ -155,12 +184,9 @@ swift_source_set("omnibox_pedal_swift") {
 source_set("test_support") {
   testonly = true
   sources = [
+    "omnibox_autocomplete_controller+Testing.h",
     "test_omnibox_edit_model_ios.h",
     "test_omnibox_edit_model_ios.mm",
-    "test_omnibox_popup_view_ios.h",
-    "test_omnibox_popup_view_ios.mm",
-    "test_omnibox_view_ios.h",
-    "test_omnibox_view_ios.mm",
   ]
 
   deps = [
@@ -182,12 +208,14 @@ source_set("unit_tests") {
     "omnibox_controller_ios_unittest.mm",
     "omnibox_edit_model_ios_unittest.mm",
     "omnibox_pedal_annotator_unittest.mm",
-    "omnibox_view_ios_unittest.mm",
+    "omnibox_text_model_unittest.mm",
     "pedal_section_extractor_unittest.mm",
+    "placeholder_service_unittest.mm",
   ]
   deps = [
     ":model",
     ":omnibox_pedal_swift",
+    ":placeholder_service",
     ":swift_dependencies",
     ":test_support",
     ":ui_bundled_interface",
@@ -204,17 +232,22 @@ source_set("unit_tests") {
     "//components/search_engines",
     "//components/search_engines:test_support",
     "//ios/chrome/browser/autocomplete/model",
+    "//ios/chrome/browser/favicon/model:test_support",
     "//ios/chrome/browser/location_bar/model:test_support",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/model/prefs:browser_prefs",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/common/ui/favicon",
+    "//ios/chrome/common/ui/favicon:favicon_constants",
     "//ios/chrome/test:test_support",
     "//ios/testing:nserror_support",
     "//ios/web/public/test",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/ocmock",
+    "//ui/base:test_support",
     "//ui/gfx:test_support",
   ]
 }

@@ -456,7 +456,7 @@ def bind_callback_local_vars(code_node, cg_context):
         # the property being processed.
         local_vars.append(
             S("v8_receiver",
-              "v8::Local<v8::Object> ${v8_receiver} = ${info}.Holder();"))
+              "v8::Local<v8::Object> ${v8_receiver} = ${info}.HolderV2();"))
 
     # v8_return_value
     def create_v8_return_value(symbol_node):
@@ -479,7 +479,8 @@ def bind_callback_local_vars(code_node, cg_context):
 
 
 def _make_throw_security_error():
-    return TextNode("BindingSecurity::FailedAccessCheckFor(${info}.Holder());")
+    return TextNode(
+        "BindingSecurity::FailedAccessCheckFor(${info}.HolderV2());")
 
 
 def _make_reflect_content_attribute_key(code_node, cg_context):
@@ -2970,7 +2971,7 @@ return ${class_name}::NamedPropertySetterCallback(
 // https://webidl.spec.whatwg.org/#legacy-platform-object-set
 // step 1. If O and Receiver are the same object, then:\
 """),
-        CxxLikelyIfNode(cond="${info}.Holder() == ${info}.This()",
+        CxxLikelyIfNode(cond="${info}.HolderV2() == ${info}.This()",
                         attribute=None,
                         body=[
                             TextNode("""\
@@ -3328,7 +3329,7 @@ def make_named_property_setter_callback(cg_context, function_name):
             body.append(
                 TextNode("""\
 // [LegacyOverrideBuiltIns]
-if (${info}.Holder()->GetRealNamedPropertyAttributesInPrototypeChain(
+if (${info}.HolderV2()->GetRealNamedPropertyAttributesInPrototypeChain(
         ${current_context}, ${v8_property_name}).IsJust()) {
   // Do not intercept. Fallback to the existing property.
   return v8::Intercepted::kNo;
@@ -3369,7 +3370,7 @@ return v8::Intercepted::kNo;
 // https://webidl.spec.whatwg.org/#legacy-platform-object-set
 // step 1. If O and Receiver are the same object, then:\
 """),
-        CxxLikelyIfNode(cond="${info}.Holder() == ${info}.This()",
+        CxxLikelyIfNode(cond="${info}.HolderV2() == ${info}.This()",
                         attribute=None,
                         body=[
                             TextNode("""\
@@ -5752,7 +5753,7 @@ def make_install_properties(cg_context, function_name, class_name,
                             attribute=None,
                             body=[
                                 TextNode("""\
-${instance_object} = ${v8_context}->Global()->GetPrototype().As<v8::Object>();\
+${instance_object} = ${v8_context}->Global();\
 """),
                             ]),
             EmptyNode(),
@@ -6429,7 +6430,7 @@ def make_wrapper_type_info(cg_context, function_name,
 #endif
 
 const WrapperTypeInfo ${class_name}::wrapper_type_info_{{
-    gin::kEmbedderBlink,
+    {{gin::kEmbedderBlink}},
     ${class_name}::{install_interface_template_func},
     {install_context_dependent_func},
     "${{class_like.identifier}}",
@@ -7359,6 +7360,8 @@ def generate_install_properties_per_feature(function_name,
     ])
     source_node.accumulator.add_include_headers([
         "base/containers/span.h",
+        "base/notimplemented.h",
+        "base/notreached.h",
         "third_party/blink/renderer/platform/bindings/script_state.h",
         "third_party/blink/renderer/platform/bindings/v8_per_context_data.h",
         "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h",

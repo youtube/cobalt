@@ -98,6 +98,7 @@ action_foreach("calculate_deb_dependencies") {
     "debian/deb_version.py",
     "debian/dist_package_versions.json",
     "debian/package_version_interval.py",
+    "//build/action_helpers.py",
     "//third_party/dpkg-shlibdeps/dpkg-shlibdeps.pl",
   ]
   outputs = [ "$root_out_dir/deb_{{source_name_part}}.deps" ]
@@ -120,6 +121,7 @@ action("merge_deb_dependencies") {
     additional_deps,
     "debian/deb_version.py",
     "debian/package_version_interval.py",
+    "//build/action_helpers.py",
   ]
   outputs = [ "$root_out_dir/deb_common.deps" ]
   args = [
@@ -134,7 +136,10 @@ action_foreach("calculate_rpm_dependencies") {
   deps = [ ":installer_deps" ]
   script = "rpm/calculate_package_deps.py"
   sources = packaging_files_binaries
-  inputs = [ "rpm/dist_package_provides.json" ]
+  inputs = [
+    "rpm/dist_package_provides.json",
+    "//build/action_helpers.py",
+  ]
   outputs = [ "$root_out_dir/rpm_{{source_name_part}}.deps" ]
   args = [
     "{{source}}",
@@ -150,7 +155,10 @@ action("merge_rpm_dependencies") {
   deps = [ ":calculate_rpm_dependencies" ]
   script = "rpm/merge_package_deps.py"
   additional_deps = "rpm/additional_deps"
-  inputs = [ additional_deps ]
+  inputs = [
+    additional_deps,
+    "//build/action_helpers.py",
+  ]
   outputs = [ "$root_out_dir/rpm_common.deps" ]
   args = [
     "rpm_common.deps",
@@ -265,8 +273,6 @@ copy("common_packaging_files") {
   } else {
     sources += [ "common/chromium-browser.info" ]
   }
-
-  sources += [ "//buildtools/third_party/eu-strip/bin/eu-strip" ]
 
   outputs = [ "$root_out_dir/installer/common/{{source_file_part}}" ]
 }

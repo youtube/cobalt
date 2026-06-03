@@ -21,7 +21,6 @@
 #include "chrome/browser/ash/arc/extensions/fake_arc_support.h"
 #include "chrome/browser/ash/arc/optin/arc_optin_preference_handler.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/settings/device_settings_test_helper.h"
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
 #include "chrome/browser/consent_auditor/consent_auditor_factory.h"
@@ -32,6 +31,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "components/consent_auditor/fake_consent_auditor.h"
 #include "components/metrics/metrics_service.h"
@@ -132,7 +132,8 @@ class ArcTermsOfServiceDefaultNegotiatorTest
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
 
-    ::ash::DeviceSettingsService::Get()->SetSessionManager(
+    ::ash::DeviceSettingsService::Get()->StartProcessing(
+        TestingBrowserProcess::GetGlobal()->local_state(),
         &session_manager_client_, owner_key_util_);
 
     // MetricsService.
@@ -178,7 +179,7 @@ class ArcTermsOfServiceDefaultNegotiatorTest
     test_metrics_state_manager_.reset();
     test_enabled_state_provider_.reset();
 
-    ::ash::DeviceSettingsService::Get()->UnsetSessionManager();
+    ::ash::DeviceSettingsService::Get()->StopProcessing();
     ash::StatsReportingController::Shutdown();
     BrowserWithTestWindowTest::TearDown();
   }

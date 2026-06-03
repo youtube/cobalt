@@ -10,7 +10,6 @@
 #include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/memory/raw_ptr.h"
 #include "components/performance_manager/graph/graph_impl.h"
 #include "components/performance_manager/graph/page_node_impl.h"
@@ -450,6 +449,13 @@ void FrameNodeImpl::SetViewportIntersection(
   const bool was_intersecting_large_area = IsIntersectingLargeArea();
 
   viewport_intersection_.SetAndMaybeNotify(this, viewport_intersection);
+
+  // Inherit the state from the parent or outer document or embedder if
+  // SetIsIntersectingLargeArea() was not called for this frame.
+  if (!has_is_intersecting_large_area_updates_) {
+    is_intersecting_large_area_ =
+        parent_or_outer_document_or_embedder()->IsIntersectingLargeArea();
+  }
 
   if (was_intersecting_large_area != IsIntersectingLargeArea()) {
     for (auto& observer : GetObservers()) {

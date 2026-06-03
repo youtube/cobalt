@@ -11,6 +11,7 @@
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "content/browser/find_in_page_client.h"
@@ -293,6 +294,11 @@ FindRequestManager::ActivateNearestFindResultState::
     : current_request_id(GetNextID()), point(x, y) {}
 FindRequestManager::ActivateNearestFindResultState::
     ~ActivateNearestFindResultState() = default;
+
+int FindRequestManager::ActivateNearestFindResultState::GetNextID() {
+  static int next_id = 0;
+  return next_id++;
+}
 
 FindRequestManager::FrameRects::FrameRects() = default;
 FindRequestManager::FrameRects::FrameRects(const std::vector<gfx::RectF>& rects,

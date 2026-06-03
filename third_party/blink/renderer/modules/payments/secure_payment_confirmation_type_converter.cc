@@ -10,8 +10,9 @@
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_inputs.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_network_or_issuer_information.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_entity_logo.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_type_converters.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -35,7 +36,8 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
   output->instrument = blink::mojom::blink::PaymentCredentialInstrument::New(
       input->instrument()->displayName(),
       blink::KURL(input->instrument()->icon()),
-      input->instrument()->iconMustBeShown());
+      input->instrument()->iconMustBeShown(),
+      input->instrument()->hasDetails() ? input->instrument()->details() : "");
 
   if (input->hasPayeeOrigin()) {
     output->payee_origin =
@@ -66,6 +68,12 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
             blink::KURL(input->issuerInfo()->icon()));
   }
 
+  if (input->hasPaymentEntitiesLogos()) {
+    output->payment_entities_logos =
+        ConvertTo<WTF::Vector<payments::mojom::blink::PaymentEntityLogoPtr>>(
+            input->paymentEntitiesLogos());
+  }
+
   if (input->hasBrowserBoundPubKeyCredParams()) {
     output->browser_bound_pub_key_cred_params = ConvertTo<
         WTF::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>>(
@@ -75,6 +83,13 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
   output->show_opt_out = input->getShowOptOutOr(false);
 
   return output;
+}
+
+payments::mojom::blink::PaymentEntityLogoPtr TypeConverter<
+    payments::mojom::blink::PaymentEntityLogoPtr,
+    blink::PaymentEntityLogo*>::Convert(const blink::PaymentEntityLogo* input) {
+  return payments::mojom::blink::PaymentEntityLogo::New(
+      blink::KURL(input->url()), input->label());
 }
 
 }  // namespace mojo

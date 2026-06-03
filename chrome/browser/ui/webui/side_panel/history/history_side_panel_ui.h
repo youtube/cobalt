@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/history_clusters/history_clusters_metrics_logger.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
@@ -87,7 +88,9 @@ class HistorySidePanelUI : public TopChromeWebUIController {
   // from the omnibox action or within the Side Panel WebUI itself.
   std::string GetLastQueryIssued() const;
 
-  static constexpr std::string GetWebUIName() { return "HistorySidePanel"; }
+  static constexpr std::string_view GetWebUIName() {
+    return "HistorySidePanel";
+  }
 
  private:
   std::unique_ptr<BrowsingHistoryHandler> browsing_history_handler_;

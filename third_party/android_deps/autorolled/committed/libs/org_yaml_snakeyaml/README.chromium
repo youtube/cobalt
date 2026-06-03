@@ -1,7 +1,8 @@
 Name: SnakeYAML
 Short Name: snakeyaml
 URL: https://bitbucket.org/snakeyaml/snakeyaml
-Version: 2.3
+Version: 2.4
+Update Mechanism: Autoroll
 License: Apache-2.0
 License File: LICENSE
 CPEPrefix: unknown

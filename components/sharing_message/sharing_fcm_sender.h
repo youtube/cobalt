@@ -18,7 +18,6 @@
 #include "components/sharing_message/proto/sharing_message.pb.h"
 #include "components/sharing_message/sharing_message_sender.h"
 #include "components/sharing_message/sharing_send_message_result.h"
-#include "components/sharing_message/web_push/web_push_sender.h"
 #include "components/sync/model/syncable_service.h"
 #include "components/sync/protocol/unencrypted_sharing_message.pb.h"
 #include "components/sync/service/sync_service_observer.h"
@@ -40,10 +39,8 @@ class SharingMessageCommitError;
 }
 
 enum class SharingChannelType;
-enum class SendWebPushMessageResult;
 class SharingMessageBridge;
 class SharingSyncPreference;
-class VapidKeyManager;
 
 // Responsible for sending FCM messages within Sharing infrastructure.
 class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
@@ -56,10 +53,8 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
                               SharingChannelType channel_type)>;
 
   SharingFCMSender(
-      std::unique_ptr<WebPushSender> web_push_sender,
       SharingMessageBridge* sharing_message_bridge,
       SharingSyncPreference* sync_preference,
-      VapidKeyManager* vapid_key_manager,
       gcm::GCMDriver* gcm_driver,
       const syncer::DeviceInfoTracker* device_info_tracker,
       const syncer::LocalDeviceInfoProvider* local_device_info_provider,
@@ -97,10 +92,6 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
   void OnStateChanged(syncer::SyncService* sync_service) override;
   void OnSyncShutdown(syncer::SyncService* sync_service) override;
 
-  // Used to inject fake WebPushSender in integration tests.
-  void SetWebPushSenderForTesting(
-      std::unique_ptr<WebPushSender> web_push_sender);
-
   // Used to inject fake SharingMessageBridge in integration tests.
   void SetSharingMessageBridgeForTesting(
       SharingMessageBridge* sharing_message_bridge);
@@ -134,15 +125,6 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
                           gcm::GCMEncryptionResult result,
                           std::string message);
 
-  void DoSendMessageToVapidTarget(const std::string& fcm_token,
-                                  base::TimeDelta time_to_live,
-                                  std::string message,
-                                  SendMessageCallback callback);
-
-  void OnMessageSentToVapidTarget(SendMessageCallback callback,
-                                  SendWebPushMessageResult result,
-                                  std::optional<std::string> message_id);
-
   void DoSendMessageToSenderIdTarget(const std::string& fcm_token,
                                      base::TimeDelta time_to_live,
                                      const std::string& message_id,
@@ -161,10 +143,8 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
 
   bool SetMessageSenderInfo(SharingMessage* message);
 
-  std::unique_ptr<WebPushSender> web_push_sender_;
   raw_ptr<SharingMessageBridge> sharing_message_bridge_;
   const raw_ptr<SharingSyncPreference> sync_preference_;
-  const raw_ptr<VapidKeyManager, DanglingUntriaged> vapid_key_manager_;
   const raw_ptr<gcm::GCMDriver, AcrossTasksDanglingUntriaged> gcm_driver_;
   const raw_ptr<const syncer::DeviceInfoTracker> device_info_tracker_;
   const raw_ptr<const syncer::LocalDeviceInfoProvider>

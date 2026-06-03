@@ -18,7 +18,6 @@
 #include "media/base/video_codecs.h"
 #include "media/base/video_color_space.h"
 #include "ui/gfx/color_space.h"
-#include "url/gurl.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/decoder_buffer_allocator.h"

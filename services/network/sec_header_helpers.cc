@@ -5,7 +5,9 @@
 #include "services/network/sec_header_helpers.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/feature_list.h"
@@ -25,6 +27,7 @@
 #include "services/network/public/cpp/request_mode.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "url/origin.h"
 
 namespace network {
 
@@ -36,6 +39,7 @@ constexpr std::string_view kSecFetchUser = "Sec-Fetch-User";
 constexpr std::string_view kSecFetchDest = "Sec-Fetch-Dest";
 constexpr std::string_view kSecFetchStorageAccess = "Sec-Fetch-Storage-Access";
 constexpr std::string_view kSecFetchFrameTop = "Sec-Fetch-Frame-Top";
+constexpr std::string_view kSecFetchAncestors = "Sec-Fetch-Frame-Ancestors";
 
 constexpr char kSecFetchStorageAccessOutcomeHistogram[] =
     "API.StorageAccessHeader.SecFetchStorageAccessOutcome";
@@ -93,8 +97,11 @@ std::optional<net::OriginRelation> GetFrameTopRelation(
   const url::Origin& top_frame_origin =
       request.isolation_info().top_frame_origin().value();
 
-  return GetRelationOfURLChainToOrigin(request.url_chain(), top_frame_origin,
-                                       pending_redirect_url);
+  // We only care about the current URL for the top frame relation, which for
+  // redirects is `pending_redirect_url`.
+  return net::GetOriginRelation(
+      pending_redirect_url ? pending_redirect_url.value() : request.url(),
+      top_frame_origin);
 }
 
 std::optional<net::OriginRelation> GetInitiatorRelation(
@@ -245,7 +252,7 @@ void SetSecFetchStorageAccessHeader(net::URLRequest& request,
 // Sec-Fetch-Frame-Top
 void SetSecFetchFrameTop(net::URLRequest& request,
                          base::optional_ref<const GURL> pending_redirect_url) {
-  if (!base::FeatureList::IsEnabled(features::kFrameAncestorHeaders)) {
+  if (!base::FeatureList::IsEnabled(features::kFrameTopHeader)) {
     return;
   }
 
@@ -258,6 +265,43 @@ void SetSecFetchFrameTop(net::URLRequest& request,
   request.SetExtraRequestHeaderByName(kSecFetchFrameTop,
                                       OriginRelationString(relation),
                                       /*overwrite=*/true);
+}
+
+// Sec-Fetch-Frame-Ancestors
+void SetSecFetchFrameAncestorsHeader(
+    net::URLRequest& request,
+    base::optional_ref<const GURL> pending_redirect_url) {
+  if (!base::FeatureList::IsEnabled(features::kFrameAncestorsHeader) ||
+      request.isolation_info().IsEmpty()) {
+    return;
+  }
+
+  std::optional<net::IsolationInfo::FrameAncestorRelation>
+      header_relation_value;
+
+  // We need to manually calculate the value for kMainFrame requests. This is
+  // because redirect requests will not yet have the updated IsolationInfo.
+  // Since kMainFrame requests are inherently same-origin, we can safely do
+  // this.
+  if (request.isolation_info().request_type() ==
+      net::IsolationInfo::RequestType::kMainFrame) {
+    header_relation_value =
+        net::IsolationInfo::FrameAncestorRelation::kSameOrigin;
+  } else {
+    header_relation_value = net::IsolationInfo::ComputeNewFrameAncestorRelation(
+        request.isolation_info().frame_ancestor_relation(),
+        url::Origin::Create(pending_redirect_url ? pending_redirect_url.value()
+                                                 : request.url()),
+        request.isolation_info().top_frame_origin().value());
+  }
+
+  if (header_relation_value) {
+    request.SetExtraRequestHeaderByName(
+        kSecFetchAncestors,
+        net::IsolationInfo::FrameAncestorRelationString(
+            header_relation_value.value()),
+        /*overwrite=*/true);
+  }
 }
 
 }  // namespace
@@ -287,6 +331,7 @@ void SetFetchMetadataHeaders(
   SetSecFetchDestHeader(request, dest);
   SetSecFetchStorageAccessHeader(request, credentials_mode);
   SetSecFetchFrameTop(request, pending_redirect_url);
+  SetSecFetchFrameAncestorsHeader(request, pending_redirect_url);
 }
 
 void MaybeRemoveSecHeaders(net::URLRequest& request,

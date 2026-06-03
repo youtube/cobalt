@@ -7,6 +7,7 @@
 #include <GLES2/gl2.h>
 
 #include "base/functional/callback_helpers.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/process/memory.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -90,19 +91,9 @@ scoped_refptr<ClientSharedImage> SharedImageInterface::NotifyMailboxAdded(
     const gfx::ColorSpace& /*color_space*/,
     GrSurfaceOrigin /*surface_origin*/,
     SkAlphaType /*alpha_type*/,
-    SharedImageUsageSet /*usage*/) {
-  return nullptr;
-}
-
-scoped_refptr<ClientSharedImage> SharedImageInterface::NotifyMailboxAdded(
-    const Mailbox& /*mailbox*/,
-    viz::SharedImageFormat /*format*/,
-    const gfx::Size& /*size*/,
-    const gfx::ColorSpace& /*color_space*/,
-    GrSurfaceOrigin /*surface_origin*/,
-    SkAlphaType /*alpha_type*/,
     SharedImageUsageSet /*usage*/,
-    uint32_t /*texture_target*/) {
+    uint32_t /*texture_target*/,
+    std::string_view /*debug_label*/) {
   return nullptr;
 }
 
@@ -118,20 +109,10 @@ void SharedImageInterface::CopyToGpuMemoryBufferAsync(
   NOTREACHED();
 }
 
-bool SharedImageInterface::CopyNativeGmbToSharedMemorySync(
-    gfx::GpuMemoryBufferHandle buffer_handle,
-    base::UnsafeSharedMemoryRegion memory_region) {
-  NOTREACHED();
-}
-
 void SharedImageInterface::CopyNativeGmbToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion memory_region,
     base::OnceCallback<void(bool)> callback) {
-  NOTREACHED();
-}
-
-bool SharedImageInterface::IsConnected() {
   NOTREACHED();
 }
 

@@ -25,7 +25,6 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
-import org.chromium.android_webview.AwSettings;
 import org.chromium.android_webview.AwWebResourceRequest;
 import org.chromium.android_webview.policy.AwPolicyProvider;
 import org.chromium.android_webview.test.TestAwContentsClient.OnReceivedErrorHelper;
@@ -993,9 +992,6 @@ public class AwContentsClientShouldOverrideUrlLoadingTest extends AwParameterize
         setupWithProvidedContentsClient(new DestroyInCallbackClient());
         mShouldOverrideUrlLoadingHelper = mContentsClient.getShouldOverrideUrlLoadingHelper();
 
-        OnReceivedErrorHelper onReceivedErrorHelper = mContentsClient.getOnReceivedErrorHelper();
-        int onReceivedErrorCount = onReceivedErrorHelper.getCallCount();
-
         mActivityTestRule.loadDataSync(
                 mAwContents,
                 mContentsClient.getOnPageFinishedHelper(),
@@ -1294,6 +1290,45 @@ public class AwContentsClientShouldOverrideUrlLoadingTest extends AwParameterize
         }
     }
 
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testNullContentsClientIntentSelectorRemoved() throws Throwable {
+        try {
+            // The test will fire real intents through the test activity.
+            // Need to temporarily suppress startActivity otherwise there will be a
+            // handler selection window and the test can't dismiss that.
+            mActivityTestRule.getActivity().setIgnoreStartActivity(true);
+            final String testUrl =
+                    "intent:wtai://wp/#Intent;SEL;action=android.settings.SETTINGS;"
+                            + "component=package/class;end";
+            setupWithProvidedContentsClient(new TestDefaultContentsClient());
+            AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
+            final String pageTitle = "Click Title";
+            final String htmlWithLink =
+                    "<html><title>"
+                            + pageTitle
+                            + "</title>"
+                            + "<body><a id='link' href='"
+                            + testUrl
+                            + "'>Click this!</a></body></html>";
+            final String urlWithLink =
+                    mWebServer.setResponse(
+                            "/html_with_link.html",
+                            htmlWithLink,
+                            CommonResources.getTextHtmlHeaders(true));
+
+            mActivityTestRule.loadUrlSync(
+                    mAwContents, mContentsClient.getOnPageFinishedHelper(), urlWithLink);
+            JSUtils.clickNodeWithUserGesture(mAwContents.getWebContents(), "link");
+            mActivityTestRule.pollUiThread(
+                    () -> mActivityTestRule.getActivity().getLastSentIntent() != null);
+            Assert.assertNull(mActivityTestRule.getActivity().getLastSentIntent().getSelector());
+        } finally {
+            mActivityTestRule.getActivity().setIgnoreStartActivity(false);
+        }
+    }
+
     private void setAppLinkPolicy(final AwPolicyProvider testProvider, String url) {
         final PolicyData[] policies = {
             new PolicyData.Str(sEnterpriseAuthAppLinkPolicy, "[{ \"url\": \"" + url + "\"}]")
@@ -1315,7 +1350,6 @@ public class AwContentsClientShouldOverrideUrlLoadingTest extends AwParameterize
         try {
             standardSetup();
             mActivityTestRule.getActivity().setIgnoreStartActivity(true);
-            AwSettings contentSettings = mActivityTestRule.getAwSettingsOnUiThread(mAwContents);
 
             final AwPolicyProvider testProvider =
                     new AwPolicyProvider(mActivityTestRule.getActivity().getApplicationContext());
@@ -1351,7 +1385,6 @@ public class AwContentsClientShouldOverrideUrlLoadingTest extends AwParameterize
         try {
             standardSetup();
             mActivityTestRule.getActivity().setIgnoreStartActivity(true);
-            AwSettings contentSettings = mActivityTestRule.getAwSettingsOnUiThread(mAwContents);
             final AwPolicyProvider testProvider =
                     new AwPolicyProvider(mActivityTestRule.getActivity().getApplicationContext());
             ThreadUtils.runOnUiThreadBlocking(
@@ -1448,11 +1481,6 @@ public class AwContentsClientShouldOverrideUrlLoadingTest extends AwParameterize
         final String path1 = "/from.html";
         final String path2 = BAD_SCHEME + "to.html";
         final String fromUrl = mWebServer.setRedirect(path1, path2);
-        final String toUrl =
-                mWebServer.setResponse(
-                        path2,
-                        CommonResources.ABOUT_HTML,
-                        CommonResources.getTextHtmlHeaders(true));
         mActivityTestRule.loadUrlAsync(mAwContents, fromUrl);
         client.waitForLatch();
         // Wait for an arbitrary amount of time to ensure onReceivedError is never called.

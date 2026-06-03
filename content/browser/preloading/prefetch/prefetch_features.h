@@ -66,17 +66,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchStateContaminationMitigation);
 CONTENT_EXPORT extern const base::FeatureParam<bool>
     kPrefetchStateContaminationSwapsBrowsingContextGroup;
 
-// If explicitly disabled, prefetch proxy is not used.
-BASE_DECLARE_FEATURE(kPrefetchProxy);
-
-// If enabled, responses with an operative Cookie-Indices will not be used
-// if the relevant cookie values have changed.
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchCookieIndices);
-
-// Does not enable any new behaviour; is only used to parameterize prefetch
-// limit values (see content/browser/preloading/prefetch/prefetch_params.cc).
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchNewLimits);
-
 // Fix for prefetching a URL controlled by a ServiceWorker without fetch
 // handler. Currently this stops prefetching for such cases
 // (https://crbug.com/379076354).
@@ -124,6 +113,13 @@ CONTENT_EXPORT extern const base::FeatureParam<size_t>
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kPrefetchQueueingPartialFixWithoutScheduler);
 
+// Controls field trials parameters for prefetch canary checker.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchCanaryCheckerParams);
+
+// Allows multiple base limit on `PrefetchScheduler`.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchMultipleActiveSetSizeLimitForBase);
+CONTENT_EXPORT extern const base::FeatureParam<size_t>
+    kPrefetchMultipleActiveSetSizeLimitForBaseValue;
 }  // namespace features
 
 #endif  // CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_FEATURES_H_

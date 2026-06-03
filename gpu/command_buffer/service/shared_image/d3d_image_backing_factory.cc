@@ -6,11 +6,9 @@
 
 #include <d3d11_1.h>
 
-#include "base/debug/crash_logging.h"
-#include "base/debug/dump_without_crashing.h"
 #include "base/memory/shared_memory_mapping.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/win/scoped_handle.h"
-#include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/dxgi_shared_handle_manager.h"
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing.h"
@@ -22,7 +20,6 @@
 #include "ui/gfx/color_space_win.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
-#include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_utils.h"
 
 namespace gpu {
@@ -199,6 +196,15 @@ D3DImageBackingFactory::D3DImageBackingFactory(
   bool has_required_format_support =
       (format_support & kRequiredUsage) == kRequiredUsage;
   d3d11_supports_nv12_ = SUCCEEDED(hr) && has_required_format_support;
+
+  D3D_FEATURE_LEVEL feature_level = d3d11_device_->GetFeatureLevel();
+  if (feature_level < D3D_FEATURE_LEVEL_9_3) {
+    max_nv12_dim_supported_ = 2048;
+  } else if (feature_level < D3D_FEATURE_LEVEL_11_0) {
+    max_nv12_dim_supported_ = 4096;
+  } else {
+    max_nv12_dim_supported_ = 16384;
+  }
 }
 
 D3DImageBackingFactory::~D3DImageBackingFactory() = default;
@@ -517,16 +523,6 @@ std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
   if (!SUCCEEDED(hr)) {
     LOG(ERROR) << "CreateTexture2D failed with size " << size.ToString()
                << " error " << std::hex << hr;
-    if (format == viz::MultiPlaneFormat::kNV12) {
-      // Set crash keys for the size, error code.
-      SCOPED_CRASH_KEY_STRING32("d3d image backing", "nv12 size",
-                                size.ToString());
-      SCOPED_CRASH_KEY_STRING32("d3d image backing", "nv12 error",
-                                base::NumberToString(hr));
-      // DumpWithoutCrashing to get crash reports for cases where d3d11 device
-      // does not support NV12 textures.
-      base::debug::DumpWithoutCrashing();
-    }
     return nullptr;
   }
 
@@ -559,7 +555,6 @@ std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
             base::win::ScopedHandle(shared_handle), d3d11_texture);
   }
 
-  Microsoft::WRL::ComPtr<IDCompositionTexture> dcomp_texture;
   if (want_dcomp_texture) {
     // If this trips, it means we're claiming support for SCANOUT when DComp
     // textures is not supported by the system, or an incompatible texture was
@@ -568,43 +563,19 @@ std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
       LOG(ERROR) << "Composition texture not supported for scanout usage";
       return nullptr;
     }
-
-    Microsoft::WRL::ComPtr<IDCompositionDevice3> dcomp_device =
-        gl::GetDirectCompositionDevice();
-    Microsoft::WRL::ComPtr<IDCompositionDevice4> dcomp_device4;
-    hr = dcomp_device.As(&dcomp_device4);
-    CHECK_EQ(hr, S_OK) << ", QueryInterface failed: "
-                       << logging::SystemErrorCodeToString(hr);
-
-    hr = dcomp_device4->CreateCompositionTexture(d3d11_texture.Get(),
-                                                 &dcomp_texture);
-    CHECK_EQ(hr, S_OK) << ", CreateCompositionTexture failed: "
-                       << logging::SystemErrorCodeToString(hr);
-
-    hr = dcomp_texture->SetAlphaMode(SkAlphaTypeIsOpaque(alpha_type)
-                                         ? DXGI_ALPHA_MODE_IGNORE
-                                         : DXGI_ALPHA_MODE_PREMULTIPLIED);
-    CHECK_EQ(hr, S_OK) << ", SetAlphaMode failed: "
-                       << logging::SystemErrorCodeToString(hr);
-
-    hr = dcomp_texture->SetColorSpace(
-        gfx::ColorSpaceWin::GetDXGIColorSpace(color_space));
-    CHECK_EQ(hr, S_OK) << ", SetColorSpace failed: "
-                       << logging::SystemErrorCodeToString(hr);
   }
 
   // SkiaOutputDeviceDComp will hold onto DComp texture overlay accesses for
   // longer than a frame, due to DWM synchronization requirements. This is
   // incompatible with the assumption that keyed mutex access will be minimal.
-  CHECK(!dcomp_texture || !(dxgi_shared_handle_state &&
-                            dxgi_shared_handle_state->has_keyed_mutex()));
+  CHECK(!want_dcomp_texture || !(dxgi_shared_handle_state &&
+                                 dxgi_shared_handle_state->has_keyed_mutex()));
 
   auto backing = D3DImageBacking::Create(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
       std::move(debug_label), std::move(d3d11_texture),
-      std::move(dcomp_texture), std::move(dxgi_shared_handle_state),
-      gl_format_caps_, texture_target, /*array_slice=*/0u,
-      use_update_subresource1_);
+      std::move(dxgi_shared_handle_state), gl_format_caps_, texture_target,
+      /*array_slice=*/0u, use_update_subresource1_, want_dcomp_texture);
   if (backing && !pixel_data.empty()) {
     backing->SetCleared();
   }
@@ -680,8 +651,8 @@ std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
   std::unique_ptr<D3DImageBacking> backing = D3DImageBacking::Create(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
       std::move(debug_label), std::move(d3d11_texture),
-      /*dcomp_texture=*/nullptr, std::move(dxgi_shared_handle_state),
-      gl_format_caps_, /*texture_target=*/GL_TEXTURE_2D, /*array_slice=*/0u,
+      std::move(dxgi_shared_handle_state), gl_format_caps_,
+      /*texture_target=*/GL_TEXTURE_2D, /*array_slice=*/0u,
       use_update_subresource1_);
 
   if (backing) {
@@ -820,71 +791,6 @@ bool D3DImageBackingFactory::SupportsBGRA8UnormStorage() {
   return supports_bgra8unorm_storage_.value();
 }
 
-bool D3DImageBackingFactory::CanCreateNV12Texture(const gfx::Size& size) {
-  // Without D3D11, we cannot do shared images. This will happen if we're
-  // running with Vulkan, D3D12, D3D9, GL or with the non-passthrough command
-  // decoder in tests.
-  if (!d3d11_device_) {
-    LOG(ERROR) << "D3D11 device is not supported!";
-    return false;
-  }
-
-  UINT format_support;
-  DXGI_FORMAT dxgi_format = DXGI_FORMAT_NV12;
-  HRESULT hr = d3d11_device_->CheckFormatSupport(dxgi_format, &format_support);
-  constexpr auto kRequiredUsage = D3D11_FORMAT_SUPPORT_TEXTURE2D |
-                                  D3D11_FORMAT_SUPPORT_SHADER_SAMPLE |
-                                  D3D11_FORMAT_SUPPORT_RENDER_TARGET;
-  bool has_required_format_support =
-      (format_support & kRequiredUsage) == kRequiredUsage;
-  if (!SUCCEEDED(hr) || !has_required_format_support) {
-    // Set crash keys for the format support, error code.
-    SCOPED_CRASH_KEY_STRING32("d3d image backing", "d3d11 format support",
-                              base::NumberToString(format_support));
-    SCOPED_CRASH_KEY_STRING32("d3d image backing", "nv12 error",
-                              base::NumberToString(hr));
-    // DumpWithoutCrashing to get crash reports for cases where d3d11 device
-    // does not support NV12 textures.
-    base::debug::DumpWithoutCrashing();
-    return false;
-  }
-
-  D3D11_TEXTURE2D_DESC desc;
-  desc.Width = size.width();
-  desc.Height = size.height();
-  desc.MipLevels = 1;
-  desc.ArraySize = 1;
-  desc.Format = dxgi_format;
-  desc.SampleDesc.Count = 1;
-  desc.SampleDesc.Quality = 0;
-  desc.Usage = D3D11_USAGE_DEFAULT;
-  desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-  desc.CPUAccessFlags = 0;
-  desc.MiscFlags = 0;
-
-  Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_texture;
-  hr = d3d11_device_->CreateTexture2D(&desc, nullptr, &d3d11_texture);
-  if (!SUCCEEDED(hr)) {
-    LOG(ERROR) << "CanCreateNV12Texture failed with size " << size.ToString()
-               << " error " << std::hex << hr;
-    // Set crash keys for the size, error code.
-    SCOPED_CRASH_KEY_STRING32("d3d image backing", "nv12 size",
-                              size.ToString());
-    SCOPED_CRASH_KEY_STRING32("d3d image backing", "nv12 error",
-                              base::NumberToString(hr));
-    // DumpWithoutCrashing to get crash reports for cases where d3d11 device
-    // does not support NV12 textures.
-    base::debug::DumpWithoutCrashing();
-
-    min_nv12_size_unsupported_ =
-        std::min(size.GetArea(), min_nv12_size_unsupported_);
-    return false;
-  }
-
-  max_nv12_size_supported_ = std::max(size.GetArea(), max_nv12_size_supported_);
-  return true;
-}
-
 bool D3DImageBackingFactory::IsSupported(SharedImageUsageSet usage,
                                          viz::SharedImageFormat format,
                                          const gfx::Size& size,
@@ -928,19 +834,18 @@ bool D3DImageBackingFactory::IsSupported(SharedImageUsageSet usage,
   if (format == viz::MultiPlaneFormat::kNV12) {
     // Return early if d3d11 cannot support nv12 formats.
     if (!d3d11_supports_nv12_) {
+      LOG(ERROR) << "D3D device does not support NV12 texture creation";
       return false;
     }
-    // We know current size is within `max_nv12_size_supported_` and nv12
-    // creation is supported for `max_nv12_size_supported_`.
-    if (size.GetArea() <= max_nv12_size_supported_) {
-      return true;
-    }
-    // We know current size is larger than `min_nv12_size_unsupported_` and nv12
-    // creation is unsupported for `min_nv12_size_unsupported_`.
-    if (size.GetArea() >= min_nv12_size_unsupported_) {
-      return false;
-    }
-    if (!CanCreateNV12Texture(size)) {
+    // We know current size width and height must be within
+    // `max_nv12_dim_supported_` as nv12 creation is supported for
+    // `max_nv12_dim_supported_`.
+    if (size.width() > max_nv12_dim_supported_ ||
+        size.height() > max_nv12_dim_supported_) {
+      LOG(ERROR)
+          << "Provided size=" << size.ToString()
+          << "is not supported by d3d device, with max supported dimensions="
+          << max_nv12_dim_supported_;
       return false;
     }
   }

@@ -95,11 +95,6 @@ BASE_DECLARE_FEATURE(kBlockInstallingExtensionsOnDesktopAndroid);
 // extension).
 BASE_DECLARE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs);
 
-// If enabled, defers the execution of WebRequestAPI call of
-// `ResetURLLoaderFactories()` to when there's no extension service worker
-// registrations in flight, to avoid disrupting the worker(s) registration(s).
-BASE_DECLARE_FEATURE(kDeferResetURLLoaderFactories);
-
 // If enabled, `ResetURLLoaderFactories()` will not reset extensions'
 // service workers URLLoaderFactories used for fetching scripts and
 // sub-resources. This avoids disrupting the worker(s) registration(s)
@@ -209,11 +204,6 @@ BASE_DECLARE_FEATURE(kTelemetryExtensionPendingApprovalApi);
 // as having a corresponding user gesture or not.
 BASE_DECLARE_FEATURE(kWebstoreInstallerUserGestureKillSwitch);
 
-#if BUILDFLAG(IS_WIN)
-// TODO(https://crbug.com/400119351): Remove this feature flag in M138.
-BASE_DECLARE_FEATURE(kWinRejectDotSpaceSuffixFilePaths);
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////
 // STOP!
 // Please don't just add your new feature down here.
@@ -256,8 +246,17 @@ BASE_DECLARE_FEATURE(kSilentDebuggerExtensionAPI);
 // nothing breaks.
 BASE_DECLARE_FEATURE(kRemoveCoreSiteInstance);
 
+// Disables loading extensions via the `--disable-extensions-except` command
+// line switch.
+BASE_DECLARE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch);
+
 // Disables loading extensions via the `--load-extension` command line switch.
 BASE_DECLARE_FEATURE(kDisableLoadExtensionCommandLineSwitch);
+
+// Disables the `--extensions-on-chrome-urls` flag's functionality on
+// `chrome://` URLs. Extension can still run on extension URLs using the new
+// flag `--extensions-on-extension-urls` flag.
+BASE_DECLARE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch);
 
 // Changes the chrome.userScript API to be enabled by a per-extension toggle
 // rather than the developer mode toggle on chrome://extensions.
@@ -272,6 +271,21 @@ BASE_DECLARE_FEATURE(kDebuggerAPIRestrictedToDevMode);
 // extension APIs are available. It does not include non-extension APIs like
 // `loadTimes` , `csi`, etc. or deprecated APIs (e.g. `app`).
 BASE_DECLARE_FEATURE(kExtensionBrowserNamespaceAlternative);
+
+// Supports chrome.runtime.onMessage() returning a JS Promise to reply to sender
+// response callbacks. Promise resolve or rejection value will be sent to the
+// sender response callbacks.
+BASE_DECLARE_FEATURE(kRuntimeOnMessagePromiseReturnSupport);
+
+// Optimizes service worker start requests by checking readiness before
+// initiating a start.
+BASE_DECLARE_FEATURE(kOptimizeServiceWorkerStartRequests);
+
+// When enabled, a call to base::ListValue::Clone is avoided when dispatching an
+// extension function. Behind a feature to assess impact
+// (go/chrome-performance-work-should-be-finched).
+// TODO(crbug.com/424432184): Clean up when experiment is complete.
+BASE_DECLARE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch);
 
 }  // namespace extensions_features
 

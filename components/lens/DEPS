@@ -1,9 +1,14 @@
 include_rules = [
+  "+components/base32",
   "+components/prefs",
+  "+components/signin/public/identity_manager",
   "+components/sync",
   "+components/sync_preferences",
+  "+components/variations",
   "+components/unified_consent",
+  "+google_apis",
   "+net",
   "+services/metrics/public/cpp",
+  "+third_party/lens_server_proto",
   "+ui/gfx/geometry/size_f.h",
 ]

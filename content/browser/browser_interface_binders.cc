@@ -72,8 +72,8 @@
 #include "content/browser/shared_storage/shared_storage_worklet_host.h"
 #include "content/browser/speech/speech_recognition_dispatcher_host.h"
 #include "content/browser/storage_access/storage_access_handle.h"
-#include "content/browser/tracing/trace_report/trace_report.mojom.h"
-#include "content/browser/tracing/trace_report/trace_report_internals_ui.h"
+#include "content/browser/tracing/traces_internals/traces_internals.mojom.h"
+#include "content/browser/tracing/traces_internals/traces_internals_ui.h"
 #include "content/browser/wake_lock/wake_lock_service_impl.h"
 #include "content/browser/web_contents/file_chooser_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -1099,8 +1099,12 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                             base::Unretained(host)));
   }
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_COBALT)
+=======
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
   map->Add<device::mojom::NFC>(base::BindRepeating(
       &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
@@ -1113,7 +1117,8 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   map->Add<blink::mojom::InstalledAppProvider>(
       base::BindRepeating(&RenderFrameHostImpl::CreateInstalledAppProvider,
                           base::Unretained(host)));
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
+        // !BUILDFLAG(IS_IOS_TVOS))
 
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
@@ -1276,8 +1281,8 @@ void PopulateBinderMapWithContext(
                                          QuotaInternalsUI>(map);
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
   RegisterWebUIControllerInterfaceBinder<
-      trace_report::mojom::TraceReportHandlerFactory, TraceReportInternalsUI>(
-      map);
+      traces_internals::mojom::TracesInternalsHandlerFactory,
+      TracesInternalsUI>(map);
 #endif
 #if BUILDFLAG(ENABLE_VR)
   RegisterWebUIControllerInterfaceBinder<webxr::mojom::WebXrInternalsHandler,

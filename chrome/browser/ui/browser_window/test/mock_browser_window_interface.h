@@ -27,11 +27,7 @@ class MockBrowserWindowInterface : public BrowserWindowInterface {
               RegisterBrowserDidClose,
               (BrowserDidCloseCallback callback),
               (override));
-  MOCK_METHOD(bool, IsAttemptingToCloseBrowser, (), (const, override));
   MOCK_METHOD(views::View*, TopContainer, (), (override));
-  MOCK_METHOD(bool, IsMinimized, (), (const, override));
-  MOCK_METHOD(bool, IsVisibleOnScreen, (), (const, override));
-  MOCK_METHOD(bool, IsVisible, (), (const, override));
   MOCK_METHOD(base::WeakPtr<BrowserWindowInterface>,
               GetWeakPtr,
               (),
@@ -43,6 +39,12 @@ class MockBrowserWindowInterface : public BrowserWindowInterface {
               (override));
   MOCK_METHOD(tabs::TabInterface*, GetActiveTabInterface, (), (override));
   MOCK_METHOD(BrowserWindowFeatures&, GetFeatures, (), (override));
+  MOCK_METHOD(const BrowserWindowFeatures&, GetFeatures, (), (const, override));
+  MOCK_METHOD(UnownedUserDataHost&, GetUnownedUserDataHost, (), (override));
+  MOCK_METHOD(const UnownedUserDataHost&,
+              GetUnownedUserDataHost,
+              (),
+              (const, override));
   MOCK_METHOD(web_modal::WebContentsModalDialogHost*,
               GetWebContentsModalDialogHostForWindow,
               (),
@@ -79,12 +81,13 @@ class MockBrowserWindowInterface : public BrowserWindowInterface {
               (),
               (override));
   MOCK_METHOD(Browser*, GetBrowserForMigrationOnly, (), (override));
-  MOCK_METHOD(void, ActivateWindow, (), (override));
-  MOCK_METHOD(void,
-              SetWebContentsBlocked,
-              (content::WebContents*, bool),
-              (override));
   MOCK_METHOD(bool, IsTabModalPopupDeprecated, (), (const, override));
+  MOCK_METHOD(ui::BaseWindow*, GetWindow, (), (override));
+  MOCK_METHOD(DesktopBrowserWindowCapabilities*, capabilities, (), (override));
+  MOCK_METHOD(const DesktopBrowserWindowCapabilities*,
+              capabilities,
+              (),
+              (const, override));
 
   // PageNavigator methods
   MOCK_METHOD(content::WebContents*,

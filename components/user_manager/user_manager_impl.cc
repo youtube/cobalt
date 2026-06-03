@@ -27,6 +27,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
@@ -184,7 +185,7 @@ UserList UserManagerImpl::FindLoginAllowedUsersFrom(
   for (User* user : users) {
     // Skip kiosk apps for login screen user list. Kiosk apps as pods (aka new
     // kiosk UI) is currently disabled and it gets the apps directly from
-    // KioskChromeAppManager and WebKioskAppManager.
+    // KioskChromeAppManager and KioskWebAppManager.
     if (user->IsKioskType()) {
       continue;
     }
@@ -335,8 +336,8 @@ bool UserManagerImpl::EnsureUser(const AccountId& account_id,
       }
       break;
 
-    case UserType::kKioskApp:
-    case UserType::kWebKioskApp:
+    case UserType::kKioskChromeApp:
+    case UserType::kKioskWebApp:
     case UserType::kKioskIWA:
       // Do nothing. User should be already there.
       break;
@@ -994,13 +995,13 @@ bool UserManagerImpl::IsLoggedInAsGuest() const {
 
 bool UserManagerImpl::IsLoggedInAsKioskChromeApp() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return IsUserLoggedIn() && active_user_->GetType() == UserType::kKioskApp;
+  return IsUserLoggedIn() &&
+         active_user_->GetType() == UserType::kKioskChromeApp;
 }
 
 bool UserManagerImpl::IsLoggedInAsKioskWebApp() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/414755777): Rename to kKioskWebApp for naming consistency.
-  return IsUserLoggedIn() && active_user_->GetType() == UserType::kWebKioskApp;
+  return IsUserLoggedIn() && active_user_->GetType() == UserType::kKioskWebApp;
 }
 
 bool UserManagerImpl::IsLoggedInAsKioskIWA() const {
@@ -1758,10 +1759,7 @@ void UserManagerImpl::UpdateUserAccountLocale(const AccountId& account_id,
         FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
         base::BindOnce(
             [](const std::string& locale) {
-              std::string resolved_locale;
-              std::ignore =
-                  l10n_util::CheckAndResolveLocale(locale, &resolved_locale);
-              return resolved_locale;
+              return l10n_util::CheckAndResolveLocale(locale).value_or("");
             },
             locale),
         base::BindOnce(&UserManagerImpl::DoUpdateAccountLocale,

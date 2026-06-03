@@ -23,11 +23,15 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_ANIMATE_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_ANIMATE_ELEMENT_H_
 
+#include <vector>
+
 #include "base/gtest_prod_util.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/svg/properties/svg_property_info.h"
 #include "third_party/blink/renderer/core/svg/svg_animation_element.h"
 #include "third_party/blink/renderer/core/svg_names.h"
+#include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
@@ -65,18 +69,21 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   void ClearAnimationValue() final;
 
   AnimationMode CalculateAnimationMode() override;
-  bool CalculateToAtEndOfDurationValue(
-      const String& to_at_end_of_duration_string) final;
+  void UpdateKeyframeValues(const Keyframe& keyframe) override;
   void CalculateFromAndToValues(const String& from_string,
                                 const String& to_string) final;
   void CalculateFromAndByValues(const String& from_string,
                                 const String& by_string) final;
+  void CalculateValues(const Vector<String>& values) final;
+  wtf_size_t ValuesCount() const final {
+    DCHECK_EQ(GetAnimationMode(), kValuesAnimation);
+    return values_.size();
+  }
   void CalculateAnimationValue(SMILAnimationValue&,
                                float percentage,
                                unsigned repeat_count) const final;
   void ApplyResultsToTarget(const SMILAnimationValue&) final;
-  float CalculateDistance(const String& from_string,
-                          const String& to_string) final;
+  float CalculateDistance(const Keyframe&) const final;
 
   void ParseAttribute(const AttributeModificationParams&) override;
 
@@ -105,10 +112,13 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   void WillChangeAnimatedType();
   void DidChangeAnimatedType();
 
+  void ClearValues();
+
   virtual SVGPropertyBase* CreateUnderlyingValueForAnimation() const;
   virtual SVGPropertyBase* ParseValue(const String&) const;
   SVGPropertyBase* CreateUnderlyingValueForAttributeAnimation() const;
   SVGPropertyBase* CreatePropertyForAttributeAnimation(const String&) const;
+  SVGPropertyBase* CreatePropertyForCSSAnimation(const CSSValue* value) const;
   SVGPropertyBase* CreatePropertyForCSSAnimation(const String&) const;
 
   SVGPropertyBase* AdjustForInheritance(SVGPropertyBase*,
@@ -116,10 +126,9 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
 
   Member<SVGPropertyBase> from_property_;
   Member<SVGPropertyBase> to_property_;
-  Member<SVGPropertyBase> to_at_end_of_duration_property_;
 
  protected:
-  Member<SVGAnimatedPropertyBase> target_property_;
+  Member<const SVGAnimatedPropertyBase> target_property_;
   QualifiedName attribute_name_;
   AnimatedPropertyType type_;
   CSSPropertyID css_property_id_;
@@ -132,6 +141,9 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
  private:
   AnimatedPropertyValueType from_property_value_type_;
   AnimatedPropertyValueType to_property_value_type_;
+  HeapVector<Member<SVGPropertyBase>> values_;
+  std::vector<bool> values_is_inherit_
+      ALLOW_DISCOURAGED_TYPE("More space-efficient than Vector<bool>");
   AttributeType attribute_type_;
 };
 

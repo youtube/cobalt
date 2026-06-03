@@ -239,7 +239,7 @@ unsigned CSSStyleRule::insertRule(const ExecutionContext* execution_context,
     if (index > 0) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kIndexSizeError,
-          WTF::StrCat(
+          StrCat(
               {"the index ", String::Number(index),
                " must be less than or equal to the length of the rule list."}));
       return 0;
@@ -270,8 +270,8 @@ void CSSStyleRule::deleteRule(unsigned index, ExceptionState& exception_state) {
       index >= style_rule_->ChildRules()->size()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        "the index " + String::Number(index) +
-            " is greated than the length of the rule list.");
+        StrCat({"the index ", String::Number(index),
+                " is greated than the length of the rule list."}));
     return;
   }
 

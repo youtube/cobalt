@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
@@ -17,6 +18,8 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+
+import java.util.Iterator;
 
 /** Singleton class intended to stub out Tab model before it has been created. */
 @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
@@ -107,6 +110,27 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     }
 
     @Override
+    public Iterator<Tab> iterator() {
+        return new Iterator<>() {
+            @Override
+            public boolean hasNext() {
+                return false;
+            }
+
+            @Override
+            public @Nullable Tab next() {
+                return null;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException(
+                        "Removal is not supported from this iterator");
+            }
+        };
+    }
+
+    @Override
     public int index() {
         return INVALID_TAB_INDEX;
     }
@@ -127,6 +151,12 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
 
     @Override
     public void moveTab(int id, int newIndex) {}
+
+    @Override
+    public void pinTab(int tabId) {}
+
+    @Override
+    public void unpinTab(int tabId) {}
 
     @Override
     public void destroy() {}
@@ -186,6 +216,9 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     public void openMostRecentlyClosedEntry() {}
 
     @Override
+    public void addDelegateModelObserver(Callback<TabModelInternal> callback) {}
+
+    @Override
     public void addIncognitoObserver(IncognitoTabModelObserver observer) {}
 
     @Override
@@ -193,4 +226,7 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
 
     @Override
     public void setActive(boolean active) {}
+
+    @Override
+    public void broadcastSessionRestoreComplete() {}
 }

@@ -49,12 +49,12 @@ component("variations") {
     "entropy_provider.h",
     "fake_crash.cc",
     "fake_crash.h",
+    "feature_overrides.cc",
+    "feature_overrides.h",
     "field_trial_internals_utils.cc",
     "field_trial_internals_utils.h",
     "hashing.cc",
     "hashing.h",
-    "limited_entropy_mode_gate.cc",
-    "limited_entropy_mode_gate.h",
     "limited_layer_entropy_cost_tracker.cc",
     "limited_layer_entropy_cost_tracker.h",
     "metrics.cc",
@@ -147,8 +147,8 @@ component("variations") {
       "variations_crash_keys_android.h",
     ]
     deps += [
-      "//components/crash/android:anr_collector_jni_headers",
       "//components/crash/android:anr_build_id_provider",
+      "//components/crash/android:anr_collector_jni_headers",
       "//components/variations/android:variations_seed_jni",
     ]
   }
@@ -175,7 +175,7 @@ if (is_android) {
     # External code should depend on ":variations_java" instead.
     visibility = [ ":*" ]
     sources = [ "variations_switches.cc" ]
-    template = "//components/variations/android/java_templates/VariationsSwitches.java.tmpl"
+    class_name = "org.chromium.components.variations.VariationsSwitches"
   }
 
   android_library("variations_java") {
@@ -282,7 +282,6 @@ source_set("unit_tests") {
     "net",
     "proto",
     "//base/test:test_support",
-    "//base/version_info:channel",
     "//components/crash/core/common:crash_key",
     "//components/prefs:test_support",
     "//components/variations/field_trial_config:field_trial_config",

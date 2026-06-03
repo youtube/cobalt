@@ -55,9 +55,12 @@ public class DataProtectionBridge {
      */
     public static void verifyShareTextIsAllowedByPolicy(
             String text, RenderFrameHost renderFrameHost, Callback<Boolean> callback) {
-        // TODO(crbug.com/406591712): Update to use dedicated share flow instead of reusing the
-        //  copy flow.
-        verifyCopyTextIsAllowedByPolicy(text, renderFrameHost, callback);
+        if (!ChromeFeatureList.isEnabled(ENABLE_CLIPBOARD_DATA_CONTROLS_ANDROID)) {
+            callback.onResult(true);
+            return;
+        }
+        DataProtectionBridgeJni.get()
+                .verifyShareTextIsAllowedByPolicy(text, renderFrameHost, callback);
     }
 
     /**
@@ -94,9 +97,12 @@ public class DataProtectionBridge {
      */
     public static void verifyShareUrlIsAllowedByPolicy(
             String url, RenderFrameHost renderFrameHost, Callback<Boolean> callback) {
-        // TODO(crbug.com/406591712): Update to use dedicated share flow instead of reusing the
-        //  copy flow.
-        verifyCopyUrlIsAllowedByPolicy(url, renderFrameHost, callback);
+        if (!ChromeFeatureList.isEnabled(ENABLE_CLIPBOARD_DATA_CONTROLS_ANDROID)) {
+            callback.onResult(true);
+            return;
+        }
+        DataProtectionBridgeJni.get()
+                .verifyShareUrlIsAllowedByPolicy(url, renderFrameHost, callback);
     }
 
     /**
@@ -133,9 +139,36 @@ public class DataProtectionBridge {
      */
     public static void verifyShareImageIsAllowedByPolicy(
             String imageUri, RenderFrameHost renderFrameHost, Callback<Boolean> callback) {
-        // TODO(crbug.com/406591712): Update to use dedicated share flow instead of reusing the
-        //  copy flow.
-        verifyCopyImageIsAllowedByPolicy(imageUri, renderFrameHost, callback);
+        if (!ChromeFeatureList.isEnabled(ENABLE_CLIPBOARD_DATA_CONTROLS_ANDROID)) {
+            callback.onResult(true);
+            return;
+        }
+        DataProtectionBridgeJni.get()
+                .verifyShareImageIsAllowedByPolicy(imageUri, renderFrameHost, callback);
+    }
+
+    /**
+     * Runs the provided callback after verifying that the generic action for the specified image
+     * content is allowed by the current clipboard copy data protection policies. The callback
+     * boolean input will be true if the action is allowed, or false if the action has been blocked
+     * or cancelled.
+     *
+     * <p>If enterprise policies are not enabled on the device, this check should cause minimal
+     * delays.
+     *
+     * @param imageUri The uri for the image subject to the current action.
+     * @param renderFrameHost The RenderFrameHost providing the context in which the action
+     *     occurred.
+     * @param callback The callback to run after verifying the policy.
+     */
+    public static void verifyGenericCopyImageActionIsAllowedByPolicy(
+            String imageUri, RenderFrameHost renderFrameHost, Callback<Boolean> callback) {
+        if (!ChromeFeatureList.isEnabled(ENABLE_CLIPBOARD_DATA_CONTROLS_ANDROID)) {
+            callback.onResult(true);
+            return;
+        }
+        DataProtectionBridgeJni.get()
+                .verifyGenericCopyImageActionIsAllowedByPolicy(imageUri, renderFrameHost, callback);
     }
 
     @NativeMethods
@@ -148,6 +181,18 @@ public class DataProtectionBridge {
                 String url, RenderFrameHost renderFrameHost, Callback<Boolean> callback);
 
         void verifyCopyImageIsAllowedByPolicy(
+                String imageUri, RenderFrameHost renderFrameHost, Callback<Boolean> callback);
+
+        void verifyShareTextIsAllowedByPolicy(
+                String text, RenderFrameHost renderFrameHost, Callback<Boolean> callback);
+
+        void verifyShareUrlIsAllowedByPolicy(
+                String url, RenderFrameHost renderFrameHost, Callback<Boolean> callback);
+
+        void verifyShareImageIsAllowedByPolicy(
+                String imageUri, RenderFrameHost renderFrameHost, Callback<Boolean> callback);
+
+        void verifyGenericCopyImageActionIsAllowedByPolicy(
                 String imageUri, RenderFrameHost renderFrameHost, Callback<Boolean> callback);
     }
 }

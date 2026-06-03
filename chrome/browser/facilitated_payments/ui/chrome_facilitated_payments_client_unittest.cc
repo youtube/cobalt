@@ -9,7 +9,7 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/facilitated_payments/core/browser/pix_account_linking_manager.h"
 #include "components/facilitated_payments/core/features/features.h"
-#include "components/optimization_guide/core/mock_optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/mock_optimization_guide_decider.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -36,7 +36,11 @@ class MockFacilitatedPaymentsController : public FacilitatedPaymentsController {
   MOCK_METHOD(void, ShowProgressScreen, (), (override));
   MOCK_METHOD(void, ShowErrorScreen, (), (override));
   MOCK_METHOD(void, Dismiss, (), (override));
-  MOCK_METHOD(void, ShowPixAccountLinkingPrompt, (), (override));
+  MOCK_METHOD(void,
+              ShowPixAccountLinkingPrompt,
+              (base::OnceCallback<void()> on_accepted,
+               base::OnceCallback<void()> on_declined),
+              (override));
 };
 
 class MockPixAccountLinkingManager
@@ -163,14 +167,6 @@ TEST_F(ChromeFacilitatedPaymentsClientTest, ShowErrorScreen) {
   base_client().ShowErrorScreen();
 }
 
-// Test that the client forwards call to show Pix account linking prompt to the
-// controller.
-TEST_F(ChromeFacilitatedPaymentsClientTest, ShowPixAccountLinkingPrompt) {
-  EXPECT_CALL(controller(), ShowPixAccountLinkingPrompt);
-
-  base_client().ShowPixAccountLinkingPrompt();
-}
-
 // Test that the controller is able to process requests to show different
 // screens back to back.
 TEST_F(ChromeFacilitatedPaymentsClientTest,
@@ -212,4 +208,13 @@ TEST_F(ChromeFacilitatedPaymentsClientTest, InitPixAccountLinkingFlow) {
   EXPECT_CALL(pix_account_linking_manager(), MaybeShowPixAccountLinkingPrompt);
 
   base_client().InitPixAccountLinkingFlow();
+}
+
+// Test that the client forwards call to show Pix account linking prompt to the
+// controller.
+TEST_F(ChromeFacilitatedPaymentsClientTest, ShowPixAccountLinkingPrompt) {
+  EXPECT_CALL(controller(), ShowPixAccountLinkingPrompt);
+
+  base_client().ShowPixAccountLinkingPrompt(base::DoNothing(),
+                                            base::DoNothing());
 }

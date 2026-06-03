@@ -24,8 +24,7 @@ BackingStoreDatabaseImpl::GetMetadata() {
 
 PartitionedLockId BackingStoreDatabaseImpl::GetLockId(
     int64_t object_store_id) const {
-  NOTIMPLEMENTED();
-  return PartitionedLockId();
+  NOTREACHED();
 }
 
 std::unique_ptr<BackingStore::Transaction>
@@ -38,8 +37,10 @@ BackingStoreDatabaseImpl::CreateTransaction(
 Status BackingStoreDatabaseImpl::DeleteDatabase(
     std::vector<PartitionedLock> locks,
     base::OnceClosure on_complete) {
-  NOTIMPLEMENTED();
-  return Status::InvalidArgument("Not implemented");
+  db_->DeleteIdbDatabase(PassKey());
+  CHECK(!db_);
+  std::move(on_complete).Run();
+  return Status::OK();
 }
 
 }  // namespace content::indexed_db::sqlite

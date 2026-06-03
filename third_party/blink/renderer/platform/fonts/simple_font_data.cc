@@ -52,7 +52,6 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
-#include "third_party/freetype_buildflags.h"
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkFontMetrics.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -62,23 +61,14 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "v8/include/v8.h"
 
-#if !BUILDFLAG(USE_SYSTEM_FREETYPE) && BUILDFLAG(ENABLE_FREETYPE)
-#include "third_party/freetype/src/src/autofit/afws-decl.h"
-#endif
-
 namespace blink {
 
 constexpr float kSmallCapsFontSizeMultiplier = 0.7f;
 constexpr float kEmphasisMarkFontSizeMultiplier = 0.5f;
 
-#if !BUILDFLAG(USE_SYSTEM_FREETYPE) && BUILDFLAG(ENABLE_FREETYPE)
-constexpr int32_t kFontObjectsMemoryConsumption =
-    std::max(sizeof(AF_LatinMetricsRec), sizeof(AF_CJKMetricsRec));
-#else
 // sizeof(AF_LatinMetricsRec) = 2128
 // TODO(drott): Measure a new number for Fontations.
 constexpr int32_t kFontObjectsMemoryConsumption = 2128;
-#endif
 
 SimpleFontData::SimpleFontData(const FontPlatformData* platform_data,
                                const CustomFontData* custom_data,
@@ -425,7 +415,7 @@ const std::optional<float>& SimpleFontData::IdeographicAdvanceWidth() const {
     // Use the advance of the CJK water character U+6C34 as the approximated
     // advance of fullwidth ideographic characters, as specified at
     // https://drafts.csswg.org/css-values-4/#ic.
-    if (const Glyph cjk_water_glyph = GlyphForCharacter(kCjkWaterCharacter)) {
+    if (const Glyph cjk_water_glyph = GlyphForCharacter(uchar::kCjkWater)) {
       ideographic_advance_width_ = WidthForGlyph(cjk_water_glyph);
     }
   });
@@ -434,7 +424,7 @@ const std::optional<float>& SimpleFontData::IdeographicAdvanceWidth() const {
 
 const std::optional<float>& SimpleFontData::IdeographicAdvanceHeight() const {
   std::call_once(ideographic_advance_height_once_, [this] {
-    if (const Glyph cjk_water_glyph = GlyphForCharacter(kCjkWaterCharacter)) {
+    if (const Glyph cjk_water_glyph = GlyphForCharacter(uchar::kCjkWater)) {
       const HarfBuzzFace* hb_face = platform_data_->GetHarfBuzzFace();
       const OpenTypeVerticalData& vertical_data = hb_face->VerticalData();
       ideographic_advance_height_ =
@@ -458,6 +448,10 @@ const std::optional<float>& SimpleFontData::IdeographicInlineSize() const {
     ideographic_inline_size_ = IdeographicAdvanceHeight();
   });
   return ideographic_inline_size_;
+}
+
+float SimpleFontData::TextAutoSpaceInlineSize() const {
+  return IdeographicInlineSize().value_or(PlatformData().size()) / 8;
 }
 
 const HanKerning::FontData& SimpleFontData::HanKerningData(

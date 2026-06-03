@@ -14,6 +14,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "chrome/updater/event_logger.h"
 #include "components/update_client/configurator.h"
 
 class GURL;
@@ -46,8 +47,7 @@ class Configurator : public update_client::Configurator {
  public:
   Configurator(scoped_refptr<UpdaterPrefs> prefs,
                scoped_refptr<ExternalConstants> external_constants,
-               UpdaterScope scope,
-               bool is_ceca_experiment_enabled = false);
+               UpdaterScope scope);
   Configurator(const Configurator&) = delete;
   Configurator& operator=(const Configurator&) = delete;
 
@@ -84,12 +84,13 @@ class Configurator : public update_client::Configurator {
   bool IsConnectionMetered() const override;
 
   scoped_refptr<PersistedData> GetUpdaterPersistedData() const;
+  scoped_refptr<UpdaterEventLogger> GetEventLogger() const;
   virtual GURL CrashUploadURL() const;
-  virtual GURL DeviceManagementURL() const;
 
   base::TimeDelta ServerKeepAliveTime() const;
   scoped_refptr<PolicyService> GetPolicyService() const;
   crx_file::VerifierFormat GetCrxVerifierFormat() const;
+  base::TimeDelta MinimumEventLoggingCooldown() const;
 
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
@@ -105,6 +106,7 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
   scoped_refptr<update_client::CrxCache> crx_cache_;
+  scoped_refptr<UpdaterEventLogger> event_logger_;
   const std::optional<bool> is_managed_device_;
 };
 

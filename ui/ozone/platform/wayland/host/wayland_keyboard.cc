@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/notimplemented.h"
 #include "base/unguessable_token.h"
 #include "ui/base/buildflags.h"
 #include "ui/events/base_event_utils.h"
@@ -286,6 +287,9 @@ void WaylandKeyboard::OnLeave(void* data,
   auto* self = static_cast<WaylandKeyboard*>(data);
   if (auto* window = wl::RootWindowFromWlSurface(surface))
     self->delegate_->OnKeyboardFocusChanged(window, /*focused=*/false);
+
+  // Upon window focus lose, reset modifier state.
+  self->delegate_->OnKeyboardModifiersChanged(0);
 
   // Upon window focus lose, reset the key repeat timers.
   self->auto_repeat_handler_.StopKeyRepeat();

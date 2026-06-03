@@ -10,6 +10,7 @@ import("//build/config/python.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//build/toolchain/toolchain.gni")
+import("//content/common/features.gni")
 import("//media/media_options.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -142,7 +143,10 @@ config("core_include_dirs") {
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
-  flags = [ "TARGET_OS_IS_ANDROID=$target_os_is_android" ]
+  flags = [
+    "TARGET_OS_IS_ANDROID=$target_os_is_android",
+    "USE_EXTERNAL_POPUP_MENU=$use_external_popup_menu",
+  ]
 }
 
 import("//build/config/pch.gni")
@@ -399,6 +403,7 @@ component("core") {
     "//components/paint_preview/common",
     "//components/performance_manager/public/mojom:mojom_blink",
     "//components/shared_highlighting/core/common",
+    "//components/subresource_filter/core/common",
     "//components/web_package",
     "//gin",
     "//gpu/config",
@@ -1347,6 +1352,7 @@ target(core_generated_target_type, "core_generated") {
 
   # Dependencies required to compile the sources.
   public_deps += [
+    ":buildflags",
     ":element_locator_proto",
     ":prerequisites",
     "//gin",
@@ -1686,6 +1692,8 @@ source_set("unit_test_support") {
     "testing/sim/sim_request.h",
     "testing/sim/sim_test.cc",
     "testing/sim/sim_test.h",
+    "testing/web_view_test_helper.cc",
+    "testing/web_view_test_helper.h",
     "workers/worker_thread_test_helper.h",
   ]
 

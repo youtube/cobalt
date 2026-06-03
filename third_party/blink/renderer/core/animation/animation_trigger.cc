@@ -5,8 +5,10 @@
 #include "third_party/blink/renderer/core/animation/animation_trigger.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
+#include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/animation/css/css_animation.h"
 #include "third_party/blink/renderer/core/animation/deferred_timeline.h"
+#include "third_party/blink/renderer/core/animation/document_animations.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/scroll_timeline.h"
 #include "third_party/blink/renderer/core/animation/scroll_timeline_util.h"
@@ -16,9 +18,54 @@
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/layout/adjust_for_absolute_zoom.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
 
 namespace blink {
+
+namespace {
+
+void UpdateAnimation(Animation* animation,
+                     AnimationTrigger::UpdateType update_type) {
+  switch (update_type) {
+    case AnimationTrigger::UpdateType::kPlay:
+      animation->PlayInternal(Animation::AutoRewind::kEnabled,
+                              ASSERT_NO_EXCEPTION);
+      break;
+    case AnimationTrigger::UpdateType::kPause:
+      animation->PauseInternal(ASSERT_NO_EXCEPTION);
+      break;
+    case AnimationTrigger::UpdateType::kReverse:
+      animation->ReverseInternal(ASSERT_NO_EXCEPTION);
+      break;
+    case AnimationTrigger::UpdateType::kUnpause:
+      animation->Unpause();
+      break;
+    case AnimationTrigger::UpdateType::kReset:
+      animation->ResetPlayback();
+      break;
+    case AnimationTrigger::UpdateType::kNone:
+    default:
+      NOTREACHED();
+  };
+}
+
+bool HasPausedCSSPlayState(Animation* animation) {
+  if (!animation->IsCSSAnimation()) {
+    return false;
+  }
+
+  CSSAnimation* css_animation = To<CSSAnimation>(animation);
+
+  if (css_animation->GetIgnoreCSSPlayState()) {
+    return false;
+  }
+
+  return animation->GetTriggerActionPlayState() == EAnimPlayState::kPaused;
+}
+
+}  // namespace
 
 using RangeBoundary = AnimationTrigger::RangeBoundary;
 
@@ -71,7 +118,13 @@ AnimationTrigger::AnimationTrigger(AnimationTimeline* timeline,
       range_start_(range_start),
       range_end_(range_end),
       exit_range_start_(exit_range_start),
-      exit_range_end_(exit_range_end) {}
+      exit_range_end_(exit_range_end) {
+  if (timeline_) {
+    timeline_->AddAnimationTrigger(this);
+  }
+  // A default trigger will need to trip immediately.
+  Update();
+}
 
 /* static */
 AnimationTrigger* AnimationTrigger::Create(ExecutionContext* execution_context,
@@ -114,22 +167,96 @@ const RangeBoundary* AnimationTrigger::exitRangeEnd(
   return exit_range_end_;
 }
 
-double ComputeTriggerBoundary(
-    std::optional<TimelineOffset> offset,
-    double default_value,
-    const ScrollTimeline& timeline,
-    const TimelineRange::ScrollOffsets& range_offsets) {
+double ComputeTriggerBoundary(std::optional<TimelineOffset> offset,
+                              double default_value,
+                              const ScrollTimeline& timeline,
+                              const TimelineRange::ScrollOffsets& range_offsets,
+                              Element& timeline_source) {
   if (offset) {
-    double range = range_offsets.end - range_offsets.start;
-    return range_offsets.start +
-           (timeline.IsViewTimeline()
-                ? range * To<ViewTimeline>(timeline).ToFractionalOffset(*offset)
-                : MinimumValueForLength(offset->offset, LayoutUnit(range)));
+    // |range_offsets| is in physical pixels. Get the range values in CSS
+    // pixels.
+    double range_start_in_css = AdjustForAbsoluteZoom::AdjustScroll(
+        range_offsets.start, *timeline_source.GetLayoutBox());
+    double range_in_css = AdjustForAbsoluteZoom::AdjustScroll(
+        range_offsets.end - range_offsets.start,
+        *timeline_source.GetLayoutBox());
+
+    LayoutUnit range_offset_in_css;
+    if (timeline.IsViewTimeline()) {
+      // |offset| is in CSS pixels but ToFractionalOffset works with Physical
+      // pixels, adjust to physical pixels to get the fraction of the timeline
+      // range.
+      TimelineOffset offset_in_physical(
+          offset->name,
+          offset->offset.Zoom(
+              timeline_source.GetLayoutBox()->StyleRef().EffectiveZoom()),
+          offset->style_dependent_offset);
+
+      double fraction =
+          To<ViewTimeline>(timeline).ToFractionalOffset(offset_in_physical);
+      range_offset_in_css = LayoutUnit(fraction * range_in_css);
+    } else {
+      range_offset_in_css =
+          MinimumValueForLength(offset->offset, LayoutUnit(range_in_css));
+    }
+
+    return range_start_in_css + range_offset_in_css;
   }
+
   return default_value;
 }
 
+std::optional<AnimationTrigger::TriggerBoundaries>
+AnimationTrigger::CalculateTriggerBoundaries() {
+  if (!timeline_ || !timeline_->IsActive()) {
+    return std::nullopt;
+  }
+
+  if (!timeline_->IsProgressBased()) {
+    // Only scroll-triggered animations are supported at the moment.
+    // Return values that indicate that the a trigger with the document timeline
+    // is always tripped.
+    // return std::nullopt;
+    return std::make_optional<TriggerBoundaries>(
+        {.start = -std::numeric_limits<double>::infinity(),
+         .end = std::numeric_limits<double>::infinity(),
+         .current_offset = 0});
+  }
+
+  ScrollTimeline* timeline =
+      DynamicTo<ScrollTimeline>(timeline_->ExposedTimeline());
+  if (!timeline) {
+    return std::nullopt;
+  }
+
+  std::optional<double> current_offset = timeline->GetCurrentScrollPosition();
+  if (!current_offset) {
+    return std::nullopt;
+  }
+
+  Node* timeline_source = timeline->ComputeResolvedSource();
+  if (!timeline_source) {
+    return std::nullopt;
+  }
+
+  current_offset = AdjustForAbsoluteZoom::AdjustScroll(
+      *current_offset, *timeline_source->GetLayoutObject());
+
+  if (IsA<LayoutView>(timeline_source->GetLayoutObject())) {
+    // If the source is the root document, it isn't an "Element", so we need
+    // to work with its scrollingElement
+    timeline_source = To<Document>(timeline_source)->ScrollingElementNoLayout();
+    if (!timeline_source) {
+      return std::nullopt;
+    }
+  }
+
+  return std::make_optional<>(ComputeTriggerBoundaries(
+      *current_offset, *To<Element>(timeline_source), *timeline));
+}
+
 AnimationTrigger::TriggerBoundaries AnimationTrigger::ComputeTriggerBoundaries(
+    double current_offset,
     Element& timeline_source,
     const ScrollTimeline& timeline) {
   using TriggerBoundaries = AnimationTrigger::TriggerBoundaries;
@@ -152,15 +279,17 @@ AnimationTrigger::TriggerBoundaries AnimationTrigger::ComputeTriggerBoundaries(
   // the associated scroll container.
   // For a ViewTimeline, these correspond to the cover 0% and cover 100%
   // respectively.
-  const double default_start_position = timeline_state.scroll_offsets->start;
-  const double default_end_position = timeline_state.scroll_offsets->end;
+  const double default_start_position = AdjustForAbsoluteZoom::AdjustScroll(
+      timeline_state.scroll_offsets->start, *timeline_source.GetLayoutBox());
+  const double default_end_position = AdjustForAbsoluteZoom::AdjustScroll(
+      timeline_state.scroll_offsets->end, *timeline_source.GetLayoutBox());
 
   boundaries.start =
       ComputeTriggerBoundary(trigger_start, default_start_position, timeline,
-                             *timeline_state.scroll_offsets);
+                             *timeline_state.scroll_offsets, timeline_source);
   boundaries.end =
       ComputeTriggerBoundary(trigger_end, default_end_position, timeline,
-                             *timeline_state.scroll_offsets);
+                             *timeline_state.scroll_offsets, timeline_source);
 
   if (exit_start.IsAuto()) {
     // auto behavior: match the trigger range.
@@ -172,7 +301,7 @@ AnimationTrigger::TriggerBoundaries AnimationTrigger::ComputeTriggerBoundaries(
     double default_exit_start_offset = timeline_state.scroll_offsets->start;
     boundaries.exit_start =
         ComputeTriggerBoundary(offset, default_exit_start_offset, timeline,
-                               *timeline_state.scroll_offsets);
+                               *timeline_state.scroll_offsets, timeline_source);
   }
 
   if (exit_end.IsAuto()) {
@@ -182,151 +311,171 @@ AnimationTrigger::TriggerBoundaries AnimationTrigger::ComputeTriggerBoundaries(
     double default_exit_end_offset = timeline_state.scroll_offsets->end;
     boundaries.exit_end =
         ComputeTriggerBoundary(offset, default_exit_end_offset, timeline,
-                               *timeline_state.scroll_offsets);
+                               *timeline_state.scroll_offsets, timeline_source);
   }
+
+  boundaries.current_offset = current_offset;
 
   return boundaries;
 }
 
-void AnimationTrigger::ActionAnimation(Animation* animation) {
-  CSSAnimation::ScopedResetIgnoreCSSProperties scoped_ignore_reset(
-      DynamicTo<CSSAnimation>(animation));
-  if (!timeline_ || !timeline_->IsActive() || !timeline_->IsProgressBased()) {
-    // Only scroll-triggered animations are supported at the moment.
+std::optional<AnimationTrigger::State> AnimationTrigger::ComputeState() {
+  std::optional<AnimationTrigger::TriggerBoundaries> boundaries =
+      CalculateTriggerBoundaries();
+  if (!boundaries) {
+    return std::nullopt;
+  }
+
+  bool within_trigger_range = boundaries->current_offset >= boundaries->start &&
+                              boundaries->current_offset <= boundaries->end;
+  bool within_exit_range =
+      boundaries->current_offset >= boundaries->exit_start &&
+      boundaries->current_offset <= boundaries->exit_end;
+
+  State previous_state = state_;
+  State new_state = previous_state;
+
+  if (within_trigger_range) {
+    new_state = State::kPrimary;
+  } else if (!within_exit_range) {
+    new_state = State::kInverse;
+  }
+
+  if (new_state == previous_state) {
+    return new_state;
+  }
+
+  if (previous_state == State::kIdle && new_state == State::kInverse) {
+    // The first transition must be to the primary state.
+    return previous_state;
+  }
+
+  return new_state;
+}
+
+void AnimationTrigger::Update() {
+  std::optional<State> new_state = ComputeState();
+  if (!new_state) {
     return;
   }
 
-  ScrollTimeline* timeline =
-      DynamicTo<ScrollTimeline>(timeline_->ExposedTimeline());
-  if (!timeline) {
+  State old_state = state_;
+  if (new_state.value() == old_state) {
     return;
   }
 
-  std::optional<double> current_offset = timeline->GetCurrentScrollPosition();
-  if (!current_offset) {
+  UpdateInternal(old_state, *new_state);
+
+  state_ = *new_state;
+}
+
+void AnimationTrigger::UpdateInternal(State old_state, State new_state) {
+  UpdateType update_type = UpdateType::kNone;
+
+  switch (type_.AsEnum()) {
+    case Type::Enum::kOnce:
+      if (new_state == State::kPrimary) {
+        update_type = UpdateType::kUnpause;
+      }
+      break;
+    case Type::Enum::kRepeat:
+      if (new_state == State::kPrimary) {
+        update_type = UpdateType::kPlay;
+      } else {
+        update_type = UpdateType::kReset;
+      }
+      break;
+    case Type::Enum::kAlternate:
+      if (old_state == State::kIdle) {
+        update_type = UpdateType::kPlay;
+      } else {
+        update_type = UpdateType::kReverse;
+      }
+      break;
+    case Type::Enum::kState:
+      if (new_state == State::kPrimary) {
+        update_type = UpdateType::kUnpause;
+      } else {
+        update_type = UpdateType::kPause;
+      }
+      break;
+    default:
+      NOTREACHED();
+  };
+
+  if (update_type != UpdateType::kNone) {
+    UpdateAnimations(update_type);
+  }
+}
+
+void AnimationTrigger::HandlePostTripAdd(Animation* animation,
+                                         ExceptionState& exception_state) {
+  DCHECK_NE(state_, State::kIdle);
+
+  if (HasPausedCSSPlayState(animation)) {
     return;
   }
 
-  Node* timeline_source = timeline->ComputeResolvedSource();
-  if (!timeline_source) {
+  if (state_ == State::kPrimary) {
+    animation->PlayInternal(Animation::AutoRewind::kEnabled, exception_state);
     return;
   }
-  if (IsA<LayoutView>(timeline_source->GetLayoutObject())) {
-    // If the source is the root document, it isn't an "Element", so we need
-    // to work with its scrollingElement
-    timeline_source = To<Document>(timeline_source)->ScrollingElementNoLayout();
-    if (!timeline_source) {
+
+  switch (type_.AsEnum()) {
+    case Type::Enum::kOnce:
+      animation->PlayInternal(Animation::AutoRewind::kEnabled, exception_state);
+      break;
+    case Type::Enum::kRepeat:
+      animation->ResetPlayback();
+      animation->SetPausedForTrigger(true);
+      break;
+    case Type::Enum::kAlternate:
+      animation->ReverseInternal(exception_state);
+      break;
+    case Type::Enum::kState:
+      animation->PauseInternal(exception_state);
+      animation->SetPausedForTrigger(true);
+  };
+}
+
+void AnimationTrigger::addAnimation(Animation* animation,
+                                    ExceptionState& exception_state) {
+  if (animations_.Contains(animation)) {
+    return;
+  }
+
+  animation->PauseInternal(exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+
+  if (state_ == State::kIdle) {
+    animation->SetPausedForTrigger(true);
+  } else {
+    HandlePostTripAdd(animation, exception_state);
+    if (exception_state.HadException()) {
       return;
     }
   }
 
-  AnimationTrigger::TriggerBoundaries boundaries =
-      ComputeTriggerBoundaries(*To<Element>(timeline_source), *timeline);
-
-  bool within_trigger =
-      current_offset >= boundaries.start && current_offset <= boundaries.end;
-  bool within_exit = current_offset >= boundaries.exit_start &&
-                     current_offset <= boundaries.exit_end;
-
-  if (ActionAnimationInternal(animation, within_trigger, within_exit)) {
-    animation->SetPendingTriggerPlayStateUpdate(false);
-  } else {
-    ProcessPendingPlayStateUpdate(animation);
-  }
+  animations_.insert(animation);
+  animation->AddTrigger(this);
 }
 
-bool AnimationTrigger::ActionAnimationInternal(Animation* animation,
-                                               bool within_trigger_range,
-                                               bool within_exit_range) {
-  std::optional<bool> ignore_play_state;
-  if (CSSAnimation* css_animation = DynamicTo<CSSAnimation>(animation)) {
-    ignore_play_state = css_animation->GetIgnoreCSSPlayState();
-  }
-  std::optional<EAnimPlayState> css_play_state =
-      animation->GetTriggerActionPlayState();
-  // Whether we are to pause whatever action we choose to take.
-  bool pause_action = ignore_play_state.has_value()
-                          ? !ignore_play_state.value() &&
-                                css_play_state == EAnimPlayState::kPaused
-                          : false;
-
-  TriggerState trigger_state = animation->GetTriggerState();
-  bool did_action = false;
-  if (within_trigger_range) {
-    if (trigger_state != TriggerState::kPrimary) {
-      // If AnimationTrigger.type ceases to be readonly, we'll need to
-      // re-evaluate this DCHECK.
-      DCHECK(type_ != Type::Enum::kOnce ||
-             trigger_state == TriggerState::kIdle);
-
-      if (trigger_state == TriggerState::kIdle) {
-        animation->play();
-      } else if (type_ == Type::Enum::kState) {
-        animation->Unpause();
-      } else if (type_ == Type::Enum::kAlternate) {
-        animation->reverse();
-      } else {
-        // kRepeat
-        animation->play();
-      }
-
-      animation->SetTriggerState(TriggerState::kPrimary);
-      if (pause_action) {
-        animation->pause();
-      }
-      did_action = true;
-    }
-  } else if (type_ != Type::Enum::kOnce && !within_exit_range) {
-    if (trigger_state == TriggerState::kPrimary) {
-      if (type_ == Type::Enum::kRepeat) {
-        // If we cancel the animation, don't pause it.
-        animation->cancel();
-      } else if (type_ == Type::Enum::kAlternate) {
-        animation->reverse();
-        if (pause_action) {
-          animation->pause();
-        }
-      } else if (type_ == Type::Enum::kState) {
-        animation->pause();
-      }
-
-      animation->SetTriggerState(TriggerState::kInverse);
-      did_action = true;
-    }
-  }
-
-  return did_action;
+void AnimationTrigger::removeAnimation(Animation* animation) {
+  animations_.erase(animation);
+  animation->RemoveTrigger(this);
 }
 
-void AnimationTrigger::ProcessPendingPlayStateUpdate(Animation* animation) {
-  if (animation->PendingTriggerPlayStateUpdate()) {
-    CSSAnimation* css_animation = DynamicTo<CSSAnimation>(animation);
-    bool ignoring_play_state =
-        !css_animation || css_animation->GetIgnoreCSSPlayState();
-    TriggerState trigger_state = animation->GetTriggerState();
+void AnimationTrigger::UpdateAnimations(
+    AnimationTrigger::UpdateType update_type) {
+  DCHECK_NE(update_type, UpdateType::kNone);
 
-    // Do not respond to `animation-play-state` changes if any of the following
-    // is true:
-    // 1. The trigger is idle.
-    // 2. The animation is ignoring `animation-play-state`.
-    // 3. This is a repeat trigger outside its exit range. Repeat triggers reset
-    //    their animations outside the exit range and should not be playing and
-    //    pausing their animation(s).
-    bool should_toggle =
-        !(trigger_state == TriggerState::kIdle || ignoring_play_state ||
-          (type_ == Type::Enum::kRepeat &&
-           trigger_state == TriggerState::kInverse));
-
-    if (should_toggle) {
-      DCHECK(!ignoring_play_state);
-      if (animation->GetTriggerActionPlayState() == EAnimPlayState::kPaused) {
-        animation->pause();
-      } else {
-        animation->Unpause();
-      }
+  for (Animation* animation : animations_) {
+    if (HasPausedCSSPlayState(animation)) {
+      continue;
     }
-
-    animation->SetPendingTriggerPlayStateUpdate(false);
+    UpdateAnimation(animation, update_type);
   }
 }
 

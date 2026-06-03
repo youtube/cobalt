@@ -42,6 +42,7 @@
 #include "gin/handle.h"
 #include "gin/per_context_data.h"
 #include "ipc/ipc_mojo_bootstrap.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom.h"
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -661,7 +662,8 @@ void NativeRendererMessagingService::DispatchOnConnectToListeners(
     port->SetSender(v8_context, sender);
     v8::LocalVector<v8::Value> args(isolate, {port.ToV8()});
     bindings_system_->api_system()->event_handler()->FireEventInContext(
-        event_name, v8_context, &args, nullptr, JSRunner::ResultCallback());
+        event_name, v8_context, &args, /*filter=*/nullptr,
+        /*callback=*/v8::Local<v8::Function>());
   }
   // Note: Arbitrary JS may have run; the context may now be deleted.
 

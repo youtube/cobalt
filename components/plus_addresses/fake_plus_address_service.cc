@@ -10,6 +10,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
+#include "base/notimplemented.h"
 #include "base/strings/to_string.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
@@ -150,10 +151,6 @@ bool FakePlusAddressService::IsPlusAddressFillingEnabled(
   return is_plus_address_filling_enabled_;
 }
 
-bool FakePlusAddressService::IsPlusAddressFullFormFillingEnabled() const {
-  return base::FeatureList::IsEnabled(features::kPlusAddressFullFormFill);
-}
-
 bool FakePlusAddressService::IsPlusAddressCreationEnabled(
     const url::Origin& origin,
     bool is_off_the_record) const {
@@ -173,9 +170,7 @@ bool FakePlusAddressService::IsFieldEligibleForPlusAddress(
     return true;
   }
 
-  return base::FeatureList::IsEnabled(
-             features::kPlusAddressSuggestionsOnUsernameFields) &&
-         (field.server_type() == autofill::FieldType::USERNAME ||
+  return (field.server_type() == autofill::FieldType::USERNAME ||
           field.server_type() == autofill::FieldType::SINGLE_USERNAME) &&
          field.heuristic_type() == autofill::FieldType::EMAIL_ADDRESS;
 }

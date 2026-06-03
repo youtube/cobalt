@@ -35,6 +35,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/enterprise/enterprise_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_utils.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_presenter.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_promo_view_mediator.h"
@@ -49,7 +50,6 @@
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_constants.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_menu_provider.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_presentation_delegate.h"
-#import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_table_view_controller_delegate.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_table_view_controller_ui_delegate.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/sessions/model/live_tab_context_browser_agent.h"
@@ -159,7 +159,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 
 @interface RecentTabsTableViewController () <
     SigninPromoViewConsumer,
-    SigninPresenter,
+    SigninPromoViewMediatorDelegate,
     SyncObserverModelBridge,
     SyncPresenter,
     TableViewURLDragDataSource,
@@ -197,7 +197,9 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 @property(nonatomic, strong) TableViewURLDragDropHandler* dragDropHandler;
 @end
 
-@implementation RecentTabsTableViewController
+@implementation RecentTabsTableViewController {
+  SigninCoordinator* _signinCoordinator;
+}
 
 #pragma mark - Public Interface
 
@@ -746,7 +748,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
                               syncService:self.syncService
                               accessPoint:signin_metrics::AccessPoint::
                                               kRecentTabs
-                          signinPresenter:self
+                                 delegate:self
                  accountSettingsPresenter:nil
         changeProfileContinuationProvider:
             base::BindRepeating(&CreateChangeProfileRecentTabsContinuation)];
@@ -1000,6 +1002,11 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 
 #pragma mark - Private
 
+- (void)stopSigninCoordinator {
+  [_signinCoordinator stop];
+  _signinCoordinator = nil;
+}
+
 // Returns YES if `sectionIdentifier` is a Sessions sectionIdentifier.
 - (BOOL)isSessionSectionIdentifier:(NSInteger)sectionIdentifier {
   NSArray* sessionSectionIdentifiers = [self allSessionSectionIdentifiers];
@@ -1104,6 +1111,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 
 - (void)dismissModals {
   [self disconnectMediator];
+  [self stopSigninCoordinator];
   [self.tableView.contextMenuInteraction dismissMenu];
   [self stopTrustedVaultReauthenticationCoordinator];
 }
@@ -1783,20 +1791,10 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   }
 }
 
-- (void)signinDidFinish {
-  [self.presentationDelegate showHistorySyncOptInAfterDedicatedSignIn:YES];
-}
-
 #pragma mark - SyncPresenter
 
 - (void)showPrimaryAccountReauth {
-  auto provider =
-      base::BindRepeating(&CreateChangeProfileRecentTabsContinuation);
-  ShowSigninCommand* command = [[ShowSigninCommand
-      alloc] initWithOperation:AuthenticationOperation::kPrimaryAccountReauth
-                            accessPoint:signin_metrics::AccessPoint::kRecentTabs
-      changeProfileContinuationProvider:provider];
-  [self.applicationHandler showSignin:command baseViewController:self];
+  [self.presentationDelegate showPrimaryAccountReauth];
 }
 
 - (void)showSyncPassphraseSettings {
@@ -1846,10 +1844,28 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   [_trustedVaultReauthenticationCoordinator start];
 }
 
-#pragma mark - SigninPresenter
+#pragma mark - SigninPromoViewMediatorDelegate
 
-- (void)showSignin:(ShowSigninCommand*)command {
-  [self.applicationHandler showSignin:command baseViewController:self];
+- (void)showSignin:(SigninPromoViewMediator*)mediator
+           command:(ShowSigninCommand*)command {
+  CHECK_EQ(mediator, self.signinPromoViewMediator);
+  __weak __typeof(self) weakSelf = self;
+  [command addSigninCompletion:^(SigninCoordinatorResult result,
+                                 id<SystemIdentity>) {
+    [weakSelf signinDidCompleteWithResult:result];
+  }];
+  _signinCoordinator = [SigninCoordinator signinCoordinatorWithCommand:command
+                                                               browser:_browser
+                                                    baseViewController:self];
+  [_signinCoordinator start];
+}
+
+#pragma mark - SigninPromoViewMediatorDelegate Helper
+
+- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result {
+  [self.signinPromoViewMediator signinDidCompleteWithResult:result];
+  [self stopSigninCoordinator];
+  [self.presentationDelegate showHistorySyncOptInAfterDedicatedSignIn:YES];
 }
 
 #pragma mark - UIAdaptivePresentationControllerDelegate
@@ -1860,7 +1876,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   [self.presentationDelegate showActiveRegularTabFromRecentTabs];
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   [self.presentationDelegate showActiveRegularTabFromRecentTabs];
@@ -1887,7 +1903,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self.presentationDelegate showActiveRegularTabFromRecentTabs];
 }
 

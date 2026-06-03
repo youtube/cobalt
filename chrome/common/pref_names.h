@@ -1534,6 +1534,9 @@ inline constexpr char kPinnedTabs[] = "pinned_tabs";
 // Preference to disable 3D APIs (WebGL, Pepper 3D).
 inline constexpr char kDisable3DAPIs[] = "disable_3d_apis";
 
+// Preference to enable SwiftShader for WebGL fallback.
+inline constexpr char kEnableUnsafeSwiftShader[] = "enable_unsafe_swiftshader";
+
 // Whether to enable hyperlink auditing ("<a ping>").
 inline constexpr char kEnableHyperlinkAuditing[] = "enable_a_ping";
 
@@ -1583,16 +1586,6 @@ inline constexpr char kImportDialogSavedPasswords[] =
     "import_dialog_saved_passwords";
 inline constexpr char kImportDialogSearchEngine[] =
     "import_dialog_search_engine";
-
-#if BUILDFLAG(IS_CHROMEOS)
-// Boolean controlling whether native client is force allowed by policy.
-inline constexpr char kNativeClientForceAllowed[] =
-    "native_client_force_allowed";
-inline constexpr char kDeviceNativeClientForceAllowed[] =
-    "device_native_client_force_allowed";
-inline constexpr char kDeviceNativeClientForceAllowedCache[] =
-    "device_native_client_force_allowed_cache";
-#endif
 
 // Profile avatar and name
 inline constexpr char kProfileAvatarIndex[] = "profile.avatar_index";
@@ -1869,9 +1862,6 @@ inline constexpr char kFirstRunFinished[] = "browser.first_run_finished";
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-// Whether or not this profile has been shown the Welcome page.
-inline constexpr char kHasSeenWelcomePage[] = "browser.has_seen_welcome_page";
-
 // The restriction imposed on managed accounts.
 inline constexpr char kManagedAccountsSigninRestriction[] =
     "profile.managed_accounts.restriction.value";
@@ -2389,6 +2379,9 @@ inline constexpr char kNtpCollapsedSnapshotDocument[] =
 // Keeps track of sync promo collapsed state in the Other Devices menu.
 inline constexpr char kNtpCollapsedSyncPromo[] = "ntp.collapsed_sync_promo";
 #else
+// Name of preference to count of times compose button was shown.
+inline const char kNtpComposeButtonShownCountPrefName[] =
+    "ntp.compose_button.shown_count";
 // Holds info for New Tab Page custom background
 // Use `kNtpCustomBackgroundDict` only.
 inline constexpr char kDeprecatedNtpCustomBackgroundDictDoNotUse[] =
@@ -3265,6 +3258,11 @@ inline constexpr char kDeviceWeeklyScheduledSuspend[] =
 // sessions.
 inline constexpr char kKioskChromeAppsForceAllowed[] =
     "kiosk_chrome_apps_force_allowed";
+
+// A boolean pref which determines whether kiosk application level logs would be
+// collected and stored.
+inline constexpr char kKioskApplicationLogCollectionEnabled[] =
+    "kiosk_application_log_collection_enabled";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
@@ -3604,17 +3602,6 @@ inline constexpr char kDSEWasDisabledByPolicy[] = "dse_was_disabled_by_policy";
 // value.
 inline constexpr char kWebShareVisitedTargets[] =
     "profile.web_share.visited_targets";
-
-#if BUILDFLAG(IS_WIN)
-// Acts as a cache to remember incompatible applications through restarts. Used
-// for the Incompatible Applications Warning feature.
-inline constexpr char kIncompatibleApplications[] = "incompatible_applications";
-
-// Contains the MD5 digest of the current module blacklist cache. Used to detect
-// external tampering.
-inline constexpr char kModuleBlocklistCacheMD5Digest[] =
-    "module_blocklist_cache_md5_digest";
-#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN)
 // A boolean value, controlling whether Chrome renderer processes have the CIG

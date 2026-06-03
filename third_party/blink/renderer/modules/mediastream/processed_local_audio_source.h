@@ -38,8 +38,6 @@ class PeerConnectionDependencyFactory;
 // video conferencing call). Owns a media::AudioCapturerSource and the
 // MediaStreamProcessor that modifies its audio. Modified audio is delivered to
 // one or more MediaStreamAudioTracks.
-// Can only be created for MediaStreamType::DEVICE_AUDIO_CAPTURE device.
-// Does not support source changes.
 class MODULES_EXPORT ProcessedLocalAudioSource final
     : public MediaStreamAudioSource,
       public media::AudioCapturerSource::CaptureCallback {
@@ -53,7 +51,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
       const MediaStreamDevice& device,
       bool disable_local_echo,
       const MediaStreamAudioProcessingLayout& processing_layout,
-      ConstraintsOnceCallback started_callback,
+      ConstraintsRepeatingCallback started_callback,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
   ProcessedLocalAudioSource(const ProcessedLocalAudioSource&) = delete;
@@ -61,6 +59,9 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
       delete;
 
   ~ProcessedLocalAudioSource() final;
+
+  // MediaStreamAudioSource implementation.
+  void ChangeSourceImpl(const MediaStreamDevice& new_device) final;
 
   // If |source| is an instance of ProcessedLocalAudioSource, return a
   // type-casted pointer to it. Otherwise, return null.
@@ -126,13 +127,6 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   // make the log unique.
   void SendLogMessageWithSessionId(const std::string& message) const;
 
-  // If true, processing (controlled via |audio_processor_proxy_|) is done in
-  // the audio service (and Chrome-wide echo cancellation is applied if
-  // requested; otherwise, |media_stream_audio_processor_| will be applying
-  // audio processing locally, and if echo cancellation is requested then only
-  // PeerConnection audio from the same context as |this| is cancelled.
-  const bool use_remote_apm_;
-
   // The LocalFrame that will consume the audio data. Used when creating
   // AudioCapturerSources.
   //
@@ -146,7 +140,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   blink::MediaStreamAudioProcessingLayout processing_layout_;
 
   // Callback that's called when the audio source has been initialized.
-  ConstraintsOnceCallback started_callback_;
+  ConstraintsRepeatingCallback started_callback_;
 
   // At most one of |audio_processor_| and |audio_processor_proxy_| can be set.
 
