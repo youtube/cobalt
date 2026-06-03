@@ -8,6 +8,8 @@
 
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "chrome/browser/net/profile_network_context_service.h"
 #include "chrome/browser/net/profile_network_context_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,11 +29,11 @@ EnterpriseCertSource::EnterpriseCertSource(std::string export_file_name)
 
 void EnterpriseCertSource::GetCertificateInfos(
     CertificateManagerPageHandler::GetCertificatesCallback callback) {
-  std::vector<certificate_manager_v2::mojom::SummaryCertInfoPtr> cert_infos;
+  std::vector<certificate_manager::mojom::SummaryCertInfoPtr> cert_infos;
   for (const auto& cert : GetCerts()) {
     x509_certificate_model::X509CertificateModel model(
-        net::x509_util::CreateCryptoBuffer(cert), "");
-    cert_infos.push_back(certificate_manager_v2::mojom::SummaryCertInfo::New(
+        net::x509_util::CreateCryptoBuffer(cert));
+    cert_infos.push_back(certificate_manager::mojom::SummaryCertInfo::New(
         model.HashCertSHA256(), model.GetTitle(),
         /*is_deletable=*/false));
   }

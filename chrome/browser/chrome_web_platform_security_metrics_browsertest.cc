@@ -31,6 +31,7 @@
 #include "pdf/buildflags.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/mojom/cross_origin_opener_policy.mojom.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom.h"
@@ -161,6 +162,8 @@ class ChromeWebPlatformSecurityMetricsBrowserTest : public policy::PolicyTest {
         blink::features::kSubSampleWindowProxyUsageMetrics,
         // PNA metrics may not record correctly if LNA checks are enabled.
         network::features::kLocalNetworkAccessChecks,
+        // Disabling this flag just to test that the flag is working.
+        blink::features::kRemoveCharsetAutoDetectionForISO2022JP,
     };
   }
 
@@ -185,6 +188,10 @@ class ChromeWebPlatformSecurityMetricsBrowserTest : public policy::PolicyTest {
   void SetUpCommandLine(base::CommandLine* command_line) final {
     // For https_server()
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
+    // Clear default from InProcessBrowserTest as test doesn't want 127.0.0.1 in
+    // the public address space
+    command_line->AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
+                                    "");
   }
 
   net::EmbeddedTestServer https_server_;
@@ -264,7 +271,8 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
                 content::JsReplace("fetch($1).then(response => response.ok)",
                                    https_server().GetURL("b.com", kPnaPath))));
 
-  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLocal, 1);
+  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLoopbackV2,
+               1);
   CheckCounter(WebFeature::kPrivateNetworkAccessPreflightSuccess, 1);
 }
 
@@ -291,7 +299,8 @@ IN_PROC_BROWSER_TEST_F(
                           "fetch($1).then(response => response.ok)",
                           https_server().GetURL("b.com", "/cors-ok.txt"))));
 
-  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLocal, 1);
+  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLoopbackV2,
+               1);
   CheckCounter(WebFeature::kPrivateNetworkAccessPreflightWarning, 1);
 }
 
@@ -2994,7 +3003,6 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
   EXPECT_TRUE(content::NavigateToURL(
       web_contents(), https_server().GetURL("/security/utf8.html")));
   CheckCounter(WebFeature::kCharsetAutoDetection, 0);
-  CheckCounter(WebFeature::kCharsetAutoDetectionISO2022JP, 0);
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
@@ -3002,15 +3010,16 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
   EXPECT_TRUE(content::NavigateToURL(
       web_contents(), https_server().GetURL("/security/no_charset.html")));
   CheckCounter(WebFeature::kCharsetAutoDetection, 1);
-  CheckCounter(WebFeature::kCharsetAutoDetectionISO2022JP, 0);
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
                        ISO2022JPDetection) {
   EXPECT_TRUE(content::NavigateToURL(
       web_contents(), https_server().GetURL("/security/iso_2022_jp.html")));
-  CheckCounter(WebFeature::kCharsetAutoDetection, 1);
-  CheckCounter(WebFeature::kCharsetAutoDetectionISO2022JP, 1);
+  // Given RemoveCharsetAutoDetectionForISO2022JP is disabled in
+  // ChromeWebPlatformSecurityMetricsBrowserTest, this should pass.
+  EXPECT_EQ("ISO-2022-JP",
+            content::EvalJs(web_contents(), "document.characterSet"));
 }
 
 // TODO(arthursonzogni): Add basic test(s) for the WebFeatures:

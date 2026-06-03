@@ -15,6 +15,7 @@
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
@@ -274,6 +275,7 @@ std::unique_ptr<FormFetcher> FormFetcherImpl::Clone() {
   result->state_ = state_;
   result->need_to_refetch_ = need_to_refetch_;
   result->profile_store_backend_error_ = profile_store_backend_error_;
+  result->account_store_backend_error_ = account_store_backend_error_;
 
   return result;
 }

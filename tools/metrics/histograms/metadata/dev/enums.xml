@@ -847,14 +847,6 @@ Called by update_protocol_commands_enum.py.-->
   <int value="3" label="Other"/>
 </enum>
 
-<enum name="DevToolsAnimationPointDragged">
-  <int value="0" label="Animation is dragged as a whole"/>
-  <int value="1" label="Keyframe is moved"/>
-  <int value="2" label="Animation start point is moved"/>
-  <int value="3" label="Animation finish point is moved"/>
-  <int value="4" label="Other"/>
-</enum>
-
 <enum name="DevToolsCSSHintShown">
   <int value="0" label="Other"/>
   <int value="1" label="AlignContent"/>
@@ -1411,15 +1403,6 @@ Called by update_protocol_commands_enum.py.-->
   <int value="82" label="zu - Zulu"/>
 </enum>
 
-<enum name="DevToolsLighthouseCategoryUsed">
-  <int value="0" label="Performance"/>
-  <int value="1" label="Accessibility"/>
-  <int value="2" label="BestPractices"/>
-  <int value="3" label="SEO"/>
-  <int value="4" label="PWA"/>
-  <int value="5" label="PubAds"/>
-</enum>
-
 <enum name="DevToolsLighthouseModeRun">
   <int value="0" label="Navigation"/>
   <int value="1" label="Timespan"/>
@@ -1549,6 +1532,7 @@ Called by update_protocol_commands_enum.py.-->
   <int value="65" label="Application - Bounce Tracking Mitigations"/>
   <int value="66" label="Drawer - Resource Loading"/>
   <int value="67" label="Drawer - Autofill"/>
+  <int value="68" label="AI Assistance"/>
 </enum>
 
 <enum name="DevToolsRecordingAssertion">
@@ -1617,22 +1601,6 @@ Called by update_protocol_commands_enum.py.-->
 <enum name="DevToolsRecordingToggled">
   <int value="1" label="Recording started"/>
   <int value="2" label="Recording finished"/>
-</enum>
-
-<enum name="DevToolsSidebarPane">
-  <int value="0" label="Other sidebar pane"/>
-  <int value="1" label="Elements - Styles"/>
-  <int value="2" label="Elements - Computed"/>
-  <int value="3" label="Elements - Layout"/>
-  <int value="4" label="Elements - Event Listeners"/>
-  <int value="5" label="Elements - DOM Breakpoints"/>
-  <int value="6" label="Elements - Properties"/>
-  <int value="7" label="Elements - Accessibility"/>
-  <int value="8" label="Sources - Page"/>
-  <int value="9" label="Sources - Workspace"/>
-  <int value="10" label="Sources - Overrides"/>
-  <int value="11" label="Sources - Content Scripts"/>
-  <int value="12" label="Sources - Snippets"/>
 </enum>
 
 <enum name="DevToolsSwatchActivated">

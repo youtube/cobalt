@@ -32,10 +32,7 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
@@ -57,13 +54,6 @@ import java.util.Collections;
 /** Tests for TabGroupVisualDataDialogManager. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-// TODO(crbug.com/419289558): Re-enable color surface feature flags
-@Features.DisableFeatures({
-    ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE,
-    ChromeFeatureList.ANDROID_THEME_MODULE
-})
 public class TabGroupVisualDataDialogManagerUnitTest {
     private static final Token TAB_GROUP_ID = new Token(34L, 378L);
     private static final int TAB1_ID = 456;
@@ -92,6 +82,7 @@ public class TabGroupVisualDataDialogManagerUnitTest {
         TrackerFactory.setTrackerForTests(mTracker);
 
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
+        mActivity.setTheme(R.style.Theme_Chromium_Activity);
         mTabGroupVisualDataDialogManager =
                 new TabGroupVisualDataDialogManager(
                         mActivity,
@@ -107,7 +98,6 @@ public class TabGroupVisualDataDialogManagerUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID})
     public void testVisualDataDialogDelegate_showDialog() {
         mTabGroupVisualDataDialogManager.showDialog(
                 TAB_GROUP_ID, mTabGroupModelFilter, mDialogController);
@@ -129,7 +119,6 @@ public class TabGroupVisualDataDialogManagerUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID})
     public void testVisualDataDialogDelegate_doubleShowDismissed() {
         // Mock a double trigger for the creation dialog observer method for the same group action,
         // but show dialog is only called once.
@@ -142,7 +131,6 @@ public class TabGroupVisualDataDialogManagerUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID})
     public void testVisualDataDialog_descriptionTextNotSet() {
         // Set the opposite values for the conditional statement to be true.
         doReturn(true).when(mTabModel).isIncognitoBranded();
@@ -166,7 +154,6 @@ public class TabGroupVisualDataDialogManagerUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID})
     public void testVisualDataDialog_descriptionTextSetButNotSyncing() {
         doReturn(false).when(mTabModel).isIncognitoBranded();
         doReturn(true)
@@ -195,7 +182,6 @@ public class TabGroupVisualDataDialogManagerUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID})
     public void testVisualDataDialog_descriptionTextSetAndSyncing() {
         doReturn(false).when(mTabModel).isIncognitoBranded();
         doReturn(true)

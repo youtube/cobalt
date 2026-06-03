@@ -51,6 +51,8 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
     /** The maximum number of payment method manifests to download. */
     private static final int MAX_NUMBER_OF_MANIFESTS = 10;
 
+    private static final int DEFAULT_PAYMENT_DETAILS_UPDATE_SERVICE_MAX_RETRY_NUMBER = 5;
+
     /** Meta data name of an app's supported payment method names. */
     public static final String META_DATA_NAME_OF_PAYMENT_METHOD_NAMES =
             "org.chromium.payment_method_names";
@@ -153,6 +155,8 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
      */
     private final Map<String, String> mUpdatePaymentDetailsServices = new HashMap<>();
 
+    private final int mPaymentDetailsUpdateServiceMaxRetryNumber;
+
     private int mPendingVerifiersCount;
     private int mPendingIsReadyToPayQueries;
     private int mPendingResourceUsersCount;
@@ -231,6 +235,13 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
         mFactory = factory;
         assert mFactoryDelegate.getParams() != null;
         mIsOffTheRecord = mFactoryDelegate.getParams().isOffTheRecord();
+
+        mPaymentDetailsUpdateServiceMaxRetryNumber =
+                PaymentFeatureList.isEnabledOrExperimentalFeaturesEnabled(
+                                PaymentFeatureList
+                                        .RECONNECT_ON_LOST_CONNECTION_TO_UPDATE_PAYMENT_DETAILS_SERVICE)
+                        ? DEFAULT_PAYMENT_DETAILS_UPDATE_SERVICE_MAX_RETRY_NUMBER
+                        : 0; // No reconnect attempts.
     }
 
     private void findAppStoreBillingApp(List<ResolveInfo> allInstalledPaymentApps) {
@@ -430,20 +441,19 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                 }
 
                 if (!methodToAppsMapping.containsKey(defaultMethod)) {
-                    methodToAppsMapping.put(defaultMethod, new HashSet<ResolveInfo>());
+                    methodToAppsMapping.put(defaultMethod, new HashSet<>());
                 }
                 methodToAppsMapping.get(defaultMethod).add(app);
 
                 if (UrlUtil.isURLValid(defaultUrlMethod)) {
                     if (!urlMethodToDefaultAppsMapping.containsKey(defaultUrlMethod)) {
-                        urlMethodToDefaultAppsMapping.put(
-                                defaultUrlMethod, new HashSet<ResolveInfo>());
+                        urlMethodToDefaultAppsMapping.put(defaultUrlMethod, new HashSet<>());
                     }
                     urlMethodToDefaultAppsMapping.get(defaultUrlMethod).add(app);
 
                     appOrigin = defaultUrlMethod.getOrigin();
                     if (!mOriginToUrlDefaultMethodsMapping.containsKey(appOrigin)) {
-                        mOriginToUrlDefaultMethodsMapping.put(appOrigin, new HashSet<GURL>());
+                        mOriginToUrlDefaultMethodsMapping.put(appOrigin, new HashSet<>());
                     }
                     mOriginToUrlDefaultMethodsMapping.get(appOrigin).add(defaultUrlMethod);
                 }
@@ -486,7 +496,7 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                 }
 
                 if (!methodToAppsMapping.containsKey(supportedMethod)) {
-                    methodToAppsMapping.put(supportedMethod, new HashSet<ResolveInfo>());
+                    methodToAppsMapping.put(supportedMethod, new HashSet<>());
                 }
                 methodToAppsMapping.get(supportedMethod).add(app);
 
@@ -498,15 +508,14 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                 supportedUrlMethods.add(supportedUrlMethod);
 
                 if (!mMethodToSupportedAppsMapping.containsKey(supportedUrlMethod)) {
-                    mMethodToSupportedAppsMapping.put(
-                            supportedUrlMethod, new HashSet<ResolveInfo>());
+                    mMethodToSupportedAppsMapping.put(supportedUrlMethod, new HashSet<>());
                 }
                 mMethodToSupportedAppsMapping.get(supportedUrlMethod).add(app);
 
                 if (appOrigin == null) continue;
 
                 if (!urlMethodToSupportedOriginsMapping.containsKey(supportedUrlMethod)) {
-                    urlMethodToSupportedOriginsMapping.put(supportedUrlMethod, new HashSet<GURL>());
+                    urlMethodToSupportedOriginsMapping.put(supportedUrlMethod, new HashSet<>());
                 }
                 urlMethodToSupportedOriginsMapping.get(supportedUrlMethod).add(appOrigin);
             }
@@ -867,7 +876,8 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                             /* removeDeprecatedFields= */ PaymentFeatureList
                                     .isEnabledOrExperimentalFeaturesEnabled(
                                             PaymentFeatureList
-                                                    .ANDROID_PAYMENT_INTENTS_OMIT_DEPRECATED_PARAMETERS));
+                                                    .ANDROID_PAYMENT_INTENTS_OMIT_DEPRECATED_PARAMETERS),
+                            mPaymentDetailsUpdateServiceMaxRetryNumber);
             mValidApps.put(packageName, app);
         }
 

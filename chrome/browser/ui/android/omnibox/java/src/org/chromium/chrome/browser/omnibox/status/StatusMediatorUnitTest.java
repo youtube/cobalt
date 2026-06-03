@@ -40,6 +40,7 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
@@ -129,7 +130,6 @@ public final class StatusMediatorUnitTest {
 
         doReturn(false).when(mLocationBarDataProvider).isIncognito();
         doReturn(mNewTabPageDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
-        doReturn(logo).when(mSearchEngineUtils).getSearchEngineLogo(BrandedColorScheme.APP_DEFAULT);
 
         UserPrefsJni.setInstanceForTesting(mMockUserPrefsJni);
         doReturn(mPrefs).when(mMockUserPrefsJni).get(mProfile);
@@ -137,6 +137,8 @@ public final class StatusMediatorUnitTest {
         TrackerFactory.setTrackerForTests(mTracker);
 
         setupStatusMediator(/* isTablet= */ false);
+
+        mMediator.onSearchEngineIconChanged(logo);
     }
 
     @After
@@ -158,7 +160,7 @@ public final class StatusMediatorUnitTest {
                         mLocationBarDataProvider,
                         mPermissionDialogController,
                         mTemplateUrlServiceSupplier,
-                        () -> mProfile,
+                        new ObservableSupplierImpl(mProfile),
                         mPageInfoIphController,
                         mWindowAndroid,
                         merchantTrustSignalsCoordinatorObservableSupplier);
@@ -210,6 +212,7 @@ public final class StatusMediatorUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE)
     public void searchEngineLogoPersistent() {
         doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
 
@@ -412,8 +415,6 @@ public final class StatusMediatorUnitTest {
         mMediator.setUrlFocusChangePercent(0.9f);
         Assert.assertEquals(true, mModel.get(StatusProperties.SHOW_STATUS_ICON));
 
-        verify(mSearchEngineUtils, times(1)).getSearchEngineLogo(BrandedColorScheme.APP_DEFAULT);
-
         mMediator.setUrlFocusChangePercent(0.0f);
         Assert.assertEquals(false, mModel.get(StatusProperties.SHOW_STATUS_ICON));
     }
@@ -467,6 +468,7 @@ public final class StatusMediatorUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE)
     public void testIncognitoStateChange() {
         mMediator.setShowIconsWhenUrlFocused(true);
         doReturn(true).when(mLocationBarDataProvider).isIncognito();
@@ -528,16 +530,6 @@ public final class StatusMediatorUnitTest {
                 "Incorrect color for offline page status text",
                 mContext.getColor(R.color.locationbar_status_offline_color_dark),
                 mModel.get(StatusProperties.VERBOSE_STATUS_TEXT_COLOR));
-    }
-
-    @Test
-    @SmallTest
-    public void testTemplateUrlServiceChanged() {
-        mMediator.setShowIconsWhenUrlFocused(true);
-        mMediator.setUrlHasFocus(true);
-
-        mMediator.onTemplateURLServiceChanged();
-        verify(mSearchEngineUtils, times(2)).getSearchEngineLogo(BrandedColorScheme.APP_DEFAULT);
     }
 
     @Test

@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ui/base/device_form_factor.h"
 
 #pragma mark - Constants
 
@@ -88,10 +89,6 @@ const char kFeedSettingTimeoutThresholdAfterClearBrowsingData[] =
 const char kFeedSettingDiscoverReferrerParameter[] =
     "DiscoverReferrerParameter";
 
-// Feature parameter for `kIdentityDiscAccountMenu`.
-const char kShowSettingsInAccountMenuParam[] =
-    "identity-disc-account-menu-with-settings-button";
-
 const char kFeedSwipeInProductHelpArmParam[] = "feed-swipe-in-product-help-arm";
 
 #pragma mark - Helpers
@@ -134,6 +131,11 @@ bool ShouldRemoveDiscoverLabel(bool is_google_default_search_engine) {
 }
 
 bool ShouldEnlargeLogoAndFakebox() {
+  if (GetNTPMIAEntrypointVariation() ==
+      NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox) {
+    return YES;
+  }
+
   return ShouldDeprecateFeedHeader() &&
          base::GetFieldTrialParamByFeatureAsBool(
              kDeprecateFeedHeader,
@@ -158,14 +160,6 @@ double GetDeprecateFeedHeaderParameterValueAsDouble(
                                                    param_name, default_value);
 }
 
-bool IdentityDiscAccountMenuEnabledWithSettings() {
-  if (base::FeatureList::IsEnabled(kIdentityDiscAccountMenu)) {
-    return base::GetFieldTrialParamByFeatureAsBool(
-        kIdentityDiscAccountMenu, kShowSettingsInAccountMenuParam, false);
-  }
-  return false;
-}
-
 FeedSwipeIPHVariation GetFeedSwipeIPHVariation() {
   if (base::FeatureList::IsEnabled(kFeedSwipeInProductHelp)) {
     return static_cast<FeedSwipeIPHVariation>(
@@ -179,4 +173,38 @@ FeedSwipeIPHVariation GetFeedSwipeIPHVariation() {
 
 bool UseFeedEligibilityService() {
   return base::FeatureList::IsEnabled(kUseFeedEligibilityService);
+}
+
+NTPMIAEntrypointVariation GetNTPMIAEntrypointVariation() {
+  // MIA entry point is currently enabled only for phone form factor.
+  bool phone_form_factor =
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+  if (!phone_form_factor) {
+    return NTPMIAEntrypointVariation::kDisabled;
+  }
+
+  std::string feature_param = base::GetFieldTrialParamValueByFeature(
+      kNTPMIAEntrypoint, kNTPMIAEntrypointParam);
+  if (feature_param == kNTPMIAEntrypointParamOmniboxContainedSingleButton) {
+    return NTPMIAEntrypointVariation::kOmniboxContainedSingleButton;
+  } else if (feature_param == kNTPMIAEntrypointParamOmniboxContainedInline) {
+    return NTPMIAEntrypointVariation::kOmniboxContainedInline;
+  } else if (feature_param ==
+             kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox) {
+    return NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox;
+  } else {
+    return NTPMIAEntrypointVariation::kDisabled;
+  }
+}
+
+bool ShowOnlyMIAEntrypointInNTPFakebox() {
+  NTPMIAEntrypointVariation variation = GetNTPMIAEntrypointVariation();
+  return variation ==
+             NTPMIAEntrypointVariation::kOmniboxContainedSingleButton ||
+         variation ==
+             NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox;
+}
+
+bool ShouldShowQuickActionsRow() {
+  return ShowOnlyMIAEntrypointInNTPFakebox();
 }

@@ -17,7 +17,6 @@
 
 #include "base/check.h"
 #include "base/containers/flat_tree.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/clamped_math.h"
@@ -165,7 +164,7 @@ std::optional<AggregatableReportRequest> CreateAggregatableReportRequest(
     const AttributionReport& report) {
   const auto* aggregatable_data =
       std::get_if<AttributionReport::AggregatableData>(&report.data());
-  DCHECK(aggregatable_data);
+  CHECK(aggregatable_data);
 
   const AttributionInfo& attribution_info = report.attribution_info();
 
@@ -237,7 +236,7 @@ StoredSource::AggregatableNamedBudgets ConvertNamedBudgetsMap(
     // Budget already validated from parsing.
     auto budget_pair = AggregatableNamedBudgetPair::Create(
         original_budget, /*remaining_budget=*/original_budget);
-    DCHECK(budget_pair.has_value());
+    CHECK(budget_pair.has_value());
     named_budgets.emplace_back(name, *std::move(budget_pair));
   };
   return StoredSource::AggregatableNamedBudgets(base::sorted_unique,

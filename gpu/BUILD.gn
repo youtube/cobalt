@@ -43,6 +43,8 @@ config("webgpu_implementation") {
 }
 
 component("gpu") {
+  # Do not depend on this component directly, depend on relevant gpu/{config,ipc,command_buffer}/{client,common,service} targets.
+  visibility = [ "//gpu/*" ]
   public_deps = [
     "//gpu/command_buffer/client:client_sources",
     "//gpu/command_buffer/common:common_sources",
@@ -82,10 +84,6 @@ static_library("test_support") {
     "command_buffer/client/client_test_helper.h",
     "command_buffer/client/fake_gpu_memory_buffer.cc",
     "command_buffer/client/fake_gpu_memory_buffer.h",
-    "command_buffer/client/gles2_interface_stub.cc",
-    "command_buffer/client/gles2_interface_stub.h",
-    "command_buffer/client/gles2_interface_stub_autogen.h",
-    "command_buffer/client/gles2_interface_stub_impl_autogen.h",
     "command_buffer/client/test_gpu_memory_buffer_manager.cc",
     "command_buffer/client/test_gpu_memory_buffer_manager.h",
     "command_buffer/client/test_shared_image_interface.cc",
@@ -106,8 +104,6 @@ static_library("test_support") {
     "command_buffer/service/shared_image/test_image_backing.h",
     "command_buffer/service/test_helper.cc",
     "command_buffer/service/test_helper.h",
-    "command_buffer/service/test_memory_tracker.cc",
-    "command_buffer/service/test_memory_tracker.h",
     "ipc/raster_in_process_context.cc",
     "ipc/raster_in_process_context.h",
     "ipc/service/gpu_memory_buffer_factory_test_template.h",
@@ -304,7 +300,6 @@ test("gl_tests") {
 
   deps = [
     ":gles2",
-    ":gpu",
     ":test_support",
     "//base",
     "//base/test:test_support",
@@ -619,7 +614,6 @@ test("gpu_unittests") {
 
   deps = [
     ":gles2",
-    ":gpu",
     ":test_support",
     "//base",
     "//base/test:test_support",
@@ -695,7 +689,6 @@ test("gpu_perftests") {
   ]
 
   deps = [
-    ":gpu",
     "//base",
     "//base/test:test_support",
     "//gpu/command_buffer/client:gles2_implementation",
@@ -767,9 +760,9 @@ if (enable_validating_command_decoder || is_linux) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
       "//base:i18n",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",
@@ -793,8 +786,8 @@ fuzzer_test("gpu_angle_passthrough_fuzzer") {
 
   deps = [
     ":gles2",
-    ":gpu",
     "//base",
+    "//gpu/command_buffer/service",
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:test_support",
@@ -818,8 +811,8 @@ fuzzer_test("gpu_swangle_passthrough_fuzzer") {
 
   deps = [
     ":gles2",
-    ":gpu",
     "//base",
+    "//gpu/command_buffer/service",
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:test_support",
@@ -840,8 +833,8 @@ if (is_linux || is_chromeos) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",
@@ -865,8 +858,8 @@ if (is_linux || is_chromeos) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",
@@ -891,8 +884,8 @@ if (is_linux || is_chromeos) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",

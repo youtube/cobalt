@@ -57,7 +57,6 @@
 #include "chrome/updater/activity.h"
 #include "chrome/updater/branded_constants.h"
 #include "chrome/updater/constants.h"
-#include "chrome/updater/device_management/dm_policy_builder_for_testing.h"
 #include "chrome/updater/external_constants_builder.h"
 #include "chrome/updater/external_constants_override.h"
 #include "chrome/updater/persisted_data.h"
@@ -65,6 +64,7 @@
 #include "chrome/updater/protos/omaha_settings.pb.h"
 #include "chrome/updater/registration_data.h"
 #include "chrome/updater/service_proxy_factory.h"
+#include "chrome/updater/test/dm_policy_builder.h"
 #include "chrome/updater/test/request_matcher.h"
 #include "chrome/updater/test/server.h"
 #include "chrome/updater/test/test_scope.h"
@@ -410,63 +410,6 @@ void ExpectUpdateSequence(
       ")]}'\n");
 }
 
-void ExpectDeviceManagementRequest(ScopedServer* test_server,
-                                   const std::string& request_type,
-                                   const std::string& authorization_type,
-                                   const std::string& authorization_token,
-                                   net::HttpStatusCode response_status,
-                                   const std::string& response,
-                                   std::optional<GURL> target_url = {}) {
-  request::MatcherGroup request_matchers = {
-      request::GetPathMatcher(base::StringPrintf(
-          R"(%s\?request=%s&apptype=Chrome&)"
-          R"(agent=%s\+%s&platform=.*&deviceid=%s)",
-          test_server->device_management_path().c_str(), request_type.c_str(),
-          PRODUCT_FULLNAME_STRING, kUpdaterVersion,
-          device_management_storage::GetDefaultDMStorage()
-              ->GetDeviceID()
-              .c_str())),
-      request::GetUpdaterUserAgentMatcher(),
-      request::GetHeaderMatcher(
-          {{"Authorization",
-            base::StringPrintf("%s token=%s", authorization_type.c_str(),
-                               authorization_token.c_str())},
-           {"Content-Type", "application/x-protobuf"}})};
-  if (target_url) {
-    request_matchers.push_back(request::GetTargetURLMatcher(*target_url));
-  }
-  test_server->ExpectOnce(request_matchers, response, response_status);
-}
-
-void ExpectDeviceManagementRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& request_type,
-    const std::string& authorization_type,
-    const std::string& authorization_token,
-    net::HttpStatusCode response_status,
-    const std::string& response,
-    std::optional<GURL> target_url = {}) {
-  request::MatcherGroup request_matchers = {
-      request::GetPathMatcher(base::StringPrintf(
-          R"(%s\?.*agent=%sEnterpriseCompanion\+%s&apptype=Chrome)"
-          R"(&deviceid=%s.*&platform=.*&request=%s)",
-          test_server->device_management_path().c_str(), BROWSER_NAME_STRING,
-          kUpdaterVersion,
-          device_management_storage::GetDefaultDMStorage()
-              ->GetDeviceID()
-              .c_str(),
-          request_type.c_str())),
-      request::GetHeaderMatcher(
-          {{"Authorization",
-            base::StringPrintf("%s token=%s", authorization_type.c_str(),
-                               authorization_token.c_str())},
-           {"Content-Type", "application/protobuf"}})};
-  if (target_url) {
-    request_matchers.push_back(request::GetTargetURLMatcher(*target_url));
-  }
-  test_server->ExpectOnce(request_matchers, response, response_status);
-}
-
 }  // namespace
 
 AppUpdateExpectation::AppUpdateExpectation(
@@ -552,17 +495,22 @@ void RegisterAppByValue(UpdaterScope scope, const base::Value::Dict& value) {
 
 void EnterTestMode(const GURL& update_url,
                    const GURL& crash_upload_url,
-                   const GURL& device_management_url,
                    const GURL& app_logo_url,
+                   const GURL& event_logging_url,
                    base::TimeDelta idle_timeout,
                    base::TimeDelta server_keep_alive_time,
-                   base::TimeDelta ceca_connection_timeout) {
+                   base::TimeDelta ceca_connection_timeout,
+                   std::optional<EventLoggingPermissionProvider>
+                       event_logging_permission_provider) {
   ASSERT_TRUE(
       ExternalConstantsBuilder()
           .SetUpdateURL(std::vector<std::string>{update_url.spec()})
           .SetCrashUploadURL(crash_upload_url.spec())
-          .SetDeviceManagementURL(device_management_url.spec())
           .SetAppLogoURL(app_logo_url.spec())
+          .SetEventLoggingUrl(event_logging_url.spec())
+          .SetEventLoggingPermissionProvider(
+              std::move(event_logging_permission_provider))
+          .SetMinimumEventLoggingCooldown(base::Seconds(0))
           .SetUseCUP(false)
           .SetInitialDelay(base::Milliseconds(100))
           .SetServerKeepAliveTime(server_keep_alive_time)
@@ -885,6 +833,7 @@ void ExpectAppsUpdateSequence(UpdaterScope scope,
   std::set<base::FilePath> downloaded_crxes;
   for (const AppUpdateExpectation& app : apps) {
     if ((app.should_update || app.always_serve_crx) &&
+        (app.from_version != app.to_version) &&
         !base::Contains(downloaded_crxes, app.crx_relative_path)) {
       // Download requests for apps that install/update
       const base::FilePath crx_path = exe_path.Append(app.crx_relative_path);
@@ -1780,6 +1729,21 @@ void RunOfflineInstallOsNotSupported(UpdaterScope scope,
                                      const std::string& language) {
   ADD_FAILURE();
 }
+
+void RunMockOfflineMetaInstall(UpdaterScope scope,
+                               const std::string& app_id,
+                               const base::Version& version,
+                               const std::string& tag,
+                               const base::FilePath& installer_path,
+                               const std::string& arguments,
+                               bool is_silent_install,
+                               const std::string& platform,
+                               const std::string& installer_text,
+                               const bool always_launch_cmd,
+                               const int expected_exit_code,
+                               bool expect_success) {
+  ADD_FAILURE();
+}
 #endif  // !BUILDFLAG(IS_WIN)
 
 void DMPushEnrollmentToken(const std::string& enrollment_token) {
@@ -1899,6 +1863,34 @@ void UninstallEnterpriseCompanionApp() {
   ASSERT_NO_FATAL_FAILURE(UninstallBrokenEnterpriseCompanionApp());
 }
 
+void ExpectDeviceManagementRequest(ScopedServer* test_server,
+                                   const std::string& request_type,
+                                   const std::string& authorization_type,
+                                   const std::string& authorization_token,
+                                   net::HttpStatusCode response_status,
+                                   const std::string& response,
+                                   std::optional<GURL> target_url) {
+  request::MatcherGroup request_matchers = {
+      request::GetPathMatcher(base::StringPrintf(
+          R"(%s\?.*agent=%sEnterpriseCompanion\+%s&apptype=Chrome)"
+          R"(&deviceid=%s.*&platform=.*&request=%s)",
+          test_server->device_management_path().c_str(), BROWSER_NAME_STRING,
+          kUpdaterVersion,
+          device_management_storage::GetDefaultDMStorage()
+              ->GetDeviceID()
+              .c_str(),
+          request_type.c_str())),
+      request::GetHeaderMatcher(
+          {{"Authorization",
+            base::StringPrintf("%s token=%s", authorization_type.c_str(),
+                               authorization_token.c_str())},
+           {"Content-Type", "application/protobuf"}})};
+  if (target_url) {
+    request_matchers.push_back(request::GetTargetURLMatcher(*target_url));
+  }
+  test_server->ExpectOnce(request_matchers, response, response_status);
+}
+
 void ExpectDeviceManagementRegistrationRequest(
     ScopedServer* test_server,
     const std::string& enrollment_token,
@@ -1927,119 +1919,12 @@ void ExpectDeviceManagementPolicyFetchRequest(
         std::unique_ptr<::enterprise_management::DeviceManagementResponse>
             dm_response = GetDMResponseForOmahaPolicy(
                 first_request, rotate_public_key,
-                DMPolicyBuilderForTesting::SigningOption::kSignNormally,
-                dm_token,
+                DMPolicyBuilder::SigningOption::kSignNormally, dm_token,
                 device_management_storage::GetDefaultDMStorage()->GetDeviceID(),
                 omaha_settings);
         return dm_response->SerializeAsString();
       }(),
       target_url);
-}
-
-void ExpectDeviceManagementPolicyFetchWithNewPublicKeyRequest(
-    ScopedServer* test_server,
-    const std::string& dm_token,
-    const ::wireless_android_enterprise_devicemanagement::
-        OmahaSettingsClientProto& omaha_settings) {
-  ExpectDeviceManagementRequest(
-      test_server, "policy", "GoogleDMToken", dm_token, net::HTTP_OK,
-      [&dm_token, &omaha_settings] {
-        std::unique_ptr<::enterprise_management::DeviceManagementResponse>
-            dm_response =
-                DMPolicyBuilderForTesting::CreateInstanceWithOptions(
-                    /*first_request=*/false, /*rotate_to_new_key=*/true,
-                    DMPolicyBuilderForTesting::SigningOption::kSignNormally,
-                    dm_token,
-                    device_management_storage::GetDefaultDMStorage()
-                        ->GetDeviceID())
-                    ->BuildDMResponseForPolicies(
-                        {{"a-mock-policy-type-without-new-public-key",
-                          omaha_settings.SerializeAsString()},
-                         {"google/machine-level-omaha",
-                          omaha_settings.SerializeAsString()},
-                         {"yet-another-policy-type-without-new-public-key",
-                          omaha_settings.SerializeAsString()}});
-        return dm_response->SerializeAsString();
-      }());
-}
-
-void ExpectDeviceManagementTokenDeletionRequest(ScopedServer* test_server,
-                                                const std::string& dm_token,
-                                                bool invalidate_token) {
-  ::enterprise_management::DeviceManagementErrorDetail error_detail =
-      invalidate_token ? ::enterprise_management::
-                             CBCM_DELETION_POLICY_PREFERENCE_INVALIDATE_TOKEN
-                       : ::enterprise_management::
-                             CBCM_DELETION_POLICY_PREFERENCE_DELETE_TOKEN;
-  ExpectDeviceManagementRequest(
-      test_server, "policy", "GoogleDMToken", dm_token, net::HTTP_GONE,
-      [&dm_token, error_detail] {
-        std::unique_ptr<::enterprise_management::DeviceManagementResponse>
-            dm_response =
-                DMPolicyBuilderForTesting::CreateInstanceWithOptions(
-                    /*first_request=*/false, /*rotate_to_new_key=*/false,
-                    DMPolicyBuilderForTesting::SigningOption::kSignNormally,
-                    dm_token,
-                    device_management_storage::GetDefaultDMStorage()
-                        ->GetDeviceID())
-                    ->BuildDMResponseWithError(error_detail);
-        return dm_response->SerializeAsString();
-      }());
-}
-
-void ExpectDeviceManagementPolicyValidationRequest(
-    ScopedServer* test_server,
-    const std::string& dm_token) {
-  ExpectDeviceManagementRequest(test_server, "policy_validation_report",
-                                "GoogleDMToken", dm_token, net::HTTP_OK, "");
-}
-
-void ExpectDeviceManagementRegistrationRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& enrollment_token,
-    const std::string& dm_token) {
-  ExpectDeviceManagementRequestViaCompanionApp(
-      test_server, "register_policy_agent", "GoogleEnrollmentToken",
-      enrollment_token, net::HTTP_OK, [&dm_token] {
-        enterprise_management::DeviceManagementResponse dm_response;
-        dm_response.mutable_register_response()->set_device_management_token(
-            dm_token);
-        return dm_response.SerializeAsString();
-      }());
-}
-
-void ExpectDeviceManagementPolicyFetchRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& dm_token,
-    const ::wireless_android_enterprise_devicemanagement::
-        OmahaSettingsClientProto& omaha_settings,
-    bool first_request,
-    bool rotate_public_key,
-    std::optional<GURL> target_url) {
-  ExpectDeviceManagementRequestViaCompanionApp(
-      test_server, "policy", "GoogleDMToken", dm_token, net::HTTP_OK,
-      [&dm_token, &omaha_settings, first_request, rotate_public_key] {
-        std::unique_ptr<::enterprise_management::DeviceManagementResponse>
-            dm_response = GetDMResponseForOmahaPolicy(
-                first_request, rotate_public_key,
-                DMPolicyBuilderForTesting::SigningOption::kSignNormally,
-                dm_token,
-                device_management_storage::GetDefaultDMStorage()->GetDeviceID(),
-                omaha_settings);
-        return dm_response->SerializeAsString();
-      }(),
-      target_url);
-}
-
-void ExpectDeviceManagementPolicyValidationRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& dm_token) {
-  enterprise_management::DeviceManagementResponse dm_response;
-  *dm_response.mutable_policy_validation_report_response() =
-      enterprise_management::PolicyValidationReportResponse();
-  ExpectDeviceManagementRequestViaCompanionApp(
-      test_server, "policy_validation_report", "GoogleDMToken", dm_token,
-      net::HTTP_OK, dm_response.SerializeAsString());
 }
 
 void ExpectProxyPacScriptRequest(ScopedServer* test_server) {

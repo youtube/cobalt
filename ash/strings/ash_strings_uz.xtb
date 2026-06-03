@@ -1014,6 +1014,7 @@ Quvvatni tejash uchun ayrim funksiyalar ishlashi cheklandi.</translation>
 <translation id="4305817255990598646">Almashtirish</translation>
 <translation id="4307713728991152670">Telefondagi oxirgi suratlar, media fayllar va ilovalarni koʻrishni sozlash</translation>
 <translation id="4312840429157639164">Kamera yuqori oʻng burchakka joylandi. Tizim platfromasi bilan muammo chiqdi.</translation>
+<translation id="4312935606722154789">Ikkita yonma-yon oynani guruhlash yoki guruhdan chiqarish</translation>
 <translation id="4316910396681052118">BARCHA ILOVALAR</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Barcha Google brauzeri takliflarini berkitish</translation>
@@ -1453,7 +1454,6 @@ Hech qanday qurilma ulanmagan.</translation>
 <translation id="5691772641933328258">Barmoq izi aniqlanmadi</translation>
 <translation id="5693255400847650006">Mikrofon ishlatilmoqda</translation>
 <translation id="5699366815052349604">Faol oynani barcha ish stollariga biriktirish</translation>
-<translation id="5701785125601597013">Phone Hub yordamida telefon xabarlarini tez yuboring yoki ularga javob bering</translation>
 <translation id="570390244361237317">Barcha ilovalarni koʻrish uchun strelka tugmalarini bosing</translation>
 <translation id="5705197514573687092">Fokus sozlamalarini ochish. Taymer belgilandi: <ph name="FOCUS_DURATION" /></translation>
 <translation id="5707775774148071965">Qurilmangizga maʼlumot uzatish tezligi yuqoriroq kabellarni ulash mumkin. Qurilma samaradorligi cheklanishi mumkin.</translation>
@@ -1583,7 +1583,6 @@ Hech qanday qurilma ulanmagan.</translation>
 <translation id="6095425951508823973"><ph name="PROVIDER" /> bilan aloqa oʻrnatish</translation>
 <translation id="6099678161144790572">Oxirgi oyda tahrirlangan</translation>
 <translation id="6103838137565245112">tizim</translation>
-<translation id="610395411842312282">Ikkita yonma-yon oynani guruhlash</translation>
 <translation id="6108952804512516814">AI bilan yaratish</translation>
 <translation id="6114505516289286752"><ph name="LANGUAGE" /> nutq fayllari yuklab olindi</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>

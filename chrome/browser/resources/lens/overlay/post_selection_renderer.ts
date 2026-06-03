@@ -486,7 +486,7 @@ export class PostSelectionRendererElement extends
     if (selectionWidth > 0 && selectionHeight > 0) {
       const minSide = Math.min(selectionWidth, selectionHeight);
       const blurAmount =
-          Math.max(MIN_BLUR, Math.min(Math.round(minSide / 2), MAX_BLUR));
+          Math.max(MIN_BLUR, Math.min(Math.round(minSide / 4), MAX_BLUR));
       style.push(`--region-selected-glow-blur-radius: ${blurAmount}px`);
     }
 
@@ -788,7 +788,7 @@ export class PostSelectionRendererElement extends
   }
 
   // Used in HTML template to know if there is currently a selection to render.
-  private hasSelection(): boolean {
+  hasSelection(): boolean {
     return this.width > 0 && this.height > 0;
   }
 

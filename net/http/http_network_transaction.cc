@@ -949,20 +949,6 @@ void HttpNetworkTransaction::OnQuicBroken() {
   net_error_details_.quic_broken = true;
 }
 
-void HttpNetworkTransaction::OnSwitchesToHttpStreamPool(
-    HttpStreamPoolRequestInfo request_info) {
-  CHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
-  CHECK(stream_request_);
-  stream_request_.reset();
-
-  stream_request_ = session_->http_stream_pool()->RequestStream(
-      this, std::move(request_info), priority_,
-      /*allowed_bad_certs=*/observed_bad_certs_, enable_ip_based_pooling_,
-      enable_alternative_services_, net_log_);
-  CHECK(!stream_request_->completed());
-  // No IO completion yet.
-}
-
 ConnectionAttempts HttpNetworkTransaction::GetConnectionAttempts() const {
   return connection_attempts_;
 }
@@ -1136,8 +1122,12 @@ int HttpNetworkTransaction::DoCreateStream() {
 }
 
 int HttpNetworkTransaction::DoCreateStreamComplete(int result) {
-  TRACE_EVENT("net", "HttpNetworkTransaction::CreateStreamComplete",
-              NetLogWithSourceToFlow(net_log_), "result", result);
+  CHECK(stream_request_);
+  TRACE_EVENT(
+      "net", "HttpNetworkTransaction::CreateStreamComplete",
+      NetLogWithSourceToFlow(net_log_), "result", result, "negotiated_protocol",
+      stream_request_->completed() ? stream_request_->negotiated_protocol()
+                                   : NextProto::kProtoUnknown);
   RecordStreamRequestResult(result);
   CopyConnectionAttemptsFromStreamRequest();
   if (result == OK) {

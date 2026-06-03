@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">Starta om för att uppdatera &amp;Chromium OS</translation>
 <translation id="1040916596585577953">Du rekommenderas av Chromium att granska detta tillägg</translation>
 <translation id="1042552502243217427">När en webbplats frågar om dess länkar ska läsas in privat i förväg använder Chromium Googles servrar. Det innebär att din identitet döljs från den förinlästa webbplatsen, men Google får reda på vilka webbplatser som läses in i förväg.</translation>
+<translation id="1051793555070215510">Hjälp oss att förbättra inkognitoläget genom att svara på den här enkäten på en minut.</translation>
 <translation id="1065672644894730302">Det går inte att läsa inställningarna.
 
 Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna sparas inte.</translation>
@@ -87,7 +88,6 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="2126108037660393668">Den nedladdade filen gick inte att verifiera.</translation>
 <translation id="2137162749895930932">Stäng översättningsskärmen</translation>
 <translation id="215352261310130060">Den här nedladdningen blockerades av Chromium eftersom webbplatsen inte använder en säker anslutning och filen kan ha manipulerats</translation>
-<translation id="2157600032285353789">Du kan öppna bokmärken, läsläge och annat via Chromium-menyn</translation>
 <translation id="2174178932569897599">Anpassa Chromium</translation>
 <translation id="2174917724755363426">Installationen är inte klar. Är du säker på att du vill avbryta?</translation>
 <translation id="2185166961232948079">Chromium – nätverksinloggning – <ph name="PAGE_TITLE" /></translation>
@@ -222,11 +222,13 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="3954172517175569325">Dina sparade lösenord, betalningsmetoder och adresser i Google-kontot tas bort från den här enheten. Logga in på nytt om du vill använda dem igen i Chromium.</translation>
 <translation id="395904275706073188">Det går inte att läsa skyddade sidor. Testa med en annan sida.</translation>
 <translation id="3962647064319009959">Läs mer om hur du skyddas i Chromium</translation>
+<translation id="3971865010372729242">När du skriver i adressfältet eller sökrutan skickar Chromium det du skriver till organisationens sök-, AI- och agentverktyg för att få förslag.</translation>
 <translation id="3975724895399328945">Om &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Om Chromium OS</translation>
 <translation id="4019629340646866719">Chromium OS fungerar tack vare ytterligare <ph name="BEGIN_LINK_CROS_OSS" />program med öppen källkod<ph name="END_LINK_CROS_OSS" />, liksom <ph name="BEGIN_LINK_LINUX_OSS" />utvecklingsmiljön för Linux<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Översätt text på skärmen</translation>
 <translation id="4023601594785368013">Originalspråk: <ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">Öppna länkar från dina appar i Chromium, som dessutom fästs i aktivitetsfältet för enkel åtkomst.</translation>
 <translation id="4036079820698952681">Hjälp oss att förbättra Chromium genom att rapportera dina <ph name="BEGIN_LINK" />aktuella inställningar<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">Den senaste versionen har viktiga säkerhetsförbättringar och nya funktioner.</translation>
 <translation id="4055805654398742145">Lösenordshantering</translation>
@@ -328,6 +330,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="5524890928877629608">övre vänstra hörnet av sökområdet: <ph name="LEFT" /> % åt vänster, <ph name="TOP" /> % uppåt</translation>
 <translation id="5527463683072221100">Öppna PDF-filer i Chromium</translation>
 <translation id="5579324208890605088">Startfel: Kör installationsprogrammet som vanlig användare, inte som administratör.</translation>
+<translation id="5580770360767802657">Använd Chromium som standard och fäst den</translation>
 <translation id="5596627076506792578">Fler alternativ</translation>
 <translation id="5605834417512968703">Välj vad du vill söka efter med bildsökning eller tryck på Escape för att avsluta bildsökningen</translation>
 <translation id="5618818588972826921">Välj text eller bild att söka efter med bildsökning eller tryck på Escape för att avsluta bildsökningen</translation>
@@ -342,6 +345,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="5775198138441669627">Om du har glömt lösenfrasen eller vill ändra den här inställningen kan du <ph name="SETTINGS_LINK" /> Chromium-datan i kontot</translation>
 <translation id="5800158606660203929">Anpassa och kontrollera Chromium. Ställ in Chromium som standardwebbläsare.</translation>
 <translation id="5809516625706423866">Det går inte att ansluta till internet. HTTP 401 Åtkomst nekad. Kontrollera proxykonfigurationen.</translation>
+<translation id="5817952762723416573">Detta gör webbplatser snabbare med Chromiums V8-motor men Chromium blir något mindre motståndskraftigt mot attacker. Inställningen är inaktiverad.</translation>
 <translation id="5821520528363214608">Uppdatera Chromium om du vill använda och spara Chromium-data i ditt Google-konto</translation>
 <translation id="5824893331272123205">Det gick inte att läsa in panelen. Försök igen</translation>
 <translation id="5862307444128926510">Välkommen till Chromium</translation>
@@ -358,7 +362,6 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="5987687638152509985">Du måste uppdatera Chromium innan synkroniseringen kan starta</translation>
 <translation id="5988505247484123880">Det är vanligt att webbplatser du besöker kommer ihåg sådant som intresserar dig för att anpassa din upplevelse. Webbplatser kan även lagra information om dina intressen i Chromium.</translation>
 <translation id="6003112304606738118">Laddar ned … <ph name="HOURS" /> timme/timmar kvar</translation>
-<translation id="6019451407441383358">Du kan öppna bokmärken, läsläge och annat via Chromium-menyn uppe till höger</translation>
 <translation id="6040143037577758943">Stäng</translation>
 <translation id="6058380562449900225">Låt Chromium ta bort behörigheter från webbplatser som du inte har besökt nyligen för att skydda din data. Detta stoppar inte aviseringar.</translation>
 <translation id="6063093106622310249">&amp;Öppna i Chromium</translation>
@@ -432,6 +435,7 @@ Vissa funktioner är kanske inte tillgängliga. Ange en annan profilkatalog elle
 <translation id="6729124504294600478">Om du vill få tillgång till anpassning och andra funktioner kan du ta med Chromium i webb- och appaktiviteten och de länkade Google-tjänsterna</translation>
 <translation id="6734291798041940871">Chromium har redan installerats för alla användare på datorn.</translation>
 <translation id="674245979920622322">Du har inte besökt webbplatsen nyligen. Chromium har tagit bort <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> och <ph name="COUNT" /> till</translation>
+<translation id="6751374565094704799">Detta gör webbplatser snabbare med Chromiums V8-motor men Chromium blir något mindre motståndskraftigt mot attacker. Inställningen är aktiverad.</translation>
 <translation id="67706546131546258">Den här filen bör genomsökas eftersom den kan vara farlig.</translation>
 <translation id="6779406956731413166">Chromium OS fungerar tack vare <ph name="BEGIN_LINK_CROS_OSS" />program med öppen källkod<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6831043979455480757">Översätt</translation>
@@ -528,7 +532,6 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="8118331347066725040">Skicka feedback för sökning med Lens</translation>
 <translation id="8133124826068723441">Det gick inte att synkronisera data med Chromium OS eftersom synkronisering inte är tillgängligt för domänen.</translation>
 <translation id="813913629614996137">Initierar …</translation>
-<translation id="8166782796394721554">Aktivera ytterligare skydd i Chromiums JavaScript- och WebAssembly-motor</translation>
 <translation id="81770708095080097">Filen är farlig och har blockerats av Chromium.</translation>
 <translation id="8177472873527554730">Det gick inte att hitta innehåll på sidan</translation>
 <translation id="8200109504272824693">Ange lösenfrasen om du vill använda och spara Chromium-data i ditt konto, <ph name="USER_EMAIL" /></translation>
@@ -600,6 +603,7 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="9106612006984859720">Du behöver Windows 10 eller senare för att få kommande uppdateringar av Chromium. På den här datorn används Windows 8.1.</translation>
 <translation id="91086099826398415">Öppna länken i en ny &amp;flik i Chromium</translation>
 <translation id="911206726377975832">Vill du även ta bort din webbinformation?</translation>
+<translation id="9134482777260927479">Läxhjälp</translation>
 <translation id="9148058034647219655">Avsluta</translation>
 <translation id="9158494823179993217">Systemadministratören har konfigurerat Chromium så att <ph name="TARGET_URL_HOSTNAME" /> öppnas i en annan webbläsare.</translation>
 <translation id="9185526690718004400">Starta om för att uppdatera &amp;Chromium</translation>

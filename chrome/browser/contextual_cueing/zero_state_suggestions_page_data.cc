@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_extraction/inner_text.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_helper.h"
@@ -168,9 +169,7 @@ void ZeroStateSuggestionsPageData::InitiatePageContentExtraction() {
   if (kExtractAnnotatedPageContentForZeroStateSuggestions.Get()) {
     blink::mojom::AIPageContentOptionsPtr ai_page_content_options;
     ai_page_content_options = optimization_guide::DefaultAIPageContentOptions();
-    ai_page_content_options->include_geometry = false;
     ai_page_content_options->on_critical_path = true;
-    ai_page_content_options->include_hidden_searchable_content = false;
     optimization_guide::GetAIPageContent(
         web_contents, std::move(ai_page_content_options),
         base::BindOnce(
@@ -225,6 +224,7 @@ void ZeroStateSuggestionsPageData::InitiatePageContentExtraction() {
 
 void ZeroStateSuggestionsPageData::FetchSuggestions(
     bool is_fre,
+    std::vector<std::string> supported_tools,
     GlicSuggestionsCallback callback) {
   if (cached_suggestions_) {
     OPTIMIZATION_GUIDE_LOG(
@@ -250,6 +250,11 @@ void ZeroStateSuggestionsPageData::FetchSuggestions(
   suggestions_request_ = optimization_guide::proto::
       ZeroStateSuggestionsRequest::default_instance();
   suggestions_request_->set_is_fre(is_fre);
+  *suggestions_request_->mutable_supported_tools() = {supported_tools.begin(),
+                                                      supported_tools.end()};
+  if (g_browser_process) {
+    suggestions_request_->set_locale(g_browser_process->GetApplicationLocale());
+  }
   suggestions_callbacks_.AddUnsafe(std::move(callback));
   RequestSuggestionsIfComplete();
 }
@@ -260,10 +265,11 @@ void ZeroStateSuggestionsPageData::OnReceivedAnnotatedPageContent(
   auto* pce = optimization_guide::PageContextEligibility::Get();
   bool is_eligible =
       content &&
-      (!pce || pce->api().IsPageContextEligible(
-                   url.host(), url.path(),
-                   optimization_guide::GetFrameMetadataFromPageContent(
-                       content.value())));
+      (!pce ||
+       optimization_guide::IsPageContextEligible(
+           url.host(), url.path(),
+           optimization_guide::GetFrameMetadataFromPageContent(content.value()),
+           pce));
 
   if (is_eligible) {
     annotated_page_content_ = std::move(content);

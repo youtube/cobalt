@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <variant>
 #include <vector>
 
 #include "ash/ash_export.h"
@@ -25,6 +26,7 @@
 #include "ui/base/ui_base_types.h"
 #include "ui/display/display.h"
 #include "ui/gfx/animation/tween.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 
 namespace chromeos {
 enum class WindowPinType;
@@ -43,6 +45,24 @@ class WindowState;
 class WindowStateDelegate;
 class WindowStateObserver;
 class WMEvent;
+
+enum class WindowSnapGrouping {
+  kUngrouped,
+  kGrouped,
+};
+
+// Used in window restore to restore a snap group. See `ExtendedWindowStateType`
+// and `GetSnapGroupingForRestore`.
+enum class GroupedWindowStateType {
+  kPrimarySnapped,
+  kSecondarySnapped,
+};
+
+// Enriches WindowStateType with window grouping information:
+// The first variant implies the window is not part of a (snap) group, the
+// second implies it is.
+using ExtendedWindowStateType =
+    std::variant<chromeos::WindowStateType, GroupedWindowStateType>;
 
 // WindowState manages and defines ash specific window state and
 // behavior. Ash specific per-window state (such as ones that controls
@@ -122,6 +142,9 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   // Returns the WindowState for the active window, null if there is no active
   // window.
   static WindowState* ForActiveWindow();
+
+  static bool ShouldWindowStateHaveRoundedCorners(
+      chromeos::WindowStateType window_state);
 
   WindowState(const WindowState&) = delete;
   WindowState& operator=(const WindowState&) = delete;
@@ -227,10 +250,11 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   const DragDetails* drag_details() const { return drag_details_.get(); }
   DragDetails* drag_details() { return drag_details_.get(); }
 
-  const std::vector<chromeos::WindowStateType>& window_state_restore_history()
-      const {
-    return window_state_restore_history_;
-  }
+  bool IsRestoreHistoryEmpty() const { return restore_history_.IsEmpty(); }
+
+  // Does not distinguish between grouped and ungrouped.
+  std::vector<chromeos::WindowStateType>
+  GetWindowStateTypeRestoreHistoryForTesting() const;
 
   bool HasDelegate() const;
   void SetDelegate(std::unique_ptr<WindowStateDelegate> delegate);
@@ -297,6 +321,9 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   bool CanSnap();
   bool CanSnapOnDisplay(display::Display display) const;
   bool CanActivate() const;
+
+  bool ShouldWindowHaveRoundedCorners() const;
+  gfx::RoundedCornersF GetWindowRoundedCorners() const;
 
   // Returns true if the window has restore bounds.
   bool HasRestoreBounds() const;
@@ -447,6 +474,11 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   // TODO(aluh): Rename to GetWindowStateTypeForRestore() for clarity.
   chromeos::WindowStateType GetRestoreWindowState() const;
 
+  // When restoring to a snapped type, as dictated by `GetRestoreWindowState()`,
+  // this says whether the window (when previously snapped) was part of a snap
+  // group. This information lets us try to once again form a snap group.
+  WindowSnapGrouping GetSnapGroupingForRestore() const;
+
   // Called when `window_` is dragged to maximized to track if it's a
   // mis-triggered drag to maximize behavior.
   void TrackDragToMaximizeBehavior();
@@ -489,6 +521,7 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
  private:
   friend class BaseState;
   friend class ClientControlledState;
+  friend class ClientControlledStateUtil;
   friend class DefaultState;
   friend class LockWindowState;
   friend class ScopedBoundsChangeAnimation;
@@ -519,6 +552,32 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
     BoundsChangeAnimationType previous_bounds_animation_type_;
   };
 
+  // Represents the previous window states that the window can be restored back
+  // to.
+  //
+  // See `kWindowStateRestoreHistoryLayerMap` in the cc file for what window
+  // state types can be put in the restore history stack.
+  class RestoreHistoryStack {
+   public:
+    RestoreHistoryStack();
+    ~RestoreHistoryStack();
+
+    void Push(ExtendedWindowStateType state_type);
+    void Clear();
+
+    // Pop out any type that the `current_state_type` can not restore back to.
+    void PopIncompatible(chromeos::WindowStateType current_state_type);
+
+    bool IsEmpty() const;
+    ExtendedWindowStateType GetTop() const;
+
+    const std::vector<ExtendedWindowStateType>& GetWindowStatesForTesting()
+        const;
+
+   private:
+    std::vector<ExtendedWindowStateType> window_states_;
+  };
+
   explicit WindowState(aura::Window* window);
 
   WindowStateDelegate* delegate() { return delegate_.get(); }
@@ -540,15 +599,14 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   // is side snapped. It is called for workspace events.
   void AdjustSnappedBoundsForDisplayWorkspaceChange(gfx::Rect* bounds);
 
-  // Updates the window properties(show state, pin type) according to the
-  // current window state type.
+  // Updates the window properties(show state, pin type, rounded corners)
+  // according to the current window state type.
   // Note that this does not update the window bounds.
   void UpdateWindowPropertiesFromStateType();
 
   void NotifyPreStateTypeChange(
       chromeos::WindowStateType old_window_state_type);
-  void NotifyPostStateTypeChange(
-      chromeos::WindowStateType old_window_state_type);
+  void NotifyPostStateTypeChange(ExtendedWindowStateType old_window_state_type);
 
   // Sets `bounds_in_parent` as is and ensure the layer is aligned with pixel
   // boundary.
@@ -589,7 +647,7 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   // Called after the window state changes to update the window state restore
   // history stack.
   void UpdateWindowStateRestoreHistoryStack(
-      chromeos::WindowStateType previous_state_type);
+      ExtendedWindowStateType previous_state_type);
 
   // Used in tablet mode to get the window state type depends on whether the
   // window is maximizable. If not, the window will be put in
@@ -717,10 +775,8 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   base::TimeTicks partial_start_time_;
 
   // Maintains the window state restore history that the current window state
-  // can restore back to, with relevant restore states.
-  // See `kWindowStateRestoreHistoryLayerMap` in the cc file for what window
-  // state types can be put in the restore history stack.
-  std::vector<chromeos::WindowStateType> window_state_restore_history_;
+  // can restore back to.
+  RestoreHistoryStack restore_history_;
 
   // True if `current_state_` is `ClientControlledState`.
   bool is_client_controlled_{false};

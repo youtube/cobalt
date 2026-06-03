@@ -52,7 +52,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_snapshot_and_favicon_configurator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/coordinator/tab_strip_mediator_utils.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/ui/swift.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/ui/tab_strip_features_utils.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/ui/tab_strip_tab_item.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -177,18 +176,17 @@ NSMutableArray<TabStripItemData*>* CreateItemData(
   NSMutableArray<TabStripItemData*>* data = [[NSMutableArray alloc] init];
   for (int index : range) {
     const TabGroup* group_of_web_state = nullptr;
-    if ([TabStripFeaturesUtils isModernTabStripWithTabGroups]) {
-      CHECK(web_state_list->ContainsIndex(index));
-      group_of_web_state = web_state_list->GetGroupOfWebStateAt(index);
-      if (including_group_items) {
-        const TabGroup* group_starting_at_index =
-            FindTabGroupStartingAtIndex(index, web_state_list);
-        if (group_starting_at_index) {
-          [data addObject:CreateGroupItemData(group_starting_at_index,
-                                              dirty_groups)];
-        }
+    CHECK(web_state_list->ContainsIndex(index));
+    group_of_web_state = web_state_list->GetGroupOfWebStateAt(index);
+    if (including_group_items) {
+      const TabGroup* group_starting_at_index =
+          FindTabGroupStartingAtIndex(index, web_state_list);
+      if (group_starting_at_index) {
+        [data addObject:CreateGroupItemData(group_starting_at_index,
+                                            dirty_groups)];
       }
     }
+
     // The tab associated with WebState at `index` should be included in the
     // output if it has no group, or its group is not collapsed, or
     // `including_hidden_tab_items` is true.
@@ -221,18 +219,17 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
       [[NSMutableArray alloc] init];
   for (int index : range) {
     const TabGroup* group_of_web_state = nullptr;
-    if ([TabStripFeaturesUtils isModernTabStripWithTabGroups]) {
-      CHECK(web_state_list->ContainsIndex(index));
-      group_of_web_state = web_state_list->GetGroupOfWebStateAt(index);
-      if (including_group_items) {
-        const TabGroup* group_starting_at_index =
-            FindTabGroupStartingAtIndex(index, web_state_list);
-        if (group_starting_at_index) {
-          [item_identifiers
-              addObject:CreateGroupItemIdentifier(group_starting_at_index)];
-        }
+    CHECK(web_state_list->ContainsIndex(index));
+    group_of_web_state = web_state_list->GetGroupOfWebStateAt(index);
+    if (including_group_items) {
+      const TabGroup* group_starting_at_index =
+          FindTabGroupStartingAtIndex(index, web_state_list);
+      if (group_starting_at_index) {
+        [item_identifiers
+            addObject:CreateGroupItemIdentifier(group_starting_at_index)];
       }
     }
+
     // The tab associated with WebState at `index` should be included in the
     // output if it has no group, or its group is not collapsed, or
     // `including_hidden_tab_items` is true.

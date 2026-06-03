@@ -57,7 +57,7 @@ LogicalOffset ToLogicalOffset(const gfx::PointF& point,
 }  // anonymous namespace
 
 // With 100 unique strings, a 2^12 slot table has a false positive rate of ~2%.
-using ClassnameFilter = WTF::BloomFilter<12>;
+using ClassnameFilter = BloomFilter<12>;
 using Corner = ScrollAnchor::Corner;
 
 SerializedAnchor::SerializedAnchor(const ScrollAnchorData& data,
@@ -270,7 +270,7 @@ static const String UniqueSimpleSelectorAmongSiblings(Element* element) {
 // effectively a path through the DOM tree to |anchor_node|.
 static const String ComputeUniqueSelector(Node* anchor_node) {
   DCHECK(anchor_node);
-  // The scroll anchor can be a pseudo element, but pseudo elements aren't part
+  // The scroll anchor can be a pseudo-element, but pseudo-elements aren't part
   // of the DOM and can't be used as part of a selector. We fail in this case;
   // success isn't possible.
   if (anchor_node->IsPseudoElement()) {

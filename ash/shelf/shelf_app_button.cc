@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "ash/shelf/shelf_app_button.h"
 
 #include <algorithm>
+#include <array>
+#include <iterator>
 #include <memory>
 
 #include "ash/constants/ash_features.h"
@@ -28,7 +25,6 @@
 #include "ash/system/progress_indicator/progress_indicator.h"
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/window_util.h"
-#include "base/debug/stack_trace.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/histogram_macros.h"
@@ -430,12 +426,12 @@ ShelfAppButton::ShelfAppButton(ShelfView* shelf_view,
     : ShelfButton(shelf_view->shelf(), shelf_button_delegate),
       shelf_view_(shelf_view),
       indicator_(new AppStatusIndicatorView()) {
-  const gfx::ShadowValue kShadows[] = {
+  constexpr std::array<gfx::ShadowValue, 3> kShadows = {
       gfx::ShadowValue(gfx::Vector2d(0, 2), 0, SkColorSetARGB(0x1A, 0, 0, 0)),
       gfx::ShadowValue(gfx::Vector2d(0, 3), 1, SkColorSetARGB(0x1A, 0, 0, 0)),
       gfx::ShadowValue(gfx::Vector2d(0, 0), 1, SkColorSetARGB(0x54, 0, 0, 0)),
   };
-  icon_shadows_.assign(kShadows, kShadows + std::size(kShadows));
+  icon_shadows_ = gfx::ShadowValues(std::begin(kShadows), std::end(kShadows));
 
   views::InkDrop::Get(this)->SetMode(
       views::InkDropHost::InkDropMode::ON_NO_GESTURE_HANDLER);

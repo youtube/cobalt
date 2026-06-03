@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_statics.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
@@ -92,8 +93,8 @@ bool IsSchemeChar(char c) {
          c == '-' || c == '+';
 }
 
-bool IsUnicodeEncoding(const WTF::TextEncoding* encoding) {
-  return encoding->EncodingForFormSubmission() == UTF8Encoding();
+bool IsUnicodeEncoding(const TextEncoding* encoding) {
+  return encoding->EncodingForFormSubmission() == Utf8Encoding();
 }
 
 class KURLCharsetConverter final : public url::CharsetConverter {
@@ -102,18 +103,18 @@ class KURLCharsetConverter final : public url::CharsetConverter {
  public:
   // The encoding parameter may be 0, but in this case the object must not be
   // called.
-  explicit KURLCharsetConverter(const WTF::TextEncoding* encoding)
+  explicit KURLCharsetConverter(const TextEncoding* encoding)
       : encoding_(encoding) {}
 
   void ConvertFromUTF16(std::u16string_view input,
                         url::CanonOutput* output) override {
     std::string encoded = encoding_->Encode(
-        String(input), WTF::kURLEncodedEntitiesForUnencodables);
+        String(input), UnencodableHandling::kURLEncodedEntitiesForUnencodables);
     output->Append(encoded);
   }
 
  private:
-  raw_ptr<const WTF::TextEncoding> encoding_;
+  raw_ptr<const TextEncoding> encoding_;
 };
 
 }  // namespace
@@ -219,7 +220,7 @@ String KURL::ElidedString() const {
     return string;
   }
 
-  return string.Left(511) + "..." + string.Right(510);
+  return StrCat({string.Left(511), "...", string.Right(510)});
 }
 
 KURL::KURL() : is_valid_(false), protocol_is_in_http_family_(false) {}
@@ -260,7 +261,7 @@ KURL::KURL(const KURL& base, const String& relative) {
 // Any query portion of the relative URL will be encoded in the given encoding.
 KURL::KURL(const KURL& base,
            const String& relative,
-           const WTF::TextEncoding& encoding) {
+           const TextEncoding& encoding) {
   Init(base, relative, &encoding.EncodingForFormSubmission());
   AssertStringSpecIsASCII();
 }
@@ -783,8 +784,8 @@ String DecodeURLEscapeSequences(const StringView& string, DecodeURLMode mode) {
 }
 
 String EncodeWithURLEscapeSequences(const StringView& not_encoded_string) {
-  std::string utf8 =
-      UTF8Encoding().Encode(not_encoded_string, WTF::kNoUnencodables);
+  std::string utf8 = Utf8Encoding().Encode(
+      not_encoded_string, UnencodableHandling::kNoUnencodables);
 
   url::RawCanonOutputT<char> buffer;
   size_t input_length = utf8.length();
@@ -812,26 +813,20 @@ bool KURL::CanSetPathname() const {
 }
 
 bool KURL::CanRemoveHost() const {
-  if (url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    return IsHierarchical() && !IncludesCredentials() && !HasPort();
-  }
-  return false;
+  return IsHierarchical() && !IncludesCredentials() && !HasPort();
 }
 
 bool KURL::IsHierarchical() const {
-  if (url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    return IsStandard() || (IsValid() && !HasOpaquePath());
-  }
-  return IsStandard();
+  return IsStandard() || (IsValid() && !HasOpaquePath());
 }
 
 bool KURL::IsStandard() const {
   if (string_.IsNull() || parsed_.scheme.is_empty())
     return false;
-  return string_.Is8Bit()
-             ? url::IsStandard(AsURLChar8Subtle(string_), parsed_.scheme)
-             : url::IsStandard(UNSAFE_TODO(string_.Characters16()),
-                               parsed_.scheme);
+  return string_.Is8Bit() ? url::IsStandard(parsed_.scheme.as_string_view_on(
+                                AsURLChar8Subtle(string_)))
+                          : url::IsStandard(parsed_.scheme.as_string_view_on(
+                                UNSAFE_TODO(string_.Characters16())));
 }
 
 bool EqualIgnoringFragmentIdentifier(const KURL& a, const KURL& b) {
@@ -906,7 +901,7 @@ bool ProtocolIs(const String& url, const char* protocol) {
 
 void KURL::Init(const KURL& base,
                 const String& relative,
-                const WTF::TextEncoding* query_encoding) {
+                const TextEncoding* query_encoding) {
   // As a performance optimization, we do not use the charset converter
   // if encoding is UTF-8 or other Unicode encodings. Note that this is
   // per HTML5 2.5.3 (resolving URL). The URL canonicalizer will be more
@@ -953,14 +948,6 @@ void KURL::Init(const KURL& base,
   InitProtocolMetadata();
   InitInnerURL();
   AssertStringSpecIsASCII();
-
-  if (!url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    // This assertion implicitly assumes that "javascript:" scheme URL is always
-    // valid, but that is no longer true when
-    // kStandardCompliantNonSpecialSchemeURLParsing feature is enabled. e.g.
-    // "javascript://^", which is an invalid URL.
-    DCHECK(!::blink::ProtocolIsJavaScript(string_) || ProtocolIsJavaScript());
-  }
 }
 
 void KURL::InitInnerURL() {

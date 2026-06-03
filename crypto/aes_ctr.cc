@@ -4,8 +4,10 @@
 
 #include "crypto/aes_ctr.h"
 
+#include <array>
 #include <vector>
 
+#include "base/check_op.h"
 #include "base/containers/span.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
 

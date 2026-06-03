@@ -7,6 +7,7 @@
 <translation id="102763973188675173">ปรับแต่งและควบคุม Google Chrome มีการอัปเดต</translation>
 <translation id="1028061813283459617">หากต้องการลบข้อมูลการท่องเว็บออกจากอุปกรณ์นี้เท่านั้น แต่ยังเก็บข้อมูลดังกล่าวไว้ในบัญชี Google ให้<ph name="BEGIN_LINK" />ออกจากระบบ Chrome<ph name="END_LINK" /></translation>
 <translation id="1042270987544905725">คลิกเพื่อปิดกล่องโต้ตอบการลงชื่อเข้าใช้ Chrome</translation>
+<translation id="1051793555070215510">ช่วยเราปรับปรุงโหมดไม่ระบุตัวตนโดยทำแบบสำรวจนี้ซึ่งใช้เวลาเพียง 1 นาที</translation>
 <translation id="1059838145689930908">หากต้องการใช้ส่วนขยายนี้ด้วย <ph name="USER_EMAIL_ADDRESS" /> ให้ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="1065672644894730302">ค่ากำหนดของคุณไม่สามารถอ่านได้ ฟีเจอร์บางอย่างอาจใช้ไม่ได้และการเปลี่ยนแปลงค่ากำหนดจะไม่ได้รับการบันทึก</translation>
 <translation id="1086486568852410168">ค้นหาด้วย Google Lens</translation>
@@ -52,6 +53,7 @@
 <translation id="1662146548738125461">เกี่ยวกับ Chrome OS Flex</translation>
 <translation id="1674870198290878346">เปิดลิงก์ในหน้าต่างที่ไม่ระบุตัวตนของ Chrome</translation>
 <translation id="1682634494516646069">Google Chrome ไม่สามารถอ่านและเขียนข้อมูลในไดเรกทอรีข้อมูล: <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">เมื่อคุณพิมพ์ในแถบที่อยู่หรือช่องค้นหา Chrome จะส่งสิ่งที่คุณพิมพ์ไปยังเครื่องมือค้นหา, AI และเครื่องมือตัวแทนขององค์กรเพื่อรับคำแนะนำ</translation>
 <translation id="1698376642261615901">Google Chrome คือเว็บเบราว์เซอร์ที่แสดงหน้าเว็บและแอปพลิเคชันต่างๆ ได้รวดเร็วในพริบตา โดยทำงานได้เร็ว มีเสถียรภาพ และใช้งานง่าย ช่วยให้คุณเรียกดูเว็บได้อย่างปลอดภัยมากขึ้นด้วยการป้องกันมัลแวร์และฟิชชิงซึ่งมีอยู่ใน Google Chrome</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome จะเปิดขึ้นมาใหม่ใน 1 ชั่วโมง}other{Chrome จะเปิดขึ้นมาใหม่ใน # ชั่วโมง}}</translation>
 <translation id="1722488837206509557">สิทธิ์นี้จะช่วยให้คุณสามารถเลือกจากอุปกรณ์ที่พร้อมใช้งานและแสดงเนื้อหาบนอุปกรณ์เหล่านั้น</translation>
@@ -60,6 +62,7 @@
 <translation id="178701303897325119">ระบบไม่รองรับส่วนขยายนี้แล้ว Chrome แนะนำให้คุณนำออกแทน</translation>
 <translation id="1812689907177901597">เมื่อปิดการตั้งค่านี้ คุณจะลงชื่อเข้าใช้เว็บไซต์ของ Google อย่างเช่น Gmail ได้โดยไม่ต้องลงชื่อเข้าใช้ Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome แนะนำให้หยุดแท็บที่ทำให้เบราว์เซอร์ทำงานช้าลงชั่วคราว}other{Chrome แนะนำให้หยุดแท็บที่ทําให้เบราว์เซอร์ทำงานช้าลงชั่วคราว}}</translation>
+<translation id="1832046143430087831">เร่งความเร็วเว็บไซต์ด้วยเครื่องมือ V8 ของ Chrome แต่ทำให้ Chrome ต้านทานการโจมตีได้น้อยลงเล็กน้อย การตั้งค่านี้ปิดอยู่</translation>
 <translation id="1838374766361614909">ล้างการค้นหา</translation>
 <translation id="1860536484129686729">Chrome ต้องการสิทธิ์เข้าถึงกล้องถ่ายรูปของคุณสำหรับเว็บไซต์นี้</translation>
 <translation id="1873233029667955273">Google Chrome ไม่ใช่เบราว์เซอร์เริ่มต้น</translation>
@@ -218,6 +221,7 @@
 <translation id="3716540481907974026">เวอร์ชัน Chrome OS Flex</translation>
 <translation id="3718181793972440140">การดำเนินการนี้จะลบ 1 รายการออกจากอุปกรณ์นี้ หากต้องการดึงข้อมูลภายหลัง ให้ลงชื่อเข้าใช้ Chrome ด้วย <ph name="USER_EMAIL" /></translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome ขอแนะนำให้คุณนำออก <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติมเกี่ยวกับส่วนขยายที่รองรับ<ph name="END_LINK" />}other{Chrome ขอแนะนําให้คุณนําออก <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติมเกี่ยวกับส่วนขยายที่รองรับ<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">ดูข้อมูลเพิ่มเติมเกี่ยวกับการติดตั้ง Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Chrome OS Flex ซิงค์ข้อมูลไม่ได้เนื่องจากเกิดข้อผิดพลาดในการลงชื่อเข้าใช้</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -263,6 +267,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome แนะนำให้หยุดแท็บที่ทำให้เบราว์เซอร์ทำงานช้าลงชั่วคราว}other{Chrome แนะนำให้หยุดแท็บที่ทําให้เบราว์เซอร์ทำงานช้าลงชั่วคราว}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">รวม Chrome ไว้ในกิจกรรมบนเว็บและแอป ตลอดจนบริการของ Google ที่ลิงก์ไว้เพื่อรับการปรับเปลี่ยนในแบบของคุณและฟีเจอร์อื่นๆ</translation>
+<translation id="4334241893986177674">ค้นหาในภาพหน้าจอนี้</translation>
 <translation id="4334294535648607276">ดาวน์โหลดเสร็จสมบูรณ์</translation>
 <translation id="4337324600316876133">คุณจะต้องใช้ macOS 12 ขึ้นไปเพื่อรับการอัปเดต Google Chrome ในอนาคต คอมพิวเตอร์เครื่องนี้ใช้ macOS 11</translation>
 <translation id="4343195214584226067">เพิ่ม <ph name="EXTENSION_NAME" /> ลงใน Chrome แล้ว</translation>
@@ -313,6 +318,7 @@
 <translation id="4970880042055371251">เวอร์ชัน Chrome OS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">คลิก "เครื่องมือจัดการรหัสผ่านบน Google"</translation>
+<translation id="504867494566807945">เปิดลิงก์ใน Chrome จากแอปใดก็ได้ และปักหมุดไว้ที่แถบงานเพื่อให้เข้าถึงได้ง่าย</translation>
 <translation id="5114340746415930644">ป้อนรหัสผ่านเพื่อใช้และบันทึกข้อมูล Chrome ในบัญชี <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">ลงชื่อเข้าใช้ Chrome เมื่อคุณลงชื่อเข้าใช้บริการอื่นๆ ของ Google</translation>
 <translation id="5126049312684316860">Chrome จะโหลดหน้าเว็บที่คุณน่าจะเข้าชมเอาไว้ล่วงหน้าเพิ่มมากขึ้น เพื่อให้หน้าเหล่านั้นโหลดเร็วขึ้นเมื่อคุณเข้าชม</translation>
@@ -389,6 +395,7 @@
 <translation id="6075300983329039771">องค์กร <ph name="MANAGER" /> กำหนดให้คุณต้องลงชื่อเข้าใช้ Chrome</translation>
 <translation id="6113794647360055231">Chrome ดีขึ้นกว่าเดิม</translation>
 <translation id="6116252277240876590">ระบบจะใช้ภาษานี้เพื่อแสดงเมนู การตั้งค่า การแจ้งเตือน และข้อความอื่นๆ ใน Chrome</translation>
+<translation id="6127237283587442951">ใช้ Chrome โดยค่าเริ่มต้นและปักหมุดไว้</translation>
 <translation id="6134085236017727171">หากต้องการใช้ไมโครโฟน โปรดให้สิทธิ์เข้าถึงแก่ Chrome ใน<ph name="BEGIN_LINK" />การตั้งค่าระบบ<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">แท็บเหล่านี้ใช้ทรัพยากรมากเป็นพิเศษ ให้ Chrome ช่วยปิดใช้งานแท็บเหล่านี้เพื่อปรับปรุงประสิทธิภาพ</translation>
 <translation id="6145313976051292476">เปิด PDF ใน Chrome</translation>
@@ -438,12 +445,12 @@
 <translation id="6718739135284199302">ทำให้ Chrome เร็วขึ้น</translation>
 <translation id="6735387454586646204">ระบบ Chrome OS Flex</translation>
 <translation id="6750954913813541382">Chrome จะส่งข้อความที่คุณพิมพ์ในเบราว์เซอร์ไปยัง Google เพื่อแก้ไขข้อผิดพลาดของการสะกดคำ</translation>
+<translation id="6760235774835597023">เร่งความเร็วเว็บไซต์ด้วยเครื่องมือ V8 ของ Chrome แต่ทำให้ Chrome ต้านทานการโจมตีได้น้อยลงเล็กน้อย การตั้งค่านี้เปิดอยู่</translation>
 <translation id="677276454032249905">ออกจาก Chrome ใช่ไหม</translation>
 <translation id="6794858689789885890">ลบข้อมูลเว็บไซต์จากอุปกรณ์เสมอเมื่อปิด Chrome</translation>
 <translation id="6831043979455480757">แปลภาษา</translation>
 <translation id="683440813066116847">กฎขาเข้าสำหรับ Google Chrome Canary เพื่ออนุญาตการเข้าชมแบบ mDNS</translation>
 <translation id="684888714667046800">เชื่อมต่อกับอินเทอร์เน็ตไม่ได้ หากคุณใช้ไฟร์วอลล์ โปรดตรวจสอบว่า <ph name="PRODUCT_EXE_NAME" /> อยู่ในรายการที่อนุญาต</translation>
-<translation id="6851981911629679515">เปิดการปกป้องเพิ่มเติมในเครื่องมือ JavaScript และ WebAssembly ของ Chrome</translation>
 <translation id="6877155553248388166">มุมขวาล่างของพื้นที่การค้นหา: ขวา <ph name="RIGHT" />% ล่าง <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">กำลังอัปเดต Chrome</translation>
 <translation id="6885412569789873916">แอป Chrome เบต้า</translation>
@@ -503,7 +510,6 @@
 <translation id="7572537927358445944">ปิด • Chrome ยืนยันไม่ได้ว่าส่วนขยายนี้มาจากไหน</translation>
 <translation id="7583399374488819119">โปรแกรมติดตั้ง <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
-<translation id="7626032353295482388">ยินดีต้อนรับสู่ Chrome</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> กำหนดว่าคุณต้องอ่านและยอมรับข้อกำหนดในการให้บริการต่อไปนี้ก่อนใช้อุปกรณ์นี้ ข้อกำหนดเหล่านี้ไม่ได้ขยาย แก้ไข หรือจำกัดข้อกำหนดของ Google Chrome OS</translation>
 <translation id="7629695634924605473">Chrome จะแจ้งให้ทราบหากมีคนล่วงรู้รหัสผ่านของคุณ</translation>
 <translation id="7641148173327520642">ผู้ดูแลระบบได้กำหนดค่าให้ Google Chrome เปิด <ph name="ALTERNATIVE_BROWSER_NAME" /> เพื่อเข้าถึง <ph name="TARGET_URL_HOSTNAME" /></translation>
@@ -547,7 +553,6 @@
 <translation id="8019103195866286235">นักพัฒนาซอฟต์แวร์เลิกเผยแพร่ส่วนขยายนี้แล้วและอาจไม่ปลอดภัย นำส่วนขยายดังกล่าวออกจาก Chrome เพื่อไม่ให้ดูและเปลี่ยนแปลงข้อมูลของคุณในเว็บไซต์ที่เข้าชม รวมถึงข้อมูลส่วนบุคคลได้อีกต่อไป</translation>
 <translation id="8040768861829554732">ส่วนขยายต้องการให้คุณลงชื่อเข้าใช้ Chrome</translation>
 <translation id="80471789339884597">ขอขอบคุณที่ติดตั้ง คุณต้องรีสตาร์ทเบราว์เซอร์ทั้งหมดก่อนใช้ <ph name="BUNDLE_NAME" /></translation>
-<translation id="8064015041956107954">คุณสามารถเปิดบุ๊กมาร์ก โหมดการอ่าน และอื่นๆ จากเมนู Chrome ที่ด้านขวาบน</translation>
 <translation id="8064015586118426197">Chrome OS Flex</translation>
 <translation id="8077579734294125741">โปรไฟล์ Chrome อื่นๆ</translation>
 <translation id="8086881907087796310">การติดตั้งไม่สำเร็จเนื่องจากคอมพิวเตอร์ของคุณไม่เป็นไปตามข้อกำหนดขั้นต่ำสำหรับฮาร์ดแวร์</translation>
@@ -559,7 +564,6 @@
 <translation id="8177472873527554730">ไม่พบเนื้อหาในหน้าเว็บ</translation>
 <translation id="8221491193165283816">คุณมักจะบล็อกการแจ้งเตือน หากต้องการให้เว็บไซต์ส่งการแจ้งเตือน ให้คลิกที่นี่</translation>
 <translation id="8255190535488645436">Google Chrome ใช้กล้องและไมโครโฟนของคุณอยู่</translation>
-<translation id="8257796129973882597">คุณสามารถเปิดบุ๊กมาร์ก โหมดการอ่าน และอื่นๆ จากเมนู Chrome ได้</translation>
 <translation id="8267953129876836456">Chrome พบคำแนะนำด้านความปลอดภัยบางอย่างที่คุณควรตรวจสอบ</translation>
 <translation id="8286862437124483331">Google Chrome กำลังพยายามแสดงรหัสผ่าน พิมพ์รหัสผ่าน Windows ของคุณเพื่อแสดงรหัสผ่าน</translation>
 <translation id="829923460755755423">เพิ่มทางลัดในเครื่องมือจัดการรหัสผ่านบน Google</translation>
@@ -623,6 +627,7 @@
 <translation id="9090566250983691233">ดูสาเหตุที่ Chrome บล็อกบางไฟล์</translation>
 <translation id="9106236359747881194">เลือกข้อความที่จะค้นหา</translation>
 <translation id="911206726377975832">ลบข้อมูลการท่องเว็บด้วยหรือไม่</translation>
+<translation id="9134482777260927479">ความช่วยเหลือเรื่องการบ้าน</translation>
 <translation id="9138603949443464873">เปิด Chrome ขึ้นมาใหม่เพื่อให้การเปลี่ยนแปลงมีผล</translation>
 <translation id="9148058034647219655">ออก</translation>
 <translation id="9195993889682885387">Chrome สามารถคาดคะเนความสนใจโดยพิจารณาจากประวัติการท่องเว็บเมื่อ 2-3 สัปดาห์ที่ผ่านมา ข้อมูลนี้อยู่ในอุปกรณ์ของคุณ</translation>

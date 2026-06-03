@@ -78,8 +78,7 @@ public class DownloadManagerServiceTest {
         }
 
         // Use MethodID for Integer values.
-        private final Queue<Pair<Integer, Object>> mExpectedCalls =
-                new ConcurrentLinkedQueue<Pair<Integer, Object>>();
+        private final Queue<Pair<Integer, Object>> mExpectedCalls = new ConcurrentLinkedQueue<>();
 
         public MockDownloadNotifier() {
             expect(MethodID.CLEAR_PENDING_DOWNLOADS, null);
@@ -112,7 +111,7 @@ public class DownloadManagerServiceTest {
         }
 
         static Pair<Integer, Object> getMethodSignature(@MethodID int methodId, Object param) {
-            return new Pair<Integer, Object>(methodId, param);
+            return new Pair<>(methodId, param);
         }
 
         void assertCorrectExpectedCall(@MethodID int methodId, Object param, boolean matchParams) {
@@ -183,7 +182,7 @@ public class DownloadManagerServiceTest {
         private final HashSet<Object> mMatches;
 
         OneTimeMatchSet(Object... params) {
-            mMatches = new HashSet<Object>();
+            mMatches = new HashSet<>();
             Collections.addAll(mMatches, params);
         }
 

@@ -13,7 +13,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "base/task/thread_pool.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
@@ -41,6 +40,7 @@
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/component_updater/installer_policies/autofill_states_component_installer.h"
 #include "components/component_updater/installer_policies/history_search_strings_component_installer.h"
@@ -55,12 +55,6 @@
 #include "ppapi/buildflags/buildflags.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "ui/accessibility/accessibility_features.h"
-
-#if BUILDFLAG(IS_WIN)
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#include "chrome/browser/component_updater/third_party_module_list_component_installer_win.h"
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/component_updater/recovery_component_installer.h"
@@ -84,7 +78,7 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/apps/app_service/publishers/chrome_app_deprecation.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/component_updater/smart_dim_component_installer.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -102,10 +96,10 @@
 #endif  // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include "components/component_updater/installer_policies/amount_extraction_heuristic_regexes_component_installer.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
@@ -209,10 +203,6 @@ void RegisterComponentsForUpdate() {
   RegisterOriginTrialsComponent(cus);
   RegisterMediaEngagementPreloadComponent(cus, base::OnceClosure());
 
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  RegisterThirdPartyModuleListComponent(cus);
-#endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
   MaybeRegisterPKIMetadataComponent(cus);
 
   RegisterSafetyTipsComponent(cus);
@@ -267,6 +257,13 @@ void RegisterComponentsForUpdate() {
   RegisterAmountExtractionHeuristicRegexesComponent(cus);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableAmountExtractionTesting)) {
+    RegisterAmountExtractionHeuristicRegexesComponent(cus);
+  }
+#endif  // BUIDLFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   if (features::IsWasmTtsComponentUpdaterEnabled()) {

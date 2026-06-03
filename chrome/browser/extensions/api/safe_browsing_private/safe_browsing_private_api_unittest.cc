@@ -101,7 +101,7 @@ void SafeBrowsingPrivateApiUnitTest::SetUp() {
   Browser::CreateParams params(profile(), true);
   params.type = Browser::TYPE_NORMAL;
   params.window = browser_window_.get();
-  browser_ = std::unique_ptr<Browser>(Browser::Create(params));
+  browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
 
   ProfilePasswordStoreFactory::GetInstance()->SetTestingFactoryAndUse(
       profile(),
@@ -127,8 +127,10 @@ void SafeBrowsingPrivateApiUnitTest::SetUp() {
 }
 
 void SafeBrowsingPrivateApiUnitTest::TearDown() {
-  while (!browser()->tab_strip_model()->empty())
+  while (!browser()->tab_strip_model()->empty()) {
     browser()->tab_strip_model()->DetachAndDeleteWebContentsAt(0);
+  }
+  browser_.reset();
   browser_window_.reset();
 
   // Make sure the NetworkContext owned by SafeBrowsingService is destructed

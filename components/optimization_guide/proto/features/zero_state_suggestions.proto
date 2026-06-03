@@ -31,12 +31,39 @@ message ZeroStateSuggestionsLoggingData {
   ModelExecutionInfo model_execution_info = 3 [features = { field_presence: EXPLICIT }];
 }
 
+// Next ID: 6
 message ZeroStateSuggestionsRequest {
-  // The context of the page to generate suggestions for.
-  PageContext page_context = 1 [features = { field_presence: EXPLICIT }];
+  oneof request {
+    // The context of the page to generate suggestions for. This is used when
+    // the user has chosen to share the active tab with Glic.
+    PageContext page_context = 1;
+
+    // The multiple page contexts to generate suggestions for. This is used when
+    // the user has chosen to share multiple tabs with Glic.
+    ZeroStatePageContextList page_context_list = 3;
+  }
 
   // Whether the request is for FRE mode.
   bool is_fre = 2 [features = { field_presence: EXPLICIT }];
+
+  // The tools that are supported by Glic for this client.
+  repeated string supported_tools = 4;
+
+  // The locale to associate with this request.
+  //
+  // It is the IETF language tag, defined in BCP 47. The region subtag is not
+  // included when it adds no distinguishing information to the language tag
+  // (e.g. both "en-US" and "fr" are correct here).
+  string locale = 5 [features = { field_presence: EXPLICIT }];
+}
+
+message ZeroStatePageContextList {
+  repeated ZeroStatePageContext page_contexts = 1;
+}
+
+message ZeroStatePageContext {
+  // The page context for the shared tab.
+  PageContext page_context = 1 [features = { field_presence: EXPLICIT }];
 }
 
 message ZeroStateSuggestionsResponse {

@@ -30,13 +30,11 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabLoadTracker.TabLoadTrackerCallback;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabStripIphController.IphType;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.user_education.IphCommand;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.feature_engagement.FeatureConstants;
@@ -46,7 +44,6 @@ import org.chromium.ui.base.LocalizationUtils;
 /** Unit tests for {@link TabStripIphController}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID})
 public class TabStripIphControllerUnitTest {
     private static final float TAB_STRIP_HEIGHT = 40f;
     private static final float TAB_WIDTH = 150f;
@@ -111,7 +108,7 @@ public class TabStripIphControllerUnitTest {
     @Test
     public void testIphProperties_TabGroupSync() {
         mController.showIphOnTabStrip(
-                mGroupTitle, null, mContainerView, IphType.TAB_GROUP_SYNC, TAB_STRIP_HEIGHT);
+                mGroupTitle, null, mContainerView, IphType.TAB_GROUP_SYNC, TAB_STRIP_HEIGHT, false);
         var captor = ArgumentCaptor.forClass(IphCommand.class);
         verify(mUserEducationHelper).requestShowIph(captor.capture());
         var cmd = captor.getValue();
@@ -140,7 +137,8 @@ public class TabStripIphControllerUnitTest {
                 null,
                 mContainerView,
                 IphType.GROUP_TITLE_NOTIFICATION_BUBBLE,
-                TAB_STRIP_HEIGHT);
+                TAB_STRIP_HEIGHT,
+                false);
         var captor = ArgumentCaptor.forClass(IphCommand.class);
         verify(mUserEducationHelper).requestShowIph(captor.capture());
         var cmd = captor.getValue();
@@ -173,7 +171,8 @@ public class TabStripIphControllerUnitTest {
                 null,
                 mContainerView,
                 IphType.GROUP_TITLE_NOTIFICATION_BUBBLE,
-                TAB_STRIP_HEIGHT);
+                TAB_STRIP_HEIGHT,
+                false);
         var captor = ArgumentCaptor.forClass(IphCommand.class);
         verify(mUserEducationHelper).requestShowIph(captor.capture());
         var cmd = captor.getValue();
@@ -204,7 +203,8 @@ public class TabStripIphControllerUnitTest {
                 mTab,
                 mContainerView,
                 IphType.TAB_NOTIFICATION_BUBBLE,
-                TAB_STRIP_HEIGHT);
+                TAB_STRIP_HEIGHT,
+                false);
         var captor = ArgumentCaptor.forClass(IphCommand.class);
         verify(mUserEducationHelper).requestShowIph(captor.capture());
         var cmd = captor.getValue();
@@ -236,7 +236,8 @@ public class TabStripIphControllerUnitTest {
                 mTab,
                 mContainerView,
                 IphType.TAB_NOTIFICATION_BUBBLE,
-                TAB_STRIP_HEIGHT);
+                TAB_STRIP_HEIGHT,
+                false);
         var captor = ArgumentCaptor.forClass(IphCommand.class);
         verify(mUserEducationHelper).requestShowIph(captor.capture());
         var cmd = captor.getValue();
@@ -257,5 +258,18 @@ public class TabStripIphControllerUnitTest {
         assertEquals("Iph anchor rect top bound is incorrect ", 7, anchorRect.top);
         // Group title height(40dp) - title bottom margin(9dp) = 31dp.
         assertEquals("Iph anchor rect bottom bound is incorrect ", 31, anchorRect.bottom);
+    }
+
+    @Test
+    public void testIphProperties_TabTearingXr() {
+        mController.showIphOnTabStrip(
+                null, mTab, mContainerView, IphType.TAB_TEARING_XR, TAB_STRIP_HEIGHT, true);
+        var captor = ArgumentCaptor.forClass(IphCommand.class);
+        verify(mUserEducationHelper).requestShowIph(captor.capture());
+        var cmd = captor.getValue();
+
+        // Assert: feature name and snooze mode.
+        assertEquals(FeatureConstants.IPH_TAB_TEARING_XR, cmd.featureName);
+        assertEquals(true, cmd.enableSnoozeMode);
     }
 }

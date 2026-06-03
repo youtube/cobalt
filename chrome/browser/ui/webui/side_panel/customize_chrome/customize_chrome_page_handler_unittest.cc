@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome.mojom.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -172,7 +173,9 @@ class MockPage : public side_panel::mojom::CustomizeChromePage {
   MOCK_METHOD(void,
               AttachedTabStateUpdated,
               (side_panel::mojom::NewTabPageType));
-  MOCK_METHOD(void, NtpManagedByNameUpdated, (const std::string&));
+  MOCK_METHOD(void,
+              NtpManagedByNameUpdated,
+              (const std::string&, const std::string&));
   MOCK_METHOD(void, SetFooterSettings, (bool visible));
 
   mojo::Receiver<side_panel::mojom::CustomizeChromePage> receiver_{this};
@@ -205,6 +208,7 @@ class MockNtpBackgroundService : public NtpBackgroundService {
       : NtpBackgroundService(application_locale_storage, url_loader_factory) {}
   MOCK_CONST_METHOD0(collection_info, std::vector<CollectionInfo>&());
   MOCK_CONST_METHOD0(collection_images, std::vector<CollectionImage>&());
+  MOCK_METHOD(void, FetchCollectionInfo, (const std::string& filtering_label));
   MOCK_METHOD(void, FetchCollectionInfo, ());
   MOCK_METHOD(void, FetchCollectionImageInfo, (const std::string&));
   MOCK_METHOD(void,
@@ -301,7 +305,7 @@ class CustomizeChromePageHandlerTest : public testing::Test {
     Browser::CreateParams browser_params(profile_.get(), true);
     browser_params.type = Browser::TYPE_NORMAL;
     browser_params.window = browser_window_.get();
-    browser_ = std::unique_ptr<Browser>(Browser::Create(browser_params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(browser_params);
 
     application_locale_storage_->Set("foo");
 
@@ -586,7 +590,7 @@ TEST_F(CustomizeChromePageHandlerTest, GetBackgroundCollections) {
       CustomizeChromePageHandler::GetBackgroundCollectionsCallback>
       callback;
   EXPECT_CALL(callback, Run(_)).Times(1).WillOnce(MoveArg(&collections));
-  EXPECT_CALL(mock_ntp_background_service(), FetchCollectionInfo).Times(1);
+  EXPECT_CALL(mock_ntp_background_service(), FetchCollectionInfo()).Times(1);
   handler().GetBackgroundCollections(callback.Get());
   ntp_background_service_observer().OnCollectionInfoAvailable();
 
@@ -700,7 +704,7 @@ TEST_F(CustomizeChromePageHandlerTest, OpenChromeWebStore) {
   GURL url;
   EXPECT_CALL(mock_open_url_callback_, Run).Times(1).WillOnce(SaveArg<0>(&url));
   handler().OpenChromeWebStore();
-  ASSERT_EQ(GURL("https://chrome.google.com/webstore?category=theme"), url);
+  ASSERT_EQ(GURL("https://chromewebstore.google.com/category/themes"), url);
   histogram_tester().ExpectTotalCount("NewTabPage.ChromeWebStoreOpen", 1);
 
   ASSERT_EQ(
@@ -714,7 +718,7 @@ TEST_F(CustomizeChromePageHandlerTest, OpenThirdPartyThemePage) {
   GURL url;
   EXPECT_CALL(mock_open_url_callback_, Run).Times(1).WillOnce(SaveArg<0>(&url));
   handler().OpenThirdPartyThemePage("foo");
-  ASSERT_EQ(GURL("https://chrome.google.com/webstore/detail/foo"), url);
+  ASSERT_EQ(GURL("https://chromewebstore.google.com/detail/foo"), url);
   histogram_tester().ExpectTotalCount("NewTabPage.ChromeWebStoreOpen", 1);
   ASSERT_EQ(
       histogram_tester().GetBucketCount("NewTabPage.ChromeWebStoreOpen",
@@ -1199,20 +1203,24 @@ TEST_F(CustomizeChromePageHandlerWithTemplateURLServiceTest,
   testing::Mock::VerifyAndClearExpectations(&mock_page_);
 
   std::string name;
+  std::string description;
   EXPECT_CALL(mock_page_, NtpManagedByNameUpdated)
       .Times(1)
-      .WillOnce(SaveArg<0>(&name));
+      .WillOnce(DoAll(SaveArg<0>(&name), SaveArg<1>(&description)));
   SetFirstPartyDefault();
   mock_page_.FlushForTesting();
   EXPECT_EQ(std::string(), name);
+  EXPECT_EQ(std::string(), description);
 
   mock_page_.FlushForTesting();
   testing::Mock::VerifyAndClearExpectations(&mock_page_);
 
   EXPECT_CALL(mock_page_, NtpManagedByNameUpdated)
       .Times(1)
-      .WillOnce(SaveArg<0>(&name));
+      .WillOnce(DoAll(SaveArg<0>(&name), SaveArg<1>(&description)));
   SetThirdPartyDefault();
   mock_page_.FlushForTesting();
   EXPECT_EQ(std::string(base::UTF16ToUTF8(kThirdPartyShortName)), name);
+  EXPECT_EQ(l10n_util::GetStringUTF8(IDS_NTP_MANAGED_BY_SEARCH_ENGINE),
+            description);
 }

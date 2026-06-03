@@ -6,6 +6,7 @@ package org.chromium.components.browser_ui.widget.scrim;
 
 import android.content.Context;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.ColorInt;
@@ -18,9 +19,14 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.R;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * The coordinator for the scrim components. Creating and owning the mediator and view, and scoped
@@ -76,8 +82,9 @@ public class ScrimCoordinator {
     /**
      * @param context An Android {@link Context} for creating the view.
      * @param parent The {@link ViewGroup} the scrim should exist in.
+     * @param client The client that's creating the scrim system, used for error reporting.
      */
-    /* package */ ScrimCoordinator(Context context, ViewGroup parent) {
+    /* package */ ScrimCoordinator(Context context, ViewGroup parent, @ScrimClient int client) {
         @ColorInt
         int defaultScrimColor = ContextCompat.getColor(context, R.color.default_scrim_color);
         mMediator =
@@ -90,11 +97,7 @@ public class ScrimCoordinator {
                             notifyVisibilityObservers();
                         },
                         defaultScrimColor);
-        mScrimViewBuilder =
-                () -> {
-                    ScrimView view = new ScrimView(context, parent);
-                    return view;
-                };
+        mScrimViewBuilder = () -> new ScrimView(context, parent, client);
     }
 
     /**
@@ -116,19 +119,8 @@ public class ScrimCoordinator {
     }
 
     /**
-     * Show the scrim.
-     *
      * @param model The property model of {@link ScrimProperties} that define the scrim behavior.
      * @param animate Whether the scrim should animate.
-     */
-    public void showScrim(PropertyModel model) {
-        showScrim(model, true);
-    }
-
-    /**
-     * Show the scrim.
-     *
-     * @param model The property model of {@link ScrimProperties} that define the scrim behavior.
      */
     public void showScrim(PropertyModel model, boolean animate) {
         assert model != null : "Showing the scrim requires a model.";
@@ -218,11 +210,27 @@ public class ScrimCoordinator {
         mMediator.destroy();
     }
 
-    /* package */ int getIndexInParent() {
+    /**
+     * Returns the index of each parent child relationship starting from root and descending down
+     * the tree.
+     */
+    /*package*/ List<Integer> getIndicesRelativeTo(ViewGroup root) {
         if (mView == null || mView.getParent() == null) {
-            return -1;
+            return Collections.singletonList(-1);
         } else {
-            return ((ViewGroup) mView.getParent()).indexOfChild(mView);
+            LinkedList<Integer> list = new LinkedList<>();
+            ViewGroup parent = (ViewGroup) mView.getParent();
+            View child = mView;
+            while (parent != null && child != root) {
+                list.addFirst(parent.indexOfChild(child));
+                child = parent;
+                parent = (ViewGroup) parent.getParent();
+            }
+            // If the root is not found, then the scrim is not in the view hierarchy.
+            if (parent == null) {
+                return Collections.singletonList(-1);
+            }
+            return list;
         }
     }
 

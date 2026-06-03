@@ -13,6 +13,7 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.dom_distiller.DomDistillerTabUtils;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager.DistillationStatus;
 import org.chromium.chrome.browser.dom_distiller.TabDistillabilityProvider;
@@ -21,9 +22,13 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
+import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
+import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.url.GURL;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 /** Provides reader mode signal for showing contextual page action for a given tab. */
 @NullMarked
@@ -35,6 +40,10 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
     /** Histogram name for if a positive distillation signal was in time for the CPA timeout. */
     public static final String SIGNAL_ACCUMULATOR_DISTILLABLE_WITHIN_TIMEOUT_HISTOGRAM =
             "DomDistiller.Android.DistillablePageSignalWithinTimeout";
+
+    /** Histogram name that records how long it takes to get a reader mode result. */
+    public static final String READER_MODE_SIGNAL_TIME_HISTOGRAM =
+            "DomDistiller.Time.TimeToProvideResultToAccumulator";
 
     // DistillabilityObserver which automatically un/registers itself as an observer when there is a
     // result.
@@ -55,6 +64,15 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
             mSignalAccumulator = signalAccumulator;
 
             mTab.addObserver(this);
+            if (DomDistillerFeatures.shouldUseReadabilityTriggeringHeuristic()) {
+                useReadabilityHeuristic();
+            } else {
+                useDistillabilityProvider();
+            }
+        }
+
+        /** Uses the DistillabilityProvider to determine distillability. */
+        private void useDistillabilityProvider() {
             // If distillability is already determined, then call the obs method directly. Otherwise
             // register the observer and wait.
             if (mDistillabilityProvider.isDistillabilityDetermined()) {
@@ -69,6 +87,19 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
             } else {
                 mDistillabilityProvider.addObserver(this);
             }
+        }
+
+        /** Uses the readability heurisitic to determine distillability. */
+        private void useReadabilityHeuristic() {
+            DomDistillerTabUtils.runReadabilityHeuristicsOnWebContents(
+                    mTab.getWebContents(),
+                    (readerable) -> {
+                        onIsPageDistillableResult(
+                                mTab,
+                                readerable,
+                                /* isLast= */ true,
+                                /* isMobileOptimized= */ false);
+                    });
         }
 
         public void destroy() {
@@ -105,7 +136,7 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
                             tab, isDistillable, isMobileOptimized, /* isLast= */ true);
             if (result.first) {
                 notifyActionAvailable(
-                        result.second == DistillationStatus.POSSIBLE, mSignalAccumulator);
+                        tab, result.second == DistillationStatus.POSSIBLE, mSignalAccumulator);
                 destroy();
             }
         }
@@ -113,9 +144,13 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
 
     private @Nullable OneshotDistillabilityObserver mDistillabilityObserver;
     private @Nullable GURL mLastSeenUrl;
+    private final BooleanSupplier mButtonVisibilitySupplier;
+
+    public ReaderModeActionProvider(BooleanSupplier buttonVisibilitySupplier) {
+        mButtonVisibilitySupplier = buttonVisibilitySupplier;
+    }
 
     // ContextualPageActionController.ActionProvider implementation.
-
     @Override
     public void getAction(Tab tab, SignalAccumulator signalAccumulator) {
         if (mDistillabilityObserver != null) {
@@ -123,6 +158,14 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
         }
 
         if (tab == null) return;
+
+        // If ReaderModeDistillInApp is enabled and we're on a reading mode page, always show the
+        // button to give users a way to exit outside of a "back" navigation.
+        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
+                && DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
+            signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+            return;
+        }
         final TabDistillabilityProvider tabDistillabilityProvider =
                 TabDistillabilityProvider.get(tab);
         if (tabDistillabilityProvider == null) return;
@@ -136,8 +179,16 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
 
     @Override
     public void onActionShown(Tab tab, @AdaptiveToolbarButtonVariant int action) {
-        if (tab == null) return;
-        if (action != AdaptiveToolbarButtonVariant.READER_MODE) return;
+        if (tab == null || tab.isLoading()) return;
+        final boolean isReaderMode =
+                action == AdaptiveToolbarButtonVariant.READER_MODE
+                        && mButtonVisibilitySupplier.getAsBoolean();
+
+        // When on a distilled page, return immediately and don't set reader mode as shown
+        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
+                && DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
+            return;
+        }
 
         new Handler(Looper.getMainLooper())
                 .postDelayed(
@@ -148,7 +199,7 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
                                     tab.getUserDataHost()
                                             .getUserData(ReaderModeManager.USER_DATA_KEY);
                             if (readerModeManager != null) {
-                                readerModeManager.setReaderModeUiShown();
+                                readerModeManager.onContextualPageActionShown(isReaderMode);
                             }
                         },
                         /* delayMillis= */ 500);
@@ -161,18 +212,24 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
         }
     }
 
-    private void notifyActionAvailable(boolean isDistillable, SignalAccumulator signalAccumulator) {
-        // TODO(shaktisahu): Can we merge these into a single method call?
-        signalAccumulator.setHasReaderMode(isDistillable);
-        signalAccumulator.notifySignalAvailable();
+    private void notifyActionAvailable(
+            Tab tab, boolean isDistillable, SignalAccumulator signalAccumulator) {
+        signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, isDistillable);
 
+        long latency = System.currentTimeMillis() - signalAccumulator.getSignalStartTimeMs();
         boolean signalAvailable = !signalAccumulator.hasTimedOut();
         RecordHistogram.recordBooleanHistogram(
                 SIGNAL_ACCUMULATOR_WITHIN_TIMEOUT_HISTOGRAM, signalAvailable);
+        RecordHistogram.recordLongTimesHistogram(READER_MODE_SIGNAL_TIME_HISTOGRAM, latency);
         // Record if the signal counted when a page was distillable.
         if (isDistillable) {
             RecordHistogram.recordBooleanHistogram(
                     SIGNAL_ACCUMULATOR_DISTILLABLE_WITHIN_TIMEOUT_HISTOGRAM, signalAvailable);
+        }
+        if (tab.getWebContents() != null) {
+            new UkmRecorder(tab.getWebContents(), "DomDistiller.Android.DistillabilityLatency")
+                    .addMetric("Latency", (int) latency)
+                    .record();
         }
     }
 }

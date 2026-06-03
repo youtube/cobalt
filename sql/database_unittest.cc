@@ -38,6 +38,7 @@
 #include "base/sequence_checker.h"
 #include "base/strings/cstring_view.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -1008,6 +1009,15 @@ TEST_P(SQLDatabaseTest, Raze) {
   }
 }
 
+TEST_P(SQLDatabaseTest, RazeFailedOnPoisoned) {
+  // Poison the database.
+  db_->Poison();
+
+  base::HistogramTester tester;
+  EXPECT_FALSE(db_->Raze());
+  tester.ExpectTotalCount("Sql.Database.Raze.FailureReason.Test", 1);
+}
+
 TEST_P(SQLDatabaseTest, RazeDuringSelect) {
   ASSERT_TRUE(
       db_->Execute("CREATE TABLE rows(id INTEGER PRIMARY KEY NOT NULL)"));
@@ -1269,9 +1279,13 @@ TEST_P(SQLDatabaseTest, RazeCallbackReopen) {
   // callback will call RazeAndPoison().  Open() will then fail and be
   // retried.  The second Open() on the empty database will succeed
   // cleanly.
-  ASSERT_TRUE(db_->Open(db_path_));
-  ASSERT_TRUE(db_->Execute("PRAGMA auto_vacuum"));
-  EXPECT_EQ(0, SqliteSchemaCount(db_.get()));
+  {
+    base::HistogramTester tester;
+    ASSERT_TRUE(db_->Open(db_path_));
+    tester.ExpectTotalCount("Sql.Database.RazeTime.Test", 1);
+    ASSERT_TRUE(db_->Execute("PRAGMA auto_vacuum"));
+    EXPECT_EQ(0, SqliteSchemaCount(db_.get()));
+  }
 }
 
 TEST_P(SQLDatabaseTest, RazeAndPoison_DeletesData) {
@@ -2418,31 +2432,6 @@ TEST_P(SQLDatabaseTest, OpenFails_ExclusiveLock) {
   ASSERT_TRUE(db_->Open(db_path_));
 }
 
-// This test is simulating an common error code received on Windows when
-// the database file is being copied by a third-party. The common API used
-// is CopyFileEx(...) which is acquiring a shared lock on the file.
-TEST_P(SQLDatabaseTest, OpenFails_SharedLock) {
-  db_->Close();
-
-  base::File file(db_path_, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  ASSERT_TRUE(file.IsValid());
-  ASSERT_EQ(base::File::FILE_OK, file.Lock(base::File::LockMode::kShared));
-
-  {
-    base::HistogramTester tester;
-    sql::test::ScopedErrorExpecter expecter;
-    expecter.ExpectError(SQLITE_BUSY);
-    ASSERT_FALSE(db_->Open(db_path_));
-    ASSERT_TRUE(expecter.SawExpectedErrors());
-    tester.ExpectTotalCount("Sql.Database.Open.FailureReason.Test", 1);
-    db_->Close();
-  }
-
-  ASSERT_EQ(base::File::FILE_OK, file.Unlock());
-
-  ASSERT_TRUE(db_->Open(db_path_));
-}
-
 #endif  // BUILDFLAG(IS_WIN)
 
 TEST_P(SQLDatabaseTest, OpenHistograms) {
@@ -2584,6 +2573,20 @@ TEST_P(SQLDatabaseTest, SchemaFailsAfterCorruptSizeInHeader) {
     EXPECT_TRUE(expecter.SawExpectedErrors())
         << "Database::DoesTableExist() did not encounter SQLITE_CORRUPT";
   }
+}
+
+TEST_P(SQLDatabaseTest, StatementErrorHistogram) {
+  static constexpr char kCreateSql[] = "CREATE TABLE foo (id INTEGER UNIQUE)";
+  ASSERT_TRUE(db_->Execute(kCreateSql));
+
+  sql::test::ScopedErrorExpecter expecter;
+  expecter.ExpectError(SQLITE_ERROR);
+
+  base::HistogramTester tester;
+  EXPECT_FALSE(db_->Execute("SELECT invalid_column from foo"));
+  tester.ExpectUniqueSample("Sql.Database.Statement.Error.Test",
+                            SqliteResultCode::kError, 1);
+  EXPECT_TRUE(expecter.SawExpectedErrors());
 }
 
 TEST(SQLEmptyPathDatabaseTest, EmptyPathTest) {

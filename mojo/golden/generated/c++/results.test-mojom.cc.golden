@@ -21,12 +21,14 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "mojo/public/cpp/bindings/features.h"
 #include "mojo/public/cpp/bindings/lib/default_construct_tag_internal.h"
 #include "mojo/public/cpp/bindings/lib/generated_code_util.h"
 #include "mojo/public/cpp/bindings/lib/message_internal.h"
 #include "mojo/public/cpp/bindings/lib/proxy_to_responder.h"
 #include "mojo/public/cpp/bindings/lib/send_message_helper.h"
+#include "mojo/public/cpp/bindings/lib/serialization.h"
 #include "mojo/public/cpp/bindings/lib/serialization_util.h"
 #include "mojo/public/cpp/bindings/lib/unserialized_message_context.h"
 #include "mojo/public/cpp/bindings/lib/validate_params.h"
@@ -175,7 +177,10 @@ bool ResultInterface_SyncMethod_ResponseParam_Result::Validate(
     mojo::internal::ValidationContext* validation_context) {
   return Data_::Validate(data, validation_context, false);
 }
+// The declaration includes the definition on other builds.
+#if defined(ARCH_CPU_ARM64) && BUILDFLAG(IS_ANDROID)
 const char ResultInterface::Name_[] = "golden.ResultInterface";
+#endif // defined(ARCH_CPU_ARM64) && BUILDFLAG(IS_ANDROID)
 
 ResultInterface::IPCStableHashFunction ResultInterface::MessageToMethodInfo_(mojo::Message& message) {
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -890,13 +895,17 @@ static const mojo::internal::GenericValidationInfo kResultInterfaceValidationInf
 };
 
 bool ResultInterfaceRequestValidator::Accept(mojo::Message* message) {
-  const char* name = ::golden::ResultInterface::Name_;
-  return mojo::internal::ValidateRequestGenericPacked(message, name, kResultInterfaceValidationInfo);
+  return mojo::internal::ValidateRequestGenericPacked(
+    message,
+    ::golden::ResultInterface::Name_,
+    kResultInterfaceValidationInfo);
 }
 
 bool ResultInterfaceResponseValidator::Accept(mojo::Message* message) {
-  const char* name = ::golden::ResultInterface::Name_;
-  return mojo::internal::ValidateResponseGenericPacked(message, name, kResultInterfaceValidationInfo);
+  return mojo::internal::ValidateResponseGenericPacked(
+    message,
+    ::golden::ResultInterface::Name_,
+    kResultInterfaceValidationInfo);
 }
 
 

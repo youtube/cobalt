@@ -12,14 +12,17 @@
 #include <memory>
 
 #include "base/apple/scoped_cftyperef.h"
-#include "gpu/gpu_export.h"
+#include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 #include "ui/gfx/color_space.h"
 
 namespace gpu {
 
+class GpuMemoryBufferSupport;
+
 // Implementation of GPU memory buffer based on IO surfaces.
-class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
+class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplIOSurface
+    : public GpuMemoryBufferImpl {
  public:
   GpuMemoryBufferImplIOSurface(const GpuMemoryBufferImplIOSurface&) = delete;
   GpuMemoryBufferImplIOSurface& operator=(const GpuMemoryBufferImplIOSurface&) =
@@ -29,13 +32,6 @@ class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
 
   static constexpr gfx::GpuMemoryBufferType kBufferType =
       gfx::IO_SURFACE_BUFFER;
-
-  static std::unique_ptr<GpuMemoryBufferImplIOSurface> CreateFromHandle(
-      const gfx::GpuMemoryBufferHandle& handle,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback);
 
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
@@ -53,19 +49,34 @@ class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
   gfx::GpuMemoryBufferHandle CloneHandle() const override;
 
  private:
-  GpuMemoryBufferImplIOSurface(
-      gfx::GpuMemoryBufferId id,
+  friend GpuMemoryBufferSupport;
+
+  static std::unique_ptr<GpuMemoryBufferImplIOSurface> CreateFromHandle(
+      const gfx::GpuMemoryBufferHandle& handle,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      DestructionCallback callback,
-      base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface,
-      uint32_t lock_flags);
+      gfx::BufferUsage usage,
+      DestructionCallback callback);
 
-  base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface_;
-  uint32_t lock_flags_;
-  // Cache the color space, because re-assigning the same value can be
-  // expensive.
+  GpuMemoryBufferImplIOSurface(gfx::GpuMemoryBufferId id,
+                               const gfx::Size& size,
+                               gfx::BufferFormat format,
+                               DestructionCallback callback,
+                               gfx::GpuMemoryBufferHandle handle,
+                               uint32_t lock_flags);
+
+  gfx::GpuMemoryBufferHandle handle_;
+  [[maybe_unused]] const uint32_t lock_flags_;
+
+  // Cache the color space because re-assigning the same value can be expensive.
   gfx::ColorSpace color_space_;
+
+#if BUILDFLAG(IS_IOS)
+  // On iOS, we can't use IOKit to access IOSurfaces in the renderer process, so
+  // we share the memory segment backing the IOSurface as shared memory which is
+  // then mapped in the renderer process.
+  base::WritableSharedMemoryMapping shared_memory_mapping_;
+#endif
 };
 
 }  // namespace gpu

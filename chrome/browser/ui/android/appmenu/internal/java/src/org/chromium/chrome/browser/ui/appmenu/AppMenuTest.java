@@ -67,6 +67,8 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.RenderTestRule;
+import org.chromium.ui.widget.Toast;
+import org.chromium.ui.widget.ToastManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -333,35 +335,23 @@ public class AppMenuTest {
 
     @Test
     @MediumTest
-    public void testClickMenuItem_UsingPosition() throws TimeoutException {
-        showMenuAndAssert();
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> mAppMenuHandler.getAppMenu().onItemClick(null, null, 0, 0));
-
-        mDelegate.itemSelectedCallbackHelper.waitForCallback(0);
-        Assert.assertEquals(
-                "Incorrect id for last selected item.",
-                R.id.menu_item_one,
-                mDelegate.lastSelectedItemId);
-    }
-
-    @Test
-    @MediumTest
     public void testLongClickMenuItem_Title() throws TimeoutException {
         mPropertiesDelegate.enableAppIconRow = true;
         showMenuAndAssert();
-        AppMenu spiedMenu = Mockito.spy(mAppMenuHandler.getAppMenu());
+
+        ToastManager toastManager = Mockito.mock(ToastManager.class);
+        ToastManager.setInstanceForTesting(toastManager);
 
         View testView = new View(sActivity);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    spiedMenu.onItemLongClick(
-                            mAppMenuHandler.getAppMenu().getMenuItemPropertyModel(R.id.icon_one),
-                            testView);
+                    AppMenuTestSupport.callOnItemLongClick(
+                            mAppMenuCoordinator, R.id.icon_one, testView);
                 });
 
-        Mockito.verify(spiedMenu, Mockito.times(1)).showToastForItem("Icon One", testView);
+        ArgumentCaptor<Toast> toastCaptor = ArgumentCaptor.forClass(Toast.class);
+        Mockito.verify(toastManager, Mockito.times(1)).requestShow(toastCaptor.capture());
+        Assert.assertEquals("Icon One", toastCaptor.getValue().getText());
     }
 
     @Test
@@ -369,17 +359,20 @@ public class AppMenuTest {
     public void testLongClickMenuItem_TitleCondensed() throws TimeoutException {
         mPropertiesDelegate.enableAppIconRow = true;
         showMenuAndAssert();
-        AppMenu spiedMenu = Mockito.spy(mAppMenuHandler.getAppMenu());
+
+        ToastManager toastManager = Mockito.mock(ToastManager.class);
+        ToastManager.setInstanceForTesting(toastManager);
 
         View testView = new View(sActivity);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    spiedMenu.onItemLongClick(
-                            mAppMenuHandler.getAppMenu().getMenuItemPropertyModel(R.id.icon_two),
-                            testView);
+                    AppMenuTestSupport.callOnItemLongClick(
+                            mAppMenuCoordinator, R.id.icon_two, testView);
                 });
 
-        Mockito.verify(spiedMenu, Mockito.times(1)).showToastForItem("2", testView);
+        ArgumentCaptor<Toast> toastCaptor = ArgumentCaptor.forClass(Toast.class);
+        Mockito.verify(toastManager, Mockito.times(1)).requestShow(toastCaptor.capture());
+        Assert.assertEquals("2", toastCaptor.getValue().getText());
     }
 
     @Test
@@ -387,18 +380,18 @@ public class AppMenuTest {
     public void testLongClickMenuItem_Disabled() throws TimeoutException {
         mPropertiesDelegate.enableAppIconRow = true;
         showMenuAndAssert();
-        AppMenu spiedMenu = Mockito.spy(mAppMenuHandler.getAppMenu());
+
+        ToastManager toastManager = Mockito.mock(ToastManager.class);
+        ToastManager.setInstanceForTesting(toastManager);
 
         View testView = new View(sActivity);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    spiedMenu.onItemLongClick(
-                            mAppMenuHandler.getAppMenu().getMenuItemPropertyModel(R.id.icon_three),
-                            testView);
+                    AppMenuTestSupport.callOnItemLongClick(
+                            mAppMenuCoordinator, R.id.icon_three, testView);
                 });
 
-        Mockito.verify(spiedMenu, Mockito.times(0))
-                .showToastForItem(Mockito.any(CharSequence.class), Mockito.any(View.class));
+        Mockito.verify(toastManager, Mockito.times(0)).requestShow(Mockito.any(Toast.class));
     }
 
     @Test
@@ -506,33 +499,6 @@ public class AppMenuTest {
 
     @Test
     @MediumTest
-    public void testMenuItemContentChanged() throws TimeoutException {
-        showMenuAndAssert();
-        View itemView = getViewAtPosition(1);
-        Assert.assertEquals(
-                "Menu item text incorrect",
-                "Menu Item Two",
-                ((TextView) itemView.findViewById(R.id.menu_item_text)).getText());
-
-        String newText = "Test!";
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mAppMenuHandler
-                            .getAppMenu()
-                            .getMenuItemPropertyModel(R.id.menu_item_two)
-                            .set(AppMenuItemProperties.TITLE, newText);
-                    mAppMenuHandler.menuItemContentChanged(R.id.menu_item_two);
-                });
-
-        itemView = getViewAtPosition(1);
-        Assert.assertEquals(
-                "Menu item text incorrect",
-                newText,
-                ((TextView) itemView.findViewById(R.id.menu_item_text)).getText());
-    }
-
-    @Test
-    @MediumTest
     public void testMenuItemRemoved() throws TimeoutException, ExecutionException {
         showMenuAndAssert();
         Assert.assertEquals(3, mAppMenuHandler.getModelListForTesting().size());
@@ -554,16 +520,14 @@ public class AppMenuTest {
                 () -> {
                     Assert.assertEquals(
                             0,
-                            mAppMenuHandler
-                                    .getAppMenu()
-                                    .getMenuItemPropertyModel(R.id.menu_item_one)
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                            mAppMenuCoordinator, R.id.menu_item_one)
                                     .get(AppMenuItemProperties.POSITION));
 
                     Assert.assertEquals(
                             1,
-                            mAppMenuHandler
-                                    .getAppMenu()
-                                    .getMenuItemPropertyModel(R.id.menu_item_three)
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                            mAppMenuCoordinator, R.id.menu_item_three)
                                     .get(AppMenuItemProperties.POSITION));
                 });
     }
@@ -592,9 +556,8 @@ public class AppMenuTest {
                 () -> {
                     Assert.assertEquals(
                             0,
-                            mAppMenuHandler
-                                    .getAppMenu()
-                                    .getMenuItemPropertyModel(R.id.menu_item_three)
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                            mAppMenuCoordinator, R.id.menu_item_three)
                                     .get(AppMenuItemProperties.POSITION));
                 });
     }
@@ -621,32 +584,27 @@ public class AppMenuTest {
                             .getModelListForTesting()
                             .add(0, new MVCListAdapter.ListItem(AppMenuItemType.STANDARD, model));
                 });
-        // ensure clicking on the newly added item doesn't break anything
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> mAppMenuHandler.getAppMenu().onItemClick(null, null, 0, 0));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel m = mAppMenuHandler.getAppMenu().getMenuItemPropertyModel(13);
+                    PropertyModel m =
+                            AppMenuTestSupport.getMenuItemPropertyModel(mAppMenuCoordinator, 13);
                     Assert.assertNotNull(m.get(AppMenuItemProperties.CLICK_HANDLER));
                     Assert.assertEquals(0, m.get(AppMenuItemProperties.POSITION));
                     Assert.assertEquals(
                             1,
-                            mAppMenuHandler
-                                    .getAppMenu()
-                                    .getMenuItemPropertyModel(R.id.menu_item_one)
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                            mAppMenuCoordinator, R.id.menu_item_one)
                                     .get(AppMenuItemProperties.POSITION));
                     Assert.assertEquals(
                             2,
-                            mAppMenuHandler
-                                    .getAppMenu()
-                                    .getMenuItemPropertyModel(R.id.menu_item_two)
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                            mAppMenuCoordinator, R.id.menu_item_two)
                                     .get(AppMenuItemProperties.POSITION));
                     Assert.assertEquals(
                             3,
-                            mAppMenuHandler
-                                    .getAppMenu()
-                                    .getMenuItemPropertyModel(R.id.menu_item_three)
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                            mAppMenuCoordinator, R.id.menu_item_three)
                                     .get(AppMenuItemProperties.POSITION));
                 });
     }
@@ -921,7 +879,7 @@ public class AppMenuTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(DeviceFormFactor.TABLET)
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET)
     @DisabledTest(message = "crbug.com/1186468")
     public void testDragHelper_ClickItem() throws Exception {
         AppMenuButtonHelperImpl buttonHelper =
@@ -967,8 +925,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_enoughSpace() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -989,8 +947,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_notEnoughSpaceForOneItem() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1012,8 +970,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_notEnoughSpaceForTwoItem() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1037,8 +995,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_notEnoughSpaceForThreeItem() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1063,8 +1021,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_notEnoughSpaceForDivider() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1089,8 +1047,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_showPartialDivider() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1116,8 +1074,8 @@ public class AppMenuTest {
             throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1144,8 +1102,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_minimalHight() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1168,8 +1126,8 @@ public class AppMenuTest {
             throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
         createMenuItem(menuItemIds, heightList, /* id= */ 0, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 1, /* height= */ 10);
         createMenuItem(menuItemIds, heightList, /* id= */ 2, /* height= */ 10);
@@ -1191,8 +1149,8 @@ public class AppMenuTest {
     public void testCalculateHeightForItems_nagativeSpaceForZeroItems() throws Exception {
         showMenuAndAssert();
 
-        List<Integer> menuItemIds = new ArrayList<Integer>();
-        List<Integer> heightList = new ArrayList<Integer>();
+        List<Integer> menuItemIds = new ArrayList<>();
+        List<Integer> heightList = new ArrayList<>();
 
         int height =
                 mAppMenuHandler

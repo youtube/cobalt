@@ -11,6 +11,7 @@
 
 #include "base/containers/span.h"
 #include "base/notreached.h"
+#include "base/types/pass_key.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/common/dense_set.h"
@@ -29,6 +30,7 @@ namespace autofill {
 // entity_schema.json.
 class EntityType;
 class AttributeType;
+class EntityTable;
 
 // An attribute type is the blueprint for an attribute instance, which in turn
 // represents a string value with additional metadata.
@@ -59,9 +61,6 @@ class AttributeType final {
   static bool DisambiguationOrder(const AttributeType& lhs,
                                   const AttributeType& rhs);
 
-  // Maps each Autofill AI `FieldType` to the corresponding AttributeType.
-  static std::optional<AttributeType> FromFieldType(FieldType type);
-
   constexpr explicit AttributeType(AttributeTypeName n) : name_(n) {}
 
   constexpr AttributeType(const AttributeType&) = default;
@@ -75,8 +74,23 @@ class AttributeType final {
 
   constexpr DataType data_type() const;
 
-  // Maps this AttributeType to the corresponding Autofill AI `FieldType`.
-  constexpr FieldType field_type() const;
+  // There are three kinds of AttributeType / FieldType associations:
+  // - `field_type()` is the one that best describes the full attribute.
+  //   If kAutofillAiNoTagTypes is disabled:
+  //   The `field_type()` uniquely identifies the AttributeType.
+  //   If kAutofillAiNoTagTypes is enabled:
+  //   Except for name types, the `field_type()` uniquely identifies the
+  //   AttributeType.
+  // - `field_subtypes()` additionally include more fine-granular ones.
+  //   Except for name types, `field_subtypes() == {field_type}`.
+  //   For name types, `field_subtypes()` includes `NAME_FIRST` etc.
+  // - `storable_field_types()` are the ones that may be physically stored in
+  //   the database.
+  FieldType field_type() const;
+  constexpr FieldType field_type_with_tag_types() const;
+  constexpr FieldType field_type_without_tag_types() const;
+  constexpr FieldTypeSet field_subtypes() const;
+  FieldTypeSet storable_field_types(base::PassKey<EntityTable> pass_key) const;
 
   // Returns whether the attribute should be obfuscated in preview and
   // suggestion labels.
@@ -135,7 +149,7 @@ constexpr AttributeType::DataType AttributeType::data_type() const {
   NOTREACHED();
 }
 
-constexpr FieldType AttributeType::field_type() const {
+constexpr FieldType AttributeType::field_type_with_tag_types() const {
   switch (name_) {
     case AttributeTypeName::kPassportName:
       return PASSPORT_NAME_TAG;
@@ -175,6 +189,20 @@ constexpr FieldType AttributeType::field_type() const {
       return DRIVERS_LICENSE_ISSUE_DATE;
   }
   NOTREACHED();
+}
+
+constexpr FieldType AttributeType::field_type_without_tag_types() const {
+  if (data_type() == DataType::kName) {
+    return NAME_FULL;
+  }
+  return field_type_with_tag_types();
+}
+
+constexpr FieldTypeSet AttributeType::field_subtypes() const {
+  if (data_type() == DataType::kName) {
+    return FieldTypesOfGroup(FieldTypeGroup::kName);
+  }
+  return {field_type_without_tag_types()};
 }
 
 template <>

@@ -10,7 +10,6 @@
 #import "base/containers/contains.h"
 #import "base/metrics/field_trial_params.h"
 #import "components/country_codes/country_codes.h"
-#import "components/data_sharing/public/features.h"
 #import "components/segmentation_platform/public/features.h"
 #import "components/sync/base/features.h"
 #import "components/version_info/channel.h"
@@ -207,10 +206,6 @@ BASE_FEATURE(kEnableLensViewFinderUnifiedExperience,
              "EnableLensViewFinderUnifiedExperience",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableLensContextMenuUnifiedExperience,
-             "EnableLensContextMenuUnifiedExperience",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Update to the correct milestone after launch.
 // Also update in components/omnibox/browser/autocomplete_result.cc.
 const base::NotFatalUntil kLensOverlayNotFatalUntil = base::NotFatalUntil::M200;
@@ -255,20 +250,22 @@ BASE_FEATURE(kLensOverlayForceShowOnboardingScreen,
              "EnableLensOverlayForceShowOnboardingScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const char kLensOverlayOnboardingParam[] = "kLensOverlayOnboardingParam";
-const char kLensOverlayOnboardingParamSpeedbumpMenu[] =
-    "kLensOverlayOnboardingParamSpeedbumpMenu";
-const char kLensOverlayOnboardingParamUpdatedStrings[] =
-    "kLensOverlayOnboardingParamUpdatedStrings";
-const char kLensOverlayOnboardingParamUpdatedStringsAndVisuals[] =
-    "kLensOverlayOnboardingParamUpdatedStringsAndVisuals";
-
-BASE_FEATURE(kLensOverlayAlternativeOnboarding,
-             "LensOverlayAlternativeOnboarding",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLensOverlayNavigationHistory,
              "LensOverlayNavigationHistory",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Variations of MIA NTP entrypoint.
+const char kNTPMIAEntrypointParam[] = "kNTPMIAEntrypointParam";
+const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[] =
+    "kNTPMIAEntrypointParamOmniboxContainedSingleButton";
+const char kNTPMIAEntrypointParamOmniboxContainedInline[] =
+    "kNTPMIAEntrypointParamOmniboxContainedInline";
+const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[] =
+    "kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox";
+
+// Feature flag to change the MIA entrypoint in NTP.
+BASE_FEATURE(kNTPMIAEntrypoint,
+             "kNTPMIAEntrypoint",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableTraitCollectionWorkAround,
@@ -505,22 +502,11 @@ BASE_FEATURE(kFullscreenImprovement,
              "FullscreenImprovement",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsTabGroupInGridEnabled() {
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    if (@available(iOS 17, *)) {
-      return true;
-    }
-    return false;
-  }
-  return true;
-}
-
 BASE_FEATURE(kTabGroupSync, "TabGroupSync", base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsTabGroupSyncEnabled() {
   if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    return IsTabGroupInGridEnabled() &&
-           base::FeatureList::IsEnabled(kTabGroupSync);
+    return base::FeatureList::IsEnabled(kTabGroupSync);
   }
   return true;
 }
@@ -533,14 +519,7 @@ bool IsTabGroupIndicatorEnabled() {
   if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
     return true;
   }
-  return IsTabGroupInGridEnabled() &&
-         base::FeatureList::IsEnabled(kTabGroupIndicator);
-}
-
-bool IsTabGroupSendFeedbackAvailable() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      data_sharing::features::kDataSharingFeature, "show_send_feedback",
-      /*default=*/false);
+  return base::FeatureList::IsEnabled(kTabGroupIndicator);
 }
 
 BASE_FEATURE(kNewSyncOptInIllustration,
@@ -805,7 +784,7 @@ const base::TimeDelta TabResumptionForXDevicesTimeThreshold() {
 
 BASE_FEATURE(kTabResumptionImages,
              "TabResumptionImages",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kTabResumptionImagesTypes[] = "tr-images-type";
 const char kTabResumptionImagesTypesSalient[] = "salient";
@@ -818,7 +797,7 @@ bool IsTabResumptionImagesSalientEnabled() {
   std::string image_type = base::GetFieldTrialParamByFeatureAsString(
       kTabResumptionImages, kTabResumptionImagesTypes, "");
 
-  return image_type == kTabResumptionImagesTypesSalient || image_type == "";
+  return image_type == kTabResumptionImagesTypesSalient;
 }
 
 bool IsTabResumptionImagesThumbnailsEnabled() {
@@ -1107,7 +1086,7 @@ BASE_FEATURE(kIPHAblation, "IPHAblation", base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayDisableIPHPanGesture,
              "LensOverlayDisableIPHPanGesture",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsIPHAblationEnabled() {
   return base::FeatureList::IsEnabled(kIPHAblation);
@@ -1219,6 +1198,10 @@ BASE_FEATURE(kIOSOneTapMiniMapRemoveSectionsBreaks,
              "IOSOneTapMiniMapRemoveSectionsBreaks",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIOSMiniMapUniversalLink,
+             "IOSMiniMapUniversalLink",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
 }
@@ -1282,11 +1265,21 @@ bool IsBestOfAppGuidedTourEnabled() {
          "4";
 }
 
+bool IsManualUploadForBestOfAppEnabled() {
+  return base::GetFieldTrialParamByFeatureAsBool(kBestOfAppFRE,
+                                                 "manual_upload_uma", false);
+}
+
 bool IsBestOfAppLensInteractivePromoEnabled() {
   return (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE) &&
          IsBestOfAppFREEnabled() &&
          (base::GetFieldTrialParamValueByFeature(kBestOfAppFRE, "variant") ==
           "1");
+}
+
+bool IsBestOfAppLensAnimatedPromoEnabled() {
+  return IsBestOfAppFREEnabled() && (base::GetFieldTrialParamValueByFeature(
+                                         kBestOfAppFRE, "variant") == "2");
 }
 
 BASE_FEATURE(kFeedbackIncludeGWSVariations,
@@ -1295,4 +1288,12 @@ BASE_FEATURE(kFeedbackIncludeGWSVariations,
 
 bool IsFeedbackIncludeGWSVariationsEnabled() {
   return base::FeatureList::IsEnabled(kFeedbackIncludeGWSVariations);
+}
+
+BASE_FEATURE(kDefaultBrowserPromoPropensityModel,
+             "DefaultBrowserPromoPropensityModel",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDefaultBrowserPromoPropensityModelEnabled() {
+  return base::FeatureList::IsEnabled(kDefaultBrowserPromoPropensityModel);
 }

@@ -27,6 +27,8 @@
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace pdf::infobar {
+
 class PdfInfoBarControllerTest : public testing::Test {
  protected:
   PdfInfoBarControllerTest()
@@ -144,7 +146,7 @@ class PdfInfoBarControllerStartupTest : public PdfInfoBarControllerTest {
   void SetUp() override {
     feature_list().InitAndEnableFeatureWithParameters(features::kPdfInfoBar,
                                                       {{"trigger", "startup"}});
-    PdfInfoBarController::SetDefaultBrowserPromptShownForTesting(false);
+    PdfInfoBarController::SetHigherPriorityInfoBarShownForTesting(false);
     PdfInfoBarControllerTest::SetUp();
   }
 };
@@ -193,8 +195,10 @@ TEST_F(PdfInfoBarControllerStartupTest,
 
 TEST_F(PdfInfoBarControllerStartupTest,
        DontShowInfoBarIfDefaultBrowserPromptShown) {
-  PdfInfoBarController::SetDefaultBrowserPromptShownForTesting(true);
+  PdfInfoBarController::SetHigherPriorityInfoBarShownForTesting(true);
   EXPECT_FALSE(
       DidShowInfoBar(BrowserWindowInterface::Type::TYPE_NORMAL,
                      shell_integration::DefaultWebClientState::NOT_DEFAULT));
 }
+
+}  // namespace pdf::infobar

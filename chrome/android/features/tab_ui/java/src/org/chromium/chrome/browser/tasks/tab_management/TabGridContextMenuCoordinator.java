@@ -20,6 +20,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareUtils;
@@ -57,10 +58,11 @@ public class TabGridContextMenuCoordinator extends TabOverflowMenuCoordinator<@T
         void show(@TabId int tabId);
     }
 
-    private static final String MENU_USER_ACTION_PREFIX = "TabSwitcher.ContextMenu";
+    private static final String MENU_USER_ACTION_PREFIX = "TabSwitcher.ContextMenu.";
     private final Activity mActivity;
     private final TabGroupModelFilter mTabGroupModelFilter;
     private final BookmarkModel mBookmarkModel;
+    private boolean mIsMenuFocusableUponCreation;
 
     TabGridContextMenuCoordinator(
             Activity activity,
@@ -135,8 +137,10 @@ public class TabGridContextMenuCoordinator extends TabOverflowMenuCoordinator<@T
      * @param anchorViewRectProvider The context menu's anchor view rect provider. These are screen
      *     coordinates.
      * @param tabId The tab id of the interacting tab group.
+     * @param focusable True if the menu should be focusable by default, false otherwise.
      */
-    public void showMenu(RectProvider anchorViewRectProvider, int tabId) {
+    public void showMenu(RectProvider anchorViewRectProvider, int tabId, boolean focusable) {
+        mIsMenuFocusableUponCreation = focusable;
         createAndShowMenu(
                 anchorViewRectProvider,
                 tabId,
@@ -147,6 +151,13 @@ public class TabGridContextMenuCoordinator extends TabOverflowMenuCoordinator<@T
                 mActivity,
                 /* isIncognito= */ false);
         recordUserActionWithPrefix("Shown");
+    }
+
+    @Override
+    protected void afterCreate() {
+        // Update the focusable state before the menu window is shown to prevent the menu from
+        // stealing focus from other components.
+        setMenuFocusable(mIsMenuFocusableUponCreation);
     }
 
     @VisibleForTesting
@@ -171,7 +182,7 @@ public class TabGridContextMenuCoordinator extends TabOverflowMenuCoordinator<@T
                 recordUserActionWithPrefix("ShareTab");
             } else if (menuId == R.id.add_to_new_tab_group) {
                 tabGroupModelFilter.createSingleTabGroup(tab);
-                Token groupId = tab.getTabGroupId();
+                Token groupId = assumeNonNull(tab.getTabGroupId());
                 dialogManager.showDialog(groupId, tabGroupModelFilter);
                 recordUserActionWithPrefix("AddToNewGroup");
             } else if (menuId == R.id.add_to_tab_group) {
@@ -243,6 +254,13 @@ public class TabGridContextMenuCoordinator extends TabOverflowMenuCoordinator<@T
                 BrowserUiListMenuUtils.buildMenuListItem(
                         R.string.select_tab, R.id.select_tabs, R.drawable.ic_edit_24dp));
 
+        // TODO(crbug.com/425953251): Add tests once callback is established.
+        if (shouldBuildPinTabMenuItem()) {
+            itemList.add(
+                    BrowserUiListMenuUtils.buildMenuListItem(
+                            R.string.pin_tab, R.id.pin_tab, R.drawable.ic_keep_24dp));
+        }
+
         itemList.add(
                 BrowserUiListMenuUtils.buildMenuListItem(
                         R.string.close_tab, R.id.close_tab, R.drawable.material_ic_close_24dp));
@@ -271,5 +289,9 @@ public class TabGridContextMenuCoordinator extends TabOverflowMenuCoordinator<@T
 
     private static void recordUserActionWithPrefix(String action) {
         RecordUserAction.record(MENU_USER_ACTION_PREFIX + action);
+    }
+
+    private static boolean shouldBuildPinTabMenuItem() {
+        return ChromeFeatureList.sAndroidPinnedTabs.isEnabled();
     }
 }

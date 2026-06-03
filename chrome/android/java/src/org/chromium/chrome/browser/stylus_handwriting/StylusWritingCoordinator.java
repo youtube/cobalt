@@ -4,9 +4,13 @@
 
 package org.chromium.chrome.browser.stylus_handwriting;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.WindowFocusChangedObserver;
 import org.chromium.chrome.browser.tab.CurrentTabObserver;
@@ -19,6 +23,7 @@ import org.chromium.components.stylus_handwriting.StylusWritingSettingsState;
 /**
  * This class coordinates the Tab events and Window focus events required for Stylus handwriting.
  */
+@NullMarked
 public class StylusWritingCoordinator implements WindowFocusChangedObserver {
     private final Activity mActivity;
     private final CurrentTabObserver mCurrentTabObserver;
@@ -28,7 +33,7 @@ public class StylusWritingCoordinator implements WindowFocusChangedObserver {
     public StylusWritingCoordinator(
             Activity activity,
             ActivityLifecycleDispatcher lifecycleDispatcher,
-            ObservableSupplier<Tab> activityTabProvider) {
+            ObservableSupplier<@Nullable Tab> activityTabProvider) {
         mActivity = activity;
         mStylusWritingController = new StylusWritingController(mActivity.getApplicationContext());
         if (StylusHandwritingFeatureMap.isEnabledOrDefault(
@@ -46,7 +51,7 @@ public class StylusWritingCoordinator implements WindowFocusChangedObserver {
                             public void onContentChanged(Tab tab) {
                                 if (tab.getWebContents() == null) return;
                                 mStylusWritingController.onWebContentsChanged(tab.getWebContents());
-                                tab.getContentView()
+                                assumeNonNull(tab.getContentView())
                                         .setStylusWritingIconSupplier(
                                                 mStylusWritingController::resolvePointerIcon);
                             }
@@ -55,7 +60,7 @@ public class StylusWritingCoordinator implements WindowFocusChangedObserver {
                         tab -> {
                             if (tab == null || tab.getWebContents() == null) return;
                             mStylusWritingController.onWebContentsChanged(tab.getWebContents());
-                            tab.getContentView()
+                            assumeNonNull(tab.getContentView())
                                     .setStylusWritingIconSupplier(
                                             mStylusWritingController::resolvePointerIcon);
                         });

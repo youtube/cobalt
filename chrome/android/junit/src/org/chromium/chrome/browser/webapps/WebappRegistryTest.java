@@ -864,7 +864,7 @@ public class WebappRegistryTest {
 
         WebappRegistry webApkRegistry = WebappRegistry.getInstance();
         Map<String, BrowserServicesIntentDataProvider> expectedIntentDataProviders =
-                new HashMap<String, BrowserServicesIntentDataProvider>();
+                new HashMap<>();
 
         BrowserServicesIntentDataProvider intentDataProvider1 =
                 new WebApkIntentDataProviderBuilder(testPackageName1, testStartUrl1)
@@ -924,7 +924,7 @@ public class WebappRegistryTest {
                 webApkRegistry.getWebApkSpecificsImpl(setWebappInfoForTesting);
         assertEquals(2, webApkSpecificsList.size());
 
-        Set<String> visitedScopes = new HashSet<String>();
+        Set<String> visitedScopes = new HashSet<>();
         for (WebApkSpecifics webApkSpecifics : webApkSpecificsList) {
             BrowserServicesIntentDataProvider intentDataProvider =
                     expectedIntentDataProviders.get(webApkSpecifics.getScope());

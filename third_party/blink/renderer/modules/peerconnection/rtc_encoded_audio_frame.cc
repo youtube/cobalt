@@ -171,19 +171,22 @@ RTCEncodedAudioFrameMetadata* RTCEncodedAudioFrame::getMetadata(
   if (RuntimeEnabledFeatures::RTCEncodedFrameTimestampsEnabled()) {
     if (std::optional<base::TimeTicks> receive_time =
             delegate_->ReceiveTime()) {
-      metadata->setReceiveTime(
-          CalculateRTCEncodedFrameTimestamp(execution_context, *receive_time));
+      metadata->setReceiveTime(RTCEncodedFrameTimestampFromTimeTicks(
+          execution_context, *receive_time));
     }
-    if (std::optional<base::TimeTicks> capture_time =
+    if (std::optional<CaptureTimeInfo> capture_time_info =
             delegate_->CaptureTime()) {
-      metadata->setCaptureTime(
-          CalculateRTCEncodedFrameTimestamp(execution_context, *capture_time));
+      metadata->setCaptureTime(RTCEncodedFrameTimestampFromCaptureTimeInfo(
+          execution_context, *capture_time_info));
     }
     if (std::optional<base::TimeDelta> sender_capture_time_offset =
             delegate_->SenderCaptureTimeOffset()) {
       metadata->setSenderCaptureTimeOffset(CalculateRTCEncodedFrameTimeDelta(
           execution_context, *sender_capture_time_offset));
     }
+  }
+  if (std::optional<double> audio_level_dbov = delegate_->AudioLevel()) {
+    metadata->setAudioLevel(*audio_level_dbov);
   }
   return metadata;
 }
@@ -199,22 +202,7 @@ base::expected<void, String> RTCEncodedAudioFrame::SetMetadata(
         validation.error_msg);
   }
 
-  std::optional<uint8_t> payload_type;
-  if (metadata->hasPayloadType()) {
-    payload_type = metadata->payloadType();
-  }
-
-  std::optional<webrtc::Timestamp> capture_time;
-  if (metadata->hasCaptureTime()) {
-    capture_time = webrtc::Timestamp::Micros(
-        RTCEncodedFrameTimestampToTimeTicks(execution_context,
-                                            metadata->captureTime())
-            .since_origin()
-            .InMicroseconds());
-  }
-
-  return delegate_->SetWebRtcFrameMetadata(metadata->rtpTimestamp(),
-                                           payload_type, capture_time);
+  return delegate_->SetWebRtcFrameMetadata(execution_context, metadata);
 }
 
 void RTCEncodedAudioFrame::setMetadata(ExecutionContext* execution_context,

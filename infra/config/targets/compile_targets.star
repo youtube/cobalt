@@ -207,6 +207,13 @@ targets.compile_target(
 )
 
 targets.compile_target(
+    name = "content_shell",
+    label = "//content/shell:content_shell",
+    # All references have been moved to starlark
+    skip_usage_check = True,
+)
+
+targets.compile_target(
     name = "content_nocompile_tests",
     label = "//content/test:content_nocompile_tests",
     # All references have been moved to starlark
@@ -440,13 +447,6 @@ targets.compile_target(
 targets.compile_target(
     name = "video_decode_accelerator_perf_tests",
     label = "//media/gpu/test:video_decode_accelerator_perf_tests",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-)
-
-targets.compile_target(
-    name = "video_encode_accelerator_tests",
-    label = "//media/gpu/test:video_encode_accelerator_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
 )

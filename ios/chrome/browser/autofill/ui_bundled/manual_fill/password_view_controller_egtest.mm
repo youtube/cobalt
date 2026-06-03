@@ -8,12 +8,14 @@
 #import "base/test/ios/wait_util.h"
 #import "components/password_manager/core/browser/password_ui_utils.h"
 #import "components/strings/grit/components_strings.h"
+#import "components/sync/base/features.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/form_input_accessory/form_input_accessory_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_matchers.h"
+#import "ios/chrome/browser/infobars/ui_bundled/banners/infobar_banner_constants.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/passwords/ui_bundled/bottom_sheet/password_suggestion_bottom_sheet_app_interface.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
@@ -274,6 +276,15 @@ void CheckKeyboardIsUpAndNotCovered() {
   } else {
     config.features_disabled.push_back(kIOSKeyboardAccessoryUpgradeForIPad);
   }
+
+  // TODO(crbug.com/371189341): Test fails on device.
+#if TARGET_IPHONE_SIMULATOR
+  if ([self isRunningTest:@selector
+            (testPasswordGenerationFallbackSignedInEncryptionError)]) {
+    config.features_enabled.push_back(
+        syncer::kSyncTrustedVaultInfobarImprovements);
+  }
+#endif  // TARGET_IPHONE_SIMULATOR
 
   return config;
 }
@@ -976,7 +987,15 @@ void CheckKeyboardIsUpAndNotCovered() {
 }
 
 // Tests password generation on manual fallback.
-- (void)testPasswordGenerationOnManualFallback {
+// TODO(crbug.com/424760140): Test fails on simulator.
+#if TARGET_IPHONE_SIMULATOR
+#define MAYBE_testPasswordGenerationOnManualFallback \
+  DISABLED_testPasswordGenerationOnManualFallback
+#else
+#define MAYBE_testPasswordGenerationOnManualFallback \
+  testPasswordGenerationOnManualFallback
+#endif
+- (void)MAYBE_testPasswordGenerationOnManualFallback {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [ChromeEarlGrey waitForSyncTransportStateActiveWithTimeout:base::Seconds(10)];
 
@@ -1005,7 +1024,15 @@ void CheckKeyboardIsUpAndNotCovered() {
 }
 
 // Tests password generation on manual fallback for signed in users.
-- (void)testPasswordGenerationOnManualFallbackSignedInAccount {
+// TODO(crbug.com/424760140): Test fails on simulator.
+#if TARGET_IPHONE_SIMULATOR
+#define MAYBE_testPasswordGenerationOnManualFallbackSignedInAccount \
+  DISABLED_testPasswordGenerationOnManualFallbackSignedInAccount
+#else
+#define MAYBE_testPasswordGenerationOnManualFallbackSignedInAccount \
+  testPasswordGenerationOnManualFallbackSignedInAccount
+#endif
+- (void)MAYBE_testPasswordGenerationOnManualFallbackSignedInAccount {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [ChromeEarlGrey waitForSyncTransportStateActiveWithTimeout:base::Seconds(10)];
 
@@ -1093,6 +1120,11 @@ void CheckKeyboardIsUpAndNotCovered() {
       performAction:grey_tap()];
 
   [self loadLoginPage];
+
+  // Swipe up the sync infobar error.
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kInfobarBannerViewIdentifier)]
+      performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
 
   // Bring up the keyboard.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
@@ -1304,6 +1336,11 @@ void CheckKeyboardIsUpAndNotCovered() {
 // Tests that tapping the "Autofill Form" button in the all password list fills
 // the password form with the right data.
 - (void)testAutofillFormButtonInAllPasswordListFillsForm {
+  // TODO(crbug.com/426435086): Test consistently fails on ipad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iPad.");
+  }
+
   if (![AutofillAppInterface isKeyboardAccessoryUpgradeEnabled]) {
     EARL_GREY_TEST_DISABLED(@"This test is not relevant when the Keyboard "
                             @"Accessory Upgrade feature is disabled.")

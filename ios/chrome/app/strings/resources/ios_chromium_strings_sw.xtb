@@ -176,6 +176,7 @@ Ili ubadilishe mipangilio hii, <ph name="BEGIN_LINK" />futa data ya Chromium kwe
 <translation id="5259423875997548710">Tafuta vipengele vinavyoonekana kwenye Chromium.</translation>
 <translation id="5308226104666789935">Chromium imeshindwa kukagua kama kuna masasisho</translation>
 <translation id="5311557153294205270">Huweka URL zinazowekwa kwenye alamisho zako katika Chromium.</translation>
+<translation id="5383251701169024761">Ili upate kwa urahisi manenosiri uliyohifadhi katika programu nyingine, chagua Chromium ili Ujaze Kiotomatiki.</translation>
 <translation id="538767207339317086">Ruhusu kuingia katika akaunti ya Chromium</translation>
 <translation id="5389058611415066188">Kuwa salama ukitumia Chromium</translation>
 <translation id="5415273218238091735">Kidokezo cha Chromium</translation>
@@ -276,7 +277,6 @@ Mtu aliye na kauli yako ya siri pekee ndiye anaweza kusoma data yako iliyosimbwa
 <translation id="7763454117143368771">Tumia Chromium kama kivinjari chako chaguomsingi ili uendelee kulindwa dhidi ya tovuti hatari na uhakikishe manenosiri yako ni salama</translation>
 <translation id="7784950022329154821">Funga Vichupo vya faragha unapofunga Chromium</translation>
 <translation id="78025249032851484">Toleo lako la Chromium limepitwa na wakati.</translation>
-<translation id="7811371919871579588">Ili upate manenosiri uliyohifadhi kwa urahisi katika programu nyingine, chagua Chromium ili Ujaze Kiotomatiki.</translation>
 <translation id="7859018312476869945">Unapoandika kwenye sehemu ya anwani au kisanduku cha kutafutia, Chromium hutuma unachokiandika kwenye mtambo wako chaguomsingi wa kutafuta ili upate mapendekezo bora. Kipengele hiki huwa kimezimwa katika Hali fiche.</translation>
 <translation id="7890287942691234100">Anza kutumia kichanganuzi cha Chromium</translation>
 <translation id="7905064834449738336">Unapotumia nenosiri, Chromium hukutahadharisha iwapo limechapishwa mtandaoni. Wakati inafanya hivyo, majina ya mtumiaji na manenosiri yako husimbwa kwa njia fiche, kwa hivyo hayawezi kusomwa na mtu mwingine, ikiwemo Google.</translation>
@@ -331,6 +331,7 @@ Jaribu kusubiri kwa dakika chache kabla ya kuondoka kwenye akaunti. Ukiondoka kw
 <translation id="9050790730841755540">Tumia Chromium wakati wowote unapogusa viungo kwenye programu nyingine.</translation>
 <translation id="9059693977935746710">Hutahitaji kukumbuka nenosiri hili. Litahifadhiwa kwenye Kidhibiti cha Manenosiri kwa ajili ya <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium imepitwa na wakati</translation>
+<translation id="9105645282262300612">Kidokezo cha Chromium: Tafuta unachokiona</translation>
 <translation id="9152995302810511799">Kidokezo cha Chromium: Pata ulinzi thabiti zaidi wa Chromium</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium inadhibitiwa.</translation>
 <translation id="921174536258924340">Chromium imeshindwa kukagua manenosiri yote. Jaribu tena kesho au <ph name="BEGIN_LINK" />ukague manenosiri katika Akaunti yako ya Google.<ph name="END_LINK" /></translation>

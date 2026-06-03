@@ -7,16 +7,20 @@
 #import "base/functional/bind.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/snapshots/model/legacy_snapshot_generator.h"
+#import "ios/chrome/browser/snapshots/model/model_swift.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_id.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_storage_wrapper.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_kind.h"
 #import "ios/web/public/thread/web_thread.h"
 
 @implementation LegacySnapshotManager {
+  // The snapshot storage.
+  id<SnapshotStorage> _snapshotStorage;
+
   // The snapshot generator which is used to generate snapshots.
   LegacySnapshotGenerator* _snapshotGenerator;
 
   // The unique ID for WebState's snapshot.
-  SnapshotID _snapshotID;
+  SnapshotIDWrapper* _snapshotID;
 
   // The timestamp associated to the latest snapshot stored.
   NSDate* _latestCommitedTimestamp;
@@ -27,42 +31,23 @@
   if ((self = [super init])) {
     DCHECK(snapshotID.valid());
     _snapshotGenerator = generator;
-    _snapshotID = snapshotID;
+    _snapshotID = [[SnapshotIDWrapper alloc] initWithSnapshotID:snapshotID];
     _latestCommitedTimestamp = [NSDate distantPast];
   }
   return self;
 }
 
-- (void)retrieveSnapshot:(void (^)(UIImage*))callback {
-  DCHECK(callback);
-  if (_snapshotStorage) {
-    [_snapshotStorage retrieveImageForSnapshotID:_snapshotID callback:callback];
-  } else {
-    callback(nil);
-  }
-}
+- (void)retrieveSnaphotWithKind:(SnapshotKind)snapshotKind
+                     completion:(void (^)(UIImage*))completion {
+  DCHECK(completion);
+  switch (snapshotKind) {
+    case SnapshotKindColor:
+      [self retrieveSnapshot:completion];
+      break;
 
-- (void)retrieveGreySnapshot:(void (^)(UIImage*))callback {
-  DCHECK(callback);
-
-  __weak LegacySnapshotManager* weakSelf = self;
-  __weak LegacySnapshotGenerator* weakGenerator = _snapshotGenerator;
-  void (^wrappedCallback)(UIImage*) = ^(UIImage* image) {
-    if (!image) {
-      image = [weakGenerator generateUIViewSnapshotWithOverlays];
-      [weakSelf updateSnapshotStorageWithImage:image];
-      if (image) {
-        image = GreyImage(image);
-      }
-    }
-    callback(image);
-  };
-
-  if (_snapshotStorage) {
-    [_snapshotStorage retrieveGreyImageForSnapshotID:_snapshotID
-                                            callback:wrappedCallback];
-  } else {
-    wrappedCallback(nil);
+    case SnapshotKindGreyscale:
+      [self retrieveGreySnapshot:completion];
+      break;
   }
 }
 
@@ -92,20 +77,57 @@
   return [_snapshotGenerator generateUIViewSnapshot];
 }
 
-- (void)removeSnapshot {
-  [_snapshotStorage removeImageWithSnapshotID:_snapshotID];
+// Updates the snapshot storage with `snapshot`.
+- (void)updateSnapshotStorageWithImage:(UIImage*)snapshot {
+  [self updateSnapshotStorageWithImage:snapshot timestamp:[NSDate now]];
 }
 
 - (void)setDelegate:(id<SnapshotGeneratorDelegate>)delegate {
   _snapshotGenerator.delegate = delegate;
 }
 
-// Updates the snapshot storage with `snapshot`.
-- (void)updateSnapshotStorageWithImage:(UIImage*)snapshot {
-  [self updateSnapshotStorageWithImage:snapshot timestamp:[NSDate now]];
+- (void)setStorage:(id<SnapshotStorage>)storage {
+  _snapshotStorage = storage;
 }
 
 #pragma mark - Private methods
+
+- (void)retrieveSnapshot:(void (^)(UIImage*))callback {
+  DCHECK(callback);
+  if (!_snapshotStorage) {
+    callback(nil);
+    return;
+  }
+
+  [_snapshotStorage retrieveImageWithSnapshotID:_snapshotID
+                                   snapshotKind:SnapshotKindColor
+                                     completion:callback];
+}
+
+- (void)retrieveGreySnapshot:(void (^)(UIImage*))callback {
+  DCHECK(callback);
+  if (!_snapshotStorage) {
+    callback(nil);
+    return;
+  }
+
+  __weak LegacySnapshotManager* weakSelf = self;
+  __weak LegacySnapshotGenerator* weakGenerator = _snapshotGenerator;
+  void (^wrappedCallback)(UIImage*) = ^(UIImage* image) {
+    if (!image) {
+      image = [weakGenerator generateUIViewSnapshotWithOverlays];
+      [weakSelf updateSnapshotStorageWithImage:image];
+      if (image) {
+        image = GreyImage(image);
+      }
+    }
+    callback(image);
+  };
+
+  [_snapshotStorage retrieveImageWithSnapshotID:_snapshotID
+                                   snapshotKind:SnapshotKindGreyscale
+                                     completion:wrappedCallback];
+}
 
 - (void)updateSnapshotStorageWithImage:(UIImage*)snapshot
                              timestamp:(NSDate*)timestamp {

@@ -12,7 +12,6 @@
 #include "base/time/time.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tabs/test/mock_tab_interface.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
@@ -25,6 +24,7 @@
 #include "chrome/browser/ui/views/page_action/test_support/test_page_action_properties_provider.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/test_web_contents_factory.h"
@@ -62,7 +62,6 @@ static const PageActionPropertiesMap kTestProperties = PageActionPropertiesMap{
         kTestPageActionId,
         PageActionProperties{
             .histogram_name = "Test",
-            .is_ephemeral = true,
         },
     },
 };
@@ -125,8 +124,8 @@ class PageActionViewWithControllerTest : public ChromeViewsTestBase {
 
   std::unique_ptr<PageActionController> NewPageActionController(
       tabs::TabInterface& tab) const {
-    auto controller = std::make_unique<PageActionController>(
-        pinned_actions_model_.get());
+    auto controller =
+        std::make_unique<PageActionControllerImpl>(pinned_actions_model_.get());
     controller->Initialize(tab, {action_item_->GetActionId().value()},
                            TestPageActionPropertiesProvider(kTestProperties));
     return controller;
@@ -409,6 +408,55 @@ TEST_F(PageActionViewTest, UpdateIconImageHandlesDifferentImageTypes) {
   EXPECT_FALSE(page_action_view()
                    ->GetImageModel(views::Button::STATE_NORMAL)
                    ->IsVectorIcon());
+}
+
+// Test that UpdateBorder() applies correct padding to image that is not a
+// vector icon.
+TEST_F(PageActionViewTest, UpdateBorderUsesChipPaddingForBitmapIcon) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(kDefaultIconSize, kDefaultIconSize);
+  const ui::ImageModel bitmap_image =
+      ui::ImageModel::FromImage(gfx::Image::CreateFrom1xBitmap(bitmap));
+  EXPECT_CALL(*model(), GetImage()).WillRepeatedly(ReturnRef(bitmap_image));
+  ASSERT_FALSE(bitmap_image.IsVectorIcon());
+
+  EXPECT_CALL(*model(), GetShowSuggestionChip()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
+
+  page_action_view()->OnPageActionModelChanged(*model());
+  page_action_view()->UpdateBorder();
+
+  const gfx::Insets expected_insets =
+      gfx::Insets::VH(GetLayoutConstant(LOCATION_BAR_CHILD_INTERIOR_PADDING),
+                      GetLayoutConstant(LOCATION_BAR_CHIP_PADDING));
+  EXPECT_EQ(page_action_view()->GetInsets(), expected_insets);
+}
+
+// Test that the corner radii are consistent for chips, regardless of whether
+// the icon is a vector or bitmap.
+TEST_F(PageActionViewTest, ChipCornerRadiiConsistentForVectorAndBitmapIcons) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(kDefaultIconSize, kDefaultIconSize);
+  const ui::ImageModel bitmap_image =
+      ui::ImageModel::FromImage(gfx::Image::CreateFrom1xBitmap(bitmap));
+
+  const ui::ImageModel vector_image = ui::ImageModel::FromVectorIcon(
+      vector_icons::kBackArrowIcon, ui::kColorSysPrimary, kDefaultIconSize);
+
+  EXPECT_CALL(*model(), GetShowSuggestionChip()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*model(), GetImage()).WillRepeatedly(ReturnRef(bitmap_image));
+  page_action_view()->OnPageActionModelChanged(*model());
+  gfx::RoundedCornersF bitmap_radii = page_action_view()->GetCornerRadii();
+  EXPECT_FALSE(bitmap_radii.IsEmpty());
+
+  EXPECT_CALL(*model(), GetImage()).WillRepeatedly(ReturnRef(vector_image));
+  page_action_view()->OnPageActionModelChanged(*model());
+  gfx::RoundedCornersF vector_radii = page_action_view()->GetCornerRadii();
+  EXPECT_FALSE(vector_radii.IsEmpty());
+
+  EXPECT_EQ(bitmap_radii, vector_radii);
 }
 
 // TODO(crbug.com/411078148): Re-enable on Mac.

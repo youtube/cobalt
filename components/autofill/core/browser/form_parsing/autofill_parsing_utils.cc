@@ -20,10 +20,6 @@ const base::Feature* GetFeatureOfRegexFeature(RegexFeature feature) {
       return nullptr;
     case RegexFeature::kAutofillGreekRegexes:
       return &features::kAutofillGreekRegexes;
-    case RegexFeature::kAutofillUseFRAddressModel:
-      return &features::kAutofillUseFRAddressModel;
-    case RegexFeature::kAutofillUseNLAddressModel:
-      return &features::kAutofillUseNLAddressModel;
     case RegexFeature::kAutofillSupportPhoneticNameForJP:
       return &features::kAutofillSupportPhoneticNameForJP;
     case RegexFeature::kAutofillSupportLastNamePrefix:
@@ -32,8 +28,8 @@ const base::Feature* GetFeatureOfRegexFeature(RegexFeature feature) {
       return &features::kAutofillEnableLoyaltyCardsFilling;
     case RegexFeature::kAutofillImproveCityFieldClassification:
       return &features::kAutofillImproveCityFieldClassification;
-    case RegexFeature::kAutofillDisallowSlashDotLabels:
-      return &features::kAutofillDisallowSlashDotLabels;
+    case RegexFeature::kAutofillSupportSplitZipCode:
+      return &features::kAutofillSupportSplitZipCode;
   }
   NOTREACHED();
 }

@@ -12,12 +12,11 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "components/exo/buffer.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "third_party/khronos/GLES2/gl2.h"
 #include "ui/compositor/compositor.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace exo {
 namespace {

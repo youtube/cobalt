@@ -243,11 +243,6 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
                   postSignInActions:(PostSignInActionSet)postSignInActions
                         accessPoint:(signin_metrics::AccessPoint)accessPoint {
   CHECK(AreSeparateProfilesForManagedAccountsEnabled());
-  // The continuation specific to the place where the authentication was
-  // launched.
-  ChangeProfileContinuation continuation =
-      [delegate authenticationFlowWillChangeProfile];
-
   std::optional<std::string> profileName =
       GetApplicationContext()
           ->GetAccountProfileMapper()
@@ -263,13 +258,25 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
     return;
   }
 
-  [self switchToProfileWithName:*profileName
-                     sceneState:sceneState
-                         reason:reason
-      changeProfileContinuation:std::move(continuation)
-              postSignInActions:postSignInActions
-                   withIdentity:identity
-                    accessPoint:accessPoint];
+  __weak __typeof(self) weakSelf = self;
+  auto profileSwitchReadyCompletion = base::BindOnce(
+      [](__typeof(self) strongSelf, std::string profile_name,
+         SceneState* scene_state, ChangeProfileReason reason,
+         PostSignInActionSet post_sign_in_actions, id<SystemIdentity> identity,
+         signin_metrics::AccessPoint access_point,
+         ChangeProfileContinuation continuation) {
+        [strongSelf switchToProfileWithName:profile_name
+                                 sceneState:scene_state
+                                     reason:reason
+                  changeProfileContinuation:std::move(continuation)
+                          postSignInActions:post_sign_in_actions
+                               withIdentity:identity
+                                accessPoint:access_point];
+      },
+      weakSelf, *profileName, sceneState, reason, postSignInActions, identity,
+      accessPoint);
+  [delegate authenticationFlowWillSwitchProfileWithReadyCompletion:
+                std::move(profileSwitchReadyCompletion)];
 }
 
 - (void)makePersonalProfileManagedWithIdentity:(id<SystemIdentity>)identity {
@@ -324,8 +331,8 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
 
 - (void)checkNoDialog {
   [super checkNoDialog];
-  CHECK(!_managedConfirmationScreenCoordinator, base::NotFatalUntil::M136);
-  CHECK(!_managedConfirmationAlertCoordinator, base::NotFatalUntil::M136);
+  CHECK(!_managedConfirmationScreenCoordinator);
+  CHECK(!_managedConfirmationAlertCoordinator);
 }
 
 #pragma mark - Private
@@ -338,8 +345,8 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
 // Called when `_managedConfirmationAlertCoordinator` is finished.
 // `accepted` is YES when the user confirmed or NO if the user canceled.
 - (void)managedConfirmationAlertAccepted:(BOOL)accepted {
-  CHECK(_managedConfirmationAlertCoordinator, base::NotFatalUntil::M136);
-  CHECK(!_managedConfirmationScreenCoordinator, base::NotFatalUntil::M136);
+  CHECK(_managedConfirmationAlertCoordinator);
+  CHECK(!_managedConfirmationScreenCoordinator);
   Browser* browser = _managedConfirmationAlertCoordinator.browser;
   [_managedConfirmationAlertCoordinator stop];
   _managedConfirmationAlertCoordinator = nil;
@@ -450,7 +457,7 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
             (ManagedProfileCreationCoordinator*)coordinator
                                 didAccept:(BOOL)accepted
                      browsingDataSeparate:(BOOL)browsingDataSeparate {
-  CHECK(!_managedConfirmationAlertCoordinator, base::NotFatalUntil::M136);
+  CHECK(!_managedConfirmationAlertCoordinator);
   CHECK_EQ(_managedConfirmationScreenCoordinator, coordinator);
   Browser* browser = _managedConfirmationScreenCoordinator.browser;
   [_managedConfirmationScreenCoordinator stop];

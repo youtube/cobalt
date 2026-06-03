@@ -195,14 +195,6 @@ BASE_FEATURE(kDataLeakPreventionFilesRestriction,
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-// Enables a revamped Delete Browsing Data dialog. This includes UI changes and
-// removal of the bulk password deletion option from the dialog.
-BASE_FEATURE(kDbdRevampDesktop,
-             "DbdRevampDesktop",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-#if !BUILDFLAG(IS_ANDROID)
 // Whether to allow installed-by-default web apps to be installed or not.
 BASE_FEATURE(kPreinstalledWebAppInstallation,
              "DefaultWebAppInstallation",
@@ -279,7 +271,14 @@ BASE_FEATURE(kDesktopPWAsTabStripSettings,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kDisplayEdgeToEdgeFullscreen,
              "DisplayEdgeToEdgeFullscreen",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+// Enables Exclusive Access Mnager on Android platform
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kEnableExclusiveAccessManager,
+             "EnableExclusiveAccessManager",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -328,9 +327,16 @@ BASE_FEATURE(kForcedAppRelaunchOnPlaceholderUpdate,
 BASE_FEATURE(kGeoLanguage, "GeoLanguage", base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the actor component of Glic is enabled.
-BASE_FEATURE(kGlicActor, "GlicActor", base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta> kGlicActorActorObservationDelay{
-    &kGlicActor, "glic-actor-observation-delay", base::Seconds(3)};
+BASE_FEATURE(kGlicActor, "GlicActor", base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls renderer tool observation timeout when waiting on local
+// (non-network) work.
+const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityLocalTimeout{
+    &kGlicActor, "glic-actor-page-stability-local-timeout", base::Seconds(3)};
+
+// The overall observation timeout when waiting on a renderer tool to complete.
+const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityTimeout{
+    &kGlicActor, "glic-actor-page-stability-timeout", base::Seconds(10)};
 
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
@@ -428,6 +434,35 @@ BASE_FEATURE_PARAM(double,
                    &kGlicUserStatusCheck,
                    "glic-user-status-request-delay-jitter",
                    0.005);
+
+constexpr base::FeatureParam<GlicEnterpriseCheckStrategy>::Option
+    kGlicEnterpriseCheckStrategyOptions[] = {
+        {GlicEnterpriseCheckStrategy::kPolicy, "policy"},
+        {GlicEnterpriseCheckStrategy::kManaged, "managed"},
+};
+BASE_FEATURE_ENUM_PARAM(GlicEnterpriseCheckStrategy,
+                        kGlicUserStatusEnterpriseCheckStrategy,
+                        &kGlicUserStatusCheck,
+                        "glic-user-status-enterprise-check-strategy",
+                        GlicEnterpriseCheckStrategy::kManaged,
+                        &kGlicEnterpriseCheckStrategyOptions);
+
+// When true, the Glic API exposes a method to propose refreshing the
+// user status.
+BASE_FEATURE_PARAM(bool,
+                   kGlicUserStatusRefreshApi,
+                   &kGlicUserStatusCheck,
+                   "glic-user-status-refresh-api",
+                   true);
+
+// The minimum time between user status update requests, when triggered by
+// the Glic API (or another reason that might occur frequently).
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kGlicUserStatusThrottleInterval,
+                   &kGlicUserStatusCheck,
+                   "glic-user-status-throttle-interval",
+                   base::Seconds(5));
+
 BASE_FEATURE(kGlicFreURLConfig,
              "GlicFreURLConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -465,6 +500,12 @@ BASE_FEATURE_PARAM(std::string,
                    &kGlicLearnMoreURLConfig,
                    "glic-shortcuts-tab-access-toggle-learn-more-url",
                    "");
+BASE_FEATURE_PARAM(
+    std::string,
+    kGlicTabAccessToggleLearnMoreURLDataProtected,
+    &kGlicLearnMoreURLConfig,
+    "glic-shortcuts-tab-access-toggle-learn-more-url-data-protected",
+    "");
 BASE_FEATURE_PARAM(std::string,
                    kGlicSettingsPageLearnMoreURL,
                    &kGlicLearnMoreURLConfig,
@@ -501,6 +542,10 @@ const base::FeatureParam<int> kGlicClientResponsivenessCheckTimeoutMs{
 const base::FeatureParam<int> kGlicClientUnresponsiveUiMaxTimeMs{
     &kGlicClientResponsivenessCheck, "glic-client-unresponsive-ui-max-time-ms",
     5000};
+
+BASE_FEATURE(kGlicUseShaderCache,
+             "GlicUseShaderCache",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicKeyboardShortcutNewBadge,
              "GlicKeyboardShortcutNewBadge",
@@ -563,13 +608,6 @@ BASE_FEATURE(kGlicClosedCaptioning,
              "GlicClosedCaptioning",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicPageContextEligibility,
-             "GlicPageContextEligibility",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<bool> kGlicPageContextEligibilityAllowNoMetadata{
-    &kGlicPageContextEligibility,
-    "glic-page-context-eligibility-allow-no-metadata", true};
-
 BASE_FEATURE(kGlicUnloadOnClose,
              "GlicUnloadOnClose",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -581,6 +619,56 @@ BASE_FEATURE(kGlicApiActivationGating,
 BASE_FEATURE(kGlicGetUserProfileInfoApiActivationGating,
              "GlicGetUserProfileInfoApiActivationGating",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, don't try to update the views background color based on the
+// glic client background color.
+BASE_FEATURE(kGlicExplicitBackgroundColor,
+             "GlicExplicitBackgroundColor",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Features to experiment with resetting the panel default location.
+BASE_FEATURE(kGlicPanelResetTopChromeButton,
+             "GlicPanelResetTopChromeButton",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicPanelResetTopChromeButtonDelayMs{
+    &kGlicPanelResetTopChromeButton, "glic-panel-reset-delay-ms", 2500};
+BASE_FEATURE(kGlicPanelResetOnStart,
+             "GlicPanelResetOnStart",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicPanelSetPositionOnDrag,
+             "GlicPanelSetPositionOnDrag",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicPanelResetOnSessionTimeout,
+             "GlicPanelResetOnSessionTimeout",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicPanelResetOnSessionTimeoutDelayH{
+    &kGlicPanelResetOnSessionTimeout,
+    "glic-panel-reset-session-timeout-delay-h", 24};
+
+BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
+             "GlicWebClientUnresponsiveMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicTabGlow, "GlicTabGlow", base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicParameterizedShader,
+             "GlicParameterizedShader",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+extern const base::FeatureParam<std::string> kGlicParameterizedShaderColors{
+    &kGlicParameterizedShader, "glic-parameterized-shader-colors", ""};
+extern const base::FeatureParam<std::string> kGlicParameterizedShaderFloats{
+    &kGlicParameterizedShader, "glic-parameterized-shader-floats", ""};
+
+BASE_FEATURE(kGlicTabFocusDataDedupDebounce,
+             "GlicTabFocusDataDedupDebounce",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicTabFocusDataDebounceDelayMs{
+    &kGlicTabFocusDataDedupDebounce, "glic-tab-focus-data-debounce-delay-ms",
+    5};
+const base::FeatureParam<int> kGlicTabFocusDataMaxDebounces{
+    &kGlicTabFocusDataDedupDebounce, "glic-tab-focus-data-max-debounces", 5};
+
+BASE_FEATURE(kGlicAssetsV2, "GlicAssetsV2", base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 // Force Privacy Guide to be available even if it would be unavailable
@@ -900,6 +988,12 @@ BASE_FEATURE(kImmersiveFullscreenPWAs,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
+// If enabled, enables API-specific interventions for web content rendered in
+// Incognito profiles.
+BASE_FEATURE(kIncognitoFingerprintingInterventions,
+             "IncognitoFingerprintingInterventions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN)
 // A feature that controls whether Chrome warns about incompatible applications.
 // This feature requires Windows 10 or higher to work because it depends on
@@ -1079,11 +1173,6 @@ BASE_FEATURE(kOverridePrefetchOnSingleton,
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-// Skips requesting the Parent Access Code for reauth.
-BASE_FEATURE(kSkipParentAccessCodeForReauth,
-             "SkipParentAccessCodeForReauth",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enable support for "Plugin VMs" on Chrome OS.
 BASE_FEATURE(kPluginVm, "PluginVm", base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -1141,7 +1230,7 @@ BASE_FEATURE(kRemoveSupervisedUsersOnStartup,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 BASE_FEATURE(kSafetyHubExtensionsUwSTrigger,
              "SafetyHubExtensionsUwSTrigger",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1745,10 +1834,6 @@ BASE_FEATURE(kWin10AcceleratedDefaultBrowserFlow,
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
-bool IsParentAccessCodeForReauthEnabled() {
-  return !base::FeatureList::IsEnabled(kSkipParentAccessCodeForReauth);
-}
-
 // A feature to indicate whether setting wake time >24hours away is supported by
 // the platform's RTC.
 // TODO(b/187516317): Remove when the issue is resolved in FW.
@@ -1767,12 +1852,6 @@ BASE_FEATURE(kEventBasedLogUpload,
 // go/legacy-log-upload-migration.
 BASE_FEATURE(kPeriodicLogUploadMigration,
              "PeriodicLogUploadMigration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// A feature to enable periodic log K12 user age classification. See
-// go/teachers-on-chromeos-data.
-BASE_FEATURE(kK12AgeClassificationMetricsProvider,
-             "K12AgeClassificationMetricsProvider",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A feature to enable periodic log class management enabled policy.
