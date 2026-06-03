@@ -13,8 +13,14 @@
 // limitations under the License.
 
 #include <utility>
+#include <vector>
 
+#include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/player/buffer_internal.h"
+#include "starboard/testing/scoped_feature_list.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -86,6 +92,62 @@ TEST(BufferTest, MoveAssignmentOperator) {
   }
 }
 
-}  // namespace
+TEST(BufferTest, PoolAllocation) {
+  starboard::features::ScopedFeatureList scoped_features;
+#if BUILDFLAG(IS_ANDROID)
+  scoped_features.InitAndEnableFeature(features::kEnableDecodedAudioBufferPool);
+#else
+  scoped_features.InitAndEnableFeature("EnableDecodedAudioBufferPool");
+#endif
+  size_t capacity = Buffer::GetPoolCapacityForTesting();
+  size_t initial_free = Buffer::GetPoolFreeListSizeForTesting();
+  EXPECT_EQ(initial_free, capacity);
 
+  {
+    Buffer buffer1(100);
+    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free - 1);
+
+    {
+      Buffer buffer2(200);
+      EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free - 2);
+    }
+    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free - 1);
+  }
+  EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
+
+  {
+    Buffer large_buffer(130 * 1024);
+    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
+  }
+  EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
+
+  std::vector<Buffer> buffers;
+  for (size_t i = 0; i < capacity; ++i) {
+    buffers.emplace_back(100);
+  }
+  EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), 0U);
+
+  {
+    Buffer extra_buffer(100);
+    EXPECT_NE(extra_buffer.data(), nullptr);
+    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), 0U);
+  }
+
+  buffers.clear();
+  EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
+}
+
+TEST(FeatureListTest, ScopedOverride) {
+  std::string feature_name = "SomeDummyFeatureForTesting";
+  {
+    features::ScopedFeatureList scoped_features;
+    scoped_features.InitAndEnableFeature(feature_name);
+    EXPECT_TRUE(features::FeatureList::IsEnabledByName(feature_name));
+
+    scoped_features.InitAndDisableFeature(feature_name);
+    EXPECT_FALSE(features::FeatureList::IsEnabledByName(feature_name));
+  }
+}
+
+}  // namespace
 }  // namespace starboard
