@@ -21,6 +21,10 @@
 #include "gpu/command_buffer/service/stream_texture_shared_image_interface.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "gpu/command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace gpu {
 
 namespace {
@@ -150,6 +154,61 @@ GpuChannelSharedImageInterface::CreateSharedImageForD3D11Video(
                             GL_TEXTURE_EXTERNAL_OES));
 }
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+scoped_refptr<ClientSharedImage>
+GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
+    viz::SharedImageFormat format,
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    const std::vector<uint32_t>& texture_service_ids,
+    const std::vector<uint32_t>& texture_targets,
+    uint64_t decode_target
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    scoped_refptr<RefCountedLock> drdc_lock
+#endif
+) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+
+  if (!shared_image_stub_) {
+    return nullptr;
+  }
+
+  auto mailbox = Mailbox::Generate();
+
+  auto backing = std::make_unique<StarboardGLTextureBacking>(
+      mailbox, format, size, color_space,
+      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+      SHARED_IMAGE_USAGE_DISPLAY_READ | SHARED_IMAGE_USAGE_GLES2_READ,
+      texture_service_ids, texture_targets, decode_target
+#if BUILDFLAG(IS_ANDROID)
+      , std::move(drdc_lock)
+#endif
+      );
+
+  if (!backing) {
+    return nullptr;
+  }
+
+  SharedImageMetadata metadata{backing->format(),
+                               backing->size(),
+                               backing->color_space(),
+                               backing->surface_origin(),
+                               backing->alpha_type(),
+                               backing->usage()};
+
+  DCHECK(shared_image_stub_->channel()
+             ->gpu_channel_manager()
+             ->shared_image_manager());
+  shared_image_stub_->factory()->RegisterBacking(std::move(backing));
+
+  return base::WrapRefCounted<ClientSharedImage>(
+      new ClientSharedImage(mailbox, metadata, GenVerifiedSyncToken(), holder_,
+                            texture_targets.empty() ? GL_TEXTURE_2D
+                                                    : texture_targets[0]));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool GpuChannelSharedImageInterface::MakeContextCurrent(bool needs_gl) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);

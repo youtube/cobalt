@@ -119,6 +119,11 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   void set_min_received_before_ack_decimation(size_t new_value) {
     min_received_before_ack_decimation_ = new_value;
   }
+#if BUILDFLAG(IS_COBALT)
+  void set_max_retransmittable_packets_before_ack(size_t new_value) {
+    max_retransmittable_packets_before_ack_ = new_value;
+  }
+#endif
 
   void set_ack_frequency(size_t new_value) {
     QUICHE_DCHECK_GT(new_value, 0u);
@@ -188,11 +193,20 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   QuicPacketCount num_retransmittable_packets_received_since_last_ack_sent_;
   // Ack decimation will start happening after this many packets are received.
   size_t min_received_before_ack_decimation_;
+<<<<<<< HEAD
   // Ack every nth packet.
   size_t ack_frequency_ = kDefaultRetransmittablePacketsBeforeAck;
+=======
+  // Ack every n-th packet.
+  size_t ack_frequency_;
+#if BUILDFLAG(IS_COBALT)
+  // Ack at least every n-th packet.
+  size_t max_retransmittable_packets_before_ack_;
+#endif
+>>>>>>> parent of 1f92df91cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // The max delay in fraction of min_rtt to use when sending decimated acks.
   float ack_decimation_delay_;
-  // When true, removes ack decimation's max number of packets(10) before
+  // When true, removes ack decimation's max number of packets before
   // sending an ack.
   bool unlimited_ack_decimation_;
   // When true, only send 1 immediate ACK when reordering is detected.

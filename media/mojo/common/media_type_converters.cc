@@ -121,6 +121,14 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
   }
 
   auto data_buffer = media::mojom::DataDecoderBuffer::New();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reuse the existing DecoderBuffer to avoid allocating
+  // a new DecoderBuffer with MojoRenderer. This increases
+  // ref-count of DecoderBuffer to ensure it is not released
+  // before MojoRenderer has it.
+  data_buffer->address = reinterpret_cast<uint64_t>(&input);
+  input.AddRef();
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_buffer->timestamp = input.timestamp();
   data_buffer->duration = input.duration();
   data_buffer->is_key_frame = input.is_key_frame();
@@ -134,6 +142,7 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
     data_buffer->decrypt_config =
         media::mojom::DecryptConfig::From(*input.decrypt_config());
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(dalecurtis): We intentionally do not serialize the data section of
   // the DecoderBuffer here; this must instead be done by clients via their
@@ -162,6 +171,15 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
   }
 
   const auto& mojo_buffer = input->get_data();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reuse the existing DecoderBuffer to avoid allocating
+  // a new DecoderBuffer. Note that DecoderBuffer is released
+  // here as its ref-count was increased manually to ensure
+  // media thread won't release it before MojoRenderer has it.
+  scoped_refptr<media::DecoderBuffer> buffer(
+      reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->address));
+  buffer->Release();
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   auto buffer = base::MakeRefCounted<media::DecoderBuffer>(
       base::strict_cast<size_t>(mojo_buffer->data_size));
 
@@ -180,6 +198,7 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
         mojo_buffer->decrypt_config
             .To<std::unique_ptr<media::DecryptConfig>>());
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(dalecurtis): We intentionally do not deserialize the data section of
   // the DecoderBuffer here; this must instead be done by clients via their

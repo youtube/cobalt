@@ -2601,9 +2601,14 @@ bool WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream(
   // it up to the *latest* unsignaled stream we've seen, in order to support
   // the case where the SSRC of one unsignaled stream changes.
   if (default_sink_) {
-    for (uint32_t drop_ssrc : unsignaled_recv_ssrcs_) {
-      auto it = recv_streams_.find(drop_ssrc);
-      it->second->SetRawAudioSink(nullptr);
+    // The new ssrc has already been appended to `unsignaled_recv_ssrcs_`.
+    // If there are 2 or more streams, the stream at `size - 2` is the previous
+    // latest stream which currently possesses the default sink.
+    if (unsignaled_recv_ssrcs_.size() >= 2) {
+      // Detach the default sink from the previous latest stream.
+      uint32_t prev_ssrc =
+          unsignaled_recv_ssrcs_[unsignaled_recv_ssrcs_.size() - 2];
+      SetRawAudioSink(prev_ssrc, nullptr);
     }
     std::unique_ptr<AudioSinkInterface> proxy_sink(
         new ProxySink(default_sink_.get()));
@@ -2802,7 +2807,22 @@ bool WebRtcVoiceReceiveChannel::MaybeDeregisterUnsignaledRecvStream(
   RTC_DCHECK_RUN_ON(worker_thread_);
   auto it = absl::c_find(unsignaled_recv_ssrcs_, ssrc);
   if (it != unsignaled_recv_ssrcs_.end()) {
+    bool is_latest_unsignaled = (it == unsignaled_recv_ssrcs_.end() - 1);
     unsignaled_recv_ssrcs_.erase(it);
+    if (default_sink_) {
+      // Detach the default sink from the deregistered stream. This is needed
+      // to prevent the ProxySink from holding a dangling pointer to the
+      // default_sink_.
+      SetRawAudioSink(ssrc, nullptr);
+      if (is_latest_unsignaled && !unsignaled_recv_ssrcs_.empty()) {
+        // The deregistered stream was the latest unsignaled stream, so it held
+        // the default sink. Since it was removed, we must pass the default sink
+        // to the *new* latest unsignaled stream via a new ProxySink.
+        std::unique_ptr<AudioSinkInterface> proxy_sink(
+            new ProxySink(default_sink_.get()));
+        SetRawAudioSink(unsignaled_recv_ssrcs_.back(), std::move(proxy_sink));
+      }
+    }
     return true;
   }
   return false;

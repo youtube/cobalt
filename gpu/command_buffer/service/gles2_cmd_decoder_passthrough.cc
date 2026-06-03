@@ -945,6 +945,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                    "missing GL_CHROMIUM_copy_texture");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_client_arrays,
                    "missing GL_ANGLE_client_arrays");
+
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==

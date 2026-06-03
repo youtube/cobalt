@@ -3607,6 +3607,9 @@ TEST_P(QuicConnectionTest, AckDecimationReducesAcks) {
 
   // Start ack decimation from 10th packet.
   connection_.set_min_received_before_ack_decimation(10);
+#if BUILDFLAG(IS_COBALT)
+  connection_.set_max_retransmittable_packets_before_ack(10);
+#endif
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(30);
@@ -6315,6 +6318,9 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
 TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
 
+#if BUILDFLAG(IS_COBALT)
+  connection_.set_max_retransmittable_packets_before_ack(10);
+#endif
   const size_t kMinRttMs = 40;
   RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
   rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
@@ -6372,6 +6378,10 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationUnlimitedAggregation) {
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   QuicConfig config;
   QuicTagVector connection_options;
+#if BUILDFLAG(IS_COBALT)
+  connection_.set_max_retransmittable_packets_before_ack(10);
+#endif
+
   // No limit on the number of packets received before sending an ack.
   connection_options.push_back(kAKDU);
   config.SetConnectionOptionsToSend(connection_options);
@@ -6429,6 +6439,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckDecimationDelay(&connection_, 0.125);
 
+#if BUILDFLAG(IS_COBALT)
+  connection_.set_max_retransmittable_packets_before_ack(10);
+#endif  
   const size_t kMinRttMs = 40;
   RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
   rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
@@ -13268,8 +13281,17 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   // Send packet 101.
   SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
 
+<<<<<<< HEAD
   EXPECT_EQ(captured_frame.ack_eliciting_threshold, 10u);
   EXPECT_EQ(captured_frame.requested_max_ack_delay,
+=======
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_EQ(captured_frame.packet_tolerance, kMaxRetransmittablePacketsBeforeAck);
+#else
+  EXPECT_EQ(captured_frame.packet_tolerance, 10u);
+#endif
+  EXPECT_EQ(captured_frame.max_ack_delay,
+>>>>>>> parent of 1f92df91cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 
   // Sending packet 102 does not trigger sending another AckFrequencyFrame.

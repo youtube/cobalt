@@ -24,6 +24,10 @@ class NET_EXPORT_PRIVATE QuicChromiumClock : public QuicClock {
 
   ~QuicChromiumClock() override;
 
+#if BUILDFLAG(IS_COBALT)
+  void ZeroApproximateNow();
+#endif
+
   // QuicClock implementation:
   QuicTime ApproximateNow() const override;
   QuicTime Now() const override;

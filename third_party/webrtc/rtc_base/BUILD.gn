@@ -355,7 +355,17 @@ rtc_library("platform_thread_types") {
     "platform_thread_types.cc",
     "platform_thread_types.h",
   ]
+<<<<<<< HEAD
   deps = [ ":checks" ]
+=======
+  deps = [
+    ":checks",
+    ":macromagic",
+  ]
+  if (is_starboard) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
+>>>>>>> parent of 1f92df91cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 rtc_source_set("refcount") {

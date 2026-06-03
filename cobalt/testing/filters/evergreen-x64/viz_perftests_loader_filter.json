@@ -1,0 +1,7 @@
+{
+  "failing_tests": [
+    "BspTreePerfTest.*",
+    "RendererPerfTest.*",
+    "SurfaceAggregatorPerfTest.*"
+  ]
+}

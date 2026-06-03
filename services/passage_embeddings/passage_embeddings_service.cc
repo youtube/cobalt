@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "base/files/file.h"
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+#include "components/optimization_guide/machine_learning_tflite_buildflags.h" // nogncheck
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "services/passage_embeddings/passage_embedder.h"

@@ -351,4 +351,8 @@ ContentRendererClient::CreateLinkPreviewTriggerer() {
   return nullptr;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void ContentRendererClient::GetStarboardRendererFactoryTraits(
+  media::RendererFactoryTraits* renderer_factory_traits) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }  // namespace content
