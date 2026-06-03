@@ -1,5 +1,14 @@
 name: Test Targets JSON
-description: Parses test target JSON file
+description: Parses test target JSON file with optional filters
+inputs:
+  test_type:
+    description: "The test type to filter by (e.g., gtest, browsertest, webtest). Omit for no filter."
+    required: false
+    default: ""
+  runs_on:
+    description: "Where the tests run (e.g., host, device). Omit for no filter."
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -8,17 +17,31 @@ runs:
       with:
         name: ${{ matrix.platform }}_test_targets_json
         path:
-    - name: Test target count
+    - name: Parse Test Targets
       id: parse-json
+      env:
+        TEST_TYPE: ${{ inputs.test_type }}
+        RUNS_ON: ${{ inputs.runs_on }}
       run: |
-        test_targets_json="$(jq -cr '[.[] | select(.target != null) | .target]' test_targets.json)"
+        test_targets_json="$(jq -cr \
+          --arg test_type "${TEST_TYPE}" \
+          --arg runs_on "${RUNS_ON}" \
+          '[
+            .[]
+            | select(
+                .target != null and
+                ($test_type == "" or .test_type == $test_type) and
+                ($runs_on == "" or .runs_on == $runs_on)
+              )
+            | .target
+          ]' test_targets.json)"
         echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
         echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
   test_targets_count:
-    description: The number of test targets.
+    description: The number of matched test targets.
     value: ${{ steps.parse-json.outputs.test_targets_count }}
   test_targets_json:
-    description: The test targets in a JSON array.
+    description: The matched test targets in a JSON array.
     value: '${{ steps.parse-json.outputs.test_targets_json }}'
