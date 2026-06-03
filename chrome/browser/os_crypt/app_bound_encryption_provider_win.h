@@ -7,7 +7,8 @@
 
 #include <optional>
 #include <string>
-#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
@@ -24,8 +25,8 @@ class PrefService;
 class PrefRegistrySimple;
 
 namespace os_crypt {
+class AppBoundEncryptionProviderTest;
 FORWARD_DECLARE_TEST(AppBoundEncryptionWinReencryptTest, KeyProviderTest);
-FORWARD_DECLARE_TEST(AppBoundEncryptionProvider, Basic);
 }  // namespace os_crypt
 
 namespace os_crypt_async {
@@ -57,7 +58,7 @@ class AppBoundEncryptionProviderWin : public os_crypt_async::KeyProvider {
  private:
   FRIEND_TEST_ALL_PREFIXES(os_crypt::AppBoundEncryptionWinReencryptTest,
                            KeyProviderTest);
-  FRIEND_TEST_ALL_PREFIXES(os_crypt::AppBoundEncryptionProvider, Basic);
+  friend class os_crypt::AppBoundEncryptionProviderTest;
 
   using ReadOnlyKeyData = const std::vector<uint8_t>;
   using ReadWriteKeyData = std::vector<uint8_t>;
@@ -71,7 +72,8 @@ class AppBoundEncryptionProviderWin : public os_crypt_async::KeyProvider {
     kKeyNotFound = 1,
     kKeyDecodeFailure = 2,
     kInvalidKeyHeader = 3,
-    kMaxValue = kInvalidKeyHeader,
+    kKeyTooShort = 4,
+    kMaxValue = kKeyTooShort,
   };
 
   // os_crypt_async::KeyProvider interface.
@@ -84,12 +86,11 @@ class AppBoundEncryptionProviderWin : public os_crypt_async::KeyProvider {
   RetrieveEncryptedKey();
   void HandleEncryptedKey(ReadWriteKeyData decrypted_key,
                           KeyCallback callback,
-                          const OptionalReadOnlyKeyData& encrypted_key);
+                          OptionalReadOnlyKeyData encrypted_key);
   void StoreAndReplyWithKey(
       KeyCallback callback,
-      base::expected<
-          std::tuple<ReadWriteKeyData, const OptionalReadOnlyKeyData&>,
-          KeyProvider::KeyError> key_pair);
+      base::expected<std::pair<ReadWriteKeyData, OptionalReadOnlyKeyData>,
+                     KeyProvider::KeyError> key_pair);
   void StoreKey(base::span<const uint8_t> encrypted_key);
 
   raw_ptr<PrefService> local_state_ GUARDED_BY_CONTEXT(sequence_checker_);

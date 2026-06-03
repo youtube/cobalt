@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -114,7 +115,7 @@ void BrowserWithTestWindowTest::SetUp() {
 #if BUILDFLAG(IS_CHROMEOS)
     LogIn(*profile_name, GaiaId("fakegaia"));
 #endif
-    profile_ = CreateProfile(*profile_name);
+    profile_ = CreateProfile(*profile_name)->GetWeakPtr();
 #if BUILDFLAG(IS_CHROMEOS)
     SwitchActiveUser(*profile_name);
 #endif
@@ -134,6 +135,7 @@ void BrowserWithTestWindowTest::TearDown() {
   // Close the browser tabs and destroy the browser and window instances.
   if (browser_) {
     browser_->tab_strip_model()->CloseAllTabs();
+    browser_->GetFeatures().TearDownPreBrowserWindowDestruction();
     browser_.reset();
   }
   window_.reset();
@@ -301,7 +303,7 @@ std::unique_ptr<Browser> BrowserWithTestWindowTest::CreateBrowser(
     params.type = browser_type;
   }
   params.window = browser_window;
-  return std::unique_ptr<Browser>(Browser::Create(params));
+  return Browser::DeprecatedCreateOwnedForTesting(params);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

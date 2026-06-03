@@ -8,7 +8,6 @@
 #include <variant>
 
 #include "base/containers/span.h"
-#include "base/functional/overloaded.h"
 #include "base/values.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/digital_credentials/digital_identity_low_risk_origins.h"
@@ -28,6 +27,7 @@
 #include "crypto/random.h"
 #include "device/fido/cable/v2_constants.h"
 #include "device/fido/cable/v2_handshake.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -41,6 +41,7 @@ namespace {
 
 // Smaller than DistanceMetric::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH.
 constexpr int kQrCodeSize = 240;
+constexpr int kQrCodeMargin = 20;
 
 using DigitalIdentityInterstitialAbortCallback =
     content::DigitalIdentityProvider::DigitalIdentityInterstitialAbortCallback;
@@ -81,6 +82,9 @@ std::unique_ptr<views::View> MakeQrCodeImageView(const std::string& qr_url) {
   image_view->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_WEB_DIGITAL_CREDENTIALS_QR_CODE_ALT_TEXT));
   image_view->SetImageSize(gfx::Size(kQrCodeSize, kQrCodeSize));
+  image_view->SetCornerRadius(
+      10);  // Set radius to match that used in the QR-Code Locator.
+  image_view->SetBorder(views::CreateEmptyBorder(gfx::Insets(kQrCodeMargin)));
   return image_view;
 }
 
@@ -101,9 +105,9 @@ DigitalIdentityProviderDesktop::DigitalIdentityProviderDesktop() = default;
 
 DigitalIdentityProviderDesktop::~DigitalIdentityProviderDesktop() = default;
 
-bool DigitalIdentityProviderDesktop::IsLowRiskOrigin(
+bool DigitalIdentityProviderDesktop::IsLastCommittedOriginLowRisk(
     content::RenderFrameHost& render_frame_host) const {
-  return digital_credentials::IsLowRiskOrigin(render_frame_host);
+  return digital_credentials::IsLastCommittedOriginLowRisk(render_frame_host);
 }
 
 DigitalIdentityInterstitialAbortCallback
@@ -168,7 +172,7 @@ void DigitalIdentityProviderDesktop::Transact(
 
 void DigitalIdentityProviderDesktop::OnEvent(const std::string& qr_url,
                                              Event event) {
-  std::visit(base::Overloaded{
+  std::visit(absl::Overload{
                  [this, qr_url](SystemEvent event) {
                    switch (event) {
                      case SystemEvent::kBluetoothNotPowered:
@@ -225,7 +229,7 @@ void DigitalIdentityProviderDesktop::OnFinished(
   }
 
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [this](SystemError error) {
             EndRequestWithError(RequestStatusForMetrics::kErrorOther);
           },
@@ -269,10 +273,15 @@ void DigitalIdentityProviderDesktop::ShowQrCodeDialog(
       l10n_util::GetStringUTF16(IDS_WEB_DIGITAL_CREDENTIALS_QR_BODY);
   EnsureDialogCreated()->TryShow(
       /*accept_button=*/std::nullopt, base::OnceClosure(),
-      ui::DialogModel::Button::Params(),
+      /*cancel_button=*/
+      ui::DialogModel::Button::Params()
+          .SetLabel(l10n_util::GetStringUTF16(
+              IDS_WEB_DIGITAL_CREDENTIALS_FLOW_CANCEL_BUTTON_TEXT))
+          .SetStyle(ui::ButtonStyle::kDefault),
       base::BindOnce(&DigitalIdentityProviderDesktop::OnCanceled,
                      weak_ptr_factory_.GetWeakPtr()),
-      dialog_title, dialog_body, MakeQrCodeImageView(qr_url));
+      dialog_title, dialog_body, MakeQrCodeImageView(qr_url),
+      /*show_progress_bar=*/false);
 }
 
 void DigitalIdentityProviderDesktop::ShowBluetoothManualTurnOnDialog() {
@@ -303,12 +312,17 @@ void DigitalIdentityProviderDesktop::ShowConnectingToPhoneDialog() {
 
   EnsureDialogCreated()->TryShow(
       /*accept_button=*/std::nullopt, base::OnceClosure(),
-      ui::DialogModel::Button::Params(),
+      /*cancel_button=*/
+      ui::DialogModel::Button::Params()
+          .SetLabel(l10n_util::GetStringUTF16(
+              IDS_WEB_DIGITAL_CREDENTIALS_FLOW_CANCEL_BUTTON_TEXT))
+          .SetStyle(ui::ButtonStyle::kDefault),
       base::BindOnce(&DigitalIdentityProviderDesktop::OnCanceled,
                      weak_ptr_factory_.GetWeakPtr()),
-      std::move(title_text), /*dialog_body=*/u"",
-      DigitalIdentityMultiStepDialog::ConfigureHeaderIllustration(
-          std::move(illustration)));
+      /*dialog_title=*/u"", /*dialog_body=*/u"",
+      DigitalIdentityMultiStepDialog::CreateHeaderView(
+          std::move(title_text), /*body_text=*/u"", std::move(illustration)),
+      /*show_progress_bar=*/true);
 }
 
 void DigitalIdentityProviderDesktop::ShowContinueStepsOnThePhoneDialog() {
@@ -324,12 +338,17 @@ void DigitalIdentityProviderDesktop::ShowContinueStepsOnThePhoneDialog() {
 
   EnsureDialogCreated()->TryShow(
       /*accept_button=*/std::nullopt, base::OnceClosure(),
-      ui::DialogModel::Button::Params(),
+      /*cancel_button=*/
+      ui::DialogModel::Button::Params()
+          .SetLabel(l10n_util::GetStringUTF16(
+              IDS_WEB_DIGITAL_CREDENTIALS_FLOW_CANCEL_BUTTON_TEXT))
+          .SetStyle(ui::ButtonStyle::kDefault),
       base::BindOnce(&DigitalIdentityProviderDesktop::OnCanceled,
                      weak_ptr_factory_.GetWeakPtr()),
-      std::move(title_text), /*dialog_body=*/u"",
-      DigitalIdentityMultiStepDialog::ConfigureHeaderIllustration(
-          std::move(illustration)));
+      /*dialog_title=*/u"", /*dialog_body=*/u"",
+      DigitalIdentityMultiStepDialog::CreateHeaderView(
+          std::move(title_text), /*body_text=*/u"", std::move(illustration)),
+      /*show_progress_bar=*/true);
 }
 
 void DigitalIdentityProviderDesktop::OnCableConnectingTimerComplete() {

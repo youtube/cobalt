@@ -8,8 +8,12 @@
 #include <cstdint>
 
 #include "base/functional/callback_forward.h"
+<<<<<<< HEAD
 #include "build/buildflag.h"
 #include "components/services/unzip/public/mojom/unzipper.mojom.h"
+=======
+#include "components/services/unzip/public/mojom/unzipper.mojom-forward.h"
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/ced/src/util/encodings/encodings.h"  // nogncheck
@@ -20,6 +24,11 @@ class FilePath;
 }
 
 namespace unzip {
+
+// A type storing how to create Unzipper remotes, for dependency injection.
+// This will typically be unzip::LaunchUnzipper, except in tests / iOS.
+using UnzipperFactory =
+    base::RepeatingCallback<mojo::PendingRemote<mojom::Unzipper>()>;
 
 // Unzips files and directories in `zip_file` that match `filter_callback` into
 // `output_dir`. Returns a closure that cancels the unzip operation when called.

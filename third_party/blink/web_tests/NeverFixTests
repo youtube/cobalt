@@ -1,4 +1,4 @@
-# tags: [ Android Fuchsia Linux Mac Mac11 Mac11-arm64 Mac12 Mac12-arm64 Mac13 Mac13-arm64 Mac14 Mac14-arm64 Mac15 Mac15-arm64 Win Win10.20h2 Win11 Win11-arm64 iOS18-simulator ]
+# tags: [ Android Fuchsia Linux Mac Mac12 Mac12-arm64 Mac13 Mac13-arm64 Mac14 Mac14-arm64 Mac15 Mac15-arm64 Win Win10.20h2 Win11 Win11-arm64 iOS18-simulator ]
 # tags: [ Release Debug ]
 # results: [ Skip Pass ]
 
@@ -124,6 +124,11 @@ crbug.com/613672 [ Mac ] external/wpt/pointerevents/coalesced_events_attributes_
 crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_appended.html?touch [ Skip ]
 crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_removed.html?touch [ Skip ]
 crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_contextmenu_is_a_pointerevent.html?touch [ Skip ]
+crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_element_haspointercapture.html?touch [ Skip ]
+crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_element_haspointercapture_release_pending_capture.html?touch [ Skip ]
+crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_releasepointercapture_release_right_after_capture.html?touch [ Skip ]
+crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_setpointercapture_override_pending_capture_element.html?touch [ Skip ]
+crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_setpointercapture_to_same_element_twice.html?touch [ Skip ]
 crbug.com/613672 [ Mac ] external/wpt/pointerevents/touch-action-with-swipe-dir-change.html?touch [ Skip ]
 crbug.com/613672 [ Mac ] fast/events/pointerevents/multi-pointer-event-in-slop-region.html [ Skip ]
 crbug.com/613672 [ Mac ] fast/events/pointerevents/pointer-event-in-slop-region.html [ Skip ]
@@ -1613,7 +1618,6 @@ crbug.com/509989 [ Linux ] virtual/text-antialias/font-synthesis-style-local-win
 crbug.com/509989 [ Mac ] virtual/text-antialias/font-synthesis-style-local-win.html [ Skip ]
 crbug.com/509989 [ Fuchsia ] virtual/text-antialias/font-synthesis-style-local-win.html [ Skip ]
 crbug.com/509989 [ Android ] virtual/text-antialias/font-synthesis-style-local-win.html [ Skip ]
-crbug.com/626703 [ Mac11 ] virtual/fsa-incognito/external/wpt/file-system-access/local_FileSystemBaseHandle-postMessage-windows-manual.https.html [ Skip ]
 
 # This test requires a special browser flag and seems not suitable for a wpt test, see bug.
 crbug.com/691944 external/wpt/service-workers/service-worker/update-after-oneday.https.html [ Skip ]
@@ -1641,8 +1645,6 @@ crbug.com/1267606 [ Linux ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.
 crbug.com/1267606 [ Win ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
 crbug.com/1267606 [ Fuchsia ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
 crbug.com/1267606 [ Android ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
-crbug.com/1267606 [ Mac11 ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
-crbug.com/1267606 [ Mac11-arm64 ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
 
 # The AnimationWorklet feature is not enabled for tests
 animations/animationworklet/* [ Skip ]
@@ -1745,8 +1747,6 @@ crbug.com/40288082 [ Win10.20h2 ] virtual/webnn-service-with-gpu/* [ Skip ]
 crbug.com/323752584 [ Win11-arm64 ] virtual/webnn-service-with-gpu/* [ Skip ]
 
 # WebNN is only supported on macOS 14 and newer versions.
-[ Mac11 ] external/wpt/webnn/* [ Skip ]
-[ Mac11-arm64 ] external/wpt/webnn/* [ Skip ]
 [ Mac12 ] external/wpt/webnn/* [ Skip ]
 [ Mac12-arm64 ] external/wpt/webnn/* [ Skip ]
 [ Mac13 ] external/wpt/webnn/* [ Skip ]
@@ -1897,3 +1897,9 @@ crbug.com/41442253 [ Android ] external/wpt/clipboard-apis/async-navigator-clipb
 crbug.com/41442253 [ Fuchsia ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
 crbug.com/41442253 [ Mac ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
 crbug.com/41442253 [ iOS18-simulator ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
+
+# These tests are run exclusively in the prefetch-proxy VirtualTestSuite.
+virtual/prefetch/external/wpt/speculation-rules/prefetch/anonymous-client.https.html [ Skip ]
+virtual/prefetch/external/wpt/speculation-rules/prefetch/cross-origin-cookies-anonymous-client-ip-duplicate.https.html [ Skip ]
+virtual/prefetch-sw/external/wpt/speculation-rules/prefetch/anonymous-client.https.html [ Skip ]
+virtual/prefetch-sw/external/wpt/speculation-rules/prefetch/cross-origin-cookies-anonymous-client-ip-duplicate.https.html [ Skip ]

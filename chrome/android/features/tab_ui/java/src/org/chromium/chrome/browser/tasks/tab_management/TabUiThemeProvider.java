@@ -35,73 +35,6 @@ public class TabUiThemeProvider {
     }
 
     /**
-     * Returns the text color for the number used on the tab group cards based on the incognito
-     * mode.
-     *
-     * @param context {@link Context} used to retrieve color.
-     * @param isIncognito Whether the color is used for incognito mode.
-     * @param isSelected Whether the tab is currently selected.
-     * @return The text color for the number used on the tab group cards.
-     */
-    public static @ColorInt int getTabGroupNumberTextColor(
-            Context context, boolean isIncognito, boolean isSelected) {
-        if (isIncognito) {
-            @ColorRes
-            int colorRes =
-                    isSelected
-                            ? R.color.incognito_tab_tile_number_selected_color
-                            : R.color.incognito_tab_tile_number_color;
-            return context.getColor(colorRes);
-        } else {
-            return isSelected
-                    ? MaterialColors.getColor(context, R.attr.colorOnPrimary, TAG)
-                    : MaterialColors.getColor(context, R.attr.colorOnSurface, TAG);
-        }
-    }
-
-    /**
-     * Returns the {@link ColorStateList} to use for the tab grid card action button based on
-     * incognito mode.
-     *
-     * @param context {@link Context} used to retrieve color.
-     * @param isIncognito Whether the color is used for incognito mode.
-     * @param isSelected Whether the tab is currently selected.
-     * @return The {@link ColorStateList} for tab grid card action button.
-     */
-    public static ColorStateList getActionButtonTintList(
-            Context context, boolean isIncognito, boolean isSelected) {
-        if (isIncognito) {
-            @ColorRes
-            int colorRes =
-                    isSelected
-                            ? R.color.incognito_tab_action_button_selected_color
-                            : R.color.incognito_tab_action_button_color;
-            return AppCompatResources.getColorStateList(context, colorRes);
-        } else {
-            @ColorInt
-            int colorInt =
-                    isSelected
-                            ? MaterialColors.getColor(context, R.attr.colorOnPrimary, TAG)
-                            : MaterialColors.getColor(context, R.attr.colorOnSurfaceVariant, TAG);
-            return ColorStateList.valueOf(colorInt);
-        }
-    }
-
-    /**
-     * Returns the {@link ColorStateList} to use for the selectable tab grid card toggle button
-     * based on incognito mode.
-     *
-     * @param context {@link Context} used to retrieve color.
-     * @param isIncognito Whether the color is used for incognito mode.
-     * @param isSelected Whether the tab is currently selected.
-     * @return The {@link ColorStateList} for selectable tab grid card toggle button.
-     */
-    public static ColorStateList getToggleActionButtonBackgroundTintList(
-            Context context, boolean isIncognito, boolean isSelected) {
-        return getActionButtonTintList(context, isIncognito, isSelected);
-    }
-
-    /**
      * Returns the {@link ColorStateList} to use for the "check" drawable on selectable tab grid
      * card toggle button based on incognito mode.
      *
@@ -309,6 +242,24 @@ public class TabUiThemeProvider {
                 isIncognito
                         ? ContextCompat.getColor(context, R.color.incognito_tab_hover_card_bg_color)
                         : ContextCompat.getColor(context, R.color.tab_hover_card_bg_color);
+        return ColorStateList.valueOf(backgroundTint);
+    }
+
+    /**
+     * Returns the {@link ColorStateList} to use for tab card highlighting based on the incognito
+     * mode.
+     *
+     * @param context {@link Context} used to retrieve color.
+     * @param isIncognito Whether the color is used for incognito mode.
+     * @return The {@link ColorStateList} for the tab card highlight.
+     */
+    public static ColorStateList getTabCardHighlightBackgroundTintList(
+            Context context, boolean isIncognito) {
+        int backgroundTint =
+                isIncognito
+                        ? ContextCompat.getColor(
+                                context, R.color.incognito_tab_highlight_card_bg_color)
+                        : ContextCompat.getColor(context, R.color.tab_highlight_card_bg_color);
         return ColorStateList.valueOf(backgroundTint);
     }
 

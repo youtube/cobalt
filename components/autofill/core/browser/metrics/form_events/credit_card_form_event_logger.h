@@ -6,6 +6,7 @@
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_FORM_EVENTS_CREDIT_CARD_FORM_EVENT_LOGGER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -79,7 +80,8 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   void OnDidShowSuggestions(const FormStructure& form,
                             const AutofillField& field,
                             base::TimeTicks form_parsed_timestamp,
-                            bool off_the_record) override;
+                            bool off_the_record,
+                            base::span<const Suggestion> suggestions) override;
 
   void OnDidSelectCardSuggestion(
       const CreditCard& credit_card,

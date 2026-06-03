@@ -2745,7 +2745,6 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, MAYBE_InputEventsForClick) {
 class SoftNavigationBrowserTest : public PageLoadMetricsBrowserTest {
  public:
   void TestSoftNavigation(bool wait_for_second_lcp) {
-    StartTracing();
     embedded_test_server()->ServeFilesFromSourceDirectory("content/test/data");
     content::SetupCrossSiteRedirector(embedded_test_server());
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -2830,72 +2829,6 @@ class SoftNavigationBrowserTest : public PageLoadMetricsBrowserTest {
     // The histogram value represents the low end of the bucket, not the actual
     // value. Therefore it is lower or equal to the web exposed value.
     ASSERT_LE(lcp_value_bucket_start, lcp_start_before);
-
-    VerifyTraceEvents(StopTracing(), wait_for_second_lcp ? 3UL : 1UL);
-  }
-
- private:
-  void StartTracing() {
-    base::RunLoop wait_for_tracing;
-    content::TracingController::GetInstance()->StartTracing(
-        base::trace_event::TraceConfig(
-            "{\"included_categories\": [\"devtools.timeline\"]}"),
-        wait_for_tracing.QuitClosure());
-    wait_for_tracing.Run();
-  }
-
-  std::string StopTracing() {
-    base::RunLoop wait_for_tracing;
-    std::string trace_output;
-    content::TracingController::GetInstance()->StopTracing(
-        content::TracingController::CreateStringEndpoint(
-            base::BindLambdaForTesting(
-                [&](std::unique_ptr<std::string> trace_str) {
-                  trace_output = std::move(*trace_str);
-                  wait_for_tracing.Quit();
-                })));
-    wait_for_tracing.Run();
-    return trace_output;
-  }
-
-  void VerifyTraceEvents(const std::string& trace_str,
-                         size_t expected_event_number) {
-    std::unique_ptr<TraceAnalyzer> analyzer(TraceAnalyzer::Create(trace_str));
-    TraceEventVector events;
-    auto query =
-        Query::EventNameIs("SoftNavigationHeuristics_SoftNavigationDetected") ||
-        Query::EventNameIs("largestContentfulPaint::Candidate");
-    size_t num_events = analyzer->FindEvents(query, &events);
-    EXPECT_EQ(expected_event_number, num_events);
-
-    std::string previous_frame;
-    std::string navigation_id;
-    double soft_navigation_timestamp = 0.0;
-    for (auto* event : events) {
-      EXPECT_TRUE(event->HasStringArg("frame"));
-      std::string frame = event->GetKnownArgAsString("frame");
-      if (!previous_frame.empty()) {
-        EXPECT_EQ(frame, previous_frame);
-      }
-      previous_frame = frame;
-      if (event->name == "SoftNavigationHeuristics_SoftNavigationDetected") {
-        soft_navigation_timestamp = event->timestamp;
-        EXPECT_TRUE(event->HasStringArg("navigationId"));
-        navigation_id = event->GetKnownArgAsString("navigationId");
-      } else if (soft_navigation_timestamp > 0.0) {
-        EXPECT_LE(soft_navigation_timestamp, event->timestamp);
-        EXPECT_EQ(event->name, "largestContentfulPaint::Candidate");
-        base::Value::Dict data = event->GetKnownArgAsDict("data");
-        if (!navigation_id.empty()) {
-          EXPECT_EQ(navigation_id, *data.FindString("navigationId"));
-        }
-      }
-    }
-    // If we have more than one event, one of them needs to be a soft
-    // navigation.
-    if (expected_event_number > 1) {
-      EXPECT_TRUE(soft_navigation_timestamp > 0);
-    }
   }
 };
 
@@ -2904,8 +2837,7 @@ class SoftNavigationBrowserTestWithSoftNavigationHeuristicsFlag
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     PageLoadMetricsBrowserTest::SetUpCommandLine(command_line);
-    features_list_.InitWithFeatures({blink::features::kSoftNavigationHeuristics,
-                                     blink::features::kNavigationId},
+    features_list_.InitWithFeatures({blink::features::kSoftNavigationHeuristics},
                                     {});
   }
 
@@ -2913,15 +2845,12 @@ class SoftNavigationBrowserTestWithSoftNavigationHeuristicsFlag
   base::test::ScopedFeatureList features_list_;
 };
 
-// TODO(crbug.com/341578843): Flaky on many platforms.
-IN_PROC_BROWSER_TEST_F(SoftNavigationBrowserTest, DISABLED_SoftNavigation) {
+IN_PROC_BROWSER_TEST_F(SoftNavigationBrowserTest, SoftNavigation) {
   TestSoftNavigation(/*wait_for_second_lcp=*/false);
 }
 
-// TODO(crbug.com/40946340): Flaky on several platforms.
 IN_PROC_BROWSER_TEST_F(
-    SoftNavigationBrowserTestWithSoftNavigationHeuristicsFlag,
-    DISABLED_SoftNavigation) {
+    SoftNavigationBrowserTestWithSoftNavigationHeuristicsFlag, SoftNavigation) {
   TestSoftNavigation(/*wait_for_second_lcp=*/true);
 }
 
@@ -3590,26 +3519,6 @@ class PageLoadMetricsPreviewBrowserTest : public PageLoadMetricsBrowserTest {
   std::unique_ptr<test::PreviewTestHelper> helper_;
 };
 
-IN_PROC_BROWSER_TEST_F(PageLoadMetricsPreviewBrowserTest,
-                       PreviewPrimaryPageType) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), embedded_test_server()->GetURL("/title1.html")));
-
-  histogram_tester_->ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadTrackerPageType,
-      page_load_metrics::internal::PageLoadTrackerPageType::kPrimaryPage, 1);
-
-  helper_->InitiatePreview(embedded_test_server()->GetURL("/title2.html"));
-  helper_->WaitUntilLoadFinished();
-
-  histogram_tester_->ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadTrackerPageType,
-      page_load_metrics::internal::PageLoadTrackerPageType::kPreviewPrimaryPage,
-      1);
-}
-
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC)
 
 class PageLoadMetricsBrowserTestTerminatedPage
@@ -3815,16 +3724,69 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTestTerminatedPage,
 // This class is used to verify page load metrics are recorded in case of
 // crashes of different kinds. These crashes are simulated by navigating to the
 // chrome debug urls.
-class PageLoadMetricsBrowserTestCrashedPage
+class PageLoadMetricsBrowserTestRendererCrashedPage
     : public PageLoadMetricsBrowserTestTerminatedPage,
       public ::testing::WithParamInterface<const char*> {};
 
-IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestCrashedPage,
+IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestRendererCrashedPage,
                        UkmIsRecordedForCrashedTabPage) {
-  // This flag must be enabled to log metrics for blink::kChromeUIGpuCrashURL.
+  // Open a new foreground tab and navigate.
+  content::WebContents* contents = OpenTabAndNavigate();
+
+  // The back/forward cache is disabled because page load metrics can also be
+  // recorded when entering into the bfcache. We want to test that page load
+  // metrics are recorded via the PageLoadTracker destructor which is called in
+  // all crash cases.
+  content::DisableBackForwardCacheForTesting(
+      contents, content::BackForwardCache::TEST_REQUIRES_NO_CACHING);
+
+  // Wait for LCP emission and observation. This is to ensure there is an LCP
+  // entry to report at the time of killing the page.
+  double lcp_time = GetLCPTimeFromEmittedLCPEntry(contents);
+
+  // Crash the page.
+  content::RenderProcessHostWatcher crash_observer(
+      RenderFrameHost()->GetProcess(),
+      content::RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+
+  browser()->OpenURL(
+      content::OpenURLParams(GURL(GetParam()), content::Referrer(),
+                             WindowOpenDisposition::CURRENT_TAB,
+                             ui::PAGE_TRANSITION_TYPED, false),
+      /*navigation_handle_callback=*/{});
+
+  crash_observer.Wait();
+  EXPECT_FALSE(crash_observer.did_exit_normally());
+  EXPECT_TRUE(web_contents()->IsCrashed());
+
+  // Verify page load metric is recorded.
+  EXPECT_NEAR(
+      GetUKMPageLoadMetric(
+          PageLoad::kPaintTiming_NavigationToLargestContentfulPaint2Name),
+      lcp_time, 10);
+}
+
+INSTANTIATE_TEST_SUITE_P(RendererCrashCases,
+                         PageLoadMetricsBrowserTestRendererCrashedPage,
+                         testing::ValuesIn({blink::kChromeUIKillURL,
+                                            blink::kChromeUICrashURL}));
+
+// Similar to the crashes above, this test verifies page load metrics are
+// recorded in case severe errors that don't actually crash the
+// renderer process (e.g. only the GPU process may crash), but rather cause
+// the renderer to be terminated.
+class PageLoadMetricsBrowserTestNoRendererCrashedPage
+    : public PageLoadMetricsBrowserTestTerminatedPage,
+      public ::testing::WithParamInterface<const char*> {};
+
+IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestNoRendererCrashedPage,
+                       UkmIsRecordedForCrashedTabPage) {
   base::test::ScopedCommandLine scoped_command_line;
-  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-      switches::kEnableGpuBenchmarking);
+  if (GetParam() == blink::kChromeUIGpuCrashURL) {
+    // This flag must be enabled to log metrics for blink::kChromeUIGpuCrashURL.
+    scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+        switches::kEnableGpuBenchmarking);
+  }
 
   // Open a new foreground tab and navigate.
   content::WebContents* contents = OpenTabAndNavigate();
@@ -3840,19 +3802,23 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestCrashedPage,
   // entry to report at the time of killing the page.
   double lcp_time = GetLCPTimeFromEmittedLCPEntry(contents);
 
-  // Kill the page.
-  content::ScopedAllowRendererCrashes scoped_allow_renderer_crashes;
-  NavigateParams params(
-      browser(), GURL(GetParam()),
-      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
-                                ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
-  ui_test_utils::NavigateToURL(&params);
-  // Page being crashed is only verifiable in these crashes.
-  if (GetParam() == blink::kChromeUIKillURL ||
-      GetParam() == blink::kChromeUICrashURL) {
-    EXPECT_TRUE(
-        browser()->tab_strip_model()->GetActiveWebContents()->IsCrashed());
-  }
+  // Wait for the destruction of the RenderProcessHost, which is triggered by
+  // the navigation to the chrome debug url; then assert that we've navigated
+  // to the correct URL.
+  content::RenderProcessHostWatcher destruction_observer(contents,
+      content::RenderProcessHostWatcher::WATCH_FOR_HOST_DESTRUCTION);
+
+  browser()->OpenURL(
+      content::OpenURLParams(GURL(GetParam()), content::Referrer(),
+                             WindowOpenDisposition::CURRENT_TAB,
+                             ui::PAGE_TRANSITION_TYPED, false),
+      /*navigation_handle_callback=*/{});
+
+  destruction_observer.Wait();
+  EXPECT_TRUE(web_contents() == contents);
+  EXPECT_FALSE(contents->IsCrashed());
+  EXPECT_EQ(GURL(GetParam()), contents->GetLastCommittedURL());
+  EXPECT_FALSE(contents->HasUncommittedNavigationInPrimaryMainFrame());
 
   // Verify page load metric is recorded.
   EXPECT_NEAR(
@@ -3862,10 +3828,9 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestCrashedPage,
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CrashCases,
-    PageLoadMetricsBrowserTestCrashedPage,
-    testing::ValuesIn({blink::kChromeUIKillURL, blink::kChromeUICrashURL,
-                       blink::kChromeUIGpuCrashURL,
+    NoRendererCrashCases,
+    PageLoadMetricsBrowserTestNoRendererCrashedPage,
+    testing::ValuesIn({blink::kChromeUIGpuCrashURL,
                        blink::kChromeUINetworkErrorURL,
                        blink::kChromeUIProcessInternalsURL}));
 

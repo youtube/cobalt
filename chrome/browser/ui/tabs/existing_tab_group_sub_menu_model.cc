@@ -11,6 +11,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
@@ -70,9 +71,6 @@ ExistingTabGroupSubMenuModel::ExistingTabGroupSubMenuModel(
 
   menu_item_infos = GetMenuItemsFromModel(model);
   std::vector<tab_groups::TabGroupId> groups = GetGroupsFromModel(model);
-  // TODO(dljames): Consider moving CHECK + loop into a separate private
-  // function that updates both `menu_item_infos` and
-  // `target_index_to_group_mapping_`.
   CHECK_EQ(menu_item_infos.size(), groups.size());
   for (const auto& group : groups) {
     size_t index = target_index_to_group_mapping_.size();

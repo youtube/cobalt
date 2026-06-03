@@ -49,17 +49,12 @@
 #include "chrome/browser/ui/webui/usb_internals/usb_internals_ui.h"
 #include "chrome/browser/ui/webui/user_actions/user_actions_ui.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/security_interstitials/content/connection_help_ui.h"
 #include "components/security_interstitials/content/known_interception_disclosure_ui.h"
 #include "content/public/browser/webui_config_map.h"
 #include "extensions/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
-
-#if BUILDFLAG(ENABLE_NACL)
-#include "chrome/browser/ui/webui/nacl_ui.h"
-#endif
 
 #if BUILDFLAG(ENABLE_WEBUI_CERTIFICATE_VIEWER)
 #include "chrome/browser/ui/webui/certificate_viewer/certificate_viewer_ui.h"
@@ -78,6 +73,7 @@
 #include "chrome/browser/ui/webui/media_router/cast_feedback_ui.h"
 #endif
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
+#include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals_ui.h"
 #include "chrome/browser/ui/webui/bookmarks/bookmarks_ui.h"
 #include "chrome/browser/ui/webui/commerce/product_specifications_ui.h"
@@ -272,10 +268,6 @@ void RegisterChromeWebUIConfigs() {
       std::make_unique<
           privacy_sandbox_internals::PrivacySandboxInternalsUIConfig>());
 
-#if BUILDFLAG(ENABLE_NACL)
-  map.AddWebUIConfig(std::make_unique<NaClUIConfig>());
-#endif
-
 #if BUILDFLAG(ENABLE_WEBUI_CERTIFICATE_VIEWER)
   map.AddWebUIConfig(std::make_unique<CertificateViewerUIConfig>());
 #endif
@@ -294,6 +286,7 @@ void RegisterChromeWebUIConfigs() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   map.AddWebUIConfig(std::make_unique<media_router::CastFeedbackUIConfig>());
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  map.AddWebUIConfig(std::make_unique<ActorInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<AppServiceInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<media_router::AccessCodeCastUIConfig>());
   map.AddWebUIConfig(std::make_unique<BookmarksSidePanelUIConfig>());

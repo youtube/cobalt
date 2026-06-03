@@ -329,7 +329,7 @@
 <translation id="2244834438220057800">verde</translation>
 <translation id="225692081236532131">Estado de la activación</translation>
 <translation id="2267285889943769271">Añadir captura de pantalla</translation>
-<translation id="2268044343513325586">Restringir</translation>
+<translation id="2268044343513325586">Pulir</translation>
 <translation id="2271469253353559191">Horario del modo Oscuro</translation>
 <translation id="2276999893457278469">Contenido de ayuda destacado</translation>
 <translation id="2277631741861284101">Graba y comparte tu audio fácilmente</translation>
@@ -477,6 +477,7 @@
 <translation id="3091839911843451378">No se ha podido imprimir - Se ha detenido</translation>
 <translation id="3102119246920354026">Caché</translation>
 <translation id="3103783611481501187">surrealista</translation>
+<translation id="3119672627216736407">Traducción disponible</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">piscinas</translation>
 <translation id="3122883569442693641">Más detalles</translation>
@@ -756,6 +757,7 @@
 <translation id="430786093962686457">gasa</translation>
 <translation id="4310735698903592804">Fondos de pantalla recientes creados con la tecnología de la IA de Google</translation>
 <translation id="4320904097188876154">rosa neón</translation>
+<translation id="432961742358282111">Haz clic con el botón derecho o mantén pulsado para consultar definiciones, traducciones o conversiones de unidades. Usa las teclas de flecha hacia la izquierda y derecha para gestionar esta función.</translation>
 <translation id="4333390807948134856">Tecla <ph name="KEY_NAME" /> pulsada</translation>
 <translation id="4334293042716981313">También puedes <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />escribir tu propia petición<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tecla</translation>
@@ -1137,6 +1139,7 @@
 <translation id="6058625436358447366">Para finalizar, introduce tu contraseña anterior y la nueva</translation>
 <translation id="6061772781719867950">Solicitudes HTTPS con errores</translation>
 <translation id="6073292342939316679">reducir brillo del teclado</translation>
+<translation id="6074608334942655098">Dejar de traducir</translation>
 <translation id="6074752328838739425">Ocultar resumen</translation>
 <translation id="6075872808778243331">(Android) Latencia de HTTP</translation>
 <translation id="6078323886959318429">Acceso directo</translation>
@@ -1434,7 +1437,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Pregunta a los expertos en el foro de ayuda de Chromebook</translation>
-<translation id="7309823890857024809">Bodegón minimalista de unos tallos de amapola en un jarrón de cristal sobre un fondo negro.</translation>
 <translation id="7311368985037279727">color del teclado</translation>
 <translation id="7317831949569936035">Registro de cuenta de centro educativo</translation>
 <translation id="7319430975418800333">A3</translation>

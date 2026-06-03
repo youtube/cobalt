@@ -455,6 +455,7 @@ component("platform") {
     "bindings/callback_method_retriever.cc",
     "bindings/callback_method_retriever.h",
     "bindings/cross_thread_copier.h",
+    "bindings/cross_thread_source_location.h",
     "bindings/dictionary_base.cc",
     "bindings/dictionary_base.h",
     "bindings/dom_data_store.cc",
@@ -496,6 +497,7 @@ component("platform") {
     "bindings/script_wrappable.h",
     "bindings/source_location.cc",
     "bindings/source_location.h",
+    "bindings/source_location_copier.h",
     "bindings/string_resource.h",
     "bindings/sync_iterator_base.cc",
     "bindings/sync_iterator_base.h",
@@ -729,6 +731,7 @@ component("platform") {
     "fonts/plain_text_node.h",
     "fonts/plain_text_painter.cc",
     "fonts/plain_text_painter.h",
+    "fonts/resolved_font_features.cc",
     "fonts/resolved_font_features.h",
     "fonts/script_run_iterator.cc",
     "fonts/script_run_iterator.h",
@@ -783,8 +786,6 @@ component("platform") {
     "fonts/shaping/shaping_line_breaker.h",
     "fonts/shaping/stretchy_operator_shaper.cc",
     "fonts/shaping/stretchy_operator_shaper.h",
-    "fonts/shaping/text_auto_space.cc",
-    "fonts/shaping/text_auto_space.h",
     "fonts/shaping/text_spacing_trim.h",
     "fonts/shaping/variation_selector_mode.cc",
     "fonts/shaping/variation_selector_mode.h",
@@ -882,8 +883,6 @@ component("platform") {
     "graphics/blend_mode.h",
     "graphics/box_reflection.cc",
     "graphics/box_reflection.h",
-    "graphics/canvas_2d_layer_bridge.cc",
-    "graphics/canvas_2d_layer_bridge.h",
     "graphics/canvas_deferred_paint_record.cc",
     "graphics/canvas_deferred_paint_record.h",
     "graphics/canvas_hibernation_handler.cc",
@@ -1806,7 +1805,6 @@ component("platform") {
     "//crypto",
     "//device/vr/public/mojom:vr_service_blink",
     "//gin",
-    "//gpu:gpu",
     "//gpu/command_buffer/client:webgpu_interface",
     "//gpu/webgpu:common",
     "//media",
@@ -1821,7 +1819,6 @@ component("platform") {
     "//services/viz/public/cpp/gpu",
     "//skia",
     "//skia:skcms",
-    "//third_party:freetype_buildflags",
     "//third_party:freetype_harfbuzz",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public:image_resources",
@@ -2262,7 +2259,6 @@ source_set("blink_platform_unittests_sources") {
     "fonts/shaping/shape_result_view_test.cc",
     "fonts/shaping/shaping_line_breaker_test.cc",
     "fonts/shaping/stretchy_operator_shaper_test.cc",
-    "fonts/shaping/text_auto_space_test.cc",
     "fonts/small_caps_iterator_test.cc",
     "fonts/symbols_iterator_test.cc",
     "fonts/typesetting_features_test.cc",
@@ -3009,7 +3005,7 @@ fuzzer_test("blink_storage_key_fuzzer") {
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
-# Fuzzer template for WTF::TextCodec.
+# Fuzzer template for blink::TextCodec.
 template("blink_text_codec_fuzzer") {
   forward_variables_from(invoker, "*")
   config(target_name + "_config") {

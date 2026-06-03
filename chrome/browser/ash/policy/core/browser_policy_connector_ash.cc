@@ -19,7 +19,6 @@
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
@@ -107,6 +106,7 @@
 #include "components/variations/pref_names.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace policy {
 
@@ -297,7 +297,7 @@ void BrowserPolicyConnectorAsh::Init(
     CHECK(base::Contains(invalidation_service_provider_or_listener_per_project_,
                          device_policy_project_number))
         << "Missing invalidation for project: " << device_policy_project_number;
-    std::visit(base::Overloaded{
+    std::visit(absl::Overload{
                    [this](AffiliatedInvalidationServiceProvider* provider) {
                      device_cloud_policy_invalidator_ =
                          std::make_unique<AffiliatedCloudPolicyInvalidator>(
@@ -327,7 +327,7 @@ void BrowserPolicyConnectorAsh::Init(
     CHECK(base::Contains(invalidation_service_provider_or_listener_per_project_,
                          device_remote_commands_project_number))
         << "Missing: " << device_remote_commands_project_number;
-    std::visit(base::Overloaded{
+    std::visit(absl::Overload{
                    [this](AffiliatedInvalidationServiceProvider* provider) {
                      device_remote_commands_invalidator_ =
                          std::make_unique<AffiliatedRemoteCommandsInvalidator>(
@@ -435,7 +435,7 @@ void BrowserPolicyConnectorAsh::Init(
       std::make_unique<AdbSideloadingAllowanceModePolicyHandler>(
           ash::CrosSettings::Get(), local_state,
           chromeos::PowerManagerClient::Get(),
-          new ash::AdbSideloadingPolicyChangeNotification());
+          std::make_unique<ash::AdbSideloadingPolicyChangeNotification>(this));
 
   reboot_notifications_scheduler_ =
       std::make_unique<RebootNotificationsScheduler>();
@@ -507,7 +507,7 @@ void BrowserPolicyConnectorAsh::Shutdown() {
   }
 
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](std::unique_ptr<AffiliatedCloudPolicyInvalidator>& invalidator) {
             invalidator.reset();
           },
@@ -516,7 +516,7 @@ void BrowserPolicyConnectorAsh::Shutdown() {
             invalidator.reset();
           }},
       device_cloud_policy_invalidator_);
-  std::visit(base::Overloaded{
+  std::visit(absl::Overload{
                  [](std::unique_ptr<AffiliatedRemoteCommandsInvalidator>&
                         invalidator) { invalidator.reset(); },
                  [](std::unique_ptr<RemoteCommandsInvalidator>& invalidator) {

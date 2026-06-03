@@ -9,6 +9,7 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
@@ -32,7 +33,9 @@
 
 using net::test::IsOk;
 
-DiskCacheTest::DiskCacheTest() {
+DiskCacheTest::DiskCacheTest(
+    base::test::TaskEnvironment::TimeSource time_source)
+    : WithTaskEnvironment(time_source) {
   CHECK(temp_dir_.CreateUniqueTempDir());
   // Put the cache into a subdir of |temp_dir_|, to permit tests to safely
   // remove the cache directory without risking collisions with other tests.
@@ -63,6 +66,20 @@ void DiskCacheTest::TearDown() {
   RunUntilIdle();
 }
 
+// static
+std::string DiskCacheTestWithCache::BackendToTestName(
+    BackendToTest backend_to_test) {
+  switch (backend_to_test) {
+    case BackendToTest::kBlockfile:
+      return "Blockfile";
+    case BackendToTest::kSimple:
+      return "Simple";
+    case BackendToTest::kMemory:
+      return "Memory";
+  }
+  NOTREACHED();
+}
+
 DiskCacheTestWithCache::TestIterator::TestIterator(
     std::unique_ptr<disk_cache::Backend::Iterator> iterator)
     : iterator_(std::move(iterator)) {}
@@ -79,24 +96,27 @@ int DiskCacheTestWithCache::TestIterator::OpenNextEntry(
   return rv;
 }
 
-DiskCacheTestWithCache::DiskCacheTestWithCache() = default;
+DiskCacheTestWithCache::DiskCacheTestWithCache(
+    base::test::TaskEnvironment::TimeSource time_source)
+    : DiskCacheTest(time_source) {}
 
 DiskCacheTestWithCache::~DiskCacheTestWithCache() = default;
 
 void DiskCacheTestWithCache::InitCache() {
-  if (memory_only_)
+  if (backend_to_test_ == BackendToTest::kMemory) {
     InitMemoryCache();
-  else
+  } else {
     InitDiskCache();
+  }
 
   ASSERT_TRUE(nullptr != cache_);
   if (first_cleanup_)
-    ASSERT_EQ(0, cache_->GetEntryCount());
+    ASSERT_EQ(0, GetEntryCount());
 }
 
 // We are expected to leak memory when simulating crashes.
 void DiskCacheTestWithCache::SimulateCrash() {
-  ASSERT_TRUE(!memory_only_);
+  ASSERT_EQ(backend_to_test_, BackendToTest::kBlockfile);
   net::TestCompletionCallback cb;
   int rv = cache_impl_->FlushQueueForTest(cb.callback());
   ASSERT_THAT(cb.GetResult(rv), IsOk());
@@ -109,7 +129,7 @@ void DiskCacheTestWithCache::SimulateCrash() {
 }
 
 void DiskCacheTestWithCache::SetTestMode() {
-  ASSERT_TRUE(!memory_only_);
+  ASSERT_EQ(backend_to_test_, BackendToTest::kBlockfile);
   cache_impl_->SetUnitTestMode();
 }
 
@@ -118,6 +138,11 @@ void DiskCacheTestWithCache::SetMaxSize(int64_t size) {
   // Cache size should not generally be changed dynamically; it takes
   // backend-specific knowledge to make it even semi-reasonable to do.
   DCHECK(!cache_);
+}
+
+int32_t DiskCacheTestWithCache::GetEntryCount() {
+  net::TestInt32CompletionCallback cb;
+  return cb.GetResult(cache_->GetEntryCount(cb.callback()));
 }
 
 disk_cache::EntryResult DiskCacheTestWithCache::OpenOrCreateEntry(
@@ -214,8 +239,10 @@ DiskCacheTestWithCache::CreateIterator() {
 }
 
 void DiskCacheTestWithCache::FlushQueueForTest() {
-  if (memory_only_)
+  if (backend_to_test_ == BackendToTest::kMemory) {
+    // No threading to flush.
     return;
+  }
 
   if (simple_cache_impl_) {
     disk_cache::FlushCacheThreadForTesting();
@@ -229,10 +256,15 @@ void DiskCacheTestWithCache::FlushQueueForTest() {
 }
 
 void DiskCacheTestWithCache::RunTaskForTest(base::OnceClosure closure) {
-  if (memory_only_ || !cache_impl_) {
+  if (backend_to_test_ == BackendToTest::kMemory) {
+    // For memory backend, cache thread is always just current thread,s o
+    // we can run the task directly.
     std::move(closure).Run();
     return;
   }
+  // Blockfile backend provides a way of running tasks on its work thread;
+  // the notion doesn't make sense for simple.
+  CHECK_EQ(backend_to_test_, BackendToTest::kBlockfile);
 
   net::TestCompletionCallback cb;
   int rv = cache_impl_->RunTaskForTest(std::move(closure), cb.callback());
@@ -294,16 +326,14 @@ int DiskCacheTestWithCache::GetAvailableRange(disk_cache::Entry* entry,
 }
 
 void DiskCacheTestWithCache::TrimForTest(bool empty) {
-  if (memory_only_ || !cache_impl_)
-    return;
+  CHECK_EQ(backend_to_test_, BackendToTest::kBlockfile);
 
   RunTaskForTest(base::BindOnce(&disk_cache::BackendImpl::TrimForTest,
                                 base::Unretained(cache_impl_), empty));
 }
 
 void DiskCacheTestWithCache::TrimDeletedListForTest(bool empty) {
-  if (memory_only_ || !cache_impl_)
-    return;
+  CHECK_EQ(backend_to_test_, BackendToTest::kBlockfile);
 
   RunTaskForTest(
       base::BindOnce(&disk_cache::BackendImpl::TrimDeletedListForTest,
@@ -311,20 +341,10 @@ void DiskCacheTestWithCache::TrimDeletedListForTest(bool empty) {
 }
 
 void DiskCacheTestWithCache::AddDelay() {
-  if (simple_cache_mode_) {
-    // The simple cache uses second resolution for many timeouts, so it's safest
-    // to advance by at least whole seconds before falling back into the normal
-    // disk cache epsilon advance.
-    const base::Time initial_time = base::Time::Now();
-    do {
-      base::PlatformThread::YieldCurrentThread();
-    } while (base::Time::Now() - initial_time < base::Seconds(1));
-  }
-
-  base::Time initial = base::Time::Now();
-  while (base::Time::Now() <= initial) {
-    base::PlatformThread::Sleep(base::Milliseconds(1));
-  };
+  // Advance time by 1 second. This ensures that time-sensitive operations,
+  // particularly those in Simple Cache which has second-level timestamp
+  // granularity, will see a change in time.
+  FastForwardBy(base::Seconds(1));
 }
 
 void DiskCacheTestWithCache::OnExternalCacheHit(const std::string& key) {
@@ -341,11 +361,11 @@ std::unique_ptr<disk_cache::Backend> DiskCacheTestWithCache::TakeCache() {
 void DiskCacheTestWithCache::TearDown() {
   RunUntilIdle();
   ResetCaches();
-  if (!memory_only_ && !simple_cache_mode_ && integrity_) {
+  if (backend_to_test_ == BackendToTest::kBlockfile && integrity_) {
     EXPECT_TRUE(CheckCacheIntegrity(cache_path_, new_eviction_, size_, mask_));
   }
   RunUntilIdle();
-  if (simple_cache_mode_ && simple_file_tracker_) {
+  if (backend_to_test_ == BackendToTest::kSimple && simple_file_tracker_) {
     EXPECT_TRUE(simple_file_tracker_->IsEmptyForTesting());
   }
   DiskCacheTest::TearDown();
@@ -378,7 +398,7 @@ void DiskCacheTestWithCache::CreateBackend(uint32_t flags) {
   else
     runner = nullptr;  // let the backend sort it out.
 
-  if (simple_cache_mode_) {
+  if (backend_to_test_ == BackendToTest::kSimple) {
     DCHECK(!use_current_thread_)
         << "Using current thread unsupported by SimpleCache";
     net::TestCompletionCallback cb;
@@ -405,6 +425,7 @@ void DiskCacheTestWithCache::CreateBackend(uint32_t flags) {
     }
     return;
   }
+  CHECK_EQ(backend_to_test_, BackendToTest::kBlockfile);
 
   std::unique_ptr<disk_cache::BackendImpl> cache;
   if (mask_) {

@@ -42,7 +42,7 @@ export class SpeechController {
   constructor() {
     // Send over the initial state.
     this.clearReadAloudState();
-    this.isSpeechActiveChanged(this.isSpeechActive());
+    this.isSpeechActiveChanged_(this.isSpeechActive());
   }
 
   addListener(listener: SpeechListener) {
@@ -54,10 +54,10 @@ export class SpeechController {
     const wasAudioPlaying = this.isAudioCurrentlyPlaying();
     this.model_.setState(state);
     if (state.isSpeechActive !== wasSpeechActive) {
-      this.isSpeechActiveChanged(state.isSpeechActive);
+      this.isSpeechActiveChanged_(state.isSpeechActive);
     }
     if (state.isAudioCurrentlyPlaying !== wasAudioPlaying) {
-      this.listeners_.forEach(l => l.onIsAudioCurrentlyPlayingChange());
+      this.isAudioCurrentlyPlayingChanged_(state.isAudioCurrentlyPlaying);
     }
   }
 
@@ -68,7 +68,7 @@ export class SpeechController {
   private setIsSpeechActive_(isSpeechActive: boolean) {
     if (isSpeechActive !== this.isSpeechActive()) {
       this.model_.setIsSpeechActive(isSpeechActive);
-      this.isSpeechActiveChanged(isSpeechActive);
+      this.isSpeechActiveChanged_(isSpeechActive);
     }
   }
 
@@ -83,7 +83,7 @@ export class SpeechController {
   private setIsAudioCurrentlyPlaying_(isAudioCurrentlyPlaying: boolean) {
     if (isAudioCurrentlyPlaying !== this.isAudioCurrentlyPlaying()) {
       this.model_.setIsAudioCurrentlyPlaying(isAudioCurrentlyPlaying);
-      this.listeners_.forEach(l => l.onIsAudioCurrentlyPlayingChange());
+      this.isAudioCurrentlyPlayingChanged_(isAudioCurrentlyPlaying);
     }
   }
 
@@ -186,6 +186,11 @@ export class SpeechController {
     if (this.isSpeechActive()) {
       this.stopSpeech_(PauseActionSource.DEFAULT);
     }
+  }
+
+  onTabMuteStateChange(muted: boolean) {
+    this.model_.setVolume(muted ? 0.0 : 1.0);
+    this.onSpeechSettingsChange();
   }
 
   onVoiceSelected(selectedVoice: SpeechSynthesisVoice) {
@@ -617,10 +622,13 @@ export class SpeechController {
     // Therefore, when a user toggles the play/pause button, we call
     // synth.pause() and synth.resume() for speech to resume from where it left
     // off.
+    // If we're stopping because of an interrupt, then speech was already
+    // canceled, so we shouldn't cancel again, in case we are queuing up speech
+    // in another tab.
     if (this.isPausedFromButton()) {
       this.logSpeechPlaySession_();
       this.speech_.pause();
-    } else {
+    } else if (pauseSource !== PauseActionSource.ENGINE_INTERRUPT) {
       // Canceling clears all the Utterances that are queued up via synth.play()
       this.speech_.cancel();
     }
@@ -886,12 +894,19 @@ export class SpeechController {
     return chrome.readingMode.getAccessibleBoundary(text, MAX_SPEECH_LENGTH);
   }
 
-  private isSpeechActiveChanged(isSpeechActive: boolean) {
+  private isSpeechActiveChanged_(isSpeechActive: boolean) {
     this.listeners_.forEach(l => l.onIsSpeechActiveChange());
-    chrome.readingMode.onSpeechPlayingStateChanged(isSpeechActive);
+    chrome.readingMode.onIsSpeechActiveChanged(isSpeechActive);
+  }
+
+  private isAudioCurrentlyPlayingChanged_(isAudioCurrentlyPlaying: boolean) {
+    this.listeners_.forEach(l => l.onIsAudioCurrentlyPlayingChange());
+    chrome.readingMode.onIsAudioCurrentlyPlayingChanged(
+        isAudioCurrentlyPlaying);
   }
 
   private speakWithDefaults_(message: SpeechSynthesisUtterance) {
+    message.volume = this.model_.getVolume();
     message.lang = chrome.readingMode.baseLanguageForSpeech;
     message.rate = getCurrentSpeechRate();
     // Cancel any pending utterances that may be happening in other tabs.

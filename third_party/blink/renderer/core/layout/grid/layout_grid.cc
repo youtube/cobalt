@@ -10,22 +10,34 @@ namespace blink {
 
 LayoutGrid::LayoutGrid(Element* element) : LayoutBlock(element) {}
 
+void LayoutGrid::MarkGridDirty() {
+  NOT_DESTROYED();
+  SetGridPlacementDirty(true);
+  if (RuntimeEnabledFeatures::CSSGapDecorationEnabled() &&
+      StyleRef().HasGapRule()) {
+    // TODO(samomekarajr): Look towards scoping this "hammer" even more. For
+    // example, invalidate paint if a new track is added or maybe storing
+    // something on `GapGeometry` that can tell us if we actually need to
+    // invalidate paint.
+    SetShouldDoFullPaintInvalidation();
+  }
+}
+
 void LayoutGrid::AddChild(LayoutObject* new_child, LayoutObject* before_child) {
   NOT_DESTROYED();
   LayoutBlock::AddChild(new_child, before_child);
 
-  // Out-of-flow grid items don't impact placement.
-  if (!new_child->IsOutOfFlowPositioned())
-    SetGridPlacementDirty(true);
+  // Counter-intuitively, adding/removing a "position:absolute" child or
+  // similar *can* make the placement dirty as the OOF may cause an anonymous
+  // child to be split (or merged).
+  MarkGridDirty();
 }
 
 void LayoutGrid::RemoveChild(LayoutObject* child) {
   NOT_DESTROYED();
   LayoutBlock::RemoveChild(child);
 
-  // Out-of-flow grid items don't impact placement.
-  if (!child->IsOutOfFlowPositioned())
-    SetGridPlacementDirty(true);
+  MarkGridDirty();
 }
 
 namespace {

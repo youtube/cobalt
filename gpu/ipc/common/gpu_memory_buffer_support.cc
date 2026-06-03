@@ -22,12 +22,9 @@
 #endif
 
 #if BUILDFLAG(IS_OZONE)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
 #include "ui/ozone/public/client_native_pixmap_factory_ozone.h"
 #include "ui/ozone/public/ozone_platform.h"
-#endif
-
-#if BUILDFLAG(IS_OZONE) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -40,22 +37,14 @@
 
 namespace gpu {
 
-GpuMemoryBufferSupport::GpuMemoryBufferSupport() {
-#if BUILDFLAG(IS_OZONE)
-  client_native_pixmap_factory_ = ui::CreateClientNativePixmapFactoryOzone();
-#endif
-}
+namespace {
 
-GpuMemoryBufferSupport::~GpuMemoryBufferSupport() {}
-
-// static
-gfx::GpuMemoryBufferType
-GpuMemoryBufferSupport::GetNativeGpuMemoryBufferType() {
+gfx::GpuMemoryBufferType GetNativeGpuMemoryBufferType() {
 #if BUILDFLAG(IS_MAC)
   return gfx::IO_SURFACE_BUFFER;
 #elif BUILDFLAG(IS_ANDROID)
   return gfx::ANDROID_HARDWARE_BUFFER;
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE)
+#elif BUILDFLAG(IS_OZONE)
   return gfx::NATIVE_PIXMAP;
 #elif BUILDFLAG(IS_WIN)
   return gfx::DXGI_SHARED_HANDLE;
@@ -63,6 +52,16 @@ GpuMemoryBufferSupport::GetNativeGpuMemoryBufferType() {
   return gfx::EMPTY_BUFFER;
 #endif
 }
+
+}  // namespace
+
+GpuMemoryBufferSupport::GpuMemoryBufferSupport() {
+#if BUILDFLAG(IS_OZONE)
+  client_native_pixmap_factory_ = ui::CreateClientNativePixmapFactoryOzone();
+#endif
+}
+
+GpuMemoryBufferSupport::~GpuMemoryBufferSupport() = default;
 
 // static
 bool GpuMemoryBufferSupport::IsNativeGpuMemoryBufferConfigurationSupported(
@@ -224,13 +223,6 @@ bool GpuMemoryBufferSupport::IsConfigurationSupportedForTest(
   NOTREACHED();
 }
 
-// static
-bool GpuMemoryBufferSupport::IsSizeValid(const gfx::Size& size) {
-  base::CheckedNumeric<int> bytes = size.width();
-  bytes *= size.height();
-  return bytes.IsValid();
-}
-
 std::unique_ptr<GpuMemoryBufferImpl>
 GpuMemoryBufferSupport::CreateGpuMemoryBufferImplFromHandle(
     gfx::GpuMemoryBufferHandle handle,
@@ -239,8 +231,7 @@ GpuMemoryBufferSupport::CreateGpuMemoryBufferImplFromHandle(
     gfx::BufferUsage usage,
     GpuMemoryBufferImpl::DestructionCallback callback,
     gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
-    scoped_refptr<base::UnsafeSharedMemoryPool> pool,
-    base::span<uint8_t> premapped_memory) {
+    scoped_refptr<base::UnsafeSharedMemoryPool> pool) {
   switch (handle.type) {
     case gfx::SHARED_MEMORY_BUFFER:
       return GpuMemoryBufferImplSharedMemory::CreateFromHandle(
@@ -253,14 +244,14 @@ GpuMemoryBufferSupport::CreateGpuMemoryBufferImplFromHandle(
 #if BUILDFLAG(IS_OZONE)
     case gfx::NATIVE_PIXMAP:
       return GpuMemoryBufferImplNativePixmap::CreateFromHandle(
-          client_native_pixmap_factory(), std::move(handle), size, format,
+          client_native_pixmap_factory_.get(), std::move(handle), size, format,
           usage, std::move(callback));
 #endif
 #if BUILDFLAG(IS_WIN)
     case gfx::DXGI_SHARED_HANDLE:
       return GpuMemoryBufferImplDXGI::CreateFromHandle(
           std::move(handle), size, format, usage, std::move(callback),
-          gpu_memory_buffer_manager, std::move(pool), premapped_memory);
+          gpu_memory_buffer_manager, std::move(pool));
 #endif
 #if BUILDFLAG(IS_ANDROID)
     case gfx::ANDROID_HARDWARE_BUFFER:

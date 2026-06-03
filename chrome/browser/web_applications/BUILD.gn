@@ -47,10 +47,10 @@ source_set("web_applications") {
     "commands/internal/command_internal.h",
     "commands/launch_web_app_command.cc",
     "commands/launch_web_app_command.h",
+    "commands/manifest_silent_update_command.cc",
+    "commands/manifest_silent_update_command.h",
     "commands/manifest_update_check_command.cc",
     "commands/manifest_update_check_command.h",
-    "commands/manifest_update_check_command_v2.cc",
-    "commands/manifest_update_check_command_v2.h",
     "commands/manifest_update_finalize_command.cc",
     "commands/manifest_update_finalize_command.h",
     "commands/navigate_and_trigger_install_dialog_command.cc",
@@ -398,12 +398,16 @@ source_set("web_applications") {
       "isolated_web_apps/commands/copy_bundle_to_cache_command.h",
       "isolated_web_apps/commands/get_bundle_cache_path_command.cc",
       "isolated_web_apps/commands/get_bundle_cache_path_command.h",
+      "isolated_web_apps/commands/remove_obsolete_bundle_versions_cache_command.cc",
+      "isolated_web_apps/commands/remove_obsolete_bundle_versions_cache_command.h",
       "isolated_web_apps/policy/isolated_web_app_cache_client.cc",
       "isolated_web_apps/policy/isolated_web_app_cache_client.h",
       "isolated_web_apps/policy/isolated_web_app_cache_manager.cc",
       "isolated_web_apps/policy/isolated_web_app_cache_manager.h",
       "os_integration/web_app_run_on_os_login_chromeos.cc",
       "os_integration/web_app_shortcut_chromeos.cc",
+      "policy/app_service_web_app_policy.cc",
+      "policy/app_service_web_app_policy.h",
       "web_app_run_on_os_login_manager.cc",
       "web_app_run_on_os_login_manager.h",
       "web_app_system_web_app_delegate_map_utils.cc",
@@ -709,8 +713,8 @@ source_set("web_applications_test_support") {
     "isolated_web_apps/test/iwa_test_server_configurator.h",
     "isolated_web_apps/test/key_distribution/test_utils.cc",
     "isolated_web_apps/test/key_distribution/test_utils.h",
-    "isolated_web_apps/test/mock_isolated_web_app_install_command_wrapper.cc",
-    "isolated_web_apps/test/mock_isolated_web_app_install_command_wrapper.h",
+    "isolated_web_apps/test/mock_iwa_install_command_wrapper.cc",
+    "isolated_web_apps/test/mock_iwa_install_command_wrapper.h",
     "isolated_web_apps/test/policy_generator.cc",
     "isolated_web_apps/test/policy_generator.h",
     "isolated_web_apps/test/policy_test_utils.cc",
@@ -863,8 +867,8 @@ source_set("web_applications_unit_tests") {
     "commands/fetch_manifest_and_install_command_unittest.cc",
     "commands/install_app_locally_command_unittest.cc",
     "commands/install_from_sync_command_unittest.cc",
+    "commands/manifest_silent_update_command_unittest.cc",
     "commands/manifest_update_check_command_unittest.cc",
-    "commands/manifest_update_check_command_v2_unittest.cc",
     "commands/manifest_update_finalize_command_unittest.cc",
     "commands/os_integration_synchronize_command_unittest.cc",
     "commands/run_on_os_login_command_unittest.cc",
@@ -924,7 +928,6 @@ source_set("web_applications_unit_tests") {
     "os_integration/uninstallation_via_os_settings_sub_manager_unittest.cc",
     "os_integration/web_app_protocol_handler_manager_unittest.cc",
     "os_integration/web_app_shortcut_unittest.cc",
-    "policy/pre_redirection_url_observer_unittest.cc",
     "policy/web_app_policy_manager_unittest.cc",
     "preinstalled_web_app_manager_unittest.cc",
     "preinstalled_web_app_utils_unittest.cc",
@@ -994,6 +997,7 @@ source_set("web_applications_unit_tests") {
       "isolated_web_apps/commands/cleanup_bundle_cache_command_unittest.cc",
       "isolated_web_apps/commands/copy_bundle_to_cache_command_unittest.cc",
       "isolated_web_apps/commands/get_bundle_cache_path_command_unittest.cc",
+      "isolated_web_apps/commands/remove_obsolete_bundle_versions_cache_command_unittest.cc",
       "isolated_web_apps/policy/isolated_web_app_cache_client_unittest.cc",
       "os_integration/web_app_run_on_os_login_chromeos_unittest.cc",
       "web_app_run_on_os_login_manager_unittest.cc",
@@ -1130,6 +1134,7 @@ source_set("web_applications_browser_tests") {
     "manifest_update_manager_browsertest.cc",
     "navigation_capturing_browser_navigator_browsertest.cc",
     "navigation_capturing_forced_off_browsertest.cc",
+    "policy/pre_redirection_url_observer_browsertest.cc",
     "policy/web_app_policy_manager_browsertest.cc",
     "preinstalled_web_app_manager_browsertest.cc",
     "preinstalled_web_apps_browsertest.cc",
@@ -1192,6 +1197,7 @@ source_set("web_applications_browser_tests") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/views/toolbar",
+    "//chrome/browser/ui/web_applications",
     "//chrome/browser/web_applications:features",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support",
@@ -1228,10 +1234,14 @@ source_set("web_applications_browser_tests") {
       "//chrome/browser/ash/policy/test_support",
       "//chrome/browser/ash/system_web_apps/test_support",
       "//chrome/browser/ash/system_web_apps/test_support:test_support_ui",
+      "//chrome/browser/ash/test:test_support",
       "//chrome/browser/ui/ash/login",
       "//chrome/browser/web_applications/ash/migrations:browser_tests",
+      "//chromeos/ash/components/policy/device_policy:test_support",
       "//chromeos/ash/components/system:system",
     ]
+  } else {
+    deps += [ "//chrome/browser/apps/link_capturing:link_capturing" ]
   }
 
   if (is_mac) {
@@ -1255,6 +1265,7 @@ source_set("app_service_browser_tests") {
     "externally_managed_app_manager_browsertest.cc",
     "preinstalled_web_app_migration_browsertest.cc",
   ]
+  deps = []
 
   if (is_chromeos) {
     sources += [
@@ -1263,11 +1274,13 @@ source_set("app_service_browser_tests") {
       "app_service/web_apps_chromeos_browsertest.cc",
       "chromeos_web_app_experiments_browsertest.cc",
     ]
+
+    deps += [ "//chrome/browser/ui/web_applications" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  deps = [
+  deps += [
     ":web_applications",
     ":web_applications_test_support",
     "//base",

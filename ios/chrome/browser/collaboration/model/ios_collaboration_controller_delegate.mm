@@ -16,7 +16,9 @@
 #import "components/sync/base/user_selectable_type.h"
 #import "components/sync/service/sync_service.h"
 #import "components/sync/service/sync_user_settings.h"
+#import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/collaboration/model/collaboration_service_factory.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
@@ -39,6 +41,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/top_view_controller.h"
@@ -134,6 +137,7 @@ IOSCollaborationControllerDelegate::IOSCollaborationControllerDelegate(
 }
 
 IOSCollaborationControllerDelegate::~IOSCollaborationControllerDelegate() {
+  StopSigninCoordinator();
   if (IsInObserverList()) {
     CHECK(browser_);
     browser_->RemoveObserver(this);
@@ -166,10 +170,7 @@ void IOSCollaborationControllerDelegate::ShowError(const ErrorInfo& error,
   NSString* title = base::SysUTF8ToNSString(error.error_header);
   NSString* message = base::SysUTF8ToNSString(error.error_body);
 
-  auto alert_action = base::CallbackToBlock(
-      base::BindOnce(&IOSCollaborationControllerDelegate::ErrorAccepted,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(result)));
-  // Make sure to present it on top of any visible view.
+  // Make sure to present the alert on top of any visible view.
   UIViewController* top_view_controller =
       top_view_controller::TopPresentedViewControllerFrom(
           base_view_controller_);
@@ -179,10 +180,37 @@ void IOSCollaborationControllerDelegate::ShowError(const ErrorInfo& error,
                                                    browser:browser_
                                                      title:title
                                                    message:message];
-  [alert_coordinator_
-      addItemWithTitle:l10n_util::GetNSString(IDS_IOS_SHARED_GROUP_ERROR_GOT_IT)
-                action:alert_action
-                 style:UIAlertActionStyleDefault];
+
+  if (error.type() == ErrorInfo::Type::kUpdateChromeUiForVersionOutOfDate) {
+    auto update_action = base::CallbackToBlock(
+        base::BindOnce(&IOSCollaborationControllerDelegate::Update,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+    [alert_coordinator_
+        addItemWithTitle:
+            l10n_util::GetNSString(
+                IDS_COLLABORATION_CHROME_OUT_OF_DATE_ERROR_DIALOG_UPDATE_BUTTON)
+                  action:update_action
+                   style:UIAlertActionStyleDefault];
+
+    auto dismiss_action = base::CallbackToBlock(
+        base::BindOnce(&IOSCollaborationControllerDelegate::ErrorAccepted,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+    [alert_coordinator_
+        addItemWithTitle:
+            l10n_util::GetNSString(
+                IDS_COLLABORATION_CHROME_OUT_OF_DATE_ERROR_DIALOG_NOT_NOW_BUTTON)
+                  action:dismiss_action
+                   style:UIAlertActionStyleCancel];
+  } else {
+    auto alert_action = base::CallbackToBlock(
+        base::BindOnce(&IOSCollaborationControllerDelegate::ErrorAccepted,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+    [alert_coordinator_ addItemWithTitle:l10n_util::GetNSString(
+                                             IDS_IOS_SHARED_GROUP_ERROR_GOT_IT)
+                                  action:alert_action
+                                   style:UIAlertActionStyleDefault];
+  }
+
   [alert_coordinator_ start];
 }
 
@@ -190,6 +218,7 @@ void IOSCollaborationControllerDelegate::Cancel(ResultCallback result) {
   if (!browser_) {
     return;
   }
+  StopSigninCoordinator();
 
   if (dismiss_join_screen_callback_) {
     std::move(dismiss_join_screen_callback_).Run();
@@ -208,71 +237,64 @@ void IOSCollaborationControllerDelegate::ShowAuthenticationUi(
     return;
   }
 
-  // Make sure that the scrim view is added to avoid interaction with the app in
-  // between the authentication steps.
+  // Add the scrim view to prevent interaction during authentication.
   AddScrimView();
 
+  const signin_metrics::PromoAction promo_action =
+      signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO;
+  const FlowConfig flow_config = GetFlowConfig(flow_type);
+
   ServiceStatus service_status = collaboration_service_->GetServiceStatus();
-
-  AuthenticationOperation operation;
-
   switch (service_status.signin_status) {
-    case SigninStatus::kNotSignedIn:
-      operation = AuthenticationOperation::kSheetSigninAndHistorySync;
-      break;
-
+    case SigninStatus::kNotSignedIn:  // Fallthrough
+    case SigninStatus::kSignedIn: {
+      auto completion_block = base::CallbackToBlock(base::BindOnce(
+          &IOSCollaborationControllerDelegate::OnAuthenticationComplete,
+          weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+      AuthenticationOperation operation =
+          service_status.signin_status == SigninStatus::kNotSignedIn
+              ? AuthenticationOperation::kSheetSigninAndHistorySync
+              : AuthenticationOperation::kHistorySync;
+      ShowSigninCommand* command =
+          [[ShowSigninCommand alloc] initWithOperation:operation
+                                              identity:nil
+                                           accessPoint:flow_config.access_point
+                                           promoAction:promo_action
+                                            completion:completion_block];
+      command.optionalHistorySync = NO;
+      command.fullScreenPromo = flow_config.full_screen_promo;
+      command.contextStyle = flow_config.context_style;
+      signin_coordinator_ = [SigninCoordinator
+          signinCoordinatorWithCommand:command
+                               browser:browser_
+                    baseViewController:base_view_controller_];
+      [signin_coordinator_ start];
+      return;
+    }
     case SigninStatus::kSigninDisabled:
-      // TODO(crbug.com/390153810): Handle the sign in disabled case.
-      NOTREACHED();
-
-    case SigninStatus::kSignedInPaused:
-      // TODO(crbug.com/390153810): Handle the sign in paused.
-      NOTREACHED();
-
-    case SigninStatus::kSignedIn:
-      operation = AuthenticationOperation::kHistorySync;
-      break;
+      ShowSignInDisabledByUserAlert(std::move(result));
+      return;
+    case SigninStatus::kSignedInPaused: {
+      auto completion_block = base::CallbackToBlock(base::BindOnce(
+          &IOSCollaborationControllerDelegate::OnAuthenticationComplete,
+          weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+      // For a paused sign-in, re-authentication is required.
+      signin_coordinator_ = [SigninCoordinator
+          primaryAccountReauthCoordinatorWithBaseViewController:
+              base_view_controller_
+                                                        browser:browser_
+                                                   contextStyle:
+                                                       flow_config.context_style
+                                                    accessPoint:
+                                                        flow_config.access_point
+                                                    promoAction:promo_action
+                                           continuationProvider:
+                                               DoNothingContinuationProvider()];
+      signin_coordinator_.signinCompletion = completion_block;
+      [signin_coordinator_ start];
+      return;
+    }
   }
-
-  id<ApplicationCommands> application_handler =
-      HandlerForProtocol(browser_->GetCommandDispatcher(), ApplicationCommands);
-  auto completion_block = base::CallbackToBlock(base::BindOnce(
-      &IOSCollaborationControllerDelegate::OnAuthenticationComplete,
-      weak_ptr_factory_.GetWeakPtr(), std::move(result)));
-
-  AccessPoint access_point;
-  SigninContextStyle context_style;
-  BOOL fullScreenPromo = NO;
-  switch (flow_type) {
-    case FlowType::kJoin:
-      access_point = AccessPoint::kCollaborationJoinTabGroup;
-      context_style = SigninContextStyle::kCollaborationJoinTabGroup;
-      fullScreenPromo = YES;
-      break;
-    case FlowType::kShareOrManage:
-      access_point = AccessPoint::kCollaborationShareTabGroup;
-      context_style = SigninContextStyle::kCollaborationShareTabGroup;
-      break;
-    case FlowType::kLeaveOrDelete:
-      access_point = AccessPoint::kCollaborationLeaveOrDeleteTabGroup;
-      context_style = SigninContextStyle::kDefault;
-      break;
-  }
-
-  ShowSigninCommand* command = [[ShowSigninCommand alloc]
-      initWithOperation:operation
-               identity:nil
-            accessPoint:access_point
-            promoAction:signin_metrics::PromoAction::
-                            PROMO_ACTION_NO_SIGNIN_PROMO
-             completion:completion_block];
-
-  command.optionalHistorySync = NO;
-  command.fullScreenPromo = fullScreenPromo;
-  command.contextStyle = context_style;
-
-  [application_handler showSignin:command
-               baseViewController:base_view_controller_];
 }
 
 void IOSCollaborationControllerDelegate::NotifySignInAndSyncStatusChange() {
@@ -448,11 +470,10 @@ void IOSCollaborationControllerDelegate::ShareGroupAndGenerateLink(
     std::string collaboration_group_id,
     std::string access_token,
     base::OnceCallback<void(GURL)> callback) {
-  if (!browser_) {
+  if (!browser_ || !share_screen_callback_) {
     return;
   }
 
-  CHECK(share_screen_callback_);
   link_generation_callback_ = std::move(callback);
   data_sharing::GroupToken token(data_sharing::GroupId(collaboration_group_id),
                                  access_token);
@@ -478,6 +499,11 @@ void IOSCollaborationControllerDelegate::BrowserDestroyed(Browser* browser) {
 
 #pragma mark - Private
 
+void IOSCollaborationControllerDelegate::StopSigninCoordinator() {
+  [signin_coordinator_ stop];
+  signin_coordinator_ = nil;
+}
+
 void IOSCollaborationControllerDelegate::ShowLeaveOrDeleteDialog(
     const tab_groups::EitherGroupID& either_id,
     ResultCallback result) {
@@ -501,6 +527,7 @@ void IOSCollaborationControllerDelegate::OnAuthenticationComplete(
     ResultCallback result,
     SigninCoordinatorResult sign_in_result,
     id<SystemIdentity> completion_info) {
+  StopSigninCoordinator();
   if (sign_in_result == SigninCoordinatorResultCanceledByUser) {
     std::move(result).Run(CollaborationControllerDelegate::Outcome::kCancel);
     return;
@@ -570,6 +597,14 @@ void IOSCollaborationControllerDelegate::ErrorAccepted(ResultCallback result) {
   if (dismiss_join_screen_callback_) {
     std::move(dismiss_join_screen_callback_).Run();
   }
+  std::move(result).Run(CollaborationControllerDelegate::Outcome::kSuccess);
+}
+
+void IOSCollaborationControllerDelegate::Update(ResultCallback result) {
+  CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
+  id<ApplicationCommands> application_handler =
+      HandlerForProtocol(dispatcher, ApplicationCommands);
+  [application_handler showAppStorePage];
   std::move(result).Run(CollaborationControllerDelegate::Outcome::kSuccess);
 }
 
@@ -822,6 +857,88 @@ void IOSCollaborationControllerDelegate::RemoveScrimView(bool delayed) {
         dispatch_get_main_queue(), animation_block);
   } else {
     animation_block();
+  }
+}
+
+FlowConfig IOSCollaborationControllerDelegate::GetFlowConfig(
+    FlowType flow_type) {
+  FlowConfig config;
+  config.full_screen_promo = NO;
+  switch (flow_type) {
+    case FlowType::kJoin:
+      config.access_point = AccessPoint::kCollaborationJoinTabGroup;
+      config.context_style = SigninContextStyle::kCollaborationJoinTabGroup;
+      config.full_screen_promo = YES;
+      break;
+    case FlowType::kShareOrManage:
+      config.access_point = AccessPoint::kCollaborationShareTabGroup;
+      config.context_style = SigninContextStyle::kCollaborationShareTabGroup;
+      break;
+    case FlowType::kLeaveOrDelete:
+      config.access_point = AccessPoint::kCollaborationLeaveOrDeleteTabGroup;
+      config.context_style = SigninContextStyle::kDefault;
+      break;
+  }
+  return config;
+}
+
+void IOSCollaborationControllerDelegate::ShowSignInDisabledByUserAlert(
+    ResultCallback result) {
+  if (!browser_) {
+    return;
+  }
+
+  auto split_result_callback = base::SplitOnceCallback(std::move(result));
+  auto alert_action_cancel = base::CallbackToBlock(base::BindOnce(
+      &IOSCollaborationControllerDelegate::SignInDisabledByUserAlertDismissed,
+      weak_ptr_factory_.GetWeakPtr(), std::move(split_result_callback.first),
+      false));
+  auto alert_action_open_settings = base::CallbackToBlock(base::BindOnce(
+      &IOSCollaborationControllerDelegate::SignInDisabledByUserAlertDismissed,
+      weak_ptr_factory_.GetWeakPtr(), std::move(split_result_callback.second),
+      true));
+
+  // Make sure to present it on top of any visible view.
+  UIViewController* top_view_controller =
+      top_view_controller::TopPresentedViewControllerFrom(
+          base_view_controller_);
+
+  NSString* title = l10n_util::GetNSString(IDS_COLLABORATION_SIGNED_OUT_HEADER);
+  NSString* message = l10n_util::GetNSString(IDS_COLLABORATION_SIGNED_OUT_BODY);
+  alert_coordinator_ =
+      [[AlertCoordinator alloc] initWithBaseViewController:top_view_controller
+                                                   browser:browser_
+                                                     title:title
+                                                   message:message];
+
+  [alert_coordinator_
+      addItemWithTitle:l10n_util::GetNSString(
+                           IDS_COLLABORATION_SIGNED_OUT_POSITIVE_BUTTON)
+                action:alert_action_open_settings
+                 style:UIAlertActionStyleDefault
+             preferred:YES
+               enabled:YES];
+
+  [alert_coordinator_ addItemWithTitle:l10n_util::GetNSString(IDS_CANCEL)
+                                action:alert_action_cancel
+                                 style:UIAlertActionStyleDefault];
+  [alert_coordinator_ start];
+  RemoveScrimView(/*delayed=*/false);
+}
+
+void IOSCollaborationControllerDelegate::SignInDisabledByUserAlertDismissed(
+    ResultCallback result,
+    bool open_settings) {
+  if (dismiss_join_screen_callback_) {
+    std::move(dismiss_join_screen_callback_).Run();
+  }
+  std::move(result).Run(CollaborationControllerDelegate::Outcome::kCancel);
+  if (open_settings) {
+    CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
+    id<SettingsCommands> settings_handler =
+        HandlerForProtocol(dispatcher, SettingsCommands);
+    [settings_handler
+        showGoogleServicesSettingsFromViewController:base_view_controller_];
   }
 }
 

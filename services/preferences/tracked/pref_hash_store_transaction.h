@@ -72,11 +72,20 @@ class PrefHashStoreTransaction {
   // Returns true if this results in a change to the store contents.
   virtual bool StampSuperMac() = 0;
 
+  // Removes the encrypted hash stored at |path|.
+  virtual void ClearEncryptedHash(const std::string& path) = 0;
+
   // Stores the OS-encrypted hash of the preference at |path| and |value|.
   // |value| may be NULL. Requires the encryptor to have been provided at
   // transaction start.
   virtual void StoreEncryptedHash(const std::string& path,
                                   const base::Value* value) = 0;
+
+  // Stores the OS-encrypted hashes for the |value| of the split preference at
+  // |path|. |value| being an empty dictionary or NULL is equivalent. Requires
+  // the encryptor to have been provided at transaction start.
+  virtual void StoreSplitEncryptedHash(const std::string& path,
+                                       const base::Value::Dict* value) = 0;
 
   // Retrieves the stored OS-encrypted hash (Base64 encoded) for the
   // preference at |path|. Returns nullopt if no encrypted hash is stored.

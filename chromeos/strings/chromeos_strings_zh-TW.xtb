@@ -41,7 +41,7 @@
 <translation id="1145018782460575098">更新外部裝置韌體的視窗已開啟。<ph name="NUM_UPDATES" /> 項可用的更新。</translation>
 <translation id="1145516343487477149">尋找說明文章，並回答 Chromebook 常見問題</translation>
 <translation id="1154390310959620237">你只能自訂 5 個快速鍵。如要新增快速鍵，請刪除現有快速鍵。</translation>
-<translation id="1155154308031262006">輸入提示</translation>
+<translation id="1155154308031262006">輸入提示詞</translation>
 <translation id="115705039208660697">鳳梨</translation>
 <translation id="1164939766849482256">黎明到黑夜螢幕保護程式</translation>
 <translation id="1167755866710282443">開啟選單自訂按鍵，拖曳選單即可移動。</translation>
@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">現在只能使用課程工具組</translation>
 <translation id="1762483337755424125">轉錄稿</translation>
 <translation id="1765169783255151332">快速切換鍵</translation>
 <translation id="1768959921651994223">驗證類型</translation>
@@ -328,7 +329,7 @@
 <translation id="2244834438220057800">綠色</translation>
 <translation id="225692081236532131">啟用狀態</translation>
 <translation id="2267285889943769271">新增螢幕截圖</translation>
-<translation id="2268044343513325586">修正搜尋</translation>
+<translation id="2268044343513325586">調整文字</translation>
 <translation id="2271469253353559191">深色模式時間表</translation>
 <translation id="2276999893457278469">熱門說明內容</translation>
 <translation id="2277631741861284101">輕鬆錄音及分享</translation>
@@ -363,7 +364,7 @@
 <translation id="2446553403094072641">浮點精確度</translation>
 <translation id="2448312741937722512">類型</translation>
 <translation id="2448857983905133469">課程工具組</translation>
-<translation id="2468124392950503650">選取要建立的提示或查看<ph name="BEGIN_LINK_PROMPTING_GUIDE" />提示指南<ph name="END_LINK_PROMPTING_GUIDE" /></translation>
+<translation id="2468124392950503650">選取要建立的提示詞或查看<ph name="BEGIN_LINK_PROMPTING_GUIDE" />提示詞指南<ph name="END_LINK_PROMPTING_GUIDE" /></translation>
 <translation id="2472215337771558851">「幫我寫」功能採用 Google AI 技術，歡迎用來建立草稿或修正現有作品</translation>
 <translation id="2475982808118771221">發生錯誤</translation>
 <translation id="2480572840229215612">螃蟹</translation>
@@ -445,7 +446,7 @@
 <translation id="2878387241690264070">在 <ph name="NUM_SECONDS" /> 秒內放電 <ph name="RATE" />。</translation>
 <translation id="2880569433548999039">雲朵動態螢幕保護程式</translation>
 <translation id="2882230315487799269">自訂 AI 提示</translation>
-<translation id="2888298276507578975">輸入提示，例如「撰寫感謝函」</translation>
+<translation id="2888298276507578975">輸入提示詞，例如「撰寫感謝函」</translation>
 <translation id="2890557891229184386">熱帶島嶼</translation>
 <translation id="2895772081848316509">黑暗</translation>
 <translation id="2915996080311180594">稍後再重新啟動</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">失敗 - 已停止</translation>
 <translation id="3102119246920354026">快取</translation>
 <translation id="3103783611481501187">超現實</translation>
+<translation id="3119672627216736407">顯示翻譯</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">水池</translation>
 <translation id="3122883569442693641">詳細資料</translation>
@@ -494,7 +496,7 @@
 <translation id="3170673040743561620">將文件放入掃描機</translation>
 <translation id="3174321110679064523">黎明到黑夜桌布</translation>
 <translation id="3178532070248519384">前衛主義</translation>
-<translation id="3182676044300231689">輸入提示，例如「使用較堅定的語氣」</translation>
+<translation id="3182676044300231689">輸入提示詞，例如「使用較堅定的語氣」</translation>
 <translation id="3188257591659621405">我的檔案</translation>
 <translation id="319101249942218879">顯示圖片已變更</translation>
 <translation id="3192947282887913208">音訊檔</translation>
@@ -597,7 +599,7 @@
 <translation id="3651050199673793219">選取溫度單位</translation>
 <translation id="3661106764436337772">自信地快速編寫</translation>
 <translation id="3662461537616691585">勃艮第酒紅和暗紅色</translation>
-<translation id="3664755900672940272">已隨機顯示提示範例</translation>
+<translation id="3664755900672940272">已隨機顯示提示詞範例</translation>
 <translation id="3668449597372804501">雲朵動態桌布</translation>
 <translation id="3668570675727296296">語言設定</translation>
 <translation id="3675132884790542448">豬</translation>
@@ -695,7 +697,7 @@
 <translation id="4113067922640381334">現在起，你可以使用全新的<ph name="BEGIN_LINK_WALLPAPER_SUBPAGE" />桌布<ph name="END_LINK_WALLPAPER_SUBPAGE" /></translation>
 <translation id="4117637339509843559">深色模式</translation>
 <translation id="4126551873361000548">倒轉 10 秒</translation>
-<translation id="4128271910628504223">輸入提示，例如「畫出籠罩在薄霧下的森林」</translation>
+<translation id="4128271910628504223">輸入提示詞，例如「畫出籠罩在薄霧下的森林」</translation>
 <translation id="4130035430755296270">將滑鼠游標懸停在上方，即可查看更多版面配置選項</translation>
 <translation id="4130750466177569591">我同意</translation>
 <translation id="4131410914670010031">黑白</translation>
@@ -729,13 +731,13 @@
 <translation id="4249717042534905822">星期日</translation>
 <translation id="4250229828105606438">螢幕截圖</translation>
 <translation id="4251839292699800785">時尚辦公室</translation>
-<translation id="4252261480746798874">選取「自製桌布」後，你可以自行輸入提示，也可以依序選取「選擇主題」和畫底線的字詞，打造個人化的 AI 桌布。
+<translation id="4252261480746798874">選取「自製桌布」後，你可以自行輸入提示詞，也可以依序選取「選擇主題」和畫底線的字詞，打造個人化的 AI 桌布。
           <ph name="LINE_BREAK" />
           <ph name="LINE_BREAK" />
           選取「給我靈感」可取得更多獨特而有變化的 AI 圖像選項。
           <ph name="LINE_BREAK" />
           <ph name="LINE_BREAK" />
-          自製桌布時，系統會將提示傳送到 Google 伺服器，以產生圖像及提升產品品質，過程中會遵守 <ph name="BEGIN_LINK_GOOGLE_PRIVACY_POLICY" />Google 的《服務條款》和《隱私權政策》<ph name="END_LINK_GOOGLE_PRIVACY_POLICY" />規定。請勿加入任何個人、敏感或機密資訊。
+          自製桌布時，系統會將提示詞傳送到 Google 伺服器，以產生圖像及提升產品品質，過程中會遵守 <ph name="BEGIN_LINK_GOOGLE_PRIVACY_POLICY" />Google 的《服務條款》和《隱私權政策》<ph name="END_LINK_GOOGLE_PRIVACY_POLICY" />規定。請勿加入任何個人、敏感或機密資訊。
           <ph name="LINE_BREAK" />
           <ph name="LINE_BREAK" />
           生成式 AI 提供的內容未必準確 (包括人物相關資訊)，因此請多加查證。<ph name="BEGIN_LINK_CREATE_YOUR_OWN_WALLPAPER" />瞭解詳情<ph name="END_LINK_GOOGLE_PRIVACY_POLICY" /></translation>
@@ -910,7 +912,7 @@
 <translation id="4982627662315910959">這組快速鍵無法使用。按下新的快速鍵時，請使用 Shift 鍵和 1 個輔助鍵 (Ctrl、Alt 或<ph name="META_KEY" />鍵)。</translation>
 <translation id="4985509611418653372">執行</translation>
 <translation id="4987769320337599931">防火牆</translation>
-<translation id="4988526792673242964">網頁</translation>
+<translation id="4988526792673242964">頁面</translation>
 <translation id="4989542687859782284">尚未支援</translation>
 <translation id="4999267570108760491">向量藝術風格</translation>
 <translation id="4999333166442584738">隱藏報告</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">如要完成變更，請輸入你的舊密碼和新密碼</translation>
 <translation id="6061772781719867950">HTTPS 要求失敗</translation>
 <translation id="6073292342939316679">調低鍵盤亮度</translation>
+<translation id="6074608334942655098">停止翻譯</translation>
 <translation id="6074752328838739425">隱藏摘要</translation>
 <translation id="6075872808778243331">(Android) HTTP 延遲時間</translation>
 <translation id="6078323886959318429">新增捷徑</translation>
@@ -1229,7 +1232,7 @@
 <translation id="6447630859861661624">前往帳戶設定</translation>
 <translation id="6462978824459367242">現已啟用「新增 APN」按鈕</translation>
 <translation id="6463239094587744704">{PAGE_NUMBER,plural, =0{要重新掃描頁面嗎？}=1{要重新掃描第 {PAGE_NUMBER} 頁嗎？}other{要重新掃描第 {PAGE_NUMBER} 頁嗎？}}</translation>
-<translation id="6468146470109254228">這是你最近使用的 3 個提示和輸出內容。這些資料只能在使用「桌布和樣式」功能時存取。</translation>
+<translation id="6468146470109254228">這是你最近使用的 3 個提示詞和輸出內容。這些資料只能在使用「桌布和樣式」功能時存取。</translation>
 <translation id="6472207088655375767">動態密碼</translation>
 <translation id="6472979596862005515">船</translation>
 <translation id="64778964625672495">深紅</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">在 Chromebook 說明論壇中詢問專家</translation>
-<translation id="7309823890857024809">極簡靜物畫裡有幾枝虞美人花放在玻璃花瓶中，背景是黑色</translation>
 <translation id="7311368985037279727">鍵盤顏色</translation>
 <translation id="7317831949569936035">學校註冊程序</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@
 <translation id="8088963492174775412">按下即可錄製</translation>
 <translation id="8094062939584182041">允許 Google 透過電子郵件通知你這個問題的相關資訊</translation>
 <translation id="8104083085214006426">你目前使用的是未受保護的開放式網路</translation>
+<translation id="8108879170356113798"><ph name="NUM_SECONDS" /> 秒後將只能使用課程工具組</translation>
 <translation id="811820734797650957">(Android) 可連線偵測到閘道</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">確認</translation>
@@ -1735,7 +1738,7 @@
 <translation id="8709616837707653427"><ph name="DESC_TEXT" />請使用向左鍵或向右鍵管理這項功能。</translation>
 <translation id="8712637175834984815">我瞭解了</translation>
 <translation id="871560550817059752">失敗 - 墨水用盡</translation>
-<translation id="8721554916373590179">提示範例</translation>
+<translation id="8721554916373590179">提示詞範例</translation>
 <translation id="8723108084122415655">非預設網路超過延遲門檻</translation>
 <translation id="8725066075913043281">再試一次</translation>
 <translation id="8726019395068607495">已停止 - 蓋子處於開啟狀態</translation>
@@ -1744,7 +1747,7 @@
 <translation id="8747900814994928677">確認變更</translation>
 <translation id="8749478549112817787">攝影機背景</translation>
 <translation id="8755946156089753497">塔樓</translation>
-<translation id="8760616037557661287">先前的提示</translation>
+<translation id="8760616037557661287">先前的提示詞</translation>
 <translation id="876280838467039397">下載並選取<ph name="LANGUAGE_NAME" />語音轉錄模型</translation>
 <translation id="8764414543112028321">WireGuard</translation>
 <translation id="87646919272181953">Google 相簿中的相簿</translation>

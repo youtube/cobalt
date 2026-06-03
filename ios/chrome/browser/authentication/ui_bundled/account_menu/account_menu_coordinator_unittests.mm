@@ -138,12 +138,6 @@ class AccountMenuCoordinatorTest : public PlatformTest {
                         anchorView:nil
                        accessPoint:AccountMenuAccessPoint::kNewTabPage
                                URL:GURL()];
-    id<AccountMenuCoordinatorDelegate> delegate =
-        OCMStrictProtocolMock(@protocol(AccountMenuCoordinatorDelegate));
-    OCMExpect([delegate accountMenuCoordinatorWantsToBeStopped:coordinator_])
-        .andDo(^(NSInvocation*) {
-          Stop();
-        });
     [coordinator_ start];
 
     // Replacing the view controller and mediator by mock.
@@ -167,6 +161,7 @@ class AccountMenuCoordinatorTest : public PlatformTest {
  protected:
   void VerifyMock() {
     EXPECT_OCMOCK_VERIFY((id)mediator_);
+    EXPECT_OCMOCK_VERIFY((id)scene_state_mock_);
     EXPECT_OCMOCK_VERIFY((id)view_controller_);
     EXPECT_OCMOCK_VERIFY((id)mock_application_commands_handler_);
     EXPECT_OCMOCK_VERIFY((id)mock_browser_commands_handler_);
@@ -338,6 +333,7 @@ TEST_P(AccountMenuCoordinatorNonManagedTest, testPassphrase) {
   OCMExpect([classMock alloc]).andReturn(passphraseViewController);
   [coordinator_ openPassphraseDialogWithModalPresentation:YES];
   AssertOpenAndStop();
+  EXPECT_OCMOCK_VERIFY(classMock);
 }
 
 // Tests that `openTrustedVaultReauthForFetchKeys` calls

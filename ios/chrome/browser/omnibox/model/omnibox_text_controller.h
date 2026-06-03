@@ -9,13 +9,15 @@
 
 #import <string>
 
+#import "ios/chrome/browser/omnibox/model/omnibox_text_model.h"
+
 @protocol AutocompleteSuggestion;
 @class OmniboxAutocompleteController;
 class OmniboxControllerIOS;
+class OmniboxEditModelIOS;
 @protocol OmniboxFocusDelegate;
 @protocol OmniboxTextControllerDelegate;
 @class OmniboxTextFieldIOS;
-class OmniboxViewIOS;
 
 /// Controller of the omnibox text.
 @interface OmniboxTextController : NSObject
@@ -33,10 +35,14 @@ class OmniboxViewIOS;
 /// Omnibox textfield.
 @property(nonatomic, weak) OmniboxTextFieldIOS* textField;
 
+/// Returns the current selection range.
+@property(nonatomic, assign, readonly) NSRange currentSelection;
+
 /// Temporary initializer, used during the refactoring. crbug.com/390409559
 - (instancetype)initWithOmniboxController:
                     (OmniboxControllerIOS*)omniboxController
-                           omniboxViewIOS:(OmniboxViewIOS*)omniboxViewIOS
+                         omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel
+                         omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
                             inLensOverlay:(BOOL)inLensOverlay
     NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
@@ -58,6 +64,32 @@ class OmniboxViewIOS;
 
 /// Inserts text into the omnibox without triggering autocomplete.
 - (void)insertTextToOmnibox:(NSString*)text;
+
+/// Notifies the client about input changes.
+- (void)notifyClientOnUserInputInProgressChange:(BOOL)changedToUserInProgress;
+
+/// Retrieves the current textfield selection bounds.
+- (void)getSelectionBounds:(size_t*)start end:(size_t*)end;
+
+/// Reverts the edit and popup back to their unedited state (permanent text
+/// showing, popup closed, no user input in progress).
+- (void)revertAll;
+
+/// Returns the current text field displayed text.
+- (std::u16string)displayedText;
+
+/// Updates the text model input_in_progress state.
+- (void)setInputInProgress:(BOOL)inProgress;
+
+/// Reverts the text model back to its unedited state (permanent text showing,
+/// no user input in progress).
+- (void)revertState;
+
+/// Copies a match corresponding to the current text into `match`, and
+/// populates `alternate_nav_url` as well if it's not nullptr. If the popup
+/// is closed, the match is generated from the autocomplete classifier.
+- (void)getInfoForCurrentText:(AutocompleteMatch*)match
+       alternateNavigationURL:(GURL*)alternateNavigationURL;
 
 #pragma mark - Autocomplete event
 

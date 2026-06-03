@@ -5,6 +5,8 @@
 #ifndef CRYPTO_KEYPAIR_H_
 #define CRYPTO_KEYPAIR_H_
 
+#include <vector>
+
 #include "base/containers/span.h"
 #include "crypto/crypto_export.h"
 #include "crypto/subtle_passkey.h"
@@ -63,6 +65,7 @@ class CRYPTO_EXPORT PrivateKey {
   std::vector<uint8_t> ToUncompressedForm() const;
 
   EVP_PKEY* key() { return key_.get(); }
+  const EVP_PKEY* key() const { return key_.get(); }
 
   bool IsRsa() const;
   bool IsEc() const;

@@ -311,9 +311,6 @@ class TemplateURLService final : public WebDataServiceConsumer,
   // `search_engines::ChoiceScreenData` for more details.
   std::unique_ptr<search_engines::ChoiceScreenData> GetChoiceScreenData();
 
-  TemplateURLService::TemplateURLVector GetFeaturedEnterpriseSearchEngines()
-      const;
-
   // Returns the TemplateURL created by the EnterpriseSearchAggregatorSettings
   // policy.
   TemplateURL* GetEnterpriseSearchAggregatorEngine() const;
@@ -322,6 +319,9 @@ class TemplateURLService final : public WebDataServiceConsumer,
   // policy from the prefs indicating whether keyword mode is required for using
   // the enterprise search aggregator TemplateURL.
   bool IsShortcutRequiredForSearchAggregatorEngine() const;
+
+  TemplateURLService::TemplateURLVector GetFeaturedEnterpriseSiteSearchEngines()
+      const;
 
 #if BUILDFLAG(IS_ANDROID)
   // Returns the list prepopulated template URLs for `country_code`.
@@ -496,13 +496,6 @@ class TemplateURLService final : public WebDataServiceConsumer,
   void OnWebDataServiceRequestDone(
       KeywordWebDataService::Handle h,
       std::unique_ptr<WDTypedResult> result) override;
-
-  // Returns the locale-direction-adjusted short name for the given keyword.
-  // Also sets the out param to indicate whether the keyword belongs to an
-  // Omnibox extension or the Gemini starter pack engine.
-  std::u16string GetKeywordShortName(const std::u16string& keyword,
-                                     bool* is_omnibox_api_extension_keyword,
-                                     bool* is_gemini_keyword) const;
 
   // Called by the history service when a URL is visited.
   void OnHistoryURLVisited(const URLVisitedDetails& details);
@@ -888,6 +881,10 @@ class TemplateURLService final : public WebDataServiceConsumer,
   // Returns an instance of |EnterpriseSearchManager|.
   std::unique_ptr<EnterpriseSearchManager> GetEnterpriseSearchManager(
       PrefService* prefs);
+
+  // Calls `EnterpriseSearchManager::AddOverriddenKeyword` and adds the keyword
+  // of the `template_url` to the overridden keyword pref list.
+  void AddOverriddenKeywordForTemplateURL(const TemplateURL* template_url);
 
   // Logs a histogram to track keyword conflicts between search engines created
   // by policy and search engines the user manually edited.

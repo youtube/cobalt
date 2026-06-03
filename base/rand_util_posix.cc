@@ -28,17 +28,18 @@
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "third_party/boringssl/src/include/openssl/rand.h"
 
+<<<<<<< HEAD
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+=======
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
 // TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
 // (See below.)
 #include <sys/random.h>
-#endif
-
-#if !BUILDFLAG(IS_NACL)
-#include "third_party/boringssl/src/include/openssl/rand.h"
 #endif
 
 namespace base {
@@ -70,9 +71,13 @@ class URandomFd {
   const int fd_;
 };
 
+<<<<<<< HEAD
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
     !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+=======
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 
 bool KernelSupportsGetRandom() {
   return base::SysInfo::KernelVersionNumber::Current() >=
@@ -94,8 +99,13 @@ bool GetRandomSyscall(void* output, size_t output_length) {
   }
   return false;
 }
+<<<<<<< HEAD
 #endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+=======
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 
 }  // namespace
 
@@ -103,7 +113,6 @@ namespace internal {
 
 namespace {
 
-#if !BUILDFLAG(IS_NACL)
 // The BoringSSl helpers are duplicated in rand_util_fuchsia.cc and
 // rand_util_win.cc.
 std::atomic<bool> g_use_boringssl;
@@ -122,24 +131,26 @@ void ConfigureBoringSSLBackedRandBytesFieldTrial() {
 bool UseBoringSSLForRandBytes() {
   return g_use_boringssl.load(std::memory_order_relaxed);
 }
-#endif
 
 }  // namespace internal
 
 namespace {
 
 void RandBytesInternal(span<uint8_t> output, bool avoid_allocation) {
-#if !BUILDFLAG(IS_NACL)
   // The BoringSSL experiment takes priority over everything else.
   if (!avoid_allocation && internal::UseBoringSSLForRandBytes()) {
     // BoringSSL's RAND_bytes always returns 1. Any error aborts the program.
     (void)RAND_bytes(output.data(), output.size());
     return;
   }
+<<<<<<< HEAD
 #endif
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
     !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+=======
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
   // On Android it is mandatory to check that the kernel _version_ has the
   // support for a syscall before calling. The same check is made on Linux and
   // ChromeOS to avoid making a syscall that predictably returns ENOSYS.

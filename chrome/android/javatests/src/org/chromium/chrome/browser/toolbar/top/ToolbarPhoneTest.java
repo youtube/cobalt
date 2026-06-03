@@ -86,11 +86,12 @@ import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataImpl;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarPhone.VisualState;
-import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -116,7 +117,8 @@ public class ToolbarPhoneTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Mock private MenuButtonCoordinator mMenuButtonCoordinator;
 
@@ -133,6 +135,7 @@ public class ToolbarPhoneTest {
     private MenuButton mMenuButton;
     private OmniboxTestUtils mOmnibox;
     private TemplateUrlService mTemplateUrlService;
+    private WebPageStation mPage;
 
     @ParameterAnnotations.UseMethodParameterBefore(NightModeTestUtils.NightModeParams.class)
     public void setupNightMode(boolean nightModeEnabled) {
@@ -149,8 +152,7 @@ public class ToolbarPhoneTest {
 
     @Before
     public void setUp() {
-
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         TemplateUrlService originalService =
                 ThreadUtils.runOnUiThreadBlocking(
                         () ->
@@ -226,7 +228,7 @@ public class ToolbarPhoneTest {
                     // Has to be created on the main thread.
                     MenuButtonCoordinator realMenuButtonCoordinator =
                             new MenuButtonCoordinator(
-                                    new OneshotSupplierImpl<AppMenuCoordinator>(),
+                                    new OneshotSupplierImpl<>(),
                                     new TestControlsVisibilityDelegate(),
                                     mActivityTestRule.getActivity().getWindowAndroid(),
                                     mFocusFunction,
@@ -236,7 +238,8 @@ public class ToolbarPhoneTest {
                                     mThemeColorProvider,
                                     () -> null,
                                     CallbackUtils.emptyRunnable(),
-                                    R.id.menu_button_wrapper);
+                                    R.id.menu_button_wrapper,
+                                    null);
                     mToolbar.setMenuButtonCoordinatorForTesting(realMenuButtonCoordinator);
                     mToolbar.updateOptionalButton(
                             new ButtonDataImpl(

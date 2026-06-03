@@ -6,11 +6,14 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
+#include "chrome/grit/branded_strings.h"
 #include "privacy_sandbox_incognito_features.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace privacy_sandbox {
 
@@ -64,6 +67,20 @@ PrivacySandboxIncognitoSurveyService::GetActSurveyPsd(int delay_ms) {
   return {{"Survey Trigger Delay", base::NumberToString(delay_ms)}};
 }
 
+HatsService::SurveyOptions
+PrivacySandboxIncognitoSurveyService::GetActSurveyOptions() {
+  HatsService::SurveyOptions options;
+
+#if BUILDFLAG(IS_ANDROID)
+  if (kPrivacySandboxActSurveyCustomInvitation.Get()) {
+    options.custom_invitation =
+        l10n_util::GetStringUTF16(IDS_MESSAGE_ACT_SURVEY_INVITATION);
+  }
+#endif
+
+  return options;
+}
+
 void PrivacySandboxIncognitoSurveyService::RecordActSurveyStatus(
     ActSurveyStatus status) {
   base::UmaHistogramEnumeration("PrivacySandbox.ActSurvey.Status", status);
@@ -93,14 +110,16 @@ void PrivacySandboxIncognitoSurveyService::MaybeShowActSurvey(
       /*product_specific_bits_data=*/{},
       /*product_specific_string_data=*/
       GetActSurveyPsd(delay_ms),
-      /*navigation_behaviour=*/
-      HatsService::NavigationBehaviour::REQUIRE_SAME_DOCUMENT,
+      /*navigation_behavior=*/
+      HatsService::NavigationBehavior::REQUIRE_SAME_DOCUMENT,
       /*success_callback=*/
       base::BindOnce(&PrivacySandboxIncognitoSurveyService::OnActSurveyShown,
                      weak_ptr_factory_.GetWeakPtr()),
       /*failure_callback=*/
       base::BindOnce(&PrivacySandboxIncognitoSurveyService::OnActSurveyFailure,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr()),
+      /*supplied_trigger_id=*/std::nullopt,
+      /*survey_options=*/GetActSurveyOptions());
 }
 
 void PrivacySandboxIncognitoSurveyService::OnActSurveyShown() {

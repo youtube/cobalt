@@ -36,7 +36,6 @@ import type {SettingsToggleButtonElement} from '../controls/settings_toggle_butt
 import type {FocusConfig} from '../focus_config.js';
 import {loadTimeData} from '../i18n_setup.js';
 import {routes} from '../route.js';
-import type {Route} from '../router.js';
 import {Router} from '../router.js';
 
 import type {AccessibilityBrowserProxy} from './a11y_browser_proxy.js';
@@ -81,23 +80,12 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
 
   static get properties() {
     return {
-      /**
-       * The current active route.
-       */
-      currentRoute: {
-        type: Object,
-        notify: true,
-      },
-
       // <if expr="not is_chromeos">
       /**
        * Read-only reference to the languages model provided by the
        * 'settings-languages' instance.
        */
-      languages: {
-        type: Object,
-        notify: true,
-      },
+      languages: Object,
 
       languageHelper: Object,
 
@@ -149,34 +137,6 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
         },
       },
 
-      /**
-       * Whether the caption settings link opens externally.
-       */
-      captionSettingsOpensExternally_: {
-        type: Boolean,
-        value() {
-          let opensExternally = false;
-          // <if expr="is_macosx or is_win">
-          opensExternally = true;
-          // </if>
-          return opensExternally;
-        },
-      },
-
-      /**
-       * Whether to show the overscroll history navigation setting.
-       */
-      showOverscrollHistoryNavigationToggle_: {
-        type: Boolean,
-        value: function() {
-          let showOverscroll = false;
-          // <if expr="is_win or is_linux or is_macosx">
-          showOverscroll = true;
-          // </if>
-          return showOverscroll;
-        },
-      },
-
       // <if expr="not is_chromeos">
 
       /** Valid toast alert level option. */
@@ -197,7 +157,6 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
   private browserProxy_: AccessibilityBrowserProxy =
       AccessibilityBrowserProxyImpl.getInstance();
 
-  declare currentRoute: Route;
   // <if expr="not is_chromeos">
   declare languages: LanguagesModel;
   declare languageHelper: LanguageHelper;
@@ -207,9 +166,7 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
   // </if>
 
   declare private focusConfig_: FocusConfig;
-  declare private captionSettingsOpensExternally_: boolean;
   declare private hasScreenReader_: boolean;
-  declare private showOverscrollHistoryNavigationToggle_: boolean;
   declare private showAxTreeFixingSection_: boolean;
   // <if expr="is_win or is_linux or is_macosx">
   declare private showAxAnnotationsSection_: boolean;
@@ -257,6 +214,15 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
         loadTimeData.getBoolean('mainNodeAnnotationsEnabled');
     return anyAxAnnotationsFeatureEnabled && this.hasScreenReader_;
   }
+
+  private onCaptionsClick_() {
+    // <if expr="is_win or is_macosx">
+    CaptionsBrowserProxyImpl.getInstance().openSystemCaptionsDialog();
+    // </if>
+    // <if expr="is_linux">
+    Router.getInstance().navigateTo(routes.CAPTIONS);
+    // </if>
+  }
   // </if>
 
   // <if expr="not is_chromeos">
@@ -277,16 +243,6 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
   private onMoreFeaturesLinkClick_() {
     window.open(
         'https://chrome.google.com/webstore/category/collection/3p_accessibility_extensions');
-  }
-
-  private onCaptionsClick_() {
-    if (this.captionSettingsOpensExternally_) {
-      // <if expr="is_win or is_macosx">
-      CaptionsBrowserProxyImpl.getInstance().openSystemCaptionsDialog();
-      // </if>
-    } else {
-      Router.getInstance().navigateTo(routes.CAPTIONS);
-    }
   }
 
   // <if expr="is_win or is_linux">

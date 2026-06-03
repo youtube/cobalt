@@ -30,10 +30,12 @@ class KidsChromeManagementURLCheckerClient
     : public safe_search_api::URLCheckerClient {
  public:
   // `country` should be a two-letter country code (ISO 3166-1 alpha-2), e.g.,
-  // "us".
+  // "us". `is_subject_to_parental_controls` indicates if the caller is subject
+  // to Family Link parental controls.
   KidsChromeManagementURLCheckerClient(
       signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const PrefService& pref_service,
       std::string_view country,
       version_info::Channel channel);
 

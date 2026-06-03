@@ -385,8 +385,8 @@ class ScopedNavigationCancellingThrottleInstaller : public WebContentsObserver {
  protected:
   class CancellingThrottle : public NavigationThrottle {
    public:
-    explicit CancellingThrottle(NavigationHandle* handle)
-        : NavigationThrottle(handle) {}
+    explicit CancellingThrottle(NavigationThrottleRegistry& registry)
+        : NavigationThrottle(registry) {}
 
     CancellingThrottle(const CancellingThrottle&) = delete;
     CancellingThrottle& operator=(const CancellingThrottle&) = delete;
@@ -403,9 +403,12 @@ class ScopedNavigationCancellingThrottleInstaller : public WebContentsObserver {
     }
   };
 
+  // WebContentsObserver:
   void DidStartNavigation(NavigationHandle* navigation_handle) override {
-    navigation_handle->RegisterThrottleForTesting(
-        std::make_unique<CancellingThrottle>(navigation_handle));
+    NavigationThrottleRegistry& registry =
+        *NavigationRequest::From(navigation_handle)
+             ->GetNavigationThrottleRegistryForTesting();
+    registry.AddThrottle(std::make_unique<CancellingThrottle>(registry));
   }
 };
 

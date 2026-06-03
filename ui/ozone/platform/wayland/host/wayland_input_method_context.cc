@@ -19,7 +19,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/nix/xdg_util.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_offset_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -233,6 +233,10 @@ class WaylandInputmethodContextV3Client : public ZwpTextInputV3Client {
     context_->OnCommitString(text);
   }
 
+  void OnDeleteSurroundingText(int32_t index, uint32_t length) override {
+    context_->OnDeleteSurroundingText(index, length);
+  }
+
  private:
   raw_ptr<WaylandInputMethodContext> context_;
 };
@@ -301,6 +305,8 @@ void WaylandInputMethodContext::CreateTextInput() {
 }
 
 void WaylandInputMethodContext::Init() {
+  desktop_environment_ =
+      base::nix::GetDesktopEnvironment(base::Environment::Create().get());
   bool use_ozone_wayland_ime = IsImeEnabled();
   // If text input instance is not created then all ime context operations
   // are noop. This option is because in some environments someone might not

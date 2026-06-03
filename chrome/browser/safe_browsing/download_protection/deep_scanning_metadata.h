@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_SAFE_BROWSING_DOWNLOAD_PROTECTION_DEEP_SCANNING_METADATA_H_
 
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "chrome/browser/download/download_item_warning_data.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
@@ -44,6 +45,7 @@ class DeepScanningMetadata {
 
   // File metadata accessor methods used in deep scanning.
   virtual content::BrowserContext* GetBrowserContext() const = 0;
+  virtual safe_browsing::ReferrerChain GetReferrerChain() const = 0;
   virtual const base::FilePath& GetFullPath() const = 0;
   virtual const base::FilePath& GetTargetFilePath() const = 0;
   virtual const std::string& GetHash() const = 0;

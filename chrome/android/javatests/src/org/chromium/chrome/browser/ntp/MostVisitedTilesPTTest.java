@@ -18,7 +18,10 @@ import org.junit.runners.MethodSorters;
 
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
@@ -63,34 +66,54 @@ public class MostVisitedTilesPTTest {
 
     @Test
     @MediumTest
-    public void test010_ClickFirstMVT() {
+    @DisableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void test010_ClickFirstMVT_DisableMvtCustomization() {
         doClickMVTTest(0);
     }
 
     @Test
     @MediumTest
-    public void test020_ClickLastMVT() {
+    @EnableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void test010_ClickFirstMVT_EnableMvtCustomization() {
+        doClickMVTTest(0);
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void test020_ClickLastMVT_DisableMvtCustomization() {
+        doClickMVTTest(7);
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void test020_ClickLastMVT_EnableMvtCustomization() {
         doClickMVTTest(7);
     }
 
     private void doClickMVTTest(int index) {
         RegularNewTabPageStation page = mCtaTestRule.start();
+
         MvtsFacility mvts = page.focusOnMvts(sSiteSuggestions);
         WebPageStation mostVisitedPage;
         try (var histogram =
                 HistogramWatcher.newSingleRecordWatcher(
                         "NewTabPage.Module.Click", ModuleTypeOnStartAndNtp.MOST_VISITED_TILES)) {
-            mostVisitedPage = mvts.tileItems.get(index).scrollToAndSelect();
+            mostVisitedPage = mvts.ensureTileIsDisplayedAndGet(index).clickToNavigateToWebPage();
         }
 
         // Reset back to the NTP for batching
         page =
-                mostVisitedPage.pressBack(
-                        RegularNewTabPageStation.newBuilder()
-                                .withIncognito(false)
-                                .withIsOpeningTabs(0)
-                                .withTabAlreadySelected(mostVisitedPage.loadedTabElement.get())
-                                .build());
+                mostVisitedPage
+                        .pressBackTo()
+                        .arriveAt(
+                                RegularNewTabPageStation.newBuilder()
+                                        .withIncognito(false)
+                                        .withIsOpeningTabs(0)
+                                        .withTabAlreadySelected(
+                                                mostVisitedPage.loadedTabElement.get())
+                                        .build());
         assertFinalDestination(page);
     }
 }

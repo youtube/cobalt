@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/frame/cached_permission_status.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/html/html_permission_icon_element.h"
 #include "third_party/blink/renderer/core/intersection_observer/intersection_observer.h"
@@ -213,9 +214,8 @@ class CORE_EXPORT HTMLPermissionElement final
     kLowConstrastColorAndBackgroundColor = 1,
     kTooSmallFontSize = 3,
     kTooLargeFontSize = 4,
-    kInvalidDisplayProperty = 5,
 
-    kMaxValue = kInvalidDisplayProperty,
+    kMaxValue = kTooLargeFontSize,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:PermissionElementInvalidStyleReason)
 
@@ -364,7 +364,7 @@ class CORE_EXPORT HTMLPermissionElement final
   bool ValidateSnapshot() override;
   bool ShouldScheduleNextService() override { return false; }
 
-  // Update and notify CSS pseudo class changed, which indicates PEPC is
+  // Update and notify CSS pseudo-class changed, which indicates PEPC is
   // currently entering/exiting clicking disable state, such as invalid style or
   // being occluded.
   // Return true if the state has been changed.
@@ -535,6 +535,8 @@ class CORE_EXPORT HTMLPermissionElement final
   // |base::TimeTicks::Max()| if it's indefinite.
   HashMap<DisableReason, base::TimeTicks> clicking_disabled_reasons_;
 
+  // A element which contains the internal permission elements(text and icon).
+  Member<HTMLDivElement> permission_container_;
   Member<HTMLSpanElement> permission_text_span_;
   Member<HTMLPermissionIconElement> permission_internal_icon_;
   Member<IntersectionObserver> intersection_observer_;
@@ -542,7 +544,7 @@ class CORE_EXPORT HTMLPermissionElement final
   // Keeps track of the time a request was created.
   std::optional<base::TimeTicks> pending_request_created_;
 
-  // Store information to notify CSS pseudo class changed.
+  // Store information to notify CSS pseudo-class changed.
   struct ClickingDisablePseudoState {
     bool has_invalid_style = false;
     bool is_occluded = false;

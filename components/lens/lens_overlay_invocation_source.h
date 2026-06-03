@@ -55,11 +55,18 @@ enum class LensOverlayInvocationSource {
   // The Lens homework action chip in the omnibox.
   kHomeworkActionChip = 11,
 
-  kMaxValue = kHomeworkActionChip
+  // The Lens entry point in the AI hub menu.
+  kAIHub = 12,
+
+  // The Lens entry point in the Interactive Lens screen in the First Run
+  // Experience.
+  kFREPromo = 13,
+
+  kMaxValue = kFREPromo
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/lens/enums.xml:LensOverlayInvocationSource)
 // When adding a value here, also update:
-// - tools/metrics/histograms/metadata/lens/histogram.xml: <variants
+// - tools/metrics/histograms/metadata/lens/histograms.xml: <variants
 // name="InvocationSources">
 }  // namespace lens
 

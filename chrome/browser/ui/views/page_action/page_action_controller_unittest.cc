@@ -12,7 +12,6 @@
 #include "base/metrics/histogram_base.h"
 #include "base/scoped_observation.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/ui/tabs/test/mock_tab_interface.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/browser/ui/views/page_action/page_action_enums.h"
@@ -24,6 +23,7 @@
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -40,14 +40,12 @@ static const PageActionPropertiesMap kTestProperties =
                                 kFirstActionItemId,
                                 PageActionProperties{
                                     .histogram_name = "Test0",
-                                    .is_ephemeral = true,
                                 },
                             },
                             {
                                 kSecondActionItemId,
                                 PageActionProperties{
                                     .histogram_name = "Test1",
-                                    .is_ephemeral = true,
                                 },
                             }};
 
@@ -103,7 +101,7 @@ class PageActionTestObserver : public PageActionModelObserver {
   int model_change_count_ = 0;
 };
 
-class PageActionControllerTest : public ::testing::Test {
+class PageActionControllerTest : public testing::Test {
  public:
   PageActionControllerTest()
       : properties_provider_(
@@ -111,14 +109,12 @@ class PageActionControllerTest : public ::testing::Test {
                                         /*action_id=*/0,
                                         PageActionProperties{
                                             .histogram_name = "Test0",
-                                            .is_ephemeral = true,
                                         },
                                     },
                                     {
                                         /*action_id=*/1,
                                         PageActionProperties{
                                             .histogram_name = "Test1",
-                                            .is_ephemeral = true,
                                         },
                                     }}) {}
 
@@ -126,7 +122,7 @@ class PageActionControllerTest : public ::testing::Test {
     pinned_actions_model_ =
         std::make_unique<PinnedToolbarActionsModel>(&profile_);
     controller_ =
-        std::make_unique<PageActionController>(pinned_actions_model_.get());
+        std::make_unique<PageActionControllerImpl>(pinned_actions_model_.get());
     tab_interface_ = std::make_unique<FakeTabInterface>(&profile_);
     tab_interface_->Activate();
   }
@@ -138,7 +134,7 @@ class PageActionControllerTest : public ::testing::Test {
     tab_interface_.reset();
   }
 
-  PageActionController* controller() { return controller_.get(); }
+  PageActionControllerImpl* controller() { return controller_.get(); }
 
   PinnedToolbarActionsModel* pinned_actions_model() {
     return pinned_actions_model_.get();
@@ -163,7 +159,7 @@ class PageActionControllerTest : public ::testing::Test {
   content::BrowserTaskEnvironment task_environment_;
 
   TestingProfile profile_;
-  std::unique_ptr<PageActionController> controller_;
+  std::unique_ptr<PageActionControllerImpl> controller_;
   std::unique_ptr<PinnedToolbarActionsModel> pinned_actions_model_;
   std::unique_ptr<ActionItem> action_item_;
   std::unique_ptr<FakeTabInterface> tab_interface_;
@@ -427,7 +423,7 @@ TEST_F(PageActionControllerTest, NotifyActionClickedLogsHistogram) {
                                      PageActionCTREvent::kClicked, 2);
 }
 
-class PageActionControllerMockModelTest : public ::testing::Test {
+class PageActionControllerMockModelTest : public testing::Test {
  public:
   PageActionControllerMockModelTest()
       : properties_provider_(kTestProperties),
@@ -436,7 +432,7 @@ class PageActionControllerMockModelTest : public ::testing::Test {
             &model_factory_),
         tab_interface_(&profile_) {}
 
-  PageActionController& controller() { return controller_; }
+  PageActionControllerImpl& controller() { return controller_; }
   MockPageActionModelFactory& models() { return model_factory_; }
   FakeTabInterface& tab_interface() { return tab_interface_; }
 
@@ -447,7 +443,7 @@ class PageActionControllerMockModelTest : public ::testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
   MockPageActionModelFactory model_factory_;
-  PageActionController controller_;
+  PageActionControllerImpl controller_;
   FakeTabInterface tab_interface_;
 };
 

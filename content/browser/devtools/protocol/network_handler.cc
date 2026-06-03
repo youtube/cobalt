@@ -25,6 +25,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -2857,6 +2858,7 @@ void NetworkHandler::OnSignedExchangeReceived(
   std::unique_ptr<Network::SignedExchangeInfo> signed_exchange_info =
       Network::SignedExchangeInfo::Create()
           .SetOuterResponse(BuildResponse(outer_request_url, *head_info))
+          .SetHasExtraInfo(outer_response.emitted_extra_info)
           .Build();
 
   if (envelope) {
@@ -3119,9 +3121,7 @@ void NetworkHandler::OnResponseBodyPipeTaken(
     return;
   }
   // The pipe stream is owned only by io_context after we return.
-  bool is_binary = !DevToolsIOContext::IsTextMimeType(mime_type);
-  auto stream =
-      DevToolsStreamPipe::Create(io_context_, std::move(pipe), is_binary);
+  auto stream = DevToolsStreamPipe::Create(io_context_, std::move(pipe));
   callback->sendSuccess(stream->handle());
 }
 
@@ -3493,11 +3493,7 @@ void NetworkHandler::OnLoadNetworkResourceFinished(
   }
 
   if (success) {
-    bool is_binary = true;
-    std::string mime_type;
-    if (rh && rh->GetMimeType(&mime_type)) {
-      is_binary = !DevToolsIOContext::IsTextMimeType(mime_type);
-    }
+    bool is_binary = !base::IsStringUTF8(content);
     // TODO(sigurds): Use the data-pipe from the network loader.
     scoped_refptr<DevToolsStreamFile> stream =
         DevToolsStreamFile::Create(io_context_, is_binary);

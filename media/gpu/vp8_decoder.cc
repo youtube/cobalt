@@ -5,7 +5,7 @@
 #include "media/gpu/vp8_decoder.h"
 
 #include "base/logging.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "media/base/limits.h"
 #include "ui/gfx/hdr_metadata.h"
 
@@ -70,7 +70,7 @@ VP8Decoder::DecodeResult VP8Decoder::Decode() {
     return kRanOutOfStreamData;
 
   if (!curr_frame_hdr_) {
-    curr_frame_hdr_.reset(new Vp8FrameHeader());
+    curr_frame_hdr_ = std::make_unique<Vp8FrameHeader>();
     if (!parser_.ParseFrame(curr_frame_start_, frame_size_,
                             curr_frame_hdr_.get())) {
       DVLOG(1) << "Error during decode";

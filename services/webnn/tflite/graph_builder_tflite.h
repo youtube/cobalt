@@ -236,11 +236,14 @@ class GraphBuilderTflite final {
       ::tflite::BuiltinOptions builtin_options_type =
           ::tflite::BuiltinOptions_NONE,
       flatbuffers::Offset<void> builtin_options = 0);
-  OperatorOffset SerializeCastOperation(
-      TensorIndex input_tensor_index,
-      ::tflite::TensorType input_tensor_type,
-      TensorIndex output_tensor_index,
-      ::tflite::TensorType output_tensor_type);
+
+  // Serialize a cast operation. The CAST or DEQUANTIZE operators may be used
+  // depending on the input and output types and whether the input is constant.
+  OperatorOffset SerializeCastOperation(TensorIndex input_tensor_index,
+                                        ::tflite::TensorType input_tensor_type,
+                                        TensorIndex output_tensor_index,
+                                        ::tflite::TensorType output_tensor_type,
+                                        bool constant_input_tensor = false);
 
   // Serializes specializations of the pow operator for the square and square
   // root operations.
@@ -296,12 +299,6 @@ class GraphBuilderTflite final {
       base::span<const TensorIndex> input_tensor_indices,
       TensorIndex output_tensor_index,
       uint32_t axis);
-
-  // This function serializes a TFLite dequantize operator to convert float16
-  // data type to float32.
-  TensorIndex SerializeDequantizeOperation(
-      TensorIndex input_tensor_index,
-      base::span<const int32_t> input_dimensions);
 
   // Get int64 zero point from int4 constant operand.
   base::FixedArray<int64_t> GetInt64ZeroPointFromInt4(
@@ -712,11 +709,35 @@ class GraphBuilderTflite final {
 
   bool RequiresFloat32Precision(const mojom::Operation& op);
 
+  // The output information of the fusable activation operation.
+  struct FusedActivationOutputInfo {
+    FusedActivationOutputInfo(OperandId output_operand_id,
+                              TensorIndex output_tensor_index,
+                              ::tflite::ActivationFunctionType activation_type)
+        : output_operand_id(output_operand_id),
+          output_tensor_index(output_tensor_index),
+          activation_type(activation_type) {}
+
+    OperandId output_operand_id;
+    TensorIndex output_tensor_index;
+    ::tflite::ActivationFunctionType activation_type;
+  };
+  // Check if the next operation is relu / clamp and the range specified by the
+  // minimum and maximum can be mapped to tflite::ActivationFunctionType, if so
+  // we can remove the relu / clamp operation and fuse the
+  // ActivationFunctionType.
+  std::optional<FusedActivationOutputInfo> CanFuseActivationAndGetOutput(
+      OperandId output_operand_id);
+
   // Check if inputs and outputs are quantized tensors and matches
   // op specific fusion criteria required by TFLite, if so we can remove the
   // preceding `dequantizeLinear` and subsequent `quantizeLinear`.
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
-    const mojom::Conv2d& conv2d);
+      const mojom::Clamp& clamp,
+      bool is_emulated);
+  std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
+      const mojom::Conv2d& conv2d,
+      std::optional<OperandId> activation_output_operand_id);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Concat& concat);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
@@ -725,9 +746,14 @@ class GraphBuilderTflite final {
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Gather& gather);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
+      const mojom::Gemm& gemm);
+  std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(const mojom::Pad& pad);
+  std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Pool2d& pool2d);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Reduce& reduce);
+  std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
+      const mojom::Resample2d& resample2d);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Reshape& reshape);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
@@ -751,6 +777,12 @@ class GraphBuilderTflite final {
   template <typename OpType>
   std::optional<std::pair<OperationId, QuantizateParametersOffset>>
   CanFuseQuantizeForActivationOperation(const OpType& op);
+  // Helper for element-wise logical operations to check if specific fusion
+  // criteria required by TFLite are met. The output data type of element-wise
+  // logical operations is uint8, so the next operation isn't quantizeLinear,
+  // but `dq -> op` can be fused to quantized op.
+  bool CanFuseDequantizeForLogicalElementWiseBinary(
+      const mojom::ElementWiseBinary& binary);
   bool IsDequantizeOutput(OperandId operand_id);
   // Get the dequantize op by its output operand id.
   const mojom::DequantizeLinear& GetDequantizeOp(OperandId operand_id);
@@ -771,6 +803,10 @@ class GraphBuilderTflite final {
   // mark the `quantize_linear` to be skipped.
   TensorInfo SerializeQuantizedOutput(
       std::pair<OperationId, QuantizateParametersOffset> quantize_op_info);
+  // Get next operation id if it exists and is the only one with the output
+  // operand id of current operation.
+  std::optional<OperationId> GetSoleDependentOperationId(
+      OperandId output_operand_id);
   // Check if next op is quantize and its parameters can be serialized, if so
   // mark it to-be skipped and return the quantized output.
   std::optional<std::pair<OperationId, QuantizateParametersOffset>>
@@ -786,6 +822,14 @@ class GraphBuilderTflite final {
     requires(std::is_same_v<OpType, mojom::DequantizeLinear> ||
              std::is_same_v<OpType, mojom::QuantizeLinear>)
   bool IsInts8AndScalarScale(const OpType& op);
+
+  // Helper for QDQ fusion to check if `dequantize` and `op` have same
+  // scale and zero_point.
+  template <typename OpType>
+    requires(std::is_same_v<OpType, mojom::DequantizeLinear> ||
+             std::is_same_v<OpType, mojom::QuantizeLinear>)
+  bool IsSameScaleAndZeroPoint(const mojom::DequantizeLinear& dequantize,
+                               const OpType& op);
 
   bool IsSerializedWithMismatchQuantizeParameters(
       OperandId operand_id,
@@ -878,7 +922,7 @@ class GraphBuilderTflite final {
   base::flat_map<OperandId, std::pair<OperationId, bool>>
       lazy_serialized_dequantize_operations_;
 
-  base::flat_set<OperationId> quantize_ops_to_skip_;
+  base::flat_set<OperationId> fused_ops_to_skip_;
 
   // Mapping of the offset to scale_operand_id and zero_point_operand_id.
   // Because there is no way to retrieve the underlying data from the flatbuffer

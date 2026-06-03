@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.crash;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.job.JobInfo;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -27,6 +29,8 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
@@ -47,6 +51,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Service that is responsible for uploading crash minidumps to the Google crash server. */
+@NullMarked
 public class MinidumpUploadServiceImpl extends MinidumpUploadService.Impl {
     private static final String TAG = "MinidmpUploadService";
 
@@ -86,7 +91,7 @@ public class MinidumpUploadServiceImpl extends MinidumpUploadService.Impl {
 
     @Override
     protected void onServiceSet() {
-        getService().setIntentRedelivery(true);
+        assumeNonNull(getService()).setIntentRedelivery(true);
     }
 
     /** Schedules uploading of all pending minidumps, using the JobScheduler API. */
@@ -196,7 +201,7 @@ public class MinidumpUploadServiceImpl extends MinidumpUploadService.Impl {
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
+    protected void onHandleIntent(@Nullable Intent intent) {
         if (intent == null) return;
         if (!ACTION_UPLOAD.equals(intent.getAction())) {
             Log.w(TAG, "Got unknown action from intent: " + intent.getAction());
@@ -232,7 +237,7 @@ public class MinidumpUploadServiceImpl extends MinidumpUploadService.Impl {
             return;
         }
 
-        String logfileName = intent.getStringExtra(UPLOAD_LOG_KEY);
+        String logfileName = assumeNonNull(intent.getStringExtra(UPLOAD_LOG_KEY));
         File logfile = new File(logfileName);
 
         // Try to upload minidump

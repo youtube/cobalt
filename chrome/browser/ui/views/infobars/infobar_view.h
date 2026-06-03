@@ -5,6 +5,10 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_INFOBARS_INFOBAR_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_INFOBARS_INFOBAR_VIEW_H_
 
+#include <memory>
+#include <optional>
+#include <string>
+
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "components/infobars/core/infobar.h"
@@ -42,8 +46,6 @@ class InfoBarView : public infobars::InfoBar,
   void Layout(PassKey) override;
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
-  void ViewHierarchyChanged(
-      const views::ViewHierarchyChangedDetails& details) override;
   void OnThemeChanged() override;
 
   // views::ExternalFocusTracker:
@@ -56,8 +58,11 @@ class InfoBarView : public infobars::InfoBar,
   std::unique_ptr<views::Label> CreateLabel(const std::u16string& text) const;
 
   // Creates a link with the appropriate font and color for an infobar.
-  // NOTE: Subclasses must ignore link clicks if we're unowned.
-  std::unique_ptr<views::Link> CreateLink(const std::u16string& text);
+  // By default, `text` will be used as a accessible text if it's not explicitly
+  // provided. NOTE: Subclasses must ignore link clicks if we're unowned.
+  std::unique_ptr<views::Link> CreateLink(
+      const std::u16string& text,
+      const std::optional<std::u16string>& accessible_text = std::nullopt);
 
   // Given |views| and the total |available_width| to display them in, sets
   // each view's size so that the longest view shrinks until it reaches the
@@ -85,8 +90,22 @@ class InfoBarView : public infobars::InfoBar,
   void PlatformSpecificHide(bool animate) override;
   void PlatformSpecificOnHeightRecalculated() override;
 
+  // Adds `child` to `content_container_` and returns the raw pointer. All
+  // subclasses should call this instead of AddChildView().
+  template <typename ViewClass>
+  ViewClass* AddContentChildView(std::unique_ptr<ViewClass> child) {
+    CHECK(content_container_);
+    return content_container_->AddChildView(std::move(child));
+  }
+
  private:
   FRIEND_TEST_ALL_PREFIXES(InfoBarViewTest, GetDrawSeparator);
+
+  // Make all AddChildView* overloads private so downstream subclasses
+  // cannot call them directly.
+  using View::AddChildView;
+  using View::AddChildViewAt;
+  using View::AddChildViewRaw;
 
   // Does the actual work for AssignWidths().  Assumes |views| is sorted by
   // decreasing preferred width.
@@ -103,6 +122,12 @@ class InfoBarView : public infobars::InfoBar,
 
   // The optional icon at the left edge of the InfoBar.
   raw_ptr<views::ImageView> icon_ = nullptr;
+
+  // Container that owns all views that should appear between `icon_` and
+  // `close_button_`.  Subclasses **must** add their children to this view via
+  // the AddContentChildView() helper; doing so guarantees that the close
+  // button always stays the last child without any explicit re‑ordering.
+  raw_ptr<views::View> content_container_ = nullptr;
 
   // The close button at the right edge of the InfoBar.
   raw_ptr<views::ImageButton> close_button_ = nullptr;

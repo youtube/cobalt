@@ -11,10 +11,12 @@ import android.widget.TextView;
 
 import androidx.annotation.DrawableRes;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
+@NullMarked
 /*package*/ class AutofillSaveCardBottomSheetViewBinder {
     static void bind(
             PropertyModel model, AutofillSaveCardBottomSheetView view, PropertyKey propertyKey) {
@@ -32,6 +34,16 @@ import org.chromium.ui.modelutil.PropertyModel;
             }
             view.mLogoIcon.setImageResource(iconID);
             view.mLogoIcon.setVisibility(View.VISIBLE);
+        } else if (AutofillSaveCardBottomSheetProperties.LOGO_ICON_DESCRIPTION == propertyKey) {
+            // The bottomsheet logo may either be decorative or informative. In the latter case, the
+            // LOGO_ICON_DESCRIPTION provides a description for accessibility purposes.
+            String logoIconDescription =
+                    model.get(AutofillSaveCardBottomSheetProperties.LOGO_ICON_DESCRIPTION);
+            view.mLogoIcon.setContentDescription(logoIconDescription);
+            view.mLogoIcon.setImportantForAccessibility(
+                    logoIconDescription.isEmpty()
+                            ? View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                            : View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         } else if (AutofillSaveCardBottomSheetProperties.CARD_DESCRIPTION == propertyKey) {
             view.mCardView.setContentDescription(
                     model.get(AutofillSaveCardBottomSheetProperties.CARD_DESCRIPTION));

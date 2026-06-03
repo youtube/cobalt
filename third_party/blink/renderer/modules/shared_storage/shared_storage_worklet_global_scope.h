@@ -10,7 +10,6 @@
 #include "base/check.h"
 #include "base/functional/callback_forward.h"
 #include "mojo/public/cpp/base/big_buffer.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -153,7 +152,7 @@ class MODULES_EXPORT SharedStorageWorkletGlobalScope final
   void OnModuleScriptDownloaded(
       const KURL& script_source_url,
       mojom::blink::SharedStorageWorkletService::AddModuleCallback callback,
-      std::unique_ptr<std::string> response_body,
+      std::optional<std::string> response_body,
       std::string error_message,
       network::mojom::URLResponseHeadPtr response_head);
 

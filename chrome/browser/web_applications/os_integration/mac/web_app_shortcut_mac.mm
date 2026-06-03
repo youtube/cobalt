@@ -11,6 +11,7 @@
 #import "base/apple/foundation_util.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
@@ -69,42 +70,38 @@ std::string GetBundleIdentifierForShim(const std::string& app_id,
 }
 
 bool UseAdHocSigningForWebAppShims() {
-  if (@available(macOS 11.7, *)) {
-    // macOS 11.7 and above can code sign at runtime without requiring that the
-    // developer tools be installed.
+  // A disabled feature flag takes precedence over any enterprise policy.
+  if (!base::FeatureList::IsEnabled(features::kUseAdHocSigningForWebAppShims)) {
+    return false;
+  }
 
-    // A disabled feature flag takes precedence over any enterprise policy.
-    if (!base::FeatureList::IsEnabled(
-            features::kUseAdHocSigningForWebAppShims)) {
-      return false;
-    }
-
-    // An explicitly enabled (via command line or chrome://flags) feature flag
-    // also takes precedence over any enterprise policy, to allow testing the
-    // behavior even if the enterprise policy is set to disabled.
-    if (base::FeatureList::GetInstance()->IsFeatureOverriddenFromCommandLine(
-            features::kUseAdHocSigningForWebAppShims.name,
-            base::FeatureList::OVERRIDE_ENABLE_FEATURE)) {
-      return true;
-    }
-
-    // The browser's local_state can be null in tests. In that case there is no
-    // enterprise policy to consider.
-    if (PrefService* local_state = g_browser_process->local_state()) {
-      // Respect an enterprise policy if one is set.
-      if (local_state->IsManagedPreference(
-              prefs::kWebAppsUseAdHocCodeSigningForAppShims)) {
-        return local_state->GetBoolean(
-            prefs::kWebAppsUseAdHocCodeSigningForAppShims);
-      }
-    }
-
+  // An explicitly enabled (via command line or chrome://flags) feature flag
+  // also takes precedence over any enterprise policy, to allow testing the
+  // behavior even if the enterprise policy is set to disabled.
+  if (base::FeatureList::GetInstance()->IsFeatureOverriddenFromCommandLine(
+          features::kUseAdHocSigningForWebAppShims.name,
+          base::FeatureList::OVERRIDE_ENABLE_FEATURE)) {
     return true;
   }
 
-  // Code signing on older macOS versions invokes `codesign_allocate` from the
-  // developer tools, so we can't do it at runtime.
-  return false;
+  // The browser's local_state can be null in tests. In that case there is no
+  // enterprise policy to consider.
+  if (PrefService* local_state = g_browser_process->local_state()) {
+    // Respect an enterprise policy if one is set.
+    if (local_state->IsManagedPreference(
+            prefs::kWebAppsUseAdHocCodeSigningForAppShims)) {
+      return local_state->GetBoolean(
+          prefs::kWebAppsUseAdHocCodeSigningForAppShims);
+    }
+  }
+
+  return true;
+}
+
+bool UseNotificationAttributionForWebAppShims() {
+  return base::FeatureList::IsEnabled(
+             features::kAppShimNotificationAttribution) &&
+         UseAdHocSigningForWebAppShims();
 }
 
 namespace internals {

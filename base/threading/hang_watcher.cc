@@ -28,7 +28,7 @@
 #include "base/threading/threading_features.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -929,7 +929,6 @@ void HangWatcher::WatchStateSnapShot::Init(
         any_hung_thread_has_dumping_enabled = true;
       }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
       // Emit trace events for monitored threads.
       if (ThreadTypeLoggingLevelGreaterOrEqual(watch_state.get()->thread_type(),
                                                LoggingLevel::kUmaOnly)) {
@@ -940,7 +939,6 @@ void HangWatcher::WatchStateSnapShot::Init(
                           now - monitoring_period);
         TRACE_EVENT_END("latency", track, now);
       }
-#endif
 
       // Attempt to mark the thread as needing to stay within its current
       // WatchHangsInScope until capture is complete.
@@ -1057,13 +1055,6 @@ std::string HangWatcher::WatchStateSnapShot::PrepareHungThreadListCrashKey()
 bool HangWatcher::WatchStateSnapShot::IsActionable() const {
   DCHECK(initialized_);
   return !hung_watch_state_copies_.empty();
-}
-
-HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
-    const {
-  WatchStateSnapShot snapshot;
-  snapshot.Init(watch_states_, deadline_ignore_threshold_, TimeDelta());
-  return snapshot;
 }
 
 void HangWatcher::Monitor() {
@@ -1222,6 +1213,12 @@ void HangWatcher::StopMonitoringForTesting() {
 
 void HangWatcher::SetTickClockForTesting(const base::TickClock* tick_clock) {
   tick_clock_ = tick_clock;
+}
+
+std::string HangWatcher::GetHungThreadListCrashKeyForTesting() const {
+  WatchStateSnapShot snapshot;
+  snapshot.Init(watch_states_, deadline_ignore_threshold_, TimeDelta());
+  return snapshot.PrepareHungThreadListCrashKey();
 }
 
 void HangWatcher::BlockIfCaptureInProgress() {

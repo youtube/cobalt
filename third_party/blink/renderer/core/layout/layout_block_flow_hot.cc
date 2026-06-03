@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
 
 #include "third_party/blink/renderer/core/layout/layout_multi_column_flow_thread.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 
 namespace blink {
@@ -85,7 +86,7 @@ void LayoutBlockFlow::StyleDidChange(StyleDifference diff,
       }
     }
     // We either gained or lost ::column style, trigger relayout to determine,
-    // if column pseudo elements are needed.
+    // if column pseudo-elements are needed.
     if (old_style->CanGeneratePseudoElement(kPseudoIdColumn) !=
         StyleRef().CanGeneratePseudoElement(kPseudoIdColumn)) {
       SetNeedsLayout(layout_invalidation_reason::kStyleChange);

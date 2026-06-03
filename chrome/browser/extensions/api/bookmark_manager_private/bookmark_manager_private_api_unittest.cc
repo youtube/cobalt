@@ -6,6 +6,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -40,7 +41,7 @@ class BookmarkManagerPrivateApiUnitTest : public ExtensionServiceTestBase {
     Browser::CreateParams browser_params(profile(), true);
     browser_params.type = Browser::TYPE_NORMAL;
     browser_params.window = browser_window_.get();
-    browser_ = std::unique_ptr<Browser>(Browser::Create(browser_params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(browser_params);
 
     model_ = BookmarkModelFactory::GetForBrowserContext(profile());
     bookmarks::test::WaitForBookmarkModelToLoad(model_);

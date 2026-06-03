@@ -19,7 +19,6 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
-#include "base/hash/md5.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/ref_counted.h"
@@ -31,6 +30,7 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "crypto/hash.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/common/mailbox_holder.h"
 #include "gpu/ipc/common/vulkan_ycbcr_info.h"
@@ -277,15 +277,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       const gfx::Size& coded_size,
       const gfx::Rect& visible_rect,
       const gfx::Size& natural_size,
-      const uint8_t* data,
-      size_t data_size,
-      base::TimeDelta timestamp);
-
-  static scoped_refptr<VideoFrame> WrapExternalData(
-      VideoPixelFormat format,
-      const gfx::Size& coded_size,
-      const gfx::Rect& visible_rect,
-      const gfx::Size& natural_size,
       base::span<const uint8_t> data,
       base::TimeDelta timestamp);
 
@@ -378,17 +369,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       const gfx::Size& natural_size,
       size_t y_stride,
       size_t uv_stride,
-      const uint8_t* y_data,
-      const uint8_t* uv_data,
-      base::TimeDelta timestamp);
-
-  static scoped_refptr<VideoFrame> WrapExternalYuvData(
-      VideoPixelFormat format,
-      const gfx::Size& coded_size,
-      const gfx::Rect& visible_rect,
-      const gfx::Size& natural_size,
-      size_t y_stride,
-      size_t uv_stride,
       base::span<const uint8_t> y_data,
       base::span<const uint8_t> uv_data,
       base::TimeDelta timestamp);
@@ -398,7 +378,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // For use in contexts where the GPUMemoryBuffer has no SharedImage
   // associated with it.
   // NOTE: Clients who want to set a callback on the VideoFrame being destroyed
-  // should call SetReleaseMailboxAndGpuMemoryBufferCB() after creating the
+  // should call SetReleaseMailboxCB() after creating the
   // VideoFrame via this entrypoint.
   static scoped_refptr<VideoFrame> WrapExternalGpuMemoryBuffer(
       const gfx::Rect& visible_rect,
@@ -527,10 +507,13 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // The width may be aligned to format requirements.
   static size_t Columns(size_t plane, VideoPixelFormat format, int width);
 
-  // Used to keep a running hash of seen frames.  Expects an initialized MD5
-  // context.  Calls MD5Update with the context and the contents of the frame.
-  static void HashFrameForTesting(base::MD5Context* context,
-                                  const VideoFrame& frame);
+  // Given a crypto/hash Hasher, hash in the pixels from a single VideoFrame.
+  static void UpdateHashWithFrameForTesting(crypto::hash::Hasher& hasher,
+                                            const VideoFrame& frame);
+
+  // Convenience wrapper around UpdateHashWithFrameForTesting(): produces the
+  // SHA-256 hash of a single video frame's pixels, as a lowercase hex string.
+  static std::string HexHashOfFrameForTesting(const VideoFrame& frame);
 
   // Returns true if |frame| is accessible mapped in the VideoFrame memory
   // space.
@@ -748,7 +731,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   int GetDmabufFd(size_t i) const;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-  // Sets the mailbox (and GpuMemoryBuffer, if desired) release callback.
+  // Sets the mailbox release callback.
   //
   // The callback may be run from ANY THREAD, and so it is up to the client to
   // ensure thread safety.
@@ -756,8 +739,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // WARNING: This method is not thread safe; it should only be called if you
   // are still the only owner of this VideoFrame.
   void SetReleaseMailboxCB(ReleaseMailboxCB release_mailbox_cb);
-  void SetReleaseMailboxAndGpuMemoryBufferCB(
-      ReleaseMailboxAndGpuMemoryBufferCB release_mailbox_cb);
 
   // Tests whether a mailbox release callback is configured.
   bool HasReleaseMailboxCB() const;
