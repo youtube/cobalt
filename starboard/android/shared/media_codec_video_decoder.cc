@@ -133,17 +133,15 @@ const int kNonInitialPrerollFrameCount = 1;
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
 // The maximum number of pending inputs allowed in the decoder queue.
-// We set this to 512 frames (approx 8.5 seconds of 60fps video or 17 seconds
-// of 30fps video) to provide a robust buffer safety cushion that survives
-// V8 JavaScript main-thread congestion (which typically lasts 2-5 seconds
-// during app startup or heavy page transitions) without video starvation,
-// while keeping C++ heap memory usage extremely low (~25MB for 4K streams).
-constexpr int kMaxPendingInputsSize = 512;
+// We set this to 128 frames (approx 2.1 seconds of 60fps video or 4.2 seconds
+// of 30fps video) to provide a buffer safety cushion that helps survive
+// V8 JavaScript main-thread congestion without video starvation,
+constexpr int kMaxPendingInputsSize = 128;
 
 // VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
 // codec, and renderer). We set its capacity to accommodate the maximum input
-// queue size (512) plus a margin of 100 frames for frames in the codec and
-// renderer.
+// queue size (`kMaxPendingInputsSize`) plus a margin of 100 frames for frames
+// in the codec and renderer.
 constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
