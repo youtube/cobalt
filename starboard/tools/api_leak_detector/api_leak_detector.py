@@ -278,7 +278,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vfwprintf',
     'vsnprintf',
     'vsscanf',
-    'vswprintf',
     'write',
     'writev',
 
