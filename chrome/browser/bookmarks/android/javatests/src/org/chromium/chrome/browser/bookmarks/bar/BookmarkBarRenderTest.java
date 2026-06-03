@@ -36,8 +36,9 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpener;
 import org.chromium.chrome.browser.bookmarks.BookmarkOpener;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
-import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.components.browser_ui.widget.CoordinatorLayoutForPointer;
@@ -71,10 +72,11 @@ public class BookmarkBarRenderTest {
                     .setBugComponent(ChromeRenderTestRule.Component.UI_BROWSER_BOOKMARKS)
                     .build();
 
-    @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private BrowserControlsManager mBrowserControlsManager;
+    @Mock private Tab mCurrentTab;
     @Mock private BookmarkOpener mBookmarkOpener;
     @Mock private BookmarkManagerOpener mBookmarkManagerOpener;
+    @Mock private TopControlsStacker mTopControlsStacker;
 
     private BookmarkBarCoordinator mCoordinator;
     private BookmarkBar mView;
@@ -100,13 +102,14 @@ public class BookmarkBarRenderTest {
                     mCoordinator =
                             new BookmarkBarCoordinator(
                                     activity,
-                                    mActivityLifecycleDispatcher,
                                     mBrowserControlsManager,
-                                    /* heightChangeCallback= */ (h) -> {},
+                                    /* heightChangeCallback= */ result -> {},
                                     /* profileSupplier= */ new ObservableSupplierImpl<>(),
                                     viewStub,
+                                    mCurrentTab,
                                     mBookmarkOpener,
-                                    new ObservableSupplierImpl<>(mBookmarkManagerOpener));
+                                    new ObservableSupplierImpl<>(mBookmarkManagerOpener),
+                                    mTopControlsStacker);
 
                     assertNotNull(mView);
                     ChromeRenderTestRule.sanitize(mView);

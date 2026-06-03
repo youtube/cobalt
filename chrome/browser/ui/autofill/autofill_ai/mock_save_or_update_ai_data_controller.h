@@ -9,10 +9,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace autofill {
-class EntityInstance;
-}
 
-namespace autofill_ai {
+class EntityInstance;
 
 class MockSaveOrUpdateAutofillAiDataController
     : public SaveOrUpdateAutofillAiDataController {
@@ -22,11 +20,11 @@ class MockSaveOrUpdateAutofillAiDataController
 
   MOCK_METHOD(void,
               ShowPrompt,
-              (autofill::EntityInstance,
-               std::optional<autofill::EntityInstance>,
-               AutofillAiClient::SaveOrUpdatePromptResultCallback),
+              (EntityInstance,
+               std::optional<EntityInstance>,
+               AutofillClient::EntitySaveOrUpdatePromptResultCallback),
               (override));
-  MOCK_METHOD(base::optional_ref<const autofill::EntityInstance>,
+  MOCK_METHOD(base::optional_ref<const EntityInstance>,
               GetAutofillAiData,
               (),
               (const override));
@@ -51,6 +49,6 @@ class MockSaveOrUpdateAutofillAiDataController
       this};
 };
 
-}  // namespace autofill_ai
+}  // namespace autofill
 
 #endif  // CHROME_BROWSER_UI_AUTOFILL_AUTOFILL_AI_MOCK_SAVE_OR_UPDATE_AI_DATA_CONTROLLER_H_

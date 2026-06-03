@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTIES_CSS_PARSING_UTILS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTIES_CSS_PARSING_UTILS_H_
 
+#include <array>
 #include <optional>
 
 #include "third_party/blink/renderer/core/core_export.h"
@@ -106,7 +107,7 @@ using IsPositionKeyword = bool (*)(CSSValueID);
 constexpr size_t kMaxNumAnimationLonghands = 12;
 constexpr size_t kMaxNumAnimationTriggerLonghands = 6;
 
-void Complete4Sides(CSSValue* side[4]);
+void Complete4Sides(std::array<CSSValue*, 4>&);
 
 // TODO(timloh): These should probably just be consumeComma and consumeSlash.
 bool ConsumeCommaIncludingWhitespace(CSSParserTokenStream&);
@@ -362,6 +363,10 @@ bool IsCustomIdent(CSSValueID);
 // https://drafts.csswg.org/scroll-animations-1/#typedef-timeline-name
 bool IsTimelineName(const CSSParserToken&);
 
+// TODO(nrosenthal) add definition once the spec PR lands.
+// See https://github.com/w3c/csswg-drafts/pull/12359
+bool IsNormalCornerValue(const CSSValue& radius, const CSSValue& shape);
+
 CSSValue* ConsumeSelfPositionOverflowPosition(CSSParserTokenStream&,
                                               IsPositionKeyword);
 CSSValue* ConsumeContentDistributionOverflowPosition(CSSParserTokenStream&,
@@ -478,6 +483,11 @@ const CSSValue* ParseBorderStyleSide(CSSParserTokenStream&,
                                      const CSSParserContext&);
 
 CSSValue* ConsumeCornerShape(CSSParserTokenStream&, const CSSParserContext&);
+
+bool ConsumeCorner(CSSParserTokenStream&,
+                   const CSSParserContext&,
+                   CSSValue*& radius,
+                   CSSValue*& shape);
 
 CSSValue* ConsumeGapDecorationPropertyList(CSSParserTokenStream&,
                                            const CSSParserContext&,
@@ -607,9 +617,6 @@ bool ConsumeRadii(std::array<CSSValue*, 4>& horizontal_radii,
                   CSSParserTokenStream& stream,
                   const CSSParserContext& context,
                   bool use_legacy_parsing);
-bool ConsumeCornerShapes(std::array<CSSValue*, 4>& shapes,
-                         CSSParserTokenStream& stream,
-                         const CSSParserContext& context);
 
 CSSValue* ConsumeTextDecorationLine(CSSParserTokenStream&);
 CSSValue* ConsumeTextBoxEdge(CSSParserTokenStream&);
@@ -641,7 +648,8 @@ CSSValue* ConsumeBorderWidth(CSSParserTokenStream&,
                              const CSSParserContext&,
                              UnitlessQuirk);
 CSSValue* ConsumeSVGPaint(CSSParserTokenStream&, const CSSParserContext&);
-CSSValue* ParseSpacing(CSSParserTokenStream&, const CSSParserContext&);
+CSSValue* ParseLetterSpacing(CSSParserTokenStream&, const CSSParserContext&);
+CSSValue* ParseWordSpacing(CSSParserTokenStream&, const CSSParserContext&);
 
 CSSValue* ConsumeSingleContainerName(CSSParserTokenStream&,
                                      const CSSParserContext&);

@@ -29,6 +29,10 @@
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/view_class_properties.h"
 
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_enabling.h"
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
 LensOverlayHomeworkPageActionIconView::LensOverlayHomeworkPageActionIconView(
     IconLabelBubbleView::Delegate* parent_delegate,
     Delegate* delegate,
@@ -80,6 +84,14 @@ bool LensOverlayHomeworkPageActionIconView::ShouldShow() {
     return false;
   }
 
+#if BUILDFLAG(ENABLE_GLIC)
+  if (lens::features::IsLensOverlayEduActionChipDisabledByGlic() &&
+      glic::GlicEnabling::IsEligibleForGlicTieredRollout(
+          browser_->GetProfile())) {
+    return false;
+  }
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
   if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
           omnibox::kShowGoogleLensShortcut)) {
     return false;
@@ -98,8 +110,10 @@ bool LensOverlayHomeworkPageActionIconView::ShouldShow() {
   }
 
   // Don't show the chip if the location bar isn't visible yet.
+  // TODO(crbug.com/421963047): Investigate why we are getting two matching
+  // views on ChromeOS.
   View* location_bar_view =
-      views::ElementTrackerViews::GetInstance()->GetUniqueView(
+      views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
           kLocationBarElementId,
           views::ElementTrackerViews::GetContextForView(this));
   if (!location_bar_view) {
@@ -157,6 +171,12 @@ void LensOverlayHomeworkPageActionIconView::OnExecuting(
       lens::LensOverlayInvocationSource::kHomeworkActionChip);
   UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
       GetWebContents()->GetBrowserContext(), lens::features::kLensOverlay);
+
+  // TODO(crbug.com/422844464): Fix Update() so that it correctly handles the
+  // chip disappearing at this point, so that the following lines are no longer
+  // needed.
+  SetVisible(false);
+  ResetSlideAnimation(true);
 }
 
 views::BubbleDialogDelegate* LensOverlayHomeworkPageActionIconView::GetBubble()

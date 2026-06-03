@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-#include "gpu/gpu_export.h"
+#include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 
 namespace gfx {
@@ -20,8 +20,11 @@ class ClientNativePixmapFactory;
 
 namespace gpu {
 
+class GpuMemoryBufferSupport;
+
 // Implementation of GPU memory buffer based on Ozone native pixmap.
-class GPU_EXPORT GpuMemoryBufferImplNativePixmap : public GpuMemoryBufferImpl {
+class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplNativePixmap
+    : public GpuMemoryBufferImpl {
  public:
   GpuMemoryBufferImplNativePixmap(const GpuMemoryBufferImplNativePixmap&) =
       delete;
@@ -31,14 +34,6 @@ class GPU_EXPORT GpuMemoryBufferImplNativePixmap : public GpuMemoryBufferImpl {
   ~GpuMemoryBufferImplNativePixmap() override;
 
   static constexpr gfx::GpuMemoryBufferType kBufferType = gfx::NATIVE_PIXMAP;
-
-  static std::unique_ptr<GpuMemoryBufferImplNativePixmap> CreateFromHandle(
-      gfx::ClientNativePixmapFactory* client_native_pixmap_factory,
-      gfx::GpuMemoryBufferHandle handle,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback);
 
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
@@ -55,6 +50,16 @@ class GPU_EXPORT GpuMemoryBufferImplNativePixmap : public GpuMemoryBufferImpl {
   gfx::GpuMemoryBufferHandle CloneHandle() const override;
 
  private:
+  friend class GpuMemoryBufferSupport;
+
+  static std::unique_ptr<GpuMemoryBufferImplNativePixmap> CreateFromHandle(
+      gfx::ClientNativePixmapFactory* client_native_pixmap_factory,
+      gfx::GpuMemoryBufferHandle handle,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      gfx::BufferUsage usage,
+      DestructionCallback callback);
+
   GpuMemoryBufferImplNativePixmap(
       gfx::GpuMemoryBufferId id,
       const gfx::Size& size,

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Mostantól csak a Kurzuseszközöket használhatja</translation>
 <translation id="1762483337755424125">Átirat</translation>
 <translation id="1765169783255151332">Gyors billentyűváltás</translation>
 <translation id="1768959921651994223">Hitelesítés típusa</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">Sikertelen – Leállítva</translation>
 <translation id="3102119246920354026">Gyorsítótár</translation>
 <translation id="3103783611481501187">szürreális</translation>
+<translation id="3119672627216736407">Rendelkezésre áll fordítás</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">medencék</translation>
 <translation id="3122883569442693641">További részletek</translation>
@@ -946,7 +948,7 @@
 <translation id="5145331109270917438">Módosítás dátuma</translation>
 <translation id="5154917547274118687">Memória</translation>
 <translation id="5160857336552977725">Jelentkezzen be <ph name="DEVICE_TYPE" /> eszközén</translation>
-<translation id="5168185087976003268">Akkumulátor egészsége</translation>
+<translation id="5168185087976003268">Akkumulátor állapota</translation>
 <translation id="5170568018924773124">Megjelenítés mappában</translation>
 <translation id="517075088756846356">A frissítési folyamat folytatásához húzza ki, majd csatlakoztassa újra a(z) <ph name="DEVICE_NAME" /> tápkábelét</translation>
 <translation id="5180108905184566358">majomkenyérfák</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">A befejezéshez adja meg régi és új jelszavát</translation>
 <translation id="6061772781719867950">Sikertelen HTTP-kérések</translation>
 <translation id="6073292342939316679">billentyűzet fényerejének csökkentése</translation>
+<translation id="6074608334942655098">Fordítás leállítása</translation>
 <translation id="6074752328838739425">Összegzés elrejtése</translation>
 <translation id="6075872808778243331">(Android) HTTP várakozási idő</translation>
 <translation id="6078323886959318429">Parancsikon hozzáadása</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Kérdezze a Chromebook súgófórumának szakértőit</translation>
-<translation id="7309823890857024809">minimalista csendélet: néhány szál pipacs egy üvegvázában, fekete háttér előtt</translation>
 <translation id="7311368985037279727">billentyűzet színe</translation>
 <translation id="7317831949569936035">Iskolai regisztráció</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@ Ha szeretné használni az átiratokat, töltse le az átírási modellt (legfel
 <translation id="8088963492174775412">Nyomja meg a rögzítéshez</translation>
 <translation id="8094062939584182041">A problémáról szóló e-mail küldésének engedélyezése a Google számára</translation>
 <translation id="8104083085214006426">Ön nyílt és nem biztonságos hálózatot használ</translation>
+<translation id="8108879170356113798">A Kurzuseszközöket csak <ph name="NUM_SECONDS" /> másodperc múlva használhatja</translation>
 <translation id="811820734797650957">(Android) Az átjáró pingelhető</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Megerősítés</translation>

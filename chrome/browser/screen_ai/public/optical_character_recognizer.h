@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -81,12 +82,14 @@ class OpticalCharacterRecognizer
       const SkBitmap& image,
       base::OnceCallback<void(mojom::VisualAnnotationPtr)> callback);
 
+#if BUILDFLAG(IS_CHROMEOS)
   // Performs OCR on the given image and returns the results as an accessibility
   // tree update. Returns empty results in the callback if the service is not
   // ready yet.
   virtual void PerformOCR(
       const SkBitmap& image,
       base::OnceCallback<void(const ui::AXTreeUpdate& tree_update)> callback);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Ensures all posted tasks are completed in tests.
   virtual void FlushForTesting() {}

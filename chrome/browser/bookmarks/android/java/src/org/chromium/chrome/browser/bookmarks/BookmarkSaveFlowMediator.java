@@ -8,7 +8,6 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -39,6 +38,7 @@ import org.chromium.components.commerce.core.SubscriptionsObserver;
 import org.chromium.components.power_bookmarks.PowerBookmarkMeta;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Controls the bookmarks save-flow. */
@@ -165,11 +165,15 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
 
     private void bindBookmarkProperties(BookmarkItem item, boolean wasBookmarkMoved) {
         mFolderName = mBookmarkModel.getBookmarkTitle(item.getParentId());
+        boolean isAccountBookmark = item.isAccountBookmark();
 
         mPropertyModel.set(ImprovedBookmarkSaveFlowProperties.TITLE, createTitleCharSequence());
         mPropertyModel.set(
                 ImprovedBookmarkSaveFlowProperties.SUBTITLE,
-                createSubTitleCharSequnce(wasBookmarkMoved));
+                createSubTitleCharSequence(wasBookmarkMoved, isAccountBookmark));
+        mPropertyModel.set(
+                ImprovedBookmarkSaveFlowProperties.ADJUST_SUBTITLE_LAYOUT_DIRECTION,
+                determineMisalignedSubTitleLayoutDirection(isAccountBookmark));
     }
 
     private CharSequence createTitleCharSequence() {
@@ -187,10 +191,10 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
         }
     }
 
-    private CharSequence createSubTitleCharSequnce(boolean wasBookmarkMoved) {
+    private CharSequence createSubTitleCharSequence(
+            boolean wasBookmarkMoved, boolean isAccountBookmark) {
         if (mBookmarkModel.areAccountBookmarkFoldersActive()) {
-            BookmarkItem bookmarkItem = mBookmarkModel.getBookmarkById(mBookmarkId);
-            return assumeNonNull(bookmarkItem).isAccountBookmark()
+            return isAccountBookmark
                     ? assumeNonNull(mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN))
                             .getEmail()
                     : mContext.getString(R.string.account_bookmark_save_flow_subtitle_local);
@@ -204,6 +208,10 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
                             folderDisplayTextRaw.indexOf(FOLDER_TEXT_TOKEN),
                             mFolderName.length()));
         }
+    }
+
+    private boolean determineMisalignedSubTitleLayoutDirection(boolean isAccountBookmark) {
+        return isAccountBookmark && LocalizationUtils.isLayoutRtl();
     }
 
     @VisibleForTesting
@@ -337,9 +345,7 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
         setPriceTrackingToggleVisualsOnly(true);
 
         // Make sure the notification channel is initialized when the user tracks the product.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            mPriceDropNotificationManager.createNotificationChannel();
-        }
+        mPriceDropNotificationManager.createNotificationChannel();
     }
 
     @Override

@@ -132,6 +132,11 @@ struct CORE_EXPORT GridItemData : public GarbageCollected<GridItemData> {
     column_set_indices = row_set_indices = GridItemIndices();
   }
 
+  const GridSpan& MaybeTranslateSpan(wtf_size_t start_offset,
+                                     GridTrackSizingDirection track_direction) {
+    return resolved_position.MaybeTranslateSpan(start_offset, track_direction);
+  }
+
   const GridSpan& Span(GridTrackSizingDirection track_direction) const {
     return resolved_position.Span(track_direction);
   }
@@ -216,11 +221,20 @@ struct CORE_EXPORT GridItemData : public GarbageCollected<GridItemData> {
         .HasProperty(TrackSpanProperties::kHasFixedMaximumTrack);
   }
 
-  void EncompassContributionSizes(MinMaxSizes&& sizes) {
+  void EncompassContributionSize(MinMaxSizes sizes, LayoutUnit margin_sum) {
+    sizes += margin_sum;
     if (contribution_sizes) {
       contribution_sizes->Encompass(sizes);
     } else {
-      contribution_sizes = std::move(sizes);
+      contribution_sizes = sizes;
+    }
+  }
+
+  void EncompassContributionSize(LayoutUnit block_size) {
+    if (contribution_sizes) {
+      contribution_sizes->Encompass(block_size);
+    } else {
+      contribution_sizes = block_size;
     }
   }
 
@@ -276,7 +290,9 @@ struct CORE_EXPORT GridItemData : public GarbageCollected<GridItemData> {
   OutOfFlowItemPlacement row_placement;
 
   // Virtual masonry items don't have a node, so we cache the maximum of every
-  // intrinsic contribution among the items that make up its respective group.
+  // intrinsic contribution among the items that make up its respective group,
+  // which may be the min/max sizes if parallel to the grid-axis, and the block
+  // contribution size if perpendicular.
   std::optional<MinMaxSizes> contribution_sizes;
 };
 
@@ -402,6 +418,11 @@ class CORE_EXPORT GridItems {
     DCHECK_LT(index, item_data_.size());
     DCHECK(item_data_[index]);
     return *item_data_[index];
+  }
+
+  const Member<GridItemData>& operator[](wtf_size_t index) const {
+    DCHECK_LT(index, item_data_.size());
+    return item_data_[index];
   }
 
   void ReserveInitialCapacity(wtf_size_t initial_capacity) {

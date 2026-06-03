@@ -330,18 +330,8 @@ SlotSpanMetadata<MetadataKind::kReadOnly>* PartitionDirectMap(
     // so no other thread can update the same offset table entries at the
     // same time. Furthermore, nobody will be ready these offsets until this
     // function returns.
-    auto* offset_ptr = ReservationOffsetPointer(reservation_start);
-    [[maybe_unused]] const auto* offset_ptr_end =
-        GetReservationOffsetTableEnd(reservation_start);
-
-    // |raw_size| > MaxBucketed(). So |reservation_size| > 0.
-    PA_DCHECK(reservation_size > 0);
-    const uint16_t offset_end = (reservation_size - 1) >> kSuperPageShift;
-    for (uint16_t offset = 0; offset <= offset_end; ++offset) {
-      PA_DCHECK(offset < kOffsetTagNormalBuckets);
-      PA_DCHECK(offset_ptr < offset_ptr_end);
-      *offset_ptr++ = offset;
-    }
+    root->GetReservationOffsetTable().SetDirectMapReservationStart(
+        reservation_start, reservation_size);
 
     auto* super_page_extent = PartitionSuperPageToExtent(reservation_start);
     auto* writable_super_page_extent = super_page_extent->ToWritable(root);
@@ -615,8 +605,7 @@ uint8_t ComputeSystemPagesPerSlotSpan(size_t slot_size,
   return ComputeSystemPagesPerSlotSpanInternal(slot_size);
 }
 
-void PartitionBucket::Init(uint32_t new_slot_size,
-                           bool use_small_single_slot_spans) {
+void PartitionBucket::Init(uint32_t new_slot_size) {
   slot_size = new_slot_size;
   slot_size_reciprocal = kReciprocalMask / new_slot_size + 1;
   active_slot_spans_head = SlotSpanMetadata<
@@ -635,7 +624,7 @@ void PartitionBucket::Init(uint32_t new_slot_size,
       ComputeSystemPagesPerSlotSpan(slot_size, prefer_smaller_slot_spans);
   PA_CHECK(num_system_pages_per_slot_span > 0);
 
-  InitCanStoreRawSize(use_small_single_slot_spans);
+  InitCanStoreRawSize();
 }
 
 PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>*
@@ -720,7 +709,7 @@ PartitionBucket::AllocNewSlotSpan(PartitionRoot* root,
   return slot_span;
 }
 
-void PartitionBucket::InitCanStoreRawSize(bool use_small_single_slot_spans) {
+void PartitionBucket::InitCanStoreRawSize() {
   // By definition, direct map buckets can store the raw size. The value
   // of `can_store_raw_size` is set explicitly in that code path (see
   // `PartitionDirectMap()`), bypassing this method.
@@ -736,8 +725,7 @@ void PartitionBucket::InitCanStoreRawSize(bool use_small_single_slot_spans) {
   if (slot_size <= MaxRegularSlotSpanSize()) [[likely]] {
     // Even when the slot size is below the standard floor for single
     // slot spans, there exist spans that happen to have exactly one
-    // slot per. If `use_small_single_slot_spans` is true, we use more
-    // nuanced criteria for determining if a span is "single-slot."
+    // slot per.
     //
     // The conditions are all of:
     // *  Don't deal with slots trafficked by the thread cache [1].
@@ -754,9 +742,9 @@ void PartitionBucket::InitCanStoreRawSize(bool use_small_single_slot_spans) {
     // [2] ../../PartitionAlloc.md#layout-in-memory
     const bool not_handled_by_thread_cache =
         slot_size > kThreadCacheLargeSizeThreshold;
-    can_store_raw_size =
-        use_small_single_slot_spans && not_handled_by_thread_cache &&
-        get_slots_per_span() == 1u && get_pages_per_slot_span() > 1u;
+    can_store_raw_size = not_handled_by_thread_cache &&
+                         get_slots_per_span() == 1u &&
+                         get_pages_per_slot_span() > 1u;
     return;
   }
 
@@ -815,7 +803,7 @@ PA_ALWAYS_INLINE uintptr_t
 PartitionBucket::InitializeSuperPage(PartitionRoot* root,
                                      uintptr_t super_page,
                                      uintptr_t requested_address) {
-  *ReservationOffsetPointer(super_page) = kOffsetTagNormalBuckets;
+  root->GetReservationOffsetTable().SetNormalBucketsTag(super_page);
 
   root->total_size_of_super_pages.fetch_add(kSuperPageSize,
                                             std::memory_order_relaxed);

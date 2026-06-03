@@ -18,6 +18,8 @@
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/uuid.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
@@ -28,6 +30,7 @@
 #include "chrome/browser/win/installer_downloader/installer_downloader_model.h"
 #include "chrome/browser/win/installer_downloader/installer_downloader_model_impl.h"
 #include "chrome/browser/win/installer_downloader/system_info_provider_impl.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/confirm_infobar_delegate.h"
 #include "components/infobars/core/infobar.h"
@@ -35,6 +38,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace installer_downloader {
@@ -64,6 +68,13 @@ std::optional<GURL> BuildInstallerDownloadUrl(bool is_metrics_enabled) {
   base::ReplaceFirstSubstringAfterOffset(&installer_url_template,
                                          /*start_offset=*/0, "STATS",
                                          is_metrics_enabled ? "1" : "0");
+
+  std::string_view language_code = l10n_util::GetLanguage(
+      g_browser_process->GetFeatures()->application_locale_storage()->Get());
+  CHECK(!language_code.empty());
+
+  base::ReplaceFirstSubstringAfterOffset(
+      &installer_url_template, /*start_offset=*/0, "LANGUAGE", language_code);
 
   GURL installer_url(installer_url_template);
 
@@ -142,7 +153,7 @@ void InstallerDownloaderController::OnRemovedBrowserWindow(
 void InstallerDownloaderController::MaybeShowInfoBar() {
   // The max show count of the infobar have been reached. Eligibility check is
   // no longer needed.
-  if (model_->IsMaxShowCountReached()) {
+  if (!model_->CanShowInfobar()) {
     return;
   }
 
@@ -269,7 +280,8 @@ void InstallerDownloaderController::OnDownloadRequestAccepted(
       profile, ProfileKeepAliveOrigin::kDownloadInProgress);
 
   model_->StartDownload(
-      installer_url.value(), destination,
+      installer_url.value(),
+      destination.AppendASCII(kDownloadedInstallerFileName.Get()),
       CHECK_DEREF(profile->GetDownloadManager()),
       base::BindOnce(&InstallerDownloaderController::OnDownloadCompleted,
                      base::Unretained(this), std::move(keep_alive)));
@@ -280,6 +292,7 @@ void InstallerDownloaderController::OnDownloadCompleted(
     bool success) {
   base::UmaHistogramBoolean("Windows.InstallerDownloader.DownloadSucceed",
                             success);
+  model_->PreventFutureDisplay();
 }
 
 void InstallerDownloaderController::SetActiveWebContentsCallbackForTesting(
@@ -291,6 +304,7 @@ void InstallerDownloaderController::OnInfoBarDismissed() {
   base::UmaHistogramBoolean("Windows.InstallerDownloader.RequestAccepted",
                             false);
   user_initiated_info_bar_close_pending_ = true;
+  model_->PreventFutureDisplay();
 }
 
 }  // namespace installer_downloader

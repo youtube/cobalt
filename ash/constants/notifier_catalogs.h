@@ -215,8 +215,8 @@ enum class NotificationCatalogName {
   kBocaSpotlightStarted = 196,
   kFaceGazeActive = 197,
   kUsbPeripheralDeviceOrEndpointLimit = 198,
-  kOnTaskResourceNotSupported = 199,
-  kMaxValue = kOnTaskResourceNotSupported
+  kDemoMode = 199,
+  kMaxValue = kDemoMode
 };
 
 // A living catalog that registers system nudges.

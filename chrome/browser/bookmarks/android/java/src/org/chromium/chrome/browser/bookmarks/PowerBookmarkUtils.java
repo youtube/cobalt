@@ -5,12 +5,12 @@
 package org.chromium.chrome.browser.bookmarks;
 
 import android.content.res.Resources;
-import android.os.Build;
 
 import com.google.common.primitives.UnsignedLongs;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.commerce.PriceTrackingUtils;
@@ -40,8 +40,9 @@ public class PowerBookmarkUtils {
     private static @Nullable PowerBookmarkMeta sPowerBookmarkMetaForTesting;
 
     /** Returns whether the given meta is a shopping list item. */
+    @Contract("_, null -> false")
     public static boolean isShoppingListItem(
-            ShoppingService shoppingService, PowerBookmarkMeta meta) {
+            ShoppingService shoppingService, @Nullable PowerBookmarkMeta meta) {
         return CommerceFeatureUtils.isShoppingListEligible(shoppingService)
                 && meta != null
                 && meta.hasShoppingSpecifics();
@@ -193,9 +194,7 @@ public class PowerBookmarkUtils {
         // Make sure the notification channel is initialized when the user tracks a product.
         // TODO(crbug.com/40245507): Add a SubscriptionsObserver in the PriceDropNotificationManager
         // and initialize the channel there.
-        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            priceDropNotificationManager.createNotificationChannel();
-        }
+        priceDropNotificationManager.createNotificationChannel();
         PriceTrackingUtils.setPriceTrackingStateForBookmark(
                 profile, bookmarkId.getId(), enabled, wrapperCallback);
     }

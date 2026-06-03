@@ -311,6 +311,7 @@ class WebAppPublisherHelper : public WebAppRegistrarObserver,
 
   // WebAppRegistrarObserver:
   void OnAppRegistrarDestroyed() override;
+  void OnWebAppProtocolSettingsChanged(const webapps::AppId& app_id) override;
   void OnWebAppFileHandlerApprovalStateChanged(
       const webapps::AppId& app_id) override;
   void OnWebAppLastLaunchTimeChanged(
@@ -371,9 +372,11 @@ class WebAppPublisherHelper : public WebAppRegistrarObserver,
       int64_t display_id,
       base::OnceCallback<void(std::vector<content::WebContents*>)> callback);
 
-  // Get the list of identifiers for the app that will be used in policy
-  // controls, such as force-installation and pinning. May be empty.
-  std::vector<std::string> GetPolicyIds(const WebApp& web_app) const;
+  // Checks that the user permits the app launch (possibly presenting a blocking
+  // user choice dialog).
+  void LaunchAppFromProtocolCheckingUserPermission(
+      apps::AppLaunchParams params,
+      base::OnceCallback<void(content::WebContents*)> callback);
 
   apps::PackageId GetPackageId(const WebApp& web_app) const;
 
@@ -397,6 +400,14 @@ class WebAppPublisherHelper : public WebAppRegistrarObserver,
       std::string app_id,
       apps::AppLaunchParams params,
       base::OnceCallback<void(std::vector<content::WebContents*>)> callback,
+      bool allowed,
+      bool remember_user_choice);
+
+  // Called after the user has allowed or denied an app launch from protocol
+  // url.
+  void OnProtocolHandlerDialogCompleted(
+      apps::AppLaunchParams params,
+      base::OnceCallback<void(content::WebContents*)> on_complete,
       bool allowed,
       bool remember_user_choice);
 

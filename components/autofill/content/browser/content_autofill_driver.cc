@@ -12,7 +12,6 @@
 
 #include "base/barrier_callback.h"
 #include "base/functional/callback.h"
-#include "base/types/optional_ref.h"
 #include "components/autofill/content/browser/bad_message.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/core/browser/form_structure.h"
@@ -59,6 +58,22 @@ T&& Lift(ContentAutofillDriver& source, T&& x) {
   return std::forward<T>(x);
 }
 
+gfx::Rect Lift(ContentAutofillDriver& source, gfx::Rect r) {
+  if (content::RenderWidgetHostView* view =
+          source.render_frame_host()->GetView()) {
+    r.set_origin(view->TransformPointToRootCoordSpace(r.origin()));
+  }
+  return r;
+}
+
+gfx::RectF Lift(ContentAutofillDriver& source, gfx::RectF r) {
+  if (content::RenderWidgetHostView* view =
+          source.render_frame_host()->GetView()) {
+    r.set_origin(view->TransformPointToRootCoordSpaceF(r.origin()));
+  }
+  return r;
+}
+
 FormData Lift(ContentAutofillDriver& source, FormData form) {
   content::RenderFrameHost& rfh = *source.render_frame_host();
   form.set_host_frame(source.GetFrameToken());
@@ -72,10 +87,7 @@ FormData Lift(ContentAutofillDriver& source, FormData form) {
     unstripped_url = rfh.GetLastCommittedOrigin().GetURL();
   }
   form.set_url(StripAuthAndParams(unstripped_url));
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillIncludeUrlInCrowdsourcing)) {
-    form.set_full_url(StripAuth(unstripped_url));
-  }
+  form.set_full_url(StripAuth(unstripped_url));
 
   // The form signature must be calculated after setting FormData::url.
   FormSignature signature = CalculateFormSignature(form);
@@ -85,11 +97,7 @@ FormData Lift(ContentAutofillDriver& source, FormData form) {
     field.set_host_form_id(form.renderer_id());
     field.set_host_form_signature(signature);
     field.set_origin(rfh.GetLastCommittedOrigin());
-    if (content::RenderWidgetHostView* view = rfh.GetView()) {
-      gfx::RectF r = field.bounds();
-      r.set_origin(view->TransformPointToRootCoordSpaceF(r.origin()));
-      field.set_bounds(r);
-    }
+    field.set_bounds(Lift(source, field.bounds()));
   }
   form.set_fields(std::move(fields));
   return form;
@@ -103,11 +111,25 @@ FieldGlobalId Lift(ContentAutofillDriver& source, FieldRendererId id) {
   return FieldGlobalId(source.GetFrameToken(), id);
 }
 
+PasswordSuggestionRequest Lift(ContentAutofillDriver& source,
+                               PasswordSuggestionRequest request) {
+  // These indices are equal to fields().size() for manual requests.
+  if (request.username_field_index > request.form_data.fields().size() ||
+      request.password_field_index > request.form_data.fields().size()) {
+    mojo::ReportBadMessage(
+        "username_field_index or password_field_index cannot be greater than "
+        "form.fields.size()!");
+  }
+  request.form_data = Lift(source, std::move(request.form_data));
+  request.field.bounds = Lift(source, std::move(request.field.bounds));
+  return request;
+}
+
 template <typename T>
-auto Lift(ContentAutofillDriver& source, const std::optional<T>& x) {
-  std::optional<std::remove_cvref_t<decltype(Lift(source, *x))>> y;
+std::optional<T> Lift(ContentAutofillDriver& source, std::optional<T> x) {
+  std::optional<T> y;
   if (x) {
-    y.emplace(Lift(source, *x));
+    y.emplace(Lift(source, *std::move(x)));
   }
   return y;
 }
@@ -122,14 +144,6 @@ auto Lift(ContentAutofillDriver& source, const std::vector<T>& xs) {
   return ys;
 }
 
-gfx::Rect Lift(ContentAutofillDriver& source, gfx::Rect r) {
-  if (content::RenderWidgetHostView* view =
-          source.render_frame_host()->GetView()) {
-    r.set_origin(view->TransformPointToRootCoordSpace(r.origin()));
-  }
-  return r;
-}
-
 template <typename... Args>
 base::OnceCallback<void(Args...)> Lift(ContentAutofillDriver& source,
                                        base::OnceCallback<void(Args...)> cb) {
@@ -139,22 +153,6 @@ base::OnceCallback<void(Args...)> Lift(ContentAutofillDriver& source,
         std::move(cb).Run(Lift(*source, std::forward<Args>(args))...);
       },
       raw_ref(source), std::move(cb));
-}
-
-base::optional_ref<const PasswordSuggestionRequest> Lift(
-    ContentAutofillDriver& source,
-    const std::optional<PasswordSuggestionRequest>& request) {
-  if (!request) {
-    return std::nullopt;
-  }
-  // These indices are equal to fields().size() for a manual requests.
-  if ((request->username_field_index > request->form_data.fields().size()) ||
-      (request->password_field_index > request->form_data.fields().size())) {
-    mojo::ReportBadMessage(
-        "username_field_index or password_field_index cannot be greater than "
-        "form.fields.size()!");
-  }
-  return request;
 }
 
 // WithNewVersion() bumps the FormData::version of each form. This should be
@@ -173,8 +171,7 @@ template <typename T>
                  base::TimeTicks,
                  gfx::Rect,
                  std::u16string,
-                 std::vector<FormGlobalId>,
-                 base::optional_ref<const PasswordSuggestionRequest>>)
+                 std::vector<FormGlobalId>>)
 T&& WithNewVersion(T&& x) {
   return std::forward<T>(x);
 }
@@ -201,6 +198,14 @@ auto& WithNewVersion(const std::vector<FormData>& browser_forms) {
     WithNewVersion(form);
   }
   return browser_forms;
+}
+
+std::optional<PasswordSuggestionRequest> WithNewVersion(
+    std::optional<PasswordSuggestionRequest> password_request) {
+  if (password_request) {
+    WithNewVersion(password_request->form_data);
+  }
+  return password_request;
 }
 
 template <typename... Args>
@@ -417,13 +422,8 @@ std::optional<LocalFrameToken> ContentAutofillDriver::Resolve(
 }
 
 ukm::SourceId ContentAutofillDriver::GetPageUkmSourceId() const {
-  if (render_frame_host_->IsInLifecycleState(
-          content::RenderFrameHost::LifecycleState::kPrerendering)) {
-    // TODO(crbug.com/380129810): When `return ukm::kInvalidSourceId` is
-    // removed, FormInteractionsUkmLogger::CanLog() doesn't need to check the
-    // `ukm::SourceId` anymore.
-    NOTREACHED();
-  }
+  CHECK(!render_frame_host_->IsInLifecycleState(
+          content::RenderFrameHost::LifecycleState::kPrerendering));
   return render_frame_host_->GetPageUkmSourceId();
 }
 

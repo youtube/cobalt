@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/webdata/addresses/contact_info_sync_util.h"
 
+#include "base/feature_list.h"
 #include "base/hash/hash.h"
 #include "base/memory/raw_ref.h"
 #include "base/strings/utf_string_conversions.h"
@@ -333,12 +334,8 @@ CreateContactInfoEntityDataFromAutofillProfile(
   return entity_data;
 }
 
-std::optional<AutofillProfile> CreateAutofillProfileFromContactInfoSpecifics(
+AutofillProfile CreateAutofillProfileFromContactInfoSpecifics(
     const ContactInfoSpecifics& specifics) {
-  if (!AreContactInfoSpecificsValid(specifics)) {
-    return std::nullopt;
-  }
-
   std::u16string country_name_or_code =
       base::ASCIIToUTF16(specifics.address_country().value());
   std::string country_code =

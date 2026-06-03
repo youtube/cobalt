@@ -58,6 +58,11 @@
   width: var(--min-sidebar-width);
 }
 
+#sidebar-folders {
+  flex-grow: 1;
+  overflow: auto;
+}
+
 bookmarks-folder-node {
   flex: 1;
   overflow-y: auto;
@@ -74,7 +79,7 @@ managed-footnote {
 
 bookmarks-list {
   flex: 1;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 #drop-shadow {

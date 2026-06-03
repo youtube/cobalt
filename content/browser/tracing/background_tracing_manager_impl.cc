@@ -28,11 +28,12 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/tracing/common/background_tracing_state_manager.h"
 #include "components/variations/hashing.h"
 #include "content/browser/tracing/background_tracing_agent_client_impl.h"
 #include "content/browser/tracing/background_tracing_rule.h"
-#include "content/browser/tracing/trace_report/trace_report_database.h"
-#include "content/browser/tracing/trace_report/trace_upload_list.h"
+#include "content/browser/tracing/trace_report_database.h"
+#include "content/browser/tracing/trace_upload_list.h"
 #include "content/browser/tracing/tracing_controller_impl.h"
 #include "content/browser/tracing/triggers_data_source.h"
 #include "content/common/child_process.mojom.h"
@@ -43,7 +44,6 @@
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/browser/tracing_delegate.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "net/base/network_change_notifier.h"
@@ -212,8 +212,8 @@ class BackgroundMetadataDataSource
 
 // static
 std::unique_ptr<BackgroundTracingManager>
-BackgroundTracingManager::CreateInstance() {
-  return std::make_unique<BackgroundTracingManagerImpl>();
+BackgroundTracingManager::CreateInstance(TracingDelegate* delegate) {
+  return std::make_unique<BackgroundTracingManagerImpl>(delegate);
 }
 
 // static
@@ -257,8 +257,10 @@ void BackgroundTracingManagerImpl::ActivateForProcess(
                                 child_process_id, std::move(pending_provider)));
 }
 
-BackgroundTracingManagerImpl::BackgroundTracingManagerImpl()
-    : delegate_(GetContentClient()->browser()->CreateTracingDelegate()),
+BackgroundTracingManagerImpl::BackgroundTracingManagerImpl(
+    TracingDelegate* delegate)
+    : delegate_(delegate),
+      state_manager_(delegate_->CreateStateManager()),
       database_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
            base::TaskShutdownBehavior::BLOCK_SHUTDOWN})),
@@ -423,10 +425,6 @@ void BackgroundTracingManagerImpl::OnTraceSaved(
 }
 
 void BackgroundTracingManagerImpl::AddMetadataGeneratorFunction() {
-  auto* metadata_source = tracing::TraceEventMetadataSource::GetInstance();
-  metadata_source->AddGeneratorFunction(
-      base::BindRepeating(&BackgroundTracingManagerImpl::GenerateMetadataProto,
-                          base::Unretained(this)));
   BackgroundMetadataDataSource::Register();
   TriggersDataSource::Register();
 }
@@ -582,23 +580,9 @@ std::vector<std::string> BackgroundTracingManagerImpl::AddPresetScenariosImpl(
       (data_filtering == ANONYMIZE_DATA_AND_FILTER_PACKAGE_NAME);
 
   std::vector<std::string> added_scenarios;
-  std::set<raw_ptr<TracingScenario>> conflicting_scenarios;
+  std::set<raw_ptr<TracingScenario>> conflicting_scenarios_set;
+  std::vector<std::unique_ptr<TracingScenario>> conflicting_scenarios;
   for (const auto& scenario_config : config.scenarios()) {
-    if (auto it = preset_scenarios_.find(scenario_config.scenario_name());
-        it != preset_scenarios_.end()) {
-      if (!overwrite_conflicts) {
-        continue;
-      }
-      if (active_scenario_ == it->second.get()) {
-        active_scenario_->Abort();
-        conflicting_scenarios.insert(it->second.get());
-      } else if (it->second->current_state() !=
-                 TracingScenario::State::kDisabled) {
-        it->second->Disable();
-        conflicting_scenarios.insert(it->second.get());
-      }
-    }
-
     auto scenario = TracingScenario::Create(
         scenario_config, enable_privacy_filter, /*is_local_scenario=*/true,
         enable_package_name_filter, true, this);
@@ -609,36 +593,54 @@ std::vector<std::string> BackgroundTracingManagerImpl::AddPresetScenariosImpl(
       continue;
     }
 
+    if (auto it = preset_scenarios_.find(scenario_config.scenario_name());
+        it != preset_scenarios_.end()) {
+      if (!overwrite_conflicts) {
+        continue;
+      }
+      if (active_scenario_ == it->second.get()) {
+        active_scenario_->Abort();
+        active_scenario_ = nullptr;
+        conflicting_scenarios_set.insert(it->second.get());
+        conflicting_scenarios.emplace_back(std::move(it->second));
+      } else if (it->second->current_state() !=
+                 TracingScenario::State::kDisabled) {
+        it->second->Disable();
+        conflicting_scenarios_set.insert(it->second.get());
+        conflicting_scenarios.emplace_back(std::move(it->second));
+      }
+    }
+
     added_scenarios.push_back(scenario->scenario_name());
     preset_scenarios_[scenario->scenario_name()] = std::move(scenario);
   }
   if (!conflicting_scenarios.empty()) {
     std::erase_if(enabled_scenarios_, [&](raw_ptr<TracingScenario> scenario) {
-      return conflicting_scenarios.contains(scenario);
+      return conflicting_scenarios_set.contains(scenario);
     });
   }
+  conflicting_scenarios_set.clear();
 
   return added_scenarios;
 }
 
-std::vector<trace_report::mojom::ScenarioPtr>
-BackgroundTracingManagerImpl::GetAllFieldScenarios() const {
-  std::vector<trace_report::mojom::ScenarioPtr> result;
-  for (const auto& scenario : field_scenarios_) {
-    auto new_scenario = trace_report::mojom::Scenario::New();
+std::vector<traces_internals::mojom::ScenarioPtr>
+BackgroundTracingManagerImpl::GetAllScenarios() const {
+  std::vector<traces_internals::mojom::ScenarioPtr> result;
+  auto toMojoScenario = [this](TracingScenario* scenario) {
+    auto new_scenario = traces_internals::mojom::Scenario::New();
     new_scenario->scenario_name = scenario->scenario_name();
-    result.push_back(std::move(new_scenario));
-  }
-  return result;
-}
-
-std::vector<trace_report::mojom::ScenarioPtr>
-BackgroundTracingManagerImpl::GetAllPresetScenarios() const {
-  std::vector<trace_report::mojom::ScenarioPtr> result;
+    new_scenario->description = scenario->description();
+    new_scenario->is_local_scenario = scenario->is_local_scenario();
+    new_scenario->is_enabled = base::Contains(enabled_scenarios_, scenario);
+    new_scenario->current_state = scenario->current_state();
+    return new_scenario;
+  };
   for (const auto& scenario : preset_scenarios_) {
-    auto new_scenario = trace_report::mojom::Scenario::New();
-    new_scenario->scenario_name = scenario.second->scenario_name();
-    result.push_back(std::move(new_scenario));
+    result.push_back(toMojoScenario(scenario.second.get()));
+  }
+  for (const auto& scenario : field_scenarios_) {
+    result.push_back(toMojoScenario(scenario.get()));
   }
   return result;
 }
@@ -700,10 +702,12 @@ bool BackgroundTracingManagerImpl::OnScenarioActive(
       kMaxTracesPerScenario) {
     return false;
   }
-  if (delegate_ && !delegate_->IsRecordingAllowed(
-                       active_scenario->privacy_filter_enabled())) {
+  auto now = base::TimeTicks::Now();
+  if (!delegate_->IsRecordingAllowed(active_scenario->privacy_filter_enabled(),
+                                     now)) {
     return false;
   }
+  scenario_start_time_ = now;
   active_scenario_ = active_scenario;
   base::UmaHistogramSparse(
       "Tracing.Background.Scenario.Active",
@@ -733,8 +737,8 @@ bool BackgroundTracingManagerImpl::OnScenarioIdle(
   for (auto& scenario : enabled_scenarios_) {
     scenario->Enable();
   }
-  return !delegate_ ||
-         delegate_->IsRecordingAllowed(idle_scenario->privacy_filter_enabled());
+  return delegate_->IsRecordingAllowed(idle_scenario->privacy_filter_enabled(),
+                                       scenario_start_time_);
 }
 
 void BackgroundTracingManagerImpl::OnScenarioError(
@@ -751,8 +755,8 @@ bool BackgroundTracingManagerImpl::OnScenarioCloned(
   base::UmaHistogramSparse(
       "Tracing.Background.Scenario.Clone",
       variations::HashName(cloned_scenario->scenario_name()));
-  return !delegate_ || delegate_->IsRecordingAllowed(
-                           cloned_scenario->privacy_filter_enabled());
+  return delegate_->IsRecordingAllowed(
+      cloned_scenario->privacy_filter_enabled(), scenario_start_time_);
 }
 
 void BackgroundTracingManagerImpl::OnScenarioRecording(
@@ -782,20 +786,21 @@ bool BackgroundTracingManagerImpl::HasActiveScenario() {
 
 bool BackgroundTracingManagerImpl::HasTraceToUpload() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  // Send the logs only when the trace size is within limits. If the connection
-  // type changes and we have a bigger than expected trace, then the next time
-  // service asks us when wifi is available, the trace will be sent. If we did
-  // collect a trace that is bigger than expected, then we will end up never
-  // uploading, and drop the trace. This should never happen because the trace
-  // buffer limits are set appropriately.
   if (!trace_report_to_upload_) {
     return false;
   }
-  if (trace_report_to_upload_->total_size <= GetTraceUploadLimitKb() * 1024) {
-    return true;
+#if BUILDFLAG(IS_ANDROID)
+  // Send the logs only when the trace size is within limits. If the connection
+  // type changes and we have a bigger than expected trace, then the next time
+  // service asks us when wifi is available, the trace will be sent.
+  auto type = net::NetworkChangeNotifier::GetConnectionType();
+  if (net::NetworkChangeNotifier::IsConnectionCellular(type) &&
+      trace_report_to_upload_->total_size > upload_limit_network_kb_ * 1000) {
+    RecordMetric(Metrics::LARGE_UPLOAD_WAITING_TO_RETRY);
+    return false;
   }
-  RecordMetric(Metrics::LARGE_UPLOAD_WAITING_TO_RETRY);
-  return false;
+#endif
+  return true;
 }
 
 void BackgroundTracingManagerImpl::GetTraceToUpload(
@@ -961,8 +966,7 @@ void BackgroundTracingManagerImpl::OnProtoDataComplete(
     } else if (serialized_trace.size() > upload_limit_kb_ * 1024) {
       skip_reason = SkipUploadReason::kSizeLimitExceeded;
     }
-    bool should_save_trace =
-        !delegate_ || delegate_->ShouldSaveUnuploadedTrace();
+    bool should_save_trace = delegate_->ShouldSaveUnuploadedTrace();
     if (skip_reason != SkipUploadReason::kNoSkip && !should_save_trace) {
       return;
     }
@@ -977,10 +981,8 @@ void BackgroundTracingManagerImpl::OnProtoDataComplete(
     base_report.total_size = serialized_trace.size();
     base_report.skip_reason = skip_reason;
 
-    std::string serialized_system_profile;
-    if (system_profile_recorder_) {
-      serialized_system_profile = system_profile_recorder_.Run();
-    }
+    std::string serialized_system_profile =
+        delegate_->RecordSerializedSystemProfileMetrics();
 
     database_task_runner_->PostTask(
         FROM_HERE,
@@ -999,11 +1001,6 @@ void BackgroundTracingManagerImpl::OnProtoDataComplete(
         base::BindOnce(&BackgroundTracingManagerImpl::OnFinalizeComplete,
                        weak_factory_.GetWeakPtr(), std::nullopt));
   }
-}
-
-void BackgroundTracingManagerImpl::SetSystemProfileRecorder(
-    base::RepeatingCallback<std::string()> recorder) {
-  system_profile_recorder_ = std::move(recorder);
 }
 
 void BackgroundTracingManagerImpl::AddNamedTriggerObserver(
@@ -1168,16 +1165,6 @@ void BackgroundTracingManagerImpl::MaybeConstructPendingAgents() {
                                              std::move(pending_agent.second));
   }
   pending_agents_.clear();
-}
-
-size_t BackgroundTracingManagerImpl::GetTraceUploadLimitKb() const {
-#if BUILDFLAG(IS_ANDROID)
-  auto type = net::NetworkChangeNotifier::GetConnectionType();
-  if (net::NetworkChangeNotifier::IsConnectionCellular(type)) {
-    return upload_limit_network_kb_;
-  }
-#endif
-  return upload_limit_kb_;
 }
 
 }  // namespace content

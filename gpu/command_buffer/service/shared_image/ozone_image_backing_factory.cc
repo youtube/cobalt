@@ -20,7 +20,7 @@
 #include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gfx/buffer_types.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gl/buildflags.h"
 #include "ui/gl/gl_bindings.h"
@@ -70,7 +70,9 @@ constexpr SharedImageUsageSet kSupportedUsage =
     SHARED_IMAGE_USAGE_HIGH_PERFORMANCE_GPU | SHARED_IMAGE_USAGE_CPU_UPLOAD |
     SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
     SHARED_IMAGE_USAGE_WEBGPU_STORAGE_TEXTURE |
-    SHARED_IMAGE_USAGE_PROTECTED_VIDEO | SHARED_IMAGE_USAGE_CPU_ONLY_READ_WRITE;
+    SHARED_IMAGE_USAGE_PROTECTED_VIDEO |
+    SHARED_IMAGE_USAGE_CPU_ONLY_READ_WRITE |
+    SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE;
 
 }  // namespace
 

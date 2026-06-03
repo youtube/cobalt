@@ -381,7 +381,7 @@ HTMLFormControlElement::popoverTargetElement() {
     return no_element;
   }
   auto* target_popover = DynamicTo<HTMLElement>(target_element);
-  if (!target_popover || !target_popover->HasPopoverAttribute()) {
+  if (!target_popover || !target_popover->IsPopover()) {
     return no_element;
   }
   // The default action is "toggle".
@@ -423,7 +423,7 @@ void HTMLFormControlElement::DefaultEventHandler(Event& event) {
 
     if (popover.popover) {
       bool event_target_was_nested_popover = false;
-      if (auto* target_node = event.target()->ToNode()) {
+      if (auto* target_node = event.RawTarget()->ToNode()) {
         bool button_is_ancestor_of_popover =
             IsShadowIncludingAncestorOf(*popover.popover);
         event_target_was_nested_popover =

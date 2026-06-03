@@ -131,7 +131,7 @@ BrowserAccessibilityManager* BrowserAccessibilityManager::FromID(
   // `BrowserAccessibility`) corresponding to each `AXNode` in its managed tree,
   // then we can't cast it to one that does, in this case a
   // `BrowserAccessibilityManager`.
-  if (!manager || !manager->IsPlatformTreeManager()) {
+  if (!manager || !manager->is_platform_tree_manager()) {
     return nullptr;
   }
   return static_cast<BrowserAccessibilityManager*>(manager);
@@ -163,6 +163,26 @@ AXTreeUpdate BrowserAccessibilityManager::GetEmptyDocument() {
   update.root_id = empty_document.id;
   update.nodes.push_back(empty_document);
   return update;
+}
+
+bool BrowserAccessibilityManager::ShouldExposeExtraAnnouncementNodes() const {
+  return false;
+}
+
+BrowserAccessibility*
+BrowserAccessibilityManager::GetExtraAnnouncementNodeFromNode(
+    const BrowserAccessibility* node,
+    ax::mojom::AriaNotificationPriority priority_property) const {
+  return nullptr;
+}
+
+bool BrowserAccessibilityManager::TreeHasExtraAnnouncementNodes() const {
+  return false;
+}
+
+size_t BrowserAccessibilityManager::TreeExtraAnnouncementNodesCount() const {
+  NOTREACHED() << "This method should be overridden by the platform "
+               << "implementation if it has extra announcement nodes.";
 }
 
 void BrowserAccessibilityManager::FireFocusEventsIfNeeded() {
@@ -281,7 +301,7 @@ BrowserAccessibility* BrowserAccessibilityManager::GetFromAXNode(
     // `BrowserAccessibility`) corresponding to each `AXNode` in its managed
     // tree, then we can't cast it to one that does, in this case a
     // `BrowserAccessibilityManager`.
-    if (manager->IsPlatformTreeManager()) {
+    if (manager->is_platform_tree_manager()) {
       return static_cast<const BrowserAccessibilityManager*>(manager)
           ->GetFromID(node->id());
     }
@@ -323,7 +343,7 @@ BrowserAccessibilityManager::GetParentNodeFromParentTreeAsBrowserAccessibility()
   // generated content, which is currently not a platform tree manager. In those
   // cases, we should return nullptr since doing the cast will fail and result
   // in undefined behavior.
-  if (IsRootFrameManager() || !IsPlatformTreeManager()) {
+  if (IsRootFrameManager() || !is_platform_tree_manager()) {
     return nullptr;
   }
   BrowserAccessibilityManager* parent_manager_wrapper =
@@ -2008,7 +2028,8 @@ AXPlatformNodeId BrowserAccessibilityManager::GetNodeUniqueId(
   return node_id_delegate_->GetOrCreateAXNodeUniqueId(node->node()->id());
 }
 
-BrowserAccessibility* BrowserAccessibilityManager::GetAccessibilityFocus() {
+BrowserAccessibility* BrowserAccessibilityManager::GetAccessibilityFocus()
+    const {
   if (accessibility_focus_tree_id_ == AXTreeIDUnknown() ||
       accessibility_focus_node_id_ == AXNodeData::kInvalidAXID) {
     return nullptr;

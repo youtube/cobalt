@@ -42,17 +42,6 @@ BASE_FEATURE(kEnableMeasurements,
              "EnableMeasurementsExperience",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const char kOneTapForMapsConsentModeParamTitle[] =
-    "OneTapForMapsConsentModeParam";
-const char kOneTapForMapsConsentModeDefaultParam[] = "default";
-const char kOneTapForMapsConsentModeForcedParam[] = "forced";
-const char kOneTapForMapsConsentModeDisabledParam[] = "disabled";
-const char kOneTapForMapsConsentModeIPHParam[] = "iph";
-const char kOneTapForMapsConsentModeIPHForcedParam[] = "iphforced";
-BASE_FEATURE(kOneTapForMaps,
-             "EnableOneTapForMaps",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kScrollViewProxyScrollEnabledWorkaround,
              "ScrollViewProxyScrollEnabledWorkaround",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -77,6 +66,18 @@ BASE_FEATURE(kSmoothScrollingDefault,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
+
+BASE_FEATURE(kFullscreenScrollThreshold,
+             "FullScreenScrollThreshold",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const char kFullscreenScrollThresholdAmount[] =
+    "fullscreen_scroll_threshold_amount";
+
+bool IsFullscreenScrollThresholdEnabled() {
+  return !base::FeatureList::IsEnabled(kSmoothScrollingDefault) &&
+         base::FeatureList::IsEnabled(kFullscreenScrollThreshold);
+}
 
 // This feature will always be disabled and will only be enabled by tests.
 BASE_FEATURE(kForceSynthesizedRestoreSession,

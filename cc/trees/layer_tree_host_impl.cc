@@ -26,7 +26,6 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
@@ -159,6 +158,8 @@ namespace {
 // for overlap checking. As a result, we are conservative and make OOPIFs
 // kHitTestAsk after the threshold is reached.
 const size_t kAssumeOverlapThreshold = 100;
+
+constexpr auto kHasInputResetDelay = base::Milliseconds(250);
 
 // gfx::DisplayColorSpaces stores up to 3 different color spaces. This should be
 // updated to match any size changes in DisplayColorSpaces.
@@ -464,13 +465,14 @@ LayerTreeHostImpl::LayerTreeHostImpl(
                   .single_thread_proxy_scheduler,
               /*should_report_ukm=*/!settings.single_thread_proxy_scheduler,
               id)),
-      frame_trackers_(settings.single_thread_proxy_scheduler,
-                      &dropped_frame_counter_),
+      frame_trackers_(settings.single_thread_proxy_scheduler),
       lcd_text_metrics_reporter_(LCDTextMetricsReporter::CreateIfNeeded(this)),
-      frame_rate_estimator_(GetTaskRunner()),
-      contains_srgb_cache_(kContainsSrgbCacheSize),
-      zero_scroll_metrics_update_enabled_(
-          base::FeatureList::IsEnabled(features::kZeroScrollMetricsUpdate)) {
+      has_input_resetter_(
+          GetTaskRunner(),
+          base::BindRepeating(&LayerTreeHostImpl::ResetHasInputForFrameInterval,
+                              base::Unretained(this)),
+          kHasInputResetDelay),
+      contains_srgb_cache_(kContainsSrgbCacheSize) {
   resource_provider_ = std::make_unique<viz::ClientResourceProvider>(
       task_runner_provider_->MainThreadTaskRunner(),
       task_runner_provider_->HasImplThread()
@@ -509,8 +511,6 @@ LayerTreeHostImpl::LayerTreeHostImpl(
 
   SetDebugState(settings.initial_debug_state);
   compositor_frame_reporting_controller_->SetFrameSorter(&frame_sorter_);
-  compositor_frame_reporting_controller_->SetDroppedFrameCounter(
-      &dropped_frame_counter_);
   compositor_frame_reporting_controller_->SetFrameSequenceTrackerCollection(
       &frame_trackers_);
 
@@ -519,13 +519,12 @@ LayerTreeHostImpl::LayerTreeHostImpl(
     compositor_frame_reporting_controller_->set_event_latency_tracker(this);
 
 #if BUILDFLAG(IS_CHROMEOS)
-    dropped_frame_counter_.EnableReportForUI();
+    frame_sorter_.EnableReportForUI();
     frame_trackers_.StartSequence(
         FrameSequenceTrackerType::kCompositorAnimation);
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
-  dropped_frame_counter_.set_total_counter(&total_frame_counter_);
   frame_trackers_.set_custom_tracker_results_added_callback(base::BindRepeating(
       &LayerTreeHostImpl::NotifyCompositorMetricsTrackerResults,
       weak_factory_.GetWeakPtr()));
@@ -578,7 +577,6 @@ LayerTreeHostImpl::~LayerTreeHostImpl() {
   // CFRC needs to unregister the frame trackers from the frame_sorter observer
   // set before being cleaned up.
   compositor_frame_reporting_controller_->ClearFrameSequenceTrackerCollection();
-  compositor_frame_reporting_controller_->ClearDroppedFrameCounter();
 }
 
 InputHandler& LayerTreeHostImpl::GetInputHandler() {
@@ -626,17 +624,14 @@ void LayerTreeHostImpl::BeginMainFrameAborted(
 }
 
 void LayerTreeHostImpl::ReadyToCommit(
-    const viz::BeginFrameArgs& commit_args,
     bool scroll_and_viewport_changes_synced,
     const BeginMainFrameMetrics* begin_main_frame_metrics,
     bool commit_timeout) {
-  if (!is_measuring_smoothness_ &&
-      ((begin_main_frame_metrics &&
+  if (((begin_main_frame_metrics &&
         begin_main_frame_metrics->should_measure_smoothness) ||
-       commit_timeout)) {
-    is_measuring_smoothness_ = true;
-    total_frame_counter_.Reset();
-    dropped_frame_counter_.OnFirstContentfulPaintReceived();
+       commit_timeout) &&
+      !frame_sorter_.first_contentful_paint_received()) {
+    frame_sorter_.OnFirstContentfulPaintReceived();
   }
 
   // Notify the browser controls manager that we have processed any
@@ -699,6 +694,8 @@ void LayerTreeHostImpl::FinishCommit(
 
   for (auto& benchmark : state.benchmarks)
     ScheduleMicroBenchmark(std::move(benchmark));
+
+  new_local_surface_id_expected_ = false;
 
   // Dump property trees and layers if VerboseLogEnabled().
   VERBOSE_LOG() << "After finishing commit on impl, the sync tree:"
@@ -1163,7 +1160,8 @@ LayerTreeHostImpl::GetScopedEventMetricsMonitor(
 }
 
 void LayerTreeHostImpl::NotifyInputEvent(bool is_fling) {
-  frame_rate_estimator_.NotifyInputEvent();
+  has_input_for_frame_interval_ = true;
+  has_input_resetter_.Schedule();
   has_non_fling_input_since_last_frame_ |= (!is_fling);
 }
 
@@ -1277,8 +1275,7 @@ bool LayerTreeHostImpl::HasDamage() const {
 
   // If we have a new LocalSurfaceId, we must always submit a CompositorFrame
   // because the parent is blocking on us.
-  if (last_draw_local_surface_id_ !=
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId()) {
+  if (last_draw_local_surface_id_ != GetCurrentLocalSurfaceId()) {
     return true;
   }
 
@@ -1413,11 +1410,8 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
       active_tree()->property_trees()->effect_tree().HasCopyRequests();
 
   bool have_missing_animated_tiles = false;
-  int num_of_layers_with_videos = 0;
-
   const bool compute_video_layer_preferred_interval =
-      !features::UseSurfaceLayerForVideo() &&
-      features::IsUsingFrameIntervalDecider();
+      !features::UseSurfaceLayerForVideo();
 
   if (settings_.enable_compositing_based_throttling)
     throttle_decider_.Prepare();
@@ -1490,12 +1484,6 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
         // LayerTreeHostImpl::DidDrawAllLayers().
         frame->will_draw_layers.push_back(layer);
 
-        if (layer->may_contain_video()) {
-          num_of_layers_with_videos++;
-          if (output_frame_data) {
-            frame->may_contain_video = true;
-          }
-        }
         if (output_frame_data && compute_video_layer_preferred_interval &&
             layer->GetLayerType() == mojom::LayerType::kVideo) {
           VideoLayerImpl* video_layer = static_cast<VideoLayerImpl*>(layer);
@@ -1585,11 +1573,6 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
       draw_result = DrawResult::kAbortedMissingHighResContent;
   }
 
-  // Only enable frame rate estimation if it would help lower the composition
-  // rate for videos.
-  const bool assumes_video_conference_mode = num_of_layers_with_videos > 1;
-  frame_rate_estimator_.SetVideoConferenceMode(assumes_video_conference_mode);
-
   // When doing a resourceless software draw, we don't have control over the
   // surface the compositor draws to, so even though the frame may not be
   // complete, the previous frame has already been potentially lost, so an
@@ -1663,6 +1646,13 @@ void LayerTreeHostImpl::InvalidateContentOnImplSide() {
 
   if (!CommitsToActiveTree()) {
     CreatePendingTree();
+    if (frame_trackers_.GetScrollingThread() ==
+        FrameInfo::SmoothEffectDrivingThread::kRaster) {
+      // If scrolling via raster, take EventMetrics and associate
+      // them with newly-created pending tree.
+      pending_tree()->AppendEventMetricsFromRasterThread(
+          events_metrics_manager_.TakeSavedEventsMetrics());
+    }
     AnimatePendingTreeAfterCommit();
   }
 
@@ -1720,7 +1710,6 @@ DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame) {
   frame->render_passes.clear();
   frame->will_draw_layers.clear();
   frame->has_no_damage = false;
-  frame->may_contain_video = false;
 
   if (active_tree_->RootRenderSurface()) {
     active_tree_->RootRenderSurface()->damage_tracker()->AddDamageNextUpdate(
@@ -1971,7 +1960,7 @@ std::unique_ptr<RasterTilePriorityQueue> LayerTreeHostImpl::BuildRasterQueue(
 }
 
 std::unique_ptr<EvictionTilePriorityQueue>
-LayerTreeHostImpl::BuildEvictionQueue(TreePriority tree_priority) {
+LayerTreeHostImpl::BuildEvictionQueue() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "LayerTreeHostImpl::BuildEvictionQueue");
 
@@ -1981,8 +1970,7 @@ LayerTreeHostImpl::BuildEvictionQueue(TreePriority tree_priority) {
       active_tree_->picture_layers(),
       pending_tree_
           ? pending_tree_->picture_layers()
-          : std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>(),
-      tree_priority);
+          : std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>());
   return queue;
 }
 
@@ -2798,11 +2786,10 @@ RenderFrameMetadata LayerTreeHostImpl::MakeRenderFrameMetadata(
 #endif
   }
 
-  if (child_local_surface_id_allocator_.GetCurrentLocalSurfaceId().is_valid()) {
+  if (GetCurrentLocalSurfaceId().is_valid()) {
     if (allocate_new_local_surface_id)
       AllocateLocalSurfaceId();
-    metadata.local_surface_id =
-        child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+    metadata.local_surface_id = GetCurrentLocalSurfaceId();
   }
 
   metadata.primary_main_frame_item_sequence_number =
@@ -2828,6 +2815,7 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     // See b/297940877.
     if (settings_.is_layer_tree_for_ui) {
       std::ignore = active_tree()->TakeEventsMetrics();
+      std::ignore = active_tree()->TakeRasterEventsMetrics();
       std::ignore = events_metrics_manager_.TakeSavedEventsMetrics();
     }
 
@@ -2865,7 +2853,8 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
 
   EventMetricsSet events_metrics(
       active_tree()->TakeEventsMetrics(),
-      events_metrics_manager_.TakeSavedEventsMetrics());
+      events_metrics_manager_.TakeSavedEventsMetrics(),
+      active_tree()->TakeRasterEventsMetrics());
   lag_tracking_manager_.CollectScrollEventsFromFrame(frame_token,
                                                      events_metrics);
 
@@ -2920,6 +2909,18 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     layer_tree_frame_sink_->SubmitCompositorFrame(
         std::move(compositor_frame),
         /*hit_test_data_changed=*/false);
+
+    // After we submit a frame, if we're expecting a new local surface id, then
+    // notify about that immediately.
+    // TODO(vmpstr): When it comes to ViewTransitions, it is possible that we
+    // can just avoid sending the save directive/copy output requests until the
+    // next frame. However, because this frame submission might race with
+    // LayerTreeHostImpl::NotifyNewLocalSurfaceIdExpectedWhilePaused, this call
+    // is more consistent and 'resolves' the race as far as viz is concerned. If
+    // this is an issue in practice, we need to think of a different approach.
+    if (new_local_surface_id_expected_) {
+      layer_tree_frame_sink_->NotifyNewLocalSurfaceIdExpectedWhilePaused();
+    }
   }
 
 #if DCHECK_IS_ON()
@@ -3128,15 +3129,13 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
 
   PopulateMetadataContentColorUsage(frame, &metadata);
   metadata.has_shared_element_resources = frame->has_shared_element_resources;
-  metadata.may_contain_video = frame->may_contain_video;
   metadata.deadline = viz::FrameDeadline(
       CurrentBeginFrameArgs().frame_time,
       frame->deadline_in_frames.value_or(0u), CurrentBeginFrameArgs().interval,
       frame->use_default_lower_bound_deadline);
   metadata.frame_interval_inputs.frame_time =
       CurrentBeginFrameArgs().frame_time;
-  metadata.frame_interval_inputs.has_input =
-      frame_rate_estimator_.input_priority_mode();
+  metadata.frame_interval_inputs.has_input = has_input_for_frame_interval_;
   metadata.frame_interval_inputs.has_user_input =
       has_non_fling_input_since_last_frame_;
   has_non_fling_input_since_last_frame_ = false;
@@ -3193,36 +3192,6 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   // removed, then can set `has_only_content_frame_interval_updates`.
   metadata.frame_interval_inputs.has_only_content_frame_interval_updates =
       frame->damage_reasons.empty();
-
-  constexpr auto kFudgeDelta = base::Milliseconds(1);
-  constexpr auto kTwiceOfDefaultInterval =
-      viz::BeginFrameArgs::DefaultInterval() * 2;
-  constexpr auto kMinDelta = kTwiceOfDefaultInterval - kFudgeDelta;
-  if (mutator_host_->MainThreadAnimationsCount() == 0 &&
-      !mutator_host_->HasSmilAnimation() &&
-      mutator_host_->NeedsTickAnimations() &&
-      !frame_rate_estimator_.input_priority_mode() &&
-      mutator_host_->MinimumTickInterval() > kMinDelta) {
-    // All animations are impl-thread animations that tick at no more than
-    // half the default display compositing fps.
-    // Here and below with FrameRateEstimator::GetPreferredInterval(), the
-    // meta data's preferred_frame_interval is constrained to either 0 or
-    // twice the default interval. The reason is because GPU process side
-    // viz::FrameRateDecider is optimized for when all the preferred frame
-    // rates are similar.
-    // In general it may cause an animation to be less smooth if its fps is
-    // less than 30 fps and it updates at 30 fps. However, the frame rate
-    // reduction optimization is only applied when a webpage has two or more
-    // videos, i.e., very likely a video conferencing scene. It doesn't apply
-    // to general webpages.
-    metadata.preferred_frame_interval = kTwiceOfDefaultInterval;
-  } else {
-    // There are main-thread, high frequency impl-thread animations, or input
-    // events.
-    frame_rate_estimator_.WillDraw(CurrentBeginFrameArgs().frame_time);
-    metadata.preferred_frame_interval =
-        frame_rate_estimator_.GetPreferredInterval();
-  }
 
   metadata.activation_dependencies = std::move(frame->activation_dependencies);
   active_tree()->FinishSwapPromises(&metadata);
@@ -3298,11 +3267,13 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   CHECK(!settings_.single_thread_proxy_scheduler ||
         active_tree()->local_surface_id_from_parent().is_valid());
 
-  layer_tree_frame_sink_->SetLocalSurfaceId(
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId());
+  if (!settings_.trees_in_viz_in_viz_process) {
+    // In TreesInViz viz process, this ends up in LayerTreeHostImpl again
+    // and doesn't change anything.
+    layer_tree_frame_sink_->SetLocalSurfaceId(GetCurrentLocalSurfaceId());
+  }
 
-  last_draw_local_surface_id_ =
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+  last_draw_local_surface_id_ = GetCurrentLocalSurfaceId();
 
   if (const char* client_name = GetClientNameForMetrics()) {
     size_t total_quad_count = 0;
@@ -3335,7 +3306,8 @@ void LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
 
   layer_context_->UpdateDisplayTreeFrom(
       *active_tree(), *resource_provider(),
-      *layer_tree_frame_sink_->context_provider(), viewport_damage_rect_);
+      *layer_tree_frame_sink_->context_provider(), viewport_damage_rect_,
+      target_local_surface_id_);
 }
 
 int LayerTreeHostImpl::RequestedMSAASampleCount() const {
@@ -3349,21 +3321,11 @@ int LayerTreeHostImpl::RequestedMSAASampleCount() const {
                                     ? pending_tree_->device_scale_factor()
                                     : active_tree_->device_scale_factor();
 
-    // Note: this feature ensures that we correctly report the device scale
-    // factor. As of June 2023, without this feature, the vast majority (or
-    // possibly all?) high-dpi screens are incorrectly considered normal DPI
-    // ones here. See the UMA histogram
-    // "Gpu.Rasterization.Raster.MSAASampleCountLog2", which almost always
-    // report "3", i.e. 8xMSAA on macOS, where High-DPI screens are prevalent.
-    if (base::FeatureList::IsEnabled(features::kDetectHiDpiForMsaa)) {
-      float painted_device_scale_factor =
-          pending_tree_ ? pending_tree_->painted_device_scale_factor()
-                        : active_tree_->painted_device_scale_factor();
-      DCHECK(painted_device_scale_factor == 1 || device_scale_factor == 1);
-
-      device_scale_factor *= painted_device_scale_factor;
-    }
-
+    // Note: this is invalid for HiDPI devices, the device scale factor should
+    // be multiplied by `active_tree()->painted_device_scale_factor()`. This was
+    // experimented with, but since DMSAA is used almost everywhere, did not
+    // make a difference in the end. Regardless, the above computation is
+    // technically incorrect.
     return device_scale_factor >= 2.0f ? 4 : 8;
   }
 
@@ -3484,7 +3446,6 @@ bool LayerTreeHostImpl::WillBeginImplFrame(const viz::BeginFrameArgs& args) {
   impl_thread_phase_ = ImplThreadPhase::INSIDE_IMPL_FRAME;
   current_begin_frame_tracker_.Start(args);
   frame_trackers_.NotifyBeginImplFrame(args);
-  total_frame_counter_.OnBeginFrame(args);
   compositor_frame_reporting_controller_->SetNeedsRasterPropertiesAnimated(
       paint_worklet_tracker_.HasInputPropertiesAnimatedOnImpl());
   if (!GetSettings().is_layer_tree_for_ui) {
@@ -3580,7 +3541,6 @@ void LayerTreeHostImpl::DidNotProduceFrame(const viz::BeginFrameAck& ack,
         return "";
       }(reason),
       "Frame Sequence Number", ack.frame_id.sequence_number);
-  frame_rate_estimator_.DidNotProduceFrame();
   if (layer_tree_frame_sink_) {
     layer_tree_frame_sink_->DidNotProduceFrame(ack, reason);
   }
@@ -3589,9 +3549,7 @@ void LayerTreeHostImpl::DidNotProduceFrame(const viz::BeginFrameAck& ack,
   // so that they are terminated now. This prevents them from being incorrectly
   // associated with a future produced frame. So that jank measurements have
   // accurate deltas.
-  if (zero_scroll_metrics_update_enabled_) {
-    events_metrics_manager_.TakeSavedEventsMetrics();
-  }
+  events_metrics_manager_.TakeSavedEventsMetrics();
 }
 
 void LayerTreeHostImpl::OnBeginImplFrameDeadline() {
@@ -3766,8 +3724,7 @@ void LayerTreeHostImpl::DidLoseLayerTreeFrameSink() {
   has_valid_layer_tree_frame_sink_ = false;
   client_->DidLoseLayerTreeFrameSinkOnImplThread();
   lag_tracking_manager_.Clear();
-  frame_sorter_.Reset();
-  dropped_frame_counter_.ResetPendingFrames(base::TimeTicks::Now());
+  frame_sorter_.Reset(/*reset_fcp=*/false);
 }
 
 bool LayerTreeHostImpl::OnlyExpandTopControlsAtPageTop() const {
@@ -3973,7 +3930,7 @@ void LayerTreeHostImpl::ActivateSyncTree() {
     DidModifyTilePriorities(/*pending_update_tiles=*/false);
 
   auto screenshot_token = active_tree()->TakeScreenshotDestinationToken();
-  if (child_local_surface_id_allocator_.GetCurrentLocalSurfaceId().is_valid()) {
+  if (GetCurrentLocalSurfaceId().is_valid()) {
     // Since the screenshot will be issued against the previous `viz::Surface`
     // we need to make sure the renderer has at least embedded a valid surface
     // previously.
@@ -4068,21 +4025,17 @@ void LayerTreeHostImpl::SetVisible(bool visible) {
     layer_context_->SetVisible(visible);
   }
 
-  if (visible_) {
-    auto now = base::TimeTicks::Now();
-    total_frame_counter_.OnShow(now);
-  } else {
-    auto now = base::TimeTicks::Now();
-    total_frame_counter_.OnHide(now);
-    frame_sorter_.Reset();
-    dropped_frame_counter_.ResetPendingFrames(now);
+  if (!visible_) {
+    frame_sorter_.Reset(/*reset_fcp=*/false);
 
     // When page is invisible, throw away corresponding EventsMetrics since
     // these metrics will be incorrect due to duration of page being invisible.
     active_tree()->TakeEventsMetrics();
+    active_tree()->TakeRasterEventsMetrics();
     events_metrics_manager_.TakeSavedEventsMetrics();
     if (pending_tree()) {
       pending_tree()->TakeEventsMetrics();
+      pending_tree()->TakeRasterEventsMetrics();
     }
   }
   // Notify reporting controller of transition between visible and invisible
@@ -4547,8 +4500,7 @@ bool LayerTreeHostImpl::InitializeFrameSink(
   // Always allocate a new viz::LocalSurfaceId when we get a new
   // LayerTreeFrameSink to ensure that we do not reuse the same surface after
   // it might have been garbage collected.
-  const viz::LocalSurfaceId& local_surface_id =
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+  const viz::LocalSurfaceId& local_surface_id = GetCurrentLocalSurfaceId();
   if (local_surface_id.is_valid())
     AllocateLocalSurfaceId();
 
@@ -4708,14 +4660,13 @@ void LayerTreeHostImpl::WillScrollContent(ElementId element_id) {
   // with the subsequent frame. Otherwise this event will be attributed to jank.
   //
   // If there are on going animations, we may still submit a frame.
-  if (zero_scroll_metrics_update_enabled_) {
-    events_metrics_manager_.SaveActiveEventMetrics();
-  }
+  events_metrics_manager_.SaveActiveEventMetrics();
 }
 
 void LayerTreeHostImpl::DidScrollContent(ElementId element_id,
                                          bool animated,
                                          const gfx::Vector2dF& scroll_delta) {
+  events_metrics_manager_.set_did_scroll(true);
   scroll_accumulated_this_frame_ += scroll_delta;
   frame_max_scroll_delta_ =
       std::max(std::abs(scroll_delta.x()), std::abs(scroll_delta.y()));
@@ -4916,8 +4867,8 @@ void LayerTreeHostImpl::UpdateChildLocalSurfaceId() {
   // We have a newer surface than the evicted one, or the embedding has
   // changed, clear eviction state resume drawing.
   if (evicted_local_surface_id_.is_valid() &&
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId()
-          .IsNewerThanOrEmbeddingChanged(evicted_local_surface_id_)) {
+      GetCurrentLocalSurfaceId().IsNewerThanOrEmbeddingChanged(
+          evicted_local_surface_id_)) {
     evicted_local_surface_id_ = viz::LocalSurfaceId();
     if (resource_provider_) {
       resource_provider_->SetEvicted(false);
@@ -4928,6 +4879,16 @@ void LayerTreeHostImpl::UpdateChildLocalSurfaceId() {
 void LayerTreeHostImpl::ReturnResource(
     viz::ReturnedResource returned_resource) {
   client_->ReturnResource(std::move(returned_resource));
+}
+
+void LayerTreeHostImpl::NotifyNewLocalSurfaceIdExpectedWhilePaused() {
+  if (new_local_surface_id_expected_) {
+    return;
+  }
+  new_local_surface_id_expected_ = true;
+  if (layer_tree_frame_sink_) {
+    layer_tree_frame_sink_->NotifyNewLocalSurfaceIdExpectedWhilePaused();
+  }
 }
 
 void LayerTreeHostImpl::CollectScrollbarUpdatesForCommit(
@@ -5996,16 +5957,11 @@ void LayerTreeHostImpl::SetActiveURL(const GURL& url, ukm::SourceId source_id) {
   // case to occur.
   // The source id has already been associated to the URL.
   compositor_frame_reporting_controller_->SetSourceId(source_id);
-  total_frame_counter_.Reset();
-  frame_sorter_.Reset();
-  dropped_frame_counter_.Reset();
-  is_measuring_smoothness_ = false;
+  frame_sorter_.Reset(/*reset_fcp=*/true);
 }
 
 void LayerTreeHostImpl::SetUkmSmoothnessDestination(
     base::WritableSharedMemoryMapping ukm_smoothness_data) {
-  dropped_frame_counter_.SetUkmSmoothnessDestination(
-      ukm_smoothness_data.GetMemoryAs<UkmSmoothnessDataShared>());
   ukm_smoothness_mapping_ = std::move(ukm_smoothness_data);
 }
 
@@ -6107,5 +6063,8 @@ bool LayerTreeHostImpl::RunningOnRendererProcess() const {
   return !settings().single_thread_proxy_scheduler;
 }
 
+void LayerTreeHostImpl::ResetHasInputForFrameInterval() {
+  has_input_for_frame_interval_ = false;
+}
 
 }  // namespace cc

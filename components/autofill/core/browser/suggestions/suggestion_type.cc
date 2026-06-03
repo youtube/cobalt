@@ -46,6 +46,12 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "kDatalistEntry";
     case SuggestionType::kPasswordEntry:
       return "kPasswordEntry";
+    case SuggestionType::kBackupPasswordEntry:
+      return "kBackupPasswordEntry";
+    case SuggestionType::kTroubleSigningInEntry:
+      return "kTroubleSigningInEntry";
+    case SuggestionType::kFreeformFooter:
+      return "kFreeformFooter";
     case SuggestionType::kAllSavedPasswordsEntry:
       return "kAllSavedPasswordsEntry";
     case SuggestionType::kGeneratePasswordEntry:
@@ -110,8 +116,8 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "kPendingStateSignin";
     case SuggestionType::kLoyaltyCardEntry:
       return "kLoyaltyCardEntry";
-    case SuggestionType::kHomeAndWorkAddressEntry:
-      return "kHomeAndWorkAddressEntry";
+    case SuggestionType::kAllLoyaltyCardsEntry:
+      return "kAllLoyaltyCardsEntry";
   }
   NOTREACHED();
 }

@@ -183,10 +183,6 @@ class RemoteSuggestionsService : public KeyedService {
   // `time_request_sent_`.
   void SetTimeRequestSent(RemoteRequestType request_type, base::TimeTicks time);
 
-  // Logs how long it has been since a request started at `start_time` sliced by
-  // whether the request was completed or interrupted.
-  void LogResponseTime(RemoteRequestType request_type, bool interrupted);
-
   // Returns the suggest endpoint URL for `template_url`.
   // `search_terms_args` is used to build the endpoint URL.
   // `search_terms_data` is used to build the endpoint URL.
@@ -246,9 +242,10 @@ class RemoteSuggestionsService : public KeyedService {
       const std::u16string& query,
       const GURL& suggest_url,
       metrics::OmniboxEventProto::PageClassification page_classification,
+      std::vector<int> callback_indexes,
+      std::vector<std::vector<int>> suggestion_types,
       IndexedStartCallback start_callback,
-      IndexedCompletionCallback completion_callback,
-      std::vector<std::vector<int>> suggestion_types);
+      IndexedCompletionCallback completion_callback);
 
   // Stops creating the request. Already created requests aren't affected.
   void StopCreatingEnterpriseSearchAggregatorSuggestionsRequest();

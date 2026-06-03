@@ -28,6 +28,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_TABLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_TABLE_H_
 
+#include <array>
 #include <memory>
 
 #include "base/check_op.h"
@@ -524,7 +525,7 @@ struct Mover {
   STATIC_ONLY(Mover);
   static void Move(T&& from, T& to) {
     to.~T();
-    new (NotNullTag::kNotNull, &to) T(std::move(from));
+    new (base::NotNullTag::kNotNull, &to) T(std::move(from));
   }
 };
 
@@ -534,7 +535,7 @@ struct Mover<T, Allocator, Traits, true> {
   static void Move(T&& from, T& to) {
     Allocator::EnterGCForbiddenScope();
     to.~T();
-    new (NotNullTag::kNotNull, &to) T(std::move(from));
+    new (base::NotNullTag::kNotNull, &to) T(std::move(from));
     Allocator::LeaveGCForbiddenScope();
   }
 };

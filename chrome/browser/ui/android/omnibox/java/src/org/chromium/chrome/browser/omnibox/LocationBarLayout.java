@@ -46,9 +46,8 @@ public class LocationBarLayout extends FrameLayout {
     protected ImageButton mDeleteButton;
     protected ImageButton mMicButton;
     protected ImageButton mLensButton;
+    protected ImageButton mComposeplateButton;
     protected UrlBar mUrlBar;
-    protected View mStatusViewLeftSpace;
-    protected View mStatusViewRightSpace;
 
     protected UrlBarCoordinator mUrlCoordinator;
     protected AutocompleteCoordinator mAutocompleteCoordinator;
@@ -87,9 +86,8 @@ public class LocationBarLayout extends FrameLayout {
         mUrlBar = findViewById(R.id.url_bar);
         mMicButton = findViewById(R.id.mic_button);
         mLensButton = findViewById(R.id.lens_camera_button);
+        mComposeplateButton = findViewById(R.id.composeplate_button);
         mUrlActionContainer = findViewById(R.id.url_action_container);
-        mStatusViewLeftSpace = findViewById(R.id.location_bar_status_view_left_space);
-        mStatusViewRightSpace = findViewById(R.id.location_bar_status_view_right_space);
         mMinimumUrlBarWidthPx =
                 context.getResources().getDimensionPixelSize(R.dimen.location_bar_min_url_width);
         mStatusIconAndUrlBarOffset =
@@ -165,6 +163,10 @@ public class LocationBarLayout extends FrameLayout {
         mMicButton.setImageDrawable(drawable);
     }
 
+    /* package */ void setComposeplateButtonDrawable(Drawable drawable) {
+        mComposeplateButton.setImageDrawable(drawable);
+    }
+
     /* package */ void setMicButtonTint(ColorStateList colorStateList) {
         ImageViewCompat.setImageTintList(mMicButton, colorStateList);
     }
@@ -179,6 +181,10 @@ public class LocationBarLayout extends FrameLayout {
 
     /* package */ void setLensButtonTint(ColorStateList colorStateList) {
         ImageViewCompat.setImageTintList(mLensButton, colorStateList);
+    }
+
+    /* package */ void setComposeplateButtonTint(ColorStateList colorStateList) {
+        ImageViewCompat.setImageTintList(mComposeplateButton, colorStateList);
     }
 
     @Override
@@ -341,7 +347,7 @@ public class LocationBarLayout extends FrameLayout {
      *     overlapping text and buttons.
      */
     protected List<View> getUrlContainerViewsForMargin() {
-        List<View> outList = new ArrayList<View>();
+        List<View> outList = new ArrayList<>();
         if (mUrlActionContainer == null) return outList;
 
         for (int i = 0; i < mUrlActionContainer.getChildCount(); i++) {
@@ -364,6 +370,11 @@ public class LocationBarLayout extends FrameLayout {
     /** Sets the visibility of the lens button. */
     /* package */ void setLensButtonVisibility(boolean shouldShow) {
         mLensButton.setVisibility(shouldShow ? VISIBLE : GONE);
+    }
+
+    /** Sets the visibility of the composeplate button. */
+    /* package */ void setComposeplateButtonVisibility(boolean shouldShow) {
+        mComposeplateButton.setVisibility(shouldShow ? VISIBLE : GONE);
     }
 
     protected void setUnfocusedWidth(int unfocusedWidth) {
@@ -393,7 +404,7 @@ public class LocationBarLayout extends FrameLayout {
     }
 
     /**
-     * Expand the left and right space besides the status view, and increase the location bar
+     * Expand the left and right margins besides the status view, and increase the location bar
      * vertical padding based on current animation progress percent.
      *
      * @param ntpSearchBoxScrollFraction The degree to which the omnibox has expanded to full width
@@ -408,16 +419,15 @@ public class LocationBarLayout extends FrameLayout {
             boolean isUrlFocusChangeInProgress) {
         mIsUrlFocusChangeInProgress = isUrlFocusChangeInProgress;
         mUrlFocusPercentage = Math.max(ntpSearchBoxScrollFraction, urlFocusChangeFraction);
-        setStatusViewLeftSpacePercent(
+        setStatusViewLeftMarginPercent(
                 ntpSearchBoxScrollFraction, urlFocusChangeFraction, isUrlFocusChangeInProgress);
-        setStatusViewRightSpacePercent(
+        setStatusViewRightMarginPercent(
                 ntpSearchBoxScrollFraction, urlFocusChangeFraction, isUrlFocusChangeInProgress);
     }
 
     /**
-     * Set the "left space width" based on current animation progress percent. This can either
-     * mutate the width of a Space view to the left of the status view or use translation to
-     * accomplish the same thing without triggering a relayout.
+     * Set the "left margin width" based on current animation progress percent. This uses
+     * translation to avoid triggering a relayout.
      *
      * @param ntpSearchBoxScrollFraction The degree to which the omnibox has expanded to full width
      *     in NTP due to the NTP search box is being scrolled up.
@@ -425,13 +435,12 @@ public class LocationBarLayout extends FrameLayout {
      *     getting focused.
      * @param isUrlFocusChangeInProgress True if the url focus change is in progress.
      */
-    protected void setStatusViewLeftSpacePercent(
+    protected void setStatusViewLeftMarginPercent(
             float ntpSearchBoxScrollFraction,
             float urlFocusChangeFraction,
             boolean isUrlFocusChangeInProgress) {
         float maxPercent = Math.max(ntpSearchBoxScrollFraction, urlFocusChangeFraction);
         boolean isOnTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(getContext());
-        // The tablet UI doesn't have status view spacer elements so must use translation.
         float translationX;
         if (!isOnTablet && isUrlFocusChangeInProgress && ntpSearchBoxScrollFraction == 1) {
             translationX =
@@ -447,9 +456,8 @@ public class LocationBarLayout extends FrameLayout {
     }
 
     /**
-     * Set the "right space width" based on current animation progress percent. This can either
-     * mutate the width of a Space view to the right of the status view or use translation to
-     * accomplish the same thing without triggering a relayout.
+     * Set the "right margin width" based on current animation progress percent. This uses
+     * translation to avoid triggering a relayout.
      *
      * @param ntpSearchBoxScrollFraction The degree to which the omnibox has expanded to full width
      *     in NTP due to the NTP search box is being scrolled up.
@@ -457,11 +465,10 @@ public class LocationBarLayout extends FrameLayout {
      *     getting focused.
      * @param isUrlFocusChangeInProgress True if the url focus change is in progress.
      */
-    protected void setStatusViewRightSpacePercent(
+    protected void setStatusViewRightMarginPercent(
             float ntpSearchBoxScrollFraction,
             float urlFocusChangeFraction,
             boolean isUrlFocusChangeInProgress) {
-        // The tablet UI doesn't have status view spacer elements so must use translation.
         float translationX;
         if (mUrlBarLaidOutAtFocusedWidth) {
             translationX =

@@ -153,7 +153,7 @@ IwaInstaller::IwaInstaller(
       provider_(provider),
       callback_(std::move(callback)) {
 #if BUILDFLAG(IS_CHROMEOS)
-  if (IsIwaBundleCacheEnabled()) {
+  if (IsIwaBundleCacheEnabledInCurrentSession()) {
     log_->Append(base::Value(u"IWA bundle cache is enabled"));
     cache_client_ = std::make_unique<IwaCacheClient>();
   }
@@ -163,8 +163,8 @@ IwaInstaller::IwaInstaller(
 IwaInstaller::~IwaInstaller() = default;
 
 void IwaInstaller::Start() {
-  if (!CHECK_DEREF(IwaKeyDistributionInfoProvider::GetInstance())
-           .IsManagedInstallPermitted(install_options_.web_bundle_id().id())) {
+  if (!IwaKeyDistributionInfoProvider::GetInstance().IsManagedInstallPermitted(
+          install_options_.web_bundle_id().id())) {
     Finish(Result(Result::Type::kErrorAppNotInAllowlist,
                   "Not in the managed allowlist."));
     return;
@@ -178,7 +178,7 @@ void IwaInstaller::Start() {
     return;
   }
 
-  if (IsIwaBundleCacheEnabled()) {
+  if (IsIwaBundleCacheEnabledInCurrentSession()) {
     // Install IWA from cache if possible, otherwise install it from the
     // Internet.
     log_->Append(base::Value(u"looking for cached bundle"));
@@ -380,9 +380,6 @@ void IwaInstaller::RunInstallFromInternetCommand(
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
           install_options_.web_bundle_id());
 
-  // TODO: crbug.com/306638108 - In the time it took to download everything, the
-  // app might have already been installed by other means.
-
   install_command_wrapper_->Install(
       GetIsolatedWebAppInstallSource(install_source_type_, bundle_.path(),
                                      IwaSourceBundleProdFileOp::kMove),
@@ -403,7 +400,7 @@ void IwaInstaller::OnIwaInstalledFromInternet(
     return;
   }
 #if BUILDFLAG(IS_CHROMEOS)
-  if (IsIwaBundleCacheEnabled()) {
+  if (IsIwaBundleCacheEnabledInCurrentSession()) {
     // Successfully installed bundles should be copied to cache, so next time
     // the installation will happen from the cache.
     log_->Append(base::Value(

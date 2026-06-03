@@ -290,9 +290,9 @@ public class TabsTest {
      */
     @Test
     @LargeTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature({"Android-TabSwitcher"})
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/353910783
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/353910783
     public void testHideKeyboard() throws Exception {
         // Open a new tab(The 1st tab) and click node.
         mActivityTestRule.loadUrlInNewTab(getUrl(TEST_FILE_PATH), false);
@@ -394,6 +394,7 @@ public class TabsTest {
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
     @Feature({"Android-TabSwitcher"})
+    @DisabledTest(message = "https://crbug.com/424433654")
     public void testTabSwitcherCollapseSelection() throws Exception {
         mActivityTestRule.loadUrlInNewTab(getUrl(TEST_FILE_PATH), false);
         DOMUtils.longPressNode(mActivityTestRule.getWebContents(), "textarea");

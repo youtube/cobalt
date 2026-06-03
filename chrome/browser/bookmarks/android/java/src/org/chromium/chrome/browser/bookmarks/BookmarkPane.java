@@ -8,15 +8,15 @@ import static org.chromium.chrome.browser.hub.HubAnimationConstants.HUB_LAYOUT_F
 
 import android.app.Activity;
 import android.content.ComponentName;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.hub.DisplayButtonData;
 import org.chromium.chrome.browser.hub.FadeHubLayoutAnimationFactory;
 import org.chromium.chrome.browser.hub.FullButtonData;
@@ -33,7 +33,6 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManagerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
-import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController.MenuOrKeyboardActionHandler;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -41,6 +40,7 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 import java.util.function.DoubleConsumer;
 
 /** A {@link Pane} representing history. */
+@NullMarked
 public class BookmarkPane implements Pane {
 
     // Below are dependencies of the pane itself.
@@ -50,6 +50,8 @@ public class BookmarkPane implements Pane {
     private final ObservableSupplier<FullButtonData> mEmptyActionButtonSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mHairlineVisibilitySupplier =
+            new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<@Nullable View> mHubOverlayViewSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mHubSearchEnabledStateSupplier =
             new ObservableSupplierImpl<>();
@@ -61,23 +63,20 @@ public class BookmarkPane implements Pane {
     private final SnackbarManager mSnackbarManager;
     private final OneshotSupplier<ProfileProvider> mProfileProviderSupplier;
 
-    private BookmarkManagerCoordinator mBookmarkManager;
-    private BookmarkOpener mBookmarkOpener;
-    private BookmarkOpener.Observer mBookmarkOpenerObserver;
-    private PaneHubController mPaneHubController;
+    private @Nullable BookmarkManagerCoordinator mBookmarkManager;
+    private @Nullable BookmarkOpener mBookmarkOpener;
 
     /**
      * @param onToolbarAlphaChange Observer to notify when alpha changes during animations.
      * @param activity Used as a dependency to BookmarkManager.
      * @param snackbarManager Used as a dependency to BookmarkManager.
      * @param profileProviderSupplier Used as a dependency to BookmarkManager.
-     * @param bottomSheetController Used as a dependency to BookmarkManager.
      */
     public BookmarkPane(
-            @NonNull DoubleConsumer onToolbarAlphaChange,
-            @NonNull Activity activity,
-            @NonNull SnackbarManager snackbarManager,
-            @NonNull OneshotSupplier<ProfileProvider> profileProviderSupplier) {
+            DoubleConsumer onToolbarAlphaChange,
+            Activity activity,
+            SnackbarManager snackbarManager,
+            OneshotSupplier<ProfileProvider> profileProviderSupplier) {
         mOnToolbarAlphaChange = onToolbarAlphaChange;
         mReferenceButtonSupplier.set(
                 new ResourceButtonData(
@@ -96,15 +95,13 @@ public class BookmarkPane implements Pane {
         return PaneId.BOOKMARKS;
     }
 
-    @NonNull
     @Override
     public ViewGroup getRootView() {
         return mRootView;
     }
 
-    @Nullable
     @Override
-    public MenuOrKeyboardActionHandler getMenuOrKeyboardActionHandler() {
+    public @Nullable MenuOrKeyboardActionHandler getMenuOrKeyboardActionHandler() {
         return null;
     }
 
@@ -124,9 +121,7 @@ public class BookmarkPane implements Pane {
     }
 
     @Override
-    public void setPaneHubController(@Nullable PaneHubController paneHubController) {
-        mPaneHubController = paneHubController;
-    }
+    public void setPaneHubController(@Nullable PaneHubController paneHubController) {}
 
     @Override
     public void notifyLoadHint(@LoadHint int loadHint) {
@@ -138,8 +133,6 @@ public class BookmarkPane implements Pane {
                             () -> BookmarkModel.getForProfile(originalProfile),
                             mActivity,
                             componentName);
-            mBookmarkOpenerObserver = this::onBookmarkOpened;
-            mBookmarkOpener.addObserver(mBookmarkOpenerObserver);
             mBookmarkManager =
                     new BookmarkManagerCoordinator(
                             mActivity,
@@ -157,62 +150,53 @@ public class BookmarkPane implements Pane {
         }
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<FullButtonData> getActionButtonDataSupplier() {
         return mEmptyActionButtonSupplier;
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<DisplayButtonData> getReferenceButtonDataSupplier() {
         return mReferenceButtonSupplier;
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<Boolean> getHairlineVisibilitySupplier() {
         return mHairlineVisibilitySupplier;
     }
 
-    @Nullable
     @Override
-    public HubLayoutAnimationListener getHubLayoutAnimationListener() {
+    public ObservableSupplier<@Nullable View> getHubOverlayViewSupplier() {
+        return mHubOverlayViewSupplier;
+    }
+
+    @Override
+    public @Nullable HubLayoutAnimationListener getHubLayoutAnimationListener() {
         return null;
     }
 
-    @NonNull
     @Override
     public HubLayoutAnimatorProvider createShowHubLayoutAnimatorProvider(
-            @NonNull HubContainerView hubContainerView) {
+            HubContainerView hubContainerView) {
         return FadeHubLayoutAnimationFactory.createFadeInAnimatorProvider(
                 hubContainerView, HUB_LAYOUT_FADE_DURATION_MS, mOnToolbarAlphaChange);
     }
 
-    @NonNull
     @Override
     public HubLayoutAnimatorProvider createHideHubLayoutAnimatorProvider(
-            @NonNull HubContainerView hubContainerView) {
+            HubContainerView hubContainerView) {
         return FadeHubLayoutAnimationFactory.createFadeOutAnimatorProvider(
                 hubContainerView, HUB_LAYOUT_FADE_DURATION_MS, mOnToolbarAlphaChange);
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<Boolean> getHubSearchEnabledStateSupplier() {
         return mHubSearchEnabledStateSupplier;
     }
 
-    private void onBookmarkOpened() {
-        mPaneHubController.selectTabAndHideHub(Tab.INVALID_TAB_ID);
-    }
-
     private void destroyManagerAndRemoveView() {
         if (mBookmarkManager != null) {
-            mBookmarkOpener.removeObserver(mBookmarkOpenerObserver);
-            mBookmarkOpener.destroy();
             mBookmarkOpener = null;
-
             mBookmarkManager.onDestroyed();
             mBookmarkManager = null;
         }

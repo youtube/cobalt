@@ -114,6 +114,7 @@ bool AcceleratorShouldCancelMenu(const ui::Accelerator& accelerator) {
   if (accelerator.key_code() == ui::VKEY_CONTROL ||
       accelerator.key_code() == ui::VKEY_MENU ||  // aka Alt
       accelerator.key_code() == ui::VKEY_COMMAND ||
+      accelerator.key_code() == ui::VKEY_RIGHT_COMMAND ||
       accelerator.key_code() == ui::VKEY_SHIFT) {
     return false;
   }
@@ -1534,20 +1535,6 @@ void MenuController::OnWidgetDestroying(Widget* widget) {
   // Exit menu to ensure that we are not holding on to resources when the
   // widget has been destroyed.
   ExitMenu();
-}
-
-void MenuController::OnWidgetBoundsChanged(Widget* widget,
-                                           const gfx::Rect& new_bounds) {
-  DCHECK_EQ(owner_, widget);
-
-  // Ignore bounds changes while in the middle of showing a submenu.
-  if (showing_submenu_) {
-    return;
-  }
-
-  // Close all open menus when the browser window is moved or resized (e.g. due
-  // to moving the window with the keyboard).
-  Cancel(ExitType::kAll);
 }
 
 bool MenuController::IsCancelAllTimerRunningForTest() {

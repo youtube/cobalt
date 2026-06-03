@@ -103,7 +103,7 @@ namespace {
 // Helper function that return true in cases where the current process model
 // will return the same SiteInstance for a cross-process navigation.
 bool ExpectSameSiteInstance() {
-  return !AreAllSitesIsolatedForTesting() &&
+  return !AreStrictSiteInstancesEnabled() &&
          !CanCrossSiteNavigationsProactivelySwapBrowsingInstances();
 }
 
@@ -4420,7 +4420,8 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostManagerTest,
       EXPECT_TRUE(success_site_instance->IsRelatedSiteInstance(
           error_site_instance.get()));
     }
-    EXPECT_NE(success_site_instance->GetOrCreateProcess()->GetDeprecatedID(),
+    EXPECT_NE(success_site_instance->GetOrCreateProcessForTesting()
+                  ->GetDeprecatedID(),
               error_site_instance->GetProcess()->GetDeprecatedID());
     EXPECT_TRUE(HasErrorPageSiteInfo(error_site_instance.get()));
 
@@ -4459,7 +4460,8 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostManagerTest,
       EXPECT_TRUE(success_site_instance->IsRelatedSiteInstance(
           error_site_instance.get()));
     }
-    EXPECT_NE(success_site_instance->GetOrCreateProcess()->GetDeprecatedID(),
+    EXPECT_NE(success_site_instance->GetOrCreateProcessForTesting()
+                  ->GetDeprecatedID(),
               error_site_instance->GetProcess()->GetDeprecatedID());
     EXPECT_TRUE(HasErrorPageSiteInfo(error_site_instance.get()));
 
@@ -6885,6 +6887,7 @@ IN_PROC_BROWSER_TEST_P(
   GURL url_d_redirect_to_e(embedded_test_server()->GetURL(
       "d.com", "/server-redirect?" + url_e.spec()));
   {
+    SCOPED_TRACE("Case 1: From initial blank document to A");
     // 1) Navigate to A, which will reuse the current RFH.
     base::HistogramTester histogram_tester;
     ASSERT_TRUE(NavigateToURL(shell(), url_a));
@@ -6905,6 +6908,7 @@ IN_PROC_BROWSER_TEST_P(
   }
 
   {
+    SCOPED_TRACE("Case 2: From A to B");
     // 2) Navigate cross-site to B, which will use a new speculative RFH.  Note
     // that we navigate from the renderer to avoid doing a proactive
     // BrowsingInstance swap which might cause renderer process/RenderFrameHost
@@ -6936,6 +6940,7 @@ IN_PROC_BROWSER_TEST_P(
   }
 
   {
+    SCOPED_TRACE("Case 3: From B to C and redirecting to D");
     // 3) Navigate (initially) cross-site to C, but then redirect to another
     // cross-site URL D. Note that we navigate from the renderer to avoid doing
     // a proactive BrowsingInstance swap which might cause renderer process
@@ -6997,6 +7002,7 @@ IN_PROC_BROWSER_TEST_P(
   }
 
   {
+    SCOPED_TRACE("Case 4: From D to C and redirecting to D");
     // 4) Navigate (initially) cross-site to C, but then redirect to a
     // same-site-to-current-RFH URL D.  Note that we navigate from the renderer
     // to avoid doing a proactive BrowsingInstance swap which might cause
@@ -7007,13 +7013,12 @@ IN_PROC_BROWSER_TEST_P(
 
     // GetFrameHostForNavigation is called twice for the navigation above.
     bool wasted_speculative_rfh = false;
-    // The first call will create a new process if strict SiteInstances are
-    // enabled (site isolation or default SiteInstanceGroups are enabled),
-    // or BFCache-induced proactive BrowsingInstance swap happened.
+    // The first call will create a new process if strict site isolation is
+    // enabled, or BFCache-induced proactive BrowsingInstance swap happened.
     // TODO(https://crbug.com/376777350): Reconsider if we really should do
     // process swap on BrowsingInstance swap when site isolation is turned off.
     bool first_call_created_new_process =
-        (AreStrictSiteInstancesEnabled() || IsBackForwardCacheEnabled());
+        (AreAllSitesIsolatedForTesting() || IsBackForwardCacheEnabled());
     if (AreStrictSiteInstancesEnabled() ||
         CanSameSiteMainFrameNavigationsChangeRenderFrameHosts()) {
       // First call created speculative RFH because of strict SiteInstances,
@@ -7032,6 +7037,27 @@ IN_PROC_BROWSER_TEST_P(
                     WastedSpeculativeRFHCase::kNotWasted_WasUnassociated, 1),
                 base::Bucket(
                     WastedSpeculativeRFHCase::kWasted_NowUseNewSpeculativeRFH,
+                    1)));
+      } else if (AreStrictSiteInstancesEnabled()) {
+        // If we are using default SiteInstanceGroups, the navigation started in
+        // a speculative RFH for C. After the redirect to D, it committed in
+        // either the current RFH for D (without RenderDocument), or a new
+        // speculative RFH for D (with RenderDocument). So, the wasted
+        // speculative RFH metric should indicate that there was a change from
+        // speculative to current RFH (without RenderDocument), or from one
+        // speculative RFH to another (with RenderDocument).
+        wasted_speculative_rfh = true;
+        EXPECT_THAT(
+            histogram_tester.GetAllSamples(
+                "Navigation.All.WastedSpeculativeRFHCase"),
+            testing::ElementsAre(
+                base::Bucket(
+                    WastedSpeculativeRFHCase::kNotWasted_WasUnassociated, 1),
+                base::Bucket(
+                    ShouldCreateNewHostForAllFrames()
+                        ? WastedSpeculativeRFHCase::
+                              kWasted_NowUseNewSpeculativeRFH
+                        : WastedSpeculativeRFHCase::kWasted_NowUseCurrentRFH,
                     1)));
       } else if (ShouldCreateNewHostForAllFrames()) {
         // The navigation needs to commit in a speculative RFH, and it can reuse
@@ -7093,6 +7119,7 @@ IN_PROC_BROWSER_TEST_P(
   }
 
   {
+    SCOPED_TRACE("Case 5: From D to D and redirecting to E");
     // 5) Navigate (initially) same-site to D, but then redirect cross-site to
     // E. Note that we navigate from the renderer to avoid doing a proactive
     // BrowsingInstance swap which might cause renderer process swaps despite
@@ -7129,7 +7156,7 @@ IN_PROC_BROWSER_TEST_P(
               base::Bucket(WastedSpeculativeRFHCase::kNotWasted_WasUnassociated,
                            1),
               base::Bucket(
-                  AreAllSitesIsolatedForTesting()
+                  AreStrictSiteInstancesEnabled()
                       ? WastedSpeculativeRFHCase::
                             kNotWasted_WasUsingCurrentRFH_NowUseSpeculativeRFH
                       : WastedSpeculativeRFHCase::
@@ -7145,16 +7172,27 @@ IN_PROC_BROWSER_TEST_P(
           false, 1);
       // The replacement speculative RFH created a new process for E, if site
       // isolation is turned on, or BFCache is enabled.
+      //
       // TODO(https://crbug.com/376777350): Investigate if we should suppress
       // the process creation for BFCache when site isolation is turned off.
-      histogram_tester.ExpectUniqueSample(
-          "Navigation.All.WastedSpeculativeRFH.ReplacementRFHCreatedNewProcess",
-          AreAllSitesIsolatedForTesting() || IsBackForwardCacheEnabled(), 1);
-      // Process differs between the wasted RFH and the newly chosen RFH if a
-      // new process is created for E.
-      histogram_tester.ExpectUniqueSample(
-          "Navigation.All.WastedSpeculativeRFH.ProcessDiffers",
-          AreAllSitesIsolatedForTesting() || IsBackForwardCacheEnabled(), 1);
+      //
+      // TODO(https://crbug.com/419469455): These metrics do not behave properly
+      // with default SiteInstanceGroups. They indicate that in this case, a new
+      // process is created, whereas in fact it is not created but rather
+      // reused.  As a result, ProcessDiffers and ReplacementRFHCreateNewProcess
+      // are both incorrect (true instead of false) with default
+      // SiteInstanceGroups, which should be fixed.
+      if (!ShouldUseDefaultSiteInstanceGroup()) {
+        histogram_tester.ExpectUniqueSample(
+            "Navigation.All.WastedSpeculativeRFH."
+            "ReplacementRFHCreatedNewProcess",
+            AreAllSitesIsolatedForTesting() || IsBackForwardCacheEnabled(), 1);
+        // Process differs between the wasted RFH and the newly chosen RFH if a
+        // new process is created for E.
+        histogram_tester.ExpectUniqueSample(
+            "Navigation.All.WastedSpeculativeRFH.ProcessDiffers",
+            AreAllSitesIsolatedForTesting() || IsBackForwardCacheEnabled(), 1);
+      }
       // No cross-origin isolation difference.
       histogram_tester.ExpectUniqueSample(
           "Navigation.All.WastedSpeculativeRFH.CrossOriginIsolationDiffers",

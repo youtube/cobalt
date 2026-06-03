@@ -320,9 +320,11 @@ void AppendStyleInfo(Element* element,
     AtomicString name = CSSPropertyName(properties[i]).ToAtomicString();
     if (value->IsColorValue()) {
       Color color = static_cast<const cssvalue::CSSColor*>(value)->Value();
-      computed_style->setArray(name + "-unclamped-rgba", ToRGBAList(color));
+      computed_style->setArray(StrCat({name, "-unclamped-rgba"}),
+                               ToRGBAList(color));
       if (!Color::IsLegacyColorSpace(color.GetColorSpace())) {
-        computed_style->setString(name + "-css-text", value->CssText());
+        computed_style->setString(StrCat({name, "-css-text"}),
+                                  value->CssText());
       }
       computed_style->setString(name, ToHEXA(color));
     } else {

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" />: <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Agora, só pode usar as Ferramentas para sala de aula</translation>
 <translation id="1762483337755424125">Transcrição</translation>
 <translation id="1765169783255151332">Mude rapidamente as teclas</translation>
 <translation id="1768959921651994223">Tipo de autenticação</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">Falha – Parou</translation>
 <translation id="3102119246920354026">Cache</translation>
 <translation id="3103783611481501187">surrealista</translation>
+<translation id="3119672627216736407">Tradução disponível</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">piscinas</translation>
 <translation id="3122883569442693641">Mais detalhes</translation>
@@ -755,6 +757,7 @@
 <translation id="430786093962686457">chiffon</translation>
 <translation id="4310735698903592804">Imagens de fundo recentes com tecnologia de IA da Google</translation>
 <translation id="4320904097188876154">rosa fluorescente</translation>
+<translation id="432961742358282111">Clique com o botão direito do rato ou prima sem soltar para ver definições, traduções ou conversões de unidades. Use as teclas de seta para a esquerda ou para a direita para gerir esta funcionalidade.</translation>
 <translation id="4333390807948134856">Tecla <ph name="KEY_NAME" /> pressionada</translation>
 <translation id="4334293042716981313">Também pode <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />escrever o seu próprio comando<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tecla</translation>
@@ -1136,6 +1139,7 @@
 <translation id="6058625436358447366">Para terminar, introduza a palavra-passe antiga e a nova</translation>
 <translation id="6061772781719867950">Pedidos HTTPS com falhas</translation>
 <translation id="6073292342939316679">diminuir o brilho do teclado</translation>
+<translation id="6074608334942655098">Parar de traduzir</translation>
 <translation id="6074752328838739425">Ocultar resumo</translation>
 <translation id="6075872808778243331">(Android) Latência de HTTP</translation>
 <translation id="6078323886959318429">Atalho</translation>
@@ -1433,7 +1437,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Pergunte aos especialistas no Fórum de Ajuda do Chromebook</translation>
-<translation id="7309823890857024809">natureza-morta minimalista de alguns caules de papoila dentro de um vaso de vidro num fundo preto</translation>
 <translation id="7311368985037279727">cor do teclado</translation>
 <translation id="7317831949569936035">Inscrição escolar</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1616,7 @@ Transfira o modelo de transcrição (até 100 MB) para ver estas transcrições.
 <translation id="8088963492174775412">Prima para gravar</translation>
 <translation id="8094062939584182041">Permitir que a Google lhe envie um email acerca deste problema</translation>
 <translation id="8104083085214006426">Está a utilizar uma rede aberta e insegura</translation>
+<translation id="8108879170356113798">Só vai poder usar as Ferramentas para sala de aula dentro de <ph name="NUM_SECONDS" /> segundos</translation>
 <translation id="811820734797650957">(Android) É possível enviar ping ao gateway</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Confirmar</translation>

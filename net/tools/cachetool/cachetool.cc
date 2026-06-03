@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include <iostream>
 #include <memory>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
@@ -26,6 +22,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
+#include "crypto/obsolete/md5.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
@@ -40,6 +37,12 @@ using disk_cache::BackendResult;
 using disk_cache::Entry;
 using disk_cache::EntryResult;
 
+namespace cachetool {
+crypto::obsolete::Md5 MakeMd5HasherForCachetools() {
+  return {};
+}
+}  // namespace cachetool
+
 namespace {
 
 struct EntryData {
@@ -51,10 +54,9 @@ struct EntryData {
 constexpr int kResponseInfoIndex = 0;
 constexpr int kResponseContentIndex = 1;
 
-const char* const kCommandNames[] = {
-    "stop",          "get_size",   "list_keys",          "get_stream",
-    "delete_stream", "delete_key", "update_raw_headers", "list_dups",
-    "set_header"};
+auto kCommandNames = std::to_array(
+    {"stop", "get_size", "list_keys", "get_stream", "delete_stream",
+     "delete_key", "update_raw_headers", "list_dups", "set_header"});
 
 // Prints the command line help.
 void PrintHelp() {
@@ -246,7 +248,8 @@ class StreamCommandMarshal final : public CommandMarshal {
       return "";
     std::cout.flush();
     size_t command_id = static_cast<size_t>(std::cin.get());
-    if (command_id >= std::size(kCommandNames)) {
+
+    if (command_id >= kCommandNames.size()) {
       ReturnFailure("Unknown command.");
       return "";
     }
@@ -389,8 +392,7 @@ std::string GetMD5ForResponseBody(disk_cache::Entry* entry) {
       base::MakeRefCounted<net::IOBufferWithSize>(kInitBufferSize);
   net::TestCompletionCallback cb;
 
-  base::MD5Context ctx;
-  base::MD5Init(&ctx);
+  crypto::obsolete::Md5 hasher = cachetool::MakeMd5HasherForCachetools();
 
   int bytes_read = 0;
   while (true) {
@@ -403,13 +405,11 @@ std::string GetMD5ForResponseBody(disk_cache::Entry* entry) {
     }
 
     if (rv == 0) {
-      base::MD5Digest digest;
-      base::MD5Final(&digest, &ctx);
-      return base::MD5DigestToBase16(digest);
+      return base::ToLowerASCII(base::HexEncode(hasher.Finish()));
     }
 
     bytes_read += rv;
-    base::MD5Update(&ctx, std::string_view(buffer->data(), rv));
+    hasher.Update(buffer->span());
   }
 
   NOTREACHED();

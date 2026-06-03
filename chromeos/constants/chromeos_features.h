@@ -98,6 +98,8 @@ BASE_DECLARE_FEATURE(kMicrosoft365ManifestOverride);
 COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 extern const base::FeatureParam<std::string> kMicrosoft365ManifestUrls;
 COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kMultiCaptureReworkedUsageIndicators);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 BASE_DECLARE_FEATURE(kPlatformKeysChangesWave1);
 COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 BASE_DECLARE_FEATURE(kQuickAnswersMaterialNextUI);
@@ -125,6 +127,8 @@ COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 BASE_DECLARE_FEATURE(kNotebookLmAppShelfPin);
 COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 BASE_DECLARE_FEATURE(kNotebookLmAppShelfPinReset);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kWebAppManifestProtocolHandlerSupport);
 
 // Keep alphabetized.
 
@@ -203,6 +207,8 @@ COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 bool IsMicrosoftOneDriveIntegrationForEnterpriseEnabled();
 COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
 bool IsFeatureManagementHistoryEmbeddingEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsWebAppManifestProtocolHandlerSupportEnabled();
 
 }  // namespace features
 }  // namespace chromeos

@@ -169,6 +169,26 @@
       },
     },
 
+    'chromeos_chrome_all_tast_tests_tfc': {
+      'chrome_all_tast_tests': {
+        'skylab': {
+          'tast_expr': 'STUB_STRING_TO_RUN_TAST_TESTS',
+          'timeout_sec': 14400,
+          'cros_test_tags': [
+            'group:mainline',
+            'dep:chrome',
+          ],
+          'cros_test_tags_exclude': [
+            'informational',
+            'dep:no_chrome_dcheck',
+          ],
+          'cros_test_names_exclude_from_file': [
+            'chromeos/tast_control_disabled_tests.txt',
+          ],
+        },
+      },
+    },
+
     'chromeos_chrome_criticalstaging_tast_tests': {
       'chrome_criticalstaging_tast_tests': {
         'ci_only': True,
@@ -182,6 +202,30 @@
       },
     },
 
+    'chromeos_chrome_criticalstaging_tast_tests_tfc': {
+      'chrome_criticalstaging_tast_tests': {
+        'ci_only': True,
+        'skylab': {
+          'tast_expr': 'STUB_STRING_TO_RUN_TAST_TESTS',
+          'timeout_sec': 14400,
+          'cros_test_tags': [
+            'group:mainline',
+            'dep:chrome',
+            'informational',
+            'group:criticalstaging',
+          ],
+          'cros_test_tags_exclude': [
+            'dep:lacros',
+            'dep:no_chrome_dcheck',
+          ],
+          'cros_test_names_exclude_from_file': [
+            'chromeos/tast_control_disabled_tests.txt',
+          ],
+        },
+        'experiment_percentage': 100,
+      },
+    },
+
     'chromeos_chrome_disabled_tast_tests': {
       'chrome_disabled_tast_tests': {
         'ci_only': True,
@@ -190,6 +234,20 @@
           'test_level_retries': 1,
           'timeout_sec': 14400,
           'shards': 2,
+        },
+        'experiment_percentage': 100,
+      },
+    },
+
+    'chromeos_chrome_disabled_tast_tests_tfc': {
+      'chrome_disabled_tast_tests': {
+        'ci_only': True,
+        'skylab': {
+          'tast_expr': 'STUB_STRING_TO_RUN_TAST_TESTS',
+          'timeout_sec': 14400,
+          'cros_test_names_from_file': [
+            'chromeos/tast_control_disabled_tests.txt',
+          ],
         },
         'experiment_percentage': 100,
       },
@@ -1982,10 +2040,8 @@
         },
       },
       'message_center_unittests': {},
-      'nacl_loader_unittests': {},
       'native_theme_unittests': {},
       'pdf_unittests': {},
-      'ppapi_unittests': {},
       'printing_unittests': {},
       'remoting_unittests': {},
       'snapshot_unittests': {},
@@ -2264,6 +2320,7 @@
       'gpu_common_and_optional_telemetry_tests',
       'gpu_passthrough_telemetry_tests',
       'gpu_skia_renderer_vulkan_passthrough_telemetry_tests',
+      'gpu_webcodecs_telemetry_test',
       'gpu_webgl2_conformance_gl_passthrough_telemetry_tests',
       'gpu_webgl_conformance_gl_passthrough_telemetry_tests',
     ],
@@ -2388,7 +2445,7 @@
     'chromeos_ctp_preuprev_tests_slow_boards': {
       'chromeos_chrome_all_tast_tests': {
         'mixins': [
-          'skylab-shards-50',
+          'skylab-shards-45',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2444,6 +2501,33 @@
         ],
       },
       'chromeos_device_only_gtests': {
+        'variants': [
+          'CROS_RELEASE_LKGM',
+        ],
+      },
+    },
+
+    'chromeos_tfc_tests': {
+      'chromeos_chrome_all_tast_tests_tfc': {
+        'mixins': [
+          'skylab-50-tests-per-shard',
+        ],
+        'variants': [
+          'CROS_RELEASE_LKGM',
+        ],
+      },
+      'chromeos_chrome_criticalstaging_tast_tests_tfc': {
+        'mixins': [
+          'skylab-50-tests-per-shard',
+        ],
+        'variants': [
+          'CROS_RELEASE_LKGM',
+        ],
+      },
+      'chromeos_chrome_disabled_tast_tests_tfc': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+        ],
         'variants': [
           'CROS_RELEASE_LKGM',
         ],

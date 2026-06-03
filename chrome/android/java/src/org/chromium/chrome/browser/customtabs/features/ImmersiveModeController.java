@@ -19,6 +19,7 @@ import android.view.Window;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.display_cutout.ActivityDisplayCutoutModeSupplier;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
@@ -26,6 +27,7 @@ import org.chromium.chrome.browser.lifecycle.WindowFocusChangedObserver;
 import org.chromium.ui.base.WindowAndroid;
 
 /** Allows to enter and exit immersive mode in TWAs and WebAPKs. */
+@NullMarked
 public class ImmersiveModeController implements WindowFocusChangedObserver, DestroyObserver {
     private static final int ENTER_IMMERSIVE_MODE_ON_WINDOW_FOCUS_DELAY_MILLIS = 300;
     private static final int RESTORE_IMMERSIVE_MODE_DELAY_MILLIS = 3000;
@@ -87,12 +89,10 @@ public class ImmersiveModeController implements WindowFocusChangedObserver, Dest
         decor.setOnSystemUiVisibilityChangeListener(
                 newFlags -> postSetImmersiveFlags(RESTORE_IMMERSIVE_MODE_DELAY_MILLIS));
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            // In order to avoid a flicker during launch, set the display cutout mode now (vs
-            // waiting for DisplayCutoutController to set the mode).
-            window.getAttributes().layoutInDisplayCutoutMode = layoutInDisplayCutoutMode;
-            mCutoutSupplier.set(layoutInDisplayCutoutMode);
-        }
+        // In order to avoid a flicker during launch, set the display cutout mode now (vs
+        // waiting for DisplayCutoutController to set the mode).
+        window.getAttributes().layoutInDisplayCutoutMode = layoutInDisplayCutoutMode;
+        mCutoutSupplier.set(layoutInDisplayCutoutMode);
 
         postSetImmersiveFlags(0);
     }

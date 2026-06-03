@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "crypto/secure_util.h"
 #include "net/base/host_port_pair.h"
@@ -81,6 +82,15 @@ class FailingCertVerifier : public net::CertVerifier {
     verify_result->verified_cert = params.certificate();
     verify_result->cert_status = net::CERT_STATUS_INVALID;
     return net::ERR_CERT_INVALID;
+  }
+  void Verify2QwacBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_cert,
+      base::OnceCallback<void(const scoped_refptr<net::X509Certificate>&)>
+          callback,
+      const net::NetLogWithSource& net_log) override {
+    std::move(callback).Run(nullptr);
   }
   void SetConfig(const Config& config) override {}
   void AddObserver(Observer* observer) override {}

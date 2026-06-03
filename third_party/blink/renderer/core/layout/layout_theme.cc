@@ -66,6 +66,8 @@
 #include "third_party/blink/renderer/platform/web_test_support.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/color/color_provider.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/native_theme/native_theme.h"
 
 // The methods in this file are shared by all themes on every platform.
@@ -211,7 +213,7 @@ AppearanceValue LayoutTheme::AdjustAppearanceWithElementType(
         base_appearance_allowed =
             !select->IsMultiple() ||
             RuntimeEnabledFeatures::CustomizableSelectInPageEnabled();
-      } else if (HTMLSelectElement::IsPopoverForAppearanceBase(element)) {
+      } else if (HTMLSelectElement::IsPopoverPickerElement(element)) {
         base_appearance_allowed = true;
       }
       return base_appearance_allowed ? appearance : auto_appearance;

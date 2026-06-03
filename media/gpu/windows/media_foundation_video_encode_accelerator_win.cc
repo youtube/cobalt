@@ -24,6 +24,7 @@
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/native_library.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -59,7 +60,7 @@
 #include "third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "ui/gfx/color_space_win.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -1197,14 +1198,17 @@ void MediaFoundationVideoEncodeAccelerator::SetCommandBufferHelperCB(
   // work in ANGLE and is much better than readback.
   // With GraphiteDawn, MFVEA will use a shared D3D device and directly
   // access textures, with D3DImageBacking handling synchronization.
+  bool use_shared_device =
+      gpu_preferences_.gr_context_type == gpu::GrContextType::kGraphiteDawn;
+  if (workarounds_.disable_mfvea_shared_device) {
+    use_shared_device = false;
+  }
   SetState(kAcquiringCommandBuffer);
   gpu_task_runner_ = gpu_task_runner;
   gpu_task_runner->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&GetCommandBufferHelperOnGpuThread,
-                     get_command_buffer_helper_cb, luid_,
-                     gpu_preferences_.gr_context_type ==
-                         gpu::GrContextType::kGraphiteDawn),
+                     get_command_buffer_helper_cb, luid_, use_shared_device),
       base::BindOnce(&MediaFoundationVideoEncodeAccelerator::
                          OnCommandBufferHelperAvailable,
                      weak_ptr_));
@@ -1436,10 +1440,21 @@ void MediaFoundationVideoEncodeAccelerator::SetSWRateControl() {
       return;
     }
 
-    if (vendor_ == DriverVendor::kQualcomm) {
-      // Qualcomm H264 HMFT does not work with SW BRC.
-      // More info: https://crbug.com/390581539
-      return;
+    if (workarounds_.disable_h264_accelerator_sw_brc) {
+      if ((vendor_ == DriverVendor::kAMD &&
+           base::FeatureList::IsEnabled(
+               kMediaFoundationSWBRCForH264ForceAMDGPU)) ||
+          (vendor_ == DriverVendor::kQualcomm &&
+           base::FeatureList::IsEnabled(
+               kMediaFoundationSWBRCForH264ForceARMGPU))) {
+        // Force using SW BRC on AMD and ARM platforms when the corresponding
+        // feature flags are enabled.
+      } else {
+        // Disable SW BRC for H264 HMFT on AMD and ARM.
+        // More info:
+        // https://crbug.com/417752242 and https://crbug.com/390581539
+        return;
+      }
     }
 
     // Check feature flag for the camera source.

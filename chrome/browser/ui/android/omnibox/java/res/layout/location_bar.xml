@@ -8,6 +8,20 @@ found in the LICENSE file.
 <!-- Layout for the control group representing ChromeTabbedActivity's URL bar on small devices.
      This file is overridden for tablets via Android's resource framework; check /layout-sw600dp.
 -->
-<merge>
-    <include layout="@layout/location_bar_base" />
+<merge
+    xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <include layout="@layout/location_status" />
+
+    <include
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="@dimen/url_bar_vertical_margin"
+        android:layout_marginBottom="@dimen/url_bar_vertical_margin"
+        android:layout_marginStart="@dimen/location_bar_icon_width"
+        android:layout_gravity="center_vertical"
+        android:nextFocusForward="@+id/tab_switcher_button"
+        layout="@layout/url_bar" />
+
+    <include layout="@layout/url_action_container" />
 </merge>

@@ -335,10 +335,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void scrollBy(const ScrollToOptions*) const;
   void scrollTo(double x, double y) const;
   void scrollTo(const ScrollToOptions*) const;
-  void scroll(double x, double y) const { scrollTo(x, y); }
-  void scroll(const ScrollToOptions* scroll_to_options) const {
-    scrollTo(scroll_to_options);
-  }
+
   void moveBy(int x, int y) const;
   void moveTo(int x, int y) const;
 
@@ -404,14 +401,14 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void DispatchPostMessage(
       MessageEvent* event,
       scoped_refptr<const SecurityOrigin> intended_target_origin,
-      std::unique_ptr<SourceLocation> location,
+      SourceLocation* location,
       const base::UnguessableToken& source_agent_cluster_id,
-      scheduler::TaskAttributionInfo* parent_task);
+      scheduler::TaskAttributionInfo* task_state);
 
   void DispatchMessageEventWithOriginCheck(
       const SecurityOrigin* intended_target_origin,
       MessageEvent*,
-      std::unique_ptr<SourceLocation>,
+      SourceLocation*,
       const base::UnguessableToken& source_agent_cluster_id);
 
   // Events
@@ -432,7 +429,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void EnqueueNonPersistedPageshowEvent();
   void EnqueueHashchangeEvent(const String& old_url, const String& new_url);
   void DispatchPopstateEvent(scoped_refptr<SerializedScriptValue>,
-                             scheduler::TaskAttributionInfo* parent_task,
+                             scheduler::TaskAttributionInfo* task_state,
                              bool has_ua_visual_transition);
   void DispatchWindowLoadEvent();
   void DocumentWasClosed();

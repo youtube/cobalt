@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.theme;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -45,7 +47,7 @@ public class ThemeUtils {
      * @return The background color of {@link Tab}.
      */
     public static @ColorInt int getBackgroundColor(Tab tab) {
-        if (tab.isNativePage()) return tab.getNativePage().getBackgroundColor();
+        if (tab.isNativePage()) return assumeNonNull(tab.getNativePage()).getBackgroundColor();
 
         WebContents tabWebContents = tab.getWebContents();
         RenderWidgetHostView rwhv =
@@ -91,8 +93,6 @@ public class ThemeUtils {
     public static @ColorInt int getTextBoxColorForToolbarBackgroundInNonNativePage(
             Context context, @ColorInt int color, boolean isIncognito, boolean isCustomTab) {
         // Text box color on default toolbar background in incognito mode is a pre-defined color.
-        // TODO(https://crbug.com/406890625): Update incognito mode once we have confirmation from
-        // UX.
         if (isIncognito) {
             return SurfaceColorUpdateUtils.getOmniboxBackgroundColor(
                     context, /* isIncognito= */ true);
@@ -214,9 +214,15 @@ public class ThemeUtils {
                             ? R.color.default_icon_color_light_tint_list
                             : R.color.toolbar_icon_unfocused_activity_incognito_color;
         } else if (brandedColorScheme == BrandedColorScheme.LIGHT_BRANDED_THEME) {
-            colorId = R.color.default_icon_color_dark_tint_list;
+            colorId =
+                    isActivityFocused
+                            ? R.color.default_icon_color_dark_tint_list
+                            : R.color.toolbar_icon_unfocused_activity_dark_color;
         } else if (brandedColorScheme == BrandedColorScheme.DARK_BRANDED_THEME) {
-            colorId = R.color.default_icon_color_white_tint_list;
+            colorId =
+                    isActivityFocused
+                            ? R.color.default_icon_color_white_tint_list
+                            : R.color.toolbar_icon_unfocused_activity_light_color;
         }
         return colorId;
     }
@@ -258,8 +264,12 @@ public class ThemeUtils {
                     : SemanticColorUtils.getDividerLineBgColor(context);
         }
 
-        @ColorInt
-        int hairlineColor = ContextCompat.getColor(context, R.color.toolbar_hairline_overlay);
+        @ColorInt int hairlineColor;
+        if (ColorUtils.shouldUseLightForegroundOnBackground(toolbarColor)) {
+            hairlineColor = ContextCompat.getColor(context, R.color.toolbar_hairline_overlay_light);
+        } else {
+            hairlineColor = ContextCompat.getColor(context, R.color.toolbar_hairline_overlay_dark);
+        }
         return ColorUtils.overlayColor(toolbarColor, hairlineColor);
     }
 

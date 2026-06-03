@@ -87,15 +87,19 @@
     // command for number input
     "step-up",
     "step-down",
-    // invokeaction for fullscreen
+    // command for fullscreen
     "toggle-fullscreen",
     "request-fullscreen",
     "exit-fullscreen",
-    // invokeaction for audio and video
+    // command for audio and video
     "play-pause",
     "pause",
     "play",
     "toggle-muted",
+    // command for menu elements
+    "toggle-menu",
+    "hide-menu",
+    "show-menu",
 
     // loading attribute
     // https://github.com/scott-little/lazyload#ways-the-loading-attribute-can-be-used
@@ -116,6 +120,11 @@
     "toggle",
     "show",
     "hide",
+
+    // Experimental fieldset attribute for the menu elements proposal.
+    // https://open-ui.org/components/menu.explainer/.
+    "single",
+    "multiple",
 
     // hidden=until-found attribute
     // https://html.spec.whatwg.org/#the-hidden-attribute
@@ -206,6 +215,7 @@
     // <meta> name attribute
     // https://html.spec.whatwg.org/C/#standard-metadata-names
     "color-scheme",
+    "responsive-embedded-sizing",
 
     // Some values of KeyboardEvent.key.
     // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
@@ -224,5 +234,11 @@
     // common media types
     "text/html",
     "application/xml",
+
+    // Internal-only identifiers on the `id` attribute. These may appear
+    // multiple times in the same page.
+    "-internal-print-header",
+    "-internal-print-footer",
+    "-internal-print-page-number",
   ],
 }

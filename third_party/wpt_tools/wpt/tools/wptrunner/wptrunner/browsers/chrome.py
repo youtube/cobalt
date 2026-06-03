@@ -140,13 +140,14 @@ def executor_kwargs(logger, test_type, test_environment, run_info_data, subsuite
     # require local CDP access.
     chrome_options["args"].append("--remote-debugging-pipe")
 
-    # Classify `http-private`, `http-public` and https variants in the
+    # Classify `http-local`, `http-public` and https variants in the
     # appropriate IP address spaces.
     # For more details, see: https://github.com/web-platform-tests/rfcs/blob/master/rfcs/address_space_overrides.md
+    # and https://github.com/explainers-by-googlers/local-network-access
     address_space_overrides_ports = [
-        ("http-private", "private"),
+        ("http-local", "local"),
         ("http-public", "public"),
-        ("https-private", "private"),
+        ("https-local", "local"),
         ("https-public", "public"),
     ]
     address_space_overrides_arg = ",".join(
@@ -163,7 +164,7 @@ def executor_kwargs(logger, test_type, test_environment, run_info_data, subsuite
 
     # Always enable ViewTransitions long callback timeout to avoid erroneous
     # failures due to implicit timeout within the API.
-    blink_features = ['ViewTransitionLongCallbackTimeoutForTesting']
+    blink_features = ['ViewTransitionLongCallbackTimeoutForTesting', 'NoFontAntialiasing']
 
     if kwargs["enable_mojojs"]:
         blink_features.extend(['MojoJS', 'MojoJSTest'])

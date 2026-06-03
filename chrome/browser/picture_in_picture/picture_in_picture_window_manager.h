@@ -36,7 +36,9 @@ class Display;
 
 #if !BUILDFLAG(IS_ANDROID)
 class PictureInPictureOcclusionTracker;
+class PictureInPictureWindow;
 class ScopedDisallowPictureInPicture;
+class ScopedTuckPictureInPicture;
 
 namespace views {
 class View;
@@ -129,6 +131,18 @@ class PictureInPictureWindowManager {
   // document PiP window.
   static bool IsChildWebContents(content::WebContents*);
 
+  // When a website requests size `requested_size` for a document
+  // picture-in-picture window (either when creating the window or when resizing
+  // the window via resizeTo()/resizeBy() APIs), we restrict the maximum size
+  // we'll make the pip window (this is a smaller maximum than the maximum size
+  // the user can manually resize to). If the given `requested_size` is small
+  // enough, this just returns the requested size. Otherwise, this shrinks the
+  // requested size to fit within the constraints, and attempts to keep the
+  // aspect ratio the same.
+  static gfx::Size AdjustRequestedSizeIfNecessary(
+      const gfx::Size& requested_size,
+      const display::Display& display);
+
   // Returns the window bounds of the video picture-in-picture or the document
   // picture-in-picture if either of them is present.
   std::optional<gfx::Rect> GetPictureInPictureWindowBounds() const;
@@ -204,10 +218,36 @@ class PictureInPictureWindowManager {
   void OnScopedDisallowPictureInPictureDestroyed(
       base::PassKey<ScopedDisallowPictureInPicture>);
 
+  // Called by a picture-in-picture window (either video picture-in-picture or
+  // document picture-in-picture) when it is opened. This allows us to
+  // communicate directly with the window for things that can't be handled
+  // through the PictureInPictureWindowController.
+  void OnPictureInPictureWindowShown(PictureInPictureWindow* window);
+
+  // Called by a picture-in-picture window when it closes or hides to end the
+  // connection opened by a previous call to `OnPictureInPictureWindowShown`.
+  void OnPictureInPictureWindowHidden(PictureInPictureWindow* window);
+
+  // Returns true if a file dialog opened by `owner_web_contents` should create
+  // a `ScopedTuckPictureInPicture` to tuck picture-in-picture.
+  bool ShouldFileDialogTuckPictureInPicture(
+      content::WebContents* owner_web_contents);
+
+  // Called by `ScopedTuckPictureInPicture` to force-tuck any existing or future
+  // picture-in-picture windows until it's destroyed.
+  void OnScopedTuckPictureInPictureCreated(
+      base::PassKey<ScopedTuckPictureInPicture>);
+  void OnScopedTuckPictureInPictureDestroyed(
+      base::PassKey<ScopedTuckPictureInPicture>);
+
+  // Returns true if picture-in-picture windows are currently force-tucked (e.g.
+  // due to a ScopedTuckPictureInPicture object existing).
+  bool IsPictureInPictureForceTucked() const;
+#endif
+
   // Returns true if picture-in-picture is currently disabled (e.g. due to a
   // ScopedDisallowPictureInPicture object existing).
   bool IsPictureInPictureDisabled() const;
-#endif
 
   void set_window_controller_for_testing(
       content::PictureInPictureWindowController* controller) {
@@ -249,6 +289,23 @@ class PictureInPictureWindowManager {
     kMaxValue = kNewWindowClosed,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/media/enums.xml:PictureInPictureDisallowedTypeEnum)
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(PictureInPictureTuckedType)
+  enum class PictureInPictureTuckedType {
+    // An existing picture-in-picture window was tucked because we started
+    // force-tucking picture-in-picture windows.
+    kExistingWindowTucked = 0,
+
+    // A new picture-in-picture window was tucked because it was created while
+    // we were already force-tucking picture-in-picture windows.
+    kNewWindowTucked = 1,
+
+    kMaxValue = kNewWindowTucked,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/media/enums.xml:PictureInPictureTuckedTypeEnum)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   // Create a Picture-in-Picture window and register it in order to be closed
@@ -286,6 +343,10 @@ class PictureInPictureWindowManager {
   // Records whether a new or existing picture-in-picture window was closed due
   // to an existing ScopedDisallowPictureInPicture.
   void RecordPictureInPictureDisallowed(PictureInPictureDisallowedType type);
+
+  // Records whether a new or existing picture-in-picture window was tucked due
+  // to an existing ScopedTuckPictureInPicture.
+  void RecordPictureInPictureTucked(PictureInPictureTuckedType type);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -314,6 +375,20 @@ class PictureInPictureWindowManager {
   // existence. If at least one exists, then picture-in-picture windows will be
   // blocked.
   uint32_t number_of_existing_scoped_disallow_picture_in_pictures_ = 0;
+
+  // True if we're currently calculating document pip's initial size. Used to
+  // determine whether we should record the
+  // `Media.DocumentPictureInPicture.RequestedLargeInitialSize` metric and
+  // should be removed when that metric is removed.
+  bool is_calculating_initial_document_pip_size_ = false;
+
+  // The number of `ScopedTuckPictureInPicture` objects currently in
+  // existence. If at least one exists, then picture-in-picture windows will be
+  // tucked.
+  uint32_t number_of_existing_scoped_tuck_picture_in_pictures_ = 0;
+
+  // Pointer to the currently shown picture-in-picture window, if any.
+  raw_ptr<PictureInPictureWindow> picture_in_picture_window_ = nullptr;
 
   std::unique_ptr<PictureInPictureWindowManagerUmaHelper> uma_helper_;
 #endif  //! BUILDFLAG(IS_ANDROID)

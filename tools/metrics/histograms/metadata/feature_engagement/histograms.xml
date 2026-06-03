@@ -70,6 +70,10 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_AutofillBnplAffirmOrZipSuggestion"
       summary="message shown when users see the Autofill BNPL chip to educate
                users that they can now pay over time using Affirm or Zip."/>
+  <variant name="IPH_AutofillBnplAffirmZipOrKlarnaSuggestion"
+      summary="message shown when users see the Autofill BNPL chip to educate
+               users that they can now pay over time using Affirm, Zip, or
+               Klarna."/>
   <variant name="IPH_AutofillCardInfoRetrievalSuggestion"
       summary="message shown in the Autofill dropdown to educate users that a
                card info retrieval card appears because their account with
@@ -194,7 +198,6 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_DownloadToolbarButton" summary="download toolbar button"/>
   <variant name="IPH_EphemeralTab"
       summary="new label on the context menu for Ephemeral Tab"/>
-  <variant name="IPH_ExperimentalAIPromo" summary="Experimental AI promo"/>
   <variant name="IPH_ExplicitBrowserSigninPreferenceRemembered"
       summary="Confirmation message that the explicit browser signin
                preference was remembered"/>
@@ -262,6 +265,7 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_IntentChip" summary="opening a webpage in an app"/>
   <variant name="IPH_iOSAddressPromoDesktop"
       summary="showing the iOS address promo on desktop"/>
+  <variant name="IPH_iOSBWGPromo" summary="shows users a promo for BWG"/>
   <variant name="IPH_iOSChoiceScreenFeature"
       summary="(obsolete) showing the Choice screen on iOS"/>
   <variant name="IPH_iOSContextualPanelPriceInsights"
@@ -289,7 +293,6 @@ chromium-metrics-reviews@google.com.
       summary="Showing the animated Feed Swipe IPH on iOS."/>
   <variant name="IPH_iOSFeedSwipeStaticFeature"
       summary="Showing the static Feed Swipe IPH on iOS."/>
-  <variant name="IPH_IOSGLICPromo" summary="shows users a promo for glic"/>
   <variant name="IPH_iOSHistoryOnOverflowMenuFeature"
       summary="history item on the overflow menu on iOS"/>
   <variant name="IPH_iOSInlineEnhancedSafeBrowsingPromoFeature"
@@ -300,6 +303,8 @@ chromium-metrics-reviews@google.com.
       summary="IOS Lens overlay Escape Hatch"/>
   <variant name="IPH_iOSOverflowMenuCustomization"
       summary="overflow menu customization"/>
+  <variant name="IPH_iOSPageActionMenu"
+      summary="shows users an IPH for PageActionMenu"/>
   <variant name="IPH_iOSPageInfoRevamp"
       summary="(obsolete) showing the Page Info Revamp new badge IPH on the
                overflow menu carousel"/>
@@ -357,6 +362,8 @@ chromium-metrics-reviews@google.com.
       summary="Overflow menu new badge IPH to schedule tab reminders"/>
   <variant name="IPH_iOSReplaceSyncPromosWithSignInPromos"
       summary="account row in settings page"/>
+  <variant name="IPH_iOSSafariImportFeature"
+      summary="Showing the Safari Import entry point on iOS"/>
   <variant name="IPH_iOSSavedTabGroupClosed"
       summary="showing the IPH when closing a saved tab group for the first
                time"/>
@@ -683,7 +690,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="InProductHelp.Config.ParsingEvent" enum="ConfigParsingEvent"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>nyquist@chromium.org</owner>
   <summary>
     Records if in-product help configuration is parsed correctly, and the
@@ -730,11 +737,23 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.DismissalReason.iOS"
-    enum="InProductHelpDismissalReason" expires_after="2025-09-28">
+    enum="InProductHelpDismissalReason" expires_after="2025-11-30">
   <owner>lpromero@google.com</owner>
   <owner>gambard@chromium.org</owner>
   <summary>
     Records how the in-product help bubble was dismissed on iOS.
+  </summary>
+</histogram>
+
+<histogram name="InProductHelp.EventStorageMigration.Status"
+    enum="InProductHelpEventStorageMigrationStatus" expires_after="2025-12-01">
+  <owner>cheickcisse@google.com</owner>
+  <owner>shaktisahu@chromium.org</owner>
+  <summary>
+    Records the status of the migration of events from profile storage to event
+    storage. This is recorded once per profile on startup. It is not recorded if
+    the OnDeviceStorage feature flag is not enabled, and this feature is only
+    enabled for iOS.
   </summary>
 </histogram>
 

@@ -50,9 +50,9 @@ void LineTruncator::SetupEllipsis() {
   ellipsis_font_data_ = font->PrimaryFont();
   DCHECK(ellipsis_font_data_);
   ellipsis_text_ =
-      ellipsis_font_data_ && ellipsis_font_data_->GlyphForCharacter(
-                                 kHorizontalEllipsisCharacter)
-          ? String(base::span_from_ref(kHorizontalEllipsisCharacter))
+      ellipsis_font_data_ &&
+              ellipsis_font_data_->GlyphForCharacter(uchar::kHorizontalEllipsis)
+          ? String(base::span_from_ref(uchar::kHorizontalEllipsis))
           : String(u"...");
   HarfBuzzShaper shaper(ellipsis_text_);
   ellipsis_shape_result_ =
@@ -217,7 +217,7 @@ LayoutUnit LineTruncator::TruncateLineInTheMiddle(
         break;
       continue;
     }
-    // Skip pseudo elements like ::before.
+    // Skip pseudo-elements like ::before.
     if (!child.GetNode())
       continue;
 

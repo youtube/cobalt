@@ -29,10 +29,8 @@ ci.defaults.set(
     execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
     health_spec = health_spec.DEFAULT,
     notifies = ["cr-fuchsia"],
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
 )
@@ -114,6 +112,7 @@ ci.builder(
             "fuchsia",
             "arm64_host",
             "cast_receiver_size_optimized",
+            "dcheck_always_on",
         ],
     ),
     targets = targets.bundle(
@@ -286,6 +285,7 @@ ci.builder(
             "fuchsia",
             "cast_receiver_size_optimized",
             "x64",
+            "dcheck_always_on",
         ],
     ),
     # Do not forget to update

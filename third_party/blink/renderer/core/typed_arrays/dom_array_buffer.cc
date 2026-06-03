@@ -27,7 +27,7 @@ namespace blink {
 #endif
 
 const WrapperTypeInfo DOMArrayBuffer::wrapper_type_info_body_{
-    gin::kEmbedderBlink,
+    {gin::kEmbedderBlink},
     nullptr,
     nullptr,
     "ArrayBuffer",
@@ -253,6 +253,16 @@ DOMArrayBuffer* DOMArrayBuffer::CreateOrNull(base::span<const uint8_t> source) {
 
   buffer->ByteSpan().copy_from(source);
   return buffer;
+}
+
+DOMArrayBuffer* DOMArrayBuffer::CreateUninitialized(size_t num_elements,
+                                                    size_t element_byte_size) {
+  ArrayBufferContents contents(
+      num_elements, element_byte_size, ArrayBufferContents::kNotShared,
+      ArrayBufferContents::kDontInitialize,
+      ArrayBufferContents::AllocationFailureBehavior::kCrash);
+  CHECK(contents.IsValid());
+  return Create(std::move(contents));
 }
 
 DOMArrayBuffer* DOMArrayBuffer::CreateUninitializedOrNull(

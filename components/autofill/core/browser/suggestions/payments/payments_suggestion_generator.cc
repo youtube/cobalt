@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -981,8 +982,21 @@ Suggestion CreateBnplSuggestion(const std::vector<BnplIssuer>& bnpl_issuers,
   bnpl_suggestion.labels = {{Suggestion::Text(
       l10n_util::GetStringFUTF16(IDS_AUTOFILL_BNPL_CREDIT_CARD_SUGGESTION_LABEL,
                                  GetBnplPriceLowerBound(bnpl_issuers)))}};
-  bnpl_suggestion.iph_metadata = Suggestion::IPHMetadata(
-      &feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature);
+
+  // TODO(crbug.com/425745330): Check that the appropriate issuers are present
+  // in `bnpl_issuers` for each IPH bubble variant once Klarna enum is added to
+  // `BnplIssuer::IssuerId`.
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableBuyNowPayLaterSyncingForKlarna) &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillEnableBuyNowPayLaterForKlarna)) {
+    bnpl_suggestion.iph_metadata = Suggestion::IPHMetadata(
+        &feature_engagement::
+            kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature);
+  } else {
+    bnpl_suggestion.iph_metadata = Suggestion::IPHMetadata(
+        &feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature);
+  }
 
   Suggestion::PaymentsPayload payments_payload;
   payments_payload.extracted_amount_in_micros = extracted_amount_in_micros;
@@ -1590,6 +1604,7 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kUndoOrClear:
       return true;
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kManageAddress:
     case SuggestionType::kManageAutofillAi:
@@ -1625,6 +1640,9 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kMerchantPromoCodeEntry:
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kPasswordEntry:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kTroubleSigningInEntry:
+    case SuggestionType::kFreeformFooter:
     case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kPlusAddressError:
     case SuggestionType::kTitle:
@@ -1636,7 +1654,6 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kBnplEntry:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoyaltyCardEntry:
-    case SuggestionType::kHomeAndWorkAddressEntry:
       return false;
   }
 }

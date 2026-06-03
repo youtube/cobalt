@@ -26,6 +26,7 @@ import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -44,6 +45,7 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
+import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.function.DoubleConsumer;
@@ -130,6 +132,12 @@ public interface TabManagementDelegate {
      * @param archivedTabsAutoDeletePromoManager Manager class for Archived Tabs Auto Delete Promo.
      * @param tabGroupUiActionHandlerSupplier Supplier for the controller used to open hidden
      *     groups.
+     * @param layoutStateProviderSupplier Supplies the LayoutStateProvider, which is used to observe
+     *     when the TabSwitcher is hidden.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
+     * @param multiInstanceManager An instance of the {@link MultiInstanceManager}.
+     * @param dragDropDelegate {@link DragAndDropDelegate} to initiate tab drag and drop.
      */
     Pair<TabSwitcher, Pane> createTabSwitcherPane(
             Activity activity,
@@ -160,7 +168,11 @@ public interface TabManagementDelegate {
             UndoBarThrottle undoBarThrottle,
             LazyOneshotSupplier<HubManager> hubManagerSupplier,
             @Nullable ArchivedTabsAutoDeletePromoManager archivedTabsAutoDeletePromoManager,
-            Supplier<TabGroupUiActionHandler> tabGroupUiActionHandlerSupplier);
+            Supplier<TabGroupUiActionHandler> tabGroupUiActionHandlerSupplier,
+            Supplier<LayoutStateProvider> layoutStateProviderSupplier,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            @Nullable MultiInstanceManager multiInstanceManager,
+            @Nullable DragAndDropDelegate dragDropDelegate);
 
     /**
      * Create a {@link TabGroupsPane} for the Hub.

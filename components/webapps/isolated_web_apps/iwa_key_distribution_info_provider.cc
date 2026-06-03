@@ -160,12 +160,12 @@ IwaKeyDistributionInfoProvider::SpecialAppPermissionsInfo::AsDebugValue()
       "skip_capture_started_notification", skip_capture_started_notification));
 }
 
-IwaKeyDistributionInfoProvider* IwaKeyDistributionInfoProvider::GetInstance() {
+IwaKeyDistributionInfoProvider& IwaKeyDistributionInfoProvider::GetInstance() {
   auto& instance = GetGlobalIwaKeyDistributionInfoProviderInstance();
   if (!instance) {
     instance.reset(new IwaKeyDistributionInfoProvider());
   }
-  return instance.get();
+  return *instance.get();
 }
 
 void IwaKeyDistributionInfoProvider::DestroyInstanceForTesting() {
@@ -197,11 +197,29 @@ bool IwaKeyDistributionInfoProvider::IsManagedInstallPermitted(
   if (!IsIsolatedWebAppManagedAllowlistEnabled()) {
     return true;
   }
+  if (skip_managed_checks_for_testing_) {
+    CHECK_IS_TEST();
+    return true;
+  }
   return data_ && data_->managed_allowlist.contains(web_bundle_id);
 }
 
+bool IwaKeyDistributionInfoProvider::IsManagedUpdatePermitted(
+    std::string_view web_bundle_id) const {
+  // Both installs and updates are allowed only for allowlisted apps.
+  return IsManagedInstallPermitted(web_bundle_id);
+}
+
+void IwaKeyDistributionInfoProvider::SkipManagedAllowlistChecksForTesting(
+    bool skip_managed_checks) {
+  CHECK_IS_TEST();
+  skip_managed_checks_for_testing_ = skip_managed_checks;
+}
+
 void IwaKeyDistributionInfoProvider::SetUp(
+    bool is_on_demand_supported,
     QueueOnDemandUpdateCallback callback) {
+  is_on_demand_supported_ = is_on_demand_supported;
   queue_on_demand_update_ = callback;
 }
 
@@ -299,7 +317,7 @@ void IwaKeyDistributionInfoProvider::RotateKeyForDevMode(
 
 base::OneShotEvent&
 IwaKeyDistributionInfoProvider::OnMaybeDownloadedComponentDataReady() {
-  if (!queue_on_demand_update_) {
+  if (!is_on_demand_supported_) {
     return AlreadySignalled();
   }
 
@@ -408,6 +426,7 @@ void IwaKeyDistributionInfoProvider::
 void IwaKeyDistributionInfoProvider::MaybeQueueComponentUpdate() {
   CHECK(maybe_queue_component_update_posted_);
   CHECK(any_data_ready_.is_signaled());
+  CHECK(is_on_demand_supported_);
   CHECK(queue_on_demand_update_);
 
   if (!data_ || data_->is_preloaded) {

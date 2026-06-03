@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/base/locale_util.h"
 
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -11,6 +13,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/browser_process.h"
@@ -159,8 +162,10 @@ void SwitchLanguage(const std::string& locale,
       loaded_locale == locale) {
     // Use resolved locale to match `ResourceBundle::LoadLocaleResources`
     // behavior. And skip reloading if locale is resolved successfully.
-    if (l10n_util::CheckAndResolveLocale(locale, &data->result.loaded_locale,
-                                         /*perform_io=*/false)) {
+    if (std::optional<std::string> resolved_locale =
+            l10n_util::CheckAndResolveLocale(
+                locale, l10n_util::CheckLocaleMode::kUseKnownLocalesList)) {
+      data->result.loaded_locale = std::move(*resolved_locale);
       data->result.success = true;
       data->keep_cached_fonts = true;
       FinishSwitchLanguage(std::move(data));

@@ -68,38 +68,37 @@ TEST_P(ContentSettingPermissionResolverTest, TestDeterminePermissionStatus) {
       content_settings::ContentSettingToValue(CONTENT_SETTING_DEFAULT));
 
   EXPECT_EQ(resolver.ComputePermissionDecisionResult(
-                previous_setting, CONTENT_SETTING_ALLOW, std::nullopt),
+                previous_setting, PermissionDecision::kAllow),
             CONTENT_SETTING_ALLOW);
 
-  EXPECT_EQ(resolver.ComputePermissionDecisionResult(
-                previous_setting, CONTENT_SETTING_BLOCK, std::nullopt),
+  EXPECT_EQ(resolver.ComputePermissionDecisionResult(previous_setting,
+                                                     PermissionDecision::kDeny),
             CONTENT_SETTING_BLOCK);
 
-  EXPECT_EQ(resolver.ComputePermissionDecisionResult(
-                previous_setting, CONTENT_SETTING_DEFAULT, std::nullopt),
-            default_value);
+  EXPECT_EQ(resolver.ComputePermissionDecisionResult(previous_setting,
+                                                     PermissionDecision::kNone),
+            CONTENT_SETTING_ASK);
 }
 
 TEST_P(ContentSettingPermissionResolverTest,
        TestComputePermissionDecisionResult) {
   ContentSettingsType type = GetParam().first;
-  ContentSetting default_value = GetParam().second;
 
   ContentSettingPermissionResolver resolver(type);
   base::Value previous_setting(CONTENT_SETTING_DEFAULT);
 
   EXPECT_EQ(resolver.ComputePermissionDecisionResult(
-                previous_setting, CONTENT_SETTING_ALLOW, std::nullopt),
+                previous_setting, PermissionDecision::kAllow),
             CONTENT_SETTING_ALLOW);
 
-  EXPECT_EQ(resolver.ComputePermissionDecisionResult(
-                previous_setting, CONTENT_SETTING_BLOCK, std::nullopt),
+  EXPECT_EQ(resolver.ComputePermissionDecisionResult(previous_setting,
+                                                     PermissionDecision::kDeny),
             CONTENT_SETTING_BLOCK);
 
-  EXPECT_EQ(resolver.ComputePermissionDecisionResult(
-                previous_setting, CONTENT_SETTING_DEFAULT, std::nullopt),
+  EXPECT_EQ(resolver.ComputePermissionDecisionResult(previous_setting,
+                                                     PermissionDecision::kNone),
 
-            default_value);
+            CONTENT_SETTING_ASK);
 }
 
 }  // namespace permissions

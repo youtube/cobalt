@@ -114,7 +114,7 @@ class CORE_EXPORT HTMLElement : public Element {
     return HasLocalName(name.LocalName());
   }
 
-  const char* NameInHeapSnapshot() const override;
+  const char* GetHumanReadableName() const override;
 
   String title() const final;
 
@@ -217,9 +217,10 @@ class CORE_EXPORT HTMLElement : public Element {
 
   virtual String AltText() const { return String(); }
 
-  // unclosedOffsetParent doesn't return Elements which are closed shadow hidden
-  // from this element. offsetLeftForBinding and offsetTopForBinding have their
-  // values adjusted for this as well.
+  // unclosedScrollParent and unclosedOffsetParent don't return Elements which
+  // are closed shadow hidden from this element. offsetLeftForBinding and
+  // offsetTopForBinding have their values adjusted for this as well.
+  Element* unclosedScrollParent();
   Element* unclosedOffsetParent();
   int offsetLeftForBinding();
   int offsetTopForBinding();
@@ -244,7 +245,9 @@ class CORE_EXPORT HTMLElement : public Element {
 
   // Popover API related functions.
   void UpdatePopoverAttribute(const AtomicString&);
-  bool HasPopoverAttribute() const;
+  // IsPopover returns true if the element has popover data (i.e. has the
+  // popover attribute or is the menulist element).
+  bool IsPopover() const;
   PopoverValueType PopoverType() const;
   bool popoverOpen() const;
   // IsPopoverReady returns true if the popover is in a state where it can be
@@ -416,6 +419,7 @@ class CORE_EXPORT HTMLElement : public Element {
   void OnNonceAttrChanged(const AttributeModificationParams&);
   void OnPopoverChanged(const AttributeModificationParams&);
   void OnContainerTimingAttrChanged(const AttributeModificationParams&);
+  void OnContainerTimingIgnoreAttrChanged(const AttributeModificationParams&);
   void OnRoleAttrChanged(const AttributeModificationParams&);
 
   int AdjustedOffsetForZoom(LayoutUnit);

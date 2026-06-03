@@ -7,6 +7,7 @@
 <translation id="102763973188675173">Google Chromeને કસ્ટમાઇઝ અને નિયંત્રિત કરો. અપડેટ ઉપલબ્ધ છે.</translation>
 <translation id="1028061813283459617">તમારા Google એકાઉન્ટમાં બ્રાઉઝિંગ ડેટા રાખીને તેને માત્ર આ ડિવાઇસમાંથી ડિલીટ કરવા માટે, <ph name="BEGIN_LINK" />Chromeમાંથી સાઇન આઉટ કરો<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">Chromeમાં સાઇન ઇન કરવાનો સંવાદ બંધ કરવા માટે ક્લિક કરો</translation>
+<translation id="1051793555070215510">આ 1 મિનિટનું સર્વેક્ષણ લઈને અમને છૂપા મોડને બહેતર બનાવવામાં અમારી મદદ કરો.</translation>
 <translation id="1059838145689930908"><ph name="USER_EMAIL_ADDRESS" /> તરીકે આ એક્સ્ટેન્શનનો ઉપયોગ કરવા માટે, Chromeમાં સાઇન ઇન કરો.</translation>
 <translation id="1065672644894730302">તમારી પસંદગીઓને વાંચી શકાતી નથી.
 
@@ -56,6 +57,7 @@
 <translation id="1682634494516646069">Google Chrome એની ડેટા ડિરેક્ટરી વાંચી અથવા લખી શકતુંં નથી:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">તમે જ્યારે ઍડ્રેસ બાર અથવા શોધ બૉક્સમાં ટાઇપ કરો છો, ત્યારે સૂચનો મેળવવા માટે Chrome તમે જે ટાઇપ કરો છો તેને તમારી સંસ્થાના શોધ, AI અને એજન્ટ ટૂલ પર મોકલે છે.</translation>
 <translation id="1698376642261615901">Google Chrome એ એક એવું વેબ બ્રાઉઝર છે જે પ્રકાશની ગતિએ વેબપૃષ્ઠો અને એપ્લિકેશંસને ચલાવે છે. તે ઝડપી, સ્થિર અને ઉપયોગમાં સરળ છે. Google Chrome માં નિર્મિત મૉલવેર અને ફિશીંગ સુરક્ષા સાથે વેબને વધુ સુરક્ષિત રૂપે બ્રાઉઝ કરો.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome એક કલાકમાં ફરીથી લૉન્ચ થશે}one{Chrome # કલાકમાં ફરીથી લૉન્ચ થશે}other{Chrome # કલાકમાં ફરીથી લૉન્ચ થશે}}</translation>
 <translation id="1722488837206509557">આ તમને ઉપલબ્ધ ડિવાઇસમાંથી પસંદ કરવાની અને તેમના પર કન્ટેન્ટ બતાવવાની મંજૂરી આપશે.</translation>
@@ -64,6 +66,7 @@
 <translation id="178701303897325119">આ એક્સ્ટેન્શન હવે સપોર્ટેડ રહ્યું નથી. એના બદલે Chrome તેને કાઢી નાખવાનો સુઝાવ તમને આપે છે.</translation>
 <translation id="1812689907177901597">આને બંધ કરવાથી, તમે Chromeમાં સાઇન ઇન કર્યા સિવાય Gmail જેવી Googleની સાઇટમાં સાઇન ઇન કરી શકશો</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chromeનો સુઝાવ છે કે તમારા બ્રાઉઝરની સ્પીડને ધીમી કરી રહ્યું હોય એવા ટૅબને થોભાવી દો}one{Chromeનો સુઝાવ છે કે તમારા બ્રાઉઝરની સ્પીડને ધીમી કરી રહ્યું હોય એવા ટૅબને થોભાવી દો}other{Chromeનો સુઝાવ છે કે તમારા બ્રાઉઝરની સ્પીડને ધીમી કરી રહ્યાં હોય એવા ટૅબને થોભાવી દો}}</translation>
+<translation id="1832046143430087831">Chromeના V8 એન્જિન વડે સાઇટની ગતિ વધારે છે પરંતુ Chromeને અટૅક સામે થોડું ઓછું પ્રતિરોધક બનાવે છે. આ સેટિંગ બંધ છે.</translation>
 <translation id="1838374766361614909">શોધ સાફ કરો</translation>
 <translation id="1860536484129686729">Chromeને આ સાઇટ માટે તમારા કૅમેરાના ઍક્સેસની પરવાનગીની જરૂર પડે છે</translation>
 <translation id="1873233029667955273">Google Chrome તમારું ડિફૉલ્ટ બ્રાઉઝર નથી</translation>
@@ -222,6 +225,7 @@
 <translation id="3716540481907974026">ChromeOS Flexનું વર્ઝન</translation>
 <translation id="3718181793972440140">આ, 1 આઇટમને આ ડિવાઇસમાંથી ડિલીટ કરશે. પછીથી તમારો ડેટા ફરીથી મેળવવા માટે, Chromeમાં <ph name="USER_EMAIL" /> તરીકે સાઇન ઇન કરો.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome તેને કાઢી નાખવાનો સુઝાવ તમને આપે છે. <ph name="BEGIN_LINK" />સપોર્ટેડ એક્સ્ટેન્શન વિશે વધુ જાણો<ph name="END_LINK" />}one{Chrome તેમને કાઢી નાખવાનો સુઝાવ તમને આપે છે. <ph name="BEGIN_LINK" />સપોર્ટેડ એક્સ્ટેન્શન વિશે વધુ જાણો<ph name="END_LINK" />}other{Chrome તેમને કાઢી નાખવાનો સુઝાવ તમને આપે છે. <ph name="BEGIN_LINK" />સપોર્ટેડ એક્સ્ટેન્શન વિશે વધુ જાણો<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Chrome ઇન્સ્ટૉલ કરવા વિશે વધુ જાણો</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">સાઇન ઇન કરવામાં ભૂલ આવવાને કારણે, ChromeOS Flex તમારા ડેટાને સિંક કરી શક્યું નથી.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -268,6 +272,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chromeનો સુઝાવ છે કે તમારા બ્રાઉઝરની સ્પીડને ધીમી કરી રહ્યું હોય એવા ટૅબને થોભાવી દો}one{Chromeનો સુઝાવ છે કે તમારા બ્રાઉઝરની સ્પીડને ધીમી કરી રહ્યું હોય એવા ટૅબને થોભાવી દો}other{Chromeનો સુઝાવ છે કે તમારા બ્રાઉઝરની સ્પીડને ધીમી કરી રહ્યાં હોય એવા ટૅબને થોભાવી દો}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">મનગમતું બનાવવાની અને અન્ય સુવિધાઓ મેળવવા માટે, Chromeનો વેબ અને ઍપ ઍક્ટિવિટી અને લિંક કરેલી Google સેવાઓમાં સમાવેશ કરો</translation>
+<translation id="4334241893986177674">આ સ્ક્રીનશૉટ શોધો</translation>
 <translation id="4334294535648607276">ડાઉનલોડ પૂર્ણ.</translation>
 <translation id="4337324600316876133">Google Chromeની ભાવિ અપડેટ મેળવવા માટે, તમારે macOS 12 કે તે પછીના વર્ઝન પર અપડેટ કરવું જરૂરી રહેશે. આ કમ્પ્યૂટર macOS 11નો ઉપયોગ કરી રહ્યું છે.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" />ને Chromeમાં ઉમેરવામાં આવ્યું છે</translation>
@@ -318,6 +323,7 @@
 <translation id="4970880042055371251">ChromeOSનું વર્ઝન</translation>
 <translation id="4990567037958725628">Google Chrome કૅનેરી</translation>
 <translation id="5003967926796347400">“Google Password Manager” પર ક્લિક કરો</translation>
+<translation id="504867494566807945">કોઈપણ ઍપમાંથી લિંકને Chromeમાં ખોલો. વધુમાં, સરળ ઍક્સેસ માટે તે તમારા ટાસ્કબારમાં પિન કરવામાં આવે છે.</translation>
 <translation id="5114340746415930644">તમારા <ph name="USER_EMAIL" /> એકાઉન્ટમાં Chrome ડેટાનો ઉપયોગ કરવા અને તેને સાચવવા માટે તમારો પાસફ્રેઝ દાખલ કરો</translation>
 <translation id="5120334927898581447">જ્યારે તમે Googleની અન્ય સેવાઓમાં સાઇન ઇન કરશો, ત્યારે Chromeમાં સાઇન ઇન કરો</translation>
 <translation id="5126049312684316860">તમે જે પેજની મુલાકાત લેશો તેવી શક્યતા હોય, Chrome તેવા વધુ પેજને પણ પહેલેથી લોડ કરે છે, જેથી જ્યારે તમે તેમની મુલાકાત લો, ત્યારે તે વધુ ઝડપથી લોડ થાય</translation>
@@ -398,6 +404,7 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="6075300983329039771">તમારી સંસ્થાના <ph name="MANAGER" /> માટે જરૂરી છે કે તમે Chromeમાં સાઇન ઇન કરો</translation>
 <translation id="6113794647360055231">Chrome હવે પહેલાંથી બહેતર બન્યું છે</translation>
 <translation id="6116252277240876590">આ ભાષાનો ઉપયોગ Chromeમાંના મેનૂ, સેટિંગ, અલર્ટ અને અન્ય ટેક્સ્ટ બતાવવા માટે થાય છે</translation>
+<translation id="6127237283587442951">ડિફૉલ્ટ તરીકે Chromeનો ઉપયોગ કરો અને તેને પિન કરો</translation>
 <translation id="6134085236017727171">તમારા માઇક્રોફોનનો ઉપયોગ કરવા માટે, <ph name="BEGIN_LINK" />સિસ્ટમના સેટિંગ<ph name="END_LINK" />માં જઈને Chromeને ઍક્સેસ આપો</translation>
 <translation id="6135456723633883042">આ ટૅબ વધારાના સંસાધનોનો ઉપયોગ કરી રહ્યાં છે. તમારા પર્ફોર્મન્સને બહેતર બનાવવા માટે, Chromeને તેમને નિષ્ક્રિય કરવા દો.</translation>
 <translation id="6145313976051292476">Chromeમાં PDFs ખોલો</translation>
@@ -447,12 +454,12 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="6718739135284199302">Chromeને વધુ ઝડપી બનાવો</translation>
 <translation id="6735387454586646204">ChromeOS Flex સિસ્ટમ</translation>
 <translation id="6750954913813541382">જોડણીની ભૂલો સુધારવા માટે, તમે બ્રાઉઝરમાં ટાઇપ કરો છો તે ટેક્સ્ટ Chrome દ્વારા Googleને મોકલવામાં આવે છે</translation>
+<translation id="6760235774835597023">Chromeના V8 એન્જિન વડે સાઇટની ગતિ વધારે છે પરંતુ Chromeને અટૅક સામે થોડું ઓછું પ્રતિરોધક બનાવે છે. આ સેટિંગ ચાલુ છે.</translation>
 <translation id="677276454032249905">છતાં પણ Chromeમાંથી બહાર નિકળવું છે?</translation>
 <translation id="6794858689789885890">જ્યારે તમે Chrome બંધ કરો, ત્યારે હંમેશાં તમારા ડિવાઇસમાંથી સાઇટનો ડેટા ડિલીટ કરો</translation>
 <translation id="6831043979455480757">અનુવાદ કરો</translation>
 <translation id="683440813066116847">mDNS ટ્રાફિકને મંજૂરી આપવા માટે Google Chrome કૅનેરી માટે ઇનબાઉન્ડ નિયમ.</translation>
 <translation id="684888714667046800">ઇન્ટરનેટ સાથે કનેક્ટ કરી શકતા નથી. જો તમે કોઈ ફાયરવૉલનો ઉપયોગ કરતા હો, તો કૃપા કરીને ખાતરી કરો કે <ph name="PRODUCT_EXE_NAME" /> વ્હાઇટલિસ્ટમાં છે.</translation>
-<translation id="6851981911629679515">Chromeના JavaScript અને WebAssembly એન્જિનમાં વધારાની સુરક્ષા ચાલુ કરો</translation>
 <translation id="6877155553248388166">શોધ વિસ્તારના સૌથી નીચે જમણા ખૂણે: જમણી બાજુ <ph name="RIGHT" />%, સૌથી નીચે <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Chrome અપડેટ કરી રહ્યાં છીએ</translation>
 <translation id="6885412569789873916">Chrome બીટા ઍપ્લિકેશનો</translation>
@@ -512,7 +519,6 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="7572537927358445944">બંધ • આ એક્સ્ટેન્શન ક્યાંથી આવે છે તેની ચકાસણી Chrome કરી શકતું નથી</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ઇન્સ્ટૉલર</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome પર આપનું સ્વાગત છે</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> માટે જરૂરી છે કે તમે આ ડિવાઇસનો ઉપયોગ કરતા પહેલાં નીચે આપેલી સેવાની શરતો વાંચો અને તેને સ્વીકારો. આ શરતો Google ChromeOSની શરતોમાં વધારો કરતી નથી, તેમાં ફેરફાર કરતી નથી અથવા તેને મર્યાદિત કરતી નથી.</translation>
 <translation id="7629695634924605473">Chrome વડે તમે તમારા પાસવર્ડમાં ક્યારેક ચેડાં થાય તો તેના વિશે જાણકારી મેળવી શકો છો</translation>
 <translation id="7641148173327520642">તમારા સિસ્ટમ વ્યવસ્થાપકે <ph name="TARGET_URL_HOSTNAME" />ને ઍક્સેસ કરવા Google Chromeને <ph name="ALTERNATIVE_BROWSER_NAME" /> ખોલવા માટે ગોઠવેલું છે.</translation>
@@ -556,7 +562,6 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="8019103195866286235">આ એક્સ્ટેન્શનને તેના ડેવલપર દ્વારા અનપબ્લિશ કરવામાં આવ્યું હતું અને તે અસુરક્ષિત હોઈ શકે છે. તેને Chromeમાંથી કાઢી નાખો જેથી હવેથી તે તમારી વ્યક્તિગત માહિતી સહિત તમે મુલાકાત લો તે સાઇટ પરનો તમારો ડેટા જોઈ કે બદલી શકે નહીં.</translation>
 <translation id="8040768861829554732">કોઈ એક્સ્ટેન્શન ઇચ્છે છે કે તમે Chromeમાં સાઇન ઇન કરો</translation>
 <translation id="80471789339884597">ઇન્સ્ટૉલ કરવા બદલ આભાર. તમારે <ph name="BUNDLE_NAME" />નો ઉપયોગ કરતા પહેલાં તમારા બધા બ્રાઉઝર ફરી શરૂ કરવા આવશ્યક છે.</translation>
-<translation id="8064015041956107954">તમે સૌથી ઉપર જમણી બાજુએ Chrome મેનૂમાંથી બુકમાર્ક, વાંચન મોડ અને બીજું ઘણું ખોલી શકો છો</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8077579734294125741">અન્ય Chrome પ્રોફાઇલ</translation>
 <translation id="8086881907087796310">તમારું કમ્પ્યૂટર, હાર્ડવેરની ઓછામાં ઓછી આવશ્યકતાઓ પૂર્ણ ન કરી શકવાને કારણે ઇન્સ્ટૉલેશન નિષ્ફળ રહ્યું.</translation>
@@ -568,7 +573,6 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="8177472873527554730">પેજમાં કન્ટેન્ટ શોધી શકાતું નથી</translation>
 <translation id="8221491193165283816">તમે સામાન્ય રીતે નોટિફિકેશનને બ્લૉક કરો છો. આ સાઇટને તમને નોટિફિકેશન આપવાની મંજૂરી આપવા માટે, અહીં ક્લિક કરો.</translation>
 <translation id="8255190535488645436">Google Chrome તમારા કૅમેરા અને માઇક્રોફોનનો ઉપયોગ કરી રહ્યું છે.</translation>
-<translation id="8257796129973882597">તમે Chrome મેનૂમાંથી બુકમાર્ક, વાંચન મોડ અને બીજું ઘણું ખોલી શકો છો</translation>
 <translation id="8267953129876836456">Chromeને તમારા રિવ્યૂ માટે કેટલાક સલામતી સંબંધિત સુઝાવો મળ્યા છે</translation>
 <translation id="8286862437124483331">Google Chrome પાસવર્ડ્સ બતાવવાનો પ્રયાસ કરી રહ્યું છે. આની મંજૂરી આપવા માટે તમારો Windows પાસવર્ડ લખો.</translation>
 <translation id="829923460755755423">Google Password Manager માટે કોઈ શૉર્ટકટ ઉમેરો</translation>
@@ -632,6 +636,7 @@ Google Chrome તમારા સેટિંગને રિકવર કરી
 <translation id="9090566250983691233">Chrome શા માટે અમુક ફાઇલો બ્લૉક કરે છે, તે જાણો</translation>
 <translation id="9106236359747881194">શોધવા માટે ટેક્સ્ટ પસંદ કરો</translation>
 <translation id="911206726377975832">તમારો બ્રાઉઝિંગ ડેટા પણ ડિલીટ કરી દઈએ?</translation>
+<translation id="9134482777260927479">હોમવર્ક માટે મદદ</translation>
 <translation id="9138603949443464873">તમારા ફેરફારો લાગુ કરવા માટે, Chromeને ફરી લૉન્ચ કરો</translation>
 <translation id="9148058034647219655">બહાર નીકળો</translation>
 <translation id="9195993889682885387">Chrome છેલ્લા અમુક અઠવાડિયાઓના તમારા બ્રાઉઝિંગ ઇતિહાસને આધારે તમારી રુચિઓનું અનુમાન લગાવી શકે છે. આ માહિતી તમારા ડિવાઇસમાં જ રહે છે.</translation>

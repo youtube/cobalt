@@ -217,8 +217,8 @@ class FormFieldData {
   //
   // It does *not* uniquely identify this FormFieldData object (there is no such
   // kind of identifier because FormFieldData is a value type). In particular,
-  // they're not guaranteed to be unique FormData::fields; see FormData::fields
-  // for details.
+  // it does uniquely identify an element of FormData::fields; see
+  // FormData::fields for details.
   //
   // Must not be leaked to renderer process. See FieldGlobalId for details.
   FieldGlobalId global_id() const { return {host_frame(), renderer_id()}; }
@@ -659,11 +659,17 @@ void SerializeFormFieldData(const FormFieldData& form_field_data,
 bool DeserializeFormFieldData(base::PickleIterator* pickle_iterator,
                               FormFieldData* form_field_data);
 
-// So we can compare FormFieldDatas with EXPECT_EQ().
 std::ostream& operator<<(std::ostream& os, const FormFieldData& field);
 
 // Produces a <table> element with information about the form.
 LogBuffer& operator<<(LogBuffer& buffer, const FormFieldData& form);
+
+namespace internal {
+std::ostream& PrintWithIndentation(std::ostream& os,
+                                   const FormFieldData& field,
+                                   int indentation = 0,
+                                   std::string_view title = "FormFieldData");
+}  // namespace internal
 
 }  // namespace autofill
 

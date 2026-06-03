@@ -30,6 +30,7 @@
 #include "media/base/video_types.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/macros.h"
+#include "media/gpu/v4l2/v4l2_device.h"
 #include "media/media_buildflags.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -205,7 +206,7 @@ VideoCodecProfile V4L2ProfileToVideoCodecProfile(uint32_t v4l2_codec,
       }
       break;
 #endif
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_AV1_HW_DECODER)
     case V4L2_CID_MPEG_VIDEO_AV1_PROFILE:
       switch (v4l2_profile) {
         case V4L2_MPEG_VIDEO_AV1_PROFILE_MAIN:
@@ -337,7 +338,7 @@ static const std::map<v4l2_enum_type, v4l2_enum_type>
         {V4L2_PIX_FMT_VP8_FRAME, V4L2_CID_MPEG_VIDEO_VP8_PROFILE},
         {V4L2_PIX_FMT_VP9, V4L2_CID_MPEG_VIDEO_VP9_PROFILE},
         {V4L2_PIX_FMT_VP9_FRAME, V4L2_CID_MPEG_VIDEO_VP9_PROFILE},
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_AV1_HW_DECODER)
         {V4L2_PIX_FMT_AV1, V4L2_CID_MPEG_VIDEO_AV1_PROFILE},
         {V4L2_PIX_FMT_AV1_FRAME, V4L2_CID_MPEG_VIDEO_AV1_PROFILE},
 #endif
@@ -358,7 +359,7 @@ static const std::map<v4l2_enum_type, std::vector<VideoCodecProfile>>
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
         {V4L2_CID_MPEG_VIDEO_VP8_PROFILE, {VP8PROFILE_ANY}},
         {V4L2_CID_MPEG_VIDEO_VP9_PROFILE, {VP9PROFILE_PROFILE0}},
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_AV1_HW_DECODER)
         {V4L2_CID_MPEG_VIDEO_AV1_PROFILE, {AV1PROFILE_PROFILE_MAIN}},
 #endif
 };
@@ -378,7 +379,7 @@ static const std::map<VideoCodecProfile,
         {VP8PROFILE_ANY, MAKE_V4L2_CODEC_PAIR(V4L2_PIX_FMT_VP8, FRAME)},
         {VP9PROFILE_PROFILE0, MAKE_V4L2_CODEC_PAIR(V4L2_PIX_FMT_VP9, FRAME)},
         {VP9PROFILE_PROFILE2, MAKE_V4L2_CODEC_PAIR(V4L2_PIX_FMT_VP9, FRAME)},
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_AV1_HW_DECODER)
         {AV1PROFILE_PROFILE_MAIN,
          MAKE_V4L2_CODEC_PAIR(V4L2_PIX_FMT_AV1, FRAME)},
 #endif
@@ -588,7 +589,9 @@ std::optional<SupportedVideoDecoderConfigs> GetSupportedV4L2DecoderConfigs() {
     base::ScopedFD device_fd(
         HANDLE_EINTR(open(path.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC)));
     if (!device_fd.is_valid()) {
+#if BUILDFLAG(IS_CHROMEOS)
       PLOG(WARNING) << "Could not open " << path;
+#endif
       continue;
     }
 
@@ -632,9 +635,7 @@ std::optional<SupportedVideoDecoderConfigs> GetSupportedV4L2DecoderConfigs() {
 }
 
 bool IsV4L2DecoderStateful() {
-  constexpr char kVideoDeviceDriverPath[] = "/dev/video-dec0";
-  base::ScopedFD device_fd(HANDLE_EINTR(
-      open(kVideoDeviceDriverPath, O_RDWR | O_NONBLOCK | O_CLOEXEC)));
+  auto device_fd = V4L2Device::OpenFDForType(V4L2Device::Type::kDecoder);
   if (!device_fd.is_valid()) {
     return false;
   }
@@ -657,9 +658,7 @@ bool IsV4L2DecoderStateful() {
 }
 
 bool IsVislDriver() {
-  constexpr char kVideoDeviceDriverPath[] = "/dev/video-dec0";
-  base::ScopedFD device_fd(HANDLE_EINTR(
-      open(kVideoDeviceDriverPath, O_RDWR | O_NONBLOCK | O_CLOEXEC)));
+  auto device_fd = V4L2Device::OpenFDForType(V4L2Device::Type::kDecoder);
   if (!device_fd.is_valid()) {
     return false;
   }

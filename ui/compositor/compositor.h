@@ -55,7 +55,6 @@
 #include "ui/gfx/display_color_spaces.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/vector2d.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/overlay_transform.h"
 
@@ -387,8 +386,8 @@ class COMPOSITOR_EXPORT Compositor : public base::PowerSuspendObserver,
   // Creates a CompositorMetricsTracker for tracking this Compositor.
   CompositorMetricsTracker RequestNewCompositorMetricsTracker();
 
-  // Returns a percentage of dropped frames of the last second.
-  double GetPercentDroppedFrames() const;
+  // Returns average throughput as measured by the FrameSorter.
+  double GetAverageThroughput() const;
 
   // Activates a scoped monitor for the current event to track its metrics.
   // `done_callback` is called when the monitor goes out of scope.

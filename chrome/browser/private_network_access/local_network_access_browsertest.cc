@@ -19,6 +19,8 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/test_data_directory.h"
+#include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/network_switches.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
 
 // Path to a response that passes Local Network Access checks.
@@ -31,7 +33,14 @@ class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
   using WebFeature = blink::mojom::WebFeature;
 
   LocalNetworkAccessBrowserTest()
-      : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {}
+      : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
+    // Some builders run with field_trial disabled, need to enable this
+    // manually.
+    base::FieldTrialParams params;
+    params["LocalNetworkAccessChecksWarn"] = "false";
+    features_.InitAndEnableFeatureWithParameters(
+        network::features::kLocalNetworkAccessChecks, params);
+  }
 
   content::WebContents* web_contents() const {
     return browser()->tab_strip_model()->GetActiveWebContents();
@@ -83,6 +92,10 @@ class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
   void SetUpCommandLine(base::CommandLine* command_line) final {
     // Ignore cert errors when connecting to https_server()
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
+    // Clear default from InProcessBrowserTest as test doesn't want 127.0.0.1 in
+    // the public address space
+    command_line->AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
+                                    "");
   }
 
   net::EmbeddedTestServer https_server_;
@@ -91,14 +104,48 @@ class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
 };
 
 IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
-                       CheckSecurityStateDefaultPolicy) {
+                       CheckSecurityStateDefaultPolicyDenyPermission) {
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(),
       https_server().GetURL(
           "a.com",
           "/private_network_access/no-favicon-treat-as-public-address.html")));
 
-  // LNA fetch should pass (default is currently in warning mode).
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-denial of LNA permission request.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
+
+  // LNA fetch should fail.
+  EXPECT_THAT(content::EvalJs(
+                  web_contents(),
+                  content::JsReplace("fetch($1).then(response => response.ok)",
+                                     https_server().GetURL("b.com", kLnaPath))),
+              content::EvalJsResult::IsError());
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
+                       CheckSecurityStateDefaultPolicyAcceptPermission) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server().GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-accept of LNA permission request.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
+
+  // LNA fetch should succeed.
   ASSERT_EQ(true,
             content::EvalJs(
                 web_contents(),
@@ -177,3 +224,67 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
 
   CheckCounter(WebFeature::kLocalNetworkAccessPrivateAliasUse, 0);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/400455013): Add LNA support on Android
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
+                       LocalNetworkAccessAllowedForUrlsPolicy) {
+  policy::PolicyMap policies;
+  base::Value::List allowlist;
+  allowlist.Append(base::Value("*"));
+  SetPolicy(&policies, policy::key::kLocalNetworkAccessAllowedForUrls,
+            base::Value(std::move(allowlist)));
+  UpdateProviderPolicy(policies);
+
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server().GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  // LNA fetch should pass.
+  ASSERT_EQ(true,
+            content::EvalJs(
+                web_contents(),
+                content::JsReplace("fetch($1).then(response => response.ok)",
+                                   https_server().GetURL("b.com", kLnaPath))));
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
+                       LocalNetworkAccessBlockedForUrlsPolicy) {
+  // Set both policies. Block should override Allow
+  policy::PolicyMap policies;
+  base::Value::List allowlist;
+  allowlist.Append(base::Value("*"));
+  SetPolicy(&policies, policy::key::kLocalNetworkAccessAllowedForUrls,
+            base::Value(std::move(allowlist)));
+  base::Value::List blocklist;
+  blocklist.Append(base::Value("*"));
+  SetPolicy(&policies, policy::key::kLocalNetworkAccessBlockedForUrls,
+            base::Value(std::move(blocklist)));
+  UpdateProviderPolicy(policies);
+
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server().GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-accept of LNA permission request, although it should not be
+  // checked.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
+
+  // LNA fetch should fail.
+  EXPECT_THAT(content::EvalJs(
+                  web_contents(),
+                  content::JsReplace("fetch($1).then(response => response.ok)",
+                                     https_server().GetURL("b.com", kLnaPath))),
+              content::EvalJsResult::IsError());
+}
+#endif  // !BUILDFLAG(IS_ANDROID)

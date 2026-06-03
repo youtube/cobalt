@@ -34,7 +34,7 @@ chromium-metrics-reviews@google.com.
   </summary>
   <int value="0" label="Available and turned on in Chrome settings"/>
   <int value="1" label="Not allowed by policy"/>
-  <int value="2" label="Android OS version is too old"/>
+  <int value="2" label="(obsolete) Android OS version is too old"/>
   <int value="3" label="The system's AutofillManager is not available"/>
   <int value="4" label="The system does not support autofill"/>
   <int value="5" label="The system's AutofillService cannot be determined."/>
@@ -161,16 +161,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="FFR was accepted"/>
 </enum>
 
-<enum name="AutofillAiSaveOrUpdatePromptResult">
-  <int value="0" label="The prompt was for closed due to an unknown reason"/>
-  <int value="1" label="The prompt was accepted"/>
-  <int value="2" label="The user clicked the cancel button"/>
-  <int value="3"
-      label="The user closed the prompt (via the close button or the ESC)"/>
-  <int value="4" label="The user did not interact with the prompt"/>
-  <int value="5" label="The prompt was closed due to losing focus"/>
-</enum>
-
 <enum name="AutofillAlternativeNameFieldValueCharacterSet">
   <int value="0" label="Katakana"/>
   <int value="1" label="Hiragana"/>
@@ -276,6 +266,8 @@ chromium-metrics-reviews@google.com.
   <int value="3"
       label="Only kAccount profiles originating from outside Chrome were used"/>
   <int value="4" label="Profiles from different categories were used."/>
+  <int value="5" label="Only a kAccountHome profile was used"/>
+  <int value="6" label="Only a kAccountWork profile was used"/>
 </enum>
 
 <enum name="AutofillCategoryResolvedFillingReadiness">
@@ -286,6 +278,8 @@ chromium-metrics-reviews@google.com.
   <int value="3"
       label="Only kAccount profiles originating from outside Chrome available"/>
   <int value="4" label="Profiles from different categories available."/>
+  <int value="5" label="Only a kAccountHome profile available"/>
+  <int value="6" label="Only a kAccountWork profile available"/>
 </enum>
 
 <enum name="AutofillCreditCardAuthenticationEvents">
@@ -1186,6 +1180,11 @@ Called by update_autofill_enums.py.-->
   <int value="2977" label="VEHICLE_PLATE_STATE: accepted"/>
   <int value="3024" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: edited"/>
   <int value="3025" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: accepted"/>
+</enum>
+
+<enum name="AutofillEmailOrLoyaltyCardAcceptanceMetricValue">
+  <int value="0" label="EMAIL: accepted"/>
+  <int value="1" label="LOYALTY_CARD: accepted"/>
 </enum>
 
 <enum name="AutofillErrorDialogType">
@@ -2302,6 +2301,13 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Suggestion Selected"/>
 </enum>
 
+<enum name="AutofillLoyaltyCardAffiliationCategoryFillingReadiness">
+  <int value="0" label="No loyalty cards available"/>
+  <int value="1" label="Only affiliated loyalty cards available"/>
+  <int value="2" label="Only non-affiliated loyalty cards available"/>
+  <int value="3" label="Loyalty cards from different categories available."/>
+</enum>
+
 <enum name="AutofillManageCardsPrompt">
   <int value="0" label="Shown"/>
   <int value="1" label="Done button pressed"/>
@@ -2478,6 +2484,7 @@ Called by update_autofill_enums.py.-->
   <int value="10" label="UnusableIncompleteProfile"/>
   <int value="11" label="ProfileMigration"/>
   <int value="12" label="ProfileMigrationAndSilentUpdate"/>
+  <int value="13" label="HomeAndWorkSuperset"/>
 </enum>
 
 <enum name="AutofillProfileRecordType">
@@ -2559,6 +2566,7 @@ Called by update_autofill_enums.py.-->
   <int value="0" label="Shown"/>
   <int value="1" label="Not shown, max strikes reached"/>
   <int value="2" label="Not shown, required delay has not passed"/>
+  <int value="3" label="Not shown, CVC missing for possible card update"/>
 </enum>
 
 <enum name="AutofillSavePaymentMethodPromptResultEnum">
@@ -3039,10 +3047,8 @@ Called by update_autofill_enums.py.-->
   <int value="275" label="UpdateServerIbanMetadata: Failure"/>
   <int value="276" label="ClearAllCreditCardBenefits: Success"/>
   <int value="277" label="ClearAllCreditCardBenefits: Failure"/>
-  <int value="280" label="AddEntityInstance: Success"/>
-  <int value="281" label="AddEntityInstance: Failure"/>
-  <int value="290" label="UpdateEntityInstance: Success"/>
-  <int value="291" label="UpdateEntityInstance: Failure"/>
+  <int value="290" label="AddOrUpdateEntityInstance: Success"/>
+  <int value="291" label="AddOrUpdateEntityInstance: Failure"/>
   <int value="300" label="RemoveEntityInstance: Success"/>
   <int value="301" label="RemoveEntityInstance: Failure"/>
   <int value="310" label="RemoveEntityInstancesModifiedBetween: Success"/>
@@ -3052,6 +3058,34 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/webdata/autofill_webdata_backend_impl.cc:Result) -->
+
+<!-- LINT.IfChange(AutofillZipCodeSeparators) -->
+
+<enum name="AutofillZipCodeSeparators">
+  <int value="0" label="NoSeparator"/>
+  <int value="1" label="HyphenMinus (-)"/>
+  <int value="2" label="EnDash (–)"/>
+  <int value="3" label="EmDash (—)"/>
+  <int value="4" label="Hyphen (‐)"/>
+  <int value="5" label="NonBreakingHyphen (‑)"/>
+  <int value="6" label="MinusSign (−)"/>
+  <int value="7" label="ModifierMinus (˗)"/>
+  <int value="8" label="FigureDash (‒)"/>
+  <int value="9" label="HorizontalBar (―)"/>
+  <int value="10" label="SmallHyphenMinus (﹣)"/>
+  <int value="11" label="FullwidthHyphenMinus (－)"/>
+  <int value="12" label="Space"/>
+  <int value="13" label="NonBreakingSpace"/>
+  <int value="14" label="EnSpace"/>
+  <int value="15" label="EmSpace"/>
+  <int value="16" label="ThinSpace"/>
+  <int value="17" label="IdeographicSpace"/>
+  <int value="18" label="FigureSpace"/>
+  <int value="19" label="NarrowNonBreakingSpace"/>
+  <int value="20" label="Other"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/profile_import_metrics.h:AutofillZipCodeSeparators) -->
 
 <!-- LINT.IfChange(BnplFormEvent) -->
 
@@ -3213,6 +3247,28 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Suppressed"/>
 </enum>
 
+<!-- LINT.IfChange(CardBenefitFormEvent) -->
+
+<enum name="CardBenefitFormEvent">
+  <int value="1"
+      label="Suggestions containing cards with a benefit available were shown
+             when the user had two or more server cards (once)"/>
+  <int value="4"
+      label="Suggestion of a masked server card with a benefit available was
+             selected when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
+  <int value="8"
+      label="Suggestion of a masked server card with a benefit available was
+             filled when the user had two or more server cards, and at least
+             one had a benefit available (once)"/>
+  <int value="12"
+      label="Suggestion of a masked server card with a benefit available was
+             submitted when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/card_metadata_metrics.h:CardBenefitFormEvent) -->
+
 <enum name="CardInfoRetrievalEnrolledLoggingEvent">
   <int value="0" label="Suggestions shown"/>
   <int value="1" label="Suggestions shown (once)"/>
@@ -3269,6 +3325,16 @@ Called by update_autofill_enums.py.-->
   <int value="3"
       label="FalseNegative: overall_type=not email, submitted text matches
              email"/>
+</enum>
+
+<enum name="EntitySaveOrUpdatePromptResult">
+  <int value="0" label="The prompt was for closed due to an unknown reason"/>
+  <int value="1" label="The prompt was accepted"/>
+  <int value="2" label="The user clicked the cancel button"/>
+  <int value="3"
+      label="The user closed the prompt (via the close button or the ESC)"/>
+  <int value="4" label="The user did not interact with the prompt"/>
+  <int value="5" label="The prompt was closed due to losing focus"/>
 </enum>
 
 <enum name="FastCheckoutCacheStateForIsTriggerFormSupported">
@@ -3602,6 +3668,8 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="Missing href"/>
   <int value="6" label="Missing form data"/>
   <int value="7" label="Form extraction failure"/>
+  <int value="8" label="Renderer error"/>
+  <int value="9" label="Unparsed renderer error"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/autofill/ios/form_util/form_activity_tab_helper.mm:FormSubmissionOutcomeIOS) -->
@@ -4006,7 +4074,12 @@ Called by update_autofill_enums.py.-->
   <int value="66" label="Identity Credentials"/>
   <int value="67" label="Loyalty card entry"/>
   <int value="68" label="Manage Loyalty Cards information"/>
-  <int value="69" label="Home and Work address suggestion"/>
+  <int value="69" label="(Obsolete) Home and Work address suggestion"/>
+  <int value="70" label="Backup password suggestion"/>
+  <int value="71"
+      label="Suggestion to try a backup credential in case of login failure"/>
+  <int value="72" label="Footer with multiline freeform text"/>
+  <int value="73" label="All loyalty cards"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->
@@ -4025,6 +4098,13 @@ Called by update_autofill_enums.py.-->
       label="IBAN selected from the sheet (either local or server one)"/>
   <int value="1" label="Manage payment settings option selected"/>
   <int value="2" label="Bottom sheet dismissed"/>
+</enum>
+
+<enum name="TouchToFill.LoyaltyCard.Outcome">
+  <int value="0" label="Loyalty card selected from the sheet"/>
+  <int value="1" label="Google Wallet settings option is selected"/>
+  <int value="2" label="Manage loyalty cards option selected"/>
+  <int value="3" label="Bottom sheet dismissed"/>
 </enum>
 
 <enum name="TouchToFill.PaymentMethod.TriggerOutcome">

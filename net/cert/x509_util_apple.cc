@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/cert/x509_util_apple.h"
 
 #include <CommonCrypto/CommonDigest.h>
@@ -19,6 +14,7 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
+#include "crypto/hash.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
@@ -140,38 +136,7 @@ SHA256HashValue CalculateFingerprint256(SecCertificateRef cert) {
   DCHECK(CFDataGetBytePtr(cert_data.get()));
   DCHECK_NE(CFDataGetLength(cert_data.get()), 0);
 
-  CC_SHA256(CFDataGetBytePtr(cert_data.get()), CFDataGetLength(cert_data.get()),
-            sha256.data());
-
-  return sha256;
-}
-
-base::apple::ScopedCFTypeRef<CFArrayRef> CertificateChainFromSecTrust(
-    SecTrustRef trust) {
-  if (__builtin_available(macOS 12.0, iOS 15.0, *)) {
-    return base::apple::ScopedCFTypeRef<CFArrayRef>(
-        SecTrustCopyCertificateChain(trust));
-  }
-
-// TODO(crbug.com/40899365): Remove code when it is no longer needed.
-#if (BUILDFLAG(IS_MAC) &&                                    \
-     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_VERSION_12_0) || \
-    (BUILDFLAG(IS_IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_15_0)
-  base::apple::ScopedCFTypeRef<CFMutableArrayRef> chain(
-      CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
-  const CFIndex chain_length = SecTrustGetCertificateCount(trust);
-  for (CFIndex i = 0; i < chain_length; ++i) {
-    CFArrayAppendValue(chain.get(), SecTrustGetCertificateAtIndex(trust, i));
-  }
-  return chain;
-#else
-  // The other logic paths should be used, this is just to make the compiler
-  // happy.
-  NOTREACHED();
-#endif  // (BUILDFLAG(IS_MAC) && MAC_OS_X_VERSION_MIN_REQUIRED <
-        // MAC_OS_VERSION_12_0)
-        // || (BUILDFLAG(IS_IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED <
-        // __IPHONE_15_0)
+  return crypto::hash::Sha256(base::apple::CFDataToSpan(cert_data.get()));
 }
 
 }  // namespace x509_util

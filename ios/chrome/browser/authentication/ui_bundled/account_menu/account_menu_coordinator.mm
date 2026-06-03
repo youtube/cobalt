@@ -110,7 +110,6 @@ void maybeShowSettingsIPH(Browser* browser) {
   // The coordinator for the action sheet to sign out.
   SignoutActionSheetCoordinator* _signoutActionSheetCoordinator;
   raw_ptr<syncer::SyncService> _syncService;
-  SyncEncryptionTableViewController* _syncEncryptionTableViewController;
   SyncEncryptionPassphraseTableViewController*
       _syncEncryptionPassphraseTableViewController;
   raw_ptr<ChromeAccountManagerService> _accountManagerService;
@@ -163,8 +162,7 @@ void maybeShowSettingsIPH(Browser* browser) {
   _identityManager = IdentityManagerFactory::GetForProfile(profile);
 
   _viewController = [[AccountMenuViewController alloc]
-      initWithHideEllipsisMenu:_accessPoint == AccountMenuAccessPoint::kWeb
-            showSettingsButton:IdentityDiscAccountMenuEnabledWithSettings()];
+      initWithHideEllipsisMenu:_accessPoint == AccountMenuAccessPoint::kWeb];
 
   _navigationController = [[UINavigationController alloc]
       initWithRootViewController:_viewController];
@@ -223,8 +221,6 @@ void maybeShowSettingsIPH(Browser* browser) {
   [self stopChildrenAndViewController];
   [_syncEncryptionPassphraseTableViewController settingsWillBeDismissed];
   _syncEncryptionPassphraseTableViewController = nil;
-  [_syncEncryptionTableViewController settingsWillBeDismissed];
-  _syncEncryptionTableViewController = nil;
 
   // Sets to nil the account menu objects.
   [_mediator disconnect];
@@ -280,16 +276,6 @@ void maybeShowSettingsIPH(Browser* browser) {
   _manageAccountsCoordinator.delegate = self;
   _manageAccountsCoordinator.signoutDismissalByParentCoordinator = YES;
   [_manageAccountsCoordinator start];
-}
-
-- (void)didTapSettingsButton {
-  CHECK(IdentityDiscAccountMenuEnabledWithSettings());
-  // Close the account menu and open the Settings page.
-  [self stopChildrenAndViewController];
-  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
-  [self.delegate accountMenuCoordinatorWantsToBeStopped:self];
-  [applicationHandler showSettingsFromViewController:nil];
 }
 
 - (void)signOutFromTargetRect:(CGRect)targetRect
@@ -377,6 +363,14 @@ void maybeShowSettingsIPH(Browser* browser) {
   _signinInProgress.reset();
 }
 
+- (void)profileWillSwitchWithCompletion:(void (^)())completion {
+  // There is no point to call the coordinator delegate to be stopped once the
+  // view controller is dismissed.
+  // The profile is going to be destroyed by calling `completion` since the
+  // profile switching will start.
+  [self dismissViewControllerAnimated:YES completion:completion];
+}
+
 #pragma mark - SyncErrorSettingsCommandHandler
 
 - (void)openPassphraseDialogWithModalPresentation:(BOOL)presentModally {
@@ -386,6 +380,8 @@ void maybeShowSettingsIPH(Browser* browser) {
     // simultaneous taps. See crbug.com/368310663.
     return;
   }
+  // In case of double tap, close the first view before opening a second one.
+  [_syncEncryptionPassphraseTableViewController settingsWillBeDismissed];
   _syncEncryptionPassphraseTableViewController =
       [[SyncEncryptionPassphraseTableViewController alloc]
           initWithBrowser:self.browser];
@@ -401,6 +397,11 @@ void maybeShowSettingsIPH(Browser* browser) {
 }
 
 - (void)openTrustedVaultReauthForFetchKeys {
+  if (_trustedVaultReauthenticationCoordinator) {
+    // The user double-tapped the button. Don’t open the coordinator a second
+    // time.
+    return;
+  }
   trusted_vault::SecurityDomainId securityDomainID =
       trusted_vault::SecurityDomainId::kChromeSync;
   syncer::TrustedVaultUserActionTriggerForUMA trigger =
@@ -420,6 +421,11 @@ void maybeShowSettingsIPH(Browser* browser) {
 }
 
 - (void)openTrustedVaultReauthForDegradedRecoverability {
+  if (_trustedVaultReauthenticationCoordinator) {
+    // The user double-tapped the button. Don’t open the coordinator a second
+    // time.
+    return;
+  }
   trusted_vault::SecurityDomainId securityDomainID =
       trusted_vault::SecurityDomainId::kChromeSync;
   syncer::TrustedVaultUserActionTriggerForUMA trigger =
@@ -443,6 +449,11 @@ void maybeShowSettingsIPH(Browser* browser) {
 }
 
 - (void)openPrimaryAccountReauthDialog {
+  if (_addAccountSigninCoordinator) {
+    // The user double-tapped the button. Don’t open the coordinator a second
+    // time.
+    return;
+  }
   signin_metrics::AccessPoint accessPoint =
       signin_metrics::AccessPoint::kAccountMenu;
   signin_metrics::PromoAction promoAction =
@@ -457,8 +468,13 @@ void maybeShowSettingsIPH(Browser* browser) {
                                                 promoAction:promoAction
                                        continuationProvider:
                                            DoNothingContinuationProvider()];
-  _trustedVaultReauthenticationCoordinator.delegate = self;
-  [_trustedVaultReauthenticationCoordinator start];
+  __weak __typeof(self) weakSelf = self;
+  _addAccountSigninCoordinator.signinCompletion =
+      ^(SigninCoordinatorResult signinResult,
+        id<SystemIdentity> signinCompletionIdentity) {
+        [weakSelf signinCoordinatorCompletion];
+      };
+  [_addAccountSigninCoordinator start];
 }
 
 #pragma mark - ManageAccountsCoordinatorDelegate
@@ -525,12 +541,13 @@ void maybeShowSettingsIPH(Browser* browser) {
   // Add Account coordinator should be stopped before the Manage Accounts
   // Coordinator, as the former may be presented by the latter.
   [self stopManageAccountsCoordinator];
-  [self dismissViewControllerAnimated:NO];
+  [self dismissViewControllerAnimated:NO completion:nil];
 }
 
 // Unplugs the view and navigation controller. Dismisses the navigation
 // controller as specified by the action.
-- (void)dismissViewControllerAnimated:(BOOL)animated {
+- (void)dismissViewControllerAnimated:(BOOL)animated
+                           completion:(void (^)())completion {
   if (!_navigationController) {
     // The view controller was already dismissed.
     return;
@@ -544,7 +561,7 @@ void maybeShowSettingsIPH(Browser* browser) {
   _viewController = nil;
   [navigationController.presentingViewController
       dismissViewControllerAnimated:animated
-                         completion:nil];
+                         completion:completion];
 }
 
 #pragma mark - TrustedVaultReauthenticationCoordinatorDelegate

@@ -152,8 +152,8 @@
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_data_test_api.h"
 #include "components/autofill/core/common/language_code.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
+#include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/variations/variations_switches.h"
@@ -631,8 +631,6 @@ TEST_P(HeuristicClassificationTests, EndToEnd) {
 
   std::vector<base::test::FeatureRef> enabled_features = {
       // Support for new field types.
-      features::kAutofillUseFRAddressModel,
-      features::kAutofillUseNLAddressModel,
       features::kAutofillUseINAddressModel,
       features::kAutofillSupportPhoneticNameForJP,
       features::kAutofillEnableExpirationDateImprovements,
@@ -643,6 +641,7 @@ TEST_P(HeuristicClassificationTests, EndToEnd) {
       features::kAutofillEnableSupportForParsingWithSharedLabels,
       features::kAutofillImproveCityFieldClassification,
       features::kAutofillUseNegativePatternForAllAttributes,
+      features::kAutofillSupportSplitZipCode,
   };
   std::vector<base::test::FeatureRef> disabled_features = {
       // TODO(crbug.com/320965828): Understand the changes to the expectations

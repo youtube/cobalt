@@ -62,8 +62,6 @@ class BrowserNonClientFrameViewChromeOS
       const gfx::Size& tabstrip_minimum_size) const override;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const override;
-  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
-                               views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
   void UpdateThrobber(bool running) override;
   bool CanUserExitFullscreen() const override;
@@ -134,13 +132,13 @@ class BrowserNonClientFrameViewChromeOS
  protected:
   // BrowserNonClientFrameView:
   void PaintAsActiveChanged() override;
-  void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
   void AddedToWidget() override;
 
  private:
   friend class BrowserNonClientFrameViewChromeOSTestApi;
   FRIEND_TEST_ALL_PREFIXES(ImmersiveModeBrowserViewTestNoWebUiTabStrip,
                            ImmersiveFullscreen);
+  class ProfileChangeObserver;
 
   // App is a PWA and has borderless in its manifest. This doesn't yet mean
   // that the `window-management` permission has been granted and borderless

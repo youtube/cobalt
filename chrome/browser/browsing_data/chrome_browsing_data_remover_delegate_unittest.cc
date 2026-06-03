@@ -109,6 +109,7 @@
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/browsing_data/content/browsing_data_helper.h"
 #include "components/browsing_data/core/browsing_data_utils.h"
+#include "components/browsing_data/core/features.h"
 #include "components/client_hints/common/client_hints.h"
 #include "components/content_settings/core/browser/content_settings_info.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
@@ -1152,7 +1153,7 @@ class ChromeBrowsingDataRemoverDelegateTest : public testing::Test {
     content::GetNetworkService();
     task_environment_.RunUntilIdle();
     background_tracing_manager_ =
-        content::BackgroundTracingManager::CreateInstance();
+        content::BackgroundTracingManager::CreateInstance(&tracing_delegate_);
 
     // This needs to be done after the test constructor, so that subclasses
     // that initialize a ScopedFeatureList in their constructors can do so
@@ -1160,7 +1161,7 @@ class ChromeBrowsingDataRemoverDelegateTest : public testing::Test {
     // check if a feature is enabled, to avoid tsan data races.
     CHECK(temp_dir_.CreateUniqueTempDir());
     profile_manager_ = std::make_unique<TestingProfileManager>(
-        TestingBrowserProcess::GetGlobal(), &local_state_);
+        TestingBrowserProcess::GetGlobal());
     CHECK(profile_manager_->SetUp(temp_dir_.GetPath()));
     profile_ = profile_manager_->CreateTestingProfile("test_profile",
                                                       GetTestingFactories());
@@ -1385,6 +1386,7 @@ class ChromeBrowsingDataRemoverDelegateTest : public testing::Test {
   // Cached pointer to BrowsingDataRemover for access to testing methods.
   raw_ptr<content::BrowsingDataRemover> remover_;
 
+  content::TracingDelegate tracing_delegate_;
   std::unique_ptr<content::BackgroundTracingManager>
       background_tracing_manager_;
 
@@ -4285,19 +4287,66 @@ class
         }));
   }
 
+  void ExpectNoCallsToClearSecurePaymentConfirmationCredentials() {
+    EXPECT_CALL(*service_.get(), ClearSecurePaymentConfirmationCredentials)
+        .Times(0);
+  }
+
  private:
   scoped_refptr<MockService> service_ = base::MakeRefCounted<MockService>();
 };
 
-// Verify that clearing secure payment confirmation credentials data works.
+// Verify that clearing secure payment confirmation credentials data works when
+// deleting passwords.
 TEST_F(
     ChromeBrowsingDataRemoverDelegateTest_RemoveSecurePaymentConfirmationCredentials,
-    RemoveSecurePaymentConfirmationCredentials) {
+    RemoveSecurePaymentConfirmationCredentials_DeletePasswords) {
   ExpectCallClearSecurePaymentConfirmationCredentials(1);
 
   BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(),
                                 constants::DATA_TYPE_PASSWORDS, false);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+// Verify that clearing secure payment confirmation credentials data works when
+// deleting forms data.
+TEST_F(
+    ChromeBrowsingDataRemoverDelegateTest_RemoveSecurePaymentConfirmationCredentials,
+    RemoveSecurePaymentConfirmationCredentials_DeleteFormData_DbdRevampEnabled) {
+  base::test::ScopedFeatureList feature(
+      browsing_data::features::kDbdRevampDesktop);
+  ExpectCallClearSecurePaymentConfirmationCredentials(1);
+
+  BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(),
+                                constants::DATA_TYPE_FORM_DATA, false);
+}
+
+// Verify that secure payment confirmation credentials data are not deleted when
+// deleting forms data when kDbdRevampDesktop is disabled.
+// TODO(crbug.com/397187800): Remove once kDbdRevampDesktop is launched.
+TEST_F(
+    ChromeBrowsingDataRemoverDelegateTest_RemoveSecurePaymentConfirmationCredentials,
+    SecurePaymentConfirmationCredentialsNotRemoved_DeleteFormData_DbdRevampDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      browsing_data::features::kDbdRevampDesktop);
+  ExpectNoCallsToClearSecurePaymentConfirmationCredentials();
+
+  BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(),
+                                constants::DATA_TYPE_FORM_DATA, false);
+}
+#else   // !BUILDFLAG(IS_ANDROID)
+// Verify that secure payment confirmation credentials data are not deleted when
+// deleting forms data on Android.
+TEST_F(
+    ChromeBrowsingDataRemoverDelegateTest_RemoveSecurePaymentConfirmationCredentials,
+    SecurePaymentConfirmationCredentialsNotRemoved_DeleteFormData_Android) {
+  ExpectNoCallsToClearSecurePaymentConfirmationCredentials();
+
+  BlockUntilBrowsingDataRemoved(AnHourAgo(), base::Time::Max(),
+                                constants::DATA_TYPE_FORM_DATA, false);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Verify that clearing cookies will also clear page load tokens.
 TEST_F(ChromeBrowsingDataRemoverDelegateTest,

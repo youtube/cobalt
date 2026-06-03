@@ -33,6 +33,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
@@ -433,7 +434,7 @@ class ServiceWorkerBrowserTest : public ContentBrowserTest {
     wrapper()
         ->context()
         ->registry()
-        ->GetRemoteStorageControl()
+        .GetRemoteStorageControl()
         .FlushForTesting();
     content::RunAllTasksUntilIdle();
     wrapper_ = nullptr;
@@ -501,6 +502,12 @@ class MockContentBrowserClient : public ContentBrowserTestContentBrowserClient {
   // ContentBrowserClient overrides:
   bool IsDataSaverEnabled(BrowserContext* context) override {
     return data_saver_enabled_;
+  }
+
+  bool IsServiceWorkerSyntheticResponseAllowed(
+      content::BrowserContext* browser_context,
+      const GURL& url) override {
+    return true;
   }
 
   void OverrideWebPreferences(WebContents* web_contents,
@@ -7661,6 +7668,9 @@ class ServiceWorkerSyntheticResponseBrowserTest
     return EvalJs(GetPrimaryMainFrame(), "document.body.innerText;");
   }
 
+ protected:
+  std::unique_ptr<MockContentBrowserClient> mock_content_browser_client;
+
  private:
   void RegisterRequestHandlerForSlowResponsePage(
       net::EmbeddedTestServer* test_server) {
@@ -7679,10 +7689,29 @@ class ServiceWorkerSyntheticResponseBrowserTest
                             base::Seconds(2))
                       : std::make_unique<net::test_server::BasicHttpResponse>();
 
+          // Set opt-in header.
+          constexpr std::string_view kOptInHeaderName =
+              "Service-Worker-Synthetic-Response";
+          constexpr std::string_view kOptInHeaderValue = "?1";
+          http_response->AddCustomHeader(kOptInHeaderName, kOptInHeaderValue);
+
           if (base::Contains(request.GetURL().query(), "echo=foo")) {
             http_response->set_content("[SyntheticResponse] foo");
           } else if (base::Contains(request.GetURL().query(), "echo=bar")) {
             http_response->set_content("[SyntheticResponse] bar");
+          } else if (base::Contains(request.GetURL().query(),
+                                    "inline_script_without_csp")) {
+            http_response->set_content(
+                "<script>window.is_inline_script_executed=true;</script>");
+          } else if (base::Contains(request.GetURL().query(),
+                                    "inline_script_with_csp")) {
+            http_response->set_content_type("text/html");
+            http_response->set_content(
+                "<meta http-equiv=\"Content-Security-Policy\" "
+                "content=\"script-src 'nonce-jDHFShrQe4XmmH47DWyhaQ'\" />"
+                "<script "
+                "nonce=\"jDHFShrQe4XmmH47DWyhaQ\">window.is_inline_script_"
+                "executed=true;</script>");
           } else {
             http_response->set_content(is_slow
                                            ? "[SyntheticResponse] "
@@ -7739,6 +7768,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
                        MatchedPageIsServiceWorkerControlled) {
+  mock_content_browser_client = std::make_unique<MockContentBrowserClient>();
   // Navigated URL matched with the URL in the allowlist is controlled by
   // ServiceWorker.
   EXPECT_TRUE(NavigateToURL(
@@ -7751,6 +7781,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
                        ResponseHeaderIsStored) {
+  mock_content_browser_client = std::make_unique<MockContentBrowserClient>();
   // Navigate and store the response header.
   EXPECT_TRUE(NavigateToURL(
       shell(),
@@ -7776,4 +7807,34 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
                      "Math.ceil(performance.getEntriesByType('navigation')[0]."
                      "responseStart) < 2000"));
 }
+
+IN_PROC_BROWSER_TEST_F(ServiceWorkerSyntheticResponseBrowserTest,
+                       InlineScriptIsNotAllowedUntilMetaCSPScriptSrc) {
+  mock_content_browser_client = std::make_unique<MockContentBrowserClient>();
+  // Navigate and store the response header.
+  EXPECT_TRUE(NavigateToURL(
+      shell(),
+      https_server()->GetURL(kHostname, base::StrCat({kTargetPath, "foo"}))));
+  EXPECT_EQ("[SyntheticResponse] Response from the network", GetInnerText());
+
+  // The second navigation. Synthetic response is enabled, inline scripts are
+  // blocked until the new CSP is added via <meta> tag.
+  EXPECT_TRUE(NavigateToURL(
+      shell(),
+      https_server()->GetURL(
+          kHostname,
+          base::StrCat({kTargetPath, "foo&inline_script_without_csp"}))));
+  EXPECT_EQ(nullptr, EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                            "window.is_inline_script_executed"));
+
+  // The third navigation. Synthetic response is enabled, inline scripts are
+  // allowed after the script-src update in <meta> tag.
+  EXPECT_TRUE(NavigateToURL(
+      shell(), https_server()->GetURL(
+                   kHostname,
+                   base::StrCat({kTargetPath, "foo&inline_script_with_csp"}))));
+  EXPECT_EQ(true, EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                         "window.is_inline_script_executed"));
+}
+
 }  // namespace content

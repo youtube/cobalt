@@ -33,7 +33,6 @@
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/dom/text_diff_range.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
-#include "third_party/blink/renderer/core/events/mutation_event.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string_manager.h"
@@ -66,9 +65,9 @@ String CharacterData::substringData(unsigned offset,
   if (offset > length()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        WTF::StrCat({"The offset ", String::Number(offset),
-                     " is greater than the node's length (",
-                     String::Number(length()), ")."}));
+        StrCat({"The offset ", String::Number(offset),
+                " is greater than the node's length (",
+                String::Number(length()), ")."}));
     return String();
   }
 
@@ -99,15 +98,15 @@ void CharacterData::insertData(unsigned offset,
   if (offset > length()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        WTF::StrCat({"The offset ", String::Number(offset),
-                     " is greater than the node's length (",
-                     String::Number(length()), ")."}));
+        StrCat({"The offset ", String::Number(offset),
+                " is greater than the node's length (",
+                String::Number(length()), ")."}));
     return;
   }
 
   String current_data = this->data();
-  String new_str = WTF::StrCat({StringView(current_data, 0, offset), data,
-                                StringView(current_data, offset)});
+  String new_str = StrCat({StringView(current_data, 0, offset), data,
+                           StringView(current_data, offset)});
 
   SetDataAndUpdate(new_str, TextDiffRange::Insert(offset, data.length()),
                    kUpdateFromNonParser);
@@ -123,9 +122,9 @@ static bool ValidateOffsetCount(unsigned offset,
   if (offset > length) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        WTF::StrCat({"The offset ", String::Number(offset),
-                     " is greater than the node's length (",
-                     String::Number(length), ")."}));
+        StrCat({"The offset ", String::Number(offset),
+                " is greater than the node's length (", String::Number(length),
+                ")."}));
     return false;
   }
 
@@ -149,8 +148,8 @@ void CharacterData::deleteData(unsigned offset,
     return;
 
   String current_data = this->data();
-  String new_str = WTF::StrCat({StringView(current_data, 0, offset),
-                                StringView(current_data, offset + real_count)});
+  String new_str = StrCat({StringView(current_data, 0, offset),
+                           StringView(current_data, offset + real_count)});
   SetDataAndUpdate(new_str, TextDiffRange::Delete(offset, real_count),
                    kUpdateFromNonParser);
 
@@ -167,8 +166,8 @@ void CharacterData::replaceData(unsigned offset,
     return;
 
   String current_data = this->data();
-  String new_str = WTF::StrCat({StringView(current_data, 0, offset), data,
-                                StringView(current_data, offset + real_count)});
+  String new_str = StrCat({StringView(current_data, 0, offset), data,
+                           StringView(current_data, offset + real_count)});
 
   SetDataAndUpdate(new_str,
                    TextDiffRange::Replace(offset, real_count, data.length()),
@@ -232,20 +231,6 @@ void CharacterData::DidModifyData(const String& old_data, UpdateSource source) {
         .sibling_after_change = nextSibling(),
         .old_text = &old_data};
     parentNode()->ChildrenChanged(change);
-  }
-
-  // Skip DOM mutation events if the modification is from parser.
-  // Note that mutation observer events will still fire.
-  // Spec: https://html.spec.whatwg.org/C/#insert-a-character
-  if (source != kUpdateFromParser && !IsInShadowTree() &&
-      !GetDocument().ShouldSuppressMutationEvents()) {
-    if (GetDocument().HasListenerType(
-            Document::kDOMCharacterDataModifiedListener)) {
-      DispatchScopedEvent(*MutationEvent::Create(
-          event_type_names::kDOMCharacterDataModified, Event::Bubbles::kYes,
-          nullptr, old_data, data()));
-    }
-    DispatchSubtreeModifiedEvent();
   }
   probe::CharacterDataModified(this);
 }

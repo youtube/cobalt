@@ -8,21 +8,27 @@ assert(!is_android)
 
 source_set("new_tab_footer") {
   sources = [
+    "footer_context_menu.h",
     "new_tab_footer_handler.h",
     "new_tab_footer_helper.h",
     "new_tab_footer_ui.h",
   ]
   public_deps = [
     ":mojo_bindings",
+    "//chrome/browser/search/background",
+    "//chrome/browser/ui/webui/customize_buttons:mojo_bindings",
     "//chrome/browser/ui/webui/top_chrome",
+    "//components/policy/core/browser",
     "//components/prefs",
     "//extensions/browser:browser",
+    "//ui/menus:menus",
     "//ui/webui",
   ]
 }
 
 source_set("impl") {
   sources = [
+    "footer_context_menu.cc",
     "new_tab_footer_handler.cc",
     "new_tab_footer_helper.cc",
     "new_tab_footer_ui.cc",
@@ -34,9 +40,12 @@ source_set("impl") {
     "//chrome/browser/extensions",
     "//chrome/browser/profiles",
     "//chrome/browser/resources/new_tab_footer:resources_grit",
+    "//chrome/browser/resources/new_tab_shared:resources_grit",
     "//chrome/browser/search",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/views/side_panel:side_panel",
     "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/customize_buttons:customize_buttons",
     "//chrome/common",
     "//components/search:search",
     "//content/public/browser",
@@ -77,5 +86,8 @@ mojom("mojo_bindings") {
   sources = [ "new_tab_footer.mojom" ]
   webui_module_path = "/"
 
-  public_deps = [ "//url/mojom:url_mojom_gurl" ]
+  public_deps = [
+    "//ui/gfx/geometry/mojom",
+    "//url/mojom:url_mojom_gurl",
+  ]
 }

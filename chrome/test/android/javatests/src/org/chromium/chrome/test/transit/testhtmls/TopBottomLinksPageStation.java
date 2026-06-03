@@ -5,17 +5,14 @@
 package org.chromium.chrome.test.transit.testhtmls;
 
 import android.util.Pair;
-import android.view.View;
 
 import org.chromium.base.test.transit.Facility;
-import org.chromium.base.test.transit.Transition;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.transit.context_menu.LinkContextMenuFacility;
 import org.chromium.chrome.test.transit.page.PageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.content_public.browser.test.transit.HtmlElement;
 import org.chromium.content_public.browser.test.transit.HtmlElementSpec;
-import org.chromium.content_public.browser.test.util.TouchCommon;
 
 /**
  * Station that has a top and bottom page. The test page contains a link on the top, and one at the
@@ -28,8 +25,8 @@ public class TopBottomLinksPageStation extends WebPageStation {
     private static final HtmlElementSpec TOP_LINK = new HtmlElementSpec("top_link");
     private static final HtmlElementSpec BOTTOM_LINK = new HtmlElementSpec("bottom_link");
 
-    protected <T extends TopBottomLinksPageStation> TopBottomLinksPageStation(Builder<T> builder) {
-        super(builder);
+    protected TopBottomLinksPageStation(Config config) {
+        super(config);
     }
 
     /** Load the page, land at the {@link TopFacility} of a {@link TopBottomLinksPageStation}. */
@@ -38,32 +35,12 @@ public class TopBottomLinksPageStation extends WebPageStation {
         String url = activityTestRule.getTestServer().getURL(PATH);
         TopFacility topFacility = new TopFacility();
         TopBottomLinksPageStation station =
-                currentPageStation.loadPageProgrammatically(
-                        url,
-                        new Builder<TopBottomLinksPageStation>(TopBottomLinksPageStation::new)
-                                .withFacility(topFacility));
-        return Pair.create(station, topFacility);
-    }
+                new Builder<>(TopBottomLinksPageStation::new)
+                        .initForLoadingUrlOnSameTab(url, currentPageStation)
+                        .build();
 
-    /** Scrolls down the page using a drag gesture to dismiss browser controls. */
-    private Transition.Trigger gestureScrollToBottomTrigger() {
-        return () -> {
-            assertInPhase(Phase.ACTIVE);
-            View contentView = activityTabElement.get().getView();
-            float width = contentView.getWidth();
-            float height = contentView.getHeight();
-            // Start the scroll with some height to avoid touching the nav bar region.
-            float fromY = height - height / 10;
-            float toY = 0;
-            TouchCommon.performDragNoFling(
-                    mActivityElement.get(),
-                    width / 2,
-                    width / 2,
-                    fromY,
-                    toY,
-                    /* stepCount= */ 50,
-                    /* duration= */ 500);
-        };
+        currentPageStation.loadUrlTo(url).arriveAt(station, topFacility);
+        return Pair.create(station, topFacility);
     }
 
     /** The page is scrolled to the top, and the top link is displayed. */
@@ -77,14 +54,16 @@ public class TopBottomLinksPageStation extends WebPageStation {
 
         /** Open context menu on the top link. */
         public LinkContextMenuFacility openContextMenuOnTopLink() {
-            return mHostStation.enterFacilitySync(
-                    new LinkContextMenuFacility(), topElement.getLongPressTrigger());
+            return topElement.longPressTo().enterFacility(new LinkContextMenuFacility());
         }
 
         /** Scroll to the bottom of the page. */
         public BottomFacility scrollToBottom() {
-            return mHostStation.swapFacilitySync(
-                    this, new BottomFacility(), mHostStation.gestureScrollToBottomTrigger());
+            return mHostStation
+                    .scrollPageDownWithGestureTo()
+                    .withRetry()
+                    .exitFacilityAnd(this)
+                    .enterFacility(new BottomFacility());
         }
     }
 
@@ -101,8 +80,16 @@ public class TopBottomLinksPageStation extends WebPageStation {
 
         /** Open context menu on the bottom link. */
         public LinkContextMenuFacility openContextMenuOnBottomLink() {
-            return mHostStation.enterFacilitySync(
-                    new LinkContextMenuFacility(), bottomElement.getLongPressTrigger());
+            return bottomElement.longPressTo().enterFacility(new LinkContextMenuFacility());
+        }
+
+        /** Scroll to the bottom of the page. */
+        public TopFacility scrollToTop() {
+            return mHostStation
+                    .scrollPageUpWithGestureTo()
+                    .withRetry()
+                    .exitFacilityAnd(this)
+                    .enterFacility(new TopFacility());
         }
     }
 }

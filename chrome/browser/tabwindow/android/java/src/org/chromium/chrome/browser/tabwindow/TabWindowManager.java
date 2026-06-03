@@ -72,11 +72,6 @@ public interface TabWindowManager {
     void removeObserver(Observer observer);
 
     /**
-     * Returns the maximum number of simultaneous TabModelSelector instances in this Application.
-     */
-    int getMaxSimultaneousSelectors();
-
-    /**
      * Called to request a {@link TabModelSelector} based on {@code index}. Note that the {@link
      * TabModelSelector} returned might not actually be the one related to {@code index} and {@link
      * #getIdForWindow(Activity)} should be called to grab the actual index if required.
@@ -186,15 +181,18 @@ public interface TabWindowManager {
     boolean canTabThumbnailBeDeleted(@TabId int tabId);
 
     /** Sets the given archived {@link TabModelSelector} singleton instance. */
-    void setArchivedTabModelSelector(TabModelSelector archivedTabModelSelector);
+    void setArchivedTabModelSelector(@Nullable TabModelSelector archivedTabModelSelector);
 
     /**
      * Starts to initialize tab models for all windows with data. Some may be headless.
      *
      * @param multiInstanceManager Used to fetch window ids.
      * @param profile Used to scope access.
+     * @param selector The current selector for the caller, used as a fallback when window
+     *     information is not available.
      */
-    void keepAllTabModelsLoaded(MultiInstanceManager multiInstanceManager, Profile profile);
+    void keepAllTabModelsLoaded(
+            MultiInstanceManager multiInstanceManager, Profile profile, TabModelSelector selector);
 
     /**
      * Tries to discern the correct window id that contains a tab group. This may be a like activity

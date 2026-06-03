@@ -97,8 +97,15 @@ namespace {
 #define DISABLED_CHROMEOS_AND_CASTOS(x) x
 #endif
 
-const int kHeaderLatency = 456;
+// Represents the duration between prefetch is added and its URLRequest is
+// started (`URLResponseHead.LoadTimingInfo.request_start`).
+constexpr int kAddedToURLRequestStartLatency = 123;
+// Represents the duration between the URLRequest is started
+// (`URLResponseHead.LoadTimingInfo.request_start`) and the header is received
+// (`URLResponseHead.LoadTimingInfo.receive_headers_end`).
+constexpr int kHeaderLatency = 456;
 
+// TODO(taiyo): Convert const to constexper.
 const char kHTMLMimeType[] = "text/html";
 
 const char kHTMLBody[] = R"(
@@ -530,6 +537,7 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
         test::kPreloadingEmbedderHistgramSuffixForTesting, referrer,
         std::move(referring_origin),
         /*no_vary_search_hint=*/std::nullopt,
+        /*priority=*/std::nullopt,
         PreloadPipelineInfo::Create(
             /*planned_max_preloading_type=*/PreloadingType::kPrefetch),
         /*attempt=*/nullptr);
@@ -538,17 +546,20 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
         ->AddPrefetchContainerWithHandle(std::move(prefetch_container));
   }
 
-  std::unique_ptr<content::PrefetchHandle> MakePrefetchFromBrowserContext(
+  [[nodiscard]] std::unique_ptr<content::PrefetchHandle>
+  MakePrefetchFromBrowserContext(
       const GURL& url,
       std::optional<net::HttpNoVarySearchData> no_vary_search_data,
       const net::HttpRequestHeaders& additional_headers,
       std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
-      base::TimeDelta ttl_in_sec = base::Seconds(/* 10 minutes */ 60 * 10)) {
+      base::TimeDelta ttl = base::Seconds(/* 10 minutes */ 60 * 10),
+      bool should_disable_block_until_head_timeout = false) {
     return browser_context()->StartBrowserPrefetchRequest(
         url, test::kPreloadingEmbedderHistgramSuffixForTesting, true,
-        no_vary_search_data, additional_headers,
-        std::move(request_status_listener), ttl_in_sec,
-        /*should_append_variations_header=*/true);
+        no_vary_search_data, PrefetchPriority::kHighest, additional_headers,
+        std::move(request_status_listener), ttl,
+        /*should_append_variations_header=*/true,
+        should_disable_block_until_head_timeout);
   }
 
   int RequestCount() { return test_url_loader_factory_.NumPending(); }
@@ -575,15 +586,24 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
     VerifyCommonRequestState(url, {});
   }
 
-  void VerifyCommonRequestStateForEmbedders(
+  void VerifyCommonRequestStateForWebContentsPrefetch(
       const GURL& url,
       const VerifyCommonRequestStateOptions& options) {
-    VerifyCommonRequestState(
-        url, {.expected_priority =
-                  base::FeatureList::IsEnabled(
-                      features::kPrefetchNetworkPriorityForEmbedders)
-                      ? net::RequestPriority::MEDIUM
-                      : net::RequestPriority::IDLE});
+    VerifyCommonRequestStateOptions options_override = options;
+    options_override.expected_priority =
+        base::FeatureList::IsEnabled(
+            features::kPrefetchNetworkPriorityForEmbedders)
+            ? net::RequestPriority::MEDIUM
+            : net::RequestPriority::IDLE;
+    VerifyCommonRequestState(url, options_override);
+  }
+
+  void VerifyCommonRequestStateForBrowserContextPrefetch(
+      const GURL& url,
+      const VerifyCommonRequestStateOptions& options) {
+    VerifyCommonRequestStateOptions options_override = options;
+    options_override.expected_priority = net::RequestPriority::HIGHEST;
+    VerifyCommonRequestState(url, options_override);
   }
 
   void VerifyCommonRequestState(
@@ -1262,9 +1282,10 @@ TEST_P(PrefetchServiceTest, SuccessCase) {
   MakePrefetchService(
       std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>());
 
-  const PrefetchType prefetch_type = PrefetchType(
-      PreloadingTriggerType::kSpeculationRule,
-      /*use_prefetch_proxy=*/true, blink::mojom::SpeculationEagerness::kEager);
+  const PrefetchType prefetch_type =
+      PrefetchType(PreloadingTriggerType::kSpeculationRule,
+                   /*use_prefetch_proxy=*/true,
+                   blink::mojom::SpeculationEagerness::kImmediate);
   MakePrefetchOnMainFrame(GURL("https://example.com"), prefetch_type);
   task_environment()->RunUntilIdle();
 
@@ -1318,7 +1339,7 @@ TEST_P(PrefetchServiceTest, SuccessCase_Browser) {
                                      std::move(request_status_listener));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(
+  VerifyCommonRequestStateForBrowserContextPrefetch(
       GURL("https://example.com?b=1"),
       {.use_prefetch_proxy = false,
        .additional_headers = request_additional_headers});
@@ -1396,7 +1417,7 @@ TEST_P(PrefetchServiceTest, SuccessCase_Browser_NoVarySearch) {
                                      std::move(request_status_listener));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(
+  VerifyCommonRequestStateForBrowserContextPrefetch(
       GURL("https://example.com?a=1"),
       {.use_prefetch_proxy = false,
        .additional_headers = request_additional_headers});
@@ -1461,8 +1482,8 @@ TEST_P(PrefetchServiceTest, FailureCase_Browser_ServerErrorResponseCode) {
                                      std::move(request_status_listener));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(GURL("https://example.com?b=1"),
-                                       {.use_prefetch_proxy = false});
+  VerifyCommonRequestStateForBrowserContextPrefetch(
+      GURL("https://example.com?b=1"), {.use_prefetch_proxy = false});
 
   EXPECT_FALSE(probe_listener->GetPrefetchStartFailedCalled());
   EXPECT_FALSE(probe_listener->GetPrefetchResponseCompletedCalled());
@@ -1521,8 +1542,8 @@ TEST_P(PrefetchServiceTest, FailureCase_Browser_NetError) {
                                      std::move(request_status_listener));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(GURL("https://example.com?c=1"),
-                                       {.use_prefetch_proxy = false});
+  VerifyCommonRequestStateForBrowserContextPrefetch(
+      GURL("https://example.com?c=1"), {.use_prefetch_proxy = false});
   MakeResponseAndWait(net::HTTP_OK, net::ERR_FAILED, kHTMLMimeType,
                       /*use_prefetch_proxy=*/false,
                       {{"X-Testing", "Hello World"}}, kHTMLBody);
@@ -1533,7 +1554,7 @@ TEST_P(PrefetchServiceTest, FailureCase_Browser_NetError) {
   EXPECT_FALSE(probe_listener->GetPrefetchResponseServerErrorCalled());
 
   ExpectPrefetchFailedNetError(histogram_tester, net::ERR_FAILED,
-                               blink::mojom::SpeculationEagerness::kEager,
+                               blink::mojom::SpeculationEagerness::kImmediate,
                                /*is_accurate_triggering=*/false,
                                /*browser_initiated_prefetch=*/true);
 
@@ -1608,7 +1629,7 @@ TEST_P(PrefetchServiceTest, BrowserContextPrefetchRespectsTTL) {
                                      base::Minutes(5));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(
+  VerifyCommonRequestStateForBrowserContextPrefetch(
       GURL("https://example.com?b=1"),
       {.use_prefetch_proxy = false,
        .additional_headers = request_additional_headers});
@@ -1637,7 +1658,7 @@ TEST_P(PrefetchServiceTest, PrefetchDoesNotMatchIfDocumentTokenDoesNotMatch) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -1670,8 +1691,8 @@ TEST_P(PrefetchServiceTest, SuccessCase_Embedder) {
       MakePrefetchFromEmbedder(GURL("https://example.com"), prefetch_type);
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(GURL("https://example.com"),
-                                       {.use_prefetch_proxy = false});
+  VerifyCommonRequestStateForWebContentsPrefetch(GURL("https://example.com"),
+                                                 {.use_prefetch_proxy = false});
   MakeResponseAndWait(net::HTTP_OK, net::OK, kHTMLMimeType,
                       /*use_prefetch_proxy=*/false,
                       {{"X-Testing", "Hello World"}}, kHTMLBody);
@@ -1724,8 +1745,8 @@ TEST_P(PrefetchServiceTest,
                                             /*use_prefetch_proxy=*/false));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(GURL("https://example.com"),
-                                       {.use_prefetch_proxy = false});
+  VerifyCommonRequestStateForWebContentsPrefetch(GURL("https://example.com"),
+                                                 {.use_prefetch_proxy = false});
   MakeResponseAndWait(net::HTTP_OK, net::OK, kHTMLMimeType,
                       /*use_prefetch_proxy=*/false,
                       {{"X-Testing", "Hello World"}}, kHTMLBody);
@@ -1772,7 +1793,7 @@ TEST_P(PrefetchServiceTest, NoPrefetchingPreloadingDisabled) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -1808,7 +1829,7 @@ TEST_P(PrefetchServiceTest, NoPrefetchingDomainNotInAllowList) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -1874,7 +1895,7 @@ TEST_P(PrefetchServiceAllowAllDomainsTest, AllowAllDomains) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -1940,7 +1961,7 @@ TEST_P(PrefetchServiceAllowAllDomainsForExtendedPreloadingTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -1979,7 +2000,7 @@ TEST_P(PrefetchServiceAllowAllDomainsForExtendedPreloadingTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2017,7 +2038,7 @@ TEST_P(PrefetchServiceTest, NonProxiedPrefetchDoesNotRequireAllowList) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2046,7 +2067,7 @@ TEST_P(PrefetchServiceTest, NotEligibleHostnameNonUnique) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2081,7 +2102,7 @@ TEST_P(PrefetchServiceTest, NotEligibleDataSaverEnabled) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2107,7 +2128,7 @@ TEST_P(PrefetchServiceTest, NotEligibleNonHttps) {
       GURL("http://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2141,7 +2162,7 @@ TEST_P(PrefetchServiceTest, NotEligiblePrefetchProxyNotAvailable) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2177,7 +2198,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"));
@@ -2209,7 +2230,7 @@ TEST_P(PrefetchServiceTest, NotEligibleOriginWithinRetryAfterWindow) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2235,7 +2256,7 @@ TEST_P(PrefetchServiceTest, EligibleNonHttpsNonProxiedPotentiallyTrustworthy) {
       GURL("https://localhost"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://localhost"));
@@ -2266,7 +2287,7 @@ TEST_P(PrefetchServiceTest, NotEligibleServiceWorkerRegistered) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2300,7 +2321,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2352,7 +2373,7 @@ TEST_P(PrefetchServiceTest, EligibleServiceWorkerNotRegistered) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2383,7 +2404,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2440,7 +2461,7 @@ TEST_P(PrefetchServiceTest, EligibleServiceWorkerRegistered) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2474,7 +2495,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 1);
@@ -2527,7 +2548,7 @@ TEST_P(PrefetchServiceTest, EligibleServiceWorkerNotRegisteredAtThisPath) {
       GURL("https://example.com/non_sw/index.html"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com/non_sw/index.html"),
@@ -2556,7 +2577,7 @@ TEST_P(PrefetchServiceTest, NotEligibleUserHasCookies) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2584,7 +2605,7 @@ TEST_P(PrefetchServiceTest, EligibleUserHasCookiesForDifferentUrl) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2614,7 +2635,7 @@ TEST_P(PrefetchServiceTest, EligibleSameOriginPrefetchCanHaveExistingCookies) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"));
@@ -2641,7 +2662,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2707,7 +2728,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"));
@@ -2741,7 +2762,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://other.example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2778,7 +2799,7 @@ TEST_P(PrefetchServiceTest, NotEligibleExistingConnectProxy) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -2814,7 +2835,7 @@ TEST_P(PrefetchServiceTest, EligibleExistingConnectProxyButSameOriginPrefetch) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"));
@@ -2841,7 +2862,7 @@ TEST_P(PrefetchServiceTest, FailedNon2XXResponseCode) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2870,7 +2891,7 @@ TEST_P(PrefetchServiceTest, FailedNetError) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2903,7 +2924,7 @@ TEST_P(PrefetchServiceTest, HandleRetryAfterResponse) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2935,7 +2956,7 @@ TEST_P(PrefetchServiceTest, SuccessNonHTML) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -2966,7 +2987,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3007,7 +3028,7 @@ TEST_P(PrefetchServiceTest, NotServeableNavigationInDifferentRenderFrameHost) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3073,7 +3094,7 @@ TEST_P(PrefetchServiceWithHTMLOnlyTest, FailedNonHTMLWithHTMLOnly) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3134,7 +3155,7 @@ TEST_P(PrefetchServiceAlwaysMakeDecoyRequestTest, DecoyRequest) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3166,7 +3187,7 @@ TEST_P(PrefetchServiceAlwaysMakeDecoyRequestTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3197,7 +3218,7 @@ TEST_P(PrefetchServiceAlwaysMakeDecoyRequestTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -3228,7 +3249,7 @@ TEST_P(PrefetchServiceAlwaysMakeDecoyRequestTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3298,7 +3319,7 @@ TEST_P(PrefetchServiceIncognitoTest, OffTheRecordEligible) {
       GURL("https://example.com/"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com/"));
@@ -3318,7 +3339,7 @@ TEST_P(PrefetchServiceTest, NonDefaultStoragePartition) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(RequestCount(), 0);
@@ -3348,7 +3369,7 @@ TEST_P(PrefetchServiceTest, DISABLED_CHROMEOS(StreamingURLLoaderSuccessCase)) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3407,7 +3428,7 @@ TEST_P(PrefetchServiceTest, DISABLED_CHROMEOS(StreamingURLLoaderSuccessCase)) {
 
   // Check the metrics now that the prefetch is complete.
   ExpectPrefetchSuccess(histogram_tester, std::size(kHTMLBody),
-                        blink::mojom::SpeculationEagerness::kEager,
+                        blink::mojom::SpeculationEagerness::kImmediate,
                         /*is_accurate=*/true);
   ExpectServingReaderSuccess(serveable_reader);
   ExpectServingMetricsSuccess();
@@ -3424,7 +3445,7 @@ TEST_P(PrefetchServiceTest, DISABLED_CHROMEOS(NoVarySearchSuccessCase)) {
       GURL("https://example.com/?a=1"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       /*referrer=*/blink::mojom::Referrer());
   task_environment()->RunUntilIdle();
 
@@ -3462,8 +3483,8 @@ TEST_P(PrefetchServiceTest, NoVarySearchSuccessCase_Embedder) {
                                             /*use_prefetch_proxy=*/false));
   task_environment()->RunUntilIdle();
 
-  VerifyCommonRequestStateForEmbedders(GURL("https://example.com?a=1"),
-                                       {.use_prefetch_proxy = false});
+  VerifyCommonRequestStateForWebContentsPrefetch(
+      GURL("https://example.com?a=1"), {.use_prefetch_proxy = false});
   MakeResponseAndWait(
       net::HTTP_OK, net::OK, kHTMLMimeType,
       /*use_prefetch_proxy=*/false,
@@ -3505,7 +3526,7 @@ TEST_P(PrefetchServiceTest, DISABLED_CHROMEOS(PrefetchEligibleRedirect)) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3558,7 +3579,7 @@ TEST_P(PrefetchServiceTest, DISABLED_CHROMEOS(IneligibleRedirectCookies)) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3625,7 +3646,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3677,7 +3698,7 @@ TEST_P(PrefetchServiceTest, DISABLED_CHROMEOS(InvalidRedirect)) {
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -3727,7 +3748,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
 
   task_environment()->RunUntilIdle();
 
@@ -3783,7 +3804,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
 
   task_environment()->RunUntilIdle();
 
@@ -3839,7 +3860,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"));
@@ -3900,7 +3921,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   // The same-origin request should not use the proxy.
@@ -3963,7 +3984,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://other.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://other.com"),
@@ -4025,7 +4046,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"));
@@ -4074,7 +4095,7 @@ TEST_P(PrefetchServiceTest,
   ASSERT_TRUE(serveable_reader);
 
   ExpectPrefetchSuccess(histogram_tester, std::size(kHTMLBody),
-                        blink::mojom::SpeculationEagerness::kEager,
+                        blink::mojom::SpeculationEagerness::kImmediate,
                         /*is_accurate=*/true);
   ExpectServingReaderSuccess(serveable_reader);
   ExpectServingMetricsSuccess(/*required_private_prefetch_proxy=*/false);
@@ -4100,7 +4121,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       /*referrer=*/referrer);
   task_environment()->RunUntilIdle();
 
@@ -4451,7 +4472,8 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
                      MainDocumentToken());
   EXPECT_FALSE(future.IsReady());
 
-  task_environment()->FastForwardBy(base::Milliseconds(kHeaderLatency));
+  task_environment()->FastForwardBy(
+      base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency));
 
   // Sends the head of the prefetch response. This should trigger the above
   // callback with a nullptr argument.
@@ -4483,7 +4505,7 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
       base::StringPrintf(
           "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NotServed.%s",
           histogram_suffix),
-      base::Milliseconds(kHeaderLatency), 1);
+      base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency), 1);
   histogram_tester.ExpectUniqueSample(
       base::StringPrintf(
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
@@ -4618,8 +4640,9 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
 
   std::string histogram_suffix =
       GetMetricsSuffixTriggerTypeAndEagerness(prefetch_type, std::nullopt);
-  base::TimeDelta block_until_head_timeout =
-      PrefetchBlockUntilHeadTimeout(prefetch_type, /*is_nav_prerender=*/false);
+  base::TimeDelta block_until_head_timeout = PrefetchBlockUntilHeadTimeout(
+      prefetch_type, /*should_disable_block_until_head_timeout=*/false,
+      /*is_nav_prerender=*/false);
   histogram_tester.ExpectTotalCount(
       base::StringPrintf(
           "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Served.%s",
@@ -4868,7 +4891,8 @@ TEST_P(
   base::test::TestFuture<PrefetchContainer::Reader> future;
   GetPrefetchToServe(future, GURL(kTestUrl), MainDocumentToken());
 
-  task_environment()->FastForwardBy(base::Milliseconds(kHeaderLatency));
+  task_environment()->FastForwardBy(
+      base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency));
   EXPECT_FALSE(future.IsReady());
 
   // Sends the head of the prefetch response. This should unblock `future`.
@@ -4915,7 +4939,7 @@ TEST_P(
       base::StringPrintf(
           "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Served.%s",
           histogram_suffix),
-      base::Milliseconds(kHeaderLatency), 1);
+      base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency), 1);
   histogram_tester.ExpectTotalCount(
       base::StringPrintf(
           "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NotServed.%s",
@@ -5425,6 +5449,224 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
       true, 2);
 }
 
+class PrefetchServiceDisableBlockUntilHeadTimeoutTest
+    : public PrefetchServiceTestBase,
+      public WithPrefetchServiceRearchParam,
+      public ::testing::WithParamInterface<PrefetchServiceRearchParam::Arg> {
+ public:
+  PrefetchServiceDisableBlockUntilHeadTimeoutTest()
+      : WithPrefetchServiceRearchParam(GetParam()) {}
+
+  static constexpr int kBlockUntilHeadTimeout = 1000;
+
+  void InitScopedFeatureList() override {
+    InitBaseParams();
+    InitRearchFeatures();
+    // Override `kPrefetchUseContentRefactor`.
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kPrefetchUseContentRefactor,
+          {
+              {"ineligible_decoy_request_probability", "0"},
+              {"prefetch_container_lifetime_s", "-1"},
+              {"prefetch_timeout_ms", "10000"},
+              // Initialize > 0ms timeouts for testing purposes.
+              {"block_until_head_timeout_embedder_prefetch",
+               base::NumberToString(kBlockUntilHeadTimeout)},
+          }}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedTests,
+    PrefetchServiceDisableBlockUntilHeadTimeoutTest,
+    testing::ValuesIn(PrefetchServiceRearchParam::Params()));
+
+// Tests that the default `BlockUntilHeadTimeout` is used if
+// `should_disable_block_until_head_timeout` is false.
+TEST_P(PrefetchServiceDisableBlockUntilHeadTimeoutTest,
+       DISABLED_CHROMEOS(DisableBlockUntilHeadTimeoutFalse)) {
+  base::HistogramTester histogram_tester;
+  MakePrefetchService(
+      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
+          /*num_on_prefetch_likely_calls=*/std::nullopt));
+
+  // Set `should_disable_block_until_head_timeout` to false.
+  std::unique_ptr<content::PrefetchHandle> handle =
+      MakePrefetchFromBrowserContext(
+          GURL("https://example.com"),
+          /*no_vary_search_data=*/std::nullopt, /*additional_headers=*/{},
+          /*request_status_listener=*/nullptr,
+          base::Seconds(/* 10 minutes */ 60 * 10),
+          /*should_disable_block_until_head_timeout=*/false);
+  task_environment()->RunUntilIdle();
+
+  VerifyCommonRequestStateForBrowserContextPrefetch(
+      GURL("https://example.com"), {.use_prefetch_proxy = false});
+
+  // Simulate a navigation. The prefetch should not be served after a timeout.
+  std::unique_ptr<NavigationResult> navigation_result =
+      SimulatePartOfNavigation(GURL("https://example.com"),
+                               /*is_renderer_initiated=*/false,
+                               /*is_nav_prerender=*/false);
+  task_environment()->RunUntilIdle();
+  ASSERT_FALSE(navigation_result->reader_future.IsReady());
+  task_environment()->FastForwardBy(base::Milliseconds(kBlockUntilHeadTimeout));
+  EXPECT_TRUE(navigation_result->reader_future.IsReady());
+  EXPECT_FALSE(navigation_result->reader_future.Take());
+
+  auto metrics_suffix = GetMetricsSuffixTriggerTypeAndEagerness(
+      PrefetchType(PreloadingTriggerType::kEmbedder,
+                   /*use_prefetch_proxy=*/false),
+      test::kPreloadingEmbedderHistgramSuffixForTesting);
+  histogram_tester.ExpectUniqueSample(
+      base::StringPrintf(
+          "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
+          metrics_suffix),
+      true, 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      base::StringPrintf(
+          "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NotServed.%s",
+          metrics_suffix),
+      base::Milliseconds(kBlockUntilHeadTimeout), 1);
+  histogram_tester.ExpectTotalCount(
+      base::StringPrintf(
+          "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Served.%s",
+          metrics_suffix),
+      0);
+}
+
+// Tests that the default `BlockUntilHeadTimeout` is ignored if
+// `should_disable_block_until_head_timeout` is true.
+TEST_P(PrefetchServiceDisableBlockUntilHeadTimeoutTest,
+       DISABLED_CHROMEOS(DisableBlockUntilHeadTimeoutTrue)) {
+  base::HistogramTester histogram_tester;
+  MakePrefetchService(
+      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
+          /*num_on_prefetch_likely_calls=*/std::nullopt));
+
+  // Set `should_disable_block_until_head_timeout` to true.
+  std::unique_ptr<content::PrefetchHandle> handle =
+      MakePrefetchFromBrowserContext(
+          GURL("https://example.com"),
+          /*no_vary_search_data=*/std::nullopt, /*additional_headers=*/{},
+          /*request_status_listener=*/nullptr,
+          base::Seconds(/* 10 minutes */ 60 * 10),
+          /*should_disable_block_until_head_timeout=*/true);
+  task_environment()->RunUntilIdle();
+
+  VerifyCommonRequestStateForBrowserContextPrefetch(
+      GURL("https://example.com"), {.use_prefetch_proxy = false});
+
+  // Simulate a navigation. The prefetch still blocks the navigation, after the
+  // default timeout/
+  std::unique_ptr<NavigationResult> navigation_result =
+      SimulatePartOfNavigation(GURL("https://example.com"),
+                               /*is_renderer_initiated=*/false,
+                               /*is_nav_prerender=*/false);
+  ASSERT_FALSE(navigation_result->reader_future.IsReady());
+  task_environment()->FastForwardBy(base::Milliseconds(kBlockUntilHeadTimeout));
+  EXPECT_FALSE(navigation_result->reader_future.IsReady());
+
+  // It is eventually served after creating a response head.
+  MakeResponseAndWait(net::HTTP_OK, net::OK, kHTMLMimeType,
+                      /*use_prefetch_proxy=*/true,
+                      {{"X-Testing", "Hello World"}}, kHTMLBody);
+  EXPECT_TRUE(navigation_result->reader_future.IsReady());
+  EXPECT_TRUE(navigation_result->reader_future.Take());
+
+  auto metrics_suffix = GetMetricsSuffixTriggerTypeAndEagerness(
+      PrefetchType(PreloadingTriggerType::kEmbedder,
+                   /*use_prefetch_proxy=*/false),
+      test::kPreloadingEmbedderHistgramSuffixForTesting);
+  histogram_tester.ExpectUniqueSample(
+      base::StringPrintf(
+          "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
+          metrics_suffix),
+      true, 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      base::StringPrintf(
+          "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Served.%s",
+          metrics_suffix),
+      base::Milliseconds(kBlockUntilHeadTimeout), 1);
+  histogram_tester.ExpectTotalCount(
+      base::StringPrintf(
+          "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NotServed.%s",
+          metrics_suffix),
+      0);
+}
+
+// Tests that browsing data removal for prefetch is performed per 1) its
+// `referring_origin` 2) if that is std::nullopt, then prefetch url.
+TEST_P(PrefetchServiceTest, PrefetchEviction) {
+  base::HistogramTester histogram_tester;
+
+  struct TestCase {
+    const std::optional<url::Origin> referring_origin;
+    const GURL prefetch_url;
+  };
+  const std::vector<TestCase> test_cases = {
+      {url::Origin::Create(GURL("https://a.test")), GURL("https://a.test/0")},
+      {url::Origin::Create(GURL("https://a.test")), GURL("https://b.test/1")},
+      {url::Origin::Create(GURL("https://b.test")), GURL("https://a.test/2")},
+      {url::Origin::Create(GURL("https://b.test")), GURL("https://b.test/3")},
+      {std::nullopt, GURL("https://a.test/4")},
+      {std::nullopt, GURL("https://b.test/5")},
+  };
+
+  MakePrefetchService(
+      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
+          /*num_on_prefetch_likely_calls=*/std::nullopt));
+  PrefetchService* prefetch_service =
+      BrowserContextImpl::From(browser_context())->GetPrefetchService();
+
+  std::vector<std::unique_ptr<PrefetchHandle>> handles;
+  for (const auto& test_case : test_cases) {
+    handles.push_back(
+        MakePrefetchFromEmbedder(test_case.prefetch_url,
+                                 PrefetchType(PreloadingTriggerType::kEmbedder,
+                                              /*use_prefetch_proxy=*/false),
+                                 /*referrer=*/{}, test_case.referring_origin));
+  }
+  task_environment()->RunUntilIdle();
+
+  // Evict prefetches from "a.test". The prefetch for "a.test" with no
+  // `referring_origin` should also be removed.
+  auto filter_builder = BrowsingDataFilterBuilder::Create(
+      BrowsingDataFilterBuilder::Mode::kDelete);
+  filter_builder->AddOrigin(url::Origin::Create(GURL("https://a.test")));
+  auto filter = filter_builder->BuildStorageKeyFilter();
+  prefetch_service->EvictPrefetchesForBrowsingDataRemoval(
+      filter, PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved);
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(handles[0]->IsAlive());
+  EXPECT_FALSE(handles[1]->IsAlive());
+  EXPECT_FALSE(handles[4]->IsAlive());
+  EXPECT_TRUE(handles[2]->IsAlive());
+  EXPECT_TRUE(handles[3]->IsAlive());
+  EXPECT_TRUE(handles[5]->IsAlive());
+  histogram_tester.ExpectUniqueSample(
+      "Preloading.Prefetch.PrefetchStatus",
+      PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved, 3);
+
+  // Attempt to clear all the cache. The remaining prefetches are also removed.
+  prefetch_service->EvictPrefetchesForBrowsingDataRemoval(
+      BrowsingDataFilterBuilder::Create(
+          BrowsingDataFilterBuilder::Mode::kPreserve)
+          ->BuildStorageKeyFilter(),
+      PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved);
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(handles[2]->IsAlive());
+  EXPECT_FALSE(handles[3]->IsAlive());
+  EXPECT_FALSE(handles[5]->IsAlive());
+  histogram_tester.ExpectUniqueSample(
+      "Preloading.Prefetch.PrefetchStatus",
+      PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved, 6);
+}
+
 // Tests that the prefetch eviction for eligible but not started triggers (i.e.
 // `PreloadingAttempt`'s `PreloadingHoldbackStatus` is `kUnspecified`) causes no
 // crash. This is a regression test of crbug.com/404703517.
@@ -5439,7 +5681,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionForEligibleButNotStartedPrefetch) {
   auto candidate_1 = blink::mojom::SpeculationCandidate::New();
   candidate_1->url = url_1;
   candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
   auto candidate_2 = candidate_1.Clone();
   candidate_2->url = url_2;
@@ -5500,7 +5742,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionForEligibleButNotStartedPrefetch) {
                  PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved),
              /*accurate=*/false,
              /*ready_time=*/std::nullopt,
-             blink::mojom::SpeculationEagerness::kEager),
+             blink::mojom::SpeculationEagerness::kImmediate),
          attempt_entry_builder()->BuildEntry(
              source_id, PreloadingType::kPrefetch,
              PreloadingEligibility::kEligible,
@@ -5509,7 +5751,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionForEligibleButNotStartedPrefetch) {
              PreloadingFailureReason::kUnspecified,
              /*accurate=*/false,
              /*ready_time=*/std::nullopt,
-             blink::mojom::SpeculationEagerness::kEager)};
+             blink::mojom::SpeculationEagerness::kImmediate)};
     ASSERT_THAT(actual_attempts,
                 testing::UnorderedElementsAreArray(expected_attempts))
         << test::ActualVsExpectedUkmEntriesToString(actual_attempts,
@@ -5542,7 +5784,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionDuringEligiblityCheck) {
   auto candidate_1 = blink::mojom::SpeculationCandidate::New();
   candidate_1->url = url_1;
   candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
 
   // Send `candidate_1`;
@@ -5583,7 +5825,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionDuringEligiblityCheck) {
             PreloadingFailureReason::kUnspecified,
             /*accurate=*/false,
             /*ready_time=*/std::nullopt,
-            blink::mojom::SpeculationEagerness::kEager)};
+            blink::mojom::SpeculationEagerness::kImmediate)};
     ASSERT_THAT(actual_attempts,
                 testing::UnorderedElementsAreArray(expected_attempts))
         << test::ActualVsExpectedUkmEntriesToString(actual_attempts,
@@ -5612,7 +5854,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionWhenHoldback) {
   auto candidate_1 = blink::mojom::SpeculationCandidate::New();
   candidate_1->url = url_1;
   candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
 
   // Send `candidate_1`;
@@ -5654,7 +5896,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionWhenHoldback) {
             PreloadingFailureReason::kUnspecified,
             /*accurate=*/false,
             /*ready_time=*/std::nullopt,
-            blink::mojom::SpeculationEagerness::kEager)};
+            blink::mojom::SpeculationEagerness::kImmediate)};
     ASSERT_THAT(actual_attempts,
                 testing::UnorderedElementsAreArray(expected_attempts))
         << test::ActualVsExpectedUkmEntriesToString(actual_attempts,
@@ -5662,20 +5904,16 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionWhenHoldback) {
   }
 }
 
-class PrefetchServiceNewLimitsTest
+class PrefetchServiceLimitsTest
     : public PrefetchServiceTestBase,
       public WithPrefetchServiceRearchParam,
       public ::testing::WithParamInterface<PrefetchServiceRearchParam::Arg> {
  public:
-  PrefetchServiceNewLimitsTest() : WithPrefetchServiceRearchParam(GetParam()) {}
+  PrefetchServiceLimitsTest() : WithPrefetchServiceRearchParam(GetParam()) {}
 
   void InitScopedFeatureList() override {
     InitBaseParams();
     InitRearchFeatures();
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{features::kPrefetchNewLimits,
-          {{"max_eager_prefetches", "2"}, {"max_non_eager_prefetches", "2"}}}},
-        {});
   }
 
   PrefetchContainer::Reader CompletePrefetch(
@@ -5701,66 +5939,71 @@ class PrefetchServiceNewLimitsTest
     NavigateInitiatedByRenderer(url);
     return GetPrefetchToServe(url);
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
     ParametrizedTests,
-    PrefetchServiceNewLimitsTest,
+    PrefetchServiceLimitsTest,
     testing::ValuesIn(PrefetchServiceRearchParam::Params()));
 
-TEST_P(PrefetchServiceNewLimitsTest,
-       NonEagerPrefetchAllowedWhenEagerLimitIsReached) {
-  const GURL url_1 = GURL("https://example.com/one");
-  const GURL url_2 = GURL("https://example.com/two");
-  const GURL url_3 = GURL("https://example.com/three");
-  const GURL url_4 = GURL("https://example.com/four");
+TEST_P(PrefetchServiceLimitsTest,
+       NonImmediatePrefetchAllowedWhenImmediateLimitIsReached) {
+  const GURL url_over_limit = GURL("https://example.com/over_limit");
+  const GURL url_conservative = GURL("https://example.com/conservative");
 
   NavigateAndCommit(GURL("https://example.com"));
 
-  MakePrefetchService(
-      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
-          /*num_on_prefetch_likely_calls=*/4));
+  MakePrefetchService(std::make_unique<
+                      testing::NiceMock<MockPrefetchServiceDelegate>>(
+      /*num_on_prefetch_likely_calls=*/kMaxNumberOfImmediatePrefetchesPerPage +
+      2));
 
-  ASSERT_TRUE(
-      CompletePrefetch(url_1, blink::mojom::SpeculationEagerness::kEager));
-  ASSERT_TRUE(
-      CompletePrefetch(url_2, blink::mojom::SpeculationEagerness::kEager));
+  for (int i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    const GURL url("https://example.com/" + base::NumberToString(i));
+    ASSERT_TRUE(
+        CompletePrefetch(url, blink::mojom::SpeculationEagerness::kImmediate));
+  }
 
-  // Note: |url_3| is not prefetched as the limit for eager prefetches has been
-  // reached.
+  // Note: |url_over_limit| is not prefetched as the limit for immediate
+  // prefetches has been reached.
   MakePrefetchOnMainFrame(
-      url_3, PrefetchType(PreloadingTriggerType::kSpeculationRule,
-                          /*use_prefetch_proxy=*/false,
-                          blink::mojom::SpeculationEagerness::kEager));
+      url_over_limit,
+      PrefetchType(PreloadingTriggerType::kSpeculationRule,
+                   /*use_prefetch_proxy=*/false,
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
   EXPECT_EQ(RequestCount(), 0);
-  NavigateInitiatedByRenderer(url_3);
-  ASSERT_FALSE(GetPrefetchToServe(url_3));
+  NavigateInitiatedByRenderer(url_over_limit);
+  ASSERT_FALSE(GetPrefetchToServe(url_over_limit));
 
-  // We can still prefetch |url_4| as it is a conservative prefetch.
-  auto non_eager_prefetch = CompletePrefetch(
-      url_4, blink::mojom::SpeculationEagerness::kConservative);
-  ASSERT_TRUE(non_eager_prefetch);
-  EXPECT_EQ(non_eager_prefetch.GetPrefetchStatus(),
+  // We can still prefetch |url_conservative| as it is a conservative prefetch.
+  auto non_immediate_prefetch = CompletePrefetch(
+      url_conservative, blink::mojom::SpeculationEagerness::kConservative);
+  ASSERT_TRUE(non_immediate_prefetch);
+  EXPECT_EQ(non_immediate_prefetch.GetPrefetchStatus(),
             PrefetchStatus::kPrefetchSuccessful);
 
   std::optional<PrefetchReferringPageMetrics> referring_page_metrics =
       PrefetchReferringPageMetrics::GetForCurrentDocument(main_rfh());
-  EXPECT_EQ(referring_page_metrics->prefetch_attempted_count, 4);
-  EXPECT_EQ(referring_page_metrics->prefetch_eligible_count, 4);
-  EXPECT_EQ(referring_page_metrics->prefetch_successful_count, 3);
+  EXPECT_EQ(referring_page_metrics->prefetch_attempted_count,
+            kMaxNumberOfImmediatePrefetchesPerPage + 2);
+  EXPECT_EQ(referring_page_metrics->prefetch_eligible_count,
+            kMaxNumberOfImmediatePrefetchesPerPage + 2);
+  EXPECT_EQ(referring_page_metrics->prefetch_successful_count,
+            kMaxNumberOfImmediatePrefetchesPerPage + 1);
 }
 
-TEST_P(PrefetchServiceNewLimitsTest, NonEagerPrefetchEvictedAtLimit) {
+TEST_P(PrefetchServiceLimitsTest, NonImmediatePrefetchEvictedAtLimit) {
   const GURL url_1 = GURL("https://example.com/one");
   const GURL url_2 = GURL("https://example.com/two");
   const GURL url_3 = GURL("https://example.com/three");
   const GURL url_4 = GURL("https://example.com/four");
 
   NavigateAndCommit(GURL("https://example.com"));
+
+  // This test is written to assume this specific limit and will need
+  // modification if it changes.
+  ASSERT_EQ(kMaxNumberOfNonImmediatePrefetchesPerPage, 2);
 
   MakePrefetchService(
       std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
@@ -5864,7 +6107,7 @@ TEST_P(PrefetchServiceNewLimitsTest, NonEagerPrefetchEvictedAtLimit) {
   }
 }
 
-TEST_P(PrefetchServiceNewLimitsTest, PrefetchWithNoCandidateIsNotStarted) {
+TEST_P(PrefetchServiceLimitsTest, PrefetchWithNoCandidateIsNotStarted) {
   const GURL url_1 = GURL("https://example.com/one");
   const GURL url_2 = GURL("https://example.com/two");
   const GURL url_3 = GURL("https://example.com/three");
@@ -5878,7 +6121,7 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchWithNoCandidateIsNotStarted) {
   auto candidate_1 = blink::mojom::SpeculationCandidate::New();
   candidate_1->url = url_1;
   candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
   auto candidate_2 = candidate_1.Clone();
   candidate_2->url = url_2;
@@ -5925,7 +6168,7 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchWithNoCandidateIsNotStarted) {
   EXPECT_EQ(RequestCount(), 0);
 }
 
-TEST_P(PrefetchServiceNewLimitsTest,
+TEST_P(PrefetchServiceLimitsTest,
        InProgressPrefetchWithNoCandidateIsCancelled) {
   const GURL url_1 = GURL("https://example.com/one");
   const GURL url_2 = GURL("https://example.com/two");
@@ -5939,7 +6182,7 @@ TEST_P(PrefetchServiceNewLimitsTest,
   auto candidate_1 = blink::mojom::SpeculationCandidate::New();
   candidate_1->url = url_1;
   candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
   auto candidate_2 = candidate_1.Clone();
   candidate_2->url = url_2;
@@ -5986,8 +6229,7 @@ TEST_P(PrefetchServiceNewLimitsTest,
   EXPECT_FALSE(serveable_reader);
 }
 
-TEST_P(PrefetchServiceNewLimitsTest,
-       CompletedPrefetchWithNoCandidateIsEvicted) {
+TEST_P(PrefetchServiceLimitsTest, CompletedPrefetchWithNoCandidateIsEvicted) {
   const GURL url_1 = GURL("https://example.com/one");
   const GURL url_2 = GURL("https://example.com/two");
   const GURL url_3 = GURL("https://example.com/three");
@@ -6001,7 +6243,7 @@ TEST_P(PrefetchServiceNewLimitsTest,
   auto candidate_1 = blink::mojom::SpeculationCandidate::New();
   candidate_1->url = url_1;
   candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
   auto candidate_2 = candidate_1.Clone();
   candidate_2->url = url_2;
@@ -6039,7 +6281,7 @@ TEST_P(PrefetchServiceNewLimitsTest,
 }
 
 // Test to see if we can re-prefetch a url whose previous prefetch expired.
-TEST_P(PrefetchServiceNewLimitsTest, PrefetchReset) {
+TEST_P(PrefetchServiceLimitsTest, PrefetchReset) {
   base::test::ScopedFeatureList scoped_feature_list;
   // Override `kPrefetchUseContentRefactor`.
   scoped_feature_list.InitWithFeaturesAndParameters(
@@ -6065,7 +6307,7 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchReset) {
   auto candidate = blink::mojom::SpeculationCandidate::New();
   candidate->url = url;
   candidate->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate->referrer = blink::mojom::Referrer::New();
 
   // Start and complete prefetch of |url|.
@@ -6105,7 +6347,7 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchReset) {
              /*accurate=*/true,
              /*ready_time=*/
              base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
-             blink::mojom::SpeculationEagerness::kEager),
+             blink::mojom::SpeculationEagerness::kImmediate),
          attempt_entry_builder()->BuildEntry(
              source_id, PreloadingType::kPrefetch,
              PreloadingEligibility::kEligible,
@@ -6114,7 +6356,7 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchReset) {
              PreloadingFailureReason::kUnspecified,
              /*accurate=*/false,
              /*ready_time=*/std::nullopt,
-             blink::mojom::SpeculationEagerness::kEager)};
+             blink::mojom::SpeculationEagerness::kImmediate)};
     EXPECT_THAT(actual_attempts,
                 testing::UnorderedElementsAreArray(expected_attempts))
         << test::ActualVsExpectedUkmEntriesToString(actual_attempts,
@@ -6122,61 +6364,78 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchReset) {
   }
 }
 
-TEST_P(PrefetchServiceNewLimitsTest, NextPrefetchQueuedImmediatelyAfterReset) {
+TEST_P(PrefetchServiceLimitsTest, NextPrefetchQueuedImmediatelyAfterReset) {
   base::test::ScopedFeatureList scoped_feature_list;
   // Override `kPrefetchUseContentRefactor`.
   scoped_feature_list.InitWithFeaturesAndParameters(
-      {{features::kPrefetchUseContentRefactor,
-        {{"ineligible_decoy_request_probability", "0"},
-         {"prefetch_container_lifetime_s", "1"}}},
-       {features::kPrefetchNewLimits, {{"max_eager_prefetches", "1"}}}},
+      {
+          {features::kPrefetchUseContentRefactor,
+           {{"ineligible_decoy_request_probability", "0"},
+            {"prefetch_container_lifetime_s", "1"}}},
+      },
       {});
 
   NavigateAndCommit(GURL("https://example.com"));
-  MakePrefetchService(
-      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
-          /*num_on_prefetch_likely_calls=*/2));
+
+  MakePrefetchService(std::make_unique<
+                      testing::NiceMock<MockPrefetchServiceDelegate>>(
+      /*num_on_prefetch_likely_calls=*/kMaxNumberOfImmediatePrefetchesPerPage +
+      1));
 
   auto* prefetch_document_manager =
       PrefetchDocumentManager::GetOrCreateForCurrentDocument(main_rfh());
-  const auto url_1 = GURL("https://example.com/one");
-  const auto url_2 = GURL("https://example.com/two");
+
+  // Create kMaxNumberOfImmediatePrefetchesPerPage + 1 URLs to exceed the limit
+  std::vector<GURL> urls;
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage + 1; ++i) {
+    urls.emplace_back("https://example.com/" + base::NumberToString(i));
+  }
 
   base::MockRepeatingCallback<void(const GURL& url)> mock_destruction_callback;
-  EXPECT_CALL(mock_destruction_callback, Run(url_1)).Times(1);
+  // All URLs but the last will expire and be destroyed
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    EXPECT_CALL(mock_destruction_callback, Run(urls[i])).Times(1);
+  }
   prefetch_document_manager->SetPrefetchDestructionCallback(
       mock_destruction_callback.Get());
 
-  auto candidate_1 = blink::mojom::SpeculationCandidate::New();
-  candidate_1->url = url_1;
-  candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
-  candidate_1->referrer = blink::mojom::Referrer::New();
-  auto candidate_2 = candidate_1->Clone();
-  candidate_2->url = url_2;
+  auto base_candidate = blink::mojom::SpeculationCandidate::New();
+  base_candidate->action = blink::mojom::SpeculationAction::kPrefetch;
+  base_candidate->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
+  base_candidate->referrer = blink::mojom::Referrer::New();
 
-  // Add |candidate_1| and |candidate_2|.
+  // Add all candidates (one more than the limit)
   std::vector<blink::mojom::SpeculationCandidatePtr> candidates;
-  candidates.push_back(candidate_1.Clone());
-  candidates.push_back(candidate_2.Clone());
+  for (const auto& url : urls) {
+    auto candidate = base_candidate.Clone();
+    candidate->url = url;
+    candidates.push_back(std::move(candidate));
+  }
   prefetch_document_manager->ProcessCandidates(candidates);
   task_environment()->RunUntilIdle();
 
-  // Complete |prefetch| of |url_1|.
-  auto prefetch_1 = CompleteExistingPrefetch(url_1);
-  ASSERT_TRUE(prefetch_1);
-  EXPECT_EQ(prefetch_1.GetPrefetchStatus(),
-            PrefetchStatus::kPrefetchSuccessful);
+  // Complete prefetches up to the limit
+  std::vector<PrefetchContainer::Reader> prefetches;
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    auto prefetch = CompleteExistingPrefetch(urls[i]);
+    ASSERT_TRUE(prefetch);
+    EXPECT_EQ(prefetch.GetPrefetchStatus(),
+              PrefetchStatus::kPrefetchSuccessful);
+    prefetches.push_back(std::move(prefetch));
+  }
 
-  // Prefetch of |url_2| should not be queued because we are at the limit.
+  // The last URL should not be queued because we are at the limit
   EXPECT_EQ(RequestCount(), 0);
 
-  // Fast forward by a second and expire |prefetch_1|.
+  // Fast forward by a second to expire the
+  // kMaxNumberOfImmediatePrefetchesPerPage prefetches
   task_environment()->FastForwardBy(base::Seconds(1));
-  EXPECT_FALSE(prefetch_1);
+  for (auto& prefetch : prefetches) {
+    EXPECT_FALSE(prefetch);
+  }
 
-  // Prefetch of |url_2| should now be queued.
-  VerifyCommonRequestState(url_2);
+  // The last URL should now be queued and prefetched
+  VerifyCommonRequestState(urls[kMaxNumberOfImmediatePrefetchesPerPage]);
 }
 
 // Tests that the prefetch queue is not stuck when resetting the running
@@ -6222,7 +6481,7 @@ TEST_P(PrefetchServiceTest, PrefetchQueueNotStuckWhenResettingRunningPrefetch) {
             PrefetchContainer::LoadState::kStarted);
 }
 
-TEST_P(PrefetchServiceNewLimitsTest, PrefetchFailsAndIsReset) {
+TEST_P(PrefetchServiceLimitsTest, PrefetchFailsAndIsReset) {
   base::HistogramTester histogram_tester;
   base::test::ScopedFeatureList scoped_feature_list;
   // Override `kPrefetchUseContentRefactor`.
@@ -6249,7 +6508,7 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchFailsAndIsReset) {
   auto candidate = blink::mojom::SpeculationCandidate::New();
   candidate->url = url;
   candidate->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate->referrer = blink::mojom::Referrer::New();
 
   // Start prefetch of |url|.
@@ -6274,154 +6533,184 @@ TEST_P(PrefetchServiceNewLimitsTest, PrefetchFailsAndIsReset) {
                                       1);
 }
 
-TEST_P(PrefetchServiceNewLimitsTest, EagerPrefetchLimitIsDynamic) {
-  const GURL url_1 = GURL("https://example.com/one");
-  const GURL url_2 = GURL("https://example.com/two");
-  const GURL url_3 = GURL("https://example.com/three");
+TEST_P(PrefetchServiceLimitsTest, ImmediatePrefetchLimitIsDynamic) {
+  // The test only makes sense with limits >=2
+  ASSERT_GE(kMaxNumberOfImmediatePrefetchesPerPage, 2u);
+
+  std::vector<GURL> urls;
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage + 1; ++i) {
+    urls.emplace_back("https://example.com/" + base::NumberToString(i));
+  }
 
   NavigateAndCommit(GURL("https://example.com"));
 
-  MakePrefetchService(
-      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
-          /*num_on_prefetch_likely_calls=*/4));
+  MakePrefetchService(std::make_unique<
+                      testing::NiceMock<MockPrefetchServiceDelegate>>(
+      /*num_on_prefetch_likely_calls=*/kMaxNumberOfImmediatePrefetchesPerPage +
+      2));
 
   auto* prefetch_document_manager =
       PrefetchDocumentManager::GetOrCreateForCurrentDocument(main_rfh());
   ASSERT_TRUE(prefetch_document_manager);
 
-  base::MockRepeatingCallback<void(const GURL& url)> mock_destruction_callback;
-  EXPECT_CALL(mock_destruction_callback, Run(url_1)).Times(1);
-  EXPECT_CALL(mock_destruction_callback, Run(url_2)).Times(1);
+  base::MockRepeatingCallback<void(const GURL&)> destruction_cb;
+  EXPECT_CALL(destruction_cb, Run(urls[0])).Times(1);
+  EXPECT_CALL(destruction_cb, Run(urls[1])).Times(1);
   prefetch_document_manager->SetPrefetchDestructionCallback(
-      mock_destruction_callback.Get());
+      destruction_cb.Get());
 
-  auto candidate_1 = blink::mojom::SpeculationCandidate::New();
-  candidate_1->url = url_1;
-  candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kEager;
-  candidate_1->referrer = blink::mojom::Referrer::New();
-  auto candidate_2 = candidate_1.Clone();
-  candidate_2->url = url_2;
-  auto candidate_3 = candidate_1.Clone();
-  candidate_3->url = url_3;
+  auto base_candidate = blink::mojom::SpeculationCandidate::New();
+  base_candidate->action = blink::mojom::SpeculationAction::kPrefetch;
+  base_candidate->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
+  base_candidate->referrer = blink::mojom::Referrer::New();
 
-  // Send |candidate_1| and |candidate_2|.
+  // Send candidates up to the limit
   std::vector<blink::mojom::SpeculationCandidatePtr> candidates;
-  candidates.push_back(candidate_1.Clone());
-  candidates.push_back(candidate_2.Clone());
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    auto candidate = base_candidate.Clone();
+    candidate->url = urls[i];
+    candidates.push_back(std::move(candidate));
+  }
   prefetch_document_manager->ProcessCandidates(candidates);
   task_environment()->RunUntilIdle();
 
-  auto prefetch_1 = CompleteExistingPrefetch(url_1);
-  ASSERT_TRUE(prefetch_1);
-  EXPECT_EQ(prefetch_1.GetPrefetchStatus(),
-            PrefetchStatus::kPrefetchSuccessful);
-  auto prefetch_2 = CompleteExistingPrefetch(url_2);
-  ASSERT_TRUE(prefetch_2);
-  EXPECT_EQ(prefetch_2.GetPrefetchStatus(),
-            PrefetchStatus::kPrefetchSuccessful);
+  // Complete all prefetches up to the limit
+  std::vector<PrefetchContainer::Reader> prefetches;
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    auto prefetch = CompleteExistingPrefetch(urls[i]);
+    ASSERT_TRUE(prefetch);
+    EXPECT_EQ(prefetch.GetPrefetchStatus(),
+              PrefetchStatus::kPrefetchSuccessful);
+    prefetches.push_back(std::move(prefetch));
+  }
 
-  // Remove |candidate_1| and add |candidate_3|.
+  // Process candidates for urls[1] through
+  // urls[kMaxNumberOfImmediatePrefetchesPerPage]
   candidates.clear();
-  candidates.push_back(candidate_2.Clone());
-  candidates.push_back(candidate_3.Clone());
+  for (size_t i = 1; i < kMaxNumberOfImmediatePrefetchesPerPage + 1; ++i) {
+    auto candidate = base_candidate.Clone();
+    candidate->url = urls[i];
+    candidates.push_back(std::move(candidate));
+  }
   prefetch_document_manager->ProcessCandidates(candidates);
   task_environment()->RunUntilIdle();
 
-  // Prefetch for |url_3| should succeed, and |prefetch_1| should be evicted.
-  auto prefetch_3 = CompleteExistingPrefetch(url_3);
-  ASSERT_TRUE(prefetch_3);
-  EXPECT_EQ(prefetch_3.GetPrefetchStatus(),
+  // The new prefetch should succeed, and the 0th should be evicted
+  auto prefetch_extra =
+      CompleteExistingPrefetch(urls[kMaxNumberOfImmediatePrefetchesPerPage]);
+  ASSERT_TRUE(prefetch_extra);
+  EXPECT_EQ(prefetch_extra.GetPrefetchStatus(),
             PrefetchStatus::kPrefetchSuccessful);
-  EXPECT_FALSE(prefetch_1);
-  EXPECT_TRUE(prefetch_2);
+  EXPECT_FALSE(prefetches[0]);  // 0th prefetch should be evicted
+  for (size_t i = 1; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    EXPECT_TRUE(prefetches[i]);  // Others should still be valid
+  }
 
-  // Re-add |candidate_1|.
+  // Now process candidates for urls[0] through
+  // urls[kMaxNumberOfImmediatePrefetchesPerPage] (which will exceed the limit)
   candidates.clear();
-  candidates.push_back(candidate_1.Clone());
-  candidates.push_back(candidate_2.Clone());
-  candidates.push_back(candidate_3.Clone());
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage + 1; ++i) {
+    auto candidate = base_candidate.Clone();
+    candidate->url = urls[i];
+    candidates.push_back(std::move(candidate));
+  }
   prefetch_document_manager->ProcessCandidates(candidates);
   task_environment()->RunUntilIdle();
 
-  // |url_1| should not be reprefetched because we are at the limit.
+  // Should not reprefetch urls[0] because we are at the limit
   EXPECT_EQ(RequestCount(), 0);
 
-  // Remove |candidate_2|.
+  // Now process candidates for urls[0] plus urls[2] through
+  // urls[kMaxNumberOfImmediatePrefetchesPerPage] (back under the limit)
   candidates.clear();
-  candidates.push_back(candidate_1.Clone());
-  candidates.push_back(candidate_3.Clone());
+  for (size_t i = 0; i < kMaxNumberOfImmediatePrefetchesPerPage + 1; ++i) {
+    if (i != 1) {
+      auto candidate = base_candidate.Clone();
+      candidate->url = urls[i];
+      candidates.push_back(std::move(candidate));
+    }
+  }
   prefetch_document_manager->ProcessCandidates(candidates);
   task_environment()->RunUntilIdle();
 
-  // Prefetch for |url_1| should succeed, |prefetch_2| will be evicted
-  // (because |candidate_2| was removed).
-  prefetch_1 = CompleteExistingPrefetch(url_1);
-  ASSERT_TRUE(prefetch_1);
-  EXPECT_EQ(prefetch_1.GetPrefetchStatus(),
+  // Now urls[0] should be prefetched successfully, and urls[1] evicted
+  auto prefetch_0_new = CompleteExistingPrefetch(urls[0]);
+  ASSERT_TRUE(prefetch_0_new);
+  EXPECT_EQ(prefetch_0_new.GetPrefetchStatus(),
             PrefetchStatus::kPrefetchSuccessful);
-  EXPECT_FALSE(prefetch_2);
-  EXPECT_TRUE(prefetch_3);
+  EXPECT_FALSE(prefetches[1]);
+  for (size_t i = 2; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+    EXPECT_TRUE(prefetches[i]);  // Others should still be valid
+  }
 
-  // The first and second prefetches should have failure reason set to
-  // 'kPrefetchEvicted', and the fourth prefetch should have failure reason
-  // set to |kPrefetchFailedPerPageLimitExceeded|.
+  // Verify UKM entries
   {
     const auto source_id = ForceLogsUploadAndGetUkmId();
     auto actual_attempts = test_ukm_recorder()->GetEntries(
         ukm::builders::Preloading_Attempt::kEntryName,
         test::kPreloadingAttemptUkmMetrics);
-    EXPECT_EQ(actual_attempts.size(), 4u);
+    EXPECT_EQ(actual_attempts.size(),
+              kMaxNumberOfImmediatePrefetchesPerPage + 2);
 
-    std::vector<ukm::TestUkmRecorder::HumanReadableUkmEntry> expected_attempts =
-        // |url_1|, attempt #1 (evicted)
-        {attempt_entry_builder()->BuildEntry(
-             source_id, PreloadingType::kPrefetch,
-             PreloadingEligibility::kEligible,
-             PreloadingHoldbackStatus::kAllowed,
-             PreloadingTriggeringOutcome::kFailure,
-             ToPreloadingFailureReason(
-                 content::PrefetchStatus::
-                     kPrefetchEvictedAfterCandidateRemoved),
-             /*accurate=*/true,
-             /*ready_time=*/
-             base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
-             blink::mojom::SpeculationEagerness::kEager),
-         // |url_2| (evicted)
-         attempt_entry_builder()->BuildEntry(
-             source_id, PreloadingType::kPrefetch,
-             PreloadingEligibility::kEligible,
-             PreloadingHoldbackStatus::kAllowed,
-             PreloadingTriggeringOutcome::kFailure,
-             ToPreloadingFailureReason(
-                 content::PrefetchStatus::
-                     kPrefetchEvictedAfterCandidateRemoved),
-             /*accurate=*/true,
-             /*ready_time=*/
-             base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
-             blink::mojom::SpeculationEagerness::kEager),
-         // |url_3| (ready)
-         attempt_entry_builder()->BuildEntry(
-             source_id, PreloadingType::kPrefetch,
-             PreloadingEligibility::kEligible,
-             PreloadingHoldbackStatus::kAllowed,
-             PreloadingTriggeringOutcome::kReady,
-             PreloadingFailureReason::kUnspecified,
-             /*accurate=*/true,
-             /*ready_time=*/
-             base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
-             blink::mojom::SpeculationEagerness::kEager),
-         // |url_1|, attempt #2 (ready)
-         attempt_entry_builder()->BuildEntry(
-             source_id, PreloadingType::kPrefetch,
-             PreloadingEligibility::kEligible,
-             PreloadingHoldbackStatus::kAllowed,
-             PreloadingTriggeringOutcome::kReady,
-             PreloadingFailureReason::kUnspecified,
-             /*accurate=*/true,
-             /*ready_time=*/
-             base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
-             blink::mojom::SpeculationEagerness::kEager)};
+    std::vector<ukm::TestUkmRecorder::HumanReadableUkmEntry> expected_attempts;
+
+    // urls[0], attempt #1 (evicted)
+    expected_attempts.push_back(attempt_entry_builder()->BuildEntry(
+        source_id, PreloadingType::kPrefetch, PreloadingEligibility::kEligible,
+        PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kFailure,
+        ToPreloadingFailureReason(
+            content::PrefetchStatus::kPrefetchEvictedAfterCandidateRemoved),
+        /*accurate=*/true,
+        /*ready_time=*/
+        base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate));
+
+    // urls[1] (evicted)
+    expected_attempts.push_back(attempt_entry_builder()->BuildEntry(
+        source_id, PreloadingType::kPrefetch, PreloadingEligibility::kEligible,
+        PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kFailure,
+        ToPreloadingFailureReason(
+            content::PrefetchStatus::kPrefetchEvictedAfterCandidateRemoved),
+        /*accurate=*/true,
+        /*ready_time=*/
+        base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate));
+
+    // urls[2] through urls[kMaxNumberOfImmediatePrefetchesPerPage-1] (ready)
+    for (size_t i = 2; i < kMaxNumberOfImmediatePrefetchesPerPage; ++i) {
+      expected_attempts.push_back(attempt_entry_builder()->BuildEntry(
+          source_id, PreloadingType::kPrefetch,
+          PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+          PreloadingTriggeringOutcome::kReady,
+          PreloadingFailureReason::kUnspecified,
+          /*accurate=*/true,
+          /*ready_time=*/
+          base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
+          blink::mojom::SpeculationEagerness::kImmediate));
+    }
+
+    // urls[kMaxNumberOfImmediatePrefetchesPerPage] (ready)
+    expected_attempts.push_back(attempt_entry_builder()->BuildEntry(
+        source_id, PreloadingType::kPrefetch, PreloadingEligibility::kEligible,
+        PreloadingHoldbackStatus::kAllowed, PreloadingTriggeringOutcome::kReady,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/
+        base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate));
+
+    // urls[0], attempt #2 (ready)
+    expected_attempts.push_back(attempt_entry_builder()->BuildEntry(
+        source_id, PreloadingType::kPrefetch, PreloadingEligibility::kEligible,
+        PreloadingHoldbackStatus::kAllowed, PreloadingTriggeringOutcome::kReady,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/
+        base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate));
+
     EXPECT_THAT(actual_attempts,
                 testing::UnorderedElementsAreArray(expected_attempts))
         << test::ActualVsExpectedUkmEntriesToString(actual_attempts,
@@ -6429,7 +6718,7 @@ TEST_P(PrefetchServiceNewLimitsTest, EagerPrefetchLimitIsDynamic) {
   }
 }
 
-TEST_P(PrefetchServiceNewLimitsTest, RemoveCandidateForFailedPrefetch) {
+TEST_P(PrefetchServiceLimitsTest, RemoveCandidateForFailedPrefetch) {
   const GURL url = GURL("https://example.com/one");
 
   NavigateAndCommit(GURL("https://example.com"));
@@ -6441,7 +6730,7 @@ TEST_P(PrefetchServiceNewLimitsTest, RemoveCandidateForFailedPrefetch) {
   auto candidate = blink::mojom::SpeculationCandidate::New();
   candidate->url = url;
   candidate->action = blink::mojom::SpeculationAction::kPrefetch;
-  candidate->eagerness = blink::mojom::SpeculationEagerness::kEager;
+  candidate->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate->referrer = blink::mojom::Referrer::New();
 
   auto* prefetch_document_manager =
@@ -6531,7 +6820,7 @@ TEST_P(PrefetchServiceClientHintsTest, NoClientHintsWhenDisabled) {
       GURL("https://example.com/two"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://example.com/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6553,7 +6842,7 @@ TEST_P(PrefetchServiceClientHintsTest, LowEntropyClientHints) {
       GURL("https://example.com/two"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://example.com/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6581,7 +6870,7 @@ TEST_P(PrefetchServiceClientHintsTest, HighEntropyClientHints) {
       GURL("https://example.com/two"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://example.com/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6620,7 +6909,7 @@ TEST_P(PrefetchServiceClientHintsTest, CrossSiteNone) {
       GURL("https://b.test/"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://a.test/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6650,7 +6939,7 @@ TEST_P(PrefetchServiceClientHintsTest, CrossSiteLowEntropy) {
       GURL("https://b.test/"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://a.test/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6680,7 +6969,7 @@ TEST_P(PrefetchServiceClientHintsTest, CrossSiteAll) {
       GURL("https://b.test/"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://a.test/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6701,7 +6990,7 @@ TEST_P(PrefetchServiceTest, CancelWhileBlockedOnHead) {
       next_url,
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(GURL("https://example.com/"),
                              network::mojom::ReferrerPolicy::kStrictOrigin));
   task_environment()->RunUntilIdle();
@@ -6748,7 +7037,7 @@ TEST_P(
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
   VerifyCommonRequestState(GURL("https://example.com"),
                            {.use_prefetch_proxy = true});
@@ -6837,7 +7126,7 @@ TEST_P(
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
   VerifyCommonRequestState(GURL("https://example.com"),
                            {.use_prefetch_proxy = true});
@@ -6936,7 +7225,7 @@ TEST_P(
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -6974,7 +7263,7 @@ TEST_P(
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Eager",
+      "Immediate",
       false, 2);
 }
 
@@ -6999,7 +7288,7 @@ TEST_P(
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -7021,7 +7310,7 @@ TEST_P(
   CompleteResponseAndWait(net::OK, std::size(kHTMLBody));
 
   ExpectPrefetchSuccess(histogram_tester, std::size(kHTMLBody),
-                        blink::mojom::SpeculationEagerness::kEager,
+                        blink::mojom::SpeculationEagerness::kImmediate,
                         /*is_accurate=*/true);
 
   ExpectServingReaderSuccess(FROM_HERE, nav_res1->reader_future.Take());
@@ -7045,7 +7334,7 @@ TEST_P(
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Eager",
+      "Immediate",
       true, 2);
 }
 
@@ -7079,7 +7368,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com/?match=0"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       /* referrer */ blink::mojom::Referrer(), std::move(no_vary_search_hint));
   task_environment()->RunUntilIdle();
 
@@ -7103,7 +7392,7 @@ TEST_P(PrefetchServiceTest,
   CompleteResponseAndWait(net::OK, std::size(kHTMLBody));
 
   ExpectPrefetchSuccess(histogram_tester, std::size(kHTMLBody),
-                        blink::mojom::SpeculationEagerness::kEager,
+                        blink::mojom::SpeculationEagerness::kImmediate,
                         /*is_accurate=*/true);
 
   ExpectServingReaderSuccess(FROM_HERE, nav_res1->reader_future.Take());
@@ -7122,7 +7411,7 @@ TEST_P(PrefetchServiceTest,
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Eager",
+      "Immediate",
       true, 2);
 }
 
@@ -7151,7 +7440,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/true,
-                   blink::mojom::SpeculationEagerness::kEager));
+                   blink::mojom::SpeculationEagerness::kImmediate));
   task_environment()->RunUntilIdle();
 
   VerifyCommonRequestState(GURL("https://example.com"),
@@ -7183,7 +7472,7 @@ TEST_P(PrefetchServiceTest,
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Eager",
+      "Immediate",
       true, 2);
 }
 
@@ -7222,7 +7511,7 @@ TEST_P(PrefetchServiceTest,
       GURL("https://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(), network::mojom::NoVarySearchPtr(),
       /*planned_max_preloading_type=*/PreloadingType::kPrerender);
   task_environment()->RunUntilIdle();
@@ -7255,7 +7544,7 @@ TEST_P(PrefetchServiceTest,
   CompleteResponseAndWait(net::OK, std::size(kHTMLBody));
 
   ExpectPrefetchSuccess(histogram_tester, std::size(kHTMLBody),
-                        blink::mojom::SpeculationEagerness::kEager,
+                        blink::mojom::SpeculationEagerness::kImmediate,
                         /*is_accurate=*/true);
 
   ExpectServingReaderSuccess(FROM_HERE, nav_res->reader_future.Take());
@@ -7272,7 +7561,7 @@ TEST_P(PrefetchServiceTest,
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Eager",
+      "Immediate",
       true, 1);
 
   prefetch_service.SetDelayEligibilityCheckForTesting(base::NullCallback());
@@ -7312,7 +7601,7 @@ TEST_P(PrefetchServiceTest,
       GURL("http://example.com"),
       PrefetchType(PreloadingTriggerType::kSpeculationRule,
                    /*use_prefetch_proxy=*/false,
-                   blink::mojom::SpeculationEagerness::kEager),
+                   blink::mojom::SpeculationEagerness::kImmediate),
       blink::mojom::Referrer(), network::mojom::NoVarySearchPtr(),
       /*planned_max_preloading_type=*/PreloadingType::kPrerender);
   task_environment()->RunUntilIdle();
@@ -7413,7 +7702,7 @@ class PrefetchServiceAddPrefetchContainerTest
     auto prefetch_type =
         PrefetchType(PreloadingTriggerType::kSpeculationRule,
                      /*use_prefetch_proxy=*/true,
-                     blink::mojom::SpeculationEagerness::kEager);
+                     blink::mojom::SpeculationEagerness::kImmediate);
 
     auto* preloading_data =
         PreloadingData::GetOrCreateForWebContents(web_contents());
@@ -7435,6 +7724,7 @@ class PrefetchServiceAddPrefetchContainerTest
         prefetch_url, std::move(prefetch_type), blink::mojom::Referrer(),
         std::make_optional(SpeculationRulesTags()),
         /*no_vary_search_hint=*/std::nullopt,
+        /*priority=*/std::nullopt,
         /*prefetch_document_manager=*/nullptr,
         PreloadPipelineInfo::Create(planned_max_preloading_type),
         attempt->GetWeakPtr());
@@ -7709,10 +7999,10 @@ TEST_P(PrefetchServiceTest, PrefetchScheduler_Prioritize) {
           base::BindRepeating([](const PrefetchContainer& prefetch_container) {
             if (prefetch_container.GetURL().possibly_invalid_spec().ends_with(
                     "?prioritize=1")) {
-              return PrefetchPriority::kHighTest;
+              return PrefetchSchedulerPriority::kHighTest;
             }
 
-            return PrefetchPriority::kBase;
+            return PrefetchSchedulerPriority::kBase;
           }));
 
   const auto url_1 = GURL("https://example.com/one");
@@ -7789,10 +8079,10 @@ TEST_P(PrefetchServiceTest, PrefetchScheduler_Prioritize_Async) {
           base::BindRepeating([](const PrefetchContainer& prefetch_container) {
             if (prefetch_container.GetURL().possibly_invalid_spec().ends_with(
                     "?prioritize=1")) {
-              return PrefetchPriority::kHighTest;
+              return PrefetchSchedulerPriority::kHighTest;
             }
 
-            return PrefetchPriority::kBase;
+            return PrefetchSchedulerPriority::kBase;
           }));
 
   const auto url_1 = GURL("https://example.com/one");
@@ -7853,10 +8143,10 @@ TEST_P(PrefetchServiceTest, PrefetchScheduler_Burst) {
           base::BindRepeating([](const PrefetchContainer& prefetch_container) {
             if (prefetch_container.GetURL().possibly_invalid_spec().ends_with(
                     "?burst=1")) {
-              return PrefetchPriority::kBurstTest;
+              return PrefetchSchedulerPriority::kBurstTest;
             }
 
-            return PrefetchPriority::kBase;
+            return PrefetchSchedulerPriority::kBase;
           }));
 
   const auto url_1 = GURL("https://example.com/one");
@@ -7958,10 +8248,10 @@ TEST_P(PrefetchServiceTest, PrefetchScheduler_BurstTakesPriority) {
           base::BindRepeating([](const PrefetchContainer& prefetch_container) {
             if (prefetch_container.GetURL().possibly_invalid_spec().ends_with(
                     "?burst=1")) {
-              return PrefetchPriority::kBurstTest;
+              return PrefetchSchedulerPriority::kBurstTest;
             }
 
-            return PrefetchPriority::kBase;
+            return PrefetchSchedulerPriority::kBase;
           }));
 
   const auto url_1 = GURL("https://example.com/one");
@@ -8063,10 +8353,10 @@ TEST_P(PrefetchServiceTest, PrefetchScheduler_BurstTakesPriority_Async) {
           base::BindRepeating([](const PrefetchContainer& prefetch_container) {
             if (prefetch_container.GetURL().possibly_invalid_spec().ends_with(
                     "?burst=1")) {
-              return PrefetchPriority::kBurstTest;
+              return PrefetchSchedulerPriority::kBurstTest;
             }
 
-            return PrefetchPriority::kBase;
+            return PrefetchSchedulerPriority::kBase;
           }));
 
   const auto url_1 = GURL("https://example.com/one");
@@ -8133,7 +8423,8 @@ TEST_P(PrefetchServiceTest,
   auto handle = MakePrefetchFromBrowserContext(url, std::nullopt, {}, nullptr);
   task_environment()->RunUntilIdle();
 
-  task_environment()->FastForwardBy(base::Milliseconds(kHeaderLatency));
+  task_environment()->FastForwardBy(
+      base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency));
 
   MakeResponseAndWait(net::HTTP_OK, net::OK, kHTMLMimeType,
                       /*use_prefetch_proxy=*/false,
@@ -8153,15 +8444,20 @@ TEST_P(PrefetchServiceTest,
            test::kPreloadingEmbedderHistgramSuffixForTesting}),
       0, 1);
   histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {"Prefetch.PrefetchContainer.AddedToURLRequestStarted.Embedder_",
+           test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      kAddedToURLRequestStartLatency, 1);
+  histogram_tester.ExpectUniqueSample(
       base::StrCat({"Prefetch.PrefetchContainer."
                     "AddedToHeaderDeterminedSuccessfully.Embedder_",
                     test::kPreloadingEmbedderHistgramSuffixForTesting}),
-      kHeaderLatency, 1);
+      kAddedToURLRequestStartLatency + kHeaderLatency, 1);
   histogram_tester.ExpectUniqueSample(
       base::StrCat({"Prefetch.PrefetchContainer."
                     "AddedToPrefetchCompletedSuccessfully.Embedder_",
                     test::kPreloadingEmbedderHistgramSuffixForTesting}),
-      kHeaderLatency, 1);
+      kAddedToURLRequestStartLatency + kHeaderLatency, 1);
 }
 
 TEST_P(PrefetchServiceTest,
@@ -8177,7 +8473,8 @@ TEST_P(PrefetchServiceTest,
   auto handle = MakePrefetchFromBrowserContext(url, std::nullopt, {}, nullptr);
   task_environment()->RunUntilIdle();
 
-  task_environment()->FastForwardBy(base::Milliseconds(kHeaderLatency));
+  task_environment()->FastForwardBy(
+      base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency));
 
   // Call `PrefetchContainer::dtor()` to record UMAs.
   handle.reset();
@@ -8193,6 +8490,11 @@ TEST_P(PrefetchServiceTest,
            test::kPreloadingEmbedderHistgramSuffixForTesting}),
       0, 1);
   histogram_tester.ExpectTotalCount(
+      base::StrCat(
+          {"Prefetch.PrefetchContainer.AddedToURLRequestStarted.Embedder_",
+           test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      0);
+  histogram_tester.ExpectTotalCount(
       base::StrCat({"Prefetch.PrefetchContainer."
                     "AddedToHeaderDeterminedSuccesfully.Embedder_",
                     test::kPreloadingEmbedderHistgramSuffixForTesting}),
@@ -8201,6 +8503,80 @@ TEST_P(PrefetchServiceTest,
       base::StrCat({"Prefetch.PrefetchContainer."
                     "AddedToPrefetchCompletedSuccessfully.Embedder_",
                     test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      0);
+}
+
+TEST_P(
+    PrefetchServiceTest,
+    UMA_Prefetch_PrefetchMatchingBlockedNavigation_And_BlockUntilHeadDuration_PrerenderOrNonPrerender) {
+  base::HistogramTester histogram_tester;
+
+  MakePrefetchService(
+      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>());
+
+  const PrefetchType prefetch_type =
+      PrefetchType(PreloadingTriggerType::kSpeculationRule,
+                   /*use_prefetch_proxy=*/true,
+                   blink::mojom::SpeculationEagerness::kImmediate);
+  MakePrefetchOnMainFrame(GURL("https://example.com"), prefetch_type);
+  task_environment()->RunUntilIdle();
+
+  // Request the prefetch from the PrefetchService. The given callback shouldn't
+  // be called until after the head is received.
+  base::test::TestFuture<PrefetchContainer::Reader> future;
+  GetPrefetchToServe(future, GURL("https://example.com"), MainDocumentToken());
+  EXPECT_FALSE(future.IsReady());
+
+  task_environment()->FastForwardBy(base::Milliseconds(kHeaderLatency));
+
+  // Sends the head of the prefetch response. This should trigger the above
+  // callback.
+  SendHeadOfResponseAndWait(net::HTTP_OK, kHTMLMimeType,
+                            /*use_prefetch_proxy=*/true,
+                            {{"X-Testing", "Hello World"}},
+                            std::size(kHTMLBody));
+  PrefetchContainer::Reader serveable_reader = future.Take();
+  ASSERT_TRUE(serveable_reader);
+
+  // Send the body and completion status of the request,
+  SendBodyContentOfResponseAndWait(kHTMLBody);
+  CompleteResponseAndWait(net::OK, std::size(kHTMLBody));
+
+  histogram_tester.ExpectUniqueSample(
+      "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
+      "SpeculationRule_Immediate",
+      true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
+      "NonPrerender.SpeculationRule_Immediate",
+      true, 1);
+  histogram_tester.ExpectTotalCount(
+      "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
+      "Prerender.SpeculationRule_Immediate",
+      0);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Served."
+      "SpeculationRule_Immediate",
+      base::Milliseconds(kHeaderLatency), 1);
+  histogram_tester.ExpectTotalCount(
+      "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NotServed."
+      "SpeculationRule_Immediate",
+      0);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NonPrerender."
+      "Served.SpeculationRule_Immediate",
+      base::Milliseconds(kHeaderLatency), 1);
+  histogram_tester.ExpectTotalCount(
+      "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NonPrerender."
+      "NotServed.SpeculationRule_Immediate",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Prerender.Served."
+      "SpeculationRule_Immediate",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Prerender."
+      "NotServed.SpeculationRule_Immediate",
       0);
 }
 

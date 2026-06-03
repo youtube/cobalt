@@ -274,10 +274,10 @@ INSTANTIATE_TEST_SUITE_P(
         /*is_managed_user=*/::testing::Bool(),
         ::testing::Values(user_manager::UserType::kChild,
                           user_manager::UserType::kGuest,
-                          user_manager::UserType::kKioskApp,
+                          user_manager::UserType::kKioskChromeApp,
                           user_manager::UserType::kPublicAccount,
                           user_manager::UserType::kRegular,
-                          user_manager::UserType::kWebKioskApp),
+                          user_manager::UserType::kKioskWebApp),
         /*is_user_first_login_to_chromeos=*/
         ::testing::Values(std::make_optional(true),
                           std::make_optional(false),

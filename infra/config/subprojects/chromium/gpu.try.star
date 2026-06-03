@@ -20,9 +20,7 @@ try_.defaults.set(
     # Max. pending time for builds. CQ considers builds pending >2h as timed
     # out: http://shortn/_8PaHsdYmlq. Keep this in sync.
     expiration_timeout = 2 * time.hour,
-    reclient_enabled = False,
     service_account = "chromium-try-gpu-builder@chops-service-accounts.iam.gserviceaccount.com",
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     subproject_list_view = "luci.chromium.try",
     task_template_canary_percentage = 5,
@@ -54,15 +52,6 @@ def gpu_android_builder(*, name, **kwargs):
     )
 
 gpu_android_builder(
-    name = "gpu-fyi-try-android-m-nexus-5x-64",
-    mirrors = [
-        "ci/GPU FYI Android arm64 Builder",
-        "ci/Android FYI Release (Nexus 5X)",
-    ],
-    gn_args = "ci/GPU FYI Android arm64 Builder",
-)
-
-gpu_android_builder(
     name = "gpu-fyi-try-android-nvidia-shield-tv",
     mirrors = [
         "ci/GPU FYI Android arm Builder",
@@ -72,7 +61,7 @@ gpu_android_builder(
 )
 
 gpu_android_builder(
-    name = "gpu-fyi-try-android-p-pixel-2-32",
+    name = "gpu-fyi-try-android-q-pixel-2-32",
     mirrors = [
         "ci/GPU FYI Android arm Builder",
         "ci/Android FYI Release (Pixel 2)",
@@ -136,25 +125,6 @@ gpu_android_builder(
         "ci/Android FYI Release (Samsung S23)",
     ],
     gn_args = "ci/GPU FYI Android arm64 Builder",
-)
-
-gpu_android_builder(
-    name = "gpu-try-android-m-nexus-5x-64",
-    mirrors = [
-        "ci/Android Release (Nexus 5X)",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "gpu_fyi_tests",
-            "android_builder",
-            "android_fastbuild",
-            "release_builder",
-            "try_builder",
-            "remoteexec",
-            "arm64",
-            "static_angle",
-        ],
-    ),
 )
 
 gpu_android_builder(
@@ -478,27 +448,6 @@ gpu_mac_builder(
     mirrors = [
         "ci/GPU FYI Mac Builder",
         "ci/Mac FYI Release (Intel)",
-    ],
-    gn_args = "ci/GPU FYI Mac Builder",
-)
-
-gpu_mac_builder(
-    name = "gpu-fyi-try-mac-nvidia-retina-exp",
-    mirrors = [
-        "ci/GPU FYI Mac Builder",
-        "ci/Mac FYI Experimental Retina Release (NVIDIA)",
-    ],
-    gn_args = "ci/GPU FYI Mac Builder",
-    # This bot has one machine backing its tests at the moment.
-    # If it gets more, the modified execution_timeout should be removed.
-    execution_timeout = 12 * time.hour,
-)
-
-gpu_mac_builder(
-    name = "gpu-fyi-try-mac-nvidia-retina-rel",
-    mirrors = [
-        "ci/GPU FYI Mac Builder",
-        "ci/Mac FYI Retina Release (NVIDIA)",
     ],
     gn_args = "ci/GPU FYI Mac Builder",
 )

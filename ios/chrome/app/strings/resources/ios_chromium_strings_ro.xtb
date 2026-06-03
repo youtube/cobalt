@@ -176,6 +176,7 @@ Pentru a modifica această setare, <ph name="BEGIN_LINK" />șterge datele Chromi
 <translation id="5259423875997548710">Caută imagini în Chromium.</translation>
 <translation id="5308226104666789935">Chromium nu poate căuta actualizări.</translation>
 <translation id="5311557153294205270">Adaugă adresele URL introduse la marcajele din Chromium.</translation>
+<translation id="5383251701169024761">Pentru a accesa cu ușurință parolele salvate în alte aplicații, alege Chromium pentru completare automată.</translation>
 <translation id="538767207339317086">Permite conectarea la Chromium</translation>
 <translation id="5389058611415066188">Protejează-te cu Chromium</translation>
 <translation id="5415273218238091735">Sfat pentru Chromium</translation>
@@ -276,7 +277,6 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="7763454117143368771">Folosește Chromium ca browser prestabilit ca să te protejezi de site-uri periculoase și să păstrezi parolele în siguranță</translation>
 <translation id="7784950022329154821">Blochează filele incognito când închizi Chromium</translation>
 <translation id="78025249032851484">Chromium este învechit.</translation>
-<translation id="7811371919871579588">Pentru a accesa cu ușurință parolele salvate în alte aplicații, alege Chromium pentru completare automată.</translation>
 <translation id="7859018312476869945">Când introduci text în bara de adrese sau în caseta de căutare, Chromium trimite ceea ce introduci la motorul de căutare prestabilit, pentru a primi sugestii mai bune. Această opțiune este dezactivată în modul incognito.</translation>
 <translation id="7890287942691234100">Începe să folosești scanerul din Chromium</translation>
 <translation id="7905064834449738336">Când folosești o parolă, Chromium te avertizează dacă a fost publicată online. Când face acest lucru, parolele și numele tale de utilizator sunt criptate, astfel încât să nu fie descifrate de nimeni, nici măcar de Google.</translation>
@@ -331,6 +331,7 @@ Așteaptă câteva minute înainte să te deconectezi. Dacă te deconectezi acum
 <translation id="9050790730841755540">Folosește Chromium de fiecare dată când atingi linkuri în alte aplicații.</translation>
 <translation id="9059693977935746710">Nu va trebui să reții această parolă. Ea se va salva în Managerul de parole pentru <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium nu este actualizat</translation>
+<translation id="9105645282262300612">Sfat pentru Chromium: caută ceea ce vezi</translation>
 <translation id="9152995302810511799">Sfat pentru Chromium: beneficiază de cea mai puternică securitate de la Chromium</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium este gestionat.</translation>
 <translation id="921174536258924340">Chromium nu a putut verifica toate parolele. Încearcă din nou mâine sau <ph name="BEGIN_LINK" />verifică parolele din Contul Google<ph name="END_LINK" />.</translation>

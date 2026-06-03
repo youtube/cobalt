@@ -62,6 +62,17 @@ void UpdateAnimationTiming(
     Document& document,
     HeapHashSet<WeakMember<AnimationTimeline>>& timelines,
     TimingUpdateReason reason) {
+  if (RuntimeEnabledFeatures::AnimationTriggerEnabled()) {
+    // First service all triggers because servicing a trigger might result in an
+    // animation's timeline being "dirtied", i.e. marked with an outdated
+    // animation whose currentTime was updated. This can happen if an
+    // animation's timeline is serviced first and then the trigger's timeline is
+    // serviced afterwards.
+    for (auto& timeline : timelines) {
+      timeline->ServiceAnimationTriggers();
+    }
+  }
+
   for (auto& timeline : timelines)
     timeline->ServiceAnimations(reason);
   document.GetWorkletAnimationController().UpdateAnimationTimings(reason);
@@ -217,8 +228,7 @@ void DocumentAnimations::GetAnimationsTargetingTreeScope(
       if (animation->ReplaceStateRemoved())
         continue;
       if (!animation->effect() || (!animation->effect()->IsCurrent() &&
-                                   !animation->effect()->IsInEffect() &&
-                                   !animation->CanBeTriggered())) {
+                                   !animation->effect()->IsInEffect())) {
         continue;
       }
       auto* effect = DynamicTo<KeyframeEffect>(animation->effect());

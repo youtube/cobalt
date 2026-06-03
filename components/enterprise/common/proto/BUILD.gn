@@ -2,8 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import(
-    "//components/safe_browsing/core/common/proto_to_value/proto_to_value.gni")
+import("//components/proto_extras/proto_extras.gni")
 import("//third_party/libprotobuf-mutator/fuzzable_proto_library.gni")
 import("//third_party/protobuf/proto_library.gni")
 
@@ -21,14 +20,19 @@ fuzzable_proto_library("connectors_proto") {
   deps = [ "//components/safe_browsing/core/common/proto:csd_proto" ]
 }
 
-proto_to_value("connectors_proto_to_value") {
+proto_extras("connectors_proto_extras") {
   sources = [ "connectors.proto" ]
 
   deps = [
     ":connectors_proto",
     "//components/safe_browsing/core/common/proto:csd_proto",
-    "//components/safe_browsing/core/common/proto:csd_proto_to_value",
   ]
+  extras_deps = [
+    "//components/safe_browsing/core/common/proto:csd_proto_extras",
+  ]
+
+  # The fuzzable_proto_library rule above uses the full protobuf runtime.
+  protobuf_full_support = true
 }
 
 proto_library("dlp_policy_event_proto") {

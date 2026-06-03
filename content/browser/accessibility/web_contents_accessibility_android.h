@@ -5,7 +5,7 @@
 #ifndef CONTENT_BROWSER_ACCESSIBILITY_WEB_CONTENTS_ACCESSIBILITY_ANDROID_H_
 #define CONTENT_BROWSER_ACCESSIBILITY_WEB_CONTENTS_ACCESSIBILITY_ANDROID_H_
 
-#include <unordered_map>
+#include <optional>
 
 #include "base/android/jni_string.h"
 #include "base/android/jni_weak_ref.h"
@@ -13,9 +13,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "content/browser/accessibility/ax_style_data.h"
 #include "content/browser/accessibility/web_contents_accessibility.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/node_hash_map.h"
 #include "ui/accessibility/platform/ax_node_id_delegate.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -327,13 +330,13 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   //       finite number of possibilities. Do not use it for page content.
   const base::android::ScopedJavaGlobalRef<jstring>& GetCanonicalJNIString(
       JNIEnv* env,
-      std::string str) {
+      std::string_view str) {
     return GetCanonicalJNIString(env, base::UTF8ToUTF16(str));
   }
 
   const base::android::ScopedJavaGlobalRef<jstring>& GetCanonicalJNIString(
       JNIEnv* env,
-      std::u16string str) {
+      std::u16string_view str) {
     auto& slot = common_string_cache_[str];
     if (!slot) {
       // Otherwise, convert the string and add it to the cache, then return.
@@ -380,6 +383,8 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
     return allow_image_descriptions_;
   }
 
+  BrowserAccessibilityAndroid* GetAccessibilityFocus() const;
+
   void HandlePageLoaded(int32_t unique_id);
   void HandleContentChanged(int32_t unique_id);
   void HandleFocusChanged(int32_t unique_id);
@@ -411,9 +416,10 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
 
   WebContentsAccessibilityAndroid();
 
-  BrowserAccessibilityManagerAndroid* GetRootBrowserAccessibilityManager();
+  BrowserAccessibilityManagerAndroid* GetRootBrowserAccessibilityManager()
+      const;
 
-  BrowserAccessibilityAndroid* GetAXFromUniqueID(int32_t unique_id);
+  BrowserAccessibilityAndroid* GetAXFromUniqueID(int32_t unique_id) const;
 
   void UpdateAccessibilityNodeInfoBoundsRect(
       JNIEnv* env,
@@ -421,6 +427,11 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
       const base::android::JavaParamRef<jobject>& info,
       jint id,
       BrowserAccessibilityAndroid* node);
+
+  base::android::ScopedJavaLocalRef<jobject> ToJavaCanonicalStringRangesMap(
+      JNIEnv* env,
+      const std::optional<
+          absl::flat_hash_map<std::string, AXStyleData::RangePairs>>& attrs);
 
   // A weak reference to the Java WebContentsAccessibilityAndroid object.
   JavaObjectWeakGlobalRef java_ref_;
@@ -452,12 +463,11 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   // fired during a single atomic update.
   int content_changed_events_ = 0;
 
-  // An unordered map of |jstring| objects for classname, role, role
-  // description, invalid error, and language strings that are a finite set of
-  // strings that need to regularly be converted to Java strings and passed
-  // over the JNI.
-  std::unordered_map<std::u16string,
-                     base::android::ScopedJavaGlobalRef<jstring>>
+  // A map of |jstring| objects for classname, role, role description, invalid
+  // error, and language strings that are a finite set of strings that need to
+  // regularly be converted to Java strings and passed over the JNI.
+  absl::node_hash_map<std::u16string,
+                      base::android::ScopedJavaGlobalRef<jstring>>
       common_string_cache_;
 
   // Manages the connection between web contents and the RenderFrameHost that

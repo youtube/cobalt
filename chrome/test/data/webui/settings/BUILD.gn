@@ -60,6 +60,7 @@ build_webui_tests("build") {
     "notifications_page_test.ts",
     "offer_writing_help_page_test.ts",
     "on_startup_page_test.ts",
+    "other_google_data_dialog_test.ts",
     "payments_section_card_dialogs_test.ts",
     "payments_section_card_rows_test.ts",
     "payments_section_focus_test.ts",
@@ -108,12 +109,11 @@ build_webui_tests("build") {
     "secure_dns_test.ts",
     "security_keys_bio_enrollment_test.ts",
     "security_keys_credential_management_test.ts",
-    "security_keys_phones_subpage_test.ts",
     "security_keys_reset_dialog_test.ts",
     "security_keys_set_pin_dialog_test.ts",
-    "security_keys_subpage_test.ts",
     "security_keys_test_util.ts",
     "security_page_test.ts",
+    "security_page_v2_test.ts",
     "settings_animated_pages_test.ts",
     "settings_category_default_radio_group_test.ts",
     "settings_main_test.ts",
@@ -227,10 +227,6 @@ build_webui_tests("build") {
       "a11y_page_test.ts",
       "ax_annotations_section_test.ts",
     ]
-  }
-
-  if (is_win && is_chrome_branded) {
-    files += [ "incompatible_applications_page_test.ts" ]
   }
 
   static_files = [

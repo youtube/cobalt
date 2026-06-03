@@ -38,6 +38,8 @@
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
 #include "chrome/browser/preloading/prerender/prerender_manager.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/common/webui_url_constants.h"
@@ -337,13 +339,6 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
   AutocompleteMatch::LogSearchEngineUsed(
       match, TemplateURLServiceFactory::GetForProfile(profile_));
 
-  bool contextual_search_selected =
-      match.takeover_action &&
-      match.takeover_action->ActionId() ==
-          OmniboxActionId::CONTEXTUAL_SEARCH_FULFILLMENT;
-  bool lens_action_selected =
-      match.takeover_action && match.takeover_action->ActionId() ==
-                                   OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS;
   OmniboxLog log(
       // For zero suggest, record an empty input string instead of the
       // current URL.
@@ -357,14 +352,7 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
       base::Milliseconds(elapsed_time_since_first_modified), completed_length,
       now - autocomplete_controller_->last_time_default_match_changed(),
       autocomplete_controller_->result(), match.destination_url,
-      profile_->IsOffTheRecord(),
-      match.zero_prefix_suggestions_shown_in_session,
-      match.zero_prefix_search_suggestions_shown_in_session,
-      match.zero_prefix_url_suggestions_shown_in_session,
-      match.typed_search_suggestions_shown_in_session,
-      match.typed_url_suggestions_shown_in_session, contextual_search_selected,
-      match.contextual_search_suggestions_shown_in_session,
-      lens_action_selected, match.lens_action_shown_in_session);
+      profile_->IsOffTheRecord(), input_.IsZeroSuggest(), match.session);
   autocomplete_controller_->AddProviderAndTriggeringLogs(&log);
 
   OmniboxEventGlobalTracker::GetInstance()->OnURLOpened(&log);
@@ -403,6 +391,14 @@ jboolean AutocompleteControllerAndroid::OnSuggestionTouchDown(
         match_index, match, omnibox::mojom::NavigationPredictor::kTouchDown,
         content::WebContents::FromJavaWebContents(j_web_contents));
   }
+
+  if (SearchPreloadService* search_preload_service =
+          SearchPreloadServiceFactory::GetForProfile(profile_)) {
+    return search_preload_service->OnNavigationLikely(
+        match_index, match, omnibox::mojom::NavigationPredictor::kTouchDown,
+        content::WebContents::FromJavaWebContents(j_web_contents));
+  }
+
   return false;
 }
 

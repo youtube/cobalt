@@ -136,8 +136,6 @@ constexpr char kBookmarkPageUrl[] = "http://www.foo.com/";
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 constexpr char kPreviouslySyncingGaiaIdMetricName[] =
     "Sync.BookmarkModelMerger.PreviouslySyncingGaiaId";
-
-constexpr char kOtherEmail[] = "account2@gmail.com";
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
 MATCHER(HasUniquePosition, "") {
@@ -1173,7 +1171,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest,
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest, E2E_ONLY(SanitySetup)) {
-  ResetSyncForPrimaryAccount();
+  ASSERT_TRUE(ResetSyncForPrimaryAccount());
   ASSERT_TRUE(SetupSync());
 }
 
@@ -3146,7 +3144,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest, PRE_ComparisonMetrics) {
                      GetBookmarkBarNode(kSingleProfileIndex), 0, u"Url1",
                      GURL("http://www.url1.com")));
 
-  ASSERT_TRUE(SetupSync());
+  ASSERT_TRUE(SetupSync(SyncTestAccount::kConsumerAccount1));
   histogram_tester.ExpectUniqueSample(
       kPreviouslySyncingGaiaIdMetricName,
       /*sample=*/2 /*kSyncFeatureNeverPreviouslyTurnedOn*/,
@@ -3160,7 +3158,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest, PRE_ComparisonMetrics) {
                      u"Url2", GURL("http://www.url2.com")));
 
   // Turn Sync on with the same account.
-  ASSERT_TRUE(SetupSync());
+  ASSERT_TRUE(SetupSync(SyncTestAccount::kConsumerAccount1));
   histogram_tester.ExpectBucketCount(
       kPreviouslySyncingGaiaIdMetricName,
       /*sample=*/3 /*kCurrentGaiaIdMatchesPreviousWithSyncFeatureOn*/,
@@ -3170,12 +3168,12 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest, PRE_ComparisonMetrics) {
   histogram_tester.ExpectUniqueSample(
       "Sync.BookmarkModelMerger.Comparison.MatchesPreviousGaiaId."
       "ConsideringAllBookmarks.ByUrl",
-      /*sample=*/4 /*kLocalDataIsStrictSubsetOfAccountData*/,
+      /*sample=*/4 /*kAccountDataIsStrictSubsetOfLocalData*/,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
       "Sync.BookmarkModelMerger.Comparison.MatchesPreviousGaiaId."
       "ConsideringAllBookmarks.ByUrlAndUuid",
-      /*sample=*/4 /*kLocalDataIsStrictSubsetOfAccountData*/,
+      /*sample=*/4 /*kAccountDataIsStrictSubsetOfLocalData*/,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
       "Sync.BookmarkModelMerger.Comparison.MatchesPreviousGaiaId."
@@ -3185,13 +3183,34 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest, PRE_ComparisonMetrics) {
   histogram_tester.ExpectUniqueSample(
       "Sync.BookmarkModelMerger.Comparison.MatchesPreviousGaiaId."
       "ConsideringAllBookmarks.ByUrlAndUuid.Between1And19LocalUrlBookmarks",
-      /*sample=*/4 /*kLocalDataIsStrictSubsetOfAccountData*/,
+      /*sample=*/4 /*kAccountDataIsStrictSubsetOfLocalData*/,
+      /*expected_bucket_count=*/1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sync.BookmarkModelMerger.Comparison2.MatchesPreviousGaiaId."
+      "ConsideringAllBookmarks.ByUrl",
+      /*sample=*/8 /*kIntersectionBetween50And90Percent*/,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.BookmarkModelMerger.Comparison2.MatchesPreviousGaiaId."
+      "ConsideringAllBookmarks.ByUrlAndUuid",
+      /*sample=*/8 /*kIntersectionBetween50And90Percent*/,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.BookmarkModelMerger.Comparison2.MatchesPreviousGaiaId."
+      "UnderBookmarksBar.ByUrlAndUuid",
+      /*sample=*/3 /*kExactMatchNonEmpty*/,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.BookmarkModelMerger.Comparison2.MatchesPreviousGaiaId."
+      "ConsideringAllBookmarks.ByUrlAndUuid.Between1And19LocalUrlBookmarks",
+      /*sample=*/8 /*kIntersectionBetween50And90Percent*/,
       /*expected_bucket_count=*/1);
 
   // Enable Sync with a different account.
   GetClient(kSingleProfileIndex)->SignOutPrimaryAccount();
-  GetClient(kSingleProfileIndex)->SetUsernameForFutureSignins(kOtherEmail);
-  ASSERT_TRUE(GetClient(kSingleProfileIndex)->SetupSync());
+  ASSERT_TRUE(GetClient(kSingleProfileIndex)
+                  ->SetupSync(SyncTestAccount::kConsumerAccount2));
   histogram_tester.ExpectBucketCount(
       kPreviouslySyncingGaiaIdMetricName,
       /*sample=*/4 /*kCurrentGaiaIdDiffersPreviousWithSyncFeatureOn*/,
@@ -3219,12 +3238,11 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksSyncTest, ComparisonMetrics) {
   // and toggling bookmark sync off and on shouldn't pollute metrics.
   histogram_tester.ExpectTotalCount(kPreviouslySyncingGaiaIdMetricName, 0);
 
-  // Turn Sync off and on with the same account. Note that `kOtherEmail` needs
-  // to be specified again because it doesn't automatically carry over from the
-  // PRE_ test.
+  // Turn Sync off and on with the same account. Note that `kConsumerAccount2`
+  // needs to be specified again because it doesn't automatically carry over
+  // from the PRE_ test.
   GetClient(kSingleProfileIndex)->SignOutPrimaryAccount();
-  GetClient(kSingleProfileIndex)->SetUsernameForFutureSignins(kOtherEmail);
-  ASSERT_TRUE(SetupSync());
+  ASSERT_TRUE(SetupSync(SyncTestAccount::kConsumerAccount2));
 
   // The histogram should be recorded once again.
   histogram_tester.ExpectBucketCount(

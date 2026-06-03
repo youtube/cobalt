@@ -22,6 +22,7 @@
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
+#include "ui/views/layout/layout_provider.h"
 
 namespace {
 
@@ -211,8 +212,8 @@ GURL GetDetailsUrlForQuery(const std::string& query) {
   auto query_text = base::EscapeUrlEncodedData(*remainder, /*use_plus=*/true);
   auto device_language =
       l10n_util::GetLanguage(QuickAnswersState::Get()->application_locale());
-  auto translate_url = base::StringPrintf(
-      kGoogleTranslateUrlTemplate, device_language.c_str(), query_text.c_str());
+  auto translate_url = base::StringPrintf(kGoogleTranslateUrlTemplate,
+                                          device_language, query_text);
   return GURL(translate_url);
 }
 
@@ -234,6 +235,43 @@ void GenerateTTSAudio(content::BrowserContext* browser_context,
   tts_utterance->SetEventDelegate(new QuickAnswersUtteranceEventDelegate());
 
   tts_controller->SpeakOrEnqueue(std::move(tts_utterance));
+}
+
+const gfx::Insets GetMainViewInsets(Design design) {
+  switch (design) {
+    case Design::kCurrent:
+      return kMainViewInsets;
+    case Design::kRefresh:
+    case Design::kMagicBoost:
+      return gfx::Insets::TLBR(12, 16, 16, 16);
+  }
+
+  NOTREACHED() << "Invalid design enum value provided";
+}
+
+const gfx::Insets GetButtonsViewInsets(Design design) {
+  switch (design) {
+    case Design::kCurrent:
+      return gfx::Insets(kButtonsViewMarginDip);
+    case Design::kRefresh:
+    case Design::kMagicBoost:
+      // Buttons view is rendered as a layer on top of main view. For `kRefresh`
+      // and `kMagicBoost`, they share the same insets.
+      return GetMainViewInsets(design);
+  }
+
+  NOTREACHED() << "Invalid design enum value provided";
+}
+
+// TODO: crbug.com/340629098 - A temporary solution until buttons view is merged
+// into headers. See another comment for buttons view in
+// `QuickAnswersView::QuickAnswersView` about details.
+int GetButtonsViewOcclusion(Design design) {
+  gfx::Insets insets_icon_button =
+      views::LayoutProvider::Get()->GetInsetsMetric(
+          views::InsetsMetric::INSETS_ICON_BUTTON);
+  return insets_icon_button.left() + kGoogleIconSizeDip +
+         insets_icon_button.right() + GetButtonsViewInsets(design).right();
 }
 
 }  // namespace quick_answers

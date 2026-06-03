@@ -20,6 +20,7 @@ import type {PrivacyPageBrowserProxy} from '/shared/settings/privacy_page/privac
 import {PrivacyPageBrowserProxyImpl} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
 import {HelpBubbleMixin} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
@@ -36,6 +37,10 @@ import {MetricsBrowserProxyImpl, PrivacyElementInteractions, SafeBrowsingInterac
 import {routes} from '../route.js';
 import type {Route} from '../router.js';
 import {RouteObserverMixin, Router} from '../router.js';
+import {ContentSettingsTypes} from '../site_settings/constants.js';
+import type {SiteSettingsPrefsBrowserProxy} from '../site_settings/site_settings_prefs_browser_proxy.js';
+import {SiteSettingsPrefsBrowserProxyImpl} from '../site_settings/site_settings_prefs_browser_proxy.js';
+import {isSettingEnabled} from '../site_settings/site_settings_util.js';
 
 import type {SettingsCollapseRadioButtonElement} from './collapse_radio_button.js';
 import {getTemplate} from './security_page.html.js';
@@ -75,8 +80,8 @@ export interface SettingsSecurityPageElement {
   };
 }
 
-const SettingsSecurityPageElementBase =
-    HelpBubbleMixin(RouteObserverMixin(I18nMixin(PrefsMixin(PolymerElement))));
+const SettingsSecurityPageElementBase = HelpBubbleMixin(RouteObserverMixin(
+    WebUiListenerMixin(I18nMixin(PrefsMixin(PolymerElement)))));
 
 export class SettingsSecurityPageElement extends
     SettingsSecurityPageElementBase {
@@ -138,6 +143,11 @@ export class SettingsSecurityPageElement extends
         value: () => [HttpsFirstModeSetting.DISABLED],
       },
 
+      javascriptOptimizerSubLabel_: {
+        type: String,
+        value: '',
+      },
+
       enableHttpsFirstModeNewSettings_: {
         type: Boolean,
         readOnly: true,
@@ -153,20 +163,6 @@ export class SettingsSecurityPageElement extends
           return loadTimeData.getBoolean('enableSecurityKeysSubpage');
         },
       },
-
-      // <if expr="is_win">
-      enableSecurityKeysPhonesSubpage_: {
-        type: Boolean,
-        readOnly: true,
-        value() {
-          // The phones subpage is linked from the security keys subpage, if
-          // it exists. Thus the phones subpage is only linked from this page
-          // if the security keys subpage is disabled.
-          return !loadTimeData.getBoolean('enableSecurityKeysSubpage') &&
-              loadTimeData.getBoolean('enableSecurityKeysManagePhones');
-        },
-      },
-      // </if>
 
       focusConfig: {
         type: Object,
@@ -226,14 +222,12 @@ export class SettingsSecurityPageElement extends
   // </if>
 
   declare private enableSecurityKeysSubpage_: boolean;
-  // <if expr="is_win">
-  declare private enableSecurityKeysPhonesSubpage_: boolean;
-  // </if>
   declare focusConfig: FocusConfig;
   declare private showDisableSafebrowsingDialog_: boolean;
   declare private enableHashPrefixRealTimeLookups_: boolean;
   declare private httpsFirstModeUncheckedValues_: HttpsFirstModeSetting[];
   declare private enableHttpsFirstModeNewSettings_: boolean;
+  declare private javascriptOptimizerSubLabel_: string;
   declare private lastFocusTime_: number|undefined;
   declare private totalTimeInFocus_: number;
   declare private lastInteraction_: SecurityPageInteraction;
@@ -246,6 +240,8 @@ export class SettingsSecurityPageElement extends
       PrivacyPageBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
+  private siteBrowserProxy_: SiteSettingsPrefsBrowserProxy =
+      SiteSettingsPrefsBrowserProxyImpl.getInstance();
 
   private focusConfigChanged_(_newConfig: FocusConfig, oldConfig: FocusConfig) {
     assert(!oldConfig);
@@ -253,7 +249,7 @@ export class SettingsSecurityPageElement extends
     if (routes.SECURITY_KEYS) {
       this.focusConfig.set(routes.SECURITY_KEYS.path, () => {
         const toFocus = this.shadowRoot!.querySelector<HTMLElement>(
-            '#security-keys-subpage-trigger');
+            '#securityKeysSubpageTrigger');
         assert(toFocus);
         focusWithoutInk(toFocus);
       });
@@ -262,8 +258,8 @@ export class SettingsSecurityPageElement extends
     if (routes.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER) {
       this.focusConfig.set(
           routes.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER.path, () => {
-            const toFocus =
-                this.shadowRoot!.querySelector<HTMLElement>('#v8-setting-link');
+            const toFocus = this.shadowRoot!.querySelector<HTMLElement>(
+                '#javascriptOptimizerSettingLink');
             assert(toFocus);
             focusWithoutInk(toFocus);
           });
@@ -300,6 +296,14 @@ export class SettingsSecurityPageElement extends
 
     // Initialize the last focus time on page load.
     this.lastFocusTime_ = HatsBrowserProxyImpl.getInstance().now();
+
+    this.addWebUiListener(
+        'contentSettingCategoryChanged', (category: ContentSettingsTypes) => {
+          if (category === ContentSettingsTypes.JAVASCRIPT_OPTIMIZER) {
+            this.updateJavascriptOptimizerEnabledByDefault_();
+          }
+        });
+    this.updateJavascriptOptimizerEnabledByDefault_();
   }
 
   /**
@@ -388,6 +392,16 @@ export class SettingsSecurityPageElement extends
   private updateCollapsedButtons_() {
     this.$.safeBrowsingEnhanced.updateCollapsed();
     this.$.safeBrowsingStandard.updateCollapsed();
+  }
+
+  private async updateJavascriptOptimizerEnabledByDefault_() {
+    const defaultValue =
+        await this.siteBrowserProxy_.getDefaultValueForContentType(
+            ContentSettingsTypes.JAVASCRIPT_OPTIMIZER);
+    this.javascriptOptimizerSubLabel_ = this.i18n(
+        isSettingEnabled(defaultValue.setting) ?
+            'securityJavascriptOptimizerLinkRowLabelEnabled' :
+            'securityJavascriptOptimizerLinkRowLabelDisabled');
   }
 
   /**
@@ -495,19 +509,13 @@ export class SettingsSecurityPageElement extends
     window.open(loadTimeData.getString('advancedProtectionURL'));
   }
 
-  private onV8SettingsClick_() {
+  private onJavascriptOptimizerSettingsClick_() {
     Router.getInstance().navigateTo(routes.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER);
   }
 
   private onSecurityKeysClick_() {
     Router.getInstance().navigateTo(routes.SECURITY_KEYS);
   }
-
-  // <if expr="is_win">
-  private onManagePhonesClick_() {
-    Router.getInstance().navigateTo(routes.SECURITY_KEYS_PHONES);
-  }
-  // </if>
 
   private onEnhancedProtectionLearnMoreClick_(e: Event) {
     OpenWindowProxyImpl.getInstance().openUrl(

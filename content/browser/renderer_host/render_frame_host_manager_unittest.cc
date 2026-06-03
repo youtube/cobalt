@@ -20,6 +20,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -1190,7 +1191,7 @@ TEST_P(RenderFrameHostManagerTest, WebUI) {
 TEST_P(RenderFrameHostManagerTest, WebUIInNewTab) {
   scoped_refptr<SiteInstance> blank_instance =
       SiteInstance::Create(browser_context());
-  blank_instance->GetOrCreateProcess()->Init();
+  blank_instance->GetOrCreateProcessForTesting()->Init();
 
   // Create a blank tab.
   std::unique_ptr<TestWebContents> web_contents1(

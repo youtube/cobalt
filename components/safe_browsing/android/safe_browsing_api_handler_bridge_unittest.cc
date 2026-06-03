@@ -4,15 +4,12 @@
 
 #include "components/safe_browsing/android/safe_browsing_api_handler_bridge.h"
 
-#include "base/android/jni_android.h"
-#include "base/android/jni_array.h"
-#include "base/android/jni_string.h"
-#include "base/containers/heap_array.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/types/fixed_array.h"
+#include "components/safe_browsing/android/safe_browsing_api_handler_test_util.h"
 #include "components/safe_browsing/android/safe_browsing_api_handler_util.h"
 #include "components/safe_browsing/core/browser/db/util.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
@@ -23,22 +20,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-// Must come after all headers that specialize FromJniType() / ToJniType().
-#include "components/safe_browsing/android/native_j_unittests_jni_headers/SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_jni.h"
-
-using base::android::ConvertUTF8ToJavaString;
-using base::android::ScopedJavaLocalRef;
-using base::android::ToJavaIntArray;
-
-using ::testing::NotNull;
-
 namespace safe_browsing {
 
 namespace {
 
-// This value should be aligned with DEFAULT_CHECK_DELTA_MICROSECONDS in
-// SafeBrowsingApiHandlerBridgeNativeUnitTestHelper.MockSafeBrowsingApiHandler.
-constexpr int kExpectedSafeBrowsingCheckDeltaMicroseconds = 15;
+using SafetyNetApiInitializationState =
+    safe_browsing::test::SafetyNetApiInitializationState;
 
 std::vector<SafeBrowsingJavaThreatType> GetAllSafeBrowsingThreatTypes() {
   return {SafeBrowsingJavaThreatType::SOCIAL_ENGINEERING,
@@ -56,7 +43,9 @@ SBThreatTypeSet GetAllThreatTypes() {
 
 }  // namespace
 
-class SafeBrowsingApiHandlerBridgeTest : public testing::Test {
+class SafeBrowsingApiHandlerBridgeTest
+    : public testing::Test,
+      public safe_browsing::test::WithMockSafeBrowsingApiHandler {
  public:
   SafeBrowsingApiHandlerBridgeTest() {
     base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
@@ -65,104 +54,15 @@ class SafeBrowsingApiHandlerBridgeTest : public testing::Test {
   }
 
   void SetUp() override {
-    env_ = base::android::AttachCurrentThread();
-    ASSERT_THAT(env_, NotNull());
-    Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_setUp(env_);
+    safe_browsing::test::WithMockSafeBrowsingApiHandler::SetUp();
   }
 
   void TearDown() override {
-    SafeBrowsingApiHandlerBridge::GetInstance()
-        .ResetSafeBrowsingApiAvailableForTesting();
-    Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_tearDown(env_);
+    safe_browsing::test::WithMockSafeBrowsingApiHandler::TearDown();
   }
 
  protected:
   using enum SBThreatType;
-
-  void AddSafeBrowsingResponse(
-      const GURL& url,
-      const SafeBrowsingApiLookupResult& returned_lookup_result,
-      const SafeBrowsingJavaThreatType& returned_threat_type,
-      const std::vector<SafeBrowsingJavaThreatAttribute>&
-          returned_threat_attributes,
-      const SafeBrowsingJavaResponseStatus& returned_response_status,
-      const std::vector<SafeBrowsingJavaThreatType>& expected_threat_types,
-      const SafeBrowsingJavaProtocol& expected_protocol) {
-    ScopedJavaLocalRef<jstring> j_url =
-        ConvertUTF8ToJavaString(env_, url.spec());
-    auto int_threat_types =
-        base::HeapArray<int>::WithSize(expected_threat_types.size());
-    auto itr = int_threat_types.begin();
-    for (auto expected_threat_type : expected_threat_types) {
-      *itr++ = static_cast<int>(expected_threat_type);
-    }
-    auto int_threat_attributes =
-        base::HeapArray<int>::WithSize(returned_threat_attributes.size());
-    itr = int_threat_attributes.begin();
-    for (auto returned_threat_attribute : returned_threat_attributes) {
-      *itr++ = static_cast<int>(returned_threat_attribute);
-    }
-    Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_setSafeBrowsingApiHandlerResponse(
-        env_, j_url, ToJavaIntArray(env_, int_threat_types),
-        static_cast<int>(expected_protocol),
-        static_cast<int>(returned_lookup_result),
-        static_cast<int>(returned_threat_type),
-        ToJavaIntArray(env_, int_threat_attributes),
-        static_cast<int>(returned_response_status));
-  }
-
-  void SetVerifyAppsResult(VerifyAppsEnabledResult result) {
-    Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_setVerifyAppsResult(
-        env_, static_cast<int>(result));
-  }
-
-  void RunHashDatabaseUrlCheck(
-      const GURL& url,
-      const SBThreatTypeSet& threat_types,
-      SBThreatType expected_threat_type,
-      SubresourceFilterMatch expected_subresource_filter_match) {
-    bool callback_executed = false;
-    auto callback =
-        SafeBrowsingApiHandlerBridge::ResponseCallback(base::BindOnce(
-            [](bool* callback_executed, SBThreatType expected_threat_type,
-               SubresourceFilterMatch expected_subresource_filter_match,
-               SBThreatType returned_threat_type,
-               const ThreatMetadata& returned_metadata) {
-              *callback_executed = true;
-              EXPECT_EQ(returned_threat_type, expected_threat_type);
-              EXPECT_EQ(returned_metadata.subresource_filter_match,
-                        expected_subresource_filter_match);
-            },
-            &callback_executed, expected_threat_type,
-            expected_subresource_filter_match));
-    SafeBrowsingApiHandlerBridge::GetInstance().StartHashDatabaseUrlCheck(
-        std::move(callback), url, threat_types);
-    task_environment_.RunUntilIdle();
-    EXPECT_TRUE(callback_executed);
-  }
-
-  void RunHashRealTimeUrlCheck(const GURL& url,
-                               const SBThreatTypeSet& threat_types,
-                               SBThreatType expected_threat_type) {
-    bool callback_executed = false;
-    auto callback =
-        SafeBrowsingApiHandlerBridge::ResponseCallback(base::BindOnce(
-            [](bool* callback_executed, SBThreatType expected_threat_type,
-               SBThreatType returned_threat_type,
-               const ThreatMetadata& returned_metadata) {
-              *callback_executed = true;
-              EXPECT_EQ(returned_threat_type, expected_threat_type);
-            },
-            &callback_executed, expected_threat_type));
-    SafeBrowsingApiHandlerBridge::GetInstance().StartHashRealTimeUrlCheck(
-        std::move(callback), url, threat_types);
-    task_environment_.RunUntilIdle();
-    EXPECT_TRUE(callback_executed);
-    EXPECT_EQ(
-        Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_getSafeBrowsingApiUrlCheckTimeObserverResult(
-            env_),
-        kExpectedSafeBrowsingCheckDeltaMicroseconds);
-  }
 
   void CheckSafeBrowsingApiHistogramValues(
       const std::string& suffix,
@@ -287,7 +187,6 @@ class SafeBrowsingApiHandlerBridgeTest : public testing::Test {
     }
   }
 
-  raw_ptr<JNIEnv> env_;
   content::BrowserTaskEnvironment task_environment_;
   base::HistogramTester histogram_tester_;
 };
@@ -304,7 +203,6 @@ TEST_F(SafeBrowsingApiHandlerBridgeTest, HashDatabaseUrlCheck_Safe) {
   RunHashDatabaseUrlCheck(url, /*threat_types=*/GetAllThreatTypes(),
                           /*expected_threat_type=*/SB_THREAT_TYPE_SAFE,
                           /*expected_subresource_filter_match=*/{});
-  task_environment_.RunUntilIdle();
 
   CheckSafeBrowsingApiHistogramValues(
       ".LocalBlocklist",
@@ -472,17 +370,39 @@ TEST_F(SafeBrowsingApiHandlerBridgeTest, HashDatabaseUrlCheck_FromCommandline) {
                           /*expected_subresource_filter_match=*/{});
 }
 
-TEST_F(SafeBrowsingApiHandlerBridgeTest, CsdAllowlistCheck) {
-  GURL url("https://example.com");
-  ScopedJavaLocalRef<jstring> j_url = ConvertUTF8ToJavaString(env_, url.spec());
-  Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_setCsdAllowlistMatch(
-      env_, j_url, true);
+TEST_F(SafeBrowsingApiHandlerBridgeTest, CheckLocalAllowlists) {
+  SetSafetyNetApiInitializationState(
+      SafetyNetApiInitializationState::kInitialized);
+
+  GURL url1("https://example.com");
+  GURL url2("https://download.test");
+  GURL url3("https://bothlists.test");
+  AddLocalAllowlistEntry(url1, /*is_download_allowlist=*/false,
+                         /*is_match=*/true);
+  AddLocalAllowlistEntry(url2, /*is_download_allowlist=*/false,
+                         /*is_match=*/false);
+  AddLocalAllowlistEntry(url3, /*is_download_allowlist=*/false,
+                         /*is_match=*/true);
+  AddLocalAllowlistEntry(url1, /*is_download_allowlist=*/true,
+                         /*is_match=*/false);
+  AddLocalAllowlistEntry(url2, /*is_download_allowlist=*/true,
+                         /*is_match=*/true);
+  AddLocalAllowlistEntry(url3, /*is_download_allowlist=*/true,
+                         /*is_match=*/true);
+
   EXPECT_TRUE(
-      SafeBrowsingApiHandlerBridge::GetInstance().StartCSDAllowlistCheck(url));
-  Java_SafeBrowsingApiHandlerBridgeNativeUnitTestHelper_setCsdAllowlistMatch(
-      env_, j_url, false);
+      SafeBrowsingApiHandlerBridge::GetInstance().StartCSDAllowlistCheck(url1));
   EXPECT_FALSE(
-      SafeBrowsingApiHandlerBridge::GetInstance().StartCSDAllowlistCheck(url));
+      SafeBrowsingApiHandlerBridge::GetInstance().StartCSDAllowlistCheck(url2));
+  EXPECT_TRUE(
+      SafeBrowsingApiHandlerBridge::GetInstance().StartCSDAllowlistCheck(url3));
+
+  EXPECT_FALSE(SafeBrowsingApiHandlerBridge::GetInstance()
+                   .StartCSDDownloadAllowlistCheck(url1));
+  EXPECT_TRUE(SafeBrowsingApiHandlerBridge::GetInstance()
+                  .StartCSDDownloadAllowlistCheck(url2));
+  EXPECT_TRUE(SafeBrowsingApiHandlerBridge::GetInstance()
+                  .StartCSDDownloadAllowlistCheck(url3));
 }
 
 TEST_F(SafeBrowsingApiHandlerBridgeTest, HashRealTimeUrlCheck_Safe) {
@@ -808,6 +728,82 @@ TEST_F(SafeBrowsingApiHandlerBridgeTest, EnableVerifyApps) {
   SafeBrowsingApiHandlerBridge::GetInstance().StartEnableVerifyApps(
       result_future.GetCallback());
   EXPECT_EQ(result_future.Get(), VerifyAppsEnabledResult::TIMEOUT);
+}
+
+TEST_F(SafeBrowsingApiHandlerBridgeTest, GetSafetyNetIdFailsIfNotInitialized) {
+  SetSafetyNetApiInitializationState(
+      SafetyNetApiInitializationState::kNotAvailable);
+  base::test::TestFuture<const std::string&> result_future;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future.GetCallback());
+  EXPECT_EQ(result_future.Get(), "");
+}
+
+TEST_F(SafeBrowsingApiHandlerBridgeTest,
+       GetSafetyNetIdFailsIfFirstPartyApiNotAvailable) {
+  SetSafetyNetApiInitializationState(
+      SafetyNetApiInitializationState::kInitialized);
+  base::test::TestFuture<const std::string&> result_future;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future.GetCallback());
+  EXPECT_EQ(result_future.Get(), "");
+}
+
+TEST_F(SafeBrowsingApiHandlerBridgeTest,
+       GetSafetyNetIdSucceedsIfFirstPartyApiAvailable) {
+  SetSafetyNetApiInitializationState(
+      SafetyNetApiInitializationState::kInitializedFirstParty);
+  base::test::TestFuture<const std::string&> result_future;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future.GetCallback());
+  EXPECT_EQ(result_future.Get(), "safety-net-id-0");
+}
+
+TEST_F(SafeBrowsingApiHandlerBridgeTest,
+       GetSafetyNetIdCachesAndReturnsSameNonEmptyResult) {
+  SetSafetyNetApiInitializationState(
+      SafetyNetApiInitializationState::kInitializedFirstParty);
+  base::test::TestFuture<const std::string&> result_future;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future.GetCallback());
+  EXPECT_EQ(result_future.Get(), "safety-net-id-0");
+
+  EXPECT_TRUE(SafeBrowsingApiHandlerBridge::GetInstance()
+                  .GetCachedSafetyNetIdForTesting()
+                  .has_value());
+  EXPECT_EQ(*SafeBrowsingApiHandlerBridge::GetInstance()
+                 .GetCachedSafetyNetIdForTesting(),
+            "safety-net-id-0");
+
+  base::test::TestFuture<const std::string&> result_future2;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future2.GetCallback());
+  EXPECT_EQ(result_future2.Get(), "safety-net-id-0");
+}
+
+TEST_F(SafeBrowsingApiHandlerBridgeTest,
+       GetSafetyNetIdCachesAndReturnsEmptyResult) {
+  SetSafetyNetApiInitializationState(
+      SafetyNetApiInitializationState::kInitializedFirstParty);
+  // Simulate an error that returns an empty result despite being initialized.
+  SetSafetyNetIdResultEmpty();
+
+  base::test::TestFuture<const std::string&> result_future;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future.GetCallback());
+  EXPECT_EQ(result_future.Get(), "");
+
+  EXPECT_TRUE(SafeBrowsingApiHandlerBridge::GetInstance()
+                  .GetCachedSafetyNetIdForTesting()
+                  .has_value());
+  EXPECT_EQ(*SafeBrowsingApiHandlerBridge::GetInstance()
+                 .GetCachedSafetyNetIdForTesting(),
+            "");
+
+  base::test::TestFuture<const std::string&> result_future2;
+  SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+      result_future2.GetCallback());
+  EXPECT_EQ(result_future2.Get(), "");
 }
 
 }  // namespace safe_browsing

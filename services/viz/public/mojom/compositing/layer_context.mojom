@@ -17,6 +17,7 @@ import "services/viz/public/mojom/compositing/view_transition_request.mojom";
 import "skia/public/mojom/skcolor4f.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "ui/gfx/mojom/display_color_spaces.mojom";
+import "ui/gfx/mojom/overlay_transform.mojom";
 
 // Describes a request to create or delete a UIResource in the service-side
 // display tree.
@@ -90,6 +91,17 @@ struct LayerTreeUpdate {
   // If a new LocalSurfaceId is assigned by the parent, it's included here.
   LocalSurfaceId? local_surface_id_from_parent;
 
+  // If a new LocalSurfaceId needs to be generated for LayerTreeImpl in viz
+  // process.
+  bool new_local_surface_id_request;
+
+  // The viz::LocalSurfaceId to unthrottle drawing for.
+  // This is from LayerTreeHostImpl.
+  // It is still necessary to send it over to viz because
+  // LayerContextImpl::BeginFrame calls LayerTreeHostImpl::WillBeginImplFrame
+  // which uses the target_local_surface_id_.
+  LocalSurfaceId? target_local_surface_id;
+
   // The background color with which to fill any space not covered by layers
   // within the tree's content rect.
   skia.mojom.SkColor4f background_color;
@@ -103,6 +115,15 @@ struct LayerTreeUpdate {
 
   // The tree's viewport damage rect.
   gfx.mojom.Rect viewport_damage_rect;
+
+  // The elastic overscroll amount applied to the layer tree.
+  gfx.mojom.Vector2dF elastic_overscroll;
+
+  // Display transform hint for the generated compositor frame.
+  gfx.mojom.OverlayTransform display_transform_hint;
+
+  // The maximum safe area inset from the bottom of the screen.
+  float max_safe_area_inset_bottom;
 
   // UIResource change requests accumulated since the last LayerTreeUpdate.
   array<TransferableUIResourceRequest> ui_resource_requests;
@@ -190,4 +211,3 @@ struct PendingLayerContext {
   pending_associated_receiver<LayerContext> receiver;
   pending_associated_remote<LayerContextClient> client;
 };
-

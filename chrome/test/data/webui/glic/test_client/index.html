@@ -277,30 +277,25 @@ found in the LICENSE file.
 </div>
 <div class="section">
   <h1>State</h1>
-  <label>panelActive
-    <input id="panelActiveCheckbox" type="checkbox" disabled />
-  </label>
+  <div>
+    <label>panelActive
+      <input id="panelActiveCheckbox" type="checkbox" disabled />
+    </label>
+    <br />
+    <label>Enable tab context access indicator UI:
+      <input id="contextAccessIndicator" type="checkbox">
+    </label>
+  </div>
   <div>
     <h4>Focused Tab V1</h4>
     <label>Focused Tab Url: </label><input id="focusedUrl" type="text" /> <br />
     <label>Favicon: </label><img class="favicon" id="focusedFavicon" />
-    <span id="focusedTabLogs"></span>
-    <div>
-      <label>Enable setContextAccessIndicator
-        <input id="contextAccessIndicator" type="checkbox">
-      </label>
-    </div>
   </div>
   <div>
     <h4>Focused Tab V2</h4>
     <label>Focused Tab Url: </label><input id="focusedUrlV2" type="text" /> <br />
-    <label>Favicon: </label><img class="favicon" id="focusedFaviconV2" />
+    <label>Favicon: </label><img class="favicon" id="focusedFaviconV2" /> <br />
     <span id="focusedTabLogsV2"></span>
-    <div>
-      <label>Enable setContextAccessIndicator
-        <input id="contextAccessIndicatorV2" type="checkbox">
-      </label>
-    </div>
   </div>
 </div>
 <div class="section">
@@ -355,6 +350,12 @@ found in the LICENSE file.
   <span id="getPageContextStatus"></span>
 </div>
 <div class="section">
+  <h1>Annotated Page Content</h1>
+  <div>
+    <button id="copyAPCToClipboardBtn">Copy APC to Clipboard</button>
+  </div>
+</div>
+<div class="section">
   <h1>Test Location Access</h1>
   <button id="getlocation">Get Location</button> <br />
   <div id="location"></div>
@@ -390,6 +391,7 @@ found in the LICENSE file.
   <span id="syncCookieStatus"></span>
   <button id="testLogsBn">test logs</button>
   <button id="testClipboardSave">Save Junk To Clipboard</button>
+  <button id="maybeRefreshUserStatusBn">maybeRefreshUserStatus()</button>
 </div>
 <div class="section">
   <h1>Demo Test Utils</h1>
@@ -486,7 +488,7 @@ found in the LICENSE file.
 <div class="section">
   <h1>Responsiveness Check</h1>
   <label for="hangDuration">Hang Duration (seconds):</label>
-  <input type="number" id="hangDuration" value="11" step="any" min="0">
+  <input type="number" id="hangDuration" value="21" step="any" min="0">
   <button id="hang">Hang</button>
 
 </div>
@@ -521,6 +523,22 @@ found in the LICENSE file.
   </div>
   <span id="actionUpdatedContextResult"></span>
   <span id="actionStatus"></span>
+</div>
+<div class="section" id="multiTabSection">
+  <h1>Multi-Tab</h1>
+  <button id="pinFocusedTab">Share Current</button>
+  <button id="fetchPinned">⬆️ </button>
+  <button id="unpin">❌</button>
+  <p>Shared</p>
+  <ul id="pinnedTabs">
+    <li>
+      <span>some url</span>
+      <img class="favicon"/>
+      <span>some count</span>
+      <button>❌</button>
+      <button>⬆️ </button>
+    </li>
+  </ul>
 </div>
 <br />
 <div id="status"></div>

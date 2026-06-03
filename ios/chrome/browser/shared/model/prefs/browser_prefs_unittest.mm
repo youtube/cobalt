@@ -45,8 +45,6 @@ TEST_F(BrowserPrefsTest, VerifyProfilePrefsMigration) {
   base::Time now = base::Time::Now();
 
   // Simulate registering a value different from default in profile prefService.
-  pref_service_.SetBoolean(prefs::kBottomOmnibox, true);
-  pref_service_.SetBoolean(prefs::kBottomOmniboxByDefault, true);
   pref_service_.SetBoolean(
       password_manager::prefs::kCredentialProviderEnabledOnStartup, true);
   pref_service_.SetTime(prefs::kIdentityConfirmationSnackbarLastPromptTime,
@@ -54,12 +52,6 @@ TEST_F(BrowserPrefsTest, VerifyProfilePrefsMigration) {
   pref_service_.SetInteger(prefs::kIdentityConfirmationSnackbarDisplayCount, 1);
   pref_service_.SetBoolean(prefs::kIncognitoInterstitialEnabled, true);
   pref_service_.SetInteger(prefs::kAddressBarSettingsNewBadgeShownCount, 1);
-
-  EXPECT_EQ(pref_service_.GetBoolean(prefs::kBottomOmnibox), true);
-  EXPECT_EQ(local_state()->GetBoolean(prefs::kBottomOmnibox), false);
-
-  EXPECT_EQ(pref_service_.GetBoolean(prefs::kBottomOmniboxByDefault), true);
-  EXPECT_EQ(local_state()->GetBoolean(prefs::kBottomOmniboxByDefault), false);
 
   EXPECT_EQ(pref_service_.GetBoolean(
                 password_manager::prefs::kCredentialProviderEnabledOnStartup),
@@ -97,12 +89,6 @@ TEST_F(BrowserPrefsTest, VerifyProfilePrefsMigration) {
   MigrateObsoleteProfilePrefs(&pref_service_);
 
   // Verify that the prefs were migrated successfully.
-  EXPECT_EQ(pref_service_.GetBoolean(prefs::kBottomOmnibox), false);
-  EXPECT_EQ(local_state()->GetBoolean(prefs::kBottomOmnibox), true);
-
-  EXPECT_EQ(pref_service_.GetBoolean(prefs::kBottomOmniboxByDefault), false);
-  EXPECT_EQ(local_state()->GetBoolean(prefs::kBottomOmniboxByDefault), true);
-
   EXPECT_EQ(pref_service_.GetBoolean(
                 password_manager::prefs::kCredentialProviderEnabledOnStartup),
             false);
@@ -147,22 +133,13 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
 
   // Set initial values in local_state
 
-  // New Tab Page Display Count
-  local_state()->SetInteger(prefs::kIosSyncSegmentsNewTabPageDisplayCount, 10);
-
   // Safety Check Manager and Settings
   local_state()->SetString(prefs::kIosSafetyCheckManagerPasswordCheckResult,
                            "Example");
-  local_state()->SetBoolean(
-      safety_check_prefs::kSafetyCheckInMagicStackDisabledPref, true);
 
   // Account Info
   local_state()->SetDict(prefs::kIosPreRestoreAccountInfo,
                          dict_example.Clone());
-
-  // Tab Resumption Settings
-  local_state()->SetBoolean(tab_resumption_prefs::kTabResumptionDisabledPref,
-                            true);
 
   // Magic Stack Segmentation Impressions
   local_state()->SetInteger(
@@ -182,14 +159,6 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
 
   // Verify initial state before migration
 
-  // Check New Tab Page Display Count
-  EXPECT_EQ(
-      pref_service_.GetInteger(prefs::kIosSyncSegmentsNewTabPageDisplayCount),
-      0);
-  EXPECT_EQ(
-      local_state()->GetInteger(prefs::kIosSyncSegmentsNewTabPageDisplayCount),
-      10);
-
   // Check Safety Check Manager and Settings
   EXPECT_EQ(
       pref_service_.GetString(prefs::kIosSafetyCheckManagerPasswordCheckResult),
@@ -197,22 +166,12 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
   EXPECT_EQ(local_state()->GetString(
                 prefs::kIosSafetyCheckManagerPasswordCheckResult),
             "Example");
-  EXPECT_FALSE(pref_service_.GetBoolean(
-      safety_check_prefs::kSafetyCheckInMagicStackDisabledPref));
-  EXPECT_TRUE(local_state()->GetBoolean(
-      safety_check_prefs::kSafetyCheckInMagicStackDisabledPref));
 
   // Check Account Info
   EXPECT_EQ(pref_service_.GetDict(prefs::kIosPreRestoreAccountInfo).size(),
             0ul);
   EXPECT_EQ(local_state()->GetDict(prefs::kIosPreRestoreAccountInfo),
             dict_example);
-
-  // Check Tab Resumption Settings
-  EXPECT_FALSE(pref_service_.GetBoolean(
-      tab_resumption_prefs::kTabResumptionDisabledPref));
-  EXPECT_TRUE(local_state()->GetBoolean(
-      tab_resumption_prefs::kTabResumptionDisabledPref));
 
   // Check Magic Stack Segmentation Impressions in pref_service (should be -1)
   EXPECT_EQ(pref_service_.GetInteger(
@@ -269,14 +228,6 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
 
   // Verify state after migration
 
-  // Check New Tab Page Display Count
-  EXPECT_EQ(
-      pref_service_.GetInteger(prefs::kIosSyncSegmentsNewTabPageDisplayCount),
-      10);
-  EXPECT_EQ(
-      local_state()->GetInteger(prefs::kIosSyncSegmentsNewTabPageDisplayCount),
-      0);
-
   // Check Safety Check Manager and Settings
   EXPECT_EQ(
       pref_service_.GetString(prefs::kIosSafetyCheckManagerPasswordCheckResult),
@@ -284,22 +235,12 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
   EXPECT_EQ(local_state()->GetString(
                 prefs::kIosSafetyCheckManagerPasswordCheckResult),
             NameForSafetyCheckState(PasswordSafetyCheckState::kDefault));
-  EXPECT_TRUE(pref_service_.GetBoolean(
-      safety_check_prefs::kSafetyCheckInMagicStackDisabledPref));
-  EXPECT_FALSE(local_state()->GetBoolean(
-      safety_check_prefs::kSafetyCheckInMagicStackDisabledPref));
 
   // Check Account Info
   EXPECT_EQ(pref_service_.GetDict(prefs::kIosPreRestoreAccountInfo),
             dict_example);
   EXPECT_EQ(local_state()->GetDict(prefs::kIosPreRestoreAccountInfo).size(),
             0ul);
-
-  // Check Tab Resumption Settings
-  EXPECT_TRUE(pref_service_.GetBoolean(
-      tab_resumption_prefs::kTabResumptionDisabledPref));
-  EXPECT_FALSE(local_state()->GetBoolean(
-      tab_resumption_prefs::kTabResumptionDisabledPref));
 
   // Check Magic Stack Segmentation Impressions in pref_service
   EXPECT_EQ(pref_service_.GetInteger(

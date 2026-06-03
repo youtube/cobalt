@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_NEW_TAB_FOOTER_FOOTER_CONTROLLER_H_
 #define CHROME_BROWSER_UI_VIEWS_NEW_TAB_FOOTER_FOOTER_CONTROLLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -29,15 +30,13 @@ class NewTabFooterController : public content::WebContentsObserver {
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
-  void UpdateFooterVisibility();
+  void UpdateFooterVisibility(bool log_on_load_metric);
   // Callback for active tab changes from BrowserWindowInterface.
   void OnActiveTabChanged(BrowserWindowInterface* browser);
-  void ShowUI();
-  void CloseUI();
 
   raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<new_tab_footer::NewTabFooterWebView> footer_;
-  base::CallbackListSubscription tab_activation_subscription_subscription_;
+  base::CallbackListSubscription tab_activation_subscription_;
   PrefChangeRegistrar pref_change_registrar_;
   PrefChangeRegistrar local_state_pref_change_registrar_;
   raw_ptr<Profile> profile_;

@@ -141,9 +141,9 @@ static inline bool ShouldKeepAfterKeepAll(UChar last_ch,
                                           UChar next_ch) {
   UChar pre_ch = U_MASK(u_charType(ch)) & U_GC_M_MASK ? last_ch : ch;
   return U_MASK(u_charType(pre_ch)) & (U_GC_L_MASK | U_GC_N_MASK) &&
-         !WTF::unicode::HasLineBreakingPropertyComplexContext(pre_ch) &&
+         !unicode::HasLineBreakingPropertyComplexContext(pre_ch) &&
          U_MASK(u_charType(next_ch)) & (U_GC_L_MASK | U_GC_N_MASK) &&
-         !WTF::unicode::HasLineBreakingPropertyComplexContext(next_ch);
+         !unicode::HasLineBreakingPropertyComplexContext(next_ch);
 }
 
 enum class FastBreakResult : uint8_t { kNoBreak, kCanBreak, kUnknown };
@@ -225,15 +225,15 @@ struct LazyLineBreakIterator::Context {
       if (!GetFastLineBreak(last_ch, ch)) {
         return FastBreakResult::kNoBreak;
       }
-      static_assert(kSoftHyphenCharacter <= kFastLineBreakMaxChar);
-      if (disable_soft_hyphen && last_ch == kSoftHyphenCharacter) [[unlikely]] {
+      static_assert(uchar::kSoftHyphen <= kFastLineBreakMaxChar);
+      if (disable_soft_hyphen && last_ch == uchar::kSoftHyphen) [[unlikely]] {
         return FastBreakResult::kNoBreak;
       }
       return FastBreakResult::kCanBreak;
     }
 
     // Otherwise defer to the Unicode algorithm.
-    static_assert(kNoBreakSpaceCharacter <= kFastLineBreakMaxChar,
+    static_assert(uchar::kNoBreakSpace <= kFastLineBreakMaxChar,
                   "Include NBSP for the performance.");
     return FastBreakResult::kUnknown;
   }
@@ -332,7 +332,7 @@ inline unsigned LazyLineBreakIterator::NextBreakablePosition(
         }
         next_break = following + start_offset_;
         if (disable_soft_hyphen_ && next_break > 0 &&
-            UNSAFE_TODO(str[next_break - 1]) == kSoftHyphenCharacter)
+            UNSAFE_TODO(str[next_break - 1]) == uchar::kSoftHyphen)
             [[unlikely]] {
           continue;
         }

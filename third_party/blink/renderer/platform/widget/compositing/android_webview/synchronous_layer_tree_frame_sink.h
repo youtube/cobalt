@@ -106,6 +106,7 @@ class SynchronousLayerTreeFrameSink
   void DidNotProduceFrame(const viz::BeginFrameAck& ack,
                           cc::FrameSkippedReason reason) override;
   void Invalidate(bool needs_draw) override;
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused() override;
 
   // viz::mojom::CompositorFrameSinkClient implementation.
   void DidReceiveCompositorFrameAck(
@@ -185,10 +186,6 @@ class SynchronousLayerTreeFrameSink
     void DisplayAddChildWindowToBrowser(
         gpu::SurfaceHandle child_window) override {}
     void SetWideColorEnabled(bool enabled) override {}
-    void SetPreferredFrameInterval(base::TimeDelta interval) override {}
-    base::TimeDelta GetPreferredFrameIntervalForFrameSinkId(
-        const viz::FrameSinkId& id,
-        viz::mojom::CompositorFrameSinkType* type) override;
   };
 
   viz::DebugRendererSettings debug_settings_;
@@ -222,6 +219,8 @@ class SynchronousLayerTreeFrameSink
   gfx::Rect sw_viewport_for_current_draw_;
 
   THREAD_CHECKER(thread_checker_);
+
+  std::optional<uint64_t> gpu_memory_override_in_bytes_;
 
   // Indicates that webview using viz
   const bool viz_frame_submission_enabled_;

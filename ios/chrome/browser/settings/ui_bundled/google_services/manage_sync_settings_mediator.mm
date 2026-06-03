@@ -163,6 +163,8 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   _identityManager = nullptr;
   _identityManagerObserver.reset();
   _authenticationService = nullptr;
+  self.commandHandler = nullptr;
+  self.syncErrorHandler = nullptr;
   _chromeAccountManagerService = nullptr;
   _prefService = nullptr;
   _signedInIdentity = nil;
@@ -914,8 +916,12 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
 #pragma mark - SyncObserverModelBridge
 
 - (void)onSyncStateChanged {
-  if (_ignoreSyncStateChanges) {
+  if (_ignoreSyncStateChanges || self.signOutFlowInProgress) {
     // The UI should not updated so the switch animations can run smoothly.
+    return;
+  }
+  if (!_syncService->GetDisableReasons().empty()) {
+    [self.commandHandler closeManageSyncSettings];
     return;
   }
   [self updateSyncErrorsSection:YES];

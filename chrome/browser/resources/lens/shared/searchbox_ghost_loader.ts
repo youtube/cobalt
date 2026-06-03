@@ -5,6 +5,7 @@
 import '//resources/cr_elements/cr_spinner_style.css.js';
 import '/strings.m.js';
 import './searchbox_shared_style.css.js';
+import '//resources/cr_components/searchbox/searchbox_icon.js';
 
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
 import {assert} from '//resources/js/assert.js';
@@ -33,6 +34,11 @@ export class SearchboxGhostLoaderElement extends
 
   static get properties() {
     return {
+      enableCsbMotionTweaks: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableCsbMotionTweaks'),
+        reflectToAttribute: true,
+      },
       showErrorState: {
         type: Boolean,
         reflectToAttribute: true,
@@ -52,15 +58,34 @@ export class SearchboxGhostLoaderElement extends
         type: String,
         computed: `computeGhostLoaderPrimaryMessage(pageContentType)`,
       },
+      enableSummarizeSuggestionHint: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableSummarizeSuggestionHint'),
+        reflectToAttribute: true,
+      },
+      suggestionCount: {
+        type: Number,
+        value: 0,
+      },
+      shouldFadeOut:
+          {type: Boolean, computed: 'computeShouldFadeOut(suggestionCount)'},
     };
   }
 
+  // Whether the contextual searchbox motion tweaks are enabled via feature flag.
+  declare private enableCsbMotionTweaks: boolean;
   // Whether the autocomplete stop timer has triggered. If it has, we should
   // hide the ghost loader. We also show the error text in this case.
   declare private showErrorState: boolean;
   declare private showContextualSearchboxLoadingState: boolean;
   // What the current page content type is.
   declare private pageContentType: PageContentType;
+  declare private enableSummarizeSuggestionHint: boolean;
+  // The number of suggestions to show in the ghost loader.
+  declare private suggestionCount: number;
+  // Whether the ghost loader suggestions should fade out now that suggestions
+  // came in.
+  declare private shouldFadeOut: boolean;
   private browserProxy: BrowserProxy = BrowserProxyImpl.getInstance();
   private listenerIds: number[];
   declare private ghostLoaderPrimaryMessage: string;
@@ -105,6 +130,20 @@ export class SearchboxGhostLoaderElement extends
     return this.pageContentType === PageContentType.kPdf ?
         this.i18n('searchboxGhostLoaderHintTextPrimaryPdf') :
         this.i18n('searchboxGhostLoaderHintTextPrimaryDefault');
+  }
+
+  private computeShouldFadeOut() {
+    // Once the suggestionCount is no longer 0, fade out the ghost loader
+    // suggestions.
+    return this.suggestionCount !== 0;
+  }
+
+  private getSuggestionItems(): number[] {
+    if (this.suggestionCount === 0) {
+      return Array(5).fill(0);
+    }
+    // The content of the array is unused.
+    return Array(this.suggestionCount).fill(0);
   }
 }
 

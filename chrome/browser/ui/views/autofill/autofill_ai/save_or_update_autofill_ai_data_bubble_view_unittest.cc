@@ -13,7 +13,6 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/test_renderer_host.h"
@@ -29,7 +28,7 @@
 
 // TODO(crbug.com/362227379): Consider having an interactive UI test to evaluate
 // both the controller and the view working together.
-namespace autofill_ai {
+namespace autofill {
 
 namespace {
 
@@ -136,4 +135,4 @@ TEST_F(SaveOrUpdateAutofillAiDataBubbleViewTest, CancelInvokesTheController) {
 
 }  // namespace
 
-}  // namespace autofill_ai
+}  // namespace autofill

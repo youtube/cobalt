@@ -44,6 +44,7 @@
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_registry_cache.h"
@@ -95,6 +96,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_browser_delegate.h"
 #include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "components/account_id/account_id.h"
@@ -192,6 +194,10 @@ IN_PROC_BROWSER_TEST_F(AppListClientImplBrowserTest, IsExtensionAppOpen) {
   base::FilePath extension_path = test_data_dir_.AppendASCII("app");
   const extensions::Extension* extension_app = LoadExtension(extension_path);
   ASSERT_NE(nullptr, extension_app);
+
+  apps::chrome_app_deprecation::ScopedAddAppToAllowlistForTesting allowlist(
+      extension_app->id());
+
   EXPECT_FALSE(delegate->IsAppOpen(extension_app->id()));
   {
     content::CreateAndLoadWebContentsObserver app_loaded_observer;
@@ -1076,7 +1082,7 @@ class AppListAppLaunchTest : public extensions::ExtensionBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(AppListAppLaunchTest,
                        NoDemoModeAppLaunchSourceReported) {
-  EXPECT_FALSE(ash::DemoSession::IsDeviceInDemoMode());
+  EXPECT_FALSE(ash::demo_mode::IsDeviceInDemoMode());
   LaunchChromeAppListItem(app_constants::kChromeAppId);
 
   // Should see 0 apps launched from the Launcher in the histogram when not in
@@ -1086,7 +1092,7 @@ IN_PROC_BROWSER_TEST_F(AppListAppLaunchTest,
 
 IN_PROC_BROWSER_TEST_F(AppListAppLaunchTest, DemoModeAppLaunchSourceReported) {
   ash::test::LockDemoDeviceInstallAttributes();
-  EXPECT_TRUE(ash::DemoSession::IsDeviceInDemoMode());
+  EXPECT_TRUE(ash::demo_mode::IsDeviceInDemoMode());
 
   // Should see 0 apps launched from the Launcher in the histogram at first.
   histogram_tester_->ExpectTotalCount("DemoMode.AppLaunchSource", 0);
@@ -1284,10 +1290,6 @@ class AppListClientNewUserTest : public InProcessBrowserTest,
 
   void SetUpOnMainThread() override {
     SetUpEnvironment();
-    // Inject the testing profile into the client, since once a user session was
-    // created, with one browser, the client stops observing the profile
-    // manager.
-    AppListClientImpl::GetInstance()->OnProfileAdded(profile_);
     InProcessBrowserTest::SetUpOnMainThread();
   }
 
@@ -1722,61 +1724,4 @@ IN_PROC_BROWSER_TEST_P(AppListModifiedDefaultAppOrderTest,
   EXPECT_EQ(camera_ordinal, new_camera_ordinal);
   EXPECT_EQ(youtube_ordinal, new_youtube_ordinal);
   EXPECT_EQ(calculator_ordinal, new_calculator_ordinal);
-}
-
-class AppListClientImplAssistantNewEntryPointTest
-    : public AppListClientImplBrowserPromiseAppTest {
- protected:
-  static constexpr char kTestAppName[] = "test app";
-  const GURL kTestAppUrl = GURL("https://example.com/path");
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      ash::assistant::features::kEnableNewEntryPoint};
-};
-
-IN_PROC_BROWSER_TEST_F(AppListClientImplAssistantNewEntryPointTest, Eligible) {
-  webapps::AppId app_id =
-      web_app::test::InstallDummyWebApp(profile(), kTestAppName, kTestAppUrl);
-
-  AssistantBrowserDelegateImpl* delegate =
-      static_cast<AssistantBrowserDelegateImpl*>(
-          ash::assistant::AssistantBrowserDelegate::Get());
-  ASSERT_TRUE(delegate);
-  delegate->OverrideEntryPointIdForTesting(app_id);
-  delegate->SetGoogleChromeBuildForTesting();
-
-  AppListClientImpl* client = AppListClientImpl::GetInstance();
-  ASSERT_TRUE(client);
-
-  base::test::TestFuture<bool> eligibility_future;
-  client->GetAssistantNewEntryPointEligibility(
-      eligibility_future.GetCallback());
-  EXPECT_TRUE(eligibility_future.Get());
-}
-
-IN_PROC_BROWSER_TEST_F(AppListClientImplAssistantNewEntryPointTest, Name) {
-  AppListClientImpl* client = AppListClientImpl::GetInstance();
-  ASSERT_TRUE(client);
-
-  EXPECT_EQ(std::nullopt, client->GetAssistantNewEntryPointName())
-      << "Querying new entry point name before it's installed will return "
-         "std::nullopt";
-
-  webapps::AppId app_id =
-      web_app::test::InstallDummyWebApp(profile(), kTestAppName, kTestAppUrl);
-
-  AssistantBrowserDelegateImpl* delegate =
-      static_cast<AssistantBrowserDelegateImpl*>(
-          ash::assistant::AssistantBrowserDelegate::Get());
-  ASSERT_TRUE(delegate);
-  delegate->OverrideEntryPointIdForTesting(app_id);
-  delegate->SetGoogleChromeBuildForTesting();
-
-  base::test::TestFuture<bool> eligibility_future;
-  client->GetAssistantNewEntryPointEligibility(
-      eligibility_future.GetCallback());
-  EXPECT_TRUE(eligibility_future.Get());
-
-  EXPECT_EQ(kTestAppName, client->GetAssistantNewEntryPointName());
 }

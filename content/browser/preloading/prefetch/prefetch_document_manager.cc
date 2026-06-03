@@ -169,7 +169,7 @@ void PrefetchDocumentManager::ProcessCandidates(
 
   for (auto& [prefetch_url, prefetch_type, referrer, no_vary_search_hint,
               tags] : prefetches) {
-    // Eager candidates are enacted by the same predictor that creates them.
+    // Immediate candidates are enacted by the same predictor that creates them.
     const PreloadingPredictor enacting_predictor =
         GetPredictorForPreloadingTriggerType(prefetch_type.trigger_type());
     PrefetchUrl(prefetch_url, prefetch_type, enacting_predictor, referrer,
@@ -263,7 +263,7 @@ void PrefetchDocumentManager::PrefetchUrl(
 
   attempt->SetSpeculationEagerness(prefetch_type.GetEagerness());
   CHECK(prefetch_type.GetEagerness() !=
-            blink::mojom::SpeculationEagerness::kEager ||
+            blink::mojom::SpeculationEagerness::kImmediate ||
         creating_predictor == enacting_predictor);
 
   // `PreloadingPrediction` is added in `PreloadingDecider`.
@@ -271,8 +271,9 @@ void PrefetchDocumentManager::PrefetchUrl(
   auto container = std::make_unique<PrefetchContainer>(
       static_cast<RenderFrameHostImpl&>(render_frame_host()), document_token_,
       url, prefetch_type, referrer, std::move(speculation_rules_tags),
-      std::move(no_vary_search_hint), weak_method_factory_.GetWeakPtr(),
-      std::move(preload_pipeline_info), attempt->GetWeakPtr());
+      std::move(no_vary_search_hint), /*priority=*/std::nullopt,
+      weak_method_factory_.GetWeakPtr(), std::move(preload_pipeline_info),
+      attempt->GetWeakPtr());
   DVLOG(1) << *container << ": created";
 
   referring_page_metrics_.prefetch_attempted_count++;
@@ -333,10 +334,10 @@ void PrefetchDocumentManager::OnPrefetchSuccessful(
     PrefetchContainer* prefetch) {
   referring_page_metrics_.prefetch_successful_count++;
   if (prefetch->GetPrefetchType().GetEagerness() ==
-      blink::mojom::SpeculationEagerness::kEager) {
-    completed_eager_prefetches_.push_back(prefetch->GetWeakPtr());
+      blink::mojom::SpeculationEagerness::kImmediate) {
+    completed_immediate_prefetches_.push_back(prefetch->GetWeakPtr());
   } else {
-    completed_non_eager_prefetches_.push_back(prefetch->GetWeakPtr());
+    completed_non_immediate_prefetches_.push_back(prefetch->GetWeakPtr());
   }
 }
 
@@ -351,20 +352,20 @@ PrefetchDocumentManager::CanPrefetchNow(PrefetchContainer* prefetch) {
     return std::make_tuple(false, nullptr);
   }
   if (prefetch->GetPrefetchType().GetEagerness() ==
-      blink::mojom::SpeculationEagerness::kEager) {
-    return std::make_tuple(completed_eager_prefetches_.size() <
-                               MaxNumberOfEagerPrefetchesPerPage(),
+      blink::mojom::SpeculationEagerness::kImmediate) {
+    return std::make_tuple(completed_immediate_prefetches_.size() <
+                               kMaxNumberOfImmediatePrefetchesPerPage,
                            nullptr);
   } else {
-    if (completed_non_eager_prefetches_.size() <
-        MaxNumberOfNonEagerPrefetchesPerPage()) {
+    if (completed_non_immediate_prefetches_.size() <
+        kMaxNumberOfNonImmediatePrefetchesPerPage) {
       return std::make_tuple(true, nullptr);
     }
-    // We are at capacity, and now need to evict the oldest non-eager prefetch
-    // to make space for a new one.
+    // We are at capacity, and now need to evict the oldest non-immediate
+    // prefetch to make space for a new one.
     DCHECK(GetPrefetchService());
     base::WeakPtr<PrefetchContainer> oldest_prefetch =
-        completed_non_eager_prefetches_.front();
+        completed_non_immediate_prefetches_.front();
     // TODO(crbug.com/40064525): We should also be checking if the prefetch is
     // currently being used to serve a navigation. In that scenario, evicting
     // doesn't make sense.
@@ -383,9 +384,9 @@ void PrefetchDocumentManager::PrefetchWillBeDestroyed(
 
   std::vector<base::WeakPtr<PrefetchContainer>>& completed_prefetches =
       prefetch->GetPrefetchType().GetEagerness() ==
-              blink::mojom::SpeculationEagerness::kEager
-          ? completed_eager_prefetches_
-          : completed_non_eager_prefetches_;
+              blink::mojom::SpeculationEagerness::kImmediate
+          ? completed_immediate_prefetches_
+          : completed_non_immediate_prefetches_;
   auto it = std::ranges::find(completed_prefetches, prefetch->key(),
                               [&](const auto& p) { return p->key(); });
   if (it != completed_prefetches.end()) {

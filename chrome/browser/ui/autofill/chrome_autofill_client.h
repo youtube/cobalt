@@ -28,6 +28,7 @@
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/crowdsourcing/votes_uploader.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
@@ -56,7 +57,6 @@ class SaveUpdateAddressProfileFlowManager;
 #endif
 
 class AutofillOptimizationGuide;
-class AutofillAiDelegate;
 class FormFieldData;
 class LogRouter;
 enum class SuggestionType;
@@ -123,7 +123,7 @@ class ChromeAutofillClient : public ContentAutofillClient,
   PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id) final;
   void GetAiPageContent(GetAiPageContentCallback callback) final;
-  AutofillAiDelegate* GetAutofillAiDelegate() final;
+  AutofillAiManager* GetAutofillAiManager() final;
   AutofillAiModelCache* GetAutofillAiModelCache() final;
   AutofillAiModelExecutor* GetAutofillAiModelExecutor() final;
   IdentityCredentialDelegate* GetIdentityCredentialDelegate() final;
@@ -213,6 +213,13 @@ class ChromeAutofillClient : public ContentAutofillClient,
       FieldGlobalId field_id) const final;
   void TriggerPlusAddressUserPerceptionSurvey(
       plus_addresses::hats::SurveyType survey_type) final;
+  optimization_guide::ModelQualityLogsUploaderService* GetMqlsUploadService()
+      override;
+  void ShowEntitySaveOrUpdateBubble(
+      EntityInstance new_entity,
+      std::optional<EntityInstance> old_entity,
+      EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback)
+      override;
 
   // TODO(crbug.com/407666146): Create a test API.
   base::WeakPtr<AutofillSuggestionController>
@@ -267,6 +274,10 @@ class ChromeAutofillClient : public ContentAutofillClient,
   std::unique_ptr<LogManager> log_manager_;
   autofill_metrics::FormInteractionsUkmLogger form_interactions_ukm_logger_{
       this};
+
+#if !BUILDFLAG(IS_ANDROID)
+  AutofillAiManager autofill_ai_manager_;
+#endif
 
   // These members are initialized lazily in their respective getters.
   // Therefore, do not access the members directly.

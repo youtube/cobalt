@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/worker_main_script_loader.h"
 
 #include "base/containers/span.h"
+#include "base/strings/string_view_util.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -239,7 +240,7 @@ TEST_F(WorkerMainScriptLoaderTest, ResponseWithSucessThenOnComplete) {
   EXPECT_FALSE(client_->LoadingIsFailed());
   EXPECT_EQ(KURL(kTopLevelScriptURL),
             worker_main_script_loader->GetRequestURL());
-  EXPECT_EQ(UTF8Encoding(), worker_main_script_loader->GetScriptEncoding());
+  EXPECT_EQ(Utf8Encoding(), worker_main_script_loader->GetScriptEncoding());
   auto flatten_data = client_->Data()->CopyAs<Vector<char>>();
   EXPECT_EQ(kTopLevelScript, std::string(base::as_string_view(flatten_data)));
   EXPECT_EQ("text/javascript", fake_resource_load_info_notifier.GetMimeType());

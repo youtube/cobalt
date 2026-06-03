@@ -150,6 +150,7 @@ safe_browsing::ReferrerChainEntry MakeReferrerChainEntry() {
   referrers.set_ip("1.2.3.4");
   return referrers;
 }
+
 std::unique_ptr<policy::EmbeddedPolicyTestServer>
 CreatePolicyTestServerForSecurityEvents(
     const std::set<std::string>& enabled_event_names,
@@ -198,6 +199,30 @@ void EventReportValidatorBase::ExpectNoReport() {
   } else {
     EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
   }
+}
+
+void EventReportValidatorBase::ExpectProtoBasedUrlFilteringInterstitialEvent(
+    chrome::cros::reporting::proto::UrlFilteringInterstitialEvent
+        expected_urlf_event) {
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .WillOnce(
+          [this, expected_urlf_event](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(
+                request.events().Get(0).has_url_filtering_interstitial_event());
+            auto urlf_event =
+                request.events().Get(0).url_filtering_interstitial_event();
+            EXPECT_THAT(urlf_event, EqualsProto(expected_urlf_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
 }
 
 void EventReportValidatorBase::ExpectURLFilteringInterstitialEvent(
@@ -351,6 +376,30 @@ void EventReportValidatorBase::ExpectLoginEvent(
           });
 }
 
+void EventReportValidatorBase::ExpectSecurityInterstitialEvent(
+    chrome::cros::reporting::proto::SafeBrowsingInterstitialEvent
+        expected_interstitial_event) {
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .WillOnce(
+          [this, expected_interstitial_event](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_interstitial_event());
+            auto interstitial_event =
+                request.events().Get(0).interstitial_event();
+            EXPECT_THAT(interstitial_event,
+                        EqualsProto(expected_interstitial_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
+}
+
 void EventReportValidatorBase::ExpectPasswordBreachEvent(
     const std::string& expected_trigger,
     const std::vector<std::pair<std::string, std::u16string>>&
@@ -384,6 +433,30 @@ void EventReportValidatorBase::ExpectPasswordBreachEvent(
           done_closure_.Run();
         }
       });
+}
+
+void EventReportValidatorBase::ExpectPasswordBreachEvent(
+    chrome::cros::reporting::proto::PasswordBreachEvent
+        expected_password_breach_event) {
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .WillOnce(
+          [this, expected_password_breach_event](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_password_breach_event());
+            auto password_breach_event =
+                request.events().Get(0).password_breach_event();
+            EXPECT_THAT(password_breach_event,
+                        EqualsProto(expected_password_breach_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
 }
 
 void EventReportValidatorBase::ExpectPasswordReuseEvent(

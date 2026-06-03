@@ -300,7 +300,7 @@
 <translation id="1957958912175573503">ตั้งค่าภาษา</translation>
 <translation id="1961239773406905488">การแสดงตัวอย่างจากกล้องถ่ายรูปซ่อนอยู่</translation>
 <translation id="1961832440516943645"><ph name="DATE" />, <ph name="TIME" /></translation>
-<translation id="1962969542251276847">ล็อกหน้าจอ</translation>
+<translation id="1962969542251276847">หน้าจอล็อก</translation>
 <translation id="1967970931040389207">เปิดฮอตสปอต</translation>
 <translation id="1969011864782743497"><ph name="DEVICE_NAME" /> (USB)</translation>
 <translation id="1971815855639997522">นำเดสก์และหน้าต่างออกแล้ว กด Control + Z เพื่อเลิกทำการดำเนินการ</translation>
@@ -1009,6 +1009,7 @@
 <translation id="4305817255990598646">สลับ</translation>
 <translation id="4307713728991152670">ตั้งค่าการดูรูปภาพ สื่อ และแอปล่าสุดของโทรศัพท์</translation>
 <translation id="4312840429157639164">จัดกล้องพอดีกับมุมขวาบนแล้ว เนื่องจากขัดแย้งกับแพลตฟอร์มของระบบ</translation>
+<translation id="4312935606722154789">จัดกลุ่มหรือเลิกจัดกลุ่ม 2 หน้าต่างไว้ข้างกัน</translation>
 <translation id="4316910396681052118">แอปทั้งหมด</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">ซ่อนคำแนะนำทั้งหมดของเบราว์เซอร์ Chrome</translation>
@@ -1448,7 +1449,6 @@
 <translation id="5691772641933328258">ระบบไม่รู้จักลายนิ้วมือนี้</translation>
 <translation id="5693255400847650006">ใช้ไมโครโฟนอยู่</translation>
 <translation id="5699366815052349604">กำหนดหน้าต่างที่ใช้งานอยู่ให้กับเดสก์ทั้งหมด</translation>
-<translation id="5701785125601597013">ส่งหรือตอบกลับข้อความในโทรศัพท์ได้อย่างรวดเร็วโดยใช้ฮับโทรศัพท์</translation>
 <translation id="570390244361237317">แอปทั้งหมด ใช้แป้นลูกศรเพื่อเข้าถึงแอปทั้งหมด</translation>
 <translation id="5705197514573687092">แสดงการตั้งค่าโหมดโฟกัส ตั้งตัวจับเวลา <ph name="FOCUS_DURATION" /> แล้ว</translation>
 <translation id="5707775774148071965">อุปกรณ์รองรับอัตราข้อมูลที่สูงกว่าสายสัญญาณ และอาจจำกัดประสิทธิภาพของอุปกรณ์</translation>
@@ -1578,7 +1578,6 @@
 <translation id="6095425951508823973">เพิ่มการเชื่อมต่อกับ <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">แก้ไขในเดือนที่ผ่านมา</translation>
 <translation id="6103838137565245112">ระบบ</translation>
-<translation id="610395411842312282">จัดกลุ่มหน้าต่าง 2 บานไว้ข้างกัน</translation>
 <translation id="6108952804512516814">สร้างด้วย AI</translation>
 <translation id="6114505516289286752">ดาวน์โหลดไฟล์คำพูดภาษา<ph name="LANGUAGE" />แล้ว</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" /> <ph name="BATTERY_SAVER_STATE" /></translation>

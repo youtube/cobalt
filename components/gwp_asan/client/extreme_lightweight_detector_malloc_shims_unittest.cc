@@ -34,20 +34,7 @@ class ExtremeLightweightDetectorMallocShimsTest
     : public base::MultiProcessTest {
  public:
   static void MultiprocessTestSetup() {
-    allocator_shim::ConfigurePartitions(
-#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
-        allocator_shim::EnableBrp(true),
-#else
-        allocator_shim::EnableBrp(false),
-#endif
-        /*brp_extra_extras_size=*/0, allocator_shim::EnableMemoryTagging(false),
-        partition_alloc::TagViolationReportingMode::kDisabled,
-        allocator_shim::BucketDistribution::kNeutral,
-        /*scheduler_loop_quarantine_global_config=*/{},
-        /*scheduler_loop_quarantine_thread_local_config=*/{},
-        allocator_shim::EventuallyZeroFreedMemory(false),
-        allocator_shim::FewerMemoryRegions(false),
-        allocator_shim::UseSmallSingleSlotSpans(true));
+    allocator_shim::ConfigurePartitionsForTesting();
     InstallExtremeLightweightDetectorHooks(
         {.sampling_frequency = kSamplingFrequency,
          .quarantine_capacity_for_small_objects_in_bytes =
@@ -87,8 +74,7 @@ MULTIPROCESS_TEST_MAIN_WITH_SETUP(
 
   auto try_to_quarantine =
       []<typename ObjectType>(
-          partition_alloc::internal::LightweightQuarantineBranch&
-              quarantine_branch,
+          ExtremeLightweightDetectorQuarantineBranch& quarantine_branch,
           ObjectType* unused_type_tag) -> ObjectType* {
     for (size_t i = 0; i < kLoopIterations; ++i) {
       // macOS defers the actual deallocation when `free` is called (i.e. `free`

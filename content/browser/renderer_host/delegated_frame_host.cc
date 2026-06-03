@@ -10,6 +10,7 @@
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -488,7 +489,7 @@ void DelegatedFrameHost::DidCopyStaleContent(
       frame_evictor_->CollectSurfaceIdsForEviction());
 
   auto transfer_resource = viz::TransferableResource::MakeGpu(
-      result->GetTextureResult()->mailbox, GL_TEXTURE_2D, gpu::SyncToken(),
+      result->GetSharedImage()->mailbox(), GL_TEXTURE_2D, gpu::SyncToken(),
       result->size(), viz::SinglePlaneFormat::kRGBA_8888,
       false /* is_overlay_candidate */,
       viz::TransferableResource::ResourceSource::kStaleContent);

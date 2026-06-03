@@ -12,12 +12,13 @@
 #import "base/apple/foundation_util.h"
 #import "base/check_op.h"
 #import "base/containers/contains.h"
+#import "base/dcheck_is_on.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
 #import "base/functional/bind.h"
 #import "base/location.h"
 #import "base/memory/weak_ptr.h"
-#import "base/notreached.h"
+#import "base/notimplemented.h"
 #import "base/observer_list.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/sequenced_task_runner.h"
@@ -229,7 +230,10 @@ void CookieStoreIOS::SetCanonicalCookieAsync(
   // instead.
   DCHECK(SystemCookiesAllowed());
 
-  DCHECK(cookie->IsCanonical());
+  if constexpr (DCHECK_IS_ON()) {
+    net::CanonicalCookie::CanonicalizationResult result = cookie->IsCanonical();
+    DCHECK(result) << result;
+  }
   // The exclude_httponly() option would only be used by a javascript
   // engine.
   DCHECK(!options.exclude_httponly());

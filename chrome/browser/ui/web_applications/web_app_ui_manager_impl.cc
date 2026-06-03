@@ -33,6 +33,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
@@ -320,6 +321,14 @@ void WebAppUiManagerImpl::ShowWebAppFileLaunchDialog(
                                         std::move(launch_callback));
 }
 
+void WebAppUiManagerImpl::ShowWebAppProtocolLaunchDialog(
+    const GURL& protocol_url,
+    const webapps::AppId& app_id,
+    WebAppLaunchAcceptanceCallback launch_callback) {
+  ::web_app::ShowWebAppProtocolLaunchDialog(protocol_url, profile_, app_id,
+                                            std::move(launch_callback));
+}
+
 void WebAppUiManagerImpl::ShowWebAppIdentityUpdateDialog(
     const std::string& app_id,
     bool title_change,
@@ -436,6 +445,16 @@ void WebAppUiManagerImpl::TriggerInstallDialogForBackgroundInstall(
                                             manifest_id, std::move(callback));
 }
 
+void WebAppUiManagerImpl::TriggerLaunchDialogForBackgroundInstall(
+    content::WebContents* initiating_web_contents,
+    const webapps::AppId& app_id,
+    Profile* profile,
+    const std::string& app_name,
+    WebInstallAppLaunchAcceptanceCallback callback) {
+  ShowWebInstallAppLaunchDialog(initiating_web_contents, app_id, profile,
+                                app_name, std::move(callback));
+}
+
 void WebAppUiManagerImpl::PresentUserUninstallDialog(
     const webapps::AppId& app_id,
     webapps::WebappUninstallSource uninstall_source,
@@ -484,6 +503,22 @@ void WebAppUiManagerImpl::PresentUserUninstallDialog(
                      parent_window, std::move(parent_window_tracker),
                      std::move(uninstall_complete_callback),
                      std::move(uninstall_scheduled_callback)));
+}
+
+void WebAppUiManagerImpl::ShowIntentPicker(
+    const GURL& url,
+    content::WebContents* web_contents,
+    ShowIntentPickerBubbleCallback callback) {
+  IntentPickerTabHelper* intent_picker_tab_helper =
+      IntentPickerTabHelper::FromWebContents(web_contents);
+
+  if (!intent_picker_tab_helper) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), /*launched=*/false));
+    return;
+  }
+  intent_picker_tab_helper->ShowIntentPickerBubbleOrLaunchApp(
+      url, /*always_show =*/true, std::move(callback));
 }
 
 void WebAppUiManagerImpl::LaunchOrFocusIsolatedWebAppInstaller(

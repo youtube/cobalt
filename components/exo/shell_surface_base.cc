@@ -6,10 +6,11 @@
 
 #include <stdint.h>
 
+#include <optional>
+
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/frame/non_client_frame_view_ash.h"
 #include "ash/metrics/login_unlock_throughput_recorder.h"
-#include "ash/public/cpp/rounded_corner_utils.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
 #include "ash/wm/desks/desks_controller.h"
@@ -24,6 +25,7 @@
 #include "base/containers/flat_set.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -146,25 +148,21 @@ class CustomFrameView : public ash::NonClientFrameViewAsh {
 
   // Overridden from views::NonClientFrameView:
   void UpdateWindowRoundedCorners() override {
-    if (!chromeos::features::IsRoundedWindowsEnabled() && GetFrameEnabled()) {
-      header_view_->SetHeaderCornerRadius(
-          chromeos::GetWindowRadii(frame()->GetNativeWindow()).upper_left());
-    }
-
     if (!GetWidget()) {
       return;
     }
 
-    aura::Window* window = GetWidget()->GetNativeWindow();
-    const ash::WindowState* window_state = ash::WindowState::Get(window);
     std::optional<gfx::RoundedCornersF> window_radii =
         shell_surface_->window_corners_radii();
     std::optional<gfx::RoundedCornersF> shadow_radii =
         shell_surface_->shadow_corner_radii();
 
-    int corner_radius = -1;
+    aura::Window* window = GetWidget()->GetNativeWindow();
+    const ash::WindowState* window_state = ash::WindowState::Get(window);
+
+    std::optional<gfx::RoundedCornersF> rounded_corners;
     if (window_state->IsPip()) {
-      corner_radius = chromeos::kPipRoundedCornerRadius;
+      rounded_corners = gfx::RoundedCornersF(chromeos::kPipRoundedCornerRadius);
     } else if (window_radii || shadow_radii) {
       gfx::RoundedCornersF radii;
 
@@ -178,12 +176,15 @@ class CustomFrameView : public ash::NonClientFrameViewAsh {
           window_radii.value_or(shadow_radii.value_or(gfx::RoundedCornersF()));
 
       // TODO(crbug.com/40256581): Support variable window radii.
-      corner_radius = radii.upper_left();
+      rounded_corners = radii;
     }
 
     // Various window decorations are rounded using `kWindowCornerRadiusKey`
     // property.
-    window->SetProperty(aura::client::kWindowCornerRadiusKey, corner_radius);
+    if (rounded_corners) {
+      window->SetProperty(aura::client::kWindowRoundedCornersKey,
+                          rounded_corners.value());
+    }
 
     // If window_radii is null, skip rounding the window.
     if (!window_radii) {
@@ -191,11 +192,12 @@ class CustomFrameView : public ash::NonClientFrameViewAsh {
     }
 
     if (GetFrameEnabled()) {
-      header_view_->SetHeaderCornerRadius(corner_radius);
+      CHECK_EQ(rounded_corners->upper_left(), rounded_corners->upper_right());
+      header_view_->SetHeaderCornerRadius(rounded_corners->upper_left());
     }
 
     GetWidget()->client_view()->UpdateWindowRoundedCorners(
-        gfx::RoundedCornersF(corner_radius));
+        rounded_corners.value());
   }
 
   gfx::Rect GetWindowBoundsForClientBounds(
@@ -2154,9 +2156,8 @@ void ShellSurfaceBase::UpdateShadowRoundedCorners() {
   const ash::WindowState* window_state = ash::WindowState::Get(window);
   if (window_state && window_state->IsPip()) {
     shadow_radii = gfx::RoundedCornersF(chromeos::kPipRoundedCornerRadius);
-  } else if (chromeos::features::IsRoundedWindowsEnabled() &&
-             (shadow_corners_radii_dp_.has_value() ||
-              window_corners_radii_dp_.has_value())) {
+  } else if (shadow_corners_radii_dp_.has_value() ||
+             window_corners_radii_dp_.has_value()) {
     // For backward version compatibility, fallback to use the window radii if
     // the shadow radii is not specified.
     // TODO(crbug.com/40256581): Revisit once all the clients have migrated.

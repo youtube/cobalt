@@ -37,7 +37,6 @@ class FilePath;
 
 namespace storage {
 class QuotaManagerProxy;
-class ServiceWorkerStorageControlImpl;
 class SpecialStoragePolicy;
 }  // namespace storage
 
@@ -427,18 +426,14 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
       int64_t version_id,
       network::mojom::ClientSecurityStatePtr client_security_state);
 
-  // Binds a ServiceWorkerStorageControl.
-  void BindStorageControl(
-      mojo::PendingReceiver<storage::mojom::ServiceWorkerStorageControl>
-          receiver);
+  const base::FilePath& user_data_directory() { return user_data_directory_; }
 
   using StorageControlBinder = base::RepeatingCallback<void(
       mojo::PendingReceiver<storage::mojom::ServiceWorkerStorageControl>)>;
   // Sets a callback to bind ServiceWorkerStorageControl for testing.
   void SetStorageControlBinderForTest(StorageControlBinder binder);
-
-  ServiceWorkerContextCore* GetContextCoreForTest() {
-    return context_core_.get();
+  StorageControlBinder& storage_control_binder_for_test() {
+    return storage_control_binder_for_test_;
   }
 
   void SetForceUpdateOnPageLoadForTesting(
@@ -603,10 +598,6 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
 
   std::unique_ptr<ServiceWorkerIdentifiabilityMetrics> identifiability_metrics_;
 
-  // TODO(crbug.com/40120038): Remove `storage_control_` when
-  // ServiceWorkerStorage is sandboxed. An instance of this impl should live in
-  // the storage service, not here.
-  std::unique_ptr<storage::ServiceWorkerStorageControlImpl> storage_control_;
   // These fields are used to (re)create `storage_control_`.
   base::FilePath user_data_directory_;
   scoped_refptr<storage::QuotaManagerProxy> quota_manager_proxy_;

@@ -52,6 +52,15 @@ public class DownloadManagerUiConfig {
     /** Whether or not to start the UI focused on prefetched content. */
     public final boolean startWithPrefetchedContent;
 
+    /**
+     * Whether or not items with a Dangerous verdict from Safe Browsing should be shown with warning
+     * text/icon in the list.
+     */
+    public final boolean showDangerousItems;
+
+    /** Whether need to focus on search box at first. */
+    public final boolean autoFocusSearchBox;
+
     /** Constructor. */
     private DownloadManagerUiConfig(Builder builder) {
         otrProfileId = builder.mOtrProfileId;
@@ -63,6 +72,8 @@ public class DownloadManagerUiConfig {
         supportsGrouping = builder.mSupportsGrouping;
         showPaginationHeaders = builder.mShowPaginationHeaders;
         startWithPrefetchedContent = builder.mStartWithPrefetchedContent;
+        showDangerousItems = builder.mShowDangerousItems;
+        autoFocusSearchBox = builder.mAutoFocusSearchBox;
     }
 
     /** Helper class for building a {@link DownloadManagerUiConfig}. */
@@ -80,6 +91,8 @@ public class DownloadManagerUiConfig {
         private boolean mSupportsGrouping;
         private boolean mShowPaginationHeaders;
         private boolean mStartWithPrefetchedContent;
+        private boolean mShowDangerousItems;
+        private boolean mAutoFocusSearchBox;
 
         public Builder() {
             mSupportFullWidthImages =
@@ -130,6 +143,16 @@ public class DownloadManagerUiConfig {
 
         public Builder setStartWithPrefetchedContent(boolean startWithPrefetchedContent) {
             mStartWithPrefetchedContent = startWithPrefetchedContent;
+            return this;
+        }
+
+        public Builder setShowDangerousItems(boolean showDangerousItems) {
+            mShowDangerousItems = showDangerousItems;
+            return this;
+        }
+
+        public Builder setAutoFocusSearchBox(boolean autoFocusSearchBox) {
+            mAutoFocusSearchBox = autoFocusSearchBox;
             return this;
         }
 

@@ -378,7 +378,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      */
     public int tabsCount(boolean incognito) {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Integer>() {
+                new Callable<>() {
                     @Override
                     public Integer call() {
                         return getActivity().getTabModelSelector().getModel(incognito).getCount();
@@ -389,7 +389,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
     /** Returns the infobars being displayed by the current tab, or null if they don't exist. */
     public List<InfoBar> getInfoBars() {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<List<InfoBar>>() {
+                new Callable<>() {
                     @Override
                     public List<InfoBar> call() {
                         Tab currentTab = getActivity().getActivityTab();

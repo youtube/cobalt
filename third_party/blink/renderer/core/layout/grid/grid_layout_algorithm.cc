@@ -10,7 +10,9 @@
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_break_token_data.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_item.h"
+#include "third_party/blink/renderer/core/layout/grid/grid_layout_utils.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
+#include "third_party/blink/renderer/core/layout/layout_utils.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/logical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/relative_utils.h"
@@ -23,65 +25,32 @@ GridLayoutAlgorithm::GridLayoutAlgorithm(const LayoutAlgorithmParams& params)
 
   const auto& node = Node();
   const auto& constraint_space = GetConstraintSpace();
+  const auto border_scrollbar_padding = BorderScrollbarPadding();
 
   // At various stages of the algorithm we need to know the grid available-size.
   // If it's initially indefinite, we need to know the min/max sizes as well.
   // Initialize all these to the same value.
   grid_available_size_ = grid_min_available_size_ = grid_max_available_size_ =
       ChildAvailableSize();
+  ComputeAvailableSizes(border_scrollbar_padding, node, constraint_space,
+                        container_builder_, grid_available_size_,
+                        grid_min_available_size_, grid_max_available_size_);
 
-  // If our inline-size is indefinite, compute the min/max inline-sizes.
-  if (grid_available_size_.inline_size == kIndefiniteSize) {
-    const LayoutUnit border_scrollbar_padding =
-        BorderScrollbarPadding().InlineSum();
+  // If block-size containment applies compute the block-size ignoring
+  // children (just based on the row definitions).
+  if (grid_available_size_.block_size == kIndefiniteSize &&
+      node.ShouldApplyBlockSizeContainment()) {
+    contain_intrinsic_block_size_ = ComputeIntrinsicBlockSizeIgnoringChildren();
 
-    const MinMaxSizes sizes = ComputeMinMaxInlineSizes(
-        constraint_space, node, container_builder_.BorderPadding(),
-        /* auto_min_length */ nullptr, [](SizeType) -> MinMaxSizesResult {
-          // If we've reached here we are inside the |ComputeMinMaxSizes| pass,
-          // and also have something like "min-width: min-content". This is
-          // cyclic. Just return indefinite.
-          return {{kIndefiniteSize, kIndefiniteSize},
-                  /* depends_on_block_constraints */ false};
-        });
+    // Resolve the block-size, and set the available sizes.
+    const LayoutUnit block_size = ComputeBlockSizeForFragment(
+        constraint_space, node, BorderPadding(), *contain_intrinsic_block_size_,
+        container_builder_.InlineSize());
 
-    grid_min_available_size_.inline_size =
-        (sizes.min_size - border_scrollbar_padding).ClampNegativeToZero();
-    grid_max_available_size_.inline_size =
-        (sizes.max_size == LayoutUnit::Max())
-            ? sizes.max_size
-            : (sizes.max_size - border_scrollbar_padding).ClampNegativeToZero();
-  }
-
-  // And similar for the min/max block-sizes.
-  if (grid_available_size_.block_size == kIndefiniteSize) {
-    const LayoutUnit border_scrollbar_padding =
-        BorderScrollbarPadding().BlockSum();
-    const MinMaxSizes sizes = ComputeInitialMinMaxBlockSizes(
-        constraint_space, node, container_builder_.BorderPadding());
-
-    grid_min_available_size_.block_size =
-        (sizes.min_size - border_scrollbar_padding).ClampNegativeToZero();
-    grid_max_available_size_.block_size =
-        (sizes.max_size == LayoutUnit::Max())
-            ? sizes.max_size
-            : (sizes.max_size - border_scrollbar_padding).ClampNegativeToZero();
-
-    // If block-size containment applies compute the block-size ignoring
-    // children (just based on the row definitions).
-    if (node.ShouldApplyBlockSizeContainment()) {
-      contain_intrinsic_block_size_ =
-          ComputeIntrinsicBlockSizeIgnoringChildren();
-
-      // Resolve the block-size, and set the available sizes.
-      const LayoutUnit block_size = ComputeBlockSizeForFragment(
-          constraint_space, node, BorderPadding(),
-          *contain_intrinsic_block_size_, container_builder_.InlineSize());
-
-      grid_available_size_.block_size = grid_min_available_size_.block_size =
-          grid_max_available_size_.block_size =
-              (block_size - border_scrollbar_padding).ClampNegativeToZero();
-    }
+    grid_available_size_.block_size = grid_min_available_size_.block_size =
+        grid_max_available_size_.block_size =
+            (block_size - border_scrollbar_padding.BlockSum())
+                .ClampNegativeToZero();
   }
 }
 
@@ -1170,110 +1139,17 @@ wtf_size_t GridLayoutAlgorithm::ComputeAutomaticRepetitions(
                                                  track_direction);
   }
 
-  LayoutUnit available_size = is_for_columns ? grid_available_size_.inline_size
-                                             : grid_available_size_.block_size;
-  LayoutUnit max_available_size = available_size;
-
-  if (available_size == kIndefiniteSize) {
-    max_available_size = is_for_columns ? grid_max_available_size_.inline_size
-                                        : grid_max_available_size_.block_size;
-    available_size = is_for_columns ? grid_min_available_size_.inline_size
-                                    : grid_min_available_size_.block_size;
-  }
-
-  LayoutUnit auto_repeater_size;
-  LayoutUnit non_auto_specified_size;
-  const auto gutter_size = GridTrackSizingAlgorithm::CalculateGutterSize(
+  const LayoutUnit gutter_size = GridTrackSizingAlgorithm::CalculateGutterSize(
       style, grid_available_size_, track_direction);
 
-  for (wtf_size_t repeater_index = 0;
-       repeater_index < track_list.RepeaterCount(); ++repeater_index) {
-    const auto repeat_type = track_list.RepeatType(repeater_index);
-    const bool is_auto_repeater =
-        repeat_type == NGGridTrackRepeater::kAutoFill ||
-        repeat_type == NGGridTrackRepeater::kAutoFit;
-
-    LayoutUnit repeater_size;
-    const wtf_size_t repeater_track_count =
-        track_list.RepeatSize(repeater_index);
-
-    for (wtf_size_t i = 0; i < repeater_track_count; ++i) {
-      const auto& track_size = track_list.RepeatTrackSize(repeater_index, i);
-
-      std::optional<LayoutUnit> fixed_min_track_breadth;
-      if (track_size.HasFixedMinTrackBreadth()) {
-        fixed_min_track_breadth.emplace(MinimumValueForLength(
-            track_size.MinTrackBreadth(), available_size));
-      }
-
-      std::optional<LayoutUnit> fixed_max_track_breadth;
-      if (track_size.HasFixedMaxTrackBreadth()) {
-        fixed_max_track_breadth.emplace(MinimumValueForLength(
-            track_size.MaxTrackBreadth(), available_size));
-      }
-
-      LayoutUnit track_contribution;
-      if (fixed_max_track_breadth && fixed_min_track_breadth) {
-        track_contribution =
-            std::max(*fixed_max_track_breadth, *fixed_min_track_breadth);
-      } else if (fixed_max_track_breadth) {
-        track_contribution = *fixed_max_track_breadth;
-      } else if (fixed_min_track_breadth) {
-        track_contribution = *fixed_min_track_breadth;
-      }
-
-      // For the purpose of finding the number of auto-repeated tracks in a
-      // standalone axis, the UA must floor the track size to a UA-specified
-      // value to avoid division by zero. It is suggested that this floor be
-      // 1px.
-      if (is_auto_repeater)
-        track_contribution = std::max(LayoutUnit(1), track_contribution);
-
-      repeater_size += track_contribution + gutter_size;
-    }
-
-    if (!is_auto_repeater) {
-      non_auto_specified_size +=
-          repeater_size * track_list.RepeatCount(repeater_index, 0);
-    } else {
-      DCHECK_EQ(0, auto_repeater_size);
-      auto_repeater_size = repeater_size;
-    }
-  }
-
-  DCHECK_GT(auto_repeater_size, 0);
-
-  // We can compute the number of repetitions by satisfying the expression
-  // below. Notice that we subtract an extra |gutter_size| since it was included
-  // in the contribution for the last set in the collection.
-  //   available_size =
-  //       (repetitions * auto_repeater_size) +
-  //       non_auto_specified_size - gutter_size
-  //
-  // Solving for repetitions we have:
-  //   repetitions =
-  //       available_size - (non_auto_specified_size - gutter_size) /
-  //       auto_repeater_size
-  non_auto_specified_size -= gutter_size;
-
-  // First we want to allow as many repetitions as possible, up to the max
-  // available-size. Only do this if we have a definite max-size.
-  // If a definite available-size was provided, |max_available_size| will be
-  // set to that value.
-  if (max_available_size != LayoutUnit::Max()) {
-    // Use floor to ensure that the auto repeater sizes goes under the max
-    // available-size.
-    const int count = FloorToInt(
-        (max_available_size - non_auto_specified_size) / auto_repeater_size);
-    return (count <= 0) ? 1u : count;
-  }
-
-  // Next, consider the min available-size, which was already used to floor
-  // |available_size|. Use ceil to ensure that the auto repeater size goes
-  // above this min available-size.
-  const int count = CeilToInt((available_size - non_auto_specified_size) /
-                              auto_repeater_size);
-  return (count <= 0) ? 1u : count;
+  return CalculateAutomaticRepetitions(
+      track_list, gutter_size,
+      is_for_columns ? grid_available_size_.inline_size
+                     : grid_available_size_.block_size,
+      is_for_columns ? grid_min_available_size_.inline_size
+                     : grid_min_available_size_.block_size,
+      is_for_columns ? grid_max_available_size_.inline_size
+                     : grid_max_available_size_.block_size);
 }
 
 wtf_size_t GridLayoutAlgorithm::ComputeAutomaticRepetitionsForSubgrid(
@@ -1938,34 +1814,6 @@ LayoutUnit GridLayoutAlgorithm::ComputeSubgridIntrinsicSize(
 
 namespace {
 
-// Returns the alignment offset for either the inline or block direction.
-LayoutUnit AlignmentOffset(LayoutUnit container_size,
-                           LayoutUnit size,
-                           LayoutUnit margin_start,
-                           LayoutUnit margin_end,
-                           LayoutUnit baseline_offset,
-                           AxisEdge axis_edge,
-                           bool is_overflow_safe) {
-  LayoutUnit free_space = container_size - size - margin_start - margin_end;
-  // If overflow is 'safe', we have to make sure we don't overflow the
-  // 'start' edge (potentially cause some data loss as the overflow is
-  // unreachable).
-  if (is_overflow_safe)
-    free_space = free_space.ClampNegativeToZero();
-  switch (axis_edge) {
-    case AxisEdge::kStart:
-      return margin_start;
-    case AxisEdge::kCenter:
-      return margin_start + (free_space / 2);
-    case AxisEdge::kEnd:
-      return margin_start + free_space;
-    case AxisEdge::kFirstBaseline:
-    case AxisEdge::kLastBaseline:
-      return baseline_offset;
-  }
-  NOTREACHED();
-}
-
 void AlignmentOffsetForOutOfFlow(AxisEdge inline_axis_edge,
                                  AxisEdge block_axis_edge,
                                  LogicalSize container_size,
@@ -2287,11 +2135,9 @@ class GapAccumulator {
   STACK_ALLOCATED();
 
  public:
-  GapAccumulator()
-      : gap_geometry_(MakeGarbageCollected<class GapGeometry>(
-            GapGeometry::ContainerType::kGrid)) {}
+  GapAccumulator() = default;
 
-  void BuildGapIntersectionPoints(const GridLayoutData& layout_data) const {
+  void BuildGapIntersectionPoints(const GridLayoutData& layout_data) {
     const Vector<LayoutUnit> col_tracks =
         LayoutGrid::ComputeExpandedPositions(&layout_data, kForColumns);
     const Vector<LayoutUnit> row_tracks =
@@ -2304,19 +2150,19 @@ class GapAccumulator {
       return;
     }
 
-    const LayoutUnit col_gutter_size = layout_data.Columns().GutterSize();
-    const LayoutUnit row_gutter_size = layout_data.Rows().GutterSize();
+    col_gutter_size_ = layout_data.Columns().GutterSize();
+    row_gutter_size_ = layout_data.Rows().GutterSize();
 
     // For columns, populate each column gap with intersection points. Since we
     // don't know the mid-point of each row gap yet, we'll set the block offset
     // to a placeholder value of `LayoutUnit()` which will be updated once we
     // calculate row gaps midpoint.
-    Vector<GapIntersectionList> columns(col_count - 2,
-                                        GapIntersectionList(row_count));
+    column_intersections_ = Vector<GapIntersectionList>(
+        col_count - 2, GapIntersectionList(row_count));
     for (wtf_size_t col_index = 1; col_index < col_count - 1; ++col_index) {
       const LayoutUnit mid_point =
-          LayoutUnit(col_tracks[col_index] - (col_gutter_size / 2.0f));
-      auto& column = columns[col_index - 1];
+          LayoutUnit(col_tracks[col_index] - (col_gutter_size_ / 2.0f));
+      auto& column = column_intersections_[col_index - 1];
       column[0] = GapIntersection(mid_point, row_tracks[0],
                                   /*is_at_edge_of_container=*/true);
       for (wtf_size_t row_index = 1; row_index < row_count - 1; ++row_index) {
@@ -2331,39 +2177,51 @@ class GapAccumulator {
     // already calculated mid-points for each column gap, we'll set the inline
     // offset to the corresponding column mid-point and update columns with the
     // row mid-point.
-    Vector<GapIntersectionList> rows(row_count - 2,
-                                     GapIntersectionList(col_count));
+    row_intersections_ = Vector<GapIntersectionList>(
+        row_count - 2, GapIntersectionList(col_count));
     for (wtf_size_t row_index = 1; row_index < row_count - 1; ++row_index) {
       const LayoutUnit mid_point =
-          LayoutUnit(row_tracks[row_index] - (row_gutter_size / 2.0f));
+          LayoutUnit(row_tracks[row_index] - (row_gutter_size_ / 2.0f));
 
-      auto& row = rows[row_index - 1];
+      auto& row = row_intersections_[row_index - 1];
       row[0] = GapIntersection(col_tracks[0], mid_point,
                                /*is_at_edge_of_container=*/true);
       for (wtf_size_t col_index = 1; col_index < col_count - 1; ++col_index) {
-        auto& column = columns[col_index - 1];
+        auto& column = column_intersections_[col_index - 1];
         row[col_index] = GapIntersection(column[0].inline_offset, mid_point);
         column[row_index].block_offset = mid_point;
       }
       row[col_count - 1] = GapIntersection(col_tracks[col_count - 1], mid_point,
                                            /*is_at_edge_of_container=*/true);
     }
+  }
 
-    gap_geometry_->SetGapIntersections(kForColumns, std::move(columns));
-    gap_geometry_->SetGapIntersections(kForRows, std::move(rows));
-    gap_geometry_->SetBlockGapSize(layout_data.Rows().GutterSize());
-    gap_geometry_->SetInlineGapSize(layout_data.Columns().GutterSize());
+  // Marks the intersection point at [main_index][inner_index] in the specified
+  // `track_direction` (kColumns or kRows) as blocked in the given
+  // `blocked_direction` (`kBefore` or `kAfter`). This is necessary to avoid
+  // painting gap decorations behind spanners when authors set the
+  // `*-rule-break` property to 'spanning-item' or `intersection`.
+  void MarkGapIntersectionBlocked(GridTrackSizingDirection track_direction,
+                                  BlockedGapDirection blocked_direction,
+                                  wtf_size_t main_index,
+                                  wtf_size_t inner_index) {
+    auto& intersections = track_direction == kForColumns ? column_intersections_
+                                                         : row_intersections_;
+
+    blocked_direction == BlockedGapDirection::kBefore
+        ? intersections[main_index][inner_index].is_blocked_before = true
+        : intersections[main_index][inner_index].is_blocked_after = true;
   }
 
   // Updates the blocked status of the relevant gap intersection
   // points in `gap_geometry` based on the span of `grid_item`.
-  void MarkBlockedStatusForGapIntersections(
-      const GridItemData& grid_item) const {
+  void MarkBlockedStatusForGapIntersections(const GridItemData& grid_item) {
     auto MarkIntersectionPoints = [&](GridTrackSizingDirection track_direction,
-                                      const GridItemIndices main_span,
-                                      const GridItemIndices cross_span) {
-      const auto& intersections =
-          gap_geometry_->GetGapIntersections(track_direction);
+                                      const GridSpan& main_span,
+                                      const GridSpan& cross_span) {
+      const auto& intersections = track_direction == kForColumns
+                                      ? column_intersections_
+                                      : row_intersections_;
 
       // If a grid item spans from track k to track k+n, it blocks all gaps
       // between those tracks, starting with gap[k] and ending with gap[k+n-2].
@@ -2373,29 +2231,29 @@ class GapAccumulator {
       // example, if the same item spans rows 0 to 2, then intersections 0, 1,
       // and 2 within the first column gap will have their blocked status
       // affected.
-      for (wtf_size_t gap_index = main_span.begin;
-           gap_index < main_span.end - 1; ++gap_index) {
-        for (wtf_size_t intersection_index = cross_span.begin;
-             intersection_index < cross_span.end; ++intersection_index) {
+      for (wtf_size_t gap_index = main_span.StartLine();
+           gap_index < main_span.EndLine() - 1; ++gap_index) {
+        for (wtf_size_t intersection_index = cross_span.StartLine();
+             intersection_index < cross_span.EndLine(); ++intersection_index) {
           // Mark the current intersection point as blocked `kAfter` since
           // the grid item spans across the gap.
-          gap_geometry_->MarkGapIntersectionBlocked(
-              track_direction, BlockedGapDirection::kAfter, gap_index,
-              intersection_index);
+          MarkGapIntersectionBlocked(track_direction,
+                                     BlockedGapDirection::kAfter, gap_index,
+                                     intersection_index);
 
           // If the current intersection is not the last one, mark the next
           // intersection point as blocked `kBefore`.
           if (intersection_index < intersections[gap_index].size() - 1) {
-            gap_geometry_->MarkGapIntersectionBlocked(
-                track_direction, BlockedGapDirection::kBefore, gap_index,
-                intersection_index + 1);
+            MarkGapIntersectionBlocked(track_direction,
+                                       BlockedGapDirection::kBefore, gap_index,
+                                       intersection_index + 1);
           }
         }
       }
     };
 
-    const GridItemIndices& col_span = grid_item.SetIndices(kForColumns);
-    const GridItemIndices& row_span = grid_item.SetIndices(kForRows);
+    const GridSpan& col_span = grid_item.Span(kForColumns);
+    const GridSpan& row_span = grid_item.Span(kForRows);
 
     if (grid_item.SpanSize(kForColumns) > 1) {
       MarkIntersectionPoints(kForColumns, col_span, row_span);
@@ -2405,10 +2263,39 @@ class GapAccumulator {
     }
   }
 
-  GapGeometry* GetGapGeometry() const { return gap_geometry_; }
+  const GapGeometry* FinalizeGapGeometry() {
+    const bool has_valid_column_intersections =
+        !column_intersections_.empty() && col_gutter_size_ > LayoutUnit();
+    const bool has_valid_row_intersections =
+        !row_intersections_.empty() && row_gutter_size_ > LayoutUnit();
+    // `GapGeometry` requires both rows and columns to be valid.
+    if (!has_valid_column_intersections && !has_valid_row_intersections) {
+      return nullptr;
+    }
+
+    GapGeometry* gap_geometry =
+        MakeGarbageCollected<GapGeometry>(GapGeometry::ContainerType::kGrid);
+
+    gap_geometry->SetInlineGapSize(col_gutter_size_);
+    gap_geometry->SetBlockGapSize(row_gutter_size_);
+
+    if (col_gutter_size_ > LayoutUnit()) {
+      gap_geometry->SetGapIntersections(kForColumns,
+                                        std::move(column_intersections_));
+    }
+
+    if (row_gutter_size_ > LayoutUnit()) {
+      gap_geometry->SetGapIntersections(kForRows,
+                                        std::move(row_intersections_));
+    }
+    return gap_geometry;
+  }
 
  private:
-  GapGeometry* gap_geometry_;
+  Vector<GapIntersectionList> column_intersections_;
+  Vector<GapIntersectionList> row_intersections_;
+  LayoutUnit col_gutter_size_;
+  LayoutUnit row_gutter_size_;
 };
 
 }  // namespace
@@ -2551,7 +2438,9 @@ void GridLayoutAlgorithm::PlaceGridItems(
   }
 
   if (gap_accumulator) {
-    container_builder_.SetGapGeometry(gap_accumulator->GetGapGeometry());
+    if (const auto* gap_geometry = gap_accumulator->FinalizeGapGeometry()) {
+      container_builder_.SetGapGeometry(gap_geometry);
+    }
   }
 
   // Propagate the baselines.

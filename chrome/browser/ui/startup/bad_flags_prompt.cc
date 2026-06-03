@@ -53,7 +53,6 @@
 #include "chrome/browser/android/flags/bad_flags_snackbar_manager.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #else
-#include "chrome/browser/ui/browser.h"
 #endif
 
 namespace {
@@ -91,8 +90,10 @@ const char* const kBadFlags[] = {
     translate::switches::kTranslateScriptURL,
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-    // This flag gives extensions more powers.
+    // These flags enable extensions running scripts on chrome:// and
+    // chrome-extension:// URLs.
     extensions::switches::kExtensionsOnChromeURLs,
+    extensions::switches::kExtensionsOnExtensionURLs,
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -268,5 +269,5 @@ void MaybeShowInvalidUserDataDirWarningDialog() {
       IDS_CANT_WRITE_USER_DIRECTORY_SUMMARY, user_data_dir.LossyDisplayName());
 
   // More complex dialogs cannot be shown before the earliest calls here.
-  chrome::ShowWarningMessageBox(gfx::NativeWindow(), title, message);
+  chrome::ShowWarningMessageBoxAsync(gfx::NativeWindow(), title, message);
 }

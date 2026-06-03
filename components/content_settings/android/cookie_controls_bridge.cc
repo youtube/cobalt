@@ -106,6 +106,10 @@ void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
   controller_->OnCookieBlockingEnabledForSite(block_cookies);
 }
 
+void CookieControlsBridge::OnTrackingProtectionsChangedForSite(JNIEnv* env) {
+  controller_->OnTrackingProtectionsChangedForSite();
+}
+
 void CookieControlsBridge::OnUiClosing(JNIEnv* env) {
   controller_->OnUiClosing();
 }

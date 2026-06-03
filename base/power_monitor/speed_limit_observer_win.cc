@@ -18,7 +18,7 @@
 #include "base/power_monitor/cpu_frequency_utils.h"
 #include "base/system/sys_info.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
 namespace {
@@ -33,9 +33,7 @@ constexpr base::TimeDelta kSampleInterval = base::Seconds(1);
 // speed-limit estimates.
 size_t kMovingAverageWindowSize = 10;
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 constexpr const char kPowerTraceCategory[] = TRACE_DISABLED_BY_DEFAULT("power");
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 // From
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa373184(v=vs.85).aspx.
@@ -103,7 +101,6 @@ int SpeedLimitObserverWin::GetCurrentSpeedLimit() const {
   // Get the latest estimated throttling level (value between 0.0 and 1.0).
   float throttling_level = EstimateThrottlingLevel();
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   // Emit trace events to investigate issues with power throttling. Run this
   // block only if tracing is running to avoid executing expensive calls to
   // EstimateCpuFrequency(...).
@@ -121,7 +118,6 @@ int SpeedLimitObserverWin::GetCurrentSpeedLimit() const {
                   static_cast<unsigned int>(cpu_frequency / 1'000'000));
 #endif
   }
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
   // Ignore the value if the global idleness is above 90% or throttling value
   // is very small. This approach avoids false alarms and removes noise from the
@@ -166,10 +162,8 @@ void SpeedLimitObserverWin::OnTimerTick() {
     callback_.Run(speed_limit_);
   }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   TRACE_COUNTER(kPowerTraceCategory, "speed_limit",
                 static_cast<unsigned int>(speed_limit));
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 float SpeedLimitObserverWin::EstimateThrottlingLevel() const {

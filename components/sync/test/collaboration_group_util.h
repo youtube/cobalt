@@ -32,7 +32,6 @@ std::unique_ptr<syncer::EntityChange> EntityChangeUpdateFromSpecifics(
 
 std::unique_ptr<syncer::EntityChange> EntityChangeDeleteFromSpecifics(
     const sync_pb::CollaborationGroupSpecifics& specifics);
-
 }  // namespace collaboration_group_utils
 
 #endif  // COMPONENTS_SYNC_TEST_COLLABORATION_GROUP_UTIL_H_

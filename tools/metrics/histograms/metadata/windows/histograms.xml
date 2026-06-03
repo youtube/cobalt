@@ -90,7 +90,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Enclave.{Type}.Available" enum="BooleanAvailable"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -144,7 +144,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.HighResolutionTimerUsage" units="%"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>olivierli@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -162,6 +162,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     Whether Hyper-V is enabled on this machine. Logged shortly after startup.
     This metric will only be logged on Windows 10+.
+  </summary>
+</histogram>
+
+<histogram name="Windows.InstallerDownloader.DestinationMatches" enum="Boolean"
+    expires_after="2025-12-31">
+  <owner>koretadaniel@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Logged once per installer download attempt. True when the DownloaderManager
+    successfully saved the file under the suggested name.
   </summary>
 </histogram>
 
@@ -221,32 +231,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Indicates whether Chrome is pinned to the Windows taskbar for the current
     user. Recorded shortly after startup.
-  </summary>
-</histogram>
-
-<histogram name="Windows.LegacyDisplayIdAlgorithm" enum="UsedDisplayIdFallback"
-    expires_after="2025-11-16">
-  <owner>btriebw@google.com</owner>
-  <owner>msw@google.com</owner>
-  <summary>
-    Records when a monitor is missing DISPLAYCONFIG_PATH_INFO to derive a
-    display ID and instead used the fallback legacy algorithm. Recorded once for
-    each monitor detected by the OS during startup of chrome and after any
-    monitor topology changes (addition/removal) thereafter.
-  </summary>
-</histogram>
-
-<histogram name="Windows.LegacyDisplayIdAlgorithm2"
-    enum="UsedDisplayIdFallback" expires_after="2025-07-13">
-  <owner>btriebw@google.com</owner>
-  <owner>msw@google.com</owner>
-  <summary>
-    Records when a monitor is missing DISPLAYCONFIG_PATH_INFO to derive a
-    display ID and instead used the fallback legacy algorithm. Recorded once for
-    each monitor detected by the OS during startup of chrome and after any
-    monitor topology changes (addition/removal) thereafter.
-
-    Subsampled to 1/100.
   </summary>
 </histogram>
 
@@ -336,8 +320,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Windows.PlatformExperienceHelper.InstallerLaunchStatus.System"
+    enum="SystemInstallerLaunchStatus" expires_after="2025-12-01">
+  <owner>alsan@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records the outcome of attempting to launch the platform experience helper
+    installer via Google Update for system installs.
+  </summary>
+</histogram>
+
+<histogram name="Windows.PlatformExperienceHelper.InstallerLaunchStatus.User"
+    enum="UserInstallerLaunchStatus" expires_after="2025-12-01">
+  <owner>alsan@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records the outcome of attempting to launch the platform experience helper
+    installer executable directly for user installs.
+  </summary>
+</histogram>
+
 <histogram name="Windows.ProcessorFamily" enum="ProcessorFamily"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>rkc@chromium.org</owner>
   <owner>vnagarnaik@google.com</owner>
   <owner>rockot@chromium.org</owner>
@@ -405,7 +409,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Win11HardwareRequirements.{Type}Check"
-    enum="BooleanEnabled" expires_after="2025-10-05">
+    enum="BooleanEnabled" expires_after="2025-12-07">
   <owner>estalin@chromium.org</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>
@@ -422,7 +426,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Win11UpgradeEligible" enum="BooleanEnabled"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>estalin@chromium.org</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>

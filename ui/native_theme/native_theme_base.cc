@@ -17,6 +17,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
@@ -506,8 +507,7 @@ std::optional<SkColor> NativeThemeBase::GetContrastingPressedOrHoveredColor(
     State state,
     Part part) const {
   CHECK(SupportedPartsForContrastingColor(part));
-  if (!IsModifyScrollbarCssColorOnHoverOrPressEnabled() ||
-      !fg_color.has_value() ||
+  if (!fg_color.has_value() ||
       (state != NativeTheme::kPressed && state != NativeTheme::kHovered) ||
       SkColorGetA(fg_color.value()) == SK_AlphaTRANSPARENT) {
     return fg_color;

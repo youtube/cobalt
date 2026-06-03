@@ -50,7 +50,8 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStoreTest.MockTabPersistentStoreObserver;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -64,7 +65,8 @@ import java.util.concurrent.TimeoutException;
 @DisableIf.Build(sdk_is_greater_than = VERSION_CODES.R) // https://crbug.com/1297370
 public class TabModelMergingTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private static final String TEST_URL_0 = UrlUtils.encodeHtmlDataUri("<html>test_url_0.</html>");
     private static final String TEST_URL_1 = UrlUtils.encodeHtmlDataUri("<html>test_url_1.</html>");
@@ -87,7 +89,8 @@ public class TabModelMergingTest {
 
     @Before
     public void setUp() throws Exception {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
+
         // Make sure file migrations don't run as they are unnecessary since app data was cleared.
         SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
         prefs.writeBoolean(ChromePreferenceKeys.TABMODEL_HAS_RUN_FILE_MIGRATION, true);
@@ -612,8 +615,7 @@ public class TabModelMergingTest {
 
     @Test
     @LargeTest
-    @DisableIf.Build(sdk_is_less_than = VERSION_CODES.P)
-    @DisableIf.Device(DeviceFormFactor.TABLET) // https://crbug.com/338997261
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // https://crbug.com/338997261
     public void testMergeOnMultiDisplay_CTA_Resumed_CTA2_Not_Resumed() throws TimeoutException {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -664,8 +666,7 @@ public class TabModelMergingTest {
 
     @Test
     @LargeTest
-    @DisableIf.Build(sdk_is_less_than = VERSION_CODES.P)
-    @DisableIf.Device(DeviceFormFactor.TABLET) // https://crbug.com/338997261
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // https://crbug.com/338997261
     public void testMergeOnMultiDisplay_OnDisplayChanged() throws TimeoutException {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

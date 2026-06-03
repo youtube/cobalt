@@ -22,7 +22,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
-#include "components/services/storage/public/mojom/partition.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom-forward.h"
 #include "content/browser/background_sync/background_sync_context_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -407,20 +406,13 @@ class CONTENT_EXPORT StoragePartitionImpl
     return shared_storage_header_observer_.get();
   }
 
-#if BUILDFLAG(IS_MAC)
-  bool IsStorageServiceRemoteValid() const;
-#endif  // BUILDFLAG(IS_MAC)
-
   // Can return nullptr while `this` is being destroyed.
   BrowserContext* browser_context() const;
 
-  // Returns the interface used to control the corresponding remote Partition in
-  // the Storage Service.
-  storage::mojom::Partition* GetStorageServicePartition();
+  std::optional<base::FilePath> GetStoragePartitionPath() const;
 
-  // Exposes the shared top-level connection to the Storage Service, for tests.
-  static mojo::Remote<storage::mojom::StorageService>&
-  GetStorageServiceForTesting();
+  // Returns the shared top-level connection to the Storage Service.
+  static mojo::Remote<storage::mojom::StorageService>& GetStorageService();
 
   // Binds the mojo endpoint for an `IDBFactory` (which implements
   // `window.indexedDB`).
@@ -483,7 +475,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   CreateSharedDictionaryAccessObserverForServiceWorker();
 
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
-  CreateAuthCertObserverForServiceWorker(int process_id);
+  CreateURLLoaderNetworkObserverForServiceWorker(
+      int process_id,
+      const url::Origin& worker_origin);
 
   mojo::PendingRemote<network::mojom::DeviceBoundSessionAccessObserver>
   CreateDeviceBoundSessionObserverForServiceWorker();
@@ -499,6 +493,12 @@ class CONTENT_EXPORT StoragePartitionImpl
       const blink::StorageKey& storage_key,
       const std::string& namespace_id,
       mojo::PendingReceiver<blink::mojom::StorageArea> receiver);
+  // Informs `DOMStorageClient`s that session storage was disconnected. So they
+  // can reset connections to return to a usable state.
+  void ResetSessionStorageConnections();
+
+  // The same as above but for LocalStorage.
+  void ResetLocalStorageConnections();
 
   storage::QuotaManagerProxy* GetQuotaManagerProxy();
 
@@ -627,7 +627,7 @@ class CONTENT_EXPORT StoragePartitionImpl
         GlobalRenderFrameHostId global_render_frame_host_id);
 
     // Used when `type` is `kServiceWorkerContext`.
-    explicit URLLoaderNetworkContext(int process_id);
+    URLLoaderNetworkContext(int process_id, const url::Origin& worker_origin);
 
     // Used when `type` is `kNavigationRequestContext`.
     explicit URLLoaderNetworkContext(NavigationRequest& navigation_request);
@@ -642,6 +642,9 @@ class CONTENT_EXPORT StoragePartitionImpl
     }
 
     int process_id() const { return process_id_; }
+    const std::optional<url::Origin>& worker_origin() const {
+      return worker_origin_;
+    }
 
     // If `type_` is kServiceWorkerContext, returns nullptr. Otherwise returns
     // the WebContents.
@@ -656,6 +659,9 @@ class CONTENT_EXPORT StoragePartitionImpl
 
     // Only valid when `type_` is kServiceWorkerContext.
     int process_id_ = content::ChildProcessHost::kInvalidUniqueID;
+
+    // Only valid and non-nullopt when `type_` is kServiceWorkerContext.
+    std::optional<url::Origin> worker_origin_;
   };
 
   // `relative_partition_path` is the relative path under `profile_path` to the
@@ -689,11 +695,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   // storage partition instead.
   void Initialize(StoragePartitionImpl* fallback_for_blob_urls = nullptr);
 
-  // If we're running Storage Service out-of-process and it crashes, this
-  // re-establishes a connection and makes sure the service returns to a usable
-  // state.
-  void OnStorageServiceDisconnected();
-
   // Clears the data specified by the `storage_key` or
   // `filter_builder`/`storage_key_policy_matcher`. `storage_key` and
   // `filter_builder`/`storage_key_policy_matcher` will never both be populated.
@@ -725,7 +726,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   // first called or there is an error.
   void InitNetworkContext();
 
-  bool is_in_memory() { return config_.in_memory(); }
+  bool is_in_memory() const { return config_.in_memory(); }
 
   void CreateURLLoaderFactoryForBrowserProcessInternal(
       mojo::PendingRemote<network::mojom::URLLoaderFactory>* out_factory);
@@ -757,7 +758,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   // querying its path abd BrowserContext is allowed.
   bool initialized_ = false;
 
-  mojo::Remote<storage::mojom::Partition> remote_partition_;
   scoped_refptr<QuotaContext> quota_context_;
   scoped_refptr<storage::QuotaManager> quota_manager_;
   scoped_refptr<storage::FileSystemContext> filesystem_context_;

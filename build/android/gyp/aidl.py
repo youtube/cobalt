@@ -7,7 +7,7 @@
 """Invokes Android's aidl
 """
 
-import optparse
+import argparse
 import os
 import re
 import sys
@@ -22,7 +22,6 @@ import zip_helpers
 def do_native(options, files):
 
   for i, f in enumerate(files):
-    f = files[i]
     with build_utils.TempDir() as temp_dir:
       aidl_cmd = [options.aidl_path, '--lang=ndk']
       aidl_cmd += [
@@ -39,25 +38,27 @@ def do_native(options, files):
 
 
 def main(argv):
-  option_parser = optparse.OptionParser()
-  option_parser.add_option('--aidl-path', help='Path to the aidl binary.')
-  option_parser.add_option('--imports', help='Files to import.')
-  option_parser.add_option('--header-output-dir',
-                           help='Optional header file output location.')
-  option_parser.add_option('--cpp-output',
-                           help='Optional cpp file output location.',
-                           action='append')
-  option_parser.add_option('--includes',
-                           help='Directories to add as import search paths.')
-  option_parser.add_option('--srcjar', help='Path for srcjar output.')
-  action_helpers.add_depfile_arg(option_parser)
-  options, args = option_parser.parse_args(argv[1:])
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--aidl-path', help='Path to the aidl binary.')
+  parser.add_argument('--imports', help='Files to import.')
+  parser.add_argument('--header-output-dir',
+                      help='Optional header file output location.')
+  parser.add_argument('--cpp-output',
+                      help='Optional cpp file output location.',
+                      action='append')
+  parser.add_argument('--includes',
+                      help='Directories to add as import search paths.')
+  parser.add_argument('--srcjar', help='Path for srcjar output.')
+  parser.add_argument('files', nargs='+')
+  action_helpers.add_depfile_arg(parser)
+  options = parser.parse_args(argv[1:])
+  args = options.files
 
   options.includes = action_helpers.parse_gn_list(options.includes)
 
   if options.header_output_dir or options.cpp_output:
     if not (options.header_output_dir and options.cpp_output):
-      option_parser.error(
+      parser.error(
           'Native generation requires header-output-dir and cpp-output')
 
 
@@ -79,7 +80,7 @@ def main(argv):
     with action_helpers.atomic_output(options.srcjar) as f:
       with zipfile.ZipFile(f, 'w') as srcjar:
         for path in build_utils.FindInDirectory(temp_dir, '*.java'):
-          with open(path) as fileobj:
+          with open(path, encoding='utf-8') as fileobj:
             data = fileobj.read()
           pkg_name = re.search(r'^\s*package\s+(.*?)\s*;', data, re.M).group(1)
           arcname = '%s/%s' % (

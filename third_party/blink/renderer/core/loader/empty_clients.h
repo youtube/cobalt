@@ -32,6 +32,7 @@
 #include <memory>
 
 #include "base/notreached.h"
+#include "base/time/time.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/trees/paint_holding_reason.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -201,6 +202,9 @@ class CORE_EXPORT EmptyChromeClient : public ChromeClient {
   const display::ScreenInfos& GetScreenInfos(LocalFrame&) const override {
     return empty_screen_infos_;
   }
+  const display::ScreenInfo& GetOriginalScreenInfo(LocalFrame&) const override {
+    return empty_screen_infos_.current();
+  }
   void ContentsSizeChanged(LocalFrame*, const gfx::Size&) const override {}
   void ShowMouseOverURL(const HitTestResult&) override {}
   void UpdateTooltipUnderCursor(LocalFrame&,
@@ -358,7 +362,7 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
       const String&,
       const std::optional<Impression>&,
       const LocalFrameToken* initiator_frame_token,
-      std::unique_ptr<SourceLocation>,
+      SourceLocation*,
       mojo::PendingRemote<mojom::blink::NavigationStateKeepAliveHandle>,
       bool is_container_initiated,
       bool has_rel_opener) override;
@@ -382,6 +386,7 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
 
   bool NavigateBackForward(
       int offset,
+      base::TimeTicks,
       std::optional<scheduler::TaskAttributionId>) const override {
     return false;
   }

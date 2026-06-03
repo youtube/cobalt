@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/strings/string_util.h"
 #include "content/public/renderer/v8_value_converter.h"
 #include "extensions/common/api/messaging/message.h"
 #include "extensions/common/constants.h"
@@ -58,7 +59,7 @@ void GetAliasedFeature(v8::Local<v8::Name> property_name,
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
-      info.Holder()->GetCreationContextChecked(isolate);
+      info.HolderV2()->GetCreationContextChecked(isolate);
 
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::Value> chrome;

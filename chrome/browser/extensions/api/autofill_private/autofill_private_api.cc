@@ -16,6 +16,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/optional_ref.h"
@@ -500,10 +501,14 @@ ExtensionFunction::ResponseAction AutofillPrivateSaveCreditCardFunction::Run() {
     paydm->AddCreditCard(credit_card);
 
     base::RecordAction(base::UserMetricsAction("AutofillCreditCardsAdded"));
+
     base::UmaHistogramCounts100(
         "Autofill.PaymentMethods.SettingsPage."
         "StoredCreditCardCountBeforeCardAdded",
         current_card_count);
+    base::UmaHistogramBoolean(
+        "Autofill.PaymentMethodsSettingsPage.CardAddedWithoutExistingCards",
+        current_card_count == 0);
 
     if (credit_card.HasNonEmptyValidNickname()) {
       base::RecordAction(
@@ -701,11 +706,16 @@ ExtensionFunction::ResponseAction AutofillPrivateAddVirtualCardFunction::Run() {
     return RespondNow(Error(kErrorDataUnavailable));
   }
 
-  autofill_client()
-      ->GetPaymentsAutofillClient()
-      ->GetVirtualCardEnrollmentManager()
-      ->InitVirtualCardEnroll(
-          *card, autofill::VirtualCardEnrollmentSource::kSettingsPage);
+  auto* virtual_card_enrollment_manager =
+      autofill_client()
+          ->GetPaymentsAutofillClient()
+          ->GetVirtualCardEnrollmentManager();
+  CHECK(virtual_card_enrollment_manager);
+  virtual_card_enrollment_manager->InitVirtualCardEnroll(
+      *card, autofill::VirtualCardEnrollmentSource::kSettingsPage,
+      base::BindOnce(
+          &autofill::VirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble,
+          base::Unretained(virtual_card_enrollment_manager)));
   return RespondNow(NoArguments());
 }
 

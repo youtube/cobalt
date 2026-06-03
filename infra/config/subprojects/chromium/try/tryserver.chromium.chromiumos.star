@@ -23,7 +23,6 @@ try_.defaults.set(
     orchestrator_cores = 2,
     orchestrator_siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
     siso_remote_linking = True,
@@ -50,13 +49,6 @@ try_.builder(
     # TODO(crbug.com/40605913): Enable DCHECKS on the two amd64-generic bots
     # when the PFQ has it enabled.
     gn_args = "ci/chromeos-amd64-generic-cfi-thin-lto-rel",
-    # TODO(b/326865026): This build seems to have a high number of fallbacks,
-    # but not enough to trigger the early fail mechanism.  The fallbacks result
-    # in slow builds and timeouts.  Fail in these cases so logs are collected
-    # for debugging.
-    reclient_bootstrap_env = {
-        "RBE_fail_early_min_fallback_ratio": "0.1",
-    },
 )
 
 try_.builder(

@@ -37,11 +37,13 @@
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
 #include "components/autofill/core/browser/webdata/payments/payments_autofill_table.h"
+#include "components/autofill/core/browser/webdata/payments/server_cvc.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_table.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/sync/base/data_type.h"
+#include "components/sync/protocol/autofill_specifics.pb.h"
 #include "components/webdata/common/web_database_backend.h"
 
 namespace autofill {
@@ -121,10 +123,9 @@ enum class Result {
   kUpdateServerIbanMetadata_Failure = 275,
   kClearAllCreditCardBenefits_Success = 276,
   kClearAllCreditCardBenefits_Failure = 277,
-  kAddEntityInstance_Success = 280,
-  kAddEntityInstance_Failure = 281,
-  kUpdateEntityInstance_Success = 290,
-  kUpdateEntityInstance_Failure = 291,
+  // Adding-but-not-updating entity instances (280, 281) is deprecated.
+  kAddOrUpdateEntityInstance_Success = 290,
+  kAddOrUpdateEntityInstance_Failure = 291,
   kRemoveEntityInstance_Success = 300,
   kRemoveEntityInstance_Failure = 301,
   kRemoveEntityInstancesModifiedBetween_Success = 310,
@@ -490,7 +491,7 @@ WebDatabase::State AutofillWebDataBackendImpl::AddOrUpdateEntityInstance(
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   EntityTable* table = EntityTable::FromWebDatabase(db);
   if (!table->AddOrUpdateEntityInstance(entity)) {
-    ReportResult(Result::kUpdateEntityInstance_Failure);
+    ReportResult(Result::kAddOrUpdateEntityInstance_Failure);
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
   base::Uuid guid = entity.guid();
@@ -499,7 +500,7 @@ WebDatabase::State AutofillWebDataBackendImpl::AddOrUpdateEntityInstance(
       base::BindOnce(std::move(on_success),
                      EntityInstanceChange(EntityInstanceChange::UPDATE,
                                           std::move(guid), std::move(entity))));
-  ReportResult(Result::kUpdateEntityInstance_Success);
+  ReportResult(Result::kAddOrUpdateEntityInstance_Success);
   return WebDatabase::COMMIT_NEEDED;
 }
 

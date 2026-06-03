@@ -239,6 +239,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
       WaitForEvent(BubbleSignInPromoSignInButtonView::kPromoSignInButton,
                    kBubbleSignInPromoSignInButtonHasCallback),
       EnsurePresent(PasswordSaveUpdateView::kPasswordBubbleElementId),
+      EnsureNotPresent(PasswordSaveUpdateView::kExtraButtonElementId),
       SetOnIncompatibleAction(
           OnIncompatibleAction::kIgnoreAndContinue,
           "Screenshot can only run in pixel_tests on Windows."),
@@ -323,6 +324,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
       WaitForEvent(BubbleSignInPromoSignInButtonView::kPromoSignInButton,
                    kBubbleSignInPromoSignInButtonHasCallback),
       EnsurePresent(PasswordSaveUpdateView::kPasswordBubbleElementId),
+      EnsureNotPresent(PasswordSaveUpdateView::kExtraButtonElementId),
       SetOnIncompatibleAction(
           OnIncompatibleAction::kIgnoreAndContinue,
           "Screenshot can only run in pixel_tests on Windows."),
@@ -391,6 +393,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
       WaitForEvent(BubbleSignInPromoSignInButtonView::kPromoSignInButton,
                    kBubbleSignInPromoSignInButtonHasCallback),
       EnsurePresent(PasswordSaveUpdateView::kPasswordBubbleElementId),
+      EnsureNotPresent(PasswordSaveUpdateView::kExtraButtonElementId),
       SetOnIncompatibleAction(
           OnIncompatibleAction::kIgnoreAndContinue,
           "Screenshot can only run in pixel_tests on Windows."),
@@ -687,8 +690,8 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
                    kBubbleSignInPromoSignInButtonHasCallback),
       EnsureNotPresent(SaveAddressProfileView::kTopViewId),
       EnsurePresent(AddressSignInPromoView::kBubbleFrameViewId),
-      // Click the promo to put the bubble into focus.
-      MoveMouseTo(AddressSignInPromoView::kBubbleFrameViewId), ClickMouse(),
+      // Ensure the surface containing the promo is active.
+      ActivateSurface(AddressSignInPromoView::kBubbleFrameViewId),
       SendKeyPress(ui::VKEY_ESCAPE),
       WaitForHide(AddressSignInPromoView::kBubbleFrameViewId));
 

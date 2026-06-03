@@ -8,23 +8,16 @@ found in the LICENSE file.
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- TODO(huayinz): Move themes to another xml file. -->
     <!-- Application themes -->
-    <!-- On Android N, if the ChromeLauncherActivity is NoDisplay then
-         intents are not always immediately sent when Chrome is docked to
-         the top of the screen in multi-window mode. Use Translucent.NoTitleBar
-         for the theme instead. See crbug.com/645074. -->
-    <style name="LauncherTheme" parent="Theme.BrowserUI.Translucent.NoTitleBar" />
+    <style name="LauncherTheme" parent="Theme.BrowserUI.NoDisplay" />
 
-    <style name="Base.V21.Theme.Chromium" parent="Theme.BrowserUI.DayNight">
+    <style name="Base.Theme.Chromium" parent="Theme.BrowserUI.DayNight">
         <!-- Set android alert dialog attributes because the context menu dialog is
              OS-dependent. -->
         <item name="android:alertDialogTheme">@style/ThemeOverlay.BrowserUI.AlertDialog</item>
     </style>
-    <style name="Base.Theme.Chromium" parent="Base.V21.Theme.Chromium" />
 
     <style name="Base.Theme.Chromium.WithWindowAnimation">
         <item name="android:windowContentOverlay">@null</item>
-
-        <!-- Navigation Transitions, requires API level 21 -->
         <item name="android:windowAllowEnterTransitionOverlap">false</item>
         <item name="android:windowAllowReturnTransitionOverlap">true</item>
         <item name="android:windowContentTransitions">true</item>
@@ -35,18 +28,25 @@ found in the LICENSE file.
     </style>
 
     <style name="Theme.Chromium" parent="Base.Theme.Chromium" />
-    <style name="Theme.Chromium.WithWindowAnimation"
-        parent="Base.Theme.Chromium.WithWindowAnimation" />
+    <style name="Theme.Chromium.WithWindowAnimation" parent="Base.Theme.Chromium.WithWindowAnimation">
+        <item name="android:navigationBarColor">@macro/bottom_system_nav_color</item>
+        <item name="android:navigationBarDividerColor">@macro/bottom_system_nav_divider_color</item>
+        <item name="android:windowLightNavigationBar">@bool/window_light_navigation_bar</item>
+    </style>
 
     <!-- Activity themes -->
     <style name="Theme.Chromium.Activity" parent="Theme.Chromium.WithWindowAnimation" />
     <!-- This is distinct from Theme.Chromium.Activity.Fullscreen.Transparent, which makes the
          payment handler window overlap the bottom nav bar. -->
-    <style name="Base.Theme.Chromium.Activity.Fullscreen" parent="Theme.BrowserUI.DayNight" />
-    <style name="Base.V27.Theme.Chromium.Activity.Fullscreen"
-        parent="Base.Theme.Chromium.Activity.Fullscreen" />
-    <style name="Theme.Chromium.Activity.Fullscreen"
-        parent="Base.V27.Theme.Chromium.Activity.Fullscreen" />
+    <style name="Base.Theme.Chromium.Activity.Fullscreen" parent="Theme.BrowserUI.DayNight">
+        <item name="android:navigationBarColor">@macro/bottom_system_nav_color</item>
+        <item name="android:navigationBarDividerColor">@macro/bottom_system_nav_divider_color</item>
+        <item name="android:windowLightNavigationBar">@bool/window_light_navigation_bar</item>
+        <item name="android:statusBarColor">@macro/default_bg_color</item>
+        <item name="android:windowLightStatusBar">@bool/window_light_status_bar</item>
+    </style>
+    <style name="Theme.Chromium.Activity.Fullscreen" parent="Base.Theme.Chromium.Activity.Fullscreen" />
+
     <style name="Theme.Chromium.Activity.Fullscreen.Transparent">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowContentOverlay">@null</item>
@@ -80,6 +80,11 @@ found in the LICENSE file.
         <item name="preferenceTheme">@style/PreferenceTheme</item>
         <item name="alertDialogTheme">@style/ThemeOverlay.BrowserUI.AlertDialog</item>
         <item name="searchViewStyle">@style/Widget.AppCompat.SearchView.ActionBar</item>
+        <item name="android:navigationBarColor">@macro/bottom_system_nav_color</item>
+        <item name="android:navigationBarDividerColor">@macro/bottom_system_nav_divider_color</item>
+        <item name="android:windowLightNavigationBar">@bool/window_light_navigation_bar</item>
+        <item name="android:statusBarColor">@macro/default_bg_color</item>
+        <item name="android:windowLightStatusBar">@bool/window_light_status_bar</item>
 
         <!-- Text style attributes used by the preference_material.xml layout. -->
         <item name="android:textAppearanceListItem">@style/TextAppearance.TextLarge.Primary</item>
@@ -87,8 +92,7 @@ found in the LICENSE file.
         <item name="android:textAppearanceListItemSecondary">@style/TextAppearance.TextMedium.Secondary</item>
         <item name="android:textColorSecondary">@color/default_text_color_secondary_list</item>
     </style>
-    <style name="Base.V27.Theme.Chromium.Settings" parent="Base.Theme.Chromium.Settings" />
-    <style name="Theme.Chromium.Settings" parent="Base.V27.Theme.Chromium.Settings" />
+    <style name="Theme.Chromium.Settings" parent="Base.Theme.Chromium.Settings" />
 
     <style name="Theme.Chromium.Settings.ManageSpace">
         <!-- With ActionBar -->
@@ -117,7 +121,9 @@ found in the LICENSE file.
         <item name="android:windowAnimationStyle">@style/SigninAndHistorySyncActivityAnimation</item>
     </style>
     <style name="Theme.Chromium.SigninAndHistorySyncActivity"
-        parent="Base.Theme.Chromium.SigninAndHistorySyncActivity" />
+        parent="Base.Theme.Chromium.SigninAndHistorySyncActivity">
+        <item name="android:navigationBarDividerColor">@macro/bottom_system_nav_divider_color</item>
+    </style>
 
     <!-- TODO(crbug.com/345176436): This animation style is used to set the
          enter animation for the history sync dialog. This animation should be
@@ -149,13 +155,17 @@ found in the LICENSE file.
         <item name="colorControlHighlight">@color/control_highlight_color</item>
         <item name="spinnerStyle">@style/SpinnerStyle</item>
         <item name="textInputStyle">@style/Widget.BrowserUI.TextInputLayout</item>
+        <item name="android:navigationBarColor">@macro/bottom_system_nav_color</item>
+        <item name="android:navigationBarDividerColor">@macro/bottom_system_nav_divider_color</item>
+        <item name="android:windowLightNavigationBar">@bool/window_light_navigation_bar</item>
+        <item name="android:statusBarColor">@macro/default_bg_color</item>
+        <item name="android:windowLightStatusBar">@bool/window_light_status_bar</item>
 
         <!-- Remove ActionBar -->
         <item name="windowNoTitle">true</item>
         <item name="windowActionBar">false</item>
     </style>
-    <style name="Base.V27.Theme.Chromium.DialogWhenLarge" parent="Base.Theme.Chromium.DialogWhenLarge" />
-    <style name="Theme.Chromium.DialogWhenLarge" parent="Base.V27.Theme.Chromium.DialogWhenLarge" />
+    <style name="Theme.Chromium.DialogWhenLarge" parent="Base.Theme.Chromium.DialogWhenLarge" />
     <style name="DimmingDialog" parent="Base.Theme.Chromium.DialogWhenLarge">
         <item name="android:windowLightNavigationBar" tools:targetApi="28">false</item>
     </style>
@@ -354,12 +364,6 @@ found in the LICENSE file.
     </style>
 
     <!-- Misc styles -->
-    <style name="TabBarLineShadow">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">1dp</item>
-        <item name="android:src">@macro/divider_line_bg_color</item>
-        <item name="android:scaleType">fitXY</item>
-    </style>
     <style name="TextAppearance.UpdateMenuItem">
         <item name="android:textColor">@color/update_menu_item_text_color</item>
         <item name="android:textSize">@dimen/text_size_large</item>

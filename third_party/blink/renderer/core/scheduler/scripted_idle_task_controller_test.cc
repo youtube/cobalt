@@ -6,6 +6,7 @@
 
 #include <deque>
 
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -215,12 +216,11 @@ class IdleTaskControllerFrameScheduler : public FrameScheduler {
   void OnStartedUsingNonStickyFeature(
       SchedulingPolicy::Feature feature,
       const SchedulingPolicy& policy,
-      std::unique_ptr<SourceLocation> source_location,
+      SourceLocation* source_location,
       SchedulingAffectingFeatureHandle* handle) override {}
-  void OnStartedUsingStickyFeature(
-      SchedulingPolicy::Feature feature,
-      const SchedulingPolicy& policy,
-      std::unique_ptr<SourceLocation> source_location) override {}
+  void OnStartedUsingStickyFeature(SchedulingPolicy::Feature feature,
+                                   const SchedulingPolicy& policy,
+                                   SourceLocation* source_location) override {}
   void OnStoppedUsingNonStickyFeature(
       SchedulingAffectingFeatureHandle* handle) override {}
   base::WeakPtr<FrameOrWorkerScheduler> GetFrameOrWorkerSchedulerWeakPtr()

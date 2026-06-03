@@ -790,7 +790,7 @@ const AXPosition AXPosition::AsValidDOMPosition(
     return {};
   }
 
-  // At this point, if a non-pseudo element DOM node is associated with our
+  // At this point, if a non-pseudo-element DOM node is associated with our
   // container, then the corresponding DOM position should be valid.
   const Node* container_node = container->GetClosestNode();
   if (container_node->IsPseudoElement()) {
@@ -1009,10 +1009,10 @@ String AXPosition::ToString() const {
 // static
 bool AXPosition::IsIgnoredCharacter(UChar character) {
   switch (character) {
-    case kZeroWidthSpaceCharacter:
-    case kLeftToRightIsolateCharacter:
-    case kRightToLeftIsolateCharacter:
-    case kPopDirectionalIsolateCharacter:
+    case uchar::kZeroWidthSpace:
+    case uchar::kLeftToRightIsolate:
+    case uchar::kRightToLeftIsolate:
+    case uchar::kPopDirectionalIsolate:
       return true;
     default:
       return false;

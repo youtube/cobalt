@@ -10,25 +10,16 @@ import android.content.Context;
 import android.graphics.Color;
 import android.view.ContextThemeWrapper;
 
-import androidx.core.content.ContextCompat;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.util.ColorUtils;
 
 @RunWith(BaseRobolectricTestRunner.class)
-// TODO(crbug.com/419289558): Re-enable color surface feature flags
-@Features.DisableFeatures({
-    ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE
-})
 public class ThemeUtilsUnitTest {
     private Context mContext;
 
@@ -98,16 +89,51 @@ public class ThemeUtilsUnitTest {
 
     @Test
     public void getTextBoxColorForToolbarBackgroundInNonNativePage_anyDefault() {
-        int expectedColor = ContextCompat.getColor(mContext, R.color.toolbar_text_box_bg_color);
+        int expectedColor =
+                SurfaceColorUpdateUtils.getOmniboxBackgroundColor(
+                        mContext, /* isIncognito= */ false);
 
         int themeColor =
                 ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(
-                        mContext, Color.WHITE, /* isIncognito= */ false, /* isCustomTab= */ false);
+                        mContext,
+                        SurfaceColorUpdateUtils.getDefaultThemeColor(
+                                mContext, /* isIncognito= */ false),
+                        /* isIncognito= */ false,
+                        /* isCustomTab= */ false);
         assertEquals(expectedColor, themeColor);
 
         themeColor =
                 ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(
-                        mContext, Color.WHITE, /* isIncognito= */ false, /* isCustomTab= */ true);
+                        mContext,
+                        SurfaceColorUpdateUtils.getDefaultThemeColor(
+                                mContext, /* isIncognito= */ false),
+                        /* isIncognito= */ false,
+                        /* isCustomTab= */ true);
         assertEquals(expectedColor, themeColor);
+    }
+
+    @Test
+    public void getThemedToolbarIconTintResForActivityState_anyBrandedThemeWithFocusActivity() {
+        // DARK_BRANDED_THEME.
+        int tintRes =
+                ThemeUtils.getThemedToolbarIconTintResForActivityState(
+                        BrandedColorScheme.DARK_BRANDED_THEME, /* isActivityFocused= */ false);
+        assertEquals(R.color.toolbar_icon_unfocused_activity_light_color, tintRes);
+
+        tintRes =
+                ThemeUtils.getThemedToolbarIconTintResForActivityState(
+                        BrandedColorScheme.DARK_BRANDED_THEME, /* isActivityFocused= */ true);
+        assertEquals(R.color.default_icon_color_white_tint_list, tintRes);
+
+        // LIGHT_BRANDED_THEME.
+        tintRes =
+                ThemeUtils.getThemedToolbarIconTintResForActivityState(
+                        BrandedColorScheme.LIGHT_BRANDED_THEME, /* isActivityFocused= */ false);
+        assertEquals(R.color.toolbar_icon_unfocused_activity_dark_color, tintRes);
+
+        tintRes =
+                ThemeUtils.getThemedToolbarIconTintResForActivityState(
+                        BrandedColorScheme.LIGHT_BRANDED_THEME, /* isActivityFocused= */ true);
+        assertEquals(R.color.default_icon_color_dark_tint_list, tintRes);
     }
 }

@@ -19,6 +19,7 @@
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/signin/chrome_signout_confirmation_prompt.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -186,7 +187,8 @@ class SigninViewControllerBrowserTestBase : public SigninBrowserTestBase {
     content::TestNavigationObserver observer(url);
     observer.StartWatchingNewWebContents();
 
-    auto* signin_view_controller = browser()->signin_view_controller();
+    auto* signin_view_controller =
+        browser()->GetFeatures().signin_view_controller();
     signin_view_controller->SignoutOrReauthWithPrompt(
         kTestAccessPoint,
         signin_metrics::ProfileSignout::kUserClickedSignoutProfileMenu,
@@ -248,7 +250,8 @@ class SigninViewControllerBrowserTest
         views::test::AnyWidgetTestPasskey{},
         "ChromeSigninChoiceForExtensionsPrompt");
     browser()
-        ->signin_view_controller()
+        ->GetFeatures()
+        .signin_view_controller()
         ->MaybeShowChromeSigninDialogForExtensions(kTestExtensionName,
                                                    std::move(on_complete));
 
@@ -463,7 +466,7 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
               CREDENTIALS_REJECTED_BY_SERVER));
 
   // Trigger the Chrome signout action.
-  browser()->signin_view_controller()->SignoutOrReauthWithPrompt(
+  browser()->GetFeatures().signin_view_controller()->SignoutOrReauthWithPrompt(
       kTestAccessPoint,
       signin_metrics::ProfileSignout::kUserClickedSignoutProfileMenu,
       signin_metrics::SourceForRefreshTokenOperation::
@@ -480,8 +483,16 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
   EXPECT_TRUE(IsSignoutTab(tab));
 }
 
+// TODO(crbug.com/422501416): Re-enable this test on Windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_SignoutOrReauthWithPrompt_SignOutSupervisedUser \
+  DISABLED_SignoutOrReauthWithPrompt_SignOutSupervisedUser
+#else
+#define MAYBE_SignoutOrReauthWithPrompt_SignOutSupervisedUser \
+  SignoutOrReauthWithPrompt_SignOutSupervisedUser
+#endif
 IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
-                       SignoutOrReauthWithPrompt_SignOutSupervisedUser) {
+                       MAYBE_SignoutOrReauthWithPrompt_SignOutSupervisedUser) {
   // Setup a primary account for a supervised user.
   AccountInfo primary_account_info = SetPrimaryAccount();
   AccountCapabilitiesTestMutator mutator(&primary_account_info.capabilities);
@@ -643,8 +654,11 @@ IN_PROC_BROWSER_TEST_F(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
 
   base::test::TestFuture<void> future;
-  browser()->signin_view_controller()->MaybeShowChromeSigninDialogForExtensions(
-      kTestExtensionName, future.GetCallback());
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->MaybeShowChromeSigninDialogForExtensions(kTestExtensionName,
+                                                 future.GetCallback());
   EXPECT_TRUE(future.IsReady());
 }
 
@@ -652,22 +666,25 @@ IN_PROC_BROWSER_TEST_F(
     SigninViewControllerBrowserTest,
     ShowChromeSigninDialogForExtensionsPromptNotShownNoAccounts) {
   base::test::TestFuture<void> future;
-  browser()->signin_view_controller()->MaybeShowChromeSigninDialogForExtensions(
-      kTestExtensionName, future.GetCallback());
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->MaybeShowChromeSigninDialogForExtensions(kTestExtensionName,
+                                                 future.GetCallback());
   EXPECT_TRUE(future.IsReady());
 }
 
 IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        UpdateAccessPointOfSignInTab) {
   // Request a sign in tab, which will open a new tab.
-  browser()->signin_view_controller()->ShowDiceAddAccountTab(
+  browser()->GetFeatures().signin_view_controller()->ShowDiceAddAccountTab(
       signin_metrics::AccessPoint::kPasswordBubble, std::string());
   EXPECT_TRUE(IsSigninTab(browser()->tab_strip_model()->GetActiveWebContents(),
                           signin_metrics::AccessPoint::kPasswordBubble));
 
   // Request a sign in tab with a different access point, which will update the
   // existing sign in tab's access point.
-  browser()->signin_view_controller()->ShowDiceAddAccountTab(
+  browser()->GetFeatures().signin_view_controller()->ShowDiceAddAccountTab(
       signin_metrics::AccessPoint::kAddressBubble, std::string());
   EXPECT_TRUE(IsSigninTab(browser()->tab_strip_model()->GetActiveWebContents(),
                           signin_metrics::AccessPoint::kAddressBubble));
@@ -685,33 +702,41 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
   base::MockCallback<signin::SigninChoiceCallback>
       mock_process_user_choice_callback;
   base::MockCallback<base::OnceClosure> mock_done_callback;
-  browser()->signin_view_controller()->ShowModalManagedUserNoticeDialog(
-      std::make_unique<signin::EnterpriseProfileCreationDialogParams>(
-          account_info,
-          /*is_oidc_account=*/false,
-          /*turn_sync_on_signed_profile=*/false,
-          /*profile_creation_required_by_policy=*/false,
-          /*show_link_data_option=*/false,
-          /*process_user_choice_callback=*/
-          mock_process_user_choice_callback.Get(), mock_done_callback.Get()));
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->ShowModalManagedUserNoticeDialog(
+          std::make_unique<signin::EnterpriseProfileCreationDialogParams>(
+              account_info,
+              /*is_oidc_account=*/false,
+              /*turn_sync_on_signed_profile=*/false,
+              /*profile_creation_required_by_policy=*/false,
+              /*show_link_data_option=*/false,
+              /*process_user_choice_callback=*/
+              mock_process_user_choice_callback.Get(),
+              mock_done_callback.Get()));
   EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
       browser()->profile()));
-  browser()->signin_view_controller()->CloseModalSignin();
+  browser()->GetFeatures().signin_view_controller()->CloseModalSignin();
   EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
       browser()->profile()));
 
-  browser()->signin_view_controller()->ShowModalManagedUserNoticeDialog(
-      std::make_unique<signin::EnterpriseProfileCreationDialogParams>(
-          account_info,
-          /*is_oidc_account=*/false,
-          /*turn_sync_on_signed_profile=*/false,
-          /*profile_creation_required_by_policy=*/true,
-          /*show_link_data_option=*/false,
-          /*process_user_choice_callback=*/
-          mock_process_user_choice_callback.Get(), mock_done_callback.Get()));
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->ShowModalManagedUserNoticeDialog(
+          std::make_unique<signin::EnterpriseProfileCreationDialogParams>(
+              account_info,
+              /*is_oidc_account=*/false,
+              /*turn_sync_on_signed_profile=*/false,
+              /*profile_creation_required_by_policy=*/true,
+              /*show_link_data_option=*/false,
+              /*process_user_choice_callback=*/
+              mock_process_user_choice_callback.Get(),
+              mock_done_callback.Get()));
   EXPECT_TRUE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
       browser()->profile()));
-  browser()->signin_view_controller()->CloseModalSignin();
+  browser()->GetFeatures().signin_view_controller()->CloseModalSignin();
   EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
       browser()->profile()));
 }
@@ -789,7 +814,10 @@ class SigninViewControllerInteractiveBrowserTest
             SigninViewController::kSignoutConfirmationDialogViewElementId),
         CheckResult(
             [&] {
-              return browser()->signin_view_controller()->ShowsModalDialog();
+              return browser()
+                  ->GetFeatures()
+                  .signin_view_controller()
+                  ->ShowsModalDialog();
             },
             false),
         // Verify that the user has signed out.
@@ -902,16 +930,22 @@ IN_PROC_BROWSER_TEST_P(SigninViewControllerInteractiveBrowserTest,
   RunTestSequence(
       // Show the dialog and verify that it has shown.
       Do([&] {
-        browser()->signin_view_controller()->SignoutOrReauthWithPrompt(
-            kTestAccessPoint,
-            signin_metrics::ProfileSignout::kUserClickedSignoutProfileMenu,
-            signin_metrics::SourceForRefreshTokenOperation::
-                kUserMenu_SignOutAllAccounts);
+        browser()
+            ->GetFeatures()
+            .signin_view_controller()
+            ->SignoutOrReauthWithPrompt(
+                kTestAccessPoint,
+                signin_metrics::ProfileSignout::kUserClickedSignoutProfileMenu,
+                signin_metrics::SourceForRefreshTokenOperation::
+                    kUserMenu_SignOutAllAccounts);
       }),
       WaitForShow(
           SigninViewController::kSignoutConfirmationDialogViewElementId),
       Check([&] {
-        return browser()->signin_view_controller()->ShowsModalDialog();
+        return browser()
+            ->GetFeatures()
+            .signin_view_controller()
+            ->ShowsModalDialog();
       }),
       InstrumentNonTabWebView(
           kWebContentsId,

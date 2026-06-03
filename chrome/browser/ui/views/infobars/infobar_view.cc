@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
@@ -107,6 +109,9 @@ InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
     AddChildViewRaw(icon_.get());
   }
 
+  // Create the container that will hold all subclass‑owned children.
+  content_container_ = AddChildView(std::make_unique<views::View>());
+
   if (this->delegate()->IsCloseable()) {
     auto close_button = views::CreateVectorImageButton(base::BindRepeating(
         &InfoBarView::CloseButtonPressed, base::Unretained(this)));
@@ -156,6 +161,10 @@ void InfoBarView::Layout(PassKey) {
     start_x += spacing + content_minimum_width;
   }
 
+  // Ensure the content container spans the full infobar so that its children
+  // can continue to use absolute coordinates unchanged.
+  content_container_->SetBoundsRect(GetLocalBounds());
+
   if (close_button_) {
     const gfx::Insets close_button_spacing = GetCloseButtonSpacing();
     close_button_->SizeToPreferredSize();
@@ -190,19 +199,6 @@ gfx::Size InfoBarView::CalculatePreferredSize(
   return gfx::Size(width + trailing_space, computed_height());
 }
 
-void InfoBarView::ViewHierarchyChanged(
-    const views::ViewHierarchyChangedDetails& details) {
-  View::ViewHierarchyChanged(details);
-
-  // Anything that needs to happen once after all subclasses add their children.
-  // TODO(330923783): Create a container for info bar subclasses to add children
-  // to, so that we don't have to move the close button to the end every time a
-  // child is added.
-  if (details.is_add && (details.child == this) && close_button_) {
-    ReorderChildView(close_button_, children().size());
-  }
-}
-
 void InfoBarView::OnThemeChanged() {
   views::View::OnThemeChanged();
   const auto* cp = GetColorProvider();
@@ -219,7 +215,7 @@ void InfoBarView::OnThemeChanged() {
         icon_disabled_color);
   }
 
-  for (views::View* child : children()) {
+  for (views::View* child : content_container_->children()) {
     auto* label = views::AsViewClass<views::Label>(child);
     if (label) {
       label->SetBackgroundColor(background_color);
@@ -259,12 +255,18 @@ std::unique_ptr<views::Label> InfoBarView::CreateLabel(
 }
 
 std::unique_ptr<views::Link> InfoBarView::CreateLink(
-    const std::u16string& text) {
+    const std::u16string& text,
+    const std::optional<std::u16string>& accessible_text) {
   auto link = std::make_unique<views::Link>(
       text, views::style::CONTEXT_DIALOG_BODY_TEXT);
   SetLabelDetails(link.get());
   link->SetCallback(
       base::BindRepeating(&InfoBarView::LinkClicked, base::Unretained(this)));
+
+  if (accessible_text.has_value()) {
+    link->SetAccessibleName(accessible_text.value());
+  }
+
   return link;
 }
 

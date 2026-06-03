@@ -30,8 +30,7 @@ PasswordFormCache& GetFormCache(content::WebContents* web_contents) {
 ChangePasswordFormWaiter::ChangePasswordFormWaiter(
     content::WebContents* web_contents,
     PasswordFormFoundCallback callback)
-    : web_contents_(web_contents->GetWeakPtr()),
-      callback_(std::move(callback)) {
+    : web_contents_(web_contents), callback_(std::move(callback)) {
   GetFormCache(web_contents).SetObserver(weak_ptr_factory_.GetWeakPtr());
   if (web_contents->IsDocumentOnLoadCompletedInPrimaryMainFrame()) {
     DocumentOnLoadCompletedInPrimaryMainFrame();
@@ -41,9 +40,8 @@ ChangePasswordFormWaiter::ChangePasswordFormWaiter(
 }
 
 ChangePasswordFormWaiter::~ChangePasswordFormWaiter() {
-  if (web_contents_) {
-    GetFormCache(web_contents_.get()).ResetObserver();
-  }
+  CHECK(web_contents_);
+  GetFormCache(web_contents_).ResetObserver();
 }
 
 void ChangePasswordFormWaiter::OnPasswordFormParsed(
@@ -55,10 +53,20 @@ void ChangePasswordFormWaiter::OnPasswordFormParsed(
       form_manager->GetParsedObservedForm();
   CHECK(parsed_form);
 
-  // New password field and password confirmation fields are indicators of
-  // a change password form.
-  if (!parsed_form->new_password_element_renderer_id ||
-      !parsed_form->confirmation_password_element_renderer_id) {
+  // Change password form shouldn't contain username field.
+  if (parsed_form->username_element_renderer_id) {
+    return;
+  }
+
+  // New password field must be present in a change password form.
+  if (!parsed_form->new_password_element_renderer_id) {
+    return;
+  }
+
+  // Either confirmation password or the old password must be present in a
+  // change password form.
+  if (!parsed_form->confirmation_password_element_renderer_id &&
+      !parsed_form->password_element_renderer_id) {
     return;
   }
 

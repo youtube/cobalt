@@ -5,14 +5,13 @@
 #ifndef CONTENT_BROWSER_INDEXED_DB_INSTANCE_SQLITE_BACKING_STORE_TRANSACTION_IMPL_H_
 #define CONTENT_BROWSER_INDEXED_DB_INSTANCE_SQLITE_BACKING_STORE_TRANSACTION_IMPL_H_
 
+#include <vector>
+
 #include "base/memory/weak_ptr.h"
 #include "base/types/pass_key.h"
+#include "components/services/storage/indexed_db/locks/partitioned_lock.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-forward.h"
-
-namespace sql {
-class Transaction;
-}
 
 namespace content::indexed_db::sqlite {
 
@@ -23,7 +22,6 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
   using PassKey = base::PassKey<BackingStoreTransactionImpl>;
 
   BackingStoreTransactionImpl(base::WeakPtr<DatabaseConnection> db,
-                              std::unique_ptr<sql::Transaction> transaction,
                               blink::mojom::IDBTransactionDurability durability,
                               blink::mojom::IDBTransactionMode mode);
   BackingStoreTransactionImpl(const BackingStoreTransactionImpl&) = delete;
@@ -41,7 +39,6 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
   Status CommitPhaseOne(BlobWriteCallback callback) override;
   Status CommitPhaseTwo() override;
   void Rollback() override;
-  void Reset() override {}
   Status SetDatabaseVersion(int64_t version) override;
   Status CreateObjectStore(int64_t object_store_id,
                            const std::u16string& name,
@@ -57,9 +54,8 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
   Status RenameIndex(int64_t object_store_id,
                      int64_t index_id,
                      const std::u16string& new_name) override;
-  Status GetRecord(int64_t object_store_id,
-                   const blink::IndexedDBKey& key,
-                   IndexedDBValue* record) override;
+  StatusOr<IndexedDBValue> GetRecord(int64_t object_store_id,
+                                     const blink::IndexedDBKey& key) override;
   StatusOr<BackingStore::RecordIdentifier> PutRecord(
       int64_t object_store_id,
       const blink::IndexedDBKey& key,
@@ -69,8 +65,8 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
   StatusOr<int64_t> GetKeyGeneratorCurrentNumber(
       int64_t object_store_id) override;
   Status MaybeUpdateKeyGeneratorCurrentNumber(int64_t object_store_id,
-                                              int64_t new_state,
-                                              bool check_current) override;
+                                              int64_t new_number,
+                                              bool was_generated) override;
   StatusOr<std::optional<BackingStore::RecordIdentifier>>
   KeyExistsInObjectStore(int64_t object_store_id,
                          const blink::IndexedDBKey& key) override;
@@ -79,17 +75,17 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
       int64_t index_id,
       const blink::IndexedDBKey& key,
       const BackingStore::RecordIdentifier& record) override;
-  Status GetPrimaryKeyViaIndex(
+  StatusOr<blink::IndexedDBKey> GetFirstPrimaryKeyForIndexKey(
       int64_t object_store_id,
       int64_t index_id,
-      const blink::IndexedDBKey& key,
-      std::unique_ptr<blink::IndexedDBKey>* primary_key) override;
-  Status KeyExistsInIndex(
+      const blink::IndexedDBKey& key) override;
+  StatusOr<uint32_t> GetObjectStoreKeyCount(
+      int64_t object_store_id,
+      blink::IndexedDBKeyRange key_range) override;
+  StatusOr<uint32_t> GetIndexKeyCount(
       int64_t object_store_id,
       int64_t index_id,
-      const blink::IndexedDBKey& key,
-      std::unique_ptr<blink::IndexedDBKey>* found_primary_key,
-      bool* exists) override;
+      blink::IndexedDBKeyRange key_range) override;
   StatusOr<std::unique_ptr<BackingStore::Cursor>> OpenObjectStoreKeyCursor(
       int64_t object_store_id,
       const blink::IndexedDBKeyRange& key_range,
@@ -108,14 +104,15 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
       int64_t index_id,
       const blink::IndexedDBKeyRange& key_range,
       blink::mojom::IDBCursorDirection) override;
+  blink::mojom::IDBValuePtr BuildMojoValue(IndexedDBValue value) override;
 
  protected:
   base::WeakPtr<DatabaseConnection> db_;
 
  private:
-  std::unique_ptr<sql::Transaction> transaction_;
   blink::mojom::IDBTransactionDurability durability_;
   blink::mojom::IDBTransactionMode mode_;
+  std::vector<PartitionedLock> locks_;
 };
 
 }  // namespace content::indexed_db::sqlite

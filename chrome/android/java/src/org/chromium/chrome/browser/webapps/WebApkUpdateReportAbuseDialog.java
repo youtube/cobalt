@@ -15,6 +15,8 @@ import android.widget.CheckBox;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PackageUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.ui.LayoutInflaterUtils;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -26,6 +28,7 @@ import org.chromium.ui.modelutil.PropertyModel;
  * The uninstall confirmation dialog, which allows the user to confirm that they want to uninstall
  * and report the app as abusive.
  */
+@NullMarked
 public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Controller {
     /** Interface for receiving notifications of user actions. */
     public interface Callback {
@@ -42,7 +45,7 @@ public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Cont
     private final ModalDialogManager mModalDialogManager;
 
     // The short name of the app the user is uninstalling.
-    private final String mAppShortName;
+    private final @Nullable String mAppShortName;
 
     // The package name for the app the user is uninstalling.
     private final String mAppPackageName;
@@ -51,7 +54,7 @@ public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Cont
     private final boolean mShowAbuseCheckbox;
 
     // When checked, the app will not just be uninstalled, but also reported for abuse.
-    private CheckBox mReportAbuseCheckBox;
+    private @Nullable CheckBox mReportAbuseCheckBox;
 
     // Notifies the parent (dialog beneath us) that uninstalling was the action taken by the user.
     private final Callback mOnUninstallCallback;
@@ -60,7 +63,7 @@ public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Cont
             Context activityContext,
             ModalDialogManager manager,
             String appPackageName,
-            String appShortName,
+            @Nullable String appShortName,
             boolean showAbuseCheckbox,
             Callback callback) {
         mActivityContext = activityContext;
@@ -126,7 +129,7 @@ public class WebApkUpdateReportAbuseDialog implements ModalDialogProperties.Cont
         if (dismissalCause == DialogDismissalCause.POSITIVE_BUTTON_CLICKED) {
             mOnUninstallCallback.onUninstall();
 
-            if (mShowAbuseCheckbox && mReportAbuseCheckBox.isChecked()) {
+            if (mReportAbuseCheckBox != null && mReportAbuseCheckBox.isChecked()) {
                 // TODO(finnur): Implement sending info to the SafeBrowsing team.
                 Log.i(TAG, "Send report to SafeBrowsing");
             }

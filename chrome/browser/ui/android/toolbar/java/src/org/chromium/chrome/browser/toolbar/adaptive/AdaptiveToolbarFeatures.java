@@ -34,6 +34,9 @@ public class AdaptiveToolbarFeatures {
     /** Default minimum width to show the optional button. */
     public static final int DEFAULT_MIN_WIDTH_DP = 360;
 
+    /** Maximum toolbar width to show text bubble instead of animation. Used in CCT. */
+    public static final int MAX_WIDTH_FOR_BUBBLE_DP = 360;
+
     /** Default delay between action chip expansion and collapse. */
     public static final int DEFAULT_CONTEXTUAL_PAGE_ACTION_CHIP_DELAY_MS = 3000;
 
@@ -79,6 +82,7 @@ public class AdaptiveToolbarFeatures {
             case AdaptiveToolbarButtonVariant.READER_MODE:
             case AdaptiveToolbarButtonVariant.PRICE_INSIGHTS:
             case AdaptiveToolbarButtonVariant.DISCOUNTS:
+            case AdaptiveToolbarButtonVariant.TAB_GROUPING:
                 return true;
         }
         return false;
@@ -112,6 +116,7 @@ public class AdaptiveToolbarFeatures {
             case AdaptiveToolbarButtonVariant.READER_MODE:
             case AdaptiveToolbarButtonVariant.PRICE_INSIGHTS:
             case AdaptiveToolbarButtonVariant.DISCOUNTS:
+            case AdaptiveToolbarButtonVariant.TAB_GROUPING:
             case AdaptiveToolbarButtonVariant.TEST_BUTTON:
                 return true;
             default:
@@ -130,6 +135,7 @@ public class AdaptiveToolbarFeatures {
             case AdaptiveToolbarButtonVariant.PRICE_TRACKING:
             case AdaptiveToolbarButtonVariant.PRICE_INSIGHTS:
             case AdaptiveToolbarButtonVariant.DISCOUNTS:
+            case AdaptiveToolbarButtonVariant.TAB_GROUPING:
             case AdaptiveToolbarButtonVariant.TEST_BUTTON:
                 return DEFAULT_PRICE_TRACKING_ACTION_CHIP_DELAY_MS;
             case AdaptiveToolbarButtonVariant.READER_MODE:
@@ -154,6 +160,7 @@ public class AdaptiveToolbarFeatures {
             case AdaptiveToolbarButtonVariant.PRICE_TRACKING:
             case AdaptiveToolbarButtonVariant.READER_MODE:
             case AdaptiveToolbarButtonVariant.PRICE_INSIGHTS:
+            case AdaptiveToolbarButtonVariant.TAB_GROUPING:
                 return false;
             case AdaptiveToolbarButtonVariant.DISCOUNTS:
                 return ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
@@ -187,6 +194,10 @@ public class AdaptiveToolbarFeatures {
 
     public static boolean isDiscountsPageActionEnabled() {
         return ChromeFeatureList.sEnableDiscountInfoApi.isEnabled();
+    }
+
+    public static boolean isTabGroupingPageActionEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXTUAL_PAGE_ACTION_TAB_GROUPING);
     }
 
     static void setDefaultSegmentForTesting(String defaultSegment) {

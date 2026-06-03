@@ -83,15 +83,13 @@ void ScreenCaptureTrayItemView::Refresh() {
 
 void ScreenCaptureTrayItemView::MultiCaptureStarted(const std::string& label,
                                                     const url::Origin& origin) {
-  // TODO(crbug.com/417490624): Remove `CHECK_DEREF` once `GetInstance()`
-  // returns a reference.
-  if (!base::Contains(
-          CHECK_DEREF(web_app::IwaKeyDistributionInfoProvider::GetInstance())
-              .GetSkipMultiCaptureNotificationBundleIds(),
-          origin.host())) {
-    requests_.emplace(label, ScreenCaptureTrayItemMetadata());
-    Refresh();
+  if (base::FeatureList::IsEnabled(
+          chromeos::features::kMultiCaptureReworkedUsageIndicators)) {
+    return;
   }
+
+  requests_.emplace(label, ScreenCaptureTrayItemMetadata());
+  Refresh();
 }
 
 void ScreenCaptureTrayItemView::MultiCaptureStartedFromApp(

@@ -7,6 +7,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_constants.h"
+#import "ios/chrome/browser/authentication/ui_bundled/separate_profiles_util.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey.h"
@@ -76,16 +77,19 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
 
 @implementation AccountMenuTestCase
 
++ (void)setUpForTestCase {
+  [SigninEarlGrey setUseFakeResponsesForProfileSeparationPolicyRequests];
+}
+
++ (void)tearDown {
+  [SigninEarlGrey clearUseFakeResponsesForProfileSeparationPolicyRequests];
+  [super tearDown];
+}
+
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
 
-  if ([self isRunningTest:@selector(testOpenSettings)]) {
-    config.features_enabled_and_params.push_back(
-        {kIdentityDiscAccountMenu,
-         {{{kShowSettingsInAccountMenuParam, "true"}}}});
-  } else {
-    config.features_enabled.push_back(kIdentityDiscAccountMenu);
-  }
+  config.features_enabled.push_back(kIdentityDiscAccountMenu);
   if ([self isRunningTest:@selector
             (testMultipleIdentities_IdentityConfirmationToast)] ||
       [self isRunningTest:@selector
@@ -360,11 +364,9 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
   // Confirm "Delete and Signout" alert dialog that data will be cleared is
   // shown. This dialog is only shown when multi profiles are not available.
   if (![SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
-    [[EarlGrey
-        selectElementWithMatcher:
-            grey_allOf(chrome_test_util::AlertAction(l10n_util::GetNSString(
-                           IDS_IOS_SIGNOUT_AND_DELETE_DIALOG_SIGN_OUT_BUTTON)),
-                       grey_sufficientlyVisible(), nil)]
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                       IDS_IOS_SIGNOUT_AND_DELETE_DIALOG_SIGN_OUT_BUTTON)]
         performAction:grey_tap()];
   }
   [SigninEarlGrey verifySignedOut];
@@ -473,12 +475,10 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
   [self assertAccountMenuIsNotShown];
 }
 
-// TODO(crbug.com/382507485): Deflake this test.
-//
 // Tests that tapping on a managed account button causes the primary account
 // to be changed and the account menu view to be closed after showing managed
 // account sign-in dialog.
-- (void)FLAKY_testSwitchToManagedAccount {
+- (void)testSwitchToManagedAccount {
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
   [SigninEarlGrey addFakeIdentity:kManagedIdentity1];
   [self selectIdentityDisc];
@@ -486,6 +486,9 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
                                           kAccountMenuSecondaryAccountButtonId)]
       performAction:grey_tap()];
 
+  if ([SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
+    WaitForEnterpriseOnboardingScreen();
+  }
   // Tap on Continue button to acknowledge signing in with a managed account.
   [[EarlGrey
       selectElementWithMatcher:
@@ -493,6 +496,14 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
               grey_text(l10n_util::GetNSString(
                   IDS_IOS_MANAGED_SIGNIN_WITH_USER_POLICY_CONTINUE_BUTTON_LABEL)),
               grey_interactable(), nil)] performAction:grey_tap()];
+
+  if ([SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
+    // Dismiss the history sync screen.
+    [ChromeEarlGrey waitForMatcher:HistoryScreenMatcher()];
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                            PromoScreenSecondaryButtonMatcher()]
+        performAction:grey_tap()];
+  }
 
   [self assertSnackbarShownAndDismissItWithIdentity:kManagedIdentity1];
   [SigninEarlGrey verifySignedInWithFakeIdentity:kManagedIdentity1];
@@ -519,6 +530,10 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
                        grey_sufficientlyVisible(), nil)]
         performAction:grey_tap()];
   }
+
+  if ([SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
+    WaitForEnterpriseOnboardingScreen();
+  }
   // Tap on Continue button to acknowledge signing in with a managed account.
   [[EarlGrey
       selectElementWithMatcher:
@@ -527,24 +542,17 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
                   IDS_IOS_MANAGED_SIGNIN_WITH_USER_POLICY_CONTINUE_BUTTON_LABEL)),
               grey_interactable(), nil)] performAction:grey_tap()];
 
+  if ([SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
+    // Dismiss the history sync screen.
+    [ChromeEarlGrey waitForMatcher:HistoryScreenMatcher()];
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                            PromoScreenSecondaryButtonMatcher()]
+        performAction:grey_tap()];
+  }
+
   [self assertSnackbarShownAndDismissItWithIdentity:kManagedIdentity2];
   [self assertAccountMenuIsNotShown];
   [SigninEarlGrey verifySignedInWithFakeIdentity:kManagedIdentity2];
-}
-
-// Test the open Settings button.
-- (void)testOpenSettings {
-  [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
-  [ChromeEarlGreyUI waitForAppToIdle];
-  [self selectIdentityDisc];
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
-                                          kAccountMenuOpenSettingsButtonId)]
-      performAction:grey_tap()];
-  [self assertAccountMenuIsNotShown];
-  // Check that the Settings page is presented.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::SettingsCollectionView()]
-      assertWithMatcher:grey_notNil()];
 }
 
 #pragma mark - Test snackbar
@@ -704,10 +712,9 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
       performAction:grey_tap()];
 
   // Tap on kPrimaryIdentity confirm remove button.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 
   [SigninEarlGrey verifySignedOut];
 

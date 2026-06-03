@@ -23,7 +23,6 @@ import android.view.View;
 import android.view.Window;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.RequiresApi;
 import androidx.core.graphics.ColorUtils;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
@@ -56,7 +55,7 @@ import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.layouts.LayoutTestUtils;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
@@ -80,8 +79,6 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Features.DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
-@MinAndroidSdkLevel(Build.VERSION_CODES.O_MR1)
-@RequiresApi(Build.VERSION_CODES.O_MR1)
 @SuppressLint("NewApi")
 public class TabbedNavigationBarColorControllerTest {
     @Rule
@@ -123,6 +120,7 @@ public class TabbedNavigationBarColorControllerTest {
 
     @Test
     @SmallTest
+    @DisabledTest(message = "crbug.com/419391905")
     @DisableFeatures(ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN)
     public void testToggleOverview() {
         assertEquals(
@@ -267,8 +265,7 @@ public class TabbedNavigationBarColorControllerTest {
     public void testNavBarColorAnimationsEdgeToEdgeBottomChin() throws InterruptedException {
         Assume.assumeTrue(
                 "E2E not applicable.",
-                EdgeToEdgeControllerFactory.isSupportedConfiguration(
-                        mActivityTestRule.getActivity()));
+                EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(mActivityTestRule.getActivity()));
         testNavBarColorAnimations();
     }
 
@@ -297,8 +294,7 @@ public class TabbedNavigationBarColorControllerTest {
     public void testNavBarColorAnimationsFeatureFlagDisabled() {
         Assume.assumeTrue(
                 "E2E not applicable.",
-                EdgeToEdgeControllerFactory.isSupportedConfiguration(
-                        mActivityTestRule.getActivity()));
+                EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(mActivityTestRule.getActivity()));
         testNavBarColorAnimationsDisabled();
     }
 

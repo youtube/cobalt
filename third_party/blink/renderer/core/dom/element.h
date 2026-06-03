@@ -237,6 +237,10 @@ enum class CommandEventType {
   kPause,
   kPlay,
   kToggleMuted,
+  // Menu
+  kToggleMenu,
+  kHideMenu,
+  kShowMenu,
 };
 
 typedef HeapVector<Member<Attr>> AttrNodeList;
@@ -487,7 +491,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void scrollIntoView(bool align_to_top = true);
   void scrollIntoViewWithOptions(const ScrollIntoViewOptions*);
   void ScrollIntoViewNoVisualUpdate(mojom::blink::ScrollIntoViewParamsPtr,
-                                    const Element* container = nullptr);
+                                    const Element* container = nullptr,
+                                    bool include_self = false);
   void scrollIntoViewIfNeeded(bool center_if_needed = true);
 
   int OffsetLeft();
@@ -514,6 +519,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void scrollBy(const ScrollToOptions*);
   void scrollTo(double x, double y);
   void scrollTo(const ScrollToOptions*);
+
+  bool SetScrollOffset(const ScrollOffset&);
+  bool SetScrollOffset(const ScrollToOptions*);
 
   // Returns the bounds of this Element, unclipped, in the coordinate space of
   // the local root's widget. That is, in the outermost main frame, this will
@@ -781,11 +789,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   bool CouldHaveClassWithPrecomputedFilter(TinyBloomFilter filter) const {
     return (attribute_or_class_bloom_ & filter) == filter;
   }
-#if DCHECK_IS_ON()
-  TinyBloomFilter AttributeOrClassBloomFilterForDebug() const {
+  // Useful if you are to match the same element against a lot of different
+  // selectors in quick succession.
+  TinyBloomFilter AttributeOrClassBloomFilter() const {
     return attribute_or_class_bloom_;
   }
-#endif
 
   // Step 5 of https://dom.spec.whatwg.org/#concept-node-clone
   virtual void CloneNonAttributePropertiesFrom(const Element&,
@@ -1269,10 +1277,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   void BeginParsingChildren() { SetIsFinishedParsingChildren(false); }
 
-  // Returns the pseudo element for the given PseudoId type.
-  // |view_transition_name| is used to uniquely identify a pseudo element
-  // from a set of pseudo elements which share the same |pseudo_id|. The current
-  // usage of this ID is limited to pseudo elements generated for a
+  // Returns the pseudo-element for the given PseudoId type.
+  // |view_transition_name| is used to uniquely identify a pseudo-element
+  // from a set of pseudo-elements which share the same |pseudo_id|. The current
+  // usage of this ID is limited to pseudo-elements generated for a
   // ViewTransition. See
   // third_party/blink/renderer/core/view_transition/README.md
   //
@@ -1281,9 +1289,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       PseudoId,
       const AtomicString& view_transition_name = g_null_atom) const;
   LayoutObject* PseudoElementLayoutObject(PseudoId) const;
-
-  // Returns true if this element has ::view-transition-group children.
-  bool HasViewTransitionGroupChildren() const;
 
   // Returns true if this element contains any ::scroll-button or
   // ::scroll-marker-group pseudos.
@@ -1297,7 +1302,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // Retrieve the ComputedStyle (if any) corresponding to the provided
   // PseudoId from cache, calculating the ComputedStyle on-demand if it's
   // missing from the cache. The |pseudo_argument| is also used to match the
-  // ComputedStyle in cases where the PseudoId corresponds to a pseudo element
+  // ComputedStyle in cases where the PseudoId corresponds to a pseudo-element
   // that takes arguments (e.g. ::highlight()).
   const ComputedStyle* CachedStyleForPseudoElement(
       PseudoId,
@@ -1614,9 +1619,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // returned element may be a PseudoElement, or (for element-backed
   // pseudo-elements) an Element.
   //
-  // The returned pseudo element may be directly associated with this
+  // The returned pseudo-element may be directly associated with this
   // element or (as with view transition pseudo-elements) nested inside
-  // a hierarchy of pseudo elements.
+  // a hierarchy of pseudo-elements.
   //
   // Callers that need to deal with all CSS pseudo-elements should use
   // this rather than GetPseudoElement().
@@ -1658,16 +1663,16 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   void DefaultEventHandler(Event&) override;
 
-  // Set on elements with scroll-marker-contain property to
+  // Set on elements with scroll-target-group property to
   // collect HTMLAnchorElement scroll markers.
-  ScrollMarkerGroupData& EnsureScrollMarkerGroupData();
-  void RemoveScrollMarkerGroupData();
-  ScrollMarkerGroupData* GetScrollMarkerGroupData() const;
+  ScrollMarkerGroupData& EnsureScrollTargetGroupData();
+  void RemoveScrollTargetGroupData();
+  ScrollMarkerGroupData* GetScrollTargetGroupData() const;
 
   // Used for HTMLAnchorElement scroll markers to point to
-  // its scroll marker group container (element with scroll-marker-contain).
-  void SetScrollMarkerGroupContainerData(ScrollMarkerGroupData*);
-  ScrollMarkerGroupData* GetScrollMarkerGroupContainerData() const;
+  // its scroll marker group container (element with scroll-target-group).
+  void SetScrollTargetGroupContainerData(ScrollMarkerGroupData*);
+  ScrollMarkerGroupData* GetScrollTargetGroupContainerData() const;
 
   // Retrieves the element pointed to by this element's 'anchor' content
   // attribute, if that element exists.
@@ -1735,6 +1740,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   GCedHeapVector<Member<Element>>* ElementsFromAttributeOrInternals(
       const QualifiedName& attribute) const;
+
+  bool IsClickableControl() { return IsClickableControl(this); }
 
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
@@ -1846,16 +1853,16 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // enabled.
   bool HasSpatialNavigationFocusHeuristics() const;
 
-  // Returns true if this element has generate a pseudo element whose box is a
+  // Returns true if this element has generate a pseudo-element whose box is a
   // sibling box of its originating element's box. In this case we cannot skip
   // style recalc for size containers because that would break necessary layout
   // containment by modifying the box tree outside the container during layout.
   bool HasSiblingBoxPseudoElements() const;
 
-  void ScrollLayoutBoxBy(const ScrollToOptions*);
-  void ScrollLayoutBoxTo(const ScrollToOptions*);
-  void ScrollFrameBy(const ScrollToOptions*);
-  void ScrollFrameTo(const ScrollToOptions*);
+  bool ScrollLayoutBoxBy(const ScrollToOptions*);
+  bool ScrollLayoutBoxTo(const ScrollToOptions*);
+  bool ScrollFrameBy(const ScrollToOptions*);
+  bool ScrollFrameTo(const ScrollToOptions*);
 
   bool HasElementFlag(ElementFlags mask) const;
   void SetElementFlag(ElementFlags, bool value = true);
@@ -1985,7 +1992,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const StyleRecalcContext&,
       const AtomicString& view_transition_name = g_null_atom);
 
-  // For document element scroll control pseudo elements become not layout
+  // For document element scroll control pseudo-elements become not layout
   // siblings, but layout children.
   void AttachDocumentElementPrecedingPseudoElements(AttachContext& context) {
     if (!IsDocumentElement()) {
@@ -2013,7 +2020,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     AttachPseudoElement(kPseudoIdBefore, context);
   }
 
-  // For document element scroll control pseudo elements become not layout
+  // For document element scroll control pseudo-elements become not layout
   // siblings, but layout children.
   void AttachDocumentElementSucceedingPseudoElements(AttachContext& context) {
     if (!IsDocumentElement()) {
@@ -2228,20 +2235,13 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                  Element* target,
                                  InterestState new_state);
   enum class InterestTargetSource {
-    // This element was hovered.
     kHover,
-    // This element was de-hovered.
     kDeHover,
-    // This element was focused.
     kFocus,
-    // This element was blurred.
     kBlur,
-    // (Recursive call only) Inclusive ancestor chain of an element focused.
-    kFocusElementChain,
-    // (Recursive call only) Inclusive ancestor chain of an element blurred.
-    kBlurElementChain,
   };
-  void HandleInterestTargetHoverOrFocus(InterestTargetSource source);
+  void HandleInterestTargetHoverOrFocus(InterestTargetSource source,
+                                        bool recursive_call = false);
 
   // Highlight pseudos inherit all properties from the corresponding highlight
   // in the parent, but virtually all existing content uses universal rules

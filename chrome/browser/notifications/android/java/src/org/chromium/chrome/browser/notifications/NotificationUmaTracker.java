@@ -8,7 +8,6 @@ import android.app.Notification;
 import android.text.format.DateUtils;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationManagerCompat;
 
 import org.chromium.base.Callback;
@@ -175,7 +174,8 @@ public class NotificationUmaTracker {
         ActionType.SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_REVIEW,
         ActionType.REPORT_AS_SAFE,
         ActionType.REPORT_WARNED_NOTIFICATION_AS_SPAM,
-        ActionType.REPORT_UNWARNED_NOTIFICATION_AS_SPAM
+        ActionType.REPORT_UNWARNED_NOTIFICATION_AS_SPAM,
+        ActionType.DOWNLOAD_DELETE_FROM_HISTORY
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ActionType {
@@ -274,6 +274,9 @@ public class NotificationUmaTracker {
         // The "Report as spam" button, used for sending suspicious notification contents to Google
         // after the user unsubscribed from notifications when they did not receive a warning.
         int REPORT_UNWARNED_NOTIFICATION_AS_SPAM = 40;
+
+        // Delete from history button on user download notification.
+        int DOWNLOAD_DELETE_FROM_HISTORY = 41;
 
         // Number of real entries, excluding `UNKNOWN`.
         int NUM_ENTRIES = 41;
@@ -707,7 +710,6 @@ public class NotificationUmaTracker {
                 });
     }
 
-    @RequiresApi(26)
     private void isChannelBlocked(
             @ChromeChannelDefinitions.ChannelId String channelId, Callback<Boolean> callback) {
         mNotificationManager.getNotificationChannel(

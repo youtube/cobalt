@@ -49,11 +49,6 @@ namespace glic {
 namespace {
 const char kGlicUserStatusRelativeTestUrl[] = "/userstatus";
 
-// Define constants that are used in prefs checks
-static constexpr char kUserStatus[] = "user_status";
-static constexpr char kUpdatedAt[] = "updated_at";
-static constexpr char kAccountId[] = "account_id";
-
 // Simple wrapper to serves as a POD for the test accounts.
 struct TestAccount {
   const std::string email;
@@ -63,6 +58,7 @@ struct TestAccount {
 TestAccount nonEnterpriseAccount = {"foo@testbar.com", ""};
 TestAccount enterpriseAccount = {"foo@testenterprise.com",
                                  "testenterprise.com"};
+TestAccount googleDotComAccount = {"foo@google.com", "google.com"};
 
 class GlicUserStatusBrowserTest : public InProcessBrowserTest {
  protected:
@@ -216,7 +212,7 @@ class GlicUserStatusBrowserTest : public InProcessBrowserTest {
   network::TestURLLoaderFactory test_url_loader_factory_;
 };
 
-IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, Enterprise_SignIn_Enabled) {
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, EnterpriseSignInEnabled) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -247,7 +243,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, Enterprise_SignIn_Enabled) {
 }
 
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
-                       Enterprise_GeminiSettingsChange_SignedOut) {
+                       EnterpriseSignInEnabledGeminiSettings) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -332,7 +328,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
-                       Enterprise_GeminiSettingsChange_NoSignedOut) {
+                       EnterpriseGeminiSettingsChangeNoSignedOut) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -398,7 +394,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
-                       Enterprise_SignIn_DisabledByAdmin) {
+                       EnterpriseSignInDisabledByAdmin) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -428,7 +424,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
-                       Enterprise_SignIn_DisabledOther) {
+                       EnterpriseSignInDisabledOther) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -457,8 +453,127 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
   EXPECT_FALSE(IsGlicEnabled());
 }
 
+IN_PROC_BROWSER_TEST_F(
+    GlicUserStatusBrowserTest,
+    EnterpriseSignInDisabledButManagedStatusNotImmediatelyKnown) {
+  RegisterUserStatusHandler(
+      net::HTTP_OK,
+      R"({"isGlicEnabled": false, "isAccessDeniedByAdmin": true})");
+  net::test_server::EmbeddedTestServerHandle test_server_handle;
+  ASSERT_TRUE(test_server_handle =
+                  embedded_test_server()->StartAndReturnHandle());
+
+  SetGlicUserStatusUrlForTest();
+
+  identity_test_env_->SetAutomaticIssueOfAccessTokens(true);
+  AccountInfo account_info = identity_test_env_->MakePrimaryAccountAvailable(
+      enterpriseAccount.email, signin::ConsentLevel::kSync);
+  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  mutator.set_can_use_model_execution_features(true);
+  identity_test_env_->UpdateAccountInfoForAccount(account_info);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(GetCachedStatusDict().has_value());
+
+  // Only now, after the fetch would have happened, does the information about
+  // the account's managed status become available. This should cause an RPC
+  // to be sent.
+  SimulateSuccessfulFetchOfAccountInfo(&enterpriseAccount, &account_info);
+  policy::ScopedManagementServiceOverrideForTesting platform_management(
+      policy::ManagementServiceFactory::GetForProfile(profile()),
+      policy::EnterpriseManagementAuthority::CLOUD);
+
+  // Verify Prefs
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return GetCachedStatusDict().has_value(); }));
+
+  std::optional<base::Value::Dict> cached_dict = GetCachedStatusDict();
+  EXPECT_EQ(cached_dict->FindInt(kUserStatus).value_or(-1),
+            UserStatusCode::DISABLED_BY_ADMIN);
+  EXPECT_EQ(*cached_dict->FindString(kAccountId), GetGaiaIdHashBase64());
+
+  // Verify GlicEnabling status - Should be disabled by this status
+  EXPECT_FALSE(IsGlicEnabled());
+}
+
+// It happens that google.com accounts are always considered enterprise
+// accounts, even before extended account info is available.
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
-                       Enterprise_SignIn_ServerUnavailable_NoStoredResult) {
+                       EnterpriseSignInDisabledByAdminGoogleDotCom) {
+  policy::ScopedManagementServiceOverrideForTesting platform_management(
+      policy::ManagementServiceFactory::GetForProfile(profile()),
+      policy::EnterpriseManagementAuthority::CLOUD);
+
+  RegisterUserStatusHandler(
+      net::HTTP_OK,
+      R"({"isGlicEnabled": false, "isAccessDeniedByAdmin": true})");
+  net::test_server::EmbeddedTestServerHandle test_server_handle;
+  ASSERT_TRUE(test_server_handle =
+                  embedded_test_server()->StartAndReturnHandle());
+
+  SetGlicUserStatusUrlForTest();
+
+  SimulatePrimaryAccountChangedSignIn(&googleDotComAccount);
+
+  // Verify Prefs
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return GetCachedStatusDict().has_value(); }));
+
+  std::optional<base::Value::Dict> cached_dict = GetCachedStatusDict();
+  EXPECT_EQ(cached_dict->FindInt(kUserStatus).value_or(-1),
+            UserStatusCode::DISABLED_BY_ADMIN);
+  EXPECT_EQ(*cached_dict->FindString(kAccountId), GetGaiaIdHashBase64());
+
+  // Verify GlicEnabling status - Should be disabled by this status
+  EXPECT_FALSE(IsGlicEnabled());
+}
+
+// This ensures that the check using the policy management service still works,
+// until/unless we need to switch back to it.
+class GlicUserStatusBrowserTestWithPolicyManagementService
+    : public GlicUserStatusBrowserTest {
+ protected:
+  GlicUserStatusBrowserTestWithPolicyManagementService() {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kGlicUserStatusCheck,
+        {{features::kGlicUserStatusEnterpriseCheckStrategy.name, "policy"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTestWithPolicyManagementService,
+                       EnterpriseSignInDisabledByAdmin) {
+  policy::ScopedManagementServiceOverrideForTesting platform_management(
+      policy::ManagementServiceFactory::GetForProfile(profile()),
+      policy::EnterpriseManagementAuthority::CLOUD);
+
+  RegisterUserStatusHandler(
+      net::HTTP_OK,
+      R"({"isGlicEnabled": false, "isAccessDeniedByAdmin": true})");
+  net::test_server::EmbeddedTestServerHandle test_server_handle;
+  ASSERT_TRUE(test_server_handle =
+                  embedded_test_server()->StartAndReturnHandle());
+
+  SetGlicUserStatusUrlForTest();
+
+  SimulatePrimaryAccountChangedSignIn(&enterpriseAccount);
+
+  // Verify Prefs
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return GetCachedStatusDict().has_value(); }));
+
+  std::optional<base::Value::Dict> cached_dict = GetCachedStatusDict();
+  EXPECT_EQ(cached_dict->FindInt(kUserStatus).value_or(-1),
+            UserStatusCode::DISABLED_BY_ADMIN);
+  EXPECT_EQ(*cached_dict->FindString(kAccountId), GetGaiaIdHashBase64());
+
+  // Verify GlicEnabling status - Should be disabled by this status
+  EXPECT_FALSE(IsGlicEnabled());
+}
+
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
+                       EnterpriseSignInServerUnavailableNoStoredResult) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -483,7 +598,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
-                       Enterprise_SignIn_ServerUnavailable_HasStoredResult) {
+                       EnterpriseSignInServerUnavailableHasStoredResult) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -513,7 +628,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
   EXPECT_FALSE(IsGlicEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, Enterprise_SignOut) {
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, EnterpriseSignOut) {
   policy::ScopedManagementServiceOverrideForTesting platform_management(
       policy::ManagementServiceFactory::GetForProfile(profile()),
       policy::EnterpriseManagementAuthority::CLOUD);
@@ -547,7 +662,7 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, Enterprise_SignOut) {
   EXPECT_FALSE(IsGlicEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, NonEnterprise_SignIn) {
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, NonEnterpriseSignIn) {
   bool request_received = false;
   embedded_test_server()->RegisterRequestHandler(base::BindLambdaForTesting(
       [=, &request_received](const net::test_server::HttpRequest& request)
@@ -584,6 +699,62 @@ IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, NonEnterprise_SignIn) {
   ASSERT_FALSE(GetCachedStatusDict().has_value());
 
   ASSERT_TRUE(IsGlicEnabled());
+}
+
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, EnterpriseDataProtection) {
+  policy::ScopedManagementServiceOverrideForTesting platform_management(
+      policy::ManagementServiceFactory::GetForProfile(profile()),
+      policy::EnterpriseManagementAuthority::CLOUD);
+
+  RegisterUserStatusHandler(
+      net::HTTP_OK,
+      R"({"isGlicEnabled": true, "isAccessDeniedByAdmin": false,
+       "isEnterpriseAccountDataProtected": true })");
+  net::test_server::EmbeddedTestServerHandle test_server_handle;
+  ASSERT_TRUE(test_server_handle =
+                  embedded_test_server()->StartAndReturnHandle());
+
+  SetGlicUserStatusUrlForTest();
+
+  SimulatePrimaryAccountChangedSignIn(&enterpriseAccount);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return GetCachedStatusDict().has_value(); }));
+
+  // Verify the isEnterpriseAccountDataProtected field.
+  EXPECT_EQ(profile()
+                ->GetPrefs()
+                ->GetDict(prefs::kGlicUserStatus)
+                .FindBool(kIsEnterpriseAccountDataProtected),
+            true);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest,
+                       EnterpriseDataProtectionMissingInServerResponse) {
+  policy::ScopedManagementServiceOverrideForTesting platform_management(
+      policy::ManagementServiceFactory::GetForProfile(profile()),
+      policy::EnterpriseManagementAuthority::CLOUD);
+
+  RegisterUserStatusHandler(
+      net::HTTP_OK,
+      R"({"isGlicEnabled": true, "isAccessDeniedByAdmin": false})");
+  net::test_server::EmbeddedTestServerHandle test_server_handle;
+  ASSERT_TRUE(test_server_handle =
+                  embedded_test_server()->StartAndReturnHandle());
+
+  SetGlicUserStatusUrlForTest();
+
+  SimulatePrimaryAccountChangedSignIn(&enterpriseAccount);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return GetCachedStatusDict().has_value(); }));
+
+  // Verify the isEnterpriseAccountDataProtected field.
+  EXPECT_EQ(profile()
+                ->GetPrefs()
+                ->GetDict(prefs::kGlicUserStatus)
+                .FindBool(kIsEnterpriseAccountDataProtected),
+            false);
 }
 
 }  // namespace

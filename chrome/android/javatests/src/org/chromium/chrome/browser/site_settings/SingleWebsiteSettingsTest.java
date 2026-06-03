@@ -18,13 +18,10 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
-import android.os.Build;
-
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,15 +37,14 @@ import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.site_settings.ChosenObjectInfo;
 import org.chromium.components.browser_ui.site_settings.ContentSettingException;
@@ -78,14 +74,11 @@ public class SingleWebsiteSettingsTest {
 
     static final String TEST_BATCH_NAME = "SingleWebsiteSettingsTest";
 
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sCTATestRule = new ChromeTabbedActivityTestRule();
+    @Rule
+    public AutoResetCtaTransitTestRule mCtaTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-
-    @Rule
-    public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
-            new BlankCTATabInitialStateRule(sCTATestRule, false);
 
     @Mock private SiteSettingsDelegate mSiteSettingsDelegate;
 
@@ -111,21 +104,15 @@ public class SingleWebsiteSettingsTest {
     public void testExceptionToggleShowing(
             @ContentSettingsType.EnumType int contentSettingsType,
             @ContentSettingValues int contentSettingValue) {
-        // Preference for Notification on O+ is added as a ChromeImageViewPreference. See
+        // Preference should be added as a ChromeImageViewPreference. See
         // SingleWebsiteSettings#setUpNotificationsPreference
-        Assume.assumeFalse(
-                "Preference for Notification is not a toggle on Android N-.",
-                contentSettingsType == ContentSettingsType.NOTIFICATIONS
-                        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O);
+        Assume.assumeFalse(contentSettingsType == ContentSettingsType.NOTIFICATIONS);
 
         new SingleExceptionTestCase(contentSettingsType, contentSettingValue).run();
     }
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_less_than = Build.VERSION_CODES.O,
-            message = "Notification does not have a toggle when disabled.")
     public void testNotificationException() {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSingleWebsitePreferences(

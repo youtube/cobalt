@@ -10,10 +10,7 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
-import android.os.Build;
 import android.text.TextUtils;
-
-import androidx.annotation.RequiresApi;
 
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
@@ -97,7 +94,7 @@ public class NotificationSuspender {
      */
     public List<String> storeNotificationResources(List<NotificationWrapper> notifications) {
         if (notifications.isEmpty()) {
-            return new ArrayList<String>();
+            return new ArrayList<>();
         }
 
         String[] notificationIds = new String[notifications.size()];
@@ -117,7 +114,7 @@ public class NotificationSuspender {
 
         NotificationSuspenderJni.get()
                 .storeNotificationResources(mProfile, notificationIds, origins, resources);
-        return new ArrayList<String>(Arrays.asList(notificationIds));
+        return new ArrayList<>(Arrays.asList(notificationIds));
     }
 
     /**
@@ -172,7 +169,7 @@ public class NotificationSuspender {
 
     private List<Uri> getOriginsForDomains(List<String> fqdns) {
         final String[] notificationSchemes = {UrlConstants.HTTPS_SCHEME, UrlConstants.HTTP_SCHEME};
-        ArrayList<Uri> origins = new ArrayList<Uri>();
+        ArrayList<Uri> origins = new ArrayList<>();
         for (String fqdn : fqdns) {
             for (String scheme : notificationSchemes) {
                 origins.add(new Uri.Builder().scheme(scheme).authority(fqdn).build());
@@ -213,7 +210,6 @@ public class NotificationSuspender {
                 });
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     private Bitmap getBitmapFromIcon(Icon icon) {
         if (icon == null || icon.getType() != Icon.TYPE_BITMAP) return null;
         return ((BitmapDrawable) icon.loadDrawable(mContext)).getBitmap();

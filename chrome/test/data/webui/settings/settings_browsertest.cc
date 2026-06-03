@@ -11,6 +11,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/web_ui_mocha_browser_test.h"
+#include "components/browsing_data/core/features.h"
 #include "components/compose/buildflags.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
@@ -47,7 +48,11 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
 #endif
             privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             privacy_sandbox::kFingerprintingProtectionUx},
-        /*disabled_features=*/{});
+        /*disabled_features=*/{
+#if BUILDFLAG(ENABLE_GLIC)
+            features::kGlicClosedCaptioning
+#endif
+        });
     set_test_loader_host(chrome::kChromeUISettingsHost);
   }
 
@@ -473,6 +478,56 @@ IN_PROC_BROWSER_TEST_F(SettingsGlicPageClosedCaptionsToggleTest,
   RunTest("settings/glic_page_test.js",
           "runMochaSuite('GlicPage ClosedCaptionsToggleEnabled')");
 }
+
+class SettingsGlicPageDataProtectionTest : public SettingsBrowserTest {
+ public:
+  SettingsGlicPageDataProtectionTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlicUserStatusCheck, {}},
+         {features::kGlicLearnMoreURLConfig,
+          {
+              {features::kGlicTabAccessToggleLearnMoreURL.name,
+               "https://example.com/tab-access"},
+              {features::kGlicTabAccessToggleLearnMoreURLDataProtected.name,
+               "https://example.com/data-protection"},
+          }}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SettingsGlicPageDataProtectionTest, Strings) {
+  RunTest("settings/glic_page_test.js",
+          "runMochaSuite('GlicPage DataProtection_UserStatusCheckEnabled')");
+}
+
+class SettingsGlicPageDataProtectionTest_UserStatusCheckDisabled
+    : public SettingsBrowserTest {
+ public:
+  SettingsGlicPageDataProtectionTest_UserStatusCheckDisabled() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlicLearnMoreURLConfig,
+          {
+              {features::kGlicTabAccessToggleLearnMoreURL.name,
+               "https://example.com/tab-access"},
+              {features::kGlicTabAccessToggleLearnMoreURLDataProtected.name,
+               "https://example.com/data-protection"},
+          }}},
+        {features::kGlicUserStatusCheck});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    SettingsGlicPageDataProtectionTest_UserStatusCheckDisabled,
+    Strings) {
+  RunTest("settings/glic_page_test.js",
+          "runMochaSuite('GlicPage DataProtection_UserStatusCheckDisabled')");
+}
 #endif
 
 class PeoplePageSyncPageTest : public SettingsBrowserTest {
@@ -518,8 +573,7 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, RelaunchConfirmationDialog) {
 }
 #endif
 
-// TODO(crbug.com/40719198): Flaky on all OSes. Enable the test.
-IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_ResetPage) {
+IN_PROC_BROWSER_TEST_F(SettingsTest, ResetPage) {
   RunTest("settings/reset_page_test.js", "mocha.run()");
 }
 
@@ -560,23 +614,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SecureDns) {
   RunTest("settings/secure_dns_test.js", "runMochaSuite('SettingsSecureDns')");
 }
 
-// TODO(crbug.com/372493822): remove when hybrid linking is disabled by default.
-class HybridDisabledSettingsTest : public SettingsTest {
- public:
-  HybridDisabledSettingsTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{device::kWebAuthnHybridLinking});
-  }
-
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(HybridDisabledSettingsTest, SecurityKeysSubpage) {
-  RunTest("settings/security_keys_subpage_test.js", "mocha.run()");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysBioEnrollment) {
   RunTest("settings/security_keys_bio_enrollment_test.js", "mocha.run()");
 }
@@ -584,10 +621,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysBioEnrollment) {
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysCredentialManagement) {
   RunTest("settings/security_keys_credential_management_test.js",
           "mocha.run()");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysPhonesSubpage) {
-  RunTest("settings/security_keys_phones_subpage_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysResetDialog) {
@@ -683,7 +716,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SyncAccountControl) {
   RunTest("settings/sync_account_control_test.js", "mocha.run()");
 }
 #endif
-
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, TabDiscardExceptionDialog) {
   RunTest("settings/tab_discard_exception_dialog_test.js", "mocha.run()");
@@ -809,7 +841,7 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataTest,
 class SettingsClearBrowsingDataV2Test : public SettingsBrowserTest {
  private:
   base::test::ScopedFeatureList scoped_feature_list_{
-      features::kDbdRevampDesktop};
+      browsing_data::features::kDbdRevampDesktop};
 };
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -826,6 +858,11 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
           "runMochaSuite('DeleteBrowsingDataDialog')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test, OtherGoogleDataDialog) {
+  RunTest("settings/other_google_data_dialog_test.js",
+          "runMochaSuite('OtherGoogleDataDialog')");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
                        DeleteBrowsingDataTimePicker) {
   RunTest("settings/clear_browsing_data_time_picker_test.js",
@@ -834,10 +871,15 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
 
 using SettingsCookiesPageTest = SettingsBrowserTest;
 
-// TODO(crbug.com/40889245): fix flakiness on almost all platforms and
-// re-enable.
-IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, DISABLED_CookiesPageTest) {
+IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, CookiesPageTest) {
   RunTest("settings/cookies_page_test.js", "runMochaSuite('CookiesPageTest')");
+}
+
+// TODO(crbug.com/370008370): Remove once AlwaysBlock3pcsIncognito launched.
+IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest,
+                       CookiesPageAlwaysBlock3pcsIncognitoDisabledTest) {
+  RunTest("settings/cookies_page_test.js",
+          "runMochaSuite('CookiesPageTest_alwaysBlock3pcsIncognitoDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, ExceptionsList) {
@@ -920,8 +962,7 @@ IN_PROC_BROWSER_TEST_F(SettingsBrowserTest, MemorySaverAggressiveness) {
           "runMochaSuite('MemorySaverAggressiveness')");
 }
 
-class SettingsPersonalizationOptionsTest : public SettingsBrowserTest {
-};
+class SettingsPersonalizationOptionsTest : public SettingsBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(SettingsPersonalizationOptionsTest, AllBuilds) {
   RunTest("settings/personalization_options_test.js",
@@ -1001,8 +1042,8 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, MAYBE_3pcdOff) {
 }
 
 // Privacy guide integration tests.
-// TODO(crbug.com/40899379): Re-enable when no longer flaky.
-#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
+// TODO(crbug.com/424171352): Flaky, supposedly due to timeouts on debug builds.
+#if !defined(NDEBUG)
 #define MAYBE_Integration DISABLED_Integration
 #else
 #define MAYBE_Integration Integration
@@ -1138,7 +1179,7 @@ class SettingsPrivacyPageTest : public SettingsBrowserTest {
 #if BUILDFLAG(IS_CHROMEOS)
             blink::features::kWebPrinting,
 #endif
-            features::kDbdRevampDesktop,
+            browsing_data::features::kDbdRevampDesktop,
             privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             permissions::features::kPermissionSiteSettingsRadioButton,
             privacy_sandbox::kFingerprintingProtectionUx,
@@ -1397,11 +1438,7 @@ IN_PROC_BROWSER_TEST_F(SettingsRouteTest, MAYBE_NonExistentRoute) {
   RunTest("settings/route_test.js", "runMochaSuite('NonExistentRoute')");
 }
 
-class SettingsSafetyHubTest : public SettingsBrowserTest {
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      safe_browsing::kSafetyHubAbusiveNotificationRevocation};
-};
+using SettingsSafetyHubTest = SettingsBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(SettingsSafetyHubTest, SafetyHubCard) {
   RunTest("settings/safety_hub_card_test.js", "mocha.run()");
@@ -1455,6 +1492,11 @@ IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest,
           "runMochaSuite('SecurityPageHappinessTrackingSurveys')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest, JavascriptOptimizer) {
+  RunTest("settings/security_page_test.js",
+          "runMochaSuite('JavascriptOptimizer')");
+}
+
 // TODO(crbug/338155508): Enable this flaky test. This is flaky on Linux debug
 // build.
 // TODO(crbug.com/409069315): Re-enable this test on Mac.
@@ -1465,6 +1507,12 @@ IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest,
 #endif
 IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest, MAYBE_SafeBrowsing) {
   RunTest("settings/security_page_test.js", "runMochaSuite('SafeBrowsing')");
+}
+
+using SettingsSecurityPageV2Test = SettingsBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test, Main) {
+  RunTest("settings/security_page_v2_test.js", "runMochaSuite('Main')");
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

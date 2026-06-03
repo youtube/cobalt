@@ -84,12 +84,58 @@ struct RichAutocompletionParams {
   size_t autocomplete_shortcut_text_min_char;
 };
 
+struct SessionData {
+  SessionData();
+  SessionData(const SessionData& session_data);
+  ~SessionData();
+
+  SessionData& operator=(const SessionData& match);
+
+  // Whether zero-prefix suggestions could have been shown in the session.
+  bool zero_prefix_enabled = false;
+
+  // The number of zero-prefix suggestions shown in the session.
+  size_t num_zero_prefix_suggestions_shown = 0u;
+
+  // Whether at least one zero-prefix suggestion was shown in the
+  // session.
+  bool zero_prefix_suggestions_shown_in_session = false;
+
+  // Whether at least one typed suggestion was shown in the session.
+  bool typed_suggestions_shown_in_session = false;
+
+  // List of GWS event ID hashes accumulated during the course of the session.
+  std::vector<int64_t> gws_event_id_hashes;
+
+  // Whether at least one zero-prefix Search/URL suggestion was
+  // shown in the session. This is used in order to ensure that the relevant
+  // client-side metrics logging code emits the proper values.
+  bool zero_prefix_search_suggestions_shown_in_session = false;
+  bool zero_prefix_url_suggestions_shown_in_session = false;
+
+  // Whether at least one typed Search/URL suggestion was shown in
+  // the session. This is used in order to ensure that the relevant client-side
+  // metrics logging code emits the proper values.
+  bool typed_search_suggestions_shown_in_session = false;
+  bool typed_url_suggestions_shown_in_session = false;
+
+  // Whether at least one contextual search suggestion was shown in the
+  // session.
+  bool contextual_search_suggestions_shown_in_session = false;
+
+  // Whether the "Ask Google Lens about this page" action was shown at least
+  // once in the session.
+  bool lens_action_shown_in_session = false;
+};
+
 enum class IphType {
   kNone,
   // '@gemini' promo; shown in zero state.
   kGemini,
-  // Featured search promo; shown in zero state.
-  kFeaturedEnterpriseSearch,
+  // Enterprise search aggregator promo; shown in zero state.
+  kEnterpriseSearchAggregator,
+  // Featured enterprise site search promo; shown in zero state.
+  kFeaturedEnterpriseSiteSearch,
   // Embeddings' setting promo when embeddings are disabled; shown in '@history'
   // scope.
   kHistoryEmbeddingsSettingsPromo,
@@ -359,6 +405,15 @@ struct AutocompleteMatch {
   // starter pack and featured site search engines created by policy.
   static bool IsFeaturedSearchType(Type type);
 
+  // Convenience function to check if `type` is preconnectable.
+  // Preconnecting allows connecting to an origin before requesting any
+  // resources from that origin, effectively "warming up" the connection. When a
+  // resource from that origin is requested, we can immediately use the
+  // established connection, saving valuable round-trips. This differs from
+  // preloading and prefetching in that it does not actually fetch any resources
+  // from the origin, it just establishes the connection to the origin earlier.
+  static bool IsPreconnectableType(Type type);
+
   // Convenience function to check if |type| is a search (as opposed to a URL or
   // an extension).
   static bool IsSearchType(Type type);
@@ -484,6 +539,10 @@ struct AutocompleteMatch {
   // by lens in the side panel.
   bool IsContextualSearchSuggestion() const;
 
+  // Checks if this match is a specialized toolbelt match with actions on
+  // a button row.
+  bool IsToolbelt() const;
+
   // Returns true if this match may attach one or more `actions`.
   // This method is used to keep actions off of matches with types that don't
   // mix well with Pedals or other actions (e.g. entities).
@@ -524,11 +583,13 @@ struct AutocompleteMatch {
   std::u16string GetSubstitutingExplicitlyInvokedKeyword(
       TemplateURLService* template_url_service) const;
 
-  // Returns the placeholder text to display for the currently selected keyword
-  // match, returned for both hint and non-hint keyword modes.
-  std::u16string GetKeywordPlaceholder(
-      TemplateURLService* template_url_service,
-      bool is_history_embeddings_enabled) const;
+  // Returns the placeholder text to display for the given starter pack keyword
+  // TemplateURL, returned for both hint and non-hint keyword modes.
+  // The `template_url` may be nullptr and this method often defaults to
+  // returning the empty string.
+  static std::u16string GetKeywordPlaceholder(
+      const TemplateURL* template_url,
+      bool is_history_embeddings_enabled);
 
   // Returns the TemplateURL associated with this match.  This may be NULL if
   // the match has no keyword OR if the keyword no longer corresponds to a valid
@@ -945,28 +1006,9 @@ struct AutocompleteMatch {
   // True if this match is from a previous result.
   bool from_previous = false;
 
-  // Whether at least one zero-prefix suggestion was shown in the current
-  // Omnibox session. This is used for metrics logging.
-  bool zero_prefix_suggestions_shown_in_session = false;
-
-  // Whether at least one zero-prefix Search/URL suggestion was shown in the
-  // current Omnibox session. This is used in order to ensure that the relevant
-  // client-side metrics logging code emits the proper values.
-  bool zero_prefix_search_suggestions_shown_in_session = false;
-  bool zero_prefix_url_suggestions_shown_in_session = false;
-
-  // Whether at least one typed Search/URL suggestion was shown in the current
-  // Omnibox session. This is used in order to ensure that the relevant
-  // client-side metrics logging code emits the proper values.
-  bool typed_search_suggestions_shown_in_session = false;
-  bool typed_url_suggestions_shown_in_session = false;
-
-  // Whether at least one contextual search suggestion was shown in the session.
-  bool contextual_search_suggestions_shown_in_session = false;
-
-  // Whether the "Ask Google Lens about this page" action was shown at least
-  // once in the session.
-  bool lens_action_shown_in_session = false;
+  // Session-based metrics struct that tracks various bits of info during the
+  // course of a single Omnibox session (e.g. number of ZPS shown, etc.).
+  std::optional<SessionData> session;
 
   // Optional search terms args.  If present,
   // AutocompleteController::UpdateSearchboxStats() will incorporate this data

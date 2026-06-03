@@ -26,6 +26,7 @@ source_set("omnibox") {
     public_deps += [
       "//base",
       "//chrome/browser/bitmap_fetcher",
+      "//chrome/browser/page_content_annotations:extraction_service",
       "//chrome/browser/ui/color:color_headers",
       "//chrome/common",
       "//components/infobars/core",
@@ -77,6 +78,7 @@ source_set("impl") {
       "//chrome/app:command_ids",
       "//chrome/browser:browser_process",
       "//chrome/browser:primitives",
+      "//chrome/browser/autocomplete",
       "//chrome/browser/bitmap_fetcher",
       "//chrome/browser/extensions/api/omnibox",
       "//chrome/browser/favicon",
@@ -86,6 +88,7 @@ source_set("impl") {
       "//chrome/browser/search_engines",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/bookmarks",
+      "//chrome/browser/ui/extensions/",
       "//chrome/browser/ui/hats:hats",
       "//chrome/browser/ui/lens:lens",
       "//chrome/common",
@@ -160,6 +163,7 @@ if (!is_android) {
     deps = [
       ":omnibox",
       "//base/test:test_support",
+      "//chrome/browser/autocomplete",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui/search",
@@ -191,6 +195,7 @@ if (!is_android) {
       sources = [ "omnibox_metrics_browsertest.cc" ]
       deps = [
         "//base/test:test_support",
+        "//chrome/browser/autocomplete",
         "//chrome/browser/profiles:profile",
         "//chrome/browser/search_engines",
         "//chrome/browser/ui/search",
@@ -212,6 +217,7 @@ if (!is_android) {
         deps += [
           ":omnibox",
           "//chrome/browser/ui:browser_navigator_params_headers",
+          "//chrome/browser/ui/browser_window:browser_window",
         ]
       }
     }

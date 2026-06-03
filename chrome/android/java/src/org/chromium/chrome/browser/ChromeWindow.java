@@ -13,10 +13,10 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.lang.ref.WeakReference;
@@ -54,7 +54,6 @@ public class ChromeWindow extends ActivityWindowAndroid {
             @NonNull Supplier<CompositorViewHolder> compositorViewHolderSupplier,
             @NonNull Supplier<ModalDialogManager> modalDialogManagerSupplier,
             @NonNull Supplier<ManualFillingComponent> manualFillingComponentSupplier,
-            boolean activityTopResumedSupported,
             @NonNull IntentRequestTracker intentRequestTracker,
             @NonNull InsetObserver insetObserver) {
         this(
@@ -62,8 +61,8 @@ public class ChromeWindow extends ActivityWindowAndroid {
                 compositorViewHolderSupplier,
                 modalDialogManagerSupplier,
                 sKeyboardVisibilityDelegateFactory.create(
-                        new WeakReference<Activity>(activity), manualFillingComponentSupplier),
-                activityTopResumedSupported,
+                        new WeakReference<>(activity), manualFillingComponentSupplier),
+                /* activityTopResumedSupported= */ true,
                 intentRequestTracker,
                 insetObserver);
     }

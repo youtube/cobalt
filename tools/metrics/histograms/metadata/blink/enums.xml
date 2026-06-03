@@ -26,12 +26,6 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
-<enum name="AVIFCleanApertureType">
-  <int value="0" label="kInvalid"/>
-  <int value="1" label="kNonzeroOrigin"/>
-  <int value="2" label="kZeroOrigin"/>
-</enum>
-
 <enum name="BackgroundResourceFetchSupportStatus">
   <int value="0" label="Supported"/>
   <int value="1" label="Unsupported sync request"/>
@@ -1168,7 +1162,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="867" label="V8Event_InitEvent_Method"/>
   <int value="868" label="V8KeyboardEvent_InitKeyboardEvent_Method"/>
   <int value="869" label="V8MouseEvent_InitMouseEvent_Method"/>
-  <int value="870" label="V8MutationEvent_InitMutationEvent_Method"/>
+  <int value="870" label="OBSOLETE_V8MutationEvent_InitMutationEvent_Method"/>
   <int value="871" label="V8StorageEvent_InitStorageEvent_Method"/>
   <int value="872" label="V8TouchEvent_InitTouchEvent_Method"/>
   <int value="873" label="V8UIEvent_InitUIEvent_Method"/>
@@ -1486,7 +1480,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1170" label="DocumentCreateEventErrorEvent"/>
   <int value="1171" label="DocumentCreateEventFocusEvent"/>
   <int value="1172" label="DocumentCreateEventHashChangeEvent"/>
-  <int value="1173" label="DocumentCreateEventMutationEvent"/>
+  <int value="1173" label="OBSOLETE_DocumentCreateEventMutationEvent"/>
   <int value="1174" label="DocumentCreateEventPageTransitionEvent"/>
   <int value="1175" label="DocumentCreateEventPointerEvent"/>
   <int value="1176" label="DocumentCreateEventPopStateEvent"/>
@@ -1501,7 +1495,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1185" label="DocumentCreateEventMediaKeyEvent"/>
   <int value="1186" label="DocumentCreateEventTrackEvent"/>
   <int value="1187" label="OBSOLETE_DocumentCreateEventWebKitAnimationEvent"/>
-  <int value="1188" label="DocumentCreateEventMutationEvents"/>
+  <int value="1188" label="OBSOLETE_DocumentCreateEventMutationEvents"/>
   <int value="1189" label="DocumentCreateEventOrientationEvent"/>
   <int value="1190" label="DocumentCreateEventSVGEvents"/>
   <int value="1191" label="OBSOLETE_DocumentCreateEventWebKitTransitionEvent"/>
@@ -2553,7 +2547,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="2200" label="BatteryStatusCrossOrigin"/>
   <int value="2201" label="BatteryStatusSameOriginABA"/>
   <int value="2202" label="WebAudioValueSetterIsSetValue (Obsolete)"/>
-  <int value="2203" label="HasIDClassTagAttribute"/>
+  <int value="2203" label="OBSOLETE_HasIDClassTagAttribute"/>
   <int value="2204" label="HasBeforeOrAfterPseudoElement"/>
   <int value="2205" label="ShapeOutsideMaybeAffectedInlineSize"/>
   <int value="2206" label="ShapeOutsideMaybeAffectedInlinePosition"/>
@@ -4204,30 +4198,37 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3750" label="PaymentHandlerStandardizedPaymentMethodIdentifier"/>
   <int value="3751" label="WebCodecsAudioEncoder"/>
   <int value="3752" label="EmbeddedCrossOriginFrameWithoutFrameAncestorsOrXFO"/>
-  <int value="3753" label="AddressSpacePrivateSecureContextEmbeddedLocal"/>
-  <int value="3754" label="AddressSpacePrivateNonSecureContextEmbeddedLocal"/>
-  <int value="3755" label="AddressSpacePublicSecureContextEmbeddedLocal"/>
-  <int value="3756" label="AddressSpacePublicNonSecureContextEmbeddedLocal"/>
-  <int value="3757" label="AddressSpacePublicSecureContextEmbeddedPrivate"/>
-  <int value="3758" label="AddressSpacePublicNonSecureContextEmbeddedPrivate"/>
-  <int value="3759" label="AddressSpaceUnknownSecureContextEmbeddedLocal"/>
-  <int value="3760" label="AddressSpaceUnknownNonSecureContextEmbeddedLocal"/>
-  <int value="3761" label="AddressSpaceUnknownSecureContextEmbeddedPrivate"/>
-  <int value="3762" label="AddressSpaceUnknownNonSecureContextEmbeddedPrivate"/>
-  <int value="3763" label="AddressSpacePrivateSecureContextNavigatedToLocal"/>
+  <int value="3753" label="AddressSpaceLocalSecureContextEmbeddedLoopbackV2"/>
+  <int value="3754"
+      label="AddressSpaceLocalNonSecureContextEmbeddedLoopbackV2"/>
+  <int value="3755" label="AddressSpacePublicSecureContextEmbeddedLoopbackV2"/>
+  <int value="3756"
+      label="AddressSpacePublicNonSecureContextEmbeddedLoopbackV2"/>
+  <int value="3757" label="AddressSpacePublicSecureContextEmbeddedLocalV2"/>
+  <int value="3758" label="AddressSpacePublicNonSecureContextEmbeddedLocalV2"/>
+  <int value="3759" label="AddressSpaceUnknownSecureContextEmbeddedLoopbackV2"/>
+  <int value="3760"
+      label="AddressSpaceUnknownNonSecureContextEmbeddedLoopbackV2"/>
+  <int value="3761" label="AddressSpaceUnknownSecureContextEmbeddedLocalV2"/>
+  <int value="3762" label="AddressSpaceUnknownNonSecureContextEmbeddedLocalV2"/>
+  <int value="3763"
+      label="AddressSpaceLocalSecureContextNavigatedToLoopbackV2"/>
   <int value="3764"
-      label="AddressSpacePrivateNonSecureContextNavigatedToLocal"/>
-  <int value="3765" label="AddressSpacePublicSecureContextNavigatedToLocal"/>
-  <int value="3766" label="AddressSpacePublicNonSecureContextNavigatedToLocal"/>
-  <int value="3767" label="AddressSpacePublicSecureContextNavigatedToPrivate"/>
+      label="AddressSpaceLocalNonSecureContextNavigatedToLoopbackV2"/>
+  <int value="3765"
+      label="AddressSpacePublicSecureContextNavigatedToLoopbackV2"/>
+  <int value="3766"
+      label="AddressSpacePublicNonSecureContextNavigatedToLoopbackV2"/>
+  <int value="3767" label="AddressSpacePublicSecureContextNavigatedToLocalV2"/>
   <int value="3768"
-      label="AddressSpacePublicNonSecureContextNavigatedToPrivate"/>
-  <int value="3769" label="AddressSpaceUnknownSecureContextNavigatedToLocal"/>
+      label="AddressSpacePublicNonSecureContextNavigatedToLocalV2"/>
+  <int value="3769"
+      label="AddressSpaceUnknownSecureContextNavigatedToLoopbackV2"/>
   <int value="3770"
-      label="AddressSpaceUnknownNonSecureContextNavigatedToLocal"/>
-  <int value="3771" label="AddressSpaceUnknownSecureContextNavigatedToPrivate"/>
+      label="AddressSpaceUnknownNonSecureContextNavigatedToLoopbackV2"/>
+  <int value="3771" label="AddressSpaceUnknownSecureContextNavigatedToLocalV2"/>
   <int value="3772"
-      label="AddressSpaceUnknownNonSecureContextNavigatedToPrivate"/>
+      label="AddressSpaceUnknownNonSecureContextNavigatedToLocalV2"/>
   <int value="3773" label="OBSOLETE_RTCPeerConnectionSdpSemanticsPlanB"/>
   <int value="3774" label="FetchRespondWithNoResponseWithUsedRequestBody"/>
   <int value="3775" label="V8TCPSocket_Close_Method"/>
@@ -4400,7 +4401,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3939" label="XRFrameFillJointRadii"/>
   <int value="3940" label="XRFrameFillPoses"/>
   <int value="3941" label="OBSOLETE_kWindowOpenNewPopupBehaviorMismatch"/>
-  <int value="3942" label="ExplicitPointerCaptureClickTargetDiff"/>
+  <int value="3942" label="OBSOLETE_kExplicitPointerCaptureClickTargetDiff"/>
   <int value="3943" label="ControlledNonBlobURLWorkerWillBeUncontrolled"/>
   <int value="3944" label="MediaMetaThemeColor"/>
   <int value="3945" label="ClientHintsUABitness"/>
@@ -5450,8 +5451,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4888" label="DOMNodeRemovedFromDocumentEventFired"/>
   <int value="4889" label="DOMNodeInsertedIntoDocumentEventFired"/>
   <int value="4890" label="DOMCharacterDataModifiedEventFired"/>
-  <int value="4891" label="AnyMutationEventFired"/>
-  <int value="4892" label="AnyMutationEventListenerAdded"/>
+  <int value="4891" label="OBSOLETE_AnyMutationEventFired"/>
+  <int value="4892" label="OBSOLETE_AnyMutationEventListenerAdded"/>
   <int value="4893"
       label="BadgeSetWithoutNotificationPermissionInBrowserWindow"/>
   <int value="4894" label="BadgeSetWithoutNotificationPermissionInAppWindow"/>
@@ -5802,7 +5803,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5201" label="GeolocationSucceeded"/>
   <int value="5202" label="GeolocationSucceededWithoutInjectionMitigation"/>
   <int value="5203" label="SharedWorkerScriptUnderServiceWorkerControlIsBlob"/>
-  <int value="5204" label="DisableThirdPartyStoragePartitioning3"/>
+  <int value="5204" label="OBSOLETE_DisableThirdPartyStoragePartitioning3"/>
   <int value="5205" label="ControlledFrameElement"/>
   <int value="5206" label="Canvas2DIsPointInPath"/>
   <int value="5207" label="Canvas2DIsPointInStroke"/>
@@ -6221,6 +6222,10 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5590" label="SchedulerYieldNonTrivialInherit"/>
   <int value="5591" label="SchedulerYieldNonTrivialInheritCrossFrameIgnored"/>
   <int value="5592" label="LocalNetworkAccessPrivateAliasUse"/>
+  <int value="5593" label="V8URLPattern_Generate_Method"/>
+  <int value="5594" label="SelectMultipleSizeOne"/>
+  <int value="5595" label="WebGPUFeatureLevelCompatibility"/>
+  <int value="5596" label="OverscrollBehaviorOnNonScrollableScrollContainer"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6370,6 +6375,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="136" label="LocalNetworkAccess"/>
   <int value="137" label="RecordAdAuctionEvents"/>
   <int value="138" label="OnDeviceSpeechRecognition"/>
+  <int value="139" label="LanguageModel"/>
 </enum>
 
 <enum name="FedCmAccountChooserResult">
@@ -7755,12 +7761,12 @@ Called by update_use_counter_css.py.-->
   <int value="799" label="view-transition-group"/>
   <int value="800" label="position-area"/>
   <int value="801" label="text-box"/>
-  <int value="802" label="masonry-track-end"/>
-  <int value="803" label="masonry-track-start"/>
-  <int value="804" label="masonry-template-tracks"/>
+  <int value="802" label="masonry-track-end (obsolete)"/>
+  <int value="803" label="masonry-track-start (obsolete)"/>
+  <int value="804" label="masonry-template-tracks (obsolete)"/>
   <int value="805" label="text-wrap-mode"/>
   <int value="806" label="text-wrap-style"/>
-  <int value="807" label="masonry-track"/>
+  <int value="807" label="masonry-track (obsolete)"/>
   <int value="808" label="item-tolerance"/>
   <int value="809" label="caret-animation"/>
   <int value="810" label="view-transition-capture-mode (obsolete)"/>
@@ -7768,7 +7774,7 @@ Called by update_use_counter_css.py.-->
   <int value="812" label="masonry-fill"/>
   <int value="813" label="masonry-direction"/>
   <int value="814" label="masonry-flow"/>
-  <int value="815" label="masonry-auto-tracks"/>
+  <int value="815" label="masonry-auto-tracks (obsolete)"/>
   <int value="816" label="result"/>
   <int value="817" label="animation-trigger-type"/>
   <int value="818" label="animation-trigger-timeline"/>
@@ -7796,7 +7802,7 @@ Called by update_use_counter_css.py.-->
   <int value="840" label="column-rule-outset"/>
   <int value="841" label="row-rule-outset"/>
   <int value="842" label="corner-shape"/>
-  <int value="843" label="scroll-marker-contain"/>
+  <int value="843" label="scroll-target-group"/>
   <int value="844" label="row-rule-style"/>
   <int value="845" label="gap-rule-paint-order"/>
   <int value="846" label="row-rule-width"/>
@@ -7812,6 +7818,17 @@ Called by update_use_counter_css.py.-->
   <int value="856" label="text-grow"/>
   <int value="857" label="text-shrink"/>
   <int value="858" label="rule"/>
+  <int value="859" label="origin-trial-test-shorthand (obsolete)"/>
+  <int value="860" label="corner-top-shape"/>
+  <int value="861" label="corner-right-shape"/>
+  <int value="862" label="corner-bottom-shape"/>
+  <int value="863" label="corner-left-shape"/>
+  <int value="864" label="corner-block-start-shape"/>
+  <int value="865" label="corner-block-end-shape"/>
+  <int value="866" label="corner-inline-start-shape"/>
+  <int value="867" label="corner-inline-end-shape"/>
+  <int value="868" label="corners"/>
+  <int value="869" label="border-shape"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -7835,7 +7852,6 @@ Called by update_use_counter_css.py.-->
   <int value="2" label="Low constrast between color and background color"/>
   <int value="3" label="Too small font size"/>
   <int value="4" label="Too large font size"/>
-  <int value="5" label="Invalid display property"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/core/html/html_permission_element.h:InvalidStyleReason) -->
@@ -8247,7 +8263,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="309" label="AppLaunchHandler"/>
   <int value="310" label="Function"/>
   <int value="311" label="If"/>
-  <int value="312" label="WebAppManifestUpdateToken"/>
+  <int value="312" label="DRAFT_WebAppManifestUpdate"/>
   <int value="313" label="ReadingFlow"/>
   <int value="314" label="ComposedRanges"/>
   <int value="315" label="CompressionDictionaryTransport"/>

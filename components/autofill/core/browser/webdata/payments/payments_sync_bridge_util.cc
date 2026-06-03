@@ -9,7 +9,6 @@
 
 #include "base/base64.h"
 #include "base/check.h"
-#include "base/functional/overloaded.h"
 #include "base/pickle.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -28,10 +27,12 @@
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/payments/payments_customer_data.h"
 #include "components/autofill/core/browser/webdata/payments/payments_autofill_table.h"
+#include "components/autofill/core/browser/webdata/payments/server_cvc.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/credit_card_network_identifiers.h"
 #include "components/sync/protocol/entity_data.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 using ::autofill::data_util::TruncateUTF8;
 using ::sync_pb::AutofillWalletSpecifics;
@@ -697,7 +698,7 @@ void SetAutofillWalletSpecificsFromCardBenefit(
         benefit_base.expiry_time().InMillisecondsSinceUnixEpoch());
   }
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&wallet_benefit](const CreditCardFlatRateBenefit&) {
             wallet_benefit->mutable_flat_rate_benefit();
           },

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/download/bubble/download_bubble_contents_view.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "base/test/gmock_expected_support.h"
 #include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
@@ -156,7 +157,7 @@ class DownloadBubbleContentsViewTest
     Browser::CreateParams params(profile_, true);
     params.type = Browser::TYPE_NORMAL;
     params.window = window_.get();
-    browser_ = std::unique_ptr<Browser>(Browser::Create(params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
 
     anchor_widget_ =
         CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,

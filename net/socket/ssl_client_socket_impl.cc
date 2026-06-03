@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -27,11 +28,11 @@
 #include "base/notreached.h"
 #include "base/rand_util.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "crypto/ec_private_key.h"
 #include "crypto/openssl_util.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
@@ -309,6 +310,23 @@ std::vector<uint8_t> SSLClientSocketImpl::GetECHRetryConfigs() {
   // serialized ECHConfigList.
   return UNSAFE_BUFFERS(
       std::vector<uint8_t>(retry_configs, retry_configs + retry_configs_len));
+}
+
+std::vector<std::vector<uint8_t>>
+SSLClientSocketImpl::GetServerTrustAnchorIDsForRetry() {
+  const uint8_t* available_trust_anchor_ids;
+  size_t available_trust_anchor_ids_len;
+  SSL_get0_peer_available_trust_anchors(ssl_.get(), &available_trust_anchor_ids,
+                                        &available_trust_anchor_ids_len);
+  // SAFETY:
+  // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get0_peer_available_trust_anchors
+  // says `available_trust_anchor_ids` and `available_trust_anchor_ids_len`
+  // define a buffer containing a list of Trust Anchor IDs in wire format
+  // (length-prefixed non-empty strings);
+  base::SpanReader<const uint8_t> reader(
+      UNSAFE_BUFFERS(base::span<const uint8_t>(
+          available_trust_anchor_ids, available_trust_anchor_ids_len)));
+  return ParseServerTrustAnchorIDs(&reader);
 }
 
 int SSLClientSocketImpl::ExportKeyingMaterial(
@@ -1469,6 +1487,25 @@ void SSLClientSocketImpl::RetryAllOperations() {
     DoWriteCallback(rv_write);
 }
 
+// static
+std::vector<std::vector<uint8_t>>
+SSLClientSocketImpl::ParseServerTrustAnchorIDs(
+    base::SpanReader<const uint8_t>* reader) {
+  std::vector<std::vector<uint8_t>> trust_anchor_ids;
+  while (reader->remaining() > 0) {
+    uint8_t len;
+    if (!reader->ReadU8BigEndian(len) || len < 1u) {
+      return {};
+    }
+    std::optional<base::span<const uint8_t>> bytes = reader->Read(len);
+    if (!bytes) {
+      return {};
+    }
+    trust_anchor_ids.emplace_back(base::ToVector(*bytes));
+  }
+  return trust_anchor_ids;
+}
+
 int SSLClientSocketImpl::ClientCertRequestCallback(SSL* ssl) {
   DCHECK(ssl == ssl_.get());
 
@@ -1509,8 +1546,7 @@ int SSLClientSocketImpl::ClientCertRequestCallback(SSL* ssl) {
     // If the key supports rsa_pkcs1_sha256, automatically add support for
     // rsa_pkcs1_sha256_legacy, for use with TLS 1.3. We convert here so that
     // not every `SSLPrivateKey` needs to implement it explicitly.
-    if (base::FeatureList::IsEnabled(features::kLegacyPKCS1ForTLS13) &&
-        base::Contains(preferences, SSL_SIGN_RSA_PKCS1_SHA256)) {
+    if (base::Contains(preferences, SSL_SIGN_RSA_PKCS1_SHA256)) {
       preferences.push_back(SSL_SIGN_RSA_PKCS1_SHA256_LEGACY);
     }
     SSL_set_signing_algorithm_prefs(ssl_.get(), preferences.data(),
@@ -1603,8 +1639,7 @@ ssl_private_key_result_t SSLClientSocketImpl::PrivateKeySignCallback(
 
   // Map rsa_pkcs1_sha256_legacy back to rsa_pkcs1_sha256. We convert it here,
   // so that not every `SSLPrivateKey` needs to implement it explicitly.
-  if (base::FeatureList::IsEnabled(features::kLegacyPKCS1ForTLS13) &&
-      algorithm == SSL_SIGN_RSA_PKCS1_SHA256_LEGACY) {
+  if (algorithm == SSL_SIGN_RSA_PKCS1_SHA256_LEGACY) {
     algorithm = SSL_SIGN_RSA_PKCS1_SHA256;
   }
 

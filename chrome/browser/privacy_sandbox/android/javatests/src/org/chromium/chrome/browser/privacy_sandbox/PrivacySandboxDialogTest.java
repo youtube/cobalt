@@ -257,6 +257,7 @@ public final class PrivacySandboxDialogTest {
         ChromeFeatureList.PRIVACY_SANDBOX_ADS_API_UX_ENHANCEMENTS,
         ChromeFeatureList.PRIVACY_SANDBOX_AD_TOPICS_CONTENT_PARITY
     })
+    @DisabledTest(message = "https://crbug.com/425457237")
     public void renderEeaConsentV2ContentParity() throws IOException {
         mFakePrivacySandboxBridge.setRequiredPromptType(PromptType.M1_CONSENT);
         launchDialog();
@@ -651,7 +652,6 @@ public final class PrivacySandboxDialogTest {
     @Test
     @SmallTest
     @EnableFeatures({
-        ChromeFeatureList.PRIVACY_SANDBOX_ADS_NOTICE_CCT,
         ChromeFeatureList.PRIVACY_SANDBOX_SETTINGS_4
                 + ":force-show-notice-row-for-testing/true/notice-required/true"
     })

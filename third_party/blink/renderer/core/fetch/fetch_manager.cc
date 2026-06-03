@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
+#include "third_party/blink/renderer/core/dom/quota_exceeded_error.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/body.h"
 #include "third_party/blink/renderer/core/fetch/body_stream_buffer.h"
@@ -718,7 +719,7 @@ void FetchManager::Loader::DidReceiveResponse(
     // We create a ScriptCachedMetadataHandler for WASM modules.
     cached_metadata_handler_ =
         MakeGarbageCollected<ScriptCachedMetadataHandler>(
-            WTF::TextEncoding(),
+            TextEncoding(),
             CachedMetadataSender::Create(
                 response, mojom::blink::CodeCacheType::kWebAssembly,
                 GetExecutionContext()->GetSecurityOrigin()));
@@ -842,6 +843,13 @@ void FetchManager::Loader::DidFinishLoading(uint64_t) {
 
 void FetchManager::Loader::DidFail(uint64_t identifier,
                                    const ResourceError& error) {
+  // Record the failures for blob fetch request.
+  if (GetFetchRequestData() &&
+      GetFetchRequestData()->Url().ProtocolIs("blob")) {
+    base::UmaHistogramSparse("Net.BlobFetch.ResponseNetErrorCode",
+                             -error.ErrorCode());
+  }
+
   if (GetFetchRequestData() && GetFetchRequestData()->TrustTokenParams()) {
     HistogramNetErrorForTrustTokensOperation(
         GetFetchRequestData()->TrustTokenParams()->operation,
@@ -1046,10 +1054,10 @@ void FetchLoaderBase::FileIssueAndPerformNetworkError(
                                    fetch_request_data_->Origin()->ToString(),
                                    fetch_request_data_->Url().Protocol(),
                                    issue_id);
-      PerformNetworkError("URL scheme \"" +
-                              fetch_request_data_->Url().Protocol() +
-                              "\" is not supported.",
-                          issue_id);
+      PerformNetworkError(
+          StrCat({"URL scheme \"", fetch_request_data_->Url().Protocol(),
+                  "\" is not supported."}),
+          issue_id);
       break;
     }
     case RendererCorsIssueCode::kDisallowedByMode: {
@@ -1058,9 +1066,9 @@ void FetchLoaderBase::FileIssueAndPerformNetworkError(
                                    fetch_request_data_->Origin()->ToString(),
                                    WTF::g_empty_string, issue_id);
       PerformNetworkError(
-          "Request mode is \"same-origin\" but the URL\'s "
-          "origin is not same as the request origin " +
-              fetch_request_data_->Origin()->ToString() + ".",
+          StrCat({"Request mode is \"same-origin\" but the URL\'s origin is "
+                  "not same as the request origin ",
+                  fetch_request_data_->Origin()->ToString(), "."}),
           issue_id);
 
       break;
@@ -1082,9 +1090,10 @@ void FetchLoaderBase::FileIssueAndPerformNetworkError(
 void FetchLoaderBase::PerformNetworkError(
     const String& issue_summary,
     std::optional<base::UnguessableToken> issue_id) {
-  Failed("Fetch API cannot load " + fetch_request_data_->Url().ElidedString() +
-             ". " + issue_summary,
-         nullptr, std::nullopt, issue_id, issue_summary);
+  Failed(
+      StrCat({"Fetch API cannot load ",
+              fetch_request_data_->Url().ElidedString(), ". ", issue_summary}),
+      nullptr, std::nullopt, issue_id, issue_summary);
 }
 
 void FetchLoaderBase::PerformHTTPFetch(ExceptionState& exception_state) {
@@ -1690,8 +1699,8 @@ FetchLaterResult* FetchLaterManager::FetchLater(
   if (available_quota < total_request_length) {
     UseCounter::Count(GetExecutionContext(),
                       WebFeature::kFetchLaterErrorQuotaExceeded);
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kQuotaExceededError,
+    QuotaExceededError::Throw(
+        exception_state,
         String::Format(
             "fetchLater exceeds its quota for the origin: got %" PRIu64 " "
             "bytes, expected less than %" PRIu64 " bytes.",

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">이제 수업 도구만 사용할 수 있습니다</translation>
 <translation id="1762483337755424125">스크립트</translation>
 <translation id="1765169783255151332">빠른 키 전환</translation>
 <translation id="1768959921651994223">인증 유형</translation>
@@ -328,7 +329,7 @@
 <translation id="2244834438220057800">녹색</translation>
 <translation id="225692081236532131">활성화 상태</translation>
 <translation id="2267285889943769271">스크린샷 추가</translation>
-<translation id="2268044343513325586">상세검색</translation>
+<translation id="2268044343513325586">다듬기</translation>
 <translation id="2271469253353559191">어두운 모드 예약</translation>
 <translation id="2276999893457278469">상위 도움말 콘텐츠</translation>
 <translation id="2277631741861284101">오디오를 간편하게 녹음하고 공유하세요</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">실패 - 중지됨</translation>
 <translation id="3102119246920354026">캐시</translation>
 <translation id="3103783611481501187">초현실적</translation>
+<translation id="3119672627216736407">번역 사용 가능</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">수영장</translation>
 <translation id="3122883569442693641">세부정보 더보기</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">완료하려면 이전 및 새 비밀번호를 입력하세요.</translation>
 <translation id="6061772781719867950">HTTPS 요청 실패함</translation>
 <translation id="6073292342939316679">키보드 밝기를 낮춥니다</translation>
+<translation id="6074608334942655098">번역 중지</translation>
 <translation id="6074752328838739425">요약 숨기기</translation>
 <translation id="6075872808778243331">(Android) HTTP 지연 시간</translation>
 <translation id="6078323886959318429">바로가기 추가</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook 도움말 포럼에서 전문가에게 문의하기</translation>
-<translation id="7309823890857024809">유리 꽃병에 꽂힌 양귀비 줄기 몇 가닥을 그린 검은색 배경의 미니멀한 정물화</translation>
 <translation id="7311368985037279727">키보드 색상</translation>
 <translation id="7317831949569936035">학교 등록</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1464,7 +1466,7 @@
 <translation id="741244894080940828">변환</translation>
 <translation id="7415801143053185905">HTTPS 지연 시간 매우 높음</translation>
 <translation id="7418738250896500352">단어가 너무 많아 간결하게 바꿀 수 없습니다.</translation>
-<translation id="7425037327577270384">작성 지원 기능</translation>
+<translation id="7425037327577270384">글쓰기 도우미</translation>
 <translation id="7425832472614771259"><ph name="LANGUAGE_NAME" /> 스크립트 작성 모델 <ph name="PROGRESS_PERCENTAGE" />% 다운로드됨</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">이 APN을 사용 중지하거나 삭제할 수 없습니다. 사용 설정된 <ph name="ATTACH" /> APN이 사용 중지되거나 삭제되었는지 확인하세요.</translation>
@@ -1613,6 +1615,7 @@
 <translation id="8088963492174775412">녹음하려면 누르세요</translation>
 <translation id="8094062939584182041">Google에서 이 문제에 관한 이메일을 보내도록 허용</translation>
 <translation id="8104083085214006426">안전하지 않은 개방형 네트워크를 사용하고 있습니다.</translation>
+<translation id="8108879170356113798">수업 도구는 <ph name="NUM_SECONDS" />초 후에만 사용할 수 있습니다</translation>
 <translation id="811820734797650957">(Android) 핑할 수 있는 게이트웨이</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />°C</translation>
 <translation id="8131740175452115882">확인</translation>

@@ -9,6 +9,7 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/notimplemented.h"
 #include "base/time/time.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "content/browser/ai/echo_ai_manager_impl.h"
@@ -29,8 +30,11 @@ constexpr char kResponsePrefix[] =
 
 EchoAILanguageModel::EchoAILanguageModel(
     blink::mojom::AILanguageModelSamplingParamsPtr sampling_params,
-    base::flat_set<blink::mojom::AILanguageModelPromptType> input_types)
-    : sampling_params_(std::move(sampling_params)), input_types_(input_types) {}
+    base::flat_set<blink::mojom::AILanguageModelPromptType> input_types,
+    uint32_t initial_tokens_size)
+    : current_tokens_(initial_tokens_size),
+      sampling_params_(std::move(sampling_params)),
+      input_types_(input_types) {}
 
 EchoAILanguageModel::~EchoAILanguageModel() = default;
 
@@ -43,13 +47,14 @@ void EchoAILanguageModel::DoMockExecution(
     return;
   }
 
-  if (input.size() > EchoAIManagerImpl::kMaxContextSizeInTokens) {
+  uint32_t quota = EchoAIManagerImpl::kMaxContextSizeInTokens;
+  if (input.size() > quota) {
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
+        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge,
+        blink::mojom::QuotaErrorInfo::New(input.size(), quota));
     return;
   }
-  if (current_tokens_ >
-      EchoAIManagerImpl::kMaxContextSizeInTokens - input.size()) {
+  if (current_tokens_ > quota - input.size()) {
     current_tokens_ = input.size();
     responder->OnQuotaOverflow();
   }
@@ -69,7 +74,8 @@ void EchoAILanguageModel::Prompt(
     mojo::Remote<blink::mojom::ModelStreamingResponder> responder(
         std::move(pending_responder));
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
+        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed,
+        /*quota_error_info=*/nullptr);
     return;
   }
 
@@ -125,9 +131,10 @@ void EchoAILanguageModel::Fork(
       std::move(client));
   mojo::PendingRemote<blink::mojom::AILanguageModel> language_model;
 
-  mojo::MakeSelfOwnedReceiver(std::make_unique<EchoAILanguageModel>(
-                                  sampling_params_.Clone(), input_types_),
-                              language_model.InitWithNewPipeAndPassReceiver());
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<EchoAILanguageModel>(sampling_params_.Clone(),
+                                            input_types_, current_tokens_),
+      language_model.InitWithNewPipeAndPassReceiver());
   client_remote->OnResult(
       std::move(language_model),
       blink::mojom::AILanguageModelInstanceInfo::New(
@@ -140,7 +147,8 @@ void EchoAILanguageModel::Destroy() {
 
   for (auto& responder : responder_set_) {
     responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
+        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed,
+        /*quota_error_info=*/nullptr);
   }
   responder_set_.Clear();
 }

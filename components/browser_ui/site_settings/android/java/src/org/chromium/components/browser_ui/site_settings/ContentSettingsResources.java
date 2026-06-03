@@ -382,6 +382,18 @@ public class ContentSettingsResources {
                         R.string.website_settings_javascript_optimizer_allowed,
                         R.string.website_settings_javascript_optimizer_blocked);
 
+            case ContentSettingsType.LOCAL_NETWORK_ACCESS:
+                return new ResourceItem(
+                        R.drawable.router_24,
+                        R.string.local_network_access_permission_title,
+                        ContentSettingValues.ASK,
+                        ContentSettingValues.BLOCK,
+                        R.string.website_settings_category_local_network_access_ask,
+                        R.string.website_settings_category_local_network_access_blocked,
+                        R.string.website_settings_category_local_network_access_a11y,
+                        R.drawable.router_off_24,
+                        R.string.website_settings_local_network_access_ask,
+                        R.string.website_settings_local_network_access_block);
             case ContentSettingsType.MEDIASTREAM_CAMERA:
                 return new ResourceItem(
                                 R.drawable.gm_filled_videocam_24,
@@ -1025,5 +1037,59 @@ public class ContentSettingsResources {
             getResourceItem(contentType).getIcon(), getResourceItem(contentType).getIconBlocked(),
         };
         return iconIDs;
+    }
+
+    /**
+     * Returns the resource ID for permission result announcement.
+     *
+     * @return An integer of resource ID for permission result announcement.
+     */
+    public static int getPermissionResultAnnouncementForScreenReader(
+            @ContentSettingsType.EnumType int contentSettingsType,
+            @ContentSettingValues Integer value) {
+        if (value == ContentSettingValues.BLOCK) {
+            switch (contentSettingsType) {
+                case ContentSettingsType.NOTIFICATIONS:
+                    return R.string
+                            .permissions_notification_not_allowed_confirmation_screenreader_announcement;
+                case ContentSettingsType.GEOLOCATION:
+                    return R.string
+                            .permissions_geolocation_not_allowed_confirmation_screenreader_announcement;
+                case ContentSettingsType.MEDIASTREAM_CAMERA:
+                    return R.string
+                            .permissions_camera_not_allowed_confirmation_screenreader_announcement;
+                case ContentSettingsType.MEDIASTREAM_MIC:
+                    return R.string
+                            .permissions_microphone_not_allowed_confirmation_screenreader_announcement;
+            }
+        } else if (value == ContentSettingValues.SESSION_ONLY) {
+            switch (contentSettingsType) {
+                case ContentSettingsType.GEOLOCATION:
+                    return R.string
+                            .permissions_geolocation_allowed_once_confirmation_screenreader_announcement;
+                case ContentSettingsType.MEDIASTREAM_CAMERA:
+                    return R.string
+                            .permissions_camera_allowed_once_confirmation_screenreader_announcement;
+                case ContentSettingsType.MEDIASTREAM_MIC:
+                    return R.string
+                            .permissions_microphone_allowed_once_confirmation_screenreader_announcement;
+            }
+        } else if (value == ContentSettingValues.ALLOW) {
+            switch (contentSettingsType) {
+                case ContentSettingsType.NOTIFICATIONS:
+                    return R.string
+                            .permissions_notification_allowed_confirmation_screenreader_announcement;
+                case ContentSettingsType.GEOLOCATION:
+                    return R.string
+                            .permissions_geolocation_allowed_confirmation_screenreader_announcement;
+                case ContentSettingsType.MEDIASTREAM_CAMERA:
+                    return R.string
+                            .permissions_camera_allowed_confirmation_screenreader_announcement;
+                case ContentSettingsType.MEDIASTREAM_MIC:
+                    return R.string
+                            .permissions_microphone_allowed_confirmation_screenreader_announcement;
+            }
+        }
+        return 0;
     }
 }

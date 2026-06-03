@@ -6,9 +6,9 @@
 
 #include <array>
 
+#include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/text_auto_space.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
 
 namespace blink {
@@ -211,8 +211,7 @@ inline void ShapingLineBreaker::SetBreakOffset(unsigned break_offset,
                                                const String& text,
                                                Result* result) {
   result->break_offset = break_offset;
-  result->is_hyphenated =
-      text[result->break_offset - 1] == kSoftHyphenCharacter;
+  result->is_hyphenated = text[result->break_offset - 1] == uchar::kSoftHyphen;
 }
 
 inline void ShapingLineBreaker::SetBreakOffset(
@@ -220,9 +219,8 @@ inline void ShapingLineBreaker::SetBreakOffset(
     const String& text,
     Result* result) {
   result->break_offset = break_opportunity.offset;
-  result->is_hyphenated =
-      break_opportunity.is_hyphenated ||
-      text[result->break_offset - 1] == kSoftHyphenCharacter;
+  result->is_hyphenated = break_opportunity.is_hyphenated ||
+                          text[result->break_offset - 1] == uchar::kSoftHyphen;
 }
 
 // Shapes a line of text by finding a valid and appropriate break opportunity
@@ -338,7 +336,7 @@ const ShapeResultView* ShapingLineBreaker::ShapeLine(
     // If there's an auto-space after the `candidate_break`, check if it can fit
     // without the auto-space.
     candidate_break = result_->AdjustOffsetForAutoSpacing(
-        TextAutoSpace::GetSpacingWidth(font_), candidate_break, end_position);
+        font_->TextAutoSpaceInlineSize(), candidate_break, end_position);
   }
 
   // Extend the `candidate_break` if the next character can fit by applying the
@@ -586,7 +584,7 @@ const ShapeResultView* ShapingLineBreaker::ShapeLine(
       last_safe = result_->CachedPreviousSafeToBreakOffset(last_safe - 1);
       DCHECK_LT(last_safe, break_opportunity.offset);
       line_end_result =
-          result_->UnapplyAutoSpacing(TextAutoSpace::GetSpacingWidth(font_),
+          result_->UnapplyAutoSpacing(font_->TextAutoSpaceInlineSize(),
                                       last_safe, break_opportunity.offset);
     }
   }

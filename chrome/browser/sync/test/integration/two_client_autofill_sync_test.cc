@@ -175,7 +175,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientAutofillProfileSyncTest, AddProfile) {
 // other client when sync gets started.
 IN_PROC_BROWSER_TEST_F(TwoClientAutofillProfileSyncTest,
                        AddProfile_BeforeSyncStart) {
-  ASSERT_TRUE(SetupClients()) << "SetupClients() failed";
+  ASSERT_TRUE(SetupClients());
 
   // Add the new autofill profile before starting sync.
   AddProfile(0, CreateAutofillProfile(PROFILE_HOMER));
@@ -189,7 +189,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientAutofillProfileSyncTest,
 // results in each client only having one profile after sync is started
 IN_PROC_BROWSER_TEST_F(TwoClientAutofillProfileSyncTest,
                        ClientsAddSameProfile) {
-  ASSERT_TRUE(SetupClients()) << "SetupClients() failed";
+  ASSERT_TRUE(SetupClients());
 
   // Add the same profile in the two clients.
   AddProfile(0, CreateUniqueAutofillProfile());
@@ -458,7 +458,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientAutofillProfileSyncTest, NoCreditCardSync) {
 
 IN_PROC_BROWSER_TEST_F(TwoClientAutofillProfileSyncTest,
                        E2E_ONLY(TwoClientsAddAutofillProfiles)) {
-  ResetSyncForPrimaryAccount();
+  ASSERT_TRUE(ResetSyncForPrimaryAccount());
   ASSERT_TRUE(SetupSync());
 
   // All profiles should sync same autofill profiles.

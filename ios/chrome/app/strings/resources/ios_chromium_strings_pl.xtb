@@ -176,6 +176,7 @@ Aby zmienić to ustawienie, <ph name="BEGIN_LINK" />usuń dane Chromium na swoim
 <translation id="5259423875997548710">Wyszukaj elementy wizualne w Chromium.</translation>
 <translation id="5308226104666789935">Chromium nie może sprawdzić dostępności aktualizacji</translation>
 <translation id="5311557153294205270">Dodaje wpisane adresy URL do zakładek w Chromium.</translation>
+<translation id="5383251701169024761">Aby mieć łatwy dostęp do zapisanych haseł w innych aplikacjach, użyj autouzupełniania w Chromium.</translation>
 <translation id="538767207339317086">Zezwalaj na logowanie w Chromium</translation>
 <translation id="5389058611415066188">Dbaj o swoje bezpieczeństwo, używając Chromium</translation>
 <translation id="5415273218238091735">Wskazówka dotycząca Chromium</translation>
@@ -276,7 +277,6 @@ Twoje zaszyfrowane dane może odczytać tylko osoba znająca hasło. Nie jest on
 <translation id="7763454117143368771">Używaj Chromium jako przeglądarki domyślnej, aby korzystać z ochrony przed niebezpiecznymi stronami i bezpiecznie przechowywać swoje hasła</translation>
 <translation id="7784950022329154821">Blokuj karty incognito po zamknięciu Chromium</translation>
 <translation id="78025249032851484">Twoja przeglądarka Chromium jest nieaktualna.</translation>
-<translation id="7811371919871579588">Aby mieć łatwy dostęp do zapisanych haseł w innych aplikacjach, użyj autouzupełniania w Chromium.</translation>
 <translation id="7859018312476869945">Gdy piszesz na pasku adresu lub w polu wyszukiwania, Chromium wysyła to, co piszesz, do domyślnej wyszukiwarki, aby podawać Ci lepsze sugestie. Ta funkcja jest wyłączona w trybie incognito.</translation>
 <translation id="7890287942691234100">Zacznij używać skanera Chromium</translation>
 <translation id="7905064834449738336">Gdy użyjesz hasła, które zostało opublikowane online, Chromium wyświetli ostrzeżenie. Aby nikt (nawet Google) nie mógł odczytać haseł ani nazw użytkowników, podczas sprawdzania są one zaszyfrowane.</translation>
@@ -331,6 +331,7 @@ Odczekaj kilka minut, zanim się wylogujesz. Jeśli wylogujesz się teraz, te da
 <translation id="9050790730841755540">Używaj Chromium, zawsze gdy klikasz linki w innych aplikacjach.</translation>
 <translation id="9059693977935746710">Nie musisz go zapamiętywać. Menedżer haseł zapisze je na koncie <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium jest nieaktualny</translation>
+<translation id="9105645282262300612">Wskazówka dotycząca Chromium: wyszukaj to, co widzisz</translation>
 <translation id="9152995302810511799">Wskazówka dotycząca Chromium: korzystaj z najlepszych zabezpieczeń Chromium</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Przeglądarka Chromium jest zarządzana.</translation>
 <translation id="921174536258924340">Przeglądarce Chromium nie udało się sprawdzić wszystkich haseł. Spróbuj ponownie jutro lub <ph name="BEGIN_LINK" />sprawdź hasła na koncie Google<ph name="END_LINK" />.</translation>

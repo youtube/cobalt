@@ -91,6 +91,10 @@ NSString* const kBellIconAccessibilityLabel =
       .active = YES;
 }
 
+- (NSDate*)date {
+  return _tableView.date;
+}
+
 #pragma mark - UIAdaptivePresentationControllerDelegate
 
 // Ensures the picker is always displayed in popover overlay, instead of falling
@@ -140,8 +144,6 @@ NSString* const kBellIconAccessibilityLabel =
   UIDatePicker* datePicker = [[UIDatePicker alloc] init];
   datePicker.datePickerMode = mode;
   datePicker.minimumDate = [NSDate date];
-  // TODO(crbug.com/401882233): Control the initial date/time for the tab
-  // reminder via Finch parameters, starting with 24hr from now.
   datePicker.date = _tableView.date;
 
   [datePicker addTarget:self

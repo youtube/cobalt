@@ -33,6 +33,7 @@
 #include "base/test/simple_test_clock.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "components/services/storage/public/cpp/buckets/bucket_info.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
@@ -664,7 +665,7 @@ TEST_F(QuotaManagerImplTest, QuotaDatabaseBootstrap) {
       {"https://foo.com:8081/", 35},
   };
   CreateAndRegisterClient(QuotaClientType::kFileSystem, kData1);
-  CreateAndRegisterClient(QuotaClientType::kDatabase, kData2);
+  CreateAndRegisterClient(QuotaClientType::kIndexedDatabase, kData2);
 
   // OpenDatabase should trigger database bootstrapping.
   OpenDatabase();
@@ -713,10 +714,10 @@ TEST_F(QuotaManagerImplTest, CorruptionRecovery) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem, kUnmigratedData1);
-  MockQuotaClient* database_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase, kUnmigratedData2);
+  MockQuotaClient* idb_client = CreateAndRegisterClient(
+      QuotaClientType::kIndexedDatabase, kUnmigratedData2);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(database_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   // Basic sanity checks, make sure setup worked correctly.
   ASSERT_TRUE(GetBucket(ToStorageKey("http://foo.com/"), kDefaultBucketName)
@@ -763,10 +764,10 @@ TEST_F(QuotaManagerImplTest, GetUsageInfo) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* database_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(database_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   base::test::TestFuture<UsageInfoEntries> future;
   quota_manager_impl()->GetUsageInfo(future.GetCallback());
@@ -1320,10 +1321,10 @@ TEST_F(QuotaManagerImplTest, GetUsage_MultipleClients) {
 
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* database_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(database_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   const int64_t kPoolSize = GetAvailableDiskSpaceForTest();
   const int64_t kPerStorageKeyQuota = kPoolSize / 5;
@@ -1362,12 +1363,12 @@ TEST_F(QuotaManagerImplTest, GetUsageWithBreakdown_Simple) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   MockQuotaClient* sw_client =
       CreateAndRegisterClient(QuotaClientType::kServiceWorkerCache);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(db_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
   RegisterClientBucketData(sw_client, kData3);
 
   blink::mojom::UsageBreakdown usage_breakdown_expected =
@@ -1376,7 +1377,7 @@ TEST_F(QuotaManagerImplTest, GetUsageWithBreakdown_Simple) {
   EXPECT_EQ(QuotaStatusCode::kOk, result.status);
   EXPECT_EQ(1 + 4 + 8, result.usage);
   usage_breakdown_expected.fileSystem = 1;
-  usage_breakdown_expected.webSql = 4;
+  usage_breakdown_expected.indexedDatabase = 4;
   usage_breakdown_expected.serviceWorkerCache = 8;
   EXPECT_TRUE(usage_breakdown_expected.Equals(*result.breakdown));
 
@@ -1384,7 +1385,7 @@ TEST_F(QuotaManagerImplTest, GetUsageWithBreakdown_Simple) {
   EXPECT_EQ(QuotaStatusCode::kOk, result.status);
   EXPECT_EQ(0, result.usage);
   usage_breakdown_expected.fileSystem = 0;
-  usage_breakdown_expected.webSql = 0;
+  usage_breakdown_expected.indexedDatabase = 0;
   usage_breakdown_expected.serviceWorkerCache = 0;
   EXPECT_TRUE(usage_breakdown_expected.Equals(*result.breakdown));
 }
@@ -1452,10 +1453,10 @@ TEST_F(QuotaManagerImplTest, GetUsageWithBreakdown_MultipleClients) {
   mock_special_storage_policy()->AddUnlimited(GURL("http://unlimited/"));
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(db_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   blink::mojom::UsageBreakdown usage_breakdown_expected =
       blink::mojom::UsageBreakdown();
@@ -1463,20 +1464,20 @@ TEST_F(QuotaManagerImplTest, GetUsageWithBreakdown_MultipleClients) {
   EXPECT_EQ(QuotaStatusCode::kOk, result.status);
   EXPECT_EQ(1, result.usage);
   usage_breakdown_expected.fileSystem = 1;
-  usage_breakdown_expected.webSql = 0;
+  usage_breakdown_expected.indexedDatabase = 0;
   EXPECT_TRUE(usage_breakdown_expected.Equals(*result.breakdown));
   result = GetUsageAndQuotaWithBreakdown(ToStorageKey("https://foo.com/"));
   EXPECT_EQ(QuotaStatusCode::kOk, result.status);
   EXPECT_EQ(128, result.usage);
   usage_breakdown_expected.fileSystem = 0;
-  usage_breakdown_expected.webSql = 128;
+  usage_breakdown_expected.indexedDatabase = 128;
   EXPECT_TRUE(usage_breakdown_expected.Equals(*result.breakdown));
 
   result = GetUsageAndQuotaWithBreakdown(ToStorageKey("http://unlimited/"));
   EXPECT_EQ(QuotaStatusCode::kOk, result.status);
   EXPECT_EQ(512, result.usage);
   usage_breakdown_expected.fileSystem = 0;
-  usage_breakdown_expected.webSql = 512;
+  usage_breakdown_expected.indexedDatabase = 512;
   EXPECT_TRUE(usage_breakdown_expected.Equals(*result.breakdown));
 }
 
@@ -1908,10 +1909,10 @@ TEST_F(QuotaManagerImplTest, EvictBucketData) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(db_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   auto global_usage_result = GetGlobalUsage();
   int64_t predelete_global_tmp = global_usage_result.usage;
@@ -2145,10 +2146,10 @@ TEST_F(QuotaManagerImplTest, DeleteHostDataMultiple) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(db_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   auto global_usage_result = GetGlobalUsage();
   const int64_t predelete_global = global_usage_result.usage;
@@ -2222,10 +2223,10 @@ TEST_F(QuotaManagerImplTest, DeleteBucketDataMultiple) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(db_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   ASSERT_OK_AND_ASSIGN(
       auto foo_bucket,
@@ -2297,10 +2298,10 @@ TEST_F(QuotaManagerImplTest, FindAndDeleteBucketData) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* idb_client =
+      CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(db_client, kData2);
+  RegisterClientBucketData(idb_client, kData2);
 
   ASSERT_OK_AND_ASSIGN(
       auto foo_bucket,
@@ -2641,15 +2642,15 @@ TEST_F(QuotaManagerImplTest, DeleteSpecificClientTypeSingleBucket) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* sw_client =
+  MockQuotaClient* cache_client =
       CreateAndRegisterClient(QuotaClientType::kServiceWorkerCache);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* sw_client =
+      CreateAndRegisterClient(QuotaClientType::kServiceWorker);
   MockQuotaClient* idb_client =
       CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(sw_client, kData2);
-  RegisterClientBucketData(db_client, kData3);
+  RegisterClientBucketData(cache_client, kData2);
+  RegisterClientBucketData(sw_client, kData3);
   RegisterClientBucketData(idb_client, kData4);
 
   ASSERT_OK_AND_ASSIGN(
@@ -2671,7 +2672,8 @@ TEST_F(QuotaManagerImplTest, DeleteSpecificClientTypeSingleBucket) {
       predelete_sk_foo_tmp - 2 - 1,
       GetStorageKeyUsageWithBreakdown(ToStorageKey("http://foo.com/")).usage);
 
-  DeleteBucketData(foo_bucket.ToBucketLocator(), {QuotaClientType::kDatabase});
+  DeleteBucketData(foo_bucket.ToBucketLocator(),
+                   {QuotaClientType::kServiceWorker});
   EXPECT_EQ(
       predelete_sk_foo_tmp - 4 - 2 - 1,
       GetStorageKeyUsageWithBreakdown(ToStorageKey("http://foo.com/")).usage);
@@ -2698,15 +2700,15 @@ TEST_F(QuotaManagerImplTest, DeleteMultipleClientTypesSingleBucket) {
   };
   MockQuotaClient* fs_client =
       CreateAndRegisterClient(QuotaClientType::kFileSystem);
-  MockQuotaClient* sw_client =
+  MockQuotaClient* cache_client =
       CreateAndRegisterClient(QuotaClientType::kServiceWorkerCache);
-  MockQuotaClient* db_client =
-      CreateAndRegisterClient(QuotaClientType::kDatabase);
+  MockQuotaClient* sw_client =
+      CreateAndRegisterClient(QuotaClientType::kServiceWorker);
   MockQuotaClient* idb_client =
       CreateAndRegisterClient(QuotaClientType::kIndexedDatabase);
   RegisterClientBucketData(fs_client, kData1);
-  RegisterClientBucketData(sw_client, kData2);
-  RegisterClientBucketData(db_client, kData3);
+  RegisterClientBucketData(cache_client, kData2);
+  RegisterClientBucketData(sw_client, kData3);
   RegisterClientBucketData(idb_client, kData4);
 
   ASSERT_OK_AND_ASSIGN(
@@ -2716,8 +2718,9 @@ TEST_F(QuotaManagerImplTest, DeleteMultipleClientTypesSingleBucket) {
   const int64_t predelete_sk_foo_tmp =
       GetStorageKeyUsageWithBreakdown(ToStorageKey("http://foo.com/")).usage;
 
-  DeleteBucketData(foo_bucket.ToBucketLocator(),
-                   {QuotaClientType::kFileSystem, QuotaClientType::kDatabase});
+  DeleteBucketData(
+      foo_bucket.ToBucketLocator(),
+      {QuotaClientType::kFileSystem, QuotaClientType::kServiceWorker});
 
   EXPECT_EQ(
       predelete_sk_foo_tmp - 4 - 1,

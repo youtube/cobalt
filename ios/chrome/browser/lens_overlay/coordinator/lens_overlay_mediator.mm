@@ -7,17 +7,15 @@
 #import <memory>
 
 #import "base/base64url.h"
+#import "base/check.h"
 #import "base/memory/weak_ptr.h"
-#import "base/metrics/user_metrics.h"
-#import "base/metrics/user_metrics_action.h"
-#import "base/timer/elapsed_timer.h"
-#import "components/lens/lens_overlay_metrics.h"
 #import "components/lens/proto/server/lens_overlay_response.pb.h"
 #import "components/search_engines/template_url_service.h"
 #import "ios/chrome/browser/default_browser/model/default_browser_interest_signals.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_omnibox_client.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_mediator_delegate.h"
+#import "ios/chrome/browser/lens_overlay/model/lens_overlay_metrics_recorder.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_navigation_manager.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_navigation_mutator.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_url_utils.h"
@@ -39,6 +37,7 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/public/provider/chrome/browser/lens/lens_overlay_result.h"
 #import "ios/web/public/navigation/referrer.h"
+#import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "url/gurl.h"
 
@@ -60,8 +59,6 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 /// Current lens result.
 @property(nonatomic, strong, readwrite) id<ChromeLensOverlayResult>
     currentLensResult;
-/// Number of tab opened by the lens overlay.
-@property(nonatomic, assign, readwrite) NSInteger generatedTabCount;
 
 @end
 
@@ -72,8 +69,6 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
   std::unique_ptr<SearchEngineObserverBridge> _searchEngineObserver;
   /// Orchestrates the navigation in the bottom sheet of the lens result page.
   std::unique_ptr<LensOverlayNavigationManager> _navigationManager;
-  /// Time where lens started the search request.
-  base::ElapsedTimer _lensStartSearchRequestTime;
   /// Whether the thumbnail/selection of the `currentLensResult` was removed.
   BOOL _thumbnailRemoved;
   /// Tracks the Lens filter currently in use.
@@ -82,6 +77,8 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
   base::WeakPtr<WebStateList> _webStateList;
   // Bridge for observing WebStateList events.
   std::unique_ptr<WebStateListObserverBridge> _webStateListObserverBridge;
+  // The web state associated with the Lens Overlay invokation.
+  base::WeakPtr<web::WebState> _associatedWebState;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
@@ -94,6 +91,9 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
     _webStateListObserverBridge =
         std::make_unique<WebStateListObserverBridge>(self);
     webStateList->AddObserver(_webStateListObserverBridge.get());
+    web::WebState* activeWebState = webStateList->GetActiveWebState();
+    CHECK(activeWebState);
+    _associatedWebState = activeWebState->GetWeakPtr();
   }
   return self;
 }
@@ -110,11 +110,7 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 - (void)disconnect {
-  if (_webStateList) {
-    _webStateList->RemoveObserver(_webStateListObserverBridge.get());
-  }
-  _webStateList = nullptr;
-  _webStateListObserverBridge.reset();
+  [self removeWebListObservation];
   _searchEngineObserver.reset();
   _navigationManager.reset();
   _currentLensResult = nil;
@@ -127,9 +123,9 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
   BOOL isLensAvailable =
       search_engines::SupportsSearchImageWithLens(_templateURLService);
   if (!isLensAvailable) {
-    [self.commandsHandler destroyLensUI:YES
-                                 reason:lens::LensOverlayDismissalSource::
-                                            kDefaultSearchEngineChange];
+    [self destroyLensUIAnimated:YES
+                         reason:lens::LensOverlayDismissalSource::
+                                    kDefaultSearchEngineChange];
   }
 }
 
@@ -166,7 +162,8 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
             lensOverlayMediatorOpenURLInNewTabRequsted:destinationURL];
       }
 
-      [self recordNewTabGeneratedBy:lens::LensOverlayNewTabSource::kOmnibox];
+      [self.metricsRecorder recordNewTabGeneratedWithSource:
+                                lens::LensOverlayNewTabSource::kOmnibox];
       if (_omniboxClient) {
         [self updateOmniboxText:_omniboxClient->GetOmniboxSteadyStateText()];
       }
@@ -191,7 +188,7 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 #pragma mark LensToolbarMutator
 
 - (void)focusOmnibox {
-  RecordAction(base::UserMetricsAction("Mobile.LensOverlay.FocusOmnibox"));
+  [self.metricsRecorder recordResultsPageOmniboxFocus];
   [self.omniboxCoordinator focusOmnibox];
   [self.toolbarConsumer setOmniboxFocused:YES];
   [self.omniboxCoordinator.animatee setClearButtonFaded:NO];
@@ -205,7 +202,7 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 - (void)goBack {
-  RecordAction(base::UserMetricsAction("Mobile.LensOverlay.Back"));
+  [self.metricsRecorder recordResultsPageBack];
   if (_navigationManager) {
     _navigationManager->GoBack();
   }
@@ -226,7 +223,7 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 // The lens overlay started searching for a result.
 - (void)lensOverlayDidStartSearchRequest:(id<ChromeLensOverlay>)lensOverlay {
   [self.resultConsumer handleSearchRequestStarted];
-  _lensStartSearchRequestTime = base::ElapsedTimer();
+  [self.metricsRecorder startTimingLensSearchRequest];
   [self.toolbarConsumer setOmniboxEnabled:YES];
   [self defocusOmnibox];
 
@@ -295,8 +292,8 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 // The lens overlay search request produced a valid result.
 - (void)lensOverlay:(id<ChromeLensOverlay>)lensOverlay
     didGenerateResult:(id<ChromeLensOverlayResult>)result {
-  RecordAction(base::UserMetricsAction("Mobile.LensOverlay.NewResult"));
-  lens::RecordLensResponseTime(_lensStartSearchRequestTime.Elapsed());
+  [self.metricsRecorder recordNewLensResultGenerated];
+  [self.metricsRecorder recordLensSearchRequestElapsedTime];
   if (_navigationManager) {
     _navigationManager->LensOverlayDidGenerateResult(result);
   }
@@ -304,9 +301,9 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 - (void)lensOverlayDidTapOnCloseButton:(id<ChromeLensOverlay>)lensOverlay {
-  [self.commandsHandler
-      destroyLensUI:YES
-             reason:lens::LensOverlayDismissalSource::kOverlayCloseButton];
+  [self destroyLensUIAnimated:YES
+                       reason:lens::LensOverlayDismissalSource::
+                                  kOverlayCloseButton];
 }
 
 - (void)lensOverlay:(id<ChromeLensOverlay>)lensOverlay
@@ -393,25 +390,31 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 - (void)didChangeWebStateList:(WebStateList*)webStateList
                        change:(const WebStateListChange&)change
                        status:(const WebStateListStatus&)status {
-  BOOL didDetach = change.type() == WebStateListChange::Type::kDetach;
-  BOOL activeWebStateChange = status.active_web_state_change();
+  if (!_associatedWebState || !_webStateList) {
+    return;
+  }
 
   // Because Lens Overlay doesn't support inter-window changes of the active
-  // web state, it must be close immediately if the active web state
+  // web state, it must be close immediately if the associated web state
   // gets detached.
-  if (didDetach && activeWebStateChange) {
-    [self.commandsHandler
-        destroyLensUI:NO
-               reason:lens::LensOverlayDismissalSource::kTabClosed];
+  BOOL didDetachAssociatedWebState =
+      _webStateList->GetIndexOfWebState(_associatedWebState.get()) ==
+      WebStateList::kInvalidIndex;
+  if (didDetachAssociatedWebState) {
+    [self destroyLensUIAnimated:NO
+                         reason:lens::LensOverlayDismissalSource::kTabClosed];
   }
+}
+
+- (void)webStateListDestroyed:(WebStateList*)webStateList {
+  [self removeWebListObservation];
 }
 
 #pragma mark - LensResultPageMediatorDelegate
 
 - (void)lensResultPageWebStateDestroyed {
-  [self.commandsHandler
-      destroyLensUI:YES
-             reason:lens::LensOverlayDismissalSource::kTabClosed];
+  [self destroyLensUIAnimated:YES
+                       reason:lens::LensOverlayDismissalSource::kTabClosed];
 }
 
 - (void)lensResultPageDidChangeActiveWebState:(web::WebState*)webState {
@@ -422,7 +425,7 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 
 - (void)lensResultPageMediator:(LensResultPageMediator*)mediator
        didOpenNewTabFromSource:(lens::LensOverlayNewTabSource)newTabSource {
-  [self recordNewTabGeneratedBy:newTabSource];
+  [self.metricsRecorder recordNewTabGeneratedWithSource:newTabSource];
 }
 
 - (void)lensResultPageOpenURLInNewTabRequsted:(GURL)URL {
@@ -430,6 +433,21 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
 }
 
 #pragma mark - Private
+
+- (void)removeWebListObservation {
+  if (_webStateList && _webStateListObserverBridge) {
+    _webStateList->RemoveObserver(_webStateListObserverBridge.get());
+  }
+  _webStateList = nullptr;
+  _webStateListObserverBridge.reset();
+}
+
+- (void)destroyLensUIAnimated:(BOOL)animated
+                       reason:
+                           (lens::LensOverlayDismissalSource)dismissalSource {
+  [self removeWebListObservation];
+  [self.commandsHandler destroyLensUI:animated reason:dismissalSource];
+}
 
 - (void)clearNavigations {
   if (_navigationManager) {
@@ -487,12 +505,6 @@ typedef NS_ENUM(NSUInteger, LensOverlayFilterState) {
     response.set_encoded_image_signals(encodedString);
     self.omniboxClient->SetLensOverlaySuggestInputs(response);
   }
-}
-
-/// Records lens overlay opening a new tab.
-- (void)recordNewTabGeneratedBy:(lens::LensOverlayNewTabSource)newTabSource {
-  self.generatedTabCount += 1;
-  lens::RecordNewTabGenerated(newTabSource);
 }
 
 @end

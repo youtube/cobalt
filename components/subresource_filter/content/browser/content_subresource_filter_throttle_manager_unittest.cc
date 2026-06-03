@@ -50,6 +50,7 @@
 #include "content/public/test/mock_navigation_throttle_registry.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/navigation_simulator.h"
+#include "content/public/test/test_navigation_throttle_inserter.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_utils.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
@@ -247,6 +248,13 @@ class ContentSubresourceFilterThrottleManagerTest
 
     Observe(web_contents);
 
+    test_navigation_throttle_inserter_ =
+        std::make_unique<content::TestNavigationThrottleInserter>(
+            web_contents,
+            base::BindRepeating(
+                &ContentSubresourceFilterThrottleManagerTest::InsertThrottle,
+                base::Unretained(this)));
+
     NavigateAndCommit(GURL("https://example.first"));
 
 #if BUILDFLAG(IS_ANDROID)
@@ -358,30 +366,24 @@ class ContentSubresourceFilterThrottleManagerTest
     agent_map_.erase(host);
   }
 
-  void DidStartNavigation(
-      content::NavigationHandle* navigation_handle) override {
-    if (navigation_handle->IsSameDocument()) {
+  void InsertThrottle(content::NavigationThrottleRegistry& registry) {
+    if (registry.GetNavigationHandle().IsSameDocument()) {
       return;
     }
 
-    // Inject the proper throttles at this time.
-    content::MockNavigationThrottleRegistry registry(
-        navigation_handle,
-        content::MockNavigationThrottleRegistry::RegistrationMode::kHold);
     PageActivationNotificationTiming state =
         ::testing::UnitTest::GetInstance()->current_test_info()->value_param()
             ? GetParam()
             : WILL_PROCESS_RESPONSE;
-    registry.AddThrottle(std::make_unique<MockPageStateActivationThrottle>(
-        registry, state));
+    registry.AddThrottle(
+        std::make_unique<MockPageStateActivationThrottle>(registry, state));
 
     ContentSubresourceFilterThrottleManager::FromNavigationHandle(
-        *navigation_handle)
+        registry.GetNavigationHandle())
         ->MaybeCreateAndAddNavigationThrottles(registry);
 
     created_safe_browsing_throttle_for_last_navigation_ =
-        registry.ContainsHeldThrottle("SafeBrowsingPageActivationThrottle");
-    registry.RegisterHeldThrottles();
+        registry.HasThrottle("SafeBrowsingPageActivationThrottle");
   }
 
   void CreateAgentForHost(content::RenderFrameHost* host) {
@@ -424,6 +426,9 @@ class ContentSubresourceFilterThrottleManagerTest
     return ContentSubresourceFilterWebContentsHelper::FromWebContents(
         RenderViewHostTestHarness::web_contents());
   }
+
+  std::unique_ptr<content::TestNavigationThrottleInserter>
+      test_navigation_throttle_inserter_;
 
   testing::TestRulesetCreator test_ruleset_creator_;
   testing::TestRulesetPair test_ruleset_pair_;

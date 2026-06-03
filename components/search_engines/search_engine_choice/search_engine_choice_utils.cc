@@ -112,8 +112,7 @@ std::optional<ChoiceScreenDisplayState> ChoiceScreenDisplayState::FromDict(
     return std::nullopt;
   }
 
-  if (!parsed_country_id.has_value() ||
-      !parsed_search_engines) {
+  if (!parsed_country_id.has_value() || !parsed_search_engines) {
     return std::nullopt;
   }
 
@@ -123,9 +122,8 @@ std::optional<ChoiceScreenDisplayState> ChoiceScreenDisplayState::FromDict(
         static_cast<SearchEngineType>(search_engine_type.GetInt()));
   }
 
-  return ChoiceScreenDisplayState(
-      search_engines, parsed_country_id.value(),
-      parsed_selected_engine_index);
+  return ChoiceScreenDisplayState(search_engines, parsed_country_id.value(),
+                                  parsed_selected_engine_index);
 }
 
 ChoiceScreenData::ChoiceScreenData(
@@ -226,8 +224,8 @@ void WipeSearchEngineChoicePrefs(PrefService& profile_prefs,
       prefs::kDefaultSearchProviderPendingChoiceScreenDisplayState);
 
 #if BUILDFLAG(IS_IOS)
-    profile_prefs.ClearPref(
-        prefs::kDefaultSearchProviderChoiceScreenSkippedCount);
+  profile_prefs.ClearPref(
+      prefs::kDefaultSearchProviderChoiceScreenSkippedCount);
 #endif
 }
 
@@ -251,15 +249,19 @@ GetChoiceCompletionMetadata(const PrefService& prefs) {
         ChoiceCompletionMetadata::ParseError::kInvalidVersion);
   }
 
-  // Note: Other error conditions don't have dedicated handling, so we log all
-  // of them as `kOther`.
+  if (!prefs.HasPrefPath(
+          prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)) {
+    return base::unexpected(
+        ChoiceCompletionMetadata::ParseError::kMissingTimestamp);
+  }
 
   base::Time timestamp =
       base::Time::FromDeltaSinceWindowsEpoch(base::Seconds(prefs.GetInt64(
-          prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)));
+        prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)));
 
   if (timestamp.is_null()) {
-    return base::unexpected(ChoiceCompletionMetadata::ParseError::kOther);
+    return base::unexpected(
+        ChoiceCompletionMetadata::ParseError::kNullTimestamp);
   }
 
   return ChoiceCompletionMetadata{
@@ -318,8 +320,15 @@ std::optional<base::Time> GetChoiceScreenCompletionTimestamp(
 #if !BUILDFLAG(IS_ANDROID)
 std::u16string GetMarketingSnippetString(
     const TemplateURLData& template_url_data) {
+  constexpr bool kEnableBuiltinSearchProviderAssets =
+      !!BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS);
+
+  // TODO(crbug.com/420943295): `GetMarketingSnippetResourceId()` is generated
+  // code. The flag-gating should be moved there directly.
   int snippet_resource_id =
-      GetMarketingSnippetResourceId(template_url_data.keyword());
+      kEnableBuiltinSearchProviderAssets
+          ? GetMarketingSnippetResourceId(template_url_data.keyword())
+          : -1;
 
   return snippet_resource_id == -1
              ? l10n_util::GetStringFUTF16(

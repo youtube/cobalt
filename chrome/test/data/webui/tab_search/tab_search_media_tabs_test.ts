@@ -106,6 +106,7 @@ suite('TabSearchMediaTabsTest', () => {
     const tabs = [
       createTab({
         active: false,
+        visible: false,
         alertStates: [TabAlertState.kMediaRecording],
         index: 0,
         tabId: 1,
@@ -115,6 +116,7 @@ suite('TabSearchMediaTabsTest', () => {
       }),
       createTab({
         active: false,
+        visible: false,
         alertStates: [TabAlertState.kAudioPlaying],
         index: 1,
         tabId: 2,
@@ -124,6 +126,7 @@ suite('TabSearchMediaTabsTest', () => {
       }),
       createTab({
         active: true,
+        visible: true,
         index: 2,
         tabId: 3,
         title: 'Google',
@@ -132,6 +135,7 @@ suite('TabSearchMediaTabsTest', () => {
       }),
       createTab({
         active: false,
+        visible: false,
         index: 3,
         tabId: 4,
         title: 'Example',
@@ -142,7 +146,12 @@ suite('TabSearchMediaTabsTest', () => {
 
     await setupTest(
         createProfileData({
-          windows: [{active: true, height: SAMPLE_WINDOW_HEIGHT, tabs}],
+          windows: [{
+            active: true,
+            isHostWindow: true,
+            height: SAMPLE_WINDOW_HEIGHT,
+            tabs,
+          }],
         }),
         {mediaTabsEnabled: true});
 
@@ -172,6 +181,7 @@ suite('TabSearchMediaTabsTest', () => {
 
     const tabUpdateInfo = {
       inActiveWindow: true,
+      inHostWindow: true,
       tab: updatedTab,
     };
     testProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
@@ -197,6 +207,7 @@ suite('TabSearchMediaTabsTest', () => {
 
     const tabUpdateInfo = {
       inActiveWindow: true,
+      inHostWindow: true,
       tab: updatedTab,
     };
     testProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);

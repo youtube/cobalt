@@ -9,8 +9,7 @@
 
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/tab_collection.h"
-
-class TabGroup;
+#include "components/tabs/public/tab_group.h"
 
 namespace tab_groups {
 class TabGroupId;
@@ -20,7 +19,8 @@ namespace tabs {
 
 class TabGroupTabCollection : public TabCollection {
  public:
-  TabGroupTabCollection(tab_groups::TabGroupId group_id,
+  TabGroupTabCollection(TabGroup::Factory& group_factory,
+                        tab_groups::TabGroupId group_id,
                         tab_groups::TabGroupVisualData visual_data);
   ~TabGroupTabCollection() override;
   TabGroupTabCollection(const TabGroupTabCollection&) = delete;
@@ -31,6 +31,13 @@ class TabGroupTabCollection : public TabCollection {
   TabGroup* GetTabGroup() { return group_.get(); }
 
   const tab_groups::TabGroupId& GetTabGroupId() const;
+
+  // Split recursive indices into left_of_group and right_of_group depending on
+  // whether the index is visually closest to the left or right edge. Since
+  // split tabs have the same width as regular tabs, use direct indices for the
+  // midpoint calculation.
+  std::pair<std::vector<int>, std::vector<int>> SeparateTabsByVisualPosition(
+      const std::vector<int>& indices);
 
  private:
   // Group metadata for this collection.

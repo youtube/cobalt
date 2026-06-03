@@ -4,9 +4,10 @@
 <translation id="1173075331199604451">Menu suara</translation>
 <translation id="1178581264944972037">Jeda</translation>
 <translation id="1246424317317450637">Huruf tebal</translation>
-<translation id="1370273601702151510">Menyukai</translation>
+<translation id="1357114957607379632">Menjana main balik AI...</translation>
 <translation id="1483137792530497944">Sungai</translation>
 <translation id="1586836055630070874">Menenangkan</translation>
+<translation id="1639239467298939599">Memuatkan</translation>
 <translation id="1666704368140506043">Kandungan yang menyinggung perasaan</translation>
 <translation id="1741047078107369903">Hangat</translation>
 <translation id="1807863182207623884">Delima</translation>
@@ -17,10 +18,9 @@
 <translation id="2575502321843437554">Tidak cukup menarik</translation>
 <translation id="2611765907167846862">Tenang</translation>
 <translation id="3023502830214299618">Dukacita dimaklumkan, main balik tidak tersedia untuk halaman ini pada masa ini. Sila cuba sebentar lagi.</translation>
-<translation id="3457812538570616687">Tidak menyukai</translation>
 <translation id="3493899379487634969">Apakah masalah yang berlaku?</translation>
+<translation id="3730775656877876887">Menjana main balik AI</translation>
 <translation id="3778044272390020426">Menu pilihan maklum balas negatif</translation>
-<translation id="3807208219231826020">Seret Main Balik</translation>
 <translation id="385051799172605136">Kembali</translation>
 <translation id="3936324432406465283">Kelajuan Main Balik</translation>
 <translation id="4020327272915390518">Menu pilihan</translation>
@@ -30,19 +30,19 @@
 <translation id="4525525184005340968">Dale</translation>
 <translation id="4710974520964166851">Santai</translation>
 <translation id="4773921449011281499">Aman</translation>
+<translation id="4867493576811701175">Butang menyukai, pilih untuk menyerahkan maklum balas yang menunjukkan bahawa anda menyukai ciri ini</translation>
 <translation id="4872475766448853257">Mandir <ph name="NUMBER_OF_SECONDS" /> saat</translation>
 <translation id="4967513477347430212">Pantai</translation>
 <translation id="5026371835667036198">Riang</translation>
 <translation id="5234971936051226002">Pemain “Dengar halaman ini” diminumkan.</translation>
 <translation id="5251803541071282808">Awan</translation>
-<translation id="5526614127710223793">Pemilih mod main balik</translation>
+<translation id="5528503854289436485">Main balik AI</translation>
 <translation id="5596627076506792578">Lagi pilihan</translation>
 <translation id="565342223183747919">Ketik untuk menukar mod main balik</translation>
 <translation id="5694491020339060116">Menu kelajuan main balik</translation>
 <translation id="5965409657393819302">Masalah teknikal</translation>
 <translation id="6218961554829577610">Tidak menyukai suara</translation>
 <translation id="6315170314923504164">Suara</translation>
-<translation id="6330455646577575965">Main balik audio AI</translation>
 <translation id="6343633247422081848">Lumut</translation>
 <translation id="6550675742724504774">Pilihan</translation>
 <translation id="6727569846535331147"><ph name="PITCH" />, <ph name="TONE" /></translation>
@@ -61,11 +61,12 @@
 <translation id="8136852699834914183">Main balik tidak tersedia untuk halaman ini.</translation>
 <translation id="8198036737896977997">Udara</translation>
 <translation id="8264989794233974275">Tingkatkan/Kurangkan kelajuan <ph name="PLAYBACK_SPEED" />x.</translation>
+<translation id="837054959055425654">Butang tidak menyukai, pilih untuk membuka borang bagi memberikan maklum balas terperinci tentang masalah ciri ini</translation>
 <translation id="8407011429883244666">Tutup pemain.</translation>
 <translation id="8462210863277153423">URL anda akan dimuat naik dengan maklum balas untuk meningkatkan kualiti dan penyelidikan.</translation>
 <translation id="8481839122437406573">Tenang</translation>
 <translation id="8756370108715456837">Tidak betul dari segi fakta</translation>
-<translation id="881960277396325853">Menjana audio AI...</translation>
 <translation id="8953618380150219653">Pemain “Dengar halaman ini” dibuka pada ketinggian penuh.</translation>
+<translation id="9087782179025630211">Kawalan jangkau. <ph name="ELAPSED" /> telah berlalu daripada <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Pic rendah</translation>
 </translationbundle>

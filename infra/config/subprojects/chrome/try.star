@@ -131,6 +131,10 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-tfc",
+)
+
+chrome_internal_verifier(
     builder = "chromeos-betty-chrome-dchecks",
 )
 
@@ -370,10 +374,6 @@ chrome_internal_verifier(
             "services/on_device_model/.+",
         ],
     ),
-)
-
-chrome_internal_verifier(
-    builder = "test-o-emulator",
 )
 
 chrome_internal_verifier(

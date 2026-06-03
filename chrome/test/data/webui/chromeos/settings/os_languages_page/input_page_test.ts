@@ -1484,53 +1484,9 @@ suite('<os-settings-input-page>', () => {
               setting}.`);
     });
 
-    suite('when allowOrca is false', () => {
+    suite('when the emoji suggestions is not allowed', () => {
       setup(() => {
-        loadTimeData.overrideValues({allowOrca: false});
-      });
-
-      test('Orca toggle should be hidden', async () => {
-        await createInputPage();
-        const orcaToggle = inputPage.shadowRoot!.querySelector('#orcaToggle');
-        assertFalse(isVisible(orcaToggle));
-      });
-    });
-
-    suite('when allowOrca is true', () => {
-      setup(() => {
-        loadTimeData.overrideValues({allowOrca: true});
-      });
-
-      test('Orca toggle should be visible', async () => {
-        await createInputPage();
-        const orcaToggle = inputPage.shadowRoot!.querySelector('#orcaToggle');
-        assertTrue(isVisible(orcaToggle));
-      });
-
-      test('Deep link to orca suggestion toggle', async () => {
-        await createInputPage();
-
-        const params = new URLSearchParams();
-        const setting = settingMojom.Setting.kShowOrca;
-        params.append('settingId', setting.toString());
-        Router.getInstance().navigateTo(routes.OS_LANGUAGES_INPUT, params);
-        flush();
-
-        const deepLinkElement =
-            inputPage.shadowRoot!.querySelector<HTMLElement>('#orcaToggle');
-        assertTrue(!!deepLinkElement);
-        await waitAfterNextRender(deepLinkElement);
-        assertEquals(
-            deepLinkElement, inputPage.shadowRoot!.activeElement,
-            `Orca suggestion toggle should be focused for settingId=${
-                setting}.`);
-      });
-    });
-
-    suite('when both the emoji suggestions and orca are not allowed', () => {
-      setup(() => {
-        loadTimeData.overrideValues(
-            {allowEmojiSuggestion: false, allowOrca: false});
+        loadTimeData.overrideValues({allowEmojiSuggestion: false});
       });
 
       test('Suggestions section is not visible', async () => {

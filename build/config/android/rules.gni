@@ -240,7 +240,8 @@ if (!is_robolectric && enable_java_templates) {
   #     sources = [
   #       "src/foo_switches.cc",
   #     ]
-  #     template = "src/templates/FooSwitches.java.tmpl
+  #     class_name = "org.chromium.chrome.FooStrings"
+  #     # Or a custom template via: template = "FooSwitches.java.tmpl"
   #   }
   #
   # foo_switches.cc:
@@ -278,20 +279,26 @@ if (!is_robolectric && enable_java_templates) {
       # The sources aren't compiled so don't check their dependencies.
       check_includes = false
       script = "//build/android/gyp/java_cpp_strings.py"
-
-      _srcjar_path = "${target_gen_dir}/${target_name}.srcjar"
-      _rebased_srcjar_path = rebase_path(_srcjar_path, root_build_dir)
-      _rebased_sources = rebase_path(invoker.sources, root_build_dir)
-      _rebased_template = rebase_path(invoker.template, root_build_dir)
+      outputs = [ "${target_gen_dir}/${target_name}.srcjar" ]
 
       args = [
-        "--srcjar=$_rebased_srcjar_path",
-        "--template=$_rebased_template",
+        "--srcjar",
+        rebase_path(outputs[0], root_build_dir),
       ]
-      args += _rebased_sources
-      sources += [ invoker.template ]
-
-      outputs = [ _srcjar_path ]
+      if (defined(invoker.template)) {
+        assert(!defined(invoker.class_name))
+        sources += [ invoker.template ]
+        args += [
+          "--template",
+          rebase_path(invoker.template, root_build_dir),
+        ]
+      } else {
+        args += [
+          "--class-name",
+          invoker.class_name,
+        ]
+      }
+      args += rebase_path(invoker.sources, root_build_dir)
     }
   }
 
@@ -312,7 +319,8 @@ if (!is_robolectric && enable_java_templates) {
   #     sources = [
   #       "src/foo_features.cc",
   #     ]
-  #     template = "src/templates/FooFeatures.java.tmpl
+  #     class_name = "org.chromium.chrome.FooFeatures"
+  #     # Or a custom template via: template = "FooSwitches.java.tmpl"
   #   }
   #
   # foo_features.cc:
@@ -351,20 +359,26 @@ if (!is_robolectric && enable_java_templates) {
       # The sources aren't compiled so don't check their dependencies.
       check_includes = false
       script = "//build/android/gyp/java_cpp_features.py"
-
-      _srcjar_path = "${target_gen_dir}/${target_name}.srcjar"
-      _rebased_srcjar_path = rebase_path(_srcjar_path, root_build_dir)
-      _rebased_sources = rebase_path(invoker.sources, root_build_dir)
-      _rebased_template = rebase_path(invoker.template, root_build_dir)
+      outputs = [ "${target_gen_dir}/${target_name}.srcjar" ]
 
       args = [
-        "--srcjar=$_rebased_srcjar_path",
-        "--template=$_rebased_template",
+        "--srcjar",
+        rebase_path(outputs[0], root_build_dir),
       ]
-      args += _rebased_sources
-      sources += [ invoker.template ]
-
-      outputs = [ _srcjar_path ]
+      if (defined(invoker.template)) {
+        assert(!defined(invoker.class_name))
+        sources += [ invoker.template ]
+        args += [
+          "--template",
+          rebase_path(invoker.template, root_build_dir),
+        ]
+      } else {
+        args += [
+          "--class-name",
+          invoker.class_name,
+        ]
+      }
+      args += rebase_path(invoker.sources, root_build_dir)
     }
   }
 
@@ -637,7 +651,13 @@ if (!is_robolectric && enable_java_templates) {
       _stripped_output_path = "$root_out_dir/${invoker.lib_name}"
       _unstripped_output_path =
           "$root_out_dir/lib.unstripped/${invoker.lib_name}"
-      inputs = [ _lib_path ]
+      inputs = [
+        _lib_path,
+        "${clang_base_path}/bin/llvm-strip",
+
+        # llvm-objcopy is required since llvm-strip symlinks to it.
+        "${clang_base_path}/bin/llvm-objcopy",
+      ]
       outputs = [
         _stripped_output_path,
         _unstripped_output_path,
@@ -653,8 +673,7 @@ if (!is_robolectric && enable_java_templates) {
       _rebased_unstripped_ouput_path =
           rebase_path(_unstripped_output_path, root_build_dir)
       _strip_tool_path =
-          rebase_path("//buildtools/third_party/eu-strip/bin/eu-strip",
-                      root_build_dir)
+          rebase_path("${clang_base_path}/bin/llvm-strip", root_build_dir)
 
       args = [
         "--strip-path=$_strip_tool_path",
@@ -719,7 +738,6 @@ if (!is_robolectric && enable_java_templates) {
   #   }
   template("android_resources") {
     forward_variables_from(invoker, [ "testonly" ])
-
     _base_path = "$target_gen_dir/$target_name"
     if (defined(invoker.v14_skip)) {
       not_needed(invoker, [ "v14_skip" ])
@@ -770,8 +788,6 @@ if (!is_robolectric && enable_java_templates) {
 
       forward_variables_from(invoker,
                              [
-                               "android_manifest",
-                               "android_manifest_dep",
                                "custom_package",
                                "mergeable_android_manifests",
                                "resource_overlay",
@@ -2685,7 +2701,7 @@ if (!is_robolectric && enable_java_templates) {
     if (_is_base_module && _native_libs_deps != [] && !_uses_static_library) {
       _sanitizer_loadable_modules += _sanitizer_runtimes
     }
-    if ((is_hwasan || is_asan) && _is_base_module &&
+    if (enable_wrap_sh && _is_base_module &&
         (_uses_static_library || _native_libs_deps != [])) {
       _sanitizer_loadable_modules +=
           [ "$root_gen_dir/build/android/generate_wrap_sh/wrap.sh" ]
@@ -4416,11 +4432,8 @@ if (!is_robolectric && enable_java_templates) {
                                  "strip_drawables",
                                ])
         deps = _common_deps
-        if (_should_process_manifest) {
-          android_manifest_dep = ":$_unpack_target_name"
-          android_manifest = "${_output_path}/AndroidManifest.xml"
-        } else if (defined(_scanned_files.manifest_package) &&
-                   !defined(custom_package)) {
+        if (defined(_scanned_files.manifest_package) &&
+            !defined(custom_package)) {
           custom_package = _scanned_files.manifest_package
         }
 
@@ -4568,6 +4581,9 @@ if (!is_robolectric && enable_java_templates) {
       }
       if (defined(_assets_target_name)) {
         deps += [ ":$_assets_target_name" ]
+      }
+      if (_should_process_manifest) {
+        mergeable_android_manifests = [ "${_output_path}/AndroidManifest.xml" ]
       }
     }
   }

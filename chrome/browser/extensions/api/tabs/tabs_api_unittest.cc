@@ -11,6 +11,7 @@
 
 #include "base/containers/contains.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -163,7 +164,7 @@ void TabsApiUnitTest::SetUp() {
   Browser::CreateParams params(profile(), true);
   params.type = Browser::TYPE_NORMAL;
   params.window = browser_window_.get();
-  browser_.reset(Browser::Create(params));
+  browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
 
   tab_groups::TabGroupSyncService* saved_service = sync_service();
   ASSERT_TRUE(saved_service);
@@ -814,7 +815,7 @@ TEST_F(TabsApiUnitTest, TabsMoveAcrossWindows) {
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
   new TestBrowserWindowOwner(std::move(window2));
-  std::unique_ptr<Browser> browser2(Browser::Create(params));
+  auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
   BrowserList::SetLastActive(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
 
@@ -885,7 +886,7 @@ TEST_F(TabsApiUnitTest, TabsMoveAcrossWindowsShouldRespectGroupContiguity) {
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
   new TestBrowserWindowOwner(std::move(window2));
-  std::unique_ptr<Browser> browser2(Browser::Create(params));
+  auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
   BrowserList::SetLastActive(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
 
@@ -1148,7 +1149,7 @@ TEST_F(TabsApiUnitTest, TabsGroupAcrossWindows) {
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
   new TestBrowserWindowOwner(std::move(window2));
-  std::unique_ptr<Browser> browser2(Browser::Create(params));
+  auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
 
   constexpr int kNumTabs2 = 3;
   for (int i = 0; i < kNumTabs2; ++i) {
@@ -1667,7 +1668,7 @@ TEST_F(TabsApiUnitTest, CannotDuplicatePictureInPictureWindows) {
   params.type = Browser::TYPE_PICTURE_IN_PICTURE;
   params.window = pip_window.get();
   std::unique_ptr<Browser> pip_browser;
-  pip_browser.reset(Browser::Create(params));
+  pip_browser = Browser::DeprecatedCreateOwnedForTesting(params);
   std::unique_ptr<content::WebContents> contents(
       content::WebContentsTester::CreateTestWebContents(profile(), nullptr));
   CreateSessionServiceTabHelper(contents.get());

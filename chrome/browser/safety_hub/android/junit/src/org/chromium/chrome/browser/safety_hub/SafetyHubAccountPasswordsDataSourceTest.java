@@ -5,8 +5,12 @@
 package org.chromium.chrome.browser.safety_hub;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Activity;
@@ -33,9 +37,9 @@ import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.base.GaiaId;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.ui.base.TestActivity;
 
 /** Robolectric tests for {@link SafetyHubAccountPasswordsDataSource}. */
@@ -123,6 +127,10 @@ public class SafetyHubAccountPasswordsDataSourceTest {
         doReturn(compromised).when(mPrefServiceMock).getInteger(Pref.BREACHED_CREDENTIALS_COUNT);
         doReturn(weak).when(mPrefServiceMock).getInteger(Pref.WEAK_CREDENTIALS_COUNT);
         doReturn(reused).when(mPrefServiceMock).getInteger(Pref.REUSED_CREDENTIALS_COUNT);
+    }
+
+    private void mockRunPasswordCheckup(boolean willRun) {
+        doReturn(willRun).when(mSafetyHubFetchServiceMock).runAccountPasswordCheckup();
     }
 
     @Test
@@ -240,6 +248,38 @@ public class SafetyHubAccountPasswordsDataSourceTest {
         assertEquals(
                 ModuleType.UNAVAILABLE_COMPROMISED_NO_WEAK_REUSED_PASSWORDS,
                 mObserver.getModuleType());
+    }
+
+    @Test
+    public void countsUnavailable_lastCheckLongAgo() {
+        mockTotalPasswordsCount(1);
+        mockSignedInState(true);
+        mockPasswordCounts(/* compromised= */ -1, /* weak= */ -1, /* reused= */ -1);
+        mockRunPasswordCheckup(true);
+
+        assertTrue(mDataSource.maybeTriggerPasswordCheckup());
+        verify(mSafetyHubFetchServiceMock, times(1)).runAccountPasswordCheckup();
+
+        mDataSource.accountPasswordCountsChanged();
+        mDataSource.onSavedPasswordsChanged(0);
+        mDataSource.updateState();
+        assertEquals(ModuleType.UNAVAILABLE_PASSWORDS, mObserver.getModuleType());
+    }
+
+    @Test
+    public void countsUnavailable_lastCheckRecently() {
+        mockTotalPasswordsCount(1);
+        mockSignedInState(true);
+        mockPasswordCounts(/* compromised= */ -1, /* weak= */ -1, /* reused= */ -1);
+        mockRunPasswordCheckup(false);
+
+        assertFalse(mDataSource.maybeTriggerPasswordCheckup());
+        verify(mSafetyHubFetchServiceMock, times(1)).runAccountPasswordCheckup();
+
+        mDataSource.accountPasswordCountsChanged();
+        mDataSource.onSavedPasswordsChanged(0);
+        mDataSource.updateState();
+        assertEquals(ModuleType.UNAVAILABLE_PASSWORDS, mObserver.getModuleType());
     }
 
     @Test

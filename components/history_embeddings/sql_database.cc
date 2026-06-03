@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_util.h"
 #include "components/history/core/browser/history_backend.h"
 #include "components/history_embeddings/history_embeddings_features.h"
 #include "components/history_embeddings/passages_util.h"
@@ -723,7 +724,7 @@ bool SqlDatabase::InsertOrReplacePassages(const UrlData& url_passages) {
   if (blob.empty()) {
     return false;
   }
-  statement.BindBlob(3, blob);
+  statement.BindBlob(3, std::move(blob));
   bool result = statement.Run();
 
   if (result) {

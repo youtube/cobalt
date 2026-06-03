@@ -20,7 +20,6 @@ MIXIN_GROUPS = {
         # ChromeOS amd64-generic omitted since it is run on GCE instances.
         # ChromeOS volteer omitted since it runs in Skylab.
         # TODO(crbug.com/416556639): Remove Oreo and Pie related mixins.
-        'chromium_nexus_5x_oreo',
         'chromium_pixel_2_pie',
         'chromium_pixel_2_q',
         'gpu_nvidia_shield_tv_stable',
@@ -48,8 +47,6 @@ MIXIN_GROUPS = {
         'mac_pro_amd_gpu',
         'mac_retina_amd_gpu_experimental',
         'mac_retina_amd_gpu_stable',
-        'mac_retina_nvidia_gpu_experimental',
-        'mac_retina_nvidia_gpu_stable',
         'win10_amd_rx_5500_xt_stable',
         'win10_intel_uhd_630_experimental',
         'win10_intel_uhd_630_stable',

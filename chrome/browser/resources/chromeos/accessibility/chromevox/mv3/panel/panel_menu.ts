@@ -8,7 +8,7 @@
 import {BridgeCallbackManager} from '/common/bridge_callback_manager.js';
 
 import {Msgs} from '../common/msgs.js';
-import type {PanelNodeMenuItemData} from '../common/panel_menu_data.js';
+import type {MenuDataForTest, PanelNodeMenuItemData} from '../common/panel_menu_data.js';
 
 import {PanelMenuItem} from './panel_menu_item.js';
 
@@ -276,6 +276,15 @@ export class PanelMenu {
       startIndex += delta;
     }
     return -1;
+  }
+
+  getMenuDataForTest(): MenuDataForTest {
+    const menuItem = this.items_[this.activeIndex_];
+    return {
+      menuMsg: this.menuMsg,
+          menuItemTitle: menuItem ? menuItem.menuItemTitle : undefined,
+          menuItemShortcut: menuItem ? menuItem.menuItemShortcut : undefined
+    }
   }
 }
 

@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/scroll/scroll_alignment.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -66,7 +67,7 @@ void ScrollMarkerPseudoElement::DefaultEventHandler(Event& event) {
       is_key_down && (To<KeyboardEvent>(event).keyCode() == VKEY_RIGHT ||
                       To<KeyboardEvent>(event).keyCode() == VKEY_DOWN);
   bool should_intercept =
-      event.target() == this &&
+      event.RawTarget() == this &&
       (is_click || is_enter_or_space || is_left_or_up_arrow_key ||
        is_right_or_down_arrow_key);
   if (should_intercept) {
@@ -189,7 +190,7 @@ void ScrollMarkerPseudoElement::AttachLayoutTree(AttachContext& context) {
     }
   }
 
-  // The layout box for these pseudo elements are attached to the
+  // The layout box for these pseudo-elements are attached to the
   // ::scroll-marker-group box during layout above. Make sure we walk any
   // ::scroll-marker child and clear dirty bits for the RebuildLayoutTree()
   // pass.

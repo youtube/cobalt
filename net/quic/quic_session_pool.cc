@@ -79,6 +79,7 @@
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quiche/quic/platform/api/quic_flags.h"
@@ -793,9 +794,9 @@ int QuicSessionPool::RequestSession(
                                              base::Time::Now())) {
     MarkAllActiveSessionsGoingAway(kClockSkewDetected);
   }
-  DCHECK(HostPortPair(session_key.server_id().host(),
-                      session_key.server_id().port())
-             .Equals(HostPortPair::FromURL(url)));
+  DCHECK_EQ(HostPortPair(session_key.server_id().host(),
+                         session_key.server_id().port()),
+            HostPortPair::FromURL(url));
 
   // Add the observer in the `management_config` for the
   // `ConnectionChangeNotifier`.
@@ -1561,7 +1562,18 @@ QuicChromiumClientSession* QuicSessionPool::HasMatchingIpSession(
     const std::set<std::string>& aliases,
     bool use_dns_aliases) {
   const quic::QuicServerId& server_id(key.server_id());
-  DCHECK(!HasActiveSession(key.session_key()));
+
+  // There could be an existing session when HappyEyeballsV3 is enabled because
+  // there could be multiple QuicSessionAttempts for the same destination at
+  // a time and the attempt may complete after another attempt has already
+  // activated a session.
+  // TODO(crbug.com/416364483): Stop bypassing DCHECK in the HEv3 code path.
+  // Instead, implement a way to notify session activation to
+  // HttpStreamPool::AttemptManagers of which destinations match the session
+  // key. Upon receiving notifications, AttemptManagers should cancel in flight
+  // QUIC attempts.
+  DCHECK(IsHappyEyeballsV3Enabled() || !HasActiveSession(key.session_key()));
+
   for (const auto& address : ip_endpoints) {
     if (!base::Contains(ip_aliases_, address)) {
       continue;
@@ -1972,6 +1984,9 @@ QuicSessionPool::CreateSessionHelper(
     config.SetIdleNetworkTimeout(quic::QuicTime::Delta::FromSeconds(
         connection_management_config->keep_alive_config
             ->idle_timeout_in_seconds));
+    config.AddConnectionOptionsToSend(
+        quic::ParseQuicTagVector(connection_management_config->keep_alive_config
+                                     ->quic_connection_options));
     keep_alive_timeout = quic::QuicTime::Delta::FromSeconds(
         connection_management_config->keep_alive_config
             ->ping_interval_in_seconds);

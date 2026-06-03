@@ -41,6 +41,7 @@ import org.chromium.ui.widget.ChromeImageButton;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Root component to interact with web app header. This coordinator lazily initializes web app
@@ -71,6 +72,7 @@ public class WebAppHeaderLayoutCoordinator
     private final Callback<Integer> mOnUnoccludedWidthCallback;
     private final ObservableSupplierImpl<Boolean> mControlsEnabledSupplier;
     private final TokenHolder mDisabledControlsHolder;
+    private boolean mShowButtons;
     private long mLastButtonVisibilityChangeTime;
 
     /**
@@ -168,7 +170,8 @@ public class WebAppHeaderLayoutCoordinator
                         mTabSupplier,
                         new ObservableSupplierImpl<>(),
                         mControlsEnabledSupplier,
-                        mThemeColorProvider);
+                        mThemeColorProvider,
+                        /* isWebApp= */ true);
 
         final ChromeImageButton backButton = mView.findViewById(R.id.back_button);
         mBackButtonCoordinator =
@@ -183,36 +186,39 @@ public class WebAppHeaderLayoutCoordinator
                         () -> {
                             if (mMediator != null) mMediator.onNavigationPopupShown();
                         },
-                        mHistoryDelegate);
+                        mHistoryDelegate,
+                        /* isWebApp= */ true);
 
         mMediator.setOnButtonBottomInsetChanged(this::onButtonBottomInsetChanged);
     }
 
     private void onUnoccludedWidthChanged(int newUnoccludedWidthPx) {
-        boolean wasShowingButtons = mAppHeaderUnoccludedWidthPx >= mMinUIControlsMinWidthPx;
+        boolean wasShowingButtons = mShowButtons;
         mAppHeaderUnoccludedWidthPx = newUnoccludedWidthPx;
-        boolean showButtons = mAppHeaderUnoccludedWidthPx >= mMinUIControlsMinWidthPx;
+        mShowButtons = mAppHeaderUnoccludedWidthPx >= mMinUIControlsMinWidthPx;
 
-        if (wasShowingButtons == showButtons) return;
+        if (wasShowingButtons == mShowButtons) return;
 
         if (mReloadButtonCoordinator != null) {
-            mReloadButtonCoordinator.setVisibility(showButtons);
+            mReloadButtonCoordinator.setVisibility(mShowButtons);
         }
         if (mBackButtonCoordinator != null) {
-            mBackButtonCoordinator.setVisibility(showButtons);
+            mBackButtonCoordinator.setVisibility(mShowButtons);
         }
         logControlsVisibilityChange(wasShowingButtons);
     }
 
     private void logControlsVisibilityChange(boolean wasShowingButtons) {
         if (mLastButtonVisibilityChangeTime != 0) {
-            long duration = SystemClock.elapsedRealtime() - mLastButtonVisibilityChangeTime;
+            long duration =
+                    TimeUnit.MILLISECONDS.toSeconds(
+                            SystemClock.elapsedRealtime() - mLastButtonVisibilityChangeTime);
             if (wasShowingButtons) {
                 RecordHistogram.recordLongTimesHistogram(
-                        "CustomTabs.WebAppHeader.ControlsShownTime", duration);
+                        "CustomTabs.WebAppHeader.ControlsShownTime2", duration);
             } else {
                 RecordHistogram.recordLongTimesHistogram(
-                        "CustomTabs.WebAppHeader.ControlsHiddenTime", duration);
+                        "CustomTabs.WebAppHeader.ControlsHiddenTime2", duration);
             }
         }
         mLastButtonVisibilityChangeTime = SystemClock.elapsedRealtime();
@@ -251,6 +257,13 @@ public class WebAppHeaderLayoutCoordinator
      */
     public boolean isVisible() {
         return mMediator != null && mMediator.isVisible();
+    }
+
+    /**
+     * @return true when back&refresh buttons are visible, false otherwise.
+     */
+    public boolean isShowingButtons() {
+        return mShowButtons;
     }
 
     @Override

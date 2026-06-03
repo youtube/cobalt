@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/navigation_api/navigation_api.h"
 #include "third_party/blink/renderer/core/view_transition/dom_view_transition.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/uuid.h"
 
 namespace blink {
 namespace {
@@ -72,8 +73,8 @@ PageSwapEvent::PageSwapEvent(
       case mojom::blink::NavigationTypeForNavigationApi::kReplace:
         entry = MakeGarbageCollected<NavigationHistoryEntry>(
             document.domWindow(),
-            /*key=*/WTF::CreateCanonicalUUIDString(),
-            /*id=*/WTF::CreateCanonicalUUIDString(),
+            /*key=*/CreateCanonicalUUIDString(),
+            /*id=*/CreateCanonicalUUIDString(),
             /*url=*/page_swap_event_params->url,
             /*document_sequence_number=*/0,
             /*state=*/nullptr);

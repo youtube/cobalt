@@ -12,6 +12,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeClassQualifiedName;
 import org.jni_zero.NativeMethods;
 
@@ -26,27 +27,29 @@ import org.chromium.net.ExperimentalBidirectionalStream;
 import org.chromium.net.ExperimentalUrlRequest;
 import org.chromium.net.NetworkQualityRttListener;
 import org.chromium.net.NetworkQualityThroughputListener;
-import org.chromium.net.RequestContextConfigOptions;
 import org.chromium.net.RequestFinishedInfo;
 import org.chromium.net.RttThroughputValues;
 import org.chromium.net.UploadDataProvider;
 import org.chromium.net.UrlRequest;
 import org.chromium.net.impl.CronetLogger.CronetSource;
 import org.chromium.net.impl.CronetLogger.CronetVersion;
+import org.chromium.net.impl.proto.RequestContextConfigOptions;
 import org.chromium.net.urlconnection.CronetHttpURLConnection;
 import org.chromium.net.urlconnection.CronetURLStreamHandlerFactory;
 
-import java.net.Proxy;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -160,7 +163,7 @@ public class CronetUrlRequestContext extends CronetEngineBase {
 
     /** Set of storage paths currently in use. */
     @GuardedBy("sInUseStoragePaths")
-    private static final HashSet<String> sInUseStoragePaths = new HashSet<String>();
+    private static final HashSet<String> sInUseStoragePaths = new HashSet<>();
 
     /** Storage path used by this context. */
     private final String mInUseStoragePath;
@@ -183,6 +186,8 @@ public class CronetUrlRequestContext extends CronetEngineBase {
     private final CronetLogger mLogger;
 
     private final CronetSource mSource;
+
+    private List<VersionSafeProxyCallback> mProxyCallbacks;
 
     long getLogId() {
         return mLogId;
@@ -267,6 +272,10 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                 }
             } else {
                 mInUseStoragePath = null;
+            }
+
+            if (builder.getProxyOptions() != null) {
+                mProxyCallbacks = builder.getProxyOptions().createProxyCallbackList();
             }
             synchronized (mLock) {
                 try (var adapterTraceEvent =
@@ -430,6 +439,10 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                                 networkThreadPriorityFlagValue != null
                                         ? (int) networkThreadPriorityFlagValue.getIntValue()
                                         : CronetEngineBuilderImpl.NETWORK_THREAD_PRIORITY);
+        if (engineBuilder.getProxyOptions() != null) {
+            resultBuilder.setProxyOptions(
+                    engineBuilder.getProxyOptions().createProxyOptionsProto());
+        }
 
         if (engineBuilder.getUserAgent() != null) {
             resultBuilder.setUserAgent(engineBuilder.getUserAgent());
@@ -681,6 +694,64 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         mStopNetLogCompleted.open();
     }
 
+    @CalledByNative
+    private @JniType("std::optional<std::vector<std::string>>") String[] onBeforeTunnelRequest(
+            int chainId) {
+        try (var traceEvent =
+                ScopedSysTraceEvent.scoped("CronetUrlRequestContext#onBeforeTunnelRequest")) {
+            VersionSafeProxyCallback callback = mProxyCallbacks.get(chainId);
+            List<Map.Entry<String, String>> headers;
+            try (var callbackTraceEvent =
+                    ScopedSysTraceEvent.scoped(
+                            "CronetUrlRequestContext#onBeforeTunnelRequest running callback")) {
+                // TODO(https://crbug.com/421341906): Once net::ProxyDelegate supports async
+                // callbacks, stop calling this directly (i.e., on Cronet's network thread).
+                headers = callback.onBeforeTunnelRequest();
+            }
+            if (headers == null) {
+                return null;
+            }
+            List<String> output = new ArrayList<String>();
+            for (Map.Entry<String, String> header : headers) {
+                // TODO(https://crbug.com/425666408): Find a better way to surface this. It's
+                // currently challenging since we're calling into the embedder code, not the other
+                // way around. Making this API async (https://crbug.com/421341906) could be a way of
+                // solving this, since we could throw IAE when the embedder calls back into Cronet.
+                if (!CronetUrlRequestContextJni.get()
+                                .isValidHeaderName(Objects.requireNonNull(header.getKey()))
+                        || !CronetUrlRequestContextJni.get()
+                                .isValidHeaderValue(Objects.requireNonNull(header.getValue()))) {
+                    throw new IllegalArgumentException(
+                            "Invalid header with headername: " + header.getKey());
+                }
+                output.add(header.getKey());
+                output.add(header.getValue());
+            }
+            return output.toArray(new String[output.size()]);
+        }
+    }
+
+    @CalledByNative
+    private @JniType("bool") boolean onTunnelHeadersReceived(
+            int chainId, @JniType("std::vector<std::string>") String[] headers, int statusCode) {
+        try (var traceEvent =
+                ScopedSysTraceEvent.scoped("CronetUrlRequestContext#onTunnelHeadersReceived")) {
+            ArrayList<Map.Entry<String, String>> headersList = new ArrayList<>();
+            for (int i = 0; i < headers.length; i += 2) {
+                headersList.add(new AbstractMap.SimpleImmutableEntry<>(headers[i], headers[i + 1]));
+            }
+            VersionSafeProxyCallback callback = mProxyCallbacks.get(chainId);
+            try (var callbackTraceEvent =
+                    ScopedSysTraceEvent.scoped(
+                            "CronetUrlRequestContext#onTunnelHeadersReceived running callback")) {
+                // TODO(https://crbug.com/421341906): Once net::ProxyDelegate supports async
+                // callbacks, stop calling this directly (i.e., on Cronet's network thread).
+                return callback.onTunnelHeadersReceived(
+                        Collections.unmodifiableList(headersList), statusCode);
+            }
+        }
+    }
+
     // This method is intentionally non-static to ensure Cronet native library
     // is loaded by class constructor.
     @Override
@@ -859,12 +930,12 @@ public class CronetUrlRequestContext extends CronetEngineBase {
 
     @Override
     public URLConnection openConnection(URL url) {
-        return openConnection(url, Proxy.NO_PROXY);
+        return openConnection(url, java.net.Proxy.NO_PROXY);
     }
 
     @Override
-    public URLConnection openConnection(URL url, Proxy proxy) {
-        if (proxy.type() != Proxy.Type.DIRECT) {
+    public URLConnection openConnection(URL url, java.net.Proxy proxy) {
+        if (proxy.type() != java.net.Proxy.Type.DIRECT) {
             throw new UnsupportedOperationException();
         }
         String protocol = url.getProtocol();
@@ -1134,5 +1205,11 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         @NativeClassQualifiedName("CronetContextAdapter")
         void provideThroughputObservations(
                 long nativePtr, CronetUrlRequestContext caller, boolean should);
+
+        @JniType("bool")
+        boolean isValidHeaderName(@JniType("std::string") String headerName);
+
+        @JniType("bool")
+        boolean isValidHeaderValue(@JniType("std::string") String headerValue);
     }
 }

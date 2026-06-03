@@ -4,6 +4,10 @@
 
 #include "crypto/hash.h"
 
+#include <ostream>
+
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/notreached.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -97,6 +101,8 @@ Hasher& Hasher::operator=(Hasher&& other) {
 Hasher::~Hasher() = default;
 
 void Hasher::Update(base::span<const uint8_t> data) {
+  CHECK(EVP_MD_CTX_md(ctx_.get()))
+      << "Hasher::Update() called after Hasher::Finish()";
   CHECK(EVP_DigestUpdate(ctx_.get(), data.data(), data.size()));
 }
 
@@ -105,6 +111,7 @@ void Hasher::Update(std::string_view data) {
 }
 
 void Hasher::Finish(base::span<uint8_t> digest) {
+  CHECK(EVP_MD_CTX_md(ctx_.get())) << "Hasher::Finish() called multiple times";
   CHECK_EQ(digest.size(), EVP_MD_CTX_size(ctx_.get()));
   CHECK(EVP_DigestFinal(ctx_.get(), digest.data(), nullptr));
 }

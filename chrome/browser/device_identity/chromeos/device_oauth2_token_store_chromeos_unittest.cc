@@ -12,7 +12,6 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/scoped_test_device_settings_service.h"
@@ -25,6 +24,7 @@
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/dbus/userdataauth/fake_cryptohome_misc_client.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "components/ownership/mock_owner_key_util.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
@@ -61,13 +61,14 @@ class DeviceOAuth2TokenStoreChromeOSTest : public testing::Test {
         new ownership::MockOwnerKeyUtil());
     owner_key_util_->SetPublicKeyFromPrivateKey(
         *device_policy_.GetSigningKey());
-    ash::DeviceSettingsService::Get()->SetSessionManager(
+    ash::DeviceSettingsService::Get()->StartProcessing(
+        TestingBrowserProcess::GetGlobal()->local_state(),
         &session_manager_client_, owner_key_util_);
   }
 
   void TearDown() override {
     base::ThreadPoolInstance::Get()->FlushForTesting();
-    ash::DeviceSettingsService::Get()->UnsetSessionManager();
+    ash::DeviceSettingsService::Get()->StopProcessing();
     ash::SystemSaltGetter::Shutdown();
     ash::CryptohomeMiscClient::Shutdown();
   }
@@ -243,11 +244,12 @@ TEST_F(DeviceOAuth2TokenStoreChromeOSTest, SaveToken) {
 TEST_F(DeviceOAuth2TokenStoreChromeOSTest, SaveEncryptedTokenEarly) {
   chromeos::DeviceOAuth2TokenStoreChromeOS store(
       scoped_testing_local_state_.Get());
-  StoreV3Token("test-token");
 
   // Set a new refresh token without the system salt available.
   InitWithPendingSalt(&store);
 
+  store.SetAndSaveRefreshToken("test-token",
+                               DeviceOAuth2TokenStore::StatusCallback());
   EXPECT_EQ("test-token", store.GetRefreshToken());
 
   // Make the system salt available.

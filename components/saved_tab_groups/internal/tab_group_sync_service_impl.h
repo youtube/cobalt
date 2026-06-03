@@ -20,7 +20,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/saved_tab_groups/delegate/tab_group_sync_delegate.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_model.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_sync_bridge.h"
@@ -33,6 +33,7 @@
 #include "components/saved_tab_groups/public/tab_group_sync_metrics_logger.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
+#include "components/saved_tab_groups/public/versioning_message_controller.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/base/collaboration_id.h"
 
@@ -112,10 +113,11 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
   void MakeTabGroupShared(const LocalTabGroupID& local_group_id,
-                          std::string_view collaboration_id,
+                          const syncer::CollaborationId& collaboration_id,
                           TabGroupSharingCallback callback) override;
-  void MakeTabGroupSharedForTesting(const LocalTabGroupID& local_group_id,
-                                    std::string_view collaboration_id) override;
+  void MakeTabGroupSharedForTesting(
+      const LocalTabGroupID& local_group_id,
+      const syncer::CollaborationId& collaboration_id) override;
 
   void AboutToUnShareTabGroup(const LocalTabGroupID& local_group_id,
                               base::OnceClosure on_complete_callback) override;
@@ -185,6 +187,8 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
 
   std::unique_ptr<std::vector<SavedTabGroup>>
   TakeSharedTabGroupsAvailableAtStartupForMessaging() override;
+  bool HadSharedTabGroupsLastSession(bool open_shared_tab_groups) override;
+  VersioningMessageController* GetVersioningMessageController() override;
   void OnLastTabClosed(const SavedTabGroup& saved_tab_group) override;
 
   void AddObserver(TabGroupSyncService::Observer* observer) override;
@@ -359,7 +363,9 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
   std::optional<SavedTabGroup> FindGroupWithCollaborationId(
       const syncer::CollaborationId& collaboration_id);
 
-  // Updates the last seen time for any focused thab in the given tab group.
+  // Updates the last seen time for any focused tab. Invoked for remote updates.
+  // This is because if a tab is updated from remote while being focused, it
+  // should automatically be marked as seen.
   void UpdateLastSeenTimeForAnyFocusedTabForRemoteUpdates(
       const SavedTabGroup* group,
       TriggerSource source);
@@ -425,6 +431,12 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
   std::unique_ptr<std::vector<SavedTabGroup>>
       shared_tab_groups_available_at_startup_for_messaging_;
 
+  // Whether shared tab groups existed during startup.
+  bool had_shared_tab_groups_on_startup_ = false;
+
+  // Whether open shared tab groups existed during startup.
+  bool had_open_shared_tab_groups_on_startup_ = false;
+
   // Temporary in-memory mapping from collaboration ID to title for tab groups
   // that we/ have previously known about. This is to facilitate displaying of
   // tab group titles in the UI when a user is removed from a tab group.
@@ -453,6 +465,10 @@ class TabGroupSyncServiceImpl : public TabGroupSyncService,
   // sharing requests for different tab groups (e.g. from different windows).
   std::map<base::Uuid, TabGroupSharingTimeoutInfo>
       tab_group_sharing_timeout_info_;
+
+  // The versioning message controller which is responsible for business logic
+  // related to shared tab groups versioning related messages.
+  std::unique_ptr<VersioningMessageController> versioning_message_controller_;
 
   base::ScopedObservation<signin::IdentityManager,
                           signin::IdentityManager::Observer>

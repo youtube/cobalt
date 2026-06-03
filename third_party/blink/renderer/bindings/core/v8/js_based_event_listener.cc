@@ -56,8 +56,8 @@ void JSBasedEventListener::Invoke(
     Event* event) {
   DCHECK(execution_context_of_event_target);
   DCHECK(event);
-  DCHECK(event->target());
-  DCHECK(event->currentTarget());
+  DCHECK(event->RawTarget());
+  DCHECK(event->RawCurrentTarget());
 
   v8::Isolate* isolate = GetIsolate();
 
@@ -79,7 +79,8 @@ void JSBasedEventListener::Invoke(
     // difference but the advantage that we can use listener's |ScriptState|
     // after it get compiled.
     // https://html.spec.whatwg.org/C/#event-handler-value
-    v8::Local<v8::Value> listener = GetListenerObject(*event->currentTarget());
+    v8::Local<v8::Value> listener =
+        GetListenerObject(*event->RawCurrentTarget());
 
     if (listener.IsEmpty() || !listener->IsObject())
       return;
@@ -142,7 +143,7 @@ void JSBasedEventListener::Invoke(
     // Step 8-2: If |struct|’s invocation-target-in-shadow-tree is false (i.e.,
     // event's target is in a shadow tree), then set |global|’s current
     // event to event.
-    Node* target_node = event->target()->ToNode();
+    Node* target_node = event->RawTarget()->ToNode();
     if (!(target_node && target_node->IsInShadowTree()))
       window->SetCurrentEvent(event);
   }
@@ -155,7 +156,7 @@ void JSBasedEventListener::Invoke(
 
     // Step 10: Call a listener with event's currentTarget as receiver and event
     // and handle errors if thrown.
-    InvokeInternal(*event->currentTarget(), *event, js_event);
+    InvokeInternal(*event->RawCurrentTarget(), *event, js_event);
 
     if (try_catch.HasCaught()) {
       // Step 10-2: Set legacyOutputDidListenersThrowFlag if given.
@@ -169,8 +170,7 @@ void JSBasedEventListener::Invoke(
     window->SetCurrentEvent(current_event);
 }
 
-std::unique_ptr<SourceLocation> JSBasedEventListener::GetSourceLocation(
-    EventTarget& target) {
+SourceLocation* JSBasedEventListener::GetSourceLocation(EventTarget& target) {
   v8::HandleScope handle_scope(GetIsolate());
   v8::Local<v8::Value> effective_function = GetEffectiveFunction(target);
   if (effective_function->IsFunction()) {

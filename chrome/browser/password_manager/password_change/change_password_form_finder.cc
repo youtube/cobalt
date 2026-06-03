@@ -12,20 +12,16 @@
 #include "components/optimization_guide/core/model_quality/model_execution_logging_wrappers.h"
 #include "components/optimization_guide/proto/features/password_change_submission.pb.h"
 #include "content/public/browser/web_contents.h"
-
-#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/password_manager/password_change/button_click_helper.h"
-#endif
 
 namespace {
 
 blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
-  auto options = blink::mojom::AIPageContentOptions::New();
+  auto options = optimization_guide::ActionableAIPageContentOptions();
   // WebContents where password change is happening is hidden, and renderer
   // won't capture a snapshot unless it becomes visible again or
   // on_critical_path is set to true.
   options->on_critical_path = true;
-  options->enable_experimental_actionable_data = true;
   return options;
 }
 
@@ -34,8 +30,7 @@ blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
 ChangePasswordFormFinder::ChangePasswordFormFinder(
     content::WebContents* web_contents,
     ChangePasswordFormWaiter::PasswordFormFoundCallback callback)
-    : web_contents_(web_contents->GetWeakPtr()),
-      callback_(std::move(callback)) {
+    : web_contents_(web_contents), callback_(std::move(callback)) {
   capture_annotated_page_content_ =
       base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
                      GetAIPageContentOptions());
@@ -59,15 +54,11 @@ ChangePasswordFormFinder::~ChangePasswordFormFinder() = default;
 
 void ChangePasswordFormFinder::OnInitialFormWaitingResult(
     password_manager::PasswordFormManager* form_manager) {
+  CHECK(web_contents_);
+
   form_waiter_.reset();
   if (form_manager) {
     std::move(callback_).Run(form_manager);
-    return;
-  }
-
-  // The tab closed, fail immediately.
-  if (!web_contents_) {
-    std::move(callback_).Run(nullptr);
     return;
   }
 
@@ -79,7 +70,9 @@ void ChangePasswordFormFinder::OnInitialFormWaitingResult(
 
 void ChangePasswordFormFinder::OnPageContentReceived(
     std::optional<optimization_guide::AIPageContentResult> content) {
-  if (!content || !web_contents_) {
+  CHECK(web_contents_);
+
+  if (!content) {
     std::move(callback_).Run(nullptr);
     return;
   }
@@ -109,7 +102,8 @@ void ChangePasswordFormFinder::OnExecutionResponseCallback(
     std::unique_ptr<
         optimization_guide::proto::PasswordChangeSubmissionLoggingData>
         logging_data) {
-  if (!web_contents_ || !execution_result.response.has_value()) {
+  CHECK(web_contents_);
+  if (!execution_result.response.has_value()) {
     // TODO(crbug.com/407503334): Record metrics here.
     std::move(callback_).Run(nullptr);
     return;
@@ -131,28 +125,25 @@ void ChangePasswordFormFinder::OnExecutionResponseCallback(
     return;
   }
 
-#if !BUILDFLAG(IS_ANDROID)
   click_helper_ = std::make_unique<ButtonClickHelper>(
-      web_contents_.get(), dom_node_id,
+      web_contents_, dom_node_id,
       base::BindOnce(&ChangePasswordFormFinder::OnButtonClicked,
                      weak_ptr_factory_.GetWeakPtr()));
-#else
-  std::move(callback_).Run(nullptr);
-#endif
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void ChangePasswordFormFinder::OnButtonClicked(bool result) {
+  CHECK(web_contents_);
+
   click_helper_.reset();
 
-  if (!result || !web_contents_) {
+  if (!result) {
     // TODO(crbug.com/407503334): Record metrics here.
     std::move(callback_).Run(nullptr);
     return;
   }
 
   form_waiter_ = std::make_unique<ChangePasswordFormWaiter>(
-      web_contents_.get(),
+      web_contents_,
       base::BindOnce(&ChangePasswordFormFinder::OnSubsequentFormWaitingResult,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -162,4 +153,3 @@ void ChangePasswordFormFinder::OnSubsequentFormWaitingResult(
   // TODO(crbug.com/407503334): Record metrics here.
   std::move(callback_).Run(form_manager);
 }
-#endif

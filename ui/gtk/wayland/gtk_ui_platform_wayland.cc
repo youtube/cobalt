@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "ui/base/glib/glib_cast.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/events/event_utils.h"
@@ -30,6 +31,12 @@ GtkUiPlatformWayland::~GtkUiPlatformWayland() = default;
 
 void GtkUiPlatformWayland::OnInitialized() {
   // Nothing to do upon initialization for Wayland.
+}
+
+GdkWindow* GtkUiPlatformWayland::GetGdkWindow(
+    gfx::AcceleratedWidget window_id) {
+  NOTIMPLEMENTED_LOG_ONCE();
+  return nullptr;
 }
 
 bool GtkUiPlatformWayland::SetGtkWidgetTransientFor(

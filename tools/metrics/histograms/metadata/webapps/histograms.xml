@@ -168,7 +168,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Launch.BrowserTab.WebAppLaunchHandlerClientMode"
-    enum="WebAppLaunchHandlerClientMode" expires_after="2025-09-28">
+    enum="WebAppLaunchHandlerClientMode" expires_after="2025-11-30">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1156,7 +1156,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.ByUser" units="count"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1218,7 +1218,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.InstallResult.{Type}" enum="WebAppInstallResultCode"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>Records the result code of Web App installs. {Type}</summary>
@@ -1288,7 +1288,7 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="WebApp.Isolated.FirstPolicyProcessingDelay" units="seconds"
+<histogram name="WebApp.Isolated.FirstPolicyProcessingDelay" units="ms"
     expires_after="2026-01-01">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
@@ -1300,7 +1300,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.InstallError"
-    enum="IsolatedWebAppInstallError" expires_after="2025-10-05">
+    enum="IsolatedWebAppInstallError" expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1312,7 +1312,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.InstallSuccess" enum="BooleanSuccess"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1391,7 +1391,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.OrphanedBundlesCleanupJobSuccess"
-    enum="BooleanValid" expires_after="2025-10-05">
+    enum="BooleanValid" expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1399,6 +1399,26 @@ chromium-metrics-reviews@google.com.
     Records whether the OrphanedBundlesCleanupCommand was successful or resulted
     in an error. This command is run on session start and after a failed IWA
     install, to remove the folders of IWAs that are not installed.
+  </summary>
+</histogram>
+
+<histogram name="WebApp.Isolated.PolicyManager.PendingInitializations"
+    units="count" expires_after="2026-06-01">
+  <owner>greengrape@google.com</owner>
+  <owner>rferens@google.com</owner>
+  <owner>iwa-team@google.com</owner>
+  <summary>
+    The metrics show how many policy manager initializations are pending. Policy
+    manager initialization should only be called once on profile initialization.
+    A higher value likely indicates a browser crash during initialization or
+    force-install policy processing. This number reflects the count of such
+    crashes and is recorded only when it exceeds 0. If it exceeds 2, the
+    emergency mechanism is triggered: policy processing is postponed for 5 hours
+    to prevent further browser instability and enable OS updating.
+
+    Higher metric values warrant investigation. If this metric is no longer in
+    use, the associated emergency mechanism can be removed. More details are
+    available at go/iwa-install-emergency-mechanism.
   </summary>
 </histogram>
 
@@ -1417,7 +1437,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.ReadResponseHeadSuccess" enum="BooleanSuccess"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1434,7 +1454,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.ResponseReaderCacheState"
-    enum="IsolatedWebAppResponseReaderCacheState" expires_after="2025-10-05">
+    enum="IsolatedWebAppResponseReaderCacheState" expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1452,7 +1472,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.SignatureVerificationDuration" units="ms"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1465,7 +1485,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.SignatureVerificationFileLength" units="MiB"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1492,7 +1512,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.SwbnFileUsabilitySuccess" enum="BooleanValid"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1510,8 +1530,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebApp.Isolated.UnsupportedIPPValue" enum="BooleanValid"
+    expires_after="2025-12-31">
+  <owner>bylica@google.com</owner>
+  <owner>pwa-commercial@google.com</owner>
+  <owner>iwa-team@google.com</owner>
+  <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
+  <summary>
+    Records when printers return capability values unsupported by the current
+    chromium implementation. This could happen if the standard changes and the
+    implementation didn't keep up with those changes.
+  </summary>
+</histogram>
+
 <histogram name="WebApp.Isolated.UpdateError" enum="IsolatedWebAppUpdateError"
-    expires_after="2025-09-21">
+    expires_after="2025-11-23">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1526,7 +1559,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.UpdateSuccess" enum="BooleanSuccess"
-    expires_after="2025-09-21">
+    expires_after="2025-11-23">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -2418,6 +2451,21 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2022-05-22 through M106, data may
     be missing.
+  </summary>
+</histogram>
+
+<histogram name="Webapp.Update.ManifestSilentUpdateCheckResult"
+    enum="WebAppManifestSilentUpdateCheckResult" expires_after="2026-03-05">
+  <owner>msiem@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Records the result of web app manifest silently updating during page
+    navigations. Manifest updates are triggered on every page load of an app.
+    Note that &quot;App up to date&quot; is returned if there is no new manifest
+    (no changes to current). This operation can result in non-security sensitive
+    (not name and icon) fields of an installed web app to be updated. Updates to
+    security sensitive fields (name and icon) are saved as pending updates for
+    the user to confirm the changes.
   </summary>
 </histogram>
 

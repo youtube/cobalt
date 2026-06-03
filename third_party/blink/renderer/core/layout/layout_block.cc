@@ -57,6 +57,7 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
+#include "third_party/blink/renderer/core/layout/masonry/layout_masonry.h"
 #include "third_party/blink/renderer/core/layout/mathml/layout_mathml_block.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_text.h"
@@ -202,6 +203,45 @@ bool LayoutBlock::RespectsCSSOverflow() const {
 void LayoutBlock::AddChildBeforeDescendant(LayoutObject* new_child,
                                            LayoutObject* before_descendant) {
   NOT_DESTROYED();
+  DCHECK(RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled());
+  DCHECK(!IsLayoutBlockFlow());
+  DCHECK_NE(before_descendant->Parent(), this);
+  LayoutObject* before_descendant_container = before_descendant->Parent();
+  while (before_descendant_container->Parent() != this) {
+    before_descendant_container = before_descendant_container->Parent();
+  }
+  DCHECK(before_descendant_container);
+
+  // We really can't go on if what we have found isn't anonymous. We're not
+  // supposed to use some random non-anonymous object and put the child there.
+  // That's a recipe for security issues.
+  CHECK(before_descendant_container->IsAnonymous());
+
+  // Insert the child into the anonymous block box instead of here.
+  if (new_child->IsInline() &&
+      before_descendant_container->IsAnonymousBlockFlow()) {
+    before_descendant_container->AddChild(new_child, before_descendant);
+    return;
+  }
+
+  // Insert into the anonymous table.
+  if (new_child->IsTablePart()) {
+    before_descendant_container->AddChild(new_child, before_descendant);
+    return;
+  }
+
+  LayoutObject* before_child =
+      SplitAnonymousBoxesAroundChild(before_descendant);
+
+  DCHECK_EQ(before_child->Parent(), this);
+  AddChild(new_child, before_child);
+}
+
+void LayoutBlock::AddChildBeforeDescendantDeprecated(
+    LayoutObject* new_child,
+    LayoutObject* before_descendant) {
+  NOT_DESTROYED();
+  DCHECK(!RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled());
   DCHECK_NE(before_descendant->Parent(), this);
   LayoutObject* before_descendant_container = before_descendant->Parent();
   while (before_descendant_container->Parent() != this)
@@ -254,7 +294,11 @@ void LayoutBlock::AddChild(LayoutObject* new_child,
                            LayoutObject* before_child) {
   NOT_DESTROYED();
   if (before_child && before_child->Parent() != this) {
-    AddChildBeforeDescendant(new_child, before_child);
+    if (RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled()) {
+      AddChildBeforeDescendant(new_child, before_child);
+    } else {
+      AddChildBeforeDescendantDeprecated(new_child, before_child);
+    }
     return;
   }
 
@@ -658,20 +702,21 @@ inline bool LayoutBlock::IsInlineBoxWrapperActuallyChild() const {
          GetNode() && EditingIgnoresContent(*GetNode());
 }
 
-PhysicalRect LayoutBlock::LocalCaretRect(int caret_offset) const {
+PhysicalRect LayoutBlock::LocalCaretRect(int caret_offset,
+                                         CaretShape caret_shape) const {
   NOT_DESTROYED();
   // Do the normal calculation in most cases.
   if ((FirstChild() && !FirstChild()->IsPseudoElement()) ||
       IsInlineBoxWrapperActuallyChild()) {
-    return LayoutBox::LocalCaretRect(caret_offset);
+    return LayoutBox::LocalCaretRect(caret_offset, caret_shape);
   }
 
   const ComputedStyle& style = StyleRef();
   const bool is_horizontal = style.IsHorizontalWritingMode();
 
   LayoutUnit inline_size = is_horizontal ? Size().width : Size().height;
-  LogicalRect caret_rect =
-      LocalCaretRectForEmptyElement(inline_size, TextIndentOffset());
+  LogicalRect caret_rect = LocalCaretRectForEmptyElement(
+      inline_size, TextIndentOffset(), caret_shape);
   return CreateWritingModeConverter().ToPhysical(caret_rect);
 }
 
@@ -729,6 +774,10 @@ LayoutBlock* LayoutBlock::CreateAnonymousWithParentAndDisplay(
     case EDisplay::kInlineGrid:
       new_display = EDisplay::kGrid;
       break;
+    case EDisplay::kMasonry:
+    case EDisplay::kInlineMasonry:
+      new_display = EDisplay::kMasonry;
+      break;
     case EDisplay::kFlowRoot:
       new_display = EDisplay::kFlowRoot;
       break;
@@ -750,13 +799,13 @@ LayoutBlock* LayoutBlock::CreateAnonymousWithParentAndDisplay(
 
   LayoutBlock* layout_block;
   if (new_display == EDisplay::kFlex) {
-    layout_block =
-        MakeGarbageCollected<LayoutFlexibleBox>(/* element */ nullptr);
+    layout_block = MakeGarbageCollected<LayoutFlexibleBox>(/*element=*/nullptr);
   } else if (new_display == EDisplay::kGrid) {
-    layout_block = MakeGarbageCollected<LayoutGrid>(/* element */ nullptr);
+    layout_block = MakeGarbageCollected<LayoutGrid>(/*element=*/nullptr);
+  } else if (new_display == EDisplay::kMasonry) {
+    layout_block = MakeGarbageCollected<LayoutMasonry>(/*element=*/nullptr);
   } else if (new_display == EDisplay::kBlockMath) {
-    layout_block =
-        MakeGarbageCollected<LayoutMathMLBlock>(/* element */ nullptr);
+    layout_block = MakeGarbageCollected<LayoutMathMLBlock>(/*element=*/nullptr);
   } else {
     DCHECK(new_display == EDisplay::kBlock ||
            new_display == EDisplay::kFlowRoot);

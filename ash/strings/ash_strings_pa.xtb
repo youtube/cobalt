@@ -761,6 +761,7 @@
 <translation id="3552189655002856821">ਵਾਈ-ਫਾਈ ਬੰਦ ਹੈ</translation>
 <translation id="3554215588514239132">ਵਿਕਾਸਕਾਰ ਟੂਲ ਪੈਨਲ ਨੂੰ ਦਿਖਾਓ ਜਾਂ ਲੁਕਾਓ</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> ਨੂੰ ਪਿੰਨ ਕੀਤਾ ਗਿਆ</translation>
+<translation id="3554928024630051016">ਕੋਈ ਵਧੀਕ USB ਡੀਵਾਈਸ ਸ਼ਾਮਲ ਕਰਨ ਲਈ, ਇੱਕ ਹਟਾ ਕੇ ਨਵਾਂ ਪਲੱਗ-ਇਨ ਕਰਨ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੋ</translation>
 <translation id="3558768885091059911">ਕੀ ਕੈਮਰਾ ਅਤੇ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਪਹੁੰਚ ਨੂੰ ਚਾਲੂ ਕਰਨਾ ਹੈ?</translation>
 <translation id="3560174576767922131">ਵੀਡੀਓ ਰਿਕਾਰਡ ਕਰੋ</translation>
 <translation id="3563775809269155755">ਹੌਟਸਪੌਟ ਚਾਲੂ ਕਰੋ</translation>
@@ -868,6 +869,7 @@
 <translation id="3861651314799684201">ਪੂਰੀ ਸਕ੍ਰੀਨ ਰਿਕਾਰਡ ਕਰਨ ਲਈ Enter ਦਬਾਓ</translation>
 <translation id="3870197372373144624">ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਬੰਦ ਕਰਨ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</translation>
 <translation id="3879748587602334249">ਡਾਊਨਲੋਡ ਪ੍ਰਬੰਧਕ</translation>
+<translation id="3884007280698606545">USB ਦੀ ਸੀਮਾ ਪੂਰੀ ਹੋ ਗਈ ਹੈ</translation>
 <translation id="3886872229787704059">ਅੱਜ ਖੋਲ੍ਹੀ ਗਈ</translation>
 <translation id="3891340733213178823">ਸਾਈਨ-ਆਊਟ ਕਰਨ ਲਈ ਦੋ ਵਾਰ Ctrl+Shift+Q ਦਬਾਓ।</translation>
 <translation id="3892148308691398805">ਲਿਖਤ ਕਾਪੀ ਕਰੋ</translation>
@@ -1012,6 +1014,7 @@
 <translation id="4305817255990598646">ਸਵਿੱਚ ਕਰੋ</translation>
 <translation id="4307713728991152670">ਆਪਣੇ ਫ਼ੋਨ ਦੀਆਂ ਹਾਲੀਆ ਫ਼ੋਟੋਆਂ, ਮੀਡੀਆ ਅਤੇ ਐਪਾਂ ਨੂੰ ਦੇਖਣ ਦਾ ਸੈੱਟਅੱਪ ਕਰੋ</translation>
 <translation id="4312840429157639164">ਕੈਮਰੇ ਨੂੰ ਉੱਪਰਲੇ ਸੱਜੇ ਕੋਨੇ 'ਤੇ ਵਿਵਸਥਿਤ ਕੀਤਾ ਗਿਆ। ਸਿਸਟਮ ਸਰਫ਼ੇਸ ਨਾਲ ਓਵਰਲੈਪ ਕਰਦਾ ਹੈ।</translation>
+<translation id="4312935606722154789">ਆਸੇ-ਪਾਸੇ ਦਿੱਤੀਆਂ ਦੋ ਵਿੰਡੋਆਂ ਨੂੰ ਗਰੁੱਪਬੱਧ ਜਾਂ ਅਣ-ਗਰੁੱਪਬੱਧ ਕਰੋ</translation>
 <translation id="4316910396681052118">ਸਭ ਐਪਾਂ</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">ਸਾਰੇ Chrome ਸੁਝਾਅ ਲੁਕਾਓ</translation>
@@ -1452,7 +1455,6 @@
 <translation id="5691772641933328258">ਫਿੰਗਰਪ੍ਰਿੰਟ ਦੀ ਪਛਾਣ ਨਹੀਂ ਹੋਈ</translation>
 <translation id="5693255400847650006">ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਵਰਤੋਂ ਵਿੱਚ ਹੈ</translation>
 <translation id="5699366815052349604">ਕਿਰਿਆਸ਼ੀਲ ਵਿੰਡੋ ਨੂੰ ਸਾਰੇ ਡੈਸਕਾਂ ਦੇ ਜ਼ਿੰਮੇ ਲਗਾਓ</translation>
-<translation id="5701785125601597013">ਫ਼ੋਨ ਹੱਬ ਦੀ ਵਰਤੋਂ ਕਰ ਕੇ ਆਪਣੇ ਫ਼ੋਨ ਦੇ ਸੁਨੇਹਿਆਂ ਨੂੰ ਤੁਰੰਤ ਭੇਜੋ ਜਾਂ ਉਨ੍ਹਾਂ ਦਾ ਜਵਾਬ ਦਿਓ</translation>
 <translation id="570390244361237317">ਸਾਰੀਆਂ ਐਪਾਂ, ਸਾਰੀਆਂ ਐਪਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਲਈ ਤੀਰ ਕੁੰਜੀਆਂ ਨਾਲ ਨੈਵੀਗੇਟ ਕਰੋ</translation>
 <translation id="5705197514573687092">ਫੋਕਸ ਮੋਡ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਦਿਖਾਓ। ਟਾਈਮਰ <ph name="FOCUS_DURATION" /> 'ਤੇ ਸੈੱਟ ਹੈ।</translation>
 <translation id="5707775774148071965">ਤੁਹਾਡਾ ਡੀਵਾਈਸ ਤੁਹਾਡੀ ਕੇਬਲ ਨਾਲੋਂ ਵੱਧ ਡਾਟਾ ਦਰ ਦਾ ਸਮਰਥਨ ਕਰਦਾ ਹੈ। ਡੀਵਾਈਸ ਦੀ ਕਾਰਗੁਜ਼ਾਰੀ ਸੀਮਤ ਹੋ ਸਕਦੀ ਹੈ।</translation>
@@ -1582,7 +1584,6 @@
 <translation id="6095425951508823973"><ph name="PROVIDER" /> ਰਾਹੀਂ ਕਨੈਕਸ਼ਨ ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="6099678161144790572">ਪਿਛਲੇ ਮਹੀਨੇ ਸੰਪਾਦਨ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="6103838137565245112">ਸਿਸਟਮ</translation>
-<translation id="610395411842312282">ਆਸੇ-ਪਾਸੇ ਦਿੱਤੀਆਂ ਦੋ ਵਿੰਡੋਆਂ ਨੂੰ ਗਰੁੱਪਬੱਧ ਕਰੋ</translation>
 <translation id="6108952804512516814">AI ਨਾਲ ਬਣਾਓ</translation>
 <translation id="6114505516289286752"><ph name="LANGUAGE" /> ਦੀਆਂ ਬੋਲੀ ਵਾਲੀਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ ਡਾਊਨਲੋਡ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />। <ph name="BATTERY_SAVER_STATE" /></translation>

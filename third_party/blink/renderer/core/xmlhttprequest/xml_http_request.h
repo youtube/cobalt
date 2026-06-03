@@ -172,7 +172,7 @@ class CORE_EXPORT XMLHttpRequest final
   DEFINE_ATTRIBUTE_EVENT_LISTENER(readystatechange, kReadystatechange)
 
   void Trace(Visitor*) const override;
-  const char* NameInHeapSnapshot() const override { return "XMLHttpRequest"; }
+  const char* GetHumanReadableName() const override { return "XMLHttpRequest"; }
 
   bool HasRequestHeaderForTesting(AtomicString name) const;
 
@@ -221,7 +221,7 @@ class CORE_EXPORT XMLHttpRequest final
   AtomicString GetResponseMIMEType() const;
   // Returns the "final charset" defined in
   // https://xhr.spec.whatwg.org/#final-charset.
-  WTF::TextEncoding FinalResponseCharset() const;
+  TextEncoding FinalResponseCharset() const;
   bool ResponseIsXML() const;
   bool ResponseIsHTML() const;
 
@@ -294,7 +294,7 @@ class CORE_EXPORT XMLHttpRequest final
   //   so there is no need.
   void ReportMemoryUsageToV8();
 
-  // Creates a task scope used for firing events if the `parent_task_` is set
+  // Creates a task scope used for firing events if the `task_state_` is set
   // and different from the current task.
   std::optional<scheduler::TaskAttributionTracker::TaskScope>
   MaybeCreateTaskAttributionScope();
@@ -364,7 +364,7 @@ class CORE_EXPORT XMLHttpRequest final
   // |m_responseTypeCode| is NOT ResponseTypeBlob.
   Member<BlobLoader> blob_loader_;
 
-  Member<scheduler::TaskAttributionInfo> parent_task_;
+  Member<scheduler::TaskAttributionInfo> task_state_;
 
   bool async_ = true;
 

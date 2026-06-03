@@ -14,7 +14,9 @@
 #include "build/build_config.h"
 #include "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_widget_fade_animator.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/picture_in_picture/scoped_tuck_picture_in_picture.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
 #include "chrome/browser/ui/views/overlay/close_image_button.h"
@@ -48,6 +50,7 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/vector2d.h"
+#include "ui/views/animation/widget_fade_animator.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/toggle_button.h"
 #include "ui/views/controls/image_view.h"
@@ -795,6 +798,49 @@ TEST_F(VideoOverlayWindowViewsTest, LiveStatusNotDrawnWhen2024UIIsDisabled) {
   ASSERT_EQ(nullptr, live_status);
 }
 
+TEST_F(VideoOverlayWindowViewsTest, CanBeTuckedToTheSideOfTheScreen) {
+  // Place the window on the left side of the screen.
+  SetDisplayWorkArea({0, 0, 2000, 2000});
+  overlay_window().SetBounds({{400, 400}, {500, 500}});
+
+  // If we tell it to force tucking, it should tuck to the left side of the
+  // screen.
+  overlay_window().SetForcedTucking(true);
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_LT(overlay_window().GetWindowBoundsInScreen().x(), 0);
+
+  // If we tell it to stop tucking, it should be put back in its original
+  // position.
+  overlay_window().SetForcedTucking(false);
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_EQ(overlay_window().GetWindowBoundsInScreen().x(), 400);
+}
+
+TEST_F(VideoOverlayWindowViewsTest, UntucksWhenReshownIfNecessary) {
+  // Place the window on the left side of the screen.
+  SetDisplayWorkArea({0, 0, 2000, 2000});
+  overlay_window().SetBounds({{400, 400}, {500, 500}});
+  overlay_window().ShowInactive();
+
+  // Start tucking via a ScopedTuckPictureInPicture.
+  auto scoped_tuck = std::make_unique<ScopedTuckPictureInPicture>();
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_LT(overlay_window().GetWindowBoundsInScreen().x(), 0);
+
+  // Hide ourselves. This will mean if tucking ends then the
+  // PictureInPictureWindowManager won't actually notify us.
+  overlay_window().Hide();
+
+  // End tucking.
+  scoped_tuck.reset();
+
+  // Show ourselves. We should check with the PictureInPictureWindowManager and
+  // realize we should no longer tuck.
+  overlay_window().ShowInactive();
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_EQ(overlay_window().GetWindowBoundsInScreen().x(), 400);
+}
+
 TEST_F(VideoOverlayWindowViewsTest,
        ReplayAndForward10SecondsNotDrawnWhen2024UIIsDisabled) {
   overlay_window().ForceControlsVisibleForTesting(true);
@@ -1314,4 +1360,96 @@ TEST_F(VideoOverlayWindowViewsWith2024UITest, LiveCaption) {
   EXPECT_TRUE(live_caption_toggle_button->GetIsOn());
   EXPECT_TRUE(live_translate_toggle_button->GetEnabled());
   EXPECT_FALSE(live_translate_toggle_button->GetIsOn());
+}
+
+class VideoOverlayWindowWithShowAnimationTest
+    : public VideoOverlayWindowViewsTest {
+ public:
+  void SetUp() override {
+    AddEnabledFeature(media::kPictureInPictureShowWindowAnimation);
+    VideoOverlayWindowViewsTest::SetUp();
+#if BUILDFLAG(IS_WIN)
+    GTEST_SKIP() << "Fade in animation is disabled on Windows.";
+#endif
+  }
+};
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       FadeInAnimationIsUsedOnWindowShow) {
+  // ShowInactive should trigger the fade-in animation.
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+}
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       FadeInAnimationIsCancelledOnHide) {
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+
+  // Hiding the window should cancel the animation.
+  overlay_window().Hide();
+  EXPECT_EQ(nullptr, overlay_window()
+                         .get_fade_animator_for_testing()
+                         ->GetWidgetFadeAnimatorForTesting());
+}
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       FadeInAnimationIsCancelledOnClose) {
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+
+  // Closing the window should cancel the animation.
+  overlay_window().Close();
+  EXPECT_EQ(nullptr, overlay_window()
+                         .get_fade_animator_for_testing()
+                         ->GetWidgetFadeAnimatorForTesting());
+}
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       AnimatorIsResetWhenWidgetIsDestroyedDuringAnimation) {
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+
+  // Destroying the widget during the animation should not crash.
+  DestroyOverlayWindow();
 }

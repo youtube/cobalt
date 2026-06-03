@@ -10,10 +10,10 @@
 #include <string>
 #include <variant>
 
-#include "base/functional/overloaded.h"
 #include "base/memory/raw_ptr.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -62,6 +62,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/gfx/geometry/rect.h"
 
 using base::ASCIIToUTF16;
@@ -259,7 +260,8 @@ void SetProfileCategory(
           AutofillProfile::RecordType::kLocalOrSyncable);
       break;
     case autofill_metrics::AutofillProfileRecordTypeCategory::kAccountChrome:
-    case autofill_metrics::AutofillProfileRecordTypeCategory::kAccountNonChrome:
+    case autofill_metrics::AutofillProfileRecordTypeCategory::
+        kAccountNonChrome: {
       test_api(profile).set_record_type(AutofillProfile::RecordType::kAccount);
       // Any value that is not kInitialCreatorOrModifierChrome works.
       const int kInitialCreatorOrModifierNonChrome =
@@ -269,6 +271,15 @@ void SetProfileCategory(
                           kAccountChrome
               ? AutofillProfile::kInitialCreatorOrModifierChrome
               : kInitialCreatorOrModifierNonChrome);
+      break;
+    }
+    case autofill_metrics::AutofillProfileRecordTypeCategory::kAccountHome:
+      test_api(profile).set_record_type(
+          AutofillProfile::RecordType::kAccountHome);
+      break;
+    case autofill_metrics::AutofillProfileRecordTypeCategory::kAccountWork:
+      test_api(profile).set_record_type(
+          AutofillProfile::RecordType::kAccountWork);
       break;
   }
 }
@@ -695,7 +706,7 @@ void SetUpCreditCardAndBenefitData(
     TestPersonalDataManager& personal_data,
     AutofillOptimizationGuide* optimization_guide) {
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&card](const CreditCardFlatRateBenefit& flat_rate_benefit) {
             card.set_instrument_id(
                 *flat_rate_benefit.linked_card_instrument_id());

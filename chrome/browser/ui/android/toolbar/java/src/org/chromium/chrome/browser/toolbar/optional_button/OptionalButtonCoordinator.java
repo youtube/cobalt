@@ -48,6 +48,7 @@ public class OptionalButtonCoordinator {
     private final Supplier<Tracker> mFeatureEngagementTrackerSupplier;
     private @Nullable Callback<Integer> mTransitionFinishedCallback;
     private @Nullable IphCommandBuilder mIphCommandBuilder;
+    private boolean mAlwaysShowActionChip;
 
     @IntDef({
         TransitionType.SWAPPING,
@@ -109,6 +110,16 @@ public class OptionalButtonCoordinator {
     }
 
     /**
+     * Set the capability of optional button changing its own visibility. If set to {@code false},
+     * optional button leaves the visibility control to some other entity. {@code true} by default.
+     *
+     * @param canChange Whether optional button can change its own visibility.
+     */
+    public void setCanChangeVisibility(boolean canChange) {
+        mMediator.setCanChangeVisibility(canChange);
+    }
+
+    /**
      * Sets the collapsed state width of the button, overriding the default value.
      *
      * @param width The new collapsed state width.
@@ -137,6 +148,15 @@ public class OptionalButtonCoordinator {
      */
     public void setTransitionFinishedCallback(Callback<Integer> transitionFinishedCallback) {
         mTransitionFinishedCallback = transitionFinishedCallback;
+    }
+
+    /**
+     * Set the flag that always enables chip animiation of contextual page action.
+     *
+     * @param show Whether the animation should be always enabled.
+     */
+    public void setAlwaysShowActionChip(boolean show) {
+        mAlwaysShowActionChip = show;
     }
 
     /**
@@ -170,11 +190,12 @@ public class OptionalButtonCoordinator {
             // And if feature engagement allows it.
             Tracker featureEngagementTracker = mFeatureEngagementTrackerSupplier.get();
             boolean shouldShowActionChip =
-                    isActionChipVariant
-                            && featureEngagementTracker != null
-                            && featureEngagementTracker.isInitialized()
-                            && featureEngagementTracker.shouldTriggerHelpUi(
-                                    FeatureConstants.CONTEXTUAL_PAGE_ACTIONS_ACTION_CHIP);
+                    mAlwaysShowActionChip
+                            || (isActionChipVariant
+                                    && featureEngagementTracker != null
+                                    && featureEngagementTracker.isInitialized()
+                                    && featureEngagementTracker.shouldTriggerHelpUi(
+                                            FeatureConstants.CONTEXTUAL_PAGE_ACTIONS_ACTION_CHIP));
 
             if (!shouldShowActionChip) {
                 ((ButtonDataImpl) buttonData).updateActionChipResourceId(Resources.ID_NULL);

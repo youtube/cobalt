@@ -24,6 +24,14 @@
 // Set the placeholder view type to be displayed in case there is no badge view
 // nor contextual panel entrypoint.
 - (void)setPlaceholderType:(LocationBarPlaceholderType)placeholderType;
+
+// Sets the search provider name that's used in the placeholder text in the
+// search box.
+- (void)setPlaceholderText:(NSString*)searchProviderName;
+
+// Sets the default search engine image to use as placeholder when the
+// placeholder is set to kDefaultSearchEngineIcon.
+- (void)setPlaceholderDefaultSearchEngineIcon:(UIImage*)icon;
 @end
 
 #endif  // IOS_CHROME_BROWSER_LOCATION_BAR_UI_BUNDLED_LOCATION_BAR_CONSUMER_H_

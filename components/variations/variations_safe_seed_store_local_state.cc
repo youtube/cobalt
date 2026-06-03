@@ -37,12 +37,12 @@ VariationsSafeSeedStoreLocalState::~VariationsSafeSeedStoreLocalState() =
     default;
 
 base::Time VariationsSafeSeedStoreLocalState::GetFetchTime() const {
-  return local_state_->GetTime(prefs::kVariationsSafeSeedFetchTime);
+  return seed_reader_writer_->GetSeedData().client_fetch_time;
 }
 
 void VariationsSafeSeedStoreLocalState::SetFetchTime(
     const base::Time& fetch_time) {
-  local_state_->SetTime(prefs::kVariationsSafeSeedFetchTime, fetch_time);
+  seed_reader_writer_->SetFetchTime(fetch_time);
 }
 
 int VariationsSafeSeedStoreLocalState::GetMilestone() const {
@@ -51,12 +51,7 @@ int VariationsSafeSeedStoreLocalState::GetMilestone() const {
 
 base::Time VariationsSafeSeedStoreLocalState::GetTimeForStudyDateChecks()
     const {
-  return local_state_->GetTime(prefs::kVariationsSafeSeedDate);
-}
-
-void VariationsSafeSeedStoreLocalState::SetTimeForStudyDateChecks(
-    const base::Time& safe_seed_time) {
-  local_state_->SetTime(prefs::kVariationsSafeSeedDate, safe_seed_time);
+  return seed_reader_writer_->GetSeedData().seed_date;
 }
 
 StoredSeed VariationsSafeSeedStoreLocalState::GetCompressedSeed() const {
@@ -113,8 +108,6 @@ void VariationsSafeSeedStoreLocalState::SetSeedReaderWriterForTesting(
 void VariationsSafeSeedStoreLocalState::ClearState() {
   // Seed and other related information is cleared by the SeedReaderWriter.
   seed_reader_writer_->ClearSeedInfo();
-  local_state_->ClearPref(prefs::kVariationsSafeSeedDate);
-  local_state_->ClearPref(prefs::kVariationsSafeSeedFetchTime);
   local_state_->ClearPref(prefs::kVariationsSafeSeedLocale);
   local_state_->ClearPref(
       prefs::kVariationsSafeSeedPermanentConsistencyCountry);

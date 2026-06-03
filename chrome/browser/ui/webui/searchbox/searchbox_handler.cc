@@ -7,19 +7,26 @@
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "base/containers/contains.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service_factory.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/omnibox/browser/omnibox_controller.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/search/ntp_features.h"
@@ -83,6 +90,8 @@ constexpr char kExtensionAppIconResourceName[] =
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 constexpr char kGoogleCalendarIconResourceName[] =
     "//resources/cr_components/searchbox/icons/calendar.svg";
+constexpr char kGoogleAgentspaceIconResourceName[] =
+    "//resources/cr_components/searchbox/icons/google_agentspace_logo.svg";
 const char* kGoogleGIconResourceName =
     "//resources/cr_components/searchbox/icons/google_g.svg";
 constexpr char kGoogleKeepNoteIconResourceName[] =
@@ -284,9 +293,19 @@ std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
                                   ? turl_service->GetTemplateURLForKeyword(
                                         match.associated_keyword->keyword)
                                   : nullptr;
-    mojom_match->icon_url =
+    mojom_match->icon_path =
         SearchboxHandler::AutocompleteMatchVectorIconToResourceName(
             match.GetVectorIcon(is_bookmarked, turl));
+    // For enterprise search aggregator people suggestions, use branded icon if
+    // branded build.
+    if (match.enterprise_search_aggregator_type ==
+        AutocompleteMatch::EnterpriseSearchAggregatorType::PEOPLE) {
+      mojom_match->is_enterprise_search_aggregator_people_type = true;
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      mojom_match->icon_path = kGoogleAgentspaceIconResourceName;
+#endif
+    }
+    mojom_match->icon_url = match.icon_url;
     mojom_match->image_dominant_color = match.image_dominant_color;
     mojom_match->image_url = match.image_url.spec();
     mojom_match->fill_into_edit = match.fill_into_edit;
@@ -327,20 +346,22 @@ std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
     mojom_match->is_rich_suggestion =
         !mojom_match->image_url.empty() ||
         match.type == AutocompleteMatchType::CALCULATOR ||
-        match.answer_type != omnibox::ANSWER_TYPE_UNSPECIFIED;
+        match.answer_type != omnibox::ANSWER_TYPE_UNSPECIFIED ||
+        match.enterprise_search_aggregator_type ==
+            AutocompleteMatch::EnterpriseSearchAggregatorType::PEOPLE;
     for (const auto& action : match.actions) {
-      std::string icon_url;
+      std::string icon_path;
       if (action->GetIconImage().IsEmpty()) {
-        icon_url = SearchboxHandler::ActionVectorIconToResourceName(
+        icon_path = SearchboxHandler::ActionVectorIconToResourceName(
             action->GetVectorIcon());
       } else {
-        icon_url = webui::GetBitmapDataUrl(action->GetIconImage().AsBitmap());
+        icon_path = webui::GetBitmapDataUrl(action->GetIconImage().AsBitmap());
       }
       const OmniboxAction::LabelStrings& label_strings =
           action->GetLabelStrings();
       mojom_match->actions.emplace_back(searchbox::mojom::Action::New(
           label_strings.accessibility_hint, label_strings.hint,
-          label_strings.suggestion_contents, icon_url));
+          label_strings.suggestion_contents, icon_path));
     }
     std::u16string header_text =
         edit_model->GetSuggestionGroupHeaderText(match.suggestion_group_id);
@@ -441,6 +462,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
   // layout options.
   source->AddBoolean("isLensSearchbox", false);
   source->AddBoolean("queryAutocompleteOnEmptyInput", false);
+  source->AddBoolean("forceHideEllipsis", false);
+  source->AddBoolean("enableThumbnailSizingTweaks", false);
+  source->AddBoolean("enableCsbMotionTweaks", false);
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"lensSearchButtonLabel", IDS_TOOLTIP_LENS_SEARCH},
@@ -450,7 +474,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"searchBoxHintMultimodal", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MULTIMODAL},
       {"searchboxThumbnailLabel",
        IDS_GOOGLE_SEARCH_BOX_MULTIMODAL_IMAGE_THUMBNAIL},
-      {"voiceSearchButtonLabel", IDS_TOOLTIP_MIC_SEARCH}};
+      {"voiceSearchButtonLabel", IDS_TOOLTIP_MIC_SEARCH},
+      {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT}};
   source->AddLocalizedStrings(kStrings);
 
   source->AddBoolean(
@@ -476,6 +501,10 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       base::FeatureList::IsEnabled(ntp_features::kRealboxCr23Theming));
   source->AddBoolean("searchboxCr23SteadyStateShadow",
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
+
+  source->AddBoolean("searchboxShowComposeAnimation",
+                     profile->GetPrefs()->GetInteger(
+                         prefs::kNtpComposeButtonShownCountPrefName) < 3);
 }
 
 // static
@@ -764,9 +793,16 @@ void SearchboxHandler::OnNavigationLikely(
     // the web UI is referencing a stale match.
     return;
   }
+
   if (auto* search_prefetch_service =
           SearchPrefetchServiceFactory::GetForProfile(profile_)) {
     search_prefetch_service->OnNavigationLikely(
+        line, *match, navigation_predictor, web_contents_);
+  }
+
+  if (SearchPreloadService* search_preload_service =
+          SearchPreloadServiceFactory::GetForProfile(profile_)) {
+    search_preload_service->OnNavigationLikely(
         line, *match, navigation_predictor, web_contents_);
   }
 }
@@ -789,9 +825,21 @@ void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
   //  AutocompleteController and move this logic to the RealboxOmniboxClient.
   if (owned_controller_) {
     if (autocomplete_controller()->done()) {
+      if (auto* dictionary_preload_service =
+              AutocompleteDictionaryPreloadServiceFactory::GetForProfile(
+                  profile_)) {
+        dictionary_preload_service->MaybePreload(
+            autocomplete_controller()->result());
+      }
       if (SearchPrefetchService* search_prefetch_service =
               SearchPrefetchServiceFactory::GetForProfile(profile_)) {
         search_prefetch_service->OnResultChanged(
+            web_contents_, autocomplete_controller()->result());
+      }
+
+      if (SearchPreloadService* search_preload_service =
+              SearchPreloadServiceFactory::GetForProfile(profile_)) {
+        search_preload_service->OnAutocompleteResultChanged(
             web_contents_, autocomplete_controller()->result());
       }
     }

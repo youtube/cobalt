@@ -9,13 +9,20 @@
 #include <string_view>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/time/time.h"
 #include "remoting/base/http_status.h"
+#include "remoting/base/protobuf_http_request_config.h"
 #include "remoting/proto/session_authz_service.h"
 
 namespace remoting {
 
 // Interface for communicating with the SessionAuthz service. For internal
 // details, see go/crd-sessionauthz.
+//
+// Implementations should use simple retry policy for GenerateHostToken and
+// VerifySessionToken, and use the policy returned by GetReauthRetryPolicy() for
+// ReauthorizeHost.
 class SessionAuthzServiceClient {
  public:
   using GenerateHostTokenCallback = base::OnceCallback<void(
@@ -35,9 +42,13 @@ class SessionAuthzServiceClient {
                                   VerifySessionTokenCallback callback) = 0;
   virtual void ReauthorizeHost(std::string_view session_reauth_token,
                                std::string_view session_id,
+                               base::TimeTicks token_expire_time,
                                ReauthorizeHostCallback callback) = 0;
 
  protected:
+  static scoped_refptr<ProtobufHttpRequestConfig::RetryPolicy>
+  GetReauthRetryPolicy(base::TimeTicks token_expire_time);
+
   SessionAuthzServiceClient() = default;
 };
 

@@ -89,7 +89,7 @@ source_set("autofill") {
       "update_address_bubble_controller.h",
     ]
     public_deps += [
-      "//components/autofill_ai/core/browser",
+      "//components/autofill/core/browser",
       "//components/password_manager/core/browser",
       "//components/password_manager/core/browser:password_form",
       "//components/renderer_context_menu",
@@ -128,6 +128,7 @@ source_set("impl") {
     ":autofill",
     "//chrome/browser:browser_process",
     "//chrome/browser/autofill",
+    "//chrome/browser/optimization_guide",
     "//chrome/browser/plus_addresses",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/sync",
@@ -191,7 +192,6 @@ source_set("impl") {
     deps += [
       "//chrome/app:command_ids",
       "//chrome/app/vector_icons",
-      "//chrome/browser/accessibility:utils",
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/feedback",
       "//chrome/browser/promos:utils",
@@ -201,7 +201,7 @@ source_set("impl") {
       "//chrome/browser/ui/toasts/api:toasts",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/webui/signin:login",
-      "//components/autofill_ai/core/browser",
+      "//components/autofill/core/browser",
       "//components/password_manager/core/browser/features:password_features",
       "//components/plus_addresses/resources/strings",
       "//extensions/browser",
@@ -234,7 +234,6 @@ source_set("unit_tests") {
     "//build:branding_buildflags",
     "//chrome/browser",
     "//chrome/browser:browser_process",
-    "//chrome/browser/accessibility:utils",
     "//chrome/browser/autofill",
     "//chrome/browser/autofill:test_support",
     "//chrome/browser/plus_addresses",
@@ -286,10 +285,13 @@ source_set("unit_tests") {
       "autofill_keyboard_accessory_controller_impl_unittest.cc",
       "autofill_snackbar_controller_impl_unittest.cc",
     ]
-    deps += [ "//chrome/browser/fast_checkout" ]
+    deps += [
+      "//chrome/browser/autofill/android:jni_test_headers",
+      "//chrome/browser/fast_checkout",
+      "//chrome/browser/preferences:android",
+    ]
   } else {
     sources += [
-      "address_bubbles_controller_unittest.cc",
       "address_editor_controller_unittest.cc",
       "autofill_field_promo_controller_impl_unittest.cc",
       "autofill_popup_controller_impl_unittest.cc",
@@ -348,6 +350,7 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/ui",
+      "//chrome/browser/ui:ui_features",
       "//chrome/common:constants",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
@@ -434,6 +437,7 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
+      "address_bubbles_controller_browsertest.cc",
       "autofill_ai/save_or_update_autofill_ai_data_controller_impl_browsertest.cc",
       "autofill_context_menu_manager_browsertest.cc",
     ]
@@ -453,9 +457,9 @@ if (!is_android) {
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//components/autofill/content/browser:test_support",
+      "//components/autofill/core/browser",
       "//components/autofill/core/browser:test_support",
       "//components/autofill/core/common",
-      "//components/autofill_ai/core/browser",
       "//components/keyed_service/content",
       "//components/keyed_service/core",
       "//components/password_manager/content/browser",

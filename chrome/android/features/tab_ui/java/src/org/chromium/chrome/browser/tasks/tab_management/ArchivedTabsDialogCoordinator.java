@@ -30,6 +30,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
+import org.chromium.base.lifetime.DestroyChecker;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -85,6 +86,7 @@ import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
 import org.chromium.components.tab_group_sync.TriggerSource;
+import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
@@ -125,11 +127,19 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 public void restoreAllArchivedTabs() {
                     List<Tab> tabs = TabModelUtils.convertTabListToListOfTabs(mArchivedTabModel);
                     int tabCount = tabs.size();
+                    List<String> archivedTabGroupSyncIds = getArchivedTabGroupSyncIds();
+                    int tabGroupTabCount = getSyncedTabGroupTabsCount(archivedTabGroupSyncIds);
                     ArchivedTabsDialogCoordinator.this.restoreArchivedTabs(
-                            tabs, getArchivedTabGroupSyncIds());
+                            tabs, archivedTabGroupSyncIds);
                     RecordHistogram.recordCount1000Histogram(
                             "Tabs.RestoreAllArchivedTabsMenuItem.TabCount", tabCount);
                     RecordUserAction.record("Tabs.RestoreAllArchivedTabsMenuItem");
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.RestoreAllArchivedTabsMenuItem.TabGroupCount",
+                            archivedTabGroupSyncIds.size());
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.RestoreAllArchivedTabsMenuItem.TabGroupTabCount",
+                            tabGroupTabCount);
                 }
 
                 @Override
@@ -153,6 +163,12 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                     RecordHistogram.recordCount1000Histogram(
                             "Tabs.RestoreArchivedTabsMenuItem.TabCount", tabCount);
                     RecordUserAction.record("Tabs.RestoreArchivedTabsMenuItem");
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.RestoreArchivedTabsMenuItem.TabGroupCount",
+                            tabGroupSyncIds.size());
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.RestoreArchivedTabsMenuItem.TabGroupTabCount",
+                            getSyncedTabGroupTabsCount(tabGroupSyncIds));
                 }
 
                 @Override
@@ -166,6 +182,12 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                     RecordHistogram.recordCount1000Histogram(
                             "Tabs.CloseArchivedTabsMenuItem.TabCount", tabs.size());
                     RecordUserAction.record("Tabs.CloseArchivedTabsMenuItem");
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.CloseArchivedTabsMenuItem.TabGroupCount",
+                            tabGroupSyncIds.size());
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.CloseArchivedTabsMenuItem.TabGroupTabCount",
+                            getSyncedTabGroupTabsCount(tabGroupSyncIds));
                 }
             };
 
@@ -249,6 +271,10 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                     mTabGroupUiActionHandlerSupplier.get(),
                                     mCurrentTabGroupModelFilterSupplier.get(),
                                     requestOpenTabGroupDialog);
+                            RecordUserAction.record("TabGroups.RestoreSingleTabGroup");
+                            RecordHistogram.recordCount1000Histogram(
+                                    "TabGroups.RestoreSingleTabGroup.TabGroupTabCount",
+                                    savedTabGroup.savedTabs.size());
                         }
                     };
                 }
@@ -377,6 +403,8 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     private final @NonNull Supplier<TabGroupUiActionHandler> mTabGroupUiActionHandlerSupplier;
     private final @NonNull ObservableSupplier<TabGroupModelFilter>
             mCurrentTabGroupModelFilterSupplier;
+    private final @NonNull DestroyChecker mDestroyChecker = new DestroyChecker();
+
     private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
     private TabListRecyclerView mDialogRecyclerView;
     private WeakReference<TabListRecyclerView> mTabSwitcherRecyclerView;
@@ -494,6 +522,9 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
 
     /** Hides the dialog. */
     public void destroy() {
+        mDestroyChecker.checkNotDestroyed();
+        mDestroyChecker.destroy();
+
         if (mTabListEditorCoordinator != null) {
             mRootView.removeView(mDialogView);
             mTabListEditorCoordinator.removeTabListItemSizeChangedObserver(
@@ -605,8 +636,11 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
 
         mDialogView.post(
                 () -> {
+                    int dialogViewWidth = mDialogView.getWidth();
+                    int translationFactor =
+                            LocalizationUtils.isLayoutRtl() ? -dialogViewWidth : dialogViewWidth;
                     mDialogView.setVisibility(View.VISIBLE);
-                    mDialogView.setTranslationX(mDialogView.getWidth());
+                    mDialogView.setTranslationX(translationFactor);
 
                     AnimatorSet animatorSet = new AnimatorSet();
                     animatorSet.setDuration(duration);
@@ -618,14 +652,15 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     }
 
     private List<Animator> getAnimateInAnimators() {
+        int tabSwitcherViewWidth = mTabSwitcherView.getWidth();
+        int translationFactor =
+                LocalizationUtils.isLayoutRtl() ? tabSwitcherViewWidth : -tabSwitcherViewWidth;
         List<Animator> animators = new ArrayList<>(2);
         ObjectAnimator animator = ObjectAnimator.ofFloat(mDialogView, View.TRANSLATION_X, 0f);
         animator.setInterpolator(Interpolators.ACCELERATE_INTERPOLATOR);
         animators.add(animator);
 
-        animator =
-                ObjectAnimator.ofFloat(
-                        mTabSwitcherView, View.TRANSLATION_X, -mTabSwitcherView.getWidth());
+        animator = ObjectAnimator.ofFloat(mTabSwitcherView, View.TRANSLATION_X, translationFactor);
         animator.setInterpolator(Interpolators.ACCELERATE_INTERPOLATOR);
         animators.add(animator);
 
@@ -652,9 +687,12 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     }
 
     private List<Animator> getAnimateOutAnimators() {
+        int dialogViewWidth = mDialogView.getWidth();
+        int translationFactor =
+                LocalizationUtils.isLayoutRtl() ? -dialogViewWidth : dialogViewWidth;
         List<Animator> animators = new ArrayList<>(2);
         ObjectAnimator animator =
-                ObjectAnimator.ofFloat(mDialogView, View.TRANSLATION_X, mDialogView.getWidth());
+                ObjectAnimator.ofFloat(mDialogView, View.TRANSLATION_X, translationFactor);
         animator.setInterpolator(Interpolators.ACCELERATE_INTERPOLATOR);
         animators.add(animator);
 
@@ -757,6 +795,12 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                     RecordHistogram.recordCount1000Histogram(
                             "Tabs.CloseAllArchivedTabs.TabCount", tabCount);
                     RecordUserAction.record("Tabs.CloseAllArchivedTabsMenuItem");
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.CloseAllArchivedTabGroups.TabGroupCount",
+                            archivedTabGroupSyncIds.size());
+                    RecordHistogram.recordCount1000Histogram(
+                            "TabGroups.CloseAllArchivedTabGroups.TabGroupTabCount",
+                            tabGroupTabsCount);
                 });
     }
 
@@ -974,5 +1018,9 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     @VisibleForTesting
     FrameLayout getCloseAllTabsButtonContainer() {
         return mDialogView.findViewById(R.id.close_all_tabs_button_container);
+    }
+
+    DestroyChecker getDestroyCheckerForTesting() {
+        return mDestroyChecker;
     }
 }

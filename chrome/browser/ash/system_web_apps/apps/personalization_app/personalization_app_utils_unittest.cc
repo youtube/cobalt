@@ -16,6 +16,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
 #include "components/account_id/account_id.h"
 #include "components/signin/public/base/consent_level.h"
@@ -247,11 +248,11 @@ TEST_F(PersonalizationAppUtilsTest, IsEligibleForSeaPenPublicAccountDemoMode) {
                   user_manager::UserType::kPublicAccount);
 
   // Force device into demo mode.
-  ASSERT_FALSE(::ash::DemoSession::IsDeviceInDemoMode());
+  ASSERT_FALSE(ash::demo_mode::IsDeviceInDemoMode());
   managed_profile->ScopedCrosSettingsTestHelper()
       ->InstallAttributes()
       ->SetDemoMode();
-  ASSERT_TRUE(::ash::DemoSession::IsDeviceInDemoMode());
+  ASSERT_TRUE(ash::demo_mode::IsDeviceInDemoMode());
 
   // Force demo mode session to start.
   ASSERT_FALSE(::ash::DemoSession::Get());
@@ -303,31 +304,6 @@ TEST_F(PersonalizationAppUtilsTest, IsEligibleForSeaPenTextInput_MinorUser) {
   // Set up capability.
   AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
   mutator.set_can_use_manta_service(false);
-  signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
-
-  ASSERT_FALSE(IsEligibleForSeaPenTextInput(regular_profile));
-}
-
-TEST_F(PersonalizationAppUtilsTest,
-       IsEligibleForSeaPenTextInput_WithoutSeaPenTextInput_AdultUser) {
-  const std::string email = "unknown@example.com";
-  auto* regular_profile = profile_manager().CreateTestingProfile(email);
-  auto* identity_manager =
-      IdentityManagerFactory::GetForProfile(regular_profile);
-  // Set up gaia id.
-  ash::FakeChromeUserManager* user_manager =
-      static_cast<ash::FakeChromeUserManager*>(
-          user_manager::UserManager::Get());
-  AccountInfo primary_account = signin::MakePrimaryAccountAvailable(
-      identity_manager, email, signin::ConsentLevel::kSignin);
-  const AccountId account_id =
-      AccountId::FromUserEmailGaiaId(email, primary_account.gaia);
-  user_manager->AddUser(account_id);
-  user_manager->LoginUser(account_id);
-
-  // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
-  mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
   ASSERT_FALSE(IsEligibleForSeaPenTextInput(regular_profile));

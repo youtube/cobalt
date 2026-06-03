@@ -87,7 +87,7 @@ class BitmapUtils {
 
         if (bitmap == null) return null;
 
-        return new Pair<Bitmap, Float>(
+        return new Pair<>(
                 sizeBitmap(bitmap, size, fullWidth, descriptor),
                 (float) bitmap.getHeight() / bitmap.getWidth());
     }
@@ -115,7 +115,7 @@ class BitmapUtils {
             int frames,
             boolean fullWidth,
             long intervalMs) {
-        List<Bitmap> bitmaps = new ArrayList<Bitmap>();
+        List<Bitmap> bitmaps = new ArrayList<>();
         Bitmap bitmap = null;
         Float ratio = null;
         for (int frame = 0; frame < frames; ++frame) {
@@ -127,7 +127,7 @@ class BitmapUtils {
             bitmaps.add(bitmap);
         }
 
-        return new Pair<List<Bitmap>, Float>(bitmaps, ratio);
+        return new Pair<>(bitmaps, ratio);
     }
 
     /**

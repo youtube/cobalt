@@ -16,7 +16,9 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/drive/drivefs_test_support.h"
 #include "chrome/browser/ash/extensions/file_manager/event_router.h"
 #include "chrome/browser/ash/extensions/file_manager/event_router_factory.h"
@@ -231,7 +233,8 @@ class FileSystemExtensionApiTestBase : public extensions::ExtensionApiTest {
   enum Flags {
     FLAGS_NONE = 0,
     FLAGS_USE_FILE_HANDLER = 1 << 1,
-    FLAGS_LAZY_FILE_HANDLER = 1 << 2
+    FLAGS_LAZY_FILE_HANDLER = 1 << 2,
+    FLAGS_CHROME_APP = 1 << 3
   };
 
   FileSystemExtensionApiTestBase() = default;
@@ -293,6 +296,10 @@ class FileSystemExtensionApiTestBase : public extensions::ExtensionApiTest {
       const base::FilePath::CharType* filebrowser_manifest,
       const std::string& filehandler_path,
       int flags) {
+    std::unique_ptr<
+        apps::chrome_app_deprecation::ScopedAddAppToAllowlistForTesting>
+        allowlist;
+
     if (flags & FLAGS_USE_FILE_HANDLER) {
       if (filehandler_path.empty()) {
         message_ = "Missing file handler path.";
@@ -315,6 +322,12 @@ class FileSystemExtensionApiTestBase : public extensions::ExtensionApiTest {
         return false;
       }
 
+      if (flags & FLAGS_CHROME_APP) {
+        allowlist = std::make_unique<
+            apps::chrome_app_deprecation::ScopedAddAppToAllowlistForTesting>(
+            file_handler->id());
+      }
+
       if (flags & FLAGS_LAZY_FILE_HANDLER) {
         host_helper.WaitForHostDestroyed();
       } else {
@@ -326,6 +339,7 @@ class FileSystemExtensionApiTestBase : public extensions::ExtensionApiTest {
 
     const Extension* file_browser = LoadExtensionAsComponentWithManifest(
         test_data_dir_.AppendASCII(filebrowser_path), filebrowser_manifest);
+
     if (!file_browser) {
       message_ = "Could not create file browser";
       return false;
@@ -439,7 +453,8 @@ class DriveFileSystemExtensionApiTest : public FileSystemExtensionApiTestBase {
     fake_drivefs_helper_ = std::make_unique<drive::FakeDriveFsHelper>(
         profile, drivefs_mount_point.DirName());
     return new drive::DriveIntegrationService(
-        profile, "", test_cache_root_.GetPath(),
+        g_browser_process->local_state(), profile, "",
+        test_cache_root_.GetPath(),
         fake_drivefs_helper_->CreateFakeDriveFsListenerFactory());
   }
 
@@ -547,7 +562,7 @@ class MultiProfileDriveFileSystemExtensionApiTest
     const auto& drivefs_helper = fake_drivefs_helpers_[profile] =
         std::make_unique<drive::FakeDriveFsHelper>(profile, drivefs_dir);
     return new drive::DriveIntegrationService(
-        profile, std::string(), cache_dir,
+        g_browser_process->local_state(), profile, std::string(), cache_dir,
         drivefs_helper->CreateFakeDriveFsListenerFactory());
   }
 
@@ -616,7 +631,8 @@ class LocalAndDriveFileSystemExtensionApiTest
     fake_drivefs_helper_ = std::make_unique<drive::FakeDriveFsHelper>(
         profile, drivefs_mount_point.DirName());
     return new drive::DriveIntegrationService(
-        profile, "", test_cache_root_.GetPath(),
+        g_browser_process->local_state(), profile, "",
+        test_cache_root_.GetPath(),
         fake_drivefs_helper_->CreateFakeDriveFsListenerFactory());
   }
 
@@ -719,7 +735,8 @@ IN_PROC_BROWSER_TEST_F(LocalFileSystemExtensionApiTest,
 IN_PROC_BROWSER_TEST_F(LocalFileSystemExtensionApiTest, AppFileHandler) {
   EXPECT_TRUE(RunFileSystemExtensionApiTest(
       "file_browser/handler_test_runner", FILE_PATH_LITERAL("manifest.json"),
-      "file_browser/app_file_handler", FLAGS_USE_FILE_HANDLER))
+      "file_browser/app_file_handler",
+      FLAGS_USE_FILE_HANDLER | FLAGS_CHROME_APP))
       << message_;
 }
 
@@ -768,7 +785,8 @@ IN_PROC_BROWSER_TEST_F(DriveFileSystemExtensionApiTest, Search) {
 IN_PROC_BROWSER_TEST_F(DriveFileSystemExtensionApiTest, AppFileHandler) {
   EXPECT_TRUE(RunFileSystemExtensionApiTest(
       "file_browser/handler_test_runner", FILE_PATH_LITERAL("manifest.json"),
-      "file_browser/app_file_handler", FLAGS_USE_FILE_HANDLER))
+      "file_browser/app_file_handler",
+      FLAGS_USE_FILE_HANDLER | FLAGS_CHROME_APP))
       << message_;
 }
 

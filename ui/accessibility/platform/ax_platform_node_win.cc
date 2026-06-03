@@ -23,6 +23,7 @@
 #include "base/json/json_writer.h"
 #include "base/lazy_instance.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_number_conversions_win.h"
@@ -398,8 +399,8 @@ AXPlatformNodeWin::AXPlatformNodeWin() {
 }
 
 AXPlatformNodeWin::~AXPlatformNodeWin() {
-  TRACE_EVENT("accessibility", "~AXPlatformNodeWin",
-              perfetto::TerminatingFlow::FromPointer(this));
+  TRACE_EVENT_INSTANT("accessibility", "~AXPlatformNodeWin",
+                      perfetto::TerminatingFlow::FromPointer(this));
 
   // This node is no longer a ghost (it became one in `Dispose()`).
   --g_ghost_node_count_;
@@ -664,7 +665,8 @@ gfx::Vector2d AXPlatformNodeWin::CalculateUIAScrollPoint(
 //
 
 void AXPlatformNodeWin::Dispose() {
-  TRACE_EVENT("accessibility", "Dispose", perfetto::Flow::FromPointer(this));
+  TRACE_EVENT_INSTANT("accessibility", "Dispose",
+                      perfetto::Flow::FromPointer(this));
 
   // A node becomes a ghost upon disposal until its destruction, which happens
   // only when the last reference is released.
@@ -7778,14 +7780,14 @@ ULONG AXPlatformNodeWin::InternalRelease() {
 }
 
 void AXPlatformNodeWin::OnReferenced() {
-  TRACE_EVENT("accessibility", "OnReferenced",
-              perfetto::Flow::FromPointer(this), "UniqueId",
-              base::NumberToString(GetUniqueId()));
+  TRACE_EVENT_INSTANT("accessibility", "OnReferenced",
+                      perfetto::Flow::FromPointer(this), "UniqueId",
+                      base::NumberToString(GetUniqueId()));
 }
 
 void AXPlatformNodeWin::OnDereferenced() {
-  TRACE_EVENT("accessibility", "OnDereferenced",
-              perfetto::Flow::FromPointer(this));
+  TRACE_EVENT_INSTANT("accessibility", "OnDereferenced",
+                      perfetto::Flow::FromPointer(this));
 }
 
 bool AXPlatformNodeWin::IsPlatformCheckable() const {
@@ -8083,10 +8085,18 @@ std::optional<PROPERTYID> AXPlatformNodeWin::MojoEventToUIAProperty(
 }
 
 // static
+std::tuple<size_t, size_t, size_t, size_t> AXPlatformNodeWin::GetCounts() {
+  return {GetInstanceCount(), g_dormant_node_count_, g_live_node_count_,
+          g_ghost_node_count_};
+}
+
+// static
 std::tuple<size_t, size_t, size_t, size_t>
-AXPlatformNodeWin::GetCountsForTesting() {
-  return {GetInstanceCountForTesting(), g_dormant_node_count_,
-          g_live_node_count_, g_ghost_node_count_};
+AXPlatformNodeWin::ResetCountsForTesting() {
+  return {ResetInstanceCountForTesting(),
+          std::exchange(g_dormant_node_count_, 0),
+          std::exchange(g_live_node_count_, 0),
+          std::exchange(g_ghost_node_count_, 0)};
 }
 
 // static
@@ -8525,6 +8535,17 @@ AXPlatformNodeWin* AXPlatformNodeWin::GetFirstTextOnlyDescendant() {
       return descendant;
   }
   return nullptr;
+}
+
+void AXPlatformNodeWin::OnAriaNotificationIA2Fallback(
+    const std::string& announcement,
+    ax::mojom::AriaNotificationPriority priority_property) {
+  // IA2 Fallback is to fire a live region changed event.
+  const DWORD native_event = EVENT_OBJECT_LIVEREGIONCHANGED;
+  HWND hwnd = GetDelegate()->GetTargetForNativeAccessibilityEvent();
+  if (hwnd) {
+    ::NotifyWinEvent(native_event, hwnd, OBJID_CLIENT, -GetUniqueId());
+  }
 }
 
 void AXPlatformNodeWin::SanitizeTextAttributeValue(const std::string& input,

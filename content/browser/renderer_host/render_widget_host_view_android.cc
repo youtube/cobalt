@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
@@ -1378,12 +1379,21 @@ void RenderWidgetHostViewAndroid::SendStateOnTouchTransfer(
     bool browser_would_have_handled) {
   TRACE_EVENT("input", "RenderWidgetHostViewAndroid::StateOnTouchTransfer");
   CHECK(host());
-  auto* remote = host()->delegate()->GetRenderInputRouterDelegateRemote();
+  auto* remote =
+      host()->mojo_rir_delegate()->GetRenderInputRouterDelegateRemote();
+  if (!remote) {
+    return;
+  }
+
   const float y_offset_pix =
       host()->delegate()->GetCurrentTouchSequenceYOffset();
   remote->StateOnTouchTransfer(input::mojom::TouchTransferState::New(
       event.GetDownTime(), GetFrameSinkId(), y_offset_pix, view_.GetDipScale(),
       browser_would_have_handled));
+}
+
+bool RenderWidgetHostViewAndroid::IsMojoRIRDelegateConnectionSetup() {
+  return (host()->mojo_rir_delegate() != nullptr);
 }
 
 viz::FrameSinkId RenderWidgetHostViewAndroid::GetRootFrameSinkId() {
@@ -1552,7 +1562,10 @@ bool RenderWidgetHostViewAndroid::OnTouchEvent(
   // when a touch sequence is handled on Browser, as it will try to compare a
   // lingering transferred event's touch id and touch id of acked event that the
   // Browser is now handling.
-  if (input_transfer_handler_) {
+  if (input_transfer_handler_ &&
+      (!base::FeatureList::IsEnabled(
+           blink::features::kDropInputEventsWhilePaintHolding) ||
+       host()->input_router()->IsActive())) {
     bool is_ignoring_input_events =
         host()->delegate()->ShouldIgnoreInputEvents();
     if (input_transfer_handler_->OnTouchEvent(event,
@@ -1560,12 +1573,16 @@ bool RenderWidgetHostViewAndroid::OnTouchEvent(
       if (event.GetAction() == ui::MotionEvent::Action::DOWN) {
         latency_histogram.DoNotEmitHistograms();
       }
+      // Stop flinging on browser if the next touch sequence is going to be
+      // handled on the VizCompositorThread.
+      StopFling();
       return true;
     } else if (event.GetAction() == ui::MotionEvent::Action::DOWN) {
       // Stop any ongoing fling on VizCompositorThread if the new input sequence
       // is going to be handled on the Browser.
-      if (auto* remote =
-              host()->delegate()->GetRenderInputRouterDelegateRemote()) {
+      if (auto* remote = host()
+                             ->mojo_rir_delegate()
+                             ->GetRenderInputRouterDelegateRemote()) {
         remote->StopFlingingOnViz(host()->GetFrameSinkId());
       }
     }
@@ -1621,8 +1638,10 @@ void RenderWidgetHostViewAndroid::ResetGestureDetection() {
     if (!host()) {
       return;
     }
-    auto* remote = host()->delegate()->GetRenderInputRouterDelegateRemote();
-    remote->ResetGestureDetection(GetFrameSinkId());
+    if (auto* remote =
+            host()->mojo_rir_delegate()->GetRenderInputRouterDelegateRemote()) {
+      remote->ResetGestureDetection(GetFrameSinkId());
+    }
     return;
   }
 

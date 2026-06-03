@@ -20,7 +20,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/i18n/message_formatter.h"
 #include "base/i18n/number_formatting.h"
 #include "base/json/values_util.h"
@@ -107,6 +106,7 @@
 #include "extensions/common/permissions/permissions_data.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "storage/common/file_system/file_system_util.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -611,14 +611,13 @@ GroupingKey& GroupingKey::operator=(const GroupingKey& other) = default;
 GroupingKey::~GroupingKey() = default;
 
 std::string GroupingKey::Serialize() const {
-  return std::visit(base::Overloaded{[](const std::string& etld_plus1) {
-                                       return kGroupingKeyEtldPrefix +
-                                              etld_plus1;
-                                     },
-                                     [](const url::Origin& origin) {
-                                       return kGroupingKeyOriginPrefix +
-                                              origin.GetURL().spec();
-                                     }},
+  return std::visit(absl::Overload{[](const std::string& etld_plus1) {
+                                     return kGroupingKeyEtldPrefix + etld_plus1;
+                                   },
+                                   [](const url::Origin& origin) {
+                                     return kGroupingKeyOriginPrefix +
+                                            origin.GetURL().spec();
+                                   }},
                     value_);
 }
 
@@ -638,11 +637,11 @@ std::optional<url::Origin> GroupingKey::GetOrigin() const {
 
 url::Origin GroupingKey::ToOrigin() const {
   return std::visit(
-      base::Overloaded{[](const std::string& etld_plus1) {
-                         return ConvertEtldToOrigin(etld_plus1,
-                                                    /*secure=*/false);
-                       },
-                       [](const url::Origin& origin) { return origin; }},
+      absl::Overload{[](const std::string& etld_plus1) {
+                       return ConvertEtldToOrigin(etld_plus1,
+                                                  /*secure=*/false);
+                     },
+                     [](const url::Origin& origin) { return origin; }},
       value_);
 }
 
@@ -1002,9 +1001,9 @@ void SiteSettingsHandler::HandleGetRwsMembershipLabel(
   AllowJavascript();
   CHECK_EQ(3U, args.size());
 
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
   int num_members = args[1].GetInt();
-  std::string rws_owner = args[2].GetString();
+  const std::string& rws_owner = args[2].GetString();
 
   const std::string label =
       base::UTF16ToUTF8(base::i18n::MessageFormatter::FormatWithNamedArgs(
@@ -1137,7 +1136,7 @@ void SiteSettingsHandler::HandleGetAllSites(const base::Value::List& args) {
   AllowJavascript();
 
   CHECK_EQ(1U, args.size());
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
 
   all_sites_map_.clear();
   origin_permission_set_.clear();
@@ -1241,7 +1240,7 @@ void SiteSettingsHandler::HandleGetCategoryList(const base::Value::List& args) {
   AllowJavascript();
 
   CHECK_EQ(2U, args.size());
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
   const std::string& origin_string = args[1].GetString();
 
   base::Value::List result;
@@ -1258,7 +1257,7 @@ void SiteSettingsHandler::HandleGetRecentSitePermissions(
   AllowJavascript();
 
   CHECK_EQ(2U, args.size());
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
   size_t max_sources = base::checked_cast<size_t>(args[1].GetInt());
 
   const std::vector<ContentSettingsType>& content_types =
@@ -1455,7 +1454,7 @@ void SiteSettingsHandler::HandleGetOriginPermissions(
 
   CHECK_EQ(3U, args.size());
   const base::Value& callback_id = args[0];
-  std::string origin = args[1].GetString();
+  const std::string& origin = args[1].GetString();
   const base::Value::List& types = args[2].GetList();
 
   // Note: Invalid URLs will just result in default settings being shown.
@@ -1565,7 +1564,7 @@ void SiteSettingsHandler::HandleSetOriginPermissions(
   CHECK_EQ(3U, args.size());
   const std::string& origin_string = args[0].GetString();
   const std::string* type_string = args[1].GetIfString();
-  std::string value = args[2].GetString();
+  const std::string& value = args[2].GetString();
 
   const GURL origin(origin_string);
   if (!origin.is_valid()) {
@@ -2059,7 +2058,7 @@ void SiteSettingsHandler::SendZoomLevels() {
 void SiteSettingsHandler::HandleRemoveZoomLevel(const base::Value::List& args) {
   CHECK_EQ(1U, args.size());
 
-  std::string host_or_spec = args[0].GetString();
+  const std::string& host_or_spec = args[0].GetString();
 
   GURL url(host_or_spec);
   if (url.is_valid() && url.scheme() == chrome::kIsolatedAppScheme) {

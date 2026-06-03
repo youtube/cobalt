@@ -179,7 +179,6 @@ namespace {
 const char kDebuggerTestPage[] = "/devtools/debugger_test_page.html";
 const char kPauseWhenLoadingDevTools[] =
     "/devtools/pause_when_loading_devtools.html";
-const char kLatencyInfoTestPage[] = "/devtools/latency_info.html";
 const char kChunkedTestPage[] = "/chunked";
 const char kPushTestPage[] = "/devtools/push_test_page.html";
 // The resource is not really pushed, but mock url request job pretends it is.
@@ -190,8 +189,8 @@ const char kSlowTestPage[] =
 const char kEmptyTestPage[] = "/devtools/empty.html";
 // Arbitrary page that returns a 200 response, for tests that don't care about
 // more than that.
-const char kArbitraryPage[] = "/title1.html";
 #if !BUILDFLAG(IS_ANDROID)
+const char kArbitraryPage[] = "/title1.html";
 const char kDispatchKeyEventShowsAutoFill[] =
     "/devtools/dispatch_key_event_shows_auto_fill.html";
 const char kEmulateNetworkConditionsPage[] =
@@ -347,11 +346,6 @@ class DevToolsTest : public PlatformBrowserTest {
   template <typename... T>
   void DispatchAndWait(const char* method, T... args) {
     DispatchOnTestSuiteSkipCheck(window_, "waitForAsync", method, args...);
-  }
-
-  template <typename... T>
-  void DispatchInPageAndWait(const char* method, T... args) {
-    DispatchAndWait("invokePageFunctionAsync", method, args...);
   }
 
   void LoadTestPage(const std::string& test_page) {
@@ -1099,7 +1093,10 @@ class DevtoolsPanelForceUpdateTest : public DevToolsExtensionTest,
 // force update is enabled or not). Also confirms that we can manually browse to
 // an extension resource file before and after loading devtools. Regression test
 // for crbug.com/333670353.
-IN_PROC_BROWSER_TEST_P(DevtoolsPanelForceUpdateTest, NavigateToDevtoolsPanel) {
+//
+// TODO(crbug.com/425990330): Flaky on multiple platforms.
+IN_PROC_BROWSER_TEST_P(DevtoolsPanelForceUpdateTest,
+                       DISABLED_NavigateToDevtoolsPanel) {
   // Install devtools panel extension.
   const Extension* extension = LoadExtensionFromPath(
       test_extensions_dir_.AppendASCII("devtools_extension_force_update"));
@@ -1229,11 +1226,11 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 
   EXPECT_TRUE(main_devtools_rfh->GetLastCommittedURL().SchemeIs(
       content::kChromeDevToolsScheme));
-  EXPECT_EQ(extension->GetResourceURL("/panel_devtools_page.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("panel_devtools_page.html"),
             devtools_extension_devtools_page_rfh->GetLastCommittedURL());
-  EXPECT_EQ(extension->GetResourceURL("/panel.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("panel.html"),
             devtools_extension_panel_rfh->GetLastCommittedURL());
-  EXPECT_EQ(extension->GetResourceURL("/multi_frame_page.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("multi_frame_page.html"),
             panel_frame_rfh->GetLastCommittedURL());
   EXPECT_EQ(about_blank_url, about_blank_frame_rfh->GetLastCommittedURL());
   EXPECT_EQ(data_url, data_frame_rfh->GetLastCommittedURL());
@@ -1293,7 +1290,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   // Check that if the web IFrame is navigated back to a devtools extension
   // page, it gets put back in the devtools process.
   GURL extension_simple_url =
-      extension->GetResourceURL("/simple_test_page.html");
+      extension->ResolveExtensionURL("simple_test_page.html");
   std::string renavigation_javascript =
       "location.href='" + extension_simple_url.spec() + "';";
 
@@ -1366,9 +1363,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 
   EXPECT_TRUE(main_devtools_rfh->GetLastCommittedURL().SchemeIs(
       content::kChromeDevToolsScheme));
-  EXPECT_EQ(extension->GetResourceURL("/sidebarpane_devtools_page.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("sidebarpane_devtools_page.html"),
             devtools_extension_devtools_page_rfh->GetLastCommittedURL());
-  EXPECT_EQ(extension->GetResourceURL("/panel.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("panel.html"),
             devtools_sidebar_pane_extension_rfh->GetLastCommittedURL());
   EXPECT_EQ(web_url, http_iframe_rfh->GetLastCommittedURL());
 
@@ -1446,7 +1443,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 
   EXPECT_TRUE(main_devtools_rfh->GetLastCommittedURL().SchemeIs(
       content::kChromeDevToolsScheme));
-  EXPECT_EQ(extension->GetResourceURL("/web_devtools_page.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("web_devtools_page.html"),
             devtools_extension_devtools_page_rfh->GetLastCommittedURL());
   EXPECT_EQ(web_url, http_iframe_rfh->GetLastCommittedURL());
 
@@ -1477,7 +1474,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   ASSERT_TRUE(non_devtools_extension);
 
   GURL non_dt_extension_test_url =
-      non_devtools_extension->GetResourceURL("/simple_test_page.html");
+      non_devtools_extension->ResolveExtensionURL("simple_test_page.html");
 
   // Install the dynamically-generated devtools extension.
   const Extension* devtools_extension =
@@ -1512,9 +1509,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 
   EXPECT_TRUE(main_devtools_rfh->GetLastCommittedURL().SchemeIs(
       content::kChromeDevToolsScheme));
-  EXPECT_EQ(devtools_extension->GetResourceURL("/panel_devtools_page.html"),
+  EXPECT_EQ(devtools_extension->ResolveExtensionURL("panel_devtools_page.html"),
             devtools_extension_devtools_page_rfh->GetLastCommittedURL());
-  EXPECT_EQ(devtools_extension->GetResourceURL("/panel.html"),
+  EXPECT_EQ(devtools_extension->ResolveExtensionURL("panel.html"),
             devtools_extension_panel_rfh->GetLastCommittedURL());
   EXPECT_EQ(non_dt_extension_test_url,
             non_devtools_extension_rfh->GetLastCommittedURL());
@@ -1556,7 +1553,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   ASSERT_TRUE(devtools_b_extension);
 
   GURL extension_b_page_url =
-      devtools_b_extension->GetResourceURL("/simple_test_page.html");
+      devtools_b_extension->ResolveExtensionURL("simple_test_page.html");
 
   // Install another dynamically-generated extension.  This extension's
   // panel.html's iframe will point to an extension b URL.
@@ -1588,15 +1585,15 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
       content::FrameMatchingPredicate(
           main_web_contents()->GetPrimaryPage(),
           base::BindRepeating(&content::FrameHasSourceUrl,
-                              devtools_a_extension->GetResourceURL(
-                                  "/panel_devtools_page.html")));
+                              devtools_a_extension->ResolveExtensionURL(
+                                  "panel_devtools_page.html")));
   EXPECT_TRUE(devtools_extension_a_devtools_rfh);
   RenderFrameHost* devtools_extension_b_devtools_rfh =
       content::FrameMatchingPredicate(
           main_web_contents()->GetPrimaryPage(),
           base::BindRepeating(&content::FrameHasSourceUrl,
-                              devtools_b_extension->GetResourceURL(
-                                  "/simple_devtools_page.html")));
+                              devtools_b_extension->ResolveExtensionURL(
+                                  "simple_devtools_page.html")));
   EXPECT_TRUE(devtools_extension_b_devtools_rfh);
 
   RenderFrameHost* devtools_extension_a_panel_rfh =
@@ -1606,11 +1603,13 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 
   EXPECT_TRUE(main_devtools_rfh->GetLastCommittedURL().SchemeIs(
       content::kChromeDevToolsScheme));
-  EXPECT_EQ(devtools_a_extension->GetResourceURL("/panel_devtools_page.html"),
-            devtools_extension_a_devtools_rfh->GetLastCommittedURL());
-  EXPECT_EQ(devtools_b_extension->GetResourceURL("/simple_devtools_page.html"),
-            devtools_extension_b_devtools_rfh->GetLastCommittedURL());
-  EXPECT_EQ(devtools_a_extension->GetResourceURL("/panel.html"),
+  EXPECT_EQ(
+      devtools_a_extension->ResolveExtensionURL("panel_devtools_page.html"),
+      devtools_extension_a_devtools_rfh->GetLastCommittedURL());
+  EXPECT_EQ(
+      devtools_b_extension->ResolveExtensionURL("simple_devtools_page.html"),
+      devtools_extension_b_devtools_rfh->GetLastCommittedURL());
+  EXPECT_EQ(devtools_a_extension->ResolveExtensionURL("panel.html"),
             devtools_extension_a_panel_rfh->GetLastCommittedURL());
   EXPECT_EQ(extension_b_page_url,
             devtools_extension_b_frame_rfh->GetLastCommittedURL());
@@ -1652,7 +1651,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, DevToolsExtensionInItself) {
   RunTestFunction(window_, "waitForTestResultsInConsole");
 
   // Now that we know the panel is loaded, switch to it.
-  GURL extension_test_url = extension->GetResourceURL("/simple_test_page.html");
+  GURL extension_test_url =
+      extension->ResolveExtensionURL("simple_test_page.html");
   content::TestNavigationManager test_page_manager(main_web_contents(),
                                                    extension_test_url);
   SwitchToExtensionPanel(window_, extension, "iframe-panel");
@@ -1675,9 +1675,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, DevToolsExtensionInItself) {
   // simple_test_page.html
   EXPECT_TRUE(main_devtools_rfh->GetLastCommittedURL().SchemeIs(
       content::kChromeDevToolsScheme));
-  EXPECT_EQ(extension->GetResourceURL("/panel_devtools_page.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("panel_devtools_page.html"),
             devtools_extension_devtools_page_rfh->GetLastCommittedURL());
-  EXPECT_EQ(extension->GetResourceURL("/panel.html"),
+  EXPECT_EQ(extension->ResolveExtensionURL("panel.html"),
             devtools_extension_panel_rfh->GetLastCommittedURL());
   EXPECT_EQ(extension_test_url,
             devtools_extension_panel_frame_rfh->GetLastCommittedURL());
@@ -1833,7 +1833,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 }
 
 // Disabled on Windows due to flakiness. http://crbug.com/183649
-#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/425268770): Flaky on Linux.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 #define MAYBE_TestDevToolsExtensionMessaging \
   DISABLED_TestDevToolsExtensionMessaging
 #else
@@ -2079,7 +2080,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
       LoadExtensionFromPath(test_dir.UnpackedPath());
 
   // Create an offscreen document and wait for it to load.
-  GURL offscreen_url = extension->GetResourceURL("offscreen.html");
+  GURL offscreen_url = extension->ResolveExtensionURL("offscreen.html");
   std::unique_ptr<extensions::OffscreenDocumentHost> offscreen_document =
       std::make_unique<extensions::OffscreenDocumentHost>(
           *extension,
@@ -3008,49 +3009,6 @@ class DevToolsPixelOutputTests : public DevToolsTest {
   }
 };
 
-// This test enables switches::kUseGpuInTests which causes false positives
-// with MemorySanitizer. This is also flakey on many configurations.
-// See https://crbug.com/510291
-IN_PROC_BROWSER_TEST_F(DevToolsPixelOutputTests,
-                       DISABLED_TestScreenshotRecording) {
-  RunTest("testScreenshotRecording", kArbitraryPage);
-}
-
-// This test enables switches::kUseGpuInTests which causes false positives
-// with MemorySanitizer.
-// Flaky on multiple platforms https://crbug.com/624215
-IN_PROC_BROWSER_TEST_F(DevToolsPixelOutputTests,
-                       DISABLED_TestLatencyInfoInstrumentation) {
-  WebContents* web_contents = GetInspectedTab();
-  OpenDevToolsWindow(kLatencyInfoTestPage, false);
-  DispatchAndWait("startTimeline");
-
-  for (int i = 0; i < 3; ++i) {
-    SimulateMouseEvent(web_contents, blink::WebInputEvent::Type::kMouseMove,
-                       gfx::Point(30, 60));
-    DispatchInPageAndWait("waitForEvent", "mousemove");
-  }
-
-  SimulateMouseClickAt(web_contents, 0,
-                       blink::WebPointerProperties::Button::kLeft,
-                       gfx::Point(30, 60));
-  DispatchInPageAndWait("waitForEvent", "click");
-
-  SimulateMouseWheelEvent(web_contents, gfx::Point(300, 100),
-                          gfx::Vector2d(0, 120),
-                          blink::WebMouseWheelEvent::kPhaseBegan);
-  DispatchInPageAndWait("waitForEvent", "wheel");
-
-  SimulateTapAt(web_contents, gfx::Point(30, 60));
-  DispatchInPageAndWait("waitForEvent", "gesturetap");
-
-  DispatchAndWait("stopTimeline");
-  RunTestMethod("checkInputEventsPresent", "MouseMove", "MouseDown",
-                "MouseWheel", "GestureTap");
-
-  CloseDevToolsWindow();
-}
-
 #if !BUILDFLAG(IS_ANDROID)
 class DevToolsNetInfoTest : public DevToolsTest {
  protected:
@@ -3149,16 +3107,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest,
   DevToolsWindowTesting::CloseDevToolsWindowSync(window);
 }
 
-// TODO(crbug.com/392058349): Re-enable the test.
-// TODO(crbug.com/331650494): Flaky on Linux debug build.
-#if BUILDFLAG(IS_CHROMEOS) || (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
-#define MAYBE_TestRawHeadersWithRedirectAndHSTS \
-  DISABLED_TestRawHeadersWithRedirectAndHSTS
-#else
-#define MAYBE_TestRawHeadersWithRedirectAndHSTS \
-  TestRawHeadersWithRedirectAndHSTS
-#endif
-IN_PROC_BROWSER_TEST_F(DevToolsTest, MAYBE_TestRawHeadersWithRedirectAndHSTS) {
+IN_PROC_BROWSER_TEST_F(DevToolsTest, TestRawHeadersWithRedirectAndHSTS) {
   net::EmbeddedTestServer https_test_server(
       net::EmbeddedTestServer::TYPE_HTTPS);
   https_test_server.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
@@ -4005,7 +3954,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsSyncTest, GetSyncInformation) {
   EXPECT_TRUE(*result.value.GetDict().FindBool("isSyncActive"));
   EXPECT_TRUE(*result.value.GetDict().FindBool("arePreferencesSynced"));
   EXPECT_EQ(*result.value.GetDict().FindString("accountEmail"),
-            "user@gmail.com");
+            "user1@gmail.com");
 
   DevToolsWindowTesting::CloseDevToolsWindowSync(window);
 }

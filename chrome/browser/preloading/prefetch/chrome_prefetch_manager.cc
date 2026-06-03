@@ -5,6 +5,7 @@
 #include "chrome/browser/preloading/prefetch/chrome_prefetch_manager.h"
 
 #include "chrome/browser/preloading/chrome_preloading.h"
+#include "content/public/browser/preloading_data.h"
 #include "content/public/common/content_features.h"
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
 
@@ -13,20 +14,6 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 
 ChromePrefetchManager::~ChromePrefetchManager() = default;
-
-// static
-ChromePrefetchManager* ChromePrefetchManager::GetOrCreateForWebContents(
-    content::WebContents* web_contents) {
-  auto* chrome_prefetch_manager =
-      ChromePrefetchManager::FromWebContents(web_contents);
-  if (!chrome_prefetch_manager) {
-    ChromePrefetchManager::CreateForWebContents(web_contents);
-    chrome_prefetch_manager =
-        ChromePrefetchManager::FromWebContents(web_contents);
-  }
-
-  return chrome_prefetch_manager;
-}
 
 #if BUILDFLAG(IS_ANDROID)
 void ChromePrefetchManager::StartPrefetchFromCCT(
@@ -70,10 +57,12 @@ void ChromePrefetchManager::StartPrefetchFromCCT(
           prefetch_url, use_prefetch_proxy, kCCTMetricsSuffix,
           blink::mojom::Referrer(), referring_origin,
           /*no_vary_search_hint=*/std::nullopt,
+          /*priority=*/std::nullopt,
           content::PreloadPipelineInfo::Create(
               /*planned_max_preloading_type=*/content::PreloadingType::
                   kPrefetch),
-          preloading_attempt->GetWeakPtr(), holdback_status_override);
+          preloading_attempt->GetWeakPtr(), holdback_status_override,
+          /*ttl=*/std::nullopt);
   // TODO(crbug.com/40288091): Clean up staled handles. Please see
   // crrev.com/c/5534282/comment/cea1fdce_ada24c2b/ for more discussions,
   if (prefetch_handle) {

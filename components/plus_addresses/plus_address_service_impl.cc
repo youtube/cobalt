@@ -288,10 +288,6 @@ bool PlusAddressServiceImpl::IsPlusAddressFillingEnabled(
   return IsEnabled() && IsSupportedOrigin(origin);
 }
 
-bool PlusAddressServiceImpl::IsPlusAddressFullFormFillingEnabled() const {
-  return base::FeatureList::IsEnabled(features::kPlusAddressFullFormFill);
-}
-
 bool PlusAddressServiceImpl::IsFieldEligibleForPlusAddress(
     const autofill::AutofillField& field) const {
   autofill::FillingProduct filling_product =
@@ -301,9 +297,7 @@ bool PlusAddressServiceImpl::IsFieldEligibleForPlusAddress(
     return true;
   }
 
-  return base::FeatureList::IsEnabled(
-             features::kPlusAddressSuggestionsOnUsernameFields) &&
-         (field.server_type() == autofill::FieldType::USERNAME ||
+  return (field.server_type() == autofill::FieldType::USERNAME ||
           field.server_type() == autofill::FieldType::SINGLE_USERNAME) &&
          field.heuristic_type() == autofill::FieldType::EMAIL_ADDRESS;
 }

@@ -145,7 +145,7 @@ BASE_FEATURE_PARAM(bool,
 // `UrlMatcherWithBypass` implementation.
 BASE_FEATURE(kMaskedDomainListFlatbufferImpl,
              "MaskedDomainListFlatbufferImpl",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If this feature is enabled, the mDNS responder service responds to queries
 // for TXT records associated with
@@ -442,8 +442,14 @@ BASE_FEATURE_PARAM(std::string,
                    "");
 // When enabled, a `Sec-Fetch-Frame-Top` header will be emitted on
 // outgoing requests.
-BASE_FEATURE(kFrameAncestorHeaders,
-             "FrameAncestorHeaders",
+BASE_FEATURE(kFrameTopHeader,
+             "FrameTopHeader",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a `Sec-Fetch-Frame-Ancestors` header will be emitted on
+// outgoing requests.
+BASE_FEATURE(kFrameAncestorsHeader,
+             "FrameAncestorsHeader",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUpdateRequestForCorsRedirect,
@@ -574,6 +580,12 @@ BASE_FEATURE(kIncreaseCookieAccessCacheSize,
              "IncreaseCookieAccessCacheSize",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE_PARAM(int,
+                   kCookieAccessCacheSize,
+                   &kIncreaseCookieAccessCacheSize,
+                   "cookie-access-cache-size",
+                   100);
+
 BASE_FEATURE(kPopulatePermissionsPolicyOnRequest,
              "PopulatePermissionsPolicyOnRequest",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -616,5 +628,9 @@ BASE_FEATURE_PARAM(size_t,
                    &kSharedDictionaryCache,
                    /*name=*/"max_size",
                    1'000'000);
+
+BASE_FEATURE(kNetworkServiceScheduler,
+             "NetworkServiceScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace network::features

@@ -7,10 +7,13 @@
 #include <algorithm>
 
 #include "base/check.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/uuid.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
 #include "components/autofill/core/browser/webdata/addresses/contact_info_sync_util.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
@@ -33,6 +36,23 @@ DenseSet<AutofillProfile::RecordType> kAccountRecordTypes = {
     AutofillProfile::RecordType::kAccount,
     AutofillProfile::RecordType::kAccountHome,
     AutofillProfile::RecordType::kAccountWork};
+
+// H/W addresses need to meet Autofill's completeness requirements since they
+// are read from a source that doesn't enforce them.
+// This is not checked as part of the bridge's IsEntityDataValid(), since H/W
+// addresses that fail to meet the requirements after an update need to be
+// removed from local storage.
+bool IsIncompleteHomeAndWorkAddress(const AutofillProfile& profile) {
+  if (!profile.IsHomeAndWorkProfile() ||
+      !base::FeatureList::IsEnabled(
+          features::kAutofillEnableSupportForHomeAndWork)) {
+    return false;
+  }
+  const bool is_incomplete = !IsMinimumAddress(profile);
+  base::UmaHistogramBoolean("Autofill.HomeWorkProfiles.ProfileFiltered",
+                            is_incomplete);
+  return is_incomplete;
+}
 
 }  // namespace
 
@@ -115,23 +135,30 @@ ContactInfoSyncBridge::ApplyIncrementalSyncChanges(
       case syncer::EntityChange::ACTION_UPDATE: {
         // Deserialize the ContactInfoSpecifics and add/update them in the DB.
         DCHECK(change->data().specifics.has_contact_info());
-        std::optional<AutofillProfile> remote =
-            CreateAutofillProfileFromContactInfoSpecifics(
-                change->data().specifics.contact_info());
-        // Since the specifics are guaranteed to be valid by
-        // `IsEntityDataValid()`, the conversion will succeed.
-        DCHECK(remote);
+        AutofillProfile remote = CreateAutofillProfileFromContactInfoSpecifics(
+            change->data().specifics.contact_info());
+        if (IsIncompleteHomeAndWorkAddress(remote)) {
+          // In case H/W was updated and doesn't meet the completeness
+          // requirements anymore, remove it.
+          // This change doesn't need to be synced back, since H/W is read-only.
+          metadata_change_list->ClearMetadata(remote.guid());
+          if (!GetAutofillTable()->RemoveAutofillProfile(remote.guid())) {
+            return syncer::ModelError(FROM_HERE,
+                                      "Failed to delete profile from table.");
+          }
+          continue;
+        }
         // Since the distinction between adds and updates is not always clear,
         // we check the existence of the profile manually and act accordingly.
         // TODO(crbug.com/40100455): Consider adding an AddOrUpdate() function
         // to AutofillTable's API.
-        if (GetAutofillTable()->GetAutofillProfile(remote->guid())) {
-          if (!GetAutofillTable()->UpdateAutofillProfile(*remote)) {
+        if (GetAutofillTable()->GetAutofillProfile(remote.guid())) {
+          if (!GetAutofillTable()->UpdateAutofillProfile(remote)) {
             return syncer::ModelError(FROM_HERE,
                                       "Failed to update profile in table.");
           }
         } else {
-          if (!GetAutofillTable()->AddAutofillProfile(*remote)) {
+          if (!GetAutofillTable()->AddAutofillProfile(remote)) {
             return syncer::ModelError(FROM_HERE,
                                       "Failed to add profile to table.");
           }

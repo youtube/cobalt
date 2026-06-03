@@ -34,6 +34,7 @@ source_set("model") {
   deps = [
     ":search_engine_js",
     "//base",
+    "//components/application_locale_storage",
     "//components/country_codes",
     "//components/favicon/ios",
     "//components/google/core/common",
@@ -104,6 +105,7 @@ source_set("unit_tests") {
     "//components/country_codes",
     "//components/favicon/core",
     "//components/favicon/ios",
+    "//components/regional_capabilities",
     "//components/search_engines",
     "//components/search_engines:test_support",
     "//ios/chrome/browser/favicon/model",
@@ -144,6 +146,7 @@ source_set("search_engines_util") {
     "//base",
     "//components/country_codes",
     "//components/prefs",
+    "//components/regional_capabilities",
     "//components/search_engines",
   ]
 }

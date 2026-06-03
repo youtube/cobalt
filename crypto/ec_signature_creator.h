@@ -1,6 +1,9 @@
 // Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// This interface is deprecated and being removed: https://crbug.com/406190025.
+// New users should use crypto/sign instead.
 
 #ifndef CRYPTO_EC_SIGNATURE_CREATOR_H_
 #define CRYPTO_EC_SIGNATURE_CREATOR_H_
@@ -22,6 +25,7 @@ class ECSignatureCreator;
 // Signs data using a bare private key (as opposed to a full certificate).
 // We need this class because SignatureCreator is hardcoded to use
 // RSAPrivateKey.
+// TODO(https://crbug.com/406190025): Delete this.
 class CRYPTO_EXPORT ECSignatureCreator {
  public:
   virtual ~ECSignatureCreator() {}
@@ -40,14 +44,6 @@ class CRYPTO_EXPORT ECSignatureCreator {
   //    s     INTEGER }
   virtual bool Sign(base::span<const uint8_t> data,
                     std::vector<uint8_t>* signature) = 0;
-
-  // DecodeSignature converts from a DER encoded ECDSA-Sig-Value (as produced
-  // by Sign) to a `raw' ECDSA signature which consists of a pair of
-  // big-endian, zero-padded, 256-bit integers, r and s. On success it returns
-  // true and puts the raw signature into |out_raw_sig|.
-  // (Only P-256 signatures are supported.)
-  virtual bool DecodeSignature(const std::vector<uint8_t>& signature,
-                               std::vector<uint8_t>* out_raw_sig) = 0;
 };
 
 }  // namespace crypto

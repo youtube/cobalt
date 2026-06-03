@@ -71,7 +71,7 @@ Hona hemen hasteko egin ditzakezun gauza batzuk.</translation>
 <translation id="1201402288615127009">Hurrengoa</translation>
 <translation id="1210557957257435379">pantaila-grabaketa</translation>
 <translation id="121097972571826261">Joan hurrengo hitzera</translation>
-<translation id="1218444235442067213">Play Store-ko aplikazioa (<ph name="APP_NAME" />)</translation>
+<translation id="1218444235442067213">Google Play Store-ko aplikazioa (<ph name="APP_NAME" />)</translation>
 <translation id="1225748608451425081">Chromebook-a blokeatuta dago arazo ezagun bat dela eta. <ph name="TIME_LEFT" /> barru hasi ahalko duzu saioa.</translation>
 <translation id="1229194443904279055">Utzi hautatzeari</translation>
 <translation id="1235458158152011030">Sare ezagunak</translation>
@@ -553,7 +553,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="2848120746144143659">Pantaila osoaren pantaila-argazki bat ateratzeko, sakatu Sartu</translation>
 <translation id="2849936225196189499">Ezinbestekoa</translation>
 <translation id="2850207700020959936">Aplikazioek kamera erabil dezakete</translation>
-<translation id="2860184359326882502">Emaitzarik onena</translation>
+<translation id="2860184359326882502">Emaitzarik onenak</translation>
 <translation id="2865888419503095837">Sarearen informazioa</translation>
 <translation id="2869095047958348710">Joan den <ph name="DAY_OF_WEEK" /></translation>
 <translation id="2872353916818027657">Trukatu monitore nagusia</translation>
@@ -761,6 +761,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3552189655002856821">Desaktibatuta dago wifi-konexioa</translation>
 <translation id="3554215588514239132">Erakutsi edo ezkutatu garatzaileentzako tresnen panela</translation>
 <translation id="3554637740840164787">Ainguratu da <ph name="ITEM_TITLE" /></translation>
+<translation id="3554928024630051016">USB bidezko beste gailu bat gehitzeko, kendu bat eta entxufatu beste bat</translation>
 <translation id="3558768885091059911">Kamera eta mikrofonoa erabiltzeko baimena aktibatu nahi duzu?</translation>
 <translation id="3560174576767922131">Grabatu bideo bat</translation>
 <translation id="3563775809269155755">Gaitu wifi-gunea</translation>
@@ -869,6 +870,7 @@ Aurrera egiteko, erabiltzaile guztiek saioa amaitu behar dute.</translation>
 <translation id="3861651314799684201">Pantaila osoa grabatzeko, sakatu Sartu</translation>
 <translation id="3870197372373144624">Itzali gailua.</translation>
 <translation id="3879748587602334249">Deskargen kudeatzailea</translation>
+<translation id="3884007280698606545">USB bidezko gailuen mugara iritsi zara</translation>
 <translation id="3886872229787704059">Gaur ireki da</translation>
 <translation id="3891340733213178823">Saioa amaitzeko, sakatu Ktrl + Maius + Q bi aldiz.</translation>
 <translation id="3892148308691398805">Kopiatu testua</translation>
@@ -1013,6 +1015,7 @@ Bateriaren iraupena luzatzeko, eginbide batzuk mugatu dira.</translation>
 <translation id="4305817255990598646">Aldatu</translation>
 <translation id="4307713728991152670">Konfiguratu telefonoko azkenaldiko argazkiak, multimedia-elementuak eta aplikazioak ikusteko aukera</translation>
 <translation id="4312840429157639164">Atxiki egin da kamera goiko eskuinaldeko izkinan, sistemaren beste gainazal batean gainjartzen zelako.</translation>
+<translation id="4312935606722154789">Taldekatu edo kendu taldetik bata bestearen alboan dauden 2 leiho</translation>
 <translation id="4316910396681052118">APLIKAZIO GUZTIAK</translation>
 <translation id="4321179778687042513">ktrl</translation>
 <translation id="4322385711258710213">Ezkutatu Chrome arakatzailearen iradokizunak</translation>
@@ -1155,7 +1158,7 @@ Gailu bat dago konektatuta.</translation>
 <translation id="4774338217796918551">Itzuli bihar ordu honetan: <ph name="COME_BACK_TIME" />.</translation>
 <translation id="4776584068981882959">Oraindik ezin izan da egiaztatu pasahitza. Saiatu berriro.</translation>
 <translation id="4776917500594043016"><ph name="USER_EMAIL_ADDRESS" /> erabiltzaile-kontuko pasahitza</translation>
-<translation id="4777825441726637019">Play Store</translation>
+<translation id="4777825441726637019">Google Play Store</translation>
 <translation id="4778095205580009397">Google-ren Laguntzailea ez dago erabilgarri demo saioetan.</translation>
 <translation id="4785412405516449976">Google-ko kontu bat duten kontaktuak soilik</translation>
 <translation id="4789348252524569426">Ezin dira instalatu hizketa-fitxategiak. Gailua eguneratu behar da. Berrabiarazi gailua eta saiatu berriro.</translation>
@@ -1452,7 +1455,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="5691772641933328258">Ez da ezagutu hatz-marka</translation>
 <translation id="5693255400847650006">Mikrofonoa abian da</translation>
 <translation id="5699366815052349604">Esleitu leiho aktiboa lan-eremu guztiei</translation>
-<translation id="5701785125601597013">Bidali mezuak edo erantzun azkar telefonoan jasotako mezuei Phone Hub bidez</translation>
 <translation id="570390244361237317">Aplikazio guztiak, erabili gezi-teklak aplikazio guztiak atzitzeko</translation>
 <translation id="5705197514573687092">Erakutsi kontzentratzeko moduaren ezarpenak. Tenporizadorea: <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Gailuak kableak baino bizkorrago transferi ditzake datuak. Baliteke gailuaren errendimendua mugatuta egotea.</translation>
@@ -1582,7 +1584,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="6095425951508823973">Gehitu <ph name="PROVIDER" /> bidezko konexioa</translation>
 <translation id="6099678161144790572">Azken hilabetean editatu da</translation>
 <translation id="6103838137565245112">sistema</translation>
-<translation id="610395411842312282">Taldekatu bata bestearen alboan dauden bi leiho</translation>
 <translation id="6108952804512516814">Sortu AA bidez</translation>
 <translation id="6114505516289286752">Deskargatu dira hizketa-fitxategiak (<ph name="LANGUAGE" />)</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>

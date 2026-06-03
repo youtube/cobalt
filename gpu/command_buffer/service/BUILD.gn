@@ -46,6 +46,7 @@ target(link_target_type, "service_sources") {
     "common_decoder.cc",
     "common_decoder.h",
     "decoder_client.h",
+    "gpu_command_buffer_service_export.h",
     "gpu_switches.cc",
     "gpu_switches.h",
     "memory_tracking.cc",
@@ -171,8 +172,6 @@ target(link_target_type, "gles2_sources") {
     "gles2_external_framebuffer.h",
     "gles2_query_manager.cc",
     "gles2_query_manager.h",
-    "gpu_command_buffer_memory_tracker.cc",
-    "gpu_command_buffer_memory_tracker.h",
     "gpu_fence_manager.cc",
     "gpu_fence_manager.h",
     "gpu_state_tracer.cc",
@@ -357,9 +356,6 @@ target(link_target_type, "gles2_sources") {
     "//third_party/khronos:khronos_headers",
   ]
 
-  # Prefer mesa GL headers to system headers, which cause problems on Win.
-  include_dirs = [ "//third_party/mesa_headers" ]
-
   public_deps = [
     "//base",
     "//cc/paint",
@@ -398,6 +394,7 @@ target(link_target_type, "gles2_sources") {
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:buildflags",
+    "//ui/gl:gl_headers",
     "//ui/gl/init",
   ]
 

@@ -67,7 +67,7 @@ MockCreditCardAccessManager::~MockCreditCardAccessManager() = default;
 TestBrowserAutofillManager::TestBrowserAutofillManager(AutofillDriver* driver)
     : autofill::TestBrowserAutofillManager(driver) {
   test_api(*this).SetExternalDelegate(
-      std::make_unique<AutofillExternalDelegate>(this));
+      std::make_unique<TestAutofillExternalDelegate>(&*this));
   test_api(*this).set_credit_card_access_manager(
       std::make_unique<MockCreditCardAccessManager>(this));
 }
@@ -78,7 +78,12 @@ void TestBrowserAutofillManager::Reset() {
       std::make_unique<MockCreditCardAccessManager>(this));
 }
 
-AutofillMetricsBaseTest::AutofillMetricsBaseTest() = default;
+AutofillMetricsBaseTest::AutofillMetricsBaseTest() {
+  scoped_features_.InitWithFeatures(
+      {features::kAutofillEnableLoyaltyCardsFilling,
+       features::kAutofillEnableEmailOrLoyaltyCardsFilling},
+      {});
+}
 
 AutofillMetricsBaseTest::~AutofillMetricsBaseTest() = default;
 

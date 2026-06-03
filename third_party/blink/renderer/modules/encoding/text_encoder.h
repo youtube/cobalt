@@ -51,7 +51,7 @@ class TextEncoder final : public ScriptWrappable {
  public:
   static TextEncoder* Create(ExecutionContext*, ExceptionState&);
 
-  TextEncoder(const WTF::TextEncoding&);
+  explicit TextEncoder(const TextEncoding&);
   ~TextEncoder() override;
 
   // Implement the IDL
@@ -61,8 +61,8 @@ class TextEncoder final : public ScriptWrappable {
                                           NotShared<DOMUint8Array>&);
 
  private:
-  WTF::TextEncoding encoding_;
-  std::unique_ptr<WTF::TextCodec> codec_;
+  TextEncoding encoding_;
+  std::unique_ptr<TextCodec> codec_;
 };
 
 }  // namespace blink

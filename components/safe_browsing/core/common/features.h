@@ -25,15 +25,6 @@ namespace safe_browsing {
 // for example to control how often collection should occur.
 BASE_DECLARE_FEATURE(kAdSamplerTriggerFeature);
 
-#if BUILDFLAG(IS_ANDROID)
-// Enables adding an Android app referrer to Protego pings.
-BASE_DECLARE_FEATURE(kAddReferringAppInfoToProtegoPings);
-
-// Enables adding a WebAPK referrer to Protego pings. (This is a no-op if
-// `kAddReferringAppInfoToProtegoPings` is not enabled.)
-BASE_DECLARE_FEATURE(kAddReferringWebApkToProtegoPings);
-#endif
-
 // Enables Bundled Security Settings UI on chrome://settings/security
 BASE_DECLARE_FEATURE(kBundledSecuritySettings);
 
@@ -49,6 +40,9 @@ BASE_DECLARE_FEATURE(kClientSideDetectionAcceptHCAllowlist);
 BASE_DECLARE_FEATURE(kClientSideDetectionBrandAndIntentForScamDetection);
 
 BASE_DECLARE_FEATURE(kClientSideDetectionDebuggingMetadataCache);
+
+// Extract only the visual features during the phishing classifier.
+BASE_DECLARE_FEATURE(kClientSideDetectionOnlyExtractVisualFeatures);
 
 // Pass the LlamaTriggerRuleInfo from RTLookupResponse to ClientPhishingRequest
 // if it exists and the force request mechanism occurs.
@@ -154,10 +148,6 @@ BASE_DECLARE_FEATURE(kEnterpriseFileSystemAccessDeepScan);
 // Enables showing an updated Password Reuse UI for enterprise users.
 BASE_DECLARE_FEATURE(kEnterprisePasswordReuseUiRefresh);
 
-// When on, enterprise policy EnterpriseRealTimeUrlCheckMode on Android is
-// supported.
-BASE_DECLARE_FEATURE(kEnterpriseRealTimeUrlCheckOnAndroid);
-
 // Makes the Enhanced Protection a syncable setting.
 // Check the design doc (go/esb-as-a-synced-setting-dd) for further details.
 BASE_DECLARE_FEATURE(kEsbAsASyncedSetting);
@@ -206,6 +196,9 @@ BASE_DECLARE_FEATURE(kGooglePlayProtectReducesWarnings);
 
 // Sends hash-prefix real-time lookup requests on navigations for Standard Safe
 // Browsing users instead of hash-prefix database lookups.
+// Note: This feature flag should not be cleaned up even though the feature has
+// launched. This is kept as a killswitch because it controls whether we try to
+// use the third-party dependency set by `kHashPrefixRealTimeLookupsRelayUrl`.
 BASE_DECLARE_FEATURE(kHashPrefixRealTimeLookups);
 
 // This parameter controls the relay URL that will forward the lookup requests
@@ -254,14 +247,6 @@ extern const base::FeatureParam<std::string>
     kMaliciousApkDownloadCheckServiceUrlOverride;
 #endif
 
-// Killswitch for fetching and executing the notification content detection
-// model. This also gates logging metrics related to this model.
-BASE_DECLARE_FEATURE(kOnDeviceNotificationContentDetectionModel);
-// Determines the percentage of notifications from allowlisted sites that we
-// will check the model for. The value should be between 0 and 100.
-extern const base::FeatureParam<int>
-    kOnDeviceNotificationContentDetectionModelAllowlistSamplingRate;
-
 // Enable the collection of Notification Telemetry to track potentially abusive
 // notifications.
 BASE_DECLARE_FEATURE(kNotificationTelemetry);
@@ -298,18 +283,12 @@ BASE_DECLARE_FEATURE(kSafeBrowsingDailyPhishingReportsLimit);
 // Specifies the CSD-Phishing daily reports limit for ESB users
 extern const base::FeatureParam<int> kSafeBrowsingDailyPhishingReportsLimitESB;
 
-// Controls whether cookies are removed when the access token is present.
-BASE_DECLARE_FEATURE(kSafeBrowsingRemoveCookiesInAuthRequests);
-
 #if BUILDFLAG(IS_ANDROID)
 // Enables sync checker to check allowlist first on Chrome on Android. This is
 // an optimization to improve the speed of Safe Browsing checks.
 // See go/skip-sync-hpd-allowlist-android for details.
 BASE_DECLARE_FEATURE(kSafeBrowsingSyncCheckerCheckAllowlist);
 #endif
-
-// Automatically revoke abusive notifications in Safety Hub.
-BASE_DECLARE_FEATURE(kSafetyHubAbusiveNotificationRevocation);
 
 // Enables saving gaia password hash from the Profile Picker sign-in flow.
 BASE_DECLARE_FEATURE(kSavePasswordHashFromProfilePicker);

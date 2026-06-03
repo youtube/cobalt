@@ -12,13 +12,14 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_simple_task_runner.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/scoped_test_device_settings_service.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome_device_policy.pb.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "components/ownership/mock_owner_key_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
@@ -106,7 +107,8 @@ class DeviceLocalAccountPolicyStoreTest : public testing::Test {
         device_policy_.GetSigningKey());
     ash::OwnerSettingsServiceAshFactory::GetInstance()
         ->SetOwnerKeyUtilForTesting(owner_key_util_);
-    ash::DeviceSettingsService::Get()->SetSessionManager(
+    ash::DeviceSettingsService::Get()->StartProcessing(
+        TestingBrowserProcess::GetGlobal()->local_state(),
         &fake_session_manager_client_, owner_key_util_);
   }
   DeviceLocalAccountPolicyStoreTest(const DeviceLocalAccountPolicyStoreTest&) =

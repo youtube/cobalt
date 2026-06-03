@@ -5,9 +5,11 @@
 #include "chrome/browser/safe_browsing/download_protection/download_protection_delegate_android.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/rand_util.h"
@@ -19,6 +21,7 @@
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
 #include "components/download/public/common/download_item.h"
 #include "components/google/core/common/google_util.h"
+#include "components/safe_browsing/android/safe_browsing_api_handler_bridge.h"
 #include "components/safe_browsing/core/browser/referring_app_info.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
@@ -43,6 +46,10 @@ const char kDownloadRequestDefaultUrl[] =
 
 // Content-Type HTTP header field for the request.
 const char kProtobufContentType[] = "application/x-protobuf";
+
+// We sample 1% of allowlisted downloads to still send out download pings if
+// other conditions are met.
+const double kAllowlistDownloadSampleRate = 0.01;
 
 bool IsDownloadRequestUrlValid(const GURL& url) {
   return url.is_valid() && url.SchemeIs(url::kHttpsScheme) &&
@@ -100,6 +107,41 @@ bool IsAndroidDownloadProtectionEnabledForDownloadProfile(
 void LogGetReferringAppInfoResult(internal::GetReferringAppInfoResult result) {
   base::UmaHistogramEnumeration(
       "SBClientDownload.Android.GetReferringAppInfo.Result", result);
+}
+
+void PopulateReferringAppInfoInProto(internal::ReferringAppInfo info,
+                                     ClientDownloadRequest* request_proto) {
+  *request_proto->mutable_referring_app_info() = GetReferringAppInfoProto(info);
+}
+
+void MaybePopulateReferringAppInfo(const download::DownloadItem* item,
+                                   CollectModificationCallback callback) {
+  CHECK(item);
+  // Note: The web_contents will be null if the original download page has
+  // been navigated away from.
+  content::WebContents* web_contents =
+      content::DownloadItemUtils::GetWebContents(item);
+  if (!web_contents) {
+    LogGetReferringAppInfoResult(
+        internal::GetReferringAppInfoResult::kNotAttempted);
+    std::move(callback).Run(NoModificationToRequestProto());
+    return;
+  }
+  internal::ReferringAppInfo info =
+      GetReferringAppInfo(web_contents, /*get_webapk_info=*/true);
+  LogGetReferringAppInfoResult(internal::ReferringAppInfoToResult(info));
+  if (!info.has_referring_app() && !info.has_referring_webapk()) {
+    std::move(callback).Run(NoModificationToRequestProto());
+    return;
+  }
+
+  std::move(callback).Run(
+      base::BindOnce(&PopulateReferringAppInfoInProto, std::move(info)));
+}
+
+void PopulateRateLimitingKeyInProto(const std::string& rate_limiting_key,
+                                    ClientDownloadRequest* request_proto) {
+  request_proto->set_rate_limiting_key(rate_limiting_key);
 }
 
 }  // namespace
@@ -168,30 +210,26 @@ MayCheckDownloadResult DownloadProtectionDelegateAndroid::IsSupportedDownload(
   return may_check_download_result;
 }
 
-void DownloadProtectionDelegateAndroid::PreSerializeRequest(
+std::vector<PendingClientDownloadRequestModification>
+DownloadProtectionDelegateAndroid::ProduceClientDownloadRequestModifications(
     const download::DownloadItem* item,
-    safe_browsing::ClientDownloadRequest& request_proto) {
-  if (!item) {
-    return;
+    Profile* profile) {
+  std::vector<PendingClientDownloadRequestModification> modifications;
+
+  // Populate referring_app_info.
+  if (item) {
+    modifications.emplace_back(
+        base::BindOnce(&MaybePopulateReferringAppInfo, item));
   }
 
-  // Populate the ReferringAppInfo in the ClientDownloadRequest.
-  // Note: The web_contents will be null if the original download page has
-  // been navigated away from.
-  content::WebContents* web_contents =
-      content::DownloadItemUtils::GetWebContents(item);
-  if (!web_contents) {
-    LogGetReferringAppInfoResult(
-        internal::GetReferringAppInfoResult::kNotAttempted);
-    return;
+  // Populate rate_limiting_key.
+  if (profile) {
+    modifications.emplace_back(base::BindOnce(
+        &DownloadProtectionDelegateAndroid::PopulateRateLimitingKey,
+        weak_factory_.GetWeakPtr(), profile->UniqueId()));
   }
-  internal::ReferringAppInfo info =
-      GetReferringAppInfo(web_contents, /*get_webapk_info=*/true);
-  LogGetReferringAppInfoResult(internal::ReferringAppInfoToResult(info));
-  if (!info.has_referring_app() && !info.has_referring_webapk()) {
-    return;
-  }
-  *request_proto.mutable_referring_app_info() = GetReferringAppInfoProto(info);
+
+  return modifications;
 }
 
 void DownloadProtectionDelegateAndroid::FinalizeResourceRequest(
@@ -246,9 +284,7 @@ net::NetworkTrafficAnnotationTag DownloadProtectionDelegateAndroid::
 
 float DownloadProtectionDelegateAndroid::GetAllowlistedDownloadSampleRate()
     const {
-  // TODO(chlily): The allowlist is not implemented yet for Android download
-  // protection.
-  return 0.0;
+  return kAllowlistDownloadSampleRate;
 }
 
 float DownloadProtectionDelegateAndroid::GetUnsupportedFileSampleRate(
@@ -310,6 +346,37 @@ bool DownloadProtectionDelegateAndroid::MayCheckItem(
       // true here to be consistent with the semantics of
       // MayCheckDownloadResult.
       return true;
+  }
+}
+
+void DownloadProtectionDelegateAndroid::PopulateRateLimitingKey(
+    const std::string& profile_id,
+    CollectModificationCallback callback) {
+  if (!rate_limiting_key_manager_) {
+    base::OnceCallback<void(const std::string&)> on_got_safety_net_id =
+        base::BindOnce(
+            &DownloadProtectionDelegateAndroid::InitRateLimitingKeyManager,
+            weak_factory_.GetWeakPtr());
+    base::OnceClosure try_populate_again = base::BindOnce(
+        &DownloadProtectionDelegateAndroid::PopulateRateLimitingKey,
+        weak_factory_.GetWeakPtr(), profile_id, std::move(callback));
+    // Kick off a lookup to get the safety_net_id and initialize the manager,
+    // then try again.
+    SafeBrowsingApiHandlerBridge::GetInstance().StartGetSafetyNetId(
+        std::move(on_got_safety_net_id).Then(std::move(try_populate_again)));
+    return;
+  }
+
+  CHECK(rate_limiting_key_manager_);
+  std::move(callback).Run(base::BindOnce(
+      &PopulateRateLimitingKeyInProto,
+      rate_limiting_key_manager_->GetCurrentRateLimitingKey(profile_id)));
+}
+
+void DownloadProtectionDelegateAndroid::InitRateLimitingKeyManager(
+    const std::string& safety_net_id) {
+  if (!rate_limiting_key_manager_) {
+    rate_limiting_key_manager_.emplace(safety_net_id);
   }
 }
 

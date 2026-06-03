@@ -786,6 +786,9 @@
     "max-content",
     "fit-content",
 
+    // contain-intrinsic-size
+    "from-element",
+
     //
     // text-autospace
     //
@@ -909,7 +912,7 @@
     // <select>. It should be renamed when a standardized name is chosen.
     "base-select",
     "-internal-auto-base",
-    // Used to set the `content` property of the pseudo element "hint" given to
+    // Used to set the `content` property of the pseudo-element "hint" given to
     // elements with partial interest (via `interesttarget` keyboard activation).
     "-internal-partial-interest-content",
 
@@ -1249,11 +1252,6 @@
     // alpha
     // luminance
     "match-source",
-
-    // masonry-auto-tracks
-    // min-content
-    // max-content
-    // auto
 
     // masonry-direction
     // row
@@ -1636,6 +1634,7 @@
     "size",
     "block-size",
     "inline-size",
+    "view-transition",
 
     // @container
     // size

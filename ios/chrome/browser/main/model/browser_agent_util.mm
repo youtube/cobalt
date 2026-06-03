@@ -27,6 +27,7 @@
 #import "ios/chrome/browser/reader_mode/model/reader_mode_browser_agent.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
 #import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_browser_agent.h"
+#import "ios/chrome/browser/sessions/model/ios_chrome_tab_restore_browser_agent.h"
 #import "ios/chrome/browser/sessions/model/live_tab_context_browser_agent.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -37,7 +38,6 @@
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
 #import "ios/chrome/browser/sync/model/sync_error_browser_agent.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
-#import "ios/chrome/browser/tabs/model/closing_web_state_observer_browser_agent.h"
 #import "ios/chrome/browser/tabs/model/synced_window_delegate_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
@@ -81,7 +81,7 @@ void AttachBrowserAgents(Browser* browser) {
   WebNavigationBrowserAgent::CreateForBrowser(browser);
 
   if (!browser_is_off_record) {
-    ClosingWebStateObserverBrowserAgent::CreateForBrowser(browser);
+    IOSChromeTabRestoreBrowserAgent::CreateForBrowser(browser);
   }
 
   SnapshotBrowserAgent::CreateForBrowser(browser);

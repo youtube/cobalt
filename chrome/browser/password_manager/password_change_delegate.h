@@ -47,7 +47,10 @@ class PasswordChangeDelegate {
     // input is required.
     kOtpDetected = 7,
 
-    kMaxValue = kOtpDetected,
+    // Password change was canceled by the user.
+    kCanceled = 8,
+
+    kMaxValue = kCanceled,
   };
 
   // An interface used to notify clients (observers) of delegate state. Register
@@ -63,11 +66,14 @@ class PasswordChangeDelegate {
 
   virtual ~PasswordChangeDelegate() = default;
 
-  // Starts the password change flow (including showing the privacy notice
-  // agreement if necessary).
+  // Starts performing password change by looking for a change password form in
+  // a hidden tab.
   virtual void StartPasswordChangeFlow() = 0;
 
-  // Responds whether password change is ongoing for a given |web_contents|.
+  // Cancels any password change operation.
+  virtual void CancelPasswordChangeFlow() = 0;
+
+  // Responds whether password change is ongoing for a given `web_contents`.
   // This is true both for originator and a tab where password change is
   // performed.
   virtual bool IsPasswordChangeOngoing(content::WebContents* web_contents) = 0;
@@ -79,15 +85,14 @@ class PasswordChangeDelegate {
   // invoked after this function is called as the object will soon be destroyed.
   virtual void Stop() = 0;
 
-  // Restarts password change flow only if the flow failed due to inability to
-  // find change password form. In all other scenarios it's unsafe to restart.
-  virtual void Restart() = 0;
-
-#if !BUILDFLAG(IS_ANDROID)
   // Brings a tab where password change is ongoing. Does nothing if the tab
   // doesn't exist anymore.
   virtual void OpenPasswordChangeTab() = 0;
-#endif
+
+  // Displays password change confirmation bubble. If the user navigated away
+  // from the page, then navigates to password details in password settings.
+  virtual void OpenPasswordDetails() = 0;
+
   // To be executed after a password form was submitted
   virtual void OnPasswordFormSubmission(content::WebContents* web_contents) = 0;
 

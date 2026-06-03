@@ -10,6 +10,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -1276,10 +1277,13 @@ void WidgetBase::ClearTextInputState() {
 }
 
 void WidgetBase::ShowVirtualKeyboardOnElementFocus() {
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS_TVOS)
   // On ChromeOS, virtual keyboard is triggered only when users leave the
   // mouse button or the finger and a text input element is focused at that
   // time. Focus event itself shouldn't trigger virtual keyboard.
+  // On tvOS, the system keyboard takes the entire screen, so we want to show
+  // it only when an input field is explicitly tapped rather than when an
+  // element is focused.
   UpdateTextInputState();
 #else
   ShowVirtualKeyboard();
@@ -1676,6 +1680,14 @@ void WidgetBase::RequestAnimationAfterDelayTimerFired(TimerBase*) {
 
 float WidgetBase::GetOriginalDeviceScaleFactor() const {
   return client_->GetOriginalScreenInfos().current().device_scale_factor;
+}
+
+bool WidgetBase::InsertVisualStateRequest(base::OnceClosure callback) {
+  if (!widget_compositor_) {
+    return false;
+  }
+  widget_compositor_->MainThreadVisualStateRequest(std::move(callback));
+  return true;
 }
 
 void WidgetBase::UpdateSurfaceAndScreenInfo(

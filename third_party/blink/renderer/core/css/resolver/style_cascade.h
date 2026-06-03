@@ -176,6 +176,14 @@ class CORE_EXPORT StyleCascade {
                                  const CSSValue&,
                                  const TreeScope*);
 
+  // Interpret CSSUnparsedDeclarationValue value against a numeric literal
+  // syntax. Used to resolve values in the range syntax of style queries.
+  static const CSSValue* CoerceIntoNumericValue(
+      StyleResolverState&,
+      const CSSUnparsedDeclarationValue&,
+      const TreeScope*,
+      const CSSParserContext&);
+
  private:
   friend class TestCascade;
 
@@ -523,11 +531,6 @@ class CORE_EXPORT StyleCascade {
                                   const CSSParserContext&,
                                   FunctionContext*);
 
-  const CSSValue* CoerceIntoNumericValue(const CSSUnparsedDeclarationValue&,
-                                         const TreeScope*,
-                                         CascadeResolver&,
-                                         const CSSParserContext&,
-                                         FunctionContext*);
   KleeneValue EvalIfTest(const IfCondition& node,
                          const TreeScope* tree_scope,
                          CascadeResolver& resolver,
@@ -546,11 +549,27 @@ class CORE_EXPORT StyleCascade {
                                  const CSSParserContext& context,
                                  FunctionContext*,
                                  bool& is_attr_tainted);
-  bool EvalIfKeyword(const CSSValue& value,
-                     CSSVariableData* query_value,
-                     const CustomProperty& property);
-  bool EvalIfInitial(CSSVariableData* value, const CustomProperty& property);
-  bool EvalIfInherit(CSSVariableData* value, const CustomProperty& property);
+
+  CSSVariableData* GetInitialVariableData(const CustomProperty&);
+  CSSVariableData* GetInheritedVariableData(const CustomProperty&);
+  // For a given variable name (which may either be a local variable or a custom
+  // property), get the value corresponding to the specified CSS-wide keyword.
+  // For example, passing a parameter name of '--x' and keyword_value
+  // of 'inherit' results in the inherited value of '--x'.
+  // Returns nullptr for cascade-dependent keywords (revert/revert-layer).
+  CSSVariableData* GetKeywordVariableData(const AtomicString& name,
+                                          const CSSValue& keyword_value,
+                                          CascadeResolver&,
+                                          const CSSParserContext&,
+                                          FunctionContext*);
+
+  const CSSValue* CoerceIntoNumericValueInternal(
+      const CSSUnparsedDeclarationValue&,
+      const TreeScope*,
+      CascadeResolver&,
+      const CSSParserContext&,
+      FunctionContext*,
+      bool& is_attr_tainted);
 
   // NOTE: The FunctionContext object must be the _caller's_ function context,
   // not the one the function itself sets up. This is because it is used to
@@ -583,12 +602,18 @@ class CORE_EXPORT StyleCascade {
                               FunctionContext*,
                               TokenSequence& out);
 
-  CSSVariableData* ResolveFunctionExpression(CSSVariableData& unresolved,
-                                             const TreeScope*,
-                                             const CSSSyntaxDefinition* type,
-                                             CascadeResolver&,
-                                             const CSSParserContext&,
-                                             FunctionContext*);
+  CSSVariableData* ResolveTypedExpression(CSSVariableData& unresolved,
+                                          const TreeScope*,
+                                          const CSSSyntaxDefinition* type,
+                                          CascadeResolver&,
+                                          const CSSParserContext&,
+                                          FunctionContext*);
+
+  // Find the type associated with a given local variable (or custom property).
+  // The return value may be a pointer directly into a PropertyRegistration;
+  // registrations must remain stable while that pointer is held.
+  const CSSSyntaxDefinition* FindVariableType(const AtomicString& name,
+                                              FunctionContext*);
 
   // Application of Local Variables
   // ==============================
@@ -671,8 +696,7 @@ class CORE_EXPORT StyleCascade {
   bool ValidateFallback(const CustomProperty&, StringView) const;
   // Marks the CustomProperty as referenced by something. Needed to avoid
   // animating these custom properties on the compositor.
-  void MarkIsReferenced(const CSSProperty& referencer,
-                        const CustomProperty& referenced);
+  void MarkIsReferenced(const CustomProperty& referenced);
   // Marks a CSSProperty as having a reference to a custom property. Needed to
   // disable the matched property cache in some cases.
   void MarkHasVariableReference(const CSSProperty&);

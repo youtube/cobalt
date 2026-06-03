@@ -20,15 +20,23 @@ static_library("test_support") {
     "//components/content_settings/core/browser",
     "//components/prefs",
     "//components/signin/public/identity_manager",
+    "//components/signin/public/identity_manager:test_support",
     "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/browser:test_support",
     "//components/supervised_user/core/common",
     "//components/supervised_user/test_support",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
   if (is_android) {
-    sources += [ "android/supervised_user_settings_test_bridge.cc" ]
+    sources += [
+      "android/supervised_user_preferences_test_bridge.cc",
+      "android/supervised_user_settings_test_bridge.cc",
+    ]
     deps += [
       ":test_support_jni_headers",
       "//components/signin/public/identity_manager:test_support",
+      "//components/supervised_user/core/browser/android:content_filters_observer_bridge",
       "//services/network:test_support",
     ]
   }
@@ -126,15 +134,37 @@ if (is_android) {
     sources = [ "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserServicePlatformDelegate.java" ]
   }
 
+  generate_jni("supervised_user_service_bridge_jni_headers") {
+    sources = [ "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserServiceBridge.java" ]
+  }
+
+  android_library("supervised_user_service_bridge_java") {
+    srcjar_deps = [ ":supervised_user_service_bridge_jni_headers" ]
+    sources = [ "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserServiceBridge.java" ]
+    deps = [
+      "//base:base_java",
+      "//build/android:build_java",
+      "//chrome/browser/profiles/android:java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
+    ]
+  }
+
   generate_jni("test_support_jni_headers") {
     testonly = true
-    sources = [ "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestBridge.java" ]
+    sources = [
+      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserPreferencesTestBridge.java",
+      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestBridge.java",
+    ]
   }
 
   android_library("test_support_java") {
     testonly = true
     srcjar_deps = [ ":test_support_jni_headers" ]
-    sources = [ "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestBridge.java" ]
+    sources = [
+      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserPreferencesTestBridge.java",
+      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestBridge.java",
+    ]
     deps = [
       ":test_support_jni_headers",
       "//build/android:build_java",
@@ -150,7 +180,7 @@ if (is_android) {
     testonly = true
     resources_package = "org.chromium.chrome.browser.supervised_user"
     sources = [
-      "android/javatests/src/org/chromium/chrome/browser/supervised_user/IncognitoSignInInteractionTest.java",
+      "android/javatests/src/org/chromium/chrome/browser/supervised_user/IncognitoInteractionTest.java",
       "android/javatests/src/org/chromium/chrome/browser/supervised_user/SupervisedUserCriticalJourneysIntegrationTest.java",
       "android/javatests/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestUtils.java",
       "android/javatests/src/org/chromium/chrome/browser/supervised_user/WebsiteParentApprovalNativesTest.java",
@@ -210,5 +240,25 @@ if (is_android) {
       "//third_party/androidx:androidx_test_runner_java",
       "//third_party/junit:junit",
     ]
+  }
+
+  if (is_android) {
+    source_set("android_browser_tests") {
+      testonly = true
+      defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+      sources = [ "supervised_user_navigation_observer_android_browsertest.cc" ]
+      deps = [
+        "//base",
+        "//chrome/browser/profiles:profile",
+        "//chrome/browser/sync:sync",
+        "//chrome/test:test_support",
+        "//components/messages/android/test:test_support_cpp",
+        "//components/supervised_user/core/browser:test_support",
+        "//components/supervised_user/core/browser/android:content_filters_observer_bridge",
+        "//content/test:test_support",
+        "//net:test_support",
+        "//net/android:net_java_test_support_enums_srcjar",
+      ]
+    }
   }
 }

@@ -2,8 +2,6 @@ var counter = 0;
 var interacted;
 var timestamps = [];
 const MAX_CLICKS = 50;
-// Entries for one hard navigation + 50 soft navigations.
-const MAX_PAINT_ENTRIES = 51;
 const URL = 'foobar.html';
 const readValue = (value, defaultValue) => {
   return value !== undefined ? value : defaultValue;
@@ -24,7 +22,7 @@ const withTimeoutMessage =
 // Helper method for use with history.back(), when we want to be
 // sure that its asynchronous effect has completed.
 const waitForUrlToEndWith = async (url) => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     window.addEventListener('popstate', () => {
       if (location.href.endsWith(url)) {
         resolve();
@@ -44,7 +42,7 @@ const testSoftNavigation = options => {
   const clicks = readValue(options.clicks, 1);
   const extraValidations = readValue(options.extraValidations, () => {});
   const testName = options.testName;
-  const pushUrl = readValue(options.pushUrl, true);
+  const pushUrl = readValue(options.pushUrl, URL);
   const eventType = readValue(options.eventType, 'click');
   const interactionFunc = options.interactionFunc;
   const eventPrepWork = options.eventPrepWork;
@@ -67,7 +65,7 @@ const testSoftNavigation = options => {
       interact(link, interactionFunc);
 
       const navigation_id = await withTimeoutMessage(
-          t, soft_nav_promise, 'Timed out waiting for soft navigation');
+          t, soft_nav_promise, 'Timed out waiting for soft navigation', 3000);
       if (!first_navigation_id) {
         first_navigation_id = navigation_id;
       }
@@ -113,35 +111,9 @@ const testNavigationApi = (testName, navigateEventHandler, link) => {
   }, testName);
 };
 
-const testSoftNavigationNotDetected = options => {
-  promise_test(async t => {
-    const preClickLcp = await getLcpEntries();
-    options.eventTarget.addEventListener(
-        options.eventName, options.eventHandler);
-    interact(options.link);
-    await new Promise((resolve, reject) => {
-      new PerformanceObserver(() => {
-        reject('Soft navigation should not be triggered');
-      }).observe({type: 'soft-navigation', buffered: true});
-      t.step_timeout(resolve, 1000);
-    });
-    if (document.softNavigations) {
-      assert_equals(
-          document.softNavigations, 0, 'Soft Navigation not detected');
-    }
-    const postClickLcp = await getLcpEntries();
-    assert_equals(
-        preClickLcp.length, postClickLcp.length, 'No LCP entries accumulated');
-  }, options.testName);
-};
-
 const runEntryValidations = async (
     preClickLcp, first_navigation_id, entries_expected_number = 2,
     validate = null) => {
-  await validatePaintEntries(
-      'first-contentful-paint', entries_expected_number, first_navigation_id);
-  await validatePaintEntries(
-      'first-paint', entries_expected_number, first_navigation_id);
   const postClickLcp = await getLcpEntries();
   const postClickLcpWithoutSoftNavs = await getLcpEntriesWithoutSoftNavs();
   assert_greater_than(
@@ -233,7 +205,7 @@ const validateSoftNavigationEntry =
   for (let i = 0; i < entries.length; ++i) {
     const entry = entries[i];
     assert_true(
-        entry.name.includes(pushUrl ? URL : document.location.href),
+        entry.name.includes(pushUrl ? pushUrl : document.location.href),
         'The soft navigation name is properly set');
     const entryTimestamp = entry.startTime;
     assert_less_than_equal(
@@ -256,50 +228,6 @@ const validateSoftNavigationEntry =
       performance.getEntriesByType('soft-navigation').length, expectedClicks,
       'Performance timeline got an entry');
   await extraValidations(entries, options);
-};
-
-const validatePaintEntries =
-    async (type, entries_number, first_navigation_id) => {
-  if (!performance.softNavPaintMetricsSupported) {
-    return;
-  }
-  const expected_entries_number = Math.min(entries_number, MAX_PAINT_ENTRIES);
-  const entries = await new Promise(resolve => {
-    const entries = [];
-    new PerformanceObserver(list => {
-      entries.push(...list.getEntriesByName(type));
-      if (entries.length >= expected_entries_number) {
-        resolve(entries);
-      }
-    }).observe({
-      type: 'paint',
-      buffered: true,
-      includeSoftNavigationObservations: true
-    });
-  });
-  const entries_without_softnavs = await new Promise(resolve => {
-    new PerformanceObserver(list => {
-      resolve(list.getEntriesByName(type));
-    }).observe({type: 'paint', buffered: true});
-  });
-  assert_equals(
-      entries.length, expected_entries_number,
-      `There are ${entries_number} entries for ${type}`);
-  assert_equals(
-      entries_without_softnavs.length, 1,
-      `There is one non-softnav entry for ${type}`);
-  if (entries_number > 1) {
-    assert_not_equals(
-        entries[0].startTime, entries[1].startTime,
-        'Entries have different timestamps for ' + type);
-  }
-  if (expected_entries_number > entries_without_softnavs.length) {
-    assert_equals(
-        entries[entries_without_softnavs.length].navigationId,
-        first_navigation_id,
-        'First paint entry should have the same navigation ID as the last soft ' +
-            'navigation entry');
-  }
 };
 
 const waitInitialLCP =

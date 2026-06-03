@@ -195,6 +195,7 @@ source_set("webrtc") {
     deps += [
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/web_applications",
       "//extensions/browser",
       "//extensions/browser/kiosk",
       "//extensions/common",
@@ -238,6 +239,10 @@ source_set("webrtc") {
     sources += [
       "desktop_media_list_ash.cc",
       "desktop_media_list_ash.h",
+      "multi_capture/multi_capture_usage_indicator_service.cc",
+      "multi_capture/multi_capture_usage_indicator_service.h",
+      "multi_capture/multi_capture_usage_indicator_service_factory.cc",
+      "multi_capture/multi_capture_usage_indicator_service_factory.h",
       "window_icon_util_chromeos.cc",
     ]
     deps += [
@@ -254,8 +259,11 @@ source_set("webrtc") {
       "//chrome/browser/chromeos/policy/dlp",
       "//chrome/browser/ui/ash/keyboard",
       "//chrome/browser/ui/ash/media_client",
+      "//chrome/browser/web_applications:web_applications",
+      "//chromeos/ash/components/browser_context_helper",
       "//chromeos/ash/components/system",
       "//components/user_manager",
+      "//components/webapps/isolated_web_apps",
     ]
     allow_circular_includes_from = [
       "//chrome/browser/ash/policy/handlers",

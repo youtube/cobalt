@@ -23,9 +23,7 @@ try_.defaults.set(
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 2,
     orchestrator_siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
-    reclient_enabled = False,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_linking = True,
 )
@@ -80,23 +78,6 @@ try_.builder(
         "size_threshold_mib": 300,
     },
     tryjob = try_.job(),
-)
-
-try_.builder(
-    name = "linux-blink-leak-rel",
-    mirrors = [
-        "ci/linux-blink-leak-rel",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "release_try_builder",
-            "remoteexec",
-            "linux",
-            "x64",
-        ],
-    ),
-    contact_team_email = "chrome-sanitizer-builder-owners@google.com",
-    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
 try_.builder(
@@ -563,8 +544,7 @@ try_.builder(
 
 try_.builder(
     name = "linux-wayland-mutter-rel",
-    # TODO(crbug.com/401284929): Uncomment when adding to CQ.
-    # branch_selector = branches.selector.LINUX_BRANCHES,
+    branch_selector = branches.selector.LINUX_BRANCHES,
     mirrors = [
         "ci/Linux Builder (Wayland)",
         "linux-wayland-mutter-rel-tests",
@@ -617,6 +597,16 @@ try_.builder(
         "ci/linux-blink-asan-rel",
     ],
     gn_args = "ci/linux-blink-asan-rel",
+    contact_team_email = "chrome-sanitizer-builder-owners@google.com",
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
+    name = "linux-blink-leak-rel",
+    mirrors = [
+        "ci/linux-blink-leak-rel",
+    ],
+    gn_args = "ci/linux-blink-leak-rel",
     contact_team_email = "chrome-sanitizer-builder-owners@google.com",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )

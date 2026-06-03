@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_STYLE_SHAPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_STYLE_SHAPE_H_
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <variant>
@@ -103,11 +104,12 @@ class StyleShape final : public BasicShape {
   struct ArcSegment : public SegmentWithTargetPoint<Type> {
     double angle;
     LengthSize radius;
+    Length direction_agnostic_radius;
     bool large;
     bool sweep;
-    bool has_direction_agnostic_radius;
     bool operator==(const ArcSegment& other) const = default;
   };
+
   struct ArcToSegment : public ArcSegment<SVGPathSegType::kPathSegArcAbs> {};
   struct ArcBySegment : public ArcSegment<SVGPathSegType::kPathSegArcRel> {};
 

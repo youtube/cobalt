@@ -677,8 +677,8 @@ bool ResourceLoader::WillFollowRedirect(
                              new_request->GetRedirectInfo());
 
     if (Context().CalculateIfAdSubresource(
-            *new_request, std::nullopt /* alias_url */, resource_type,
-            options.initiator_info)) {
+            *new_request, /*alias_url=*/std::nullopt, resource_type,
+            options.initiator_info, /*out_rule=*/nullptr)) {
       new_request->SetIsAdResource();
     }
 
@@ -1512,11 +1512,11 @@ ResourceLoader::CheckResponseNosniff(
     fetcher_->GetConsoleLogger().AddConsoleMessage(
         mojom::ConsoleMessageSource::kSecurity,
         mojom::ConsoleMessageLevel::kError,
-        WTF::StrCat({"Refused to apply style from '",
-                     response.CurrentRequestUrl().ElidedString(),
-                     "' because its MIME type ('", mime_type,
-                     "') is not a supported stylesheet MIME type, and strict "
-                     "MIME checking is enabled."}));
+        StrCat({"Refused to apply style from '",
+                response.CurrentRequestUrl().ElidedString(),
+                "' because its MIME type ('", mime_type,
+                "') is not a supported stylesheet MIME type, and strict "
+                "MIME checking is enabled."}));
     return ResourceRequestBlockedReason::kContentType;
   }
   // TODO(mkwst): Move the 'nosniff' bit of 'AllowedByNosniff::MimeTypeAsScript'
@@ -1623,9 +1623,9 @@ bool ResourceLoader::ShouldBlockRequestBasedOnSubresourceFilterDnsAliasCheck(
     }
 
     if (!resource_->GetResourceRequest().IsAdResource() &&
-        Context().CalculateIfAdSubresource(resource_->GetResourceRequest(),
-                                           alias_url, resource_type,
-                                           options.initiator_info)) {
+        Context().CalculateIfAdSubresource(
+            resource_->GetResourceRequest(), alias_url, resource_type,
+            options.initiator_info, /*out_rule=*/nullptr)) {
       resource_->SetIsAdResource();
       cname_alias_info_for_testing_.was_ad_tagged_based_on_alias = true;
     }

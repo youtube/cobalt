@@ -248,11 +248,13 @@ public class QuickDeleteControllerTest {
         TransitAsserts.assertFinalDestination(clearBrowsingDataSettings);
 
         // Return to a PageStation for InitialStateRule to reset properly.
-        clearBrowsingDataSettings.pressBack(
-                WebPageStation.newBuilder()
-                        .withIsOpeningTabs(0)
-                        .withTabAlreadySelected(secondTab)
-                        .build());
+        clearBrowsingDataSettings
+                .pressBackTo()
+                .arriveAt(
+                        WebPageStation.newBuilder()
+                                .withIsOpeningTabs(0)
+                                .withTabAlreadySelected(secondTab)
+                                .build());
     }
 
     @Test
@@ -266,12 +268,12 @@ public class QuickDeleteControllerTest {
         WebPageStation realPage =
                 mSecondPage.loadPageProgrammatically(
                         "https://www.google.com/", WebPageStation.newBuilder());
-        assertEquals(1, realPage.getActivity().getCurrentTabModel().getCount());
+        assertEquals(1, realPage.getTabModel().getCount());
 
         QuickDeleteDialogFacility dialog = realPage.openRegularTabAppMenu().clearBrowsingData();
         mTabSwitcher = dialog.confirmDelete().first;
 
-        assertEquals(1, realPage.getActivity().getCurrentTabModel().getCount());
+        assertEquals(1, realPage.getTabModel().getCount());
         histogramWatcher.assertExpected();
     }
 

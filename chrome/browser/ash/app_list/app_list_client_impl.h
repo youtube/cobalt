@@ -19,11 +19,11 @@
 #include "ash/public/cpp/app_list/app_list_metrics.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/app_list/app_list_controller_delegate.h"
-#include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_browser_delegate.h"
 #include "components/feature_engagement/public/tracker.h"
 #include "components/search_engines/template_url_service.h"
@@ -32,8 +32,7 @@
 #include "components/user_manager/user_manager.h"
 #include "ui/base/models/image_model.h"
 #include "ui/display/types/display_constants.h"
-
-class ProfileManager;
+#include "ui/gfx/image/image.h"
 
 namespace app_list {
 class AppListSurveyHandler;
@@ -49,10 +48,10 @@ class Profile;
 class AppListClientImpl
     : public ash::AppListClient,
       public AppListControllerDelegate,
+      public user_manager::UserManager::Observer,
       public user_manager::UserManager::UserSessionStateObserver,
       public session_manager::SessionManagerObserver,
-      public TemplateURLServiceObserver,
-      public ProfileManagerObserver {
+      public TemplateURLServiceObserver {
  public:
   // Indicates the launcher usage state during the session started by a new user
   // (i.e. the session completing the OOBE flow) but before any account
@@ -75,7 +74,8 @@ class AppListClientImpl
     kMaxValue = kNotUsedBeforeSwitchingAccounts,
   };
 
-  AppListClientImpl();
+  // `user_manage` must be non-null and must outlive `this`.
+  explicit AppListClientImpl(user_manager::UserManager* user_manager);
   AppListClientImpl(const AppListClientImpl&) = delete;
   AppListClientImpl& operator=(const AppListClientImpl&) = delete;
   ~AppListClientImpl() override;
@@ -126,10 +126,10 @@ class AppListClientImpl
       const std::vector<std::string>& apps_below_the_fold,
       bool is_apps_collections_page) override;
   bool HasReordered() override;
-  void GetAssistantNewEntryPointEligibility(
-      GetAssistantNewEntryPointEligibilityCallback callback) override;
-  std::optional<std::string> GetAssistantNewEntryPointName() override;
-  ui::ImageModel GetGeminiIcon() override;
+  gfx::Image GetGeminiIcon() override;
+
+  // user_manager::UserManager::Observer:
+  void OnUserProfileCreated(const user_manager::User& user) override;
 
   // user_manager::UserManager::UserSessionStateObserver:
   void ActiveUserChanged(user_manager::User* active_user) override;
@@ -149,10 +149,6 @@ class AppListClientImpl
                const GURL& url,
                ui::PageTransition transition,
                WindowOpenDisposition disposition) override;
-
-  // ProfileManagerObserver:
-  void OnProfileAdded(Profile* profile) override;
-  void OnProfileManagerDestroying() override;
 
   // Associates this client with the current active user, called when this
   // client is accessed or active user is changed.
@@ -235,19 +231,7 @@ class AppListClientImpl
       ash::AppListLaunchedFrom launched_from,
       bool is_app_above_the_fold);
 
-  // Called when Assistant new entry point eligibility value is ready to read.
-  // `profile` is used to check if a profile has been switched during the async
-  // call.
-  void OnAssistantNewEntryPointEligibilityReady(
-      Profile* profile,
-      GetAssistantNewEntryPointEligibilityCallback callback);
-
-  // Returns `AssistantBrowserDelegate` for the purpose of new entry point. This
-  // checks if the current profile is a primary profile or not as the new entry
-  // point is available only for a primary profile. `nullptr` is returned if
-  // it's not available, e.g., non-primary profile.
-  ash::assistant::AssistantBrowserDelegate*
-  GetAssistantBrowserDelegateForNewEntryPoint();
+  const raw_ref<user_manager::UserManager> user_manager_;
 
   // Unowned pointer to the associated profile. May change if SetProfile is
   // called.
@@ -300,10 +284,9 @@ class AppListClientImpl
 
   std::unique_ptr<app_list::AppListSurveyHandler> survey_handler_;
 
-  // The profile manager is observed in order to ensure that the AppList has the
-  // necessary dependencies to identify new users.
-  base::ScopedObservation<ProfileManager, ProfileManagerObserver>
-      profile_manager_observation_{this};
+  base::ScopedObservation<user_manager::UserManager,
+                          user_manager::UserManager::Observer>
+      user_manager_observation_{this};
 
   base::WeakPtrFactory<AppListClientImpl> weak_ptr_factory_{this};
 };

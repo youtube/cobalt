@@ -77,19 +77,6 @@ bool AllowedToPropagateToParent(
   return !from_frame.GetDocument()->IsVerticalScrollEnforced();
 }
 
-ALWAYS_INLINE ScrollableArea* GetScrollableAreaForLayoutBox(
-    const LayoutBox& box,
-    const mojom::blink::ScrollIntoViewParamsPtr& params) {
-  if (box.IsScrollContainer() && !box.IsLayoutView()) {
-    return box.GetScrollableArea();
-  } else if (!box.ContainingBlock()) {
-    return params->make_visible_in_visual_viewport
-               ? box.GetFrameView()->GetScrollableArea()
-               : box.GetFrameView()->LayoutViewport();
-  }
-  return nullptr;
-}
-
 // Helper to return the parent LayoutBox, crossing local frame boundaries, that
 // a scroll should bubble up to or nullptr if the local root has been reached.
 // The return optional will be empty if the scroll is blocked from bubbling to
@@ -171,7 +158,8 @@ std::optional<PhysicalRect> PerformBubblingScrollIntoView(
     mojom::blink::ScrollIntoViewParamsPtr& params,
     const PhysicalBoxStrut& scroll_margin,
     const LayoutObject* container,
-    bool from_remote_frame) {
+    bool from_remote_frame,
+    bool include_self) {
   DCHECK(params->type == mojom::blink::ScrollType::kProgrammatic ||
          params->type == mojom::blink::ScrollType::kUser);
 
@@ -215,8 +203,11 @@ std::optional<PhysicalRect> PerformBubblingScrollIntoView(
       break;
     }
 
-    ScrollableArea* area_to_scroll =
-        GetScrollableAreaForLayoutBox(*current_box, params);
+    ScrollableArea* area_to_scroll = nullptr;
+    if (include_self || current_box != &box) {
+      area_to_scroll = scroll_into_view_util::GetScrollableAreaForLayoutBox(
+          *current_box, params->make_visible_in_visual_viewport);
+    }
     if (area_to_scroll) {
       ScrollOffset scroll_before = area_to_scroll->GetScrollOffset();
 
@@ -297,12 +288,11 @@ std::optional<PhysicalRect> PerformBubblingScrollIntoView(
       // requested container, stop scrolling.
       // Additionally stop scrolling if we would continue on to scroll a
       // different frame.
-      // TODO(crbug.com/365913982): We shouldn't scroll the scroll container
-      // on which scrollIntoView was called, which would obviate the need
-      // for the check that area_to_scroll is not the target.
       // TODO(crbug.com/416730010): Revisit this if we allow passing a
       // container from a different document.
-      if ((area_to_scroll && area_to_scroll->GetLayoutBox() != &box &&
+      if ((area_to_scroll &&
+           (RuntimeEnabledFeatures::ScrollIntoViewSelfScrollFixEnabled() ||
+            current_box != &box) &&
            stop_at.Contains(current_box)) ||
           (next_box && next_box->GetFrame() != current_box->GetFrame())) {
         return std::nullopt;
@@ -333,14 +323,33 @@ std::optional<PhysicalRect> PerformBubblingScrollIntoView(
 
 namespace scroll_into_view_util {
 
+ScrollableArea* GetScrollableAreaForLayoutBox(
+    const LayoutBox& box,
+    bool make_visible_in_visual_viewport) {
+  if (box.IsScrollContainer() && !box.IsLayoutView()) {
+    return box.GetScrollableArea();
+  } else if (!box.ContainingBlock()) {
+    return make_visible_in_visual_viewport
+               ? box.GetFrameView()->GetScrollableArea()
+               : box.GetFrameView()->LayoutViewport();
+  }
+  return nullptr;
+}
+
 void ScrollRectToVisible(const LayoutObject& layout_object,
                          const PhysicalRect& absolute_rect,
                          mojom::blink::ScrollIntoViewParamsPtr params,
                          const LayoutObject* container,
-                         bool from_remote_frame) {
+                         bool from_remote_frame,
+                         bool include_self) {
   LayoutBox* enclosing_box = layout_object.EnclosingBox();
   if (!enclosing_box)
     return;
+  // If we've already skipped the layout object, we shouldn't skip scrolling
+  // an ancestor scrolling container.
+  if (layout_object != enclosing_box) {
+    include_self = true;
+  }
 
   LocalFrame* frame = layout_object.GetFrame();
 
@@ -355,7 +364,7 @@ void ScrollRectToVisible(const LayoutObject& layout_object,
   std::optional<PhysicalRect> updated_absolute_rect =
       PerformBubblingScrollIntoView(*enclosing_box, absolute_rect_to_scroll,
                                     params, scroll_margin, container,
-                                    from_remote_frame);
+                                    from_remote_frame, include_self);
 
   // If the scroll into view stopped early (i.e. before the local root),
   // there's no need to continue bubbling or finishing a scroll focused

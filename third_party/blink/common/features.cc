@@ -10,6 +10,7 @@
 #include "base/time/time.h"
 #include "build/android_buildflags.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "build/chromecast_buildflags.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/forcedark/forcedark_switches.h"
@@ -56,11 +57,11 @@ BASE_FEATURE(kComputePressureRateObfuscationMitigation,
 
 BASE_FEATURE(kCrashReportingAPIMoreContextData,
              "CrashReportingAPIMoreContextData",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOverrideCrashReportingEndpoint,
              "OverrideCrashReportingEndpoint",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLowerHighResolutionTimerThreshold,
              "LowerHighResolutionTimerThreshold",
@@ -651,7 +652,7 @@ BASE_FEATURE_PARAM(bool,
                    kDelayAsyncScriptExecutionOptOutHighFetchPriorityHintParam,
                    &kDelayAsyncScriptExecution,
                    "delay_async_exec_opt_out_high_fetch_priority_hint",
-                   false);
+                   true);
 
 BASE_FEATURE(kDelayLayerTreeViewDeletionOnLocalSwap,
              "DelayLayerTreeViewDeletionOnLocalSwap",
@@ -686,10 +687,6 @@ BASE_FEATURE(kDisableArrayBufferSizeLimitsForTesting,
 BASE_FEATURE(kDiscardInputEventsToRecentlyMovedFrames,
              "DiscardInputEventsToRecentlyMovedFrames",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kDisableThirdPartyStoragePartitioning3DeprecationTrial,
-             "DisableThirdPartyStoragePartitioning3DeprecationTrial",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Drop input events at the browser process until the process receives the first
 // signal that the renderer has sent a frame to cc (https://crbug.com/40057499).
@@ -731,7 +728,13 @@ BASE_FEATURE_ENUM_PARAM(
 // window's top-level site.
 BASE_FEATURE(kEnforceNoopenerOnBlobURLNavigation,
              "EnforceNoopenerOnBlobURLNavigation",
+// TODO(crbug.com/421810301): Temporarily disable this feature on ChromeOS due
+// to a regression.
+#if BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
              base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource,
              "EventTimingIgnorePresentationTimeFromUnexpectedFrameSource",
@@ -789,7 +792,7 @@ BASE_FEATURE(kFencedFramesAutomaticBeaconCredentials,
 
 BASE_FEATURE(kFencedFramesCrossOriginAutomaticBeaconData,
              "FencedFramesCrossOriginAutomaticBeaconData",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls functionality related to network revocation/local unpartitioned
 // data access in fenced frames.
@@ -1105,6 +1108,10 @@ BASE_FEATURE_ENUM_PARAM(ForceDarkImageClassifier,
                         ForceDarkImageClassifier::kUseBlinkSettings,
                         &forcedark_image_classifier_policy_options);
 
+BASE_FEATURE(kFrameMetadataObserver,
+             "FrameMetadataObserver",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables the frequency capping for detecting large sticky ads.
 // Large-sticky-ads are those ads that stick to the bottom of the page
 // regardless of a user’s efforts to scroll, and take up more than 30% of the
@@ -1229,17 +1236,6 @@ BASE_FEATURE_ENUM_PARAM(IsolateSandboxedIframesGrouping,
                         "grouping",
                         IsolateSandboxedIframesGrouping::kPerOrigin,
                         &isolated_sandboxed_iframes_grouping_types);
-
-// Serves as killswitch for migrating CanvasRenderingContext2D::IsPaintable()
-// from checking the existence of the canvas' Canvas2DLayerBridge to checking
-// for the existence of its resource provider as well as the associated
-// necessary change of changing GetOrCreateCanvasResourceProvider() away
-// from using GetOrCreateCanvas2DLayerBridge() for 2D contexts.
-// NOTE: Do not check this feature directly: Check
-// CheckProviderInCanvas2DRenderingContextIsPaintable() instead.
-BASE_FEATURE(kIsPaintableChecksResourceProviderInsteadOfBridge,
-             "IsPaintableChecksResourceProviderInsteadOfBridge",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kKalmanDirectionCutOff,
              "KalmanDirectionCutOff",
@@ -1800,13 +1796,18 @@ BASE_FEATURE(kLowLatencyWebGLImageChromium,
 
 BASE_FEATURE(kLowPriorityAsyncScriptExecution,
              "LowPriorityAsyncScriptExecution",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kTimeoutForLowPriorityAsyncScriptExecution,
                    &kLowPriorityAsyncScriptExecution,
                    "low_pri_async_exec_timeout",
-                   base::Milliseconds(0));
+                   base::Seconds(1));
 
 // kLowPriorityAsyncScriptExecution will be disabled after document elapsed more
 // than |low_pri_async_exec_feature_limit|. Zero value means no limit.
@@ -1814,20 +1815,20 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    kLowPriorityAsyncScriptExecutionFeatureLimitParam,
                    &kLowPriorityAsyncScriptExecution,
                    "low_pri_async_exec_feature_limit",
-                   base::Seconds(0));
+                   base::Seconds(3));
 
 // kLowPriorityAsyncScriptExecution will be applied only for cross site scripts.
 BASE_FEATURE_PARAM(bool,
                    kLowPriorityAsyncScriptExecutionCrossSiteOnlyParam,
                    &kLowPriorityAsyncScriptExecution,
                    "low_pri_async_exec_cross_site_only",
-                   false);
+                   true);
 
 BASE_FEATURE_PARAM(bool,
                    kLowPriorityAsyncScriptExecutionMainFrameOnlyParam,
                    &kLowPriorityAsyncScriptExecution,
                    "low_pri_async_exec_main_frame_only",
-                   false);
+                   true);
 
 // kLowPriorityAsyncScriptExecution will exclude scripts that influence LCP
 // element.
@@ -1845,27 +1846,13 @@ BASE_FEATURE_PARAM(bool,
                    "low_pri_async_exec_disable_when_lcp_not_in_html",
                    false);
 
-// kLowPriorityAsyncScriptExecution will use the specified priority as a lower
-// task priority.
-const base::FeatureParam<AsyncScriptPrioritisationType>::Option
-    async_script_prioritisation_types[] = {
-        {AsyncScriptPrioritisationType::kHigh, "high"},
-        {AsyncScriptPrioritisationType::kLow, "low"},
-        {AsyncScriptPrioritisationType::kBestEffort, "best_effort"},
-};
-BASE_FEATURE_ENUM_PARAM(AsyncScriptPrioritisationType,
-                        kLowPriorityAsyncScriptExecutionLowerTaskPriorityParam,
-                        &kLowPriorityAsyncScriptExecution,
-                        "low_pri_async_exec_lower_task_priority",
-                        AsyncScriptPrioritisationType::kBestEffort,
-                        &async_script_prioritisation_types);
 // kLowPriorityAsyncScriptExecution will change evaluation schedule for the
 // specified target.
 BASE_FEATURE_ENUM_PARAM(AsyncScriptExperimentalSchedulingTarget,
                         kLowPriorityAsyncScriptExecutionTargetParam,
                         &kLowPriorityAsyncScriptExecution,
                         "low_pri_async_exec_target",
-                        AsyncScriptExperimentalSchedulingTarget::kBoth,
+                        AsyncScriptExperimentalSchedulingTarget::kNonAds,
                         &async_script_experimental_scheduling_targets);
 // If true, kLowPriorityAsyncScriptExecution will not change the script
 // evaluation timing for the non parser inserted script.
@@ -1881,7 +1868,7 @@ BASE_FEATURE_PARAM(bool,
                    kLowPriorityAsyncScriptExecutionExcludeDocumentWriteParam,
                    &kLowPriorityAsyncScriptExecution,
                    "low_pri_async_exec_exclude_document_write",
-                   false);
+                   true);
 
 // kLowPriorityAsyncScriptExecution will be opted-out when FetchPriorityHint is
 // low.
@@ -1906,7 +1893,7 @@ BASE_FEATURE_PARAM(
     kLowPriorityAsyncScriptExecutionOptOutHighFetchPriorityHintParam,
     &kLowPriorityAsyncScriptExecution,
     "low_pri_async_exec_opt_out_high_fetch_priority_hint",
-    false);
+    true);
 
 BASE_FEATURE(kMixedContentAutoupgrade,
              "AutoupgradeMixedContent",
@@ -1992,7 +1979,7 @@ BASE_FEATURE(kNoThrottlingVisibleAgent,
 
 BASE_FEATURE(kNoThrowForCSPBlockedWorker,
              "NoThrowForCSPBlockedWorker",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOpenAllUrlsOrFilesOnDrop,
              "OpenAllUrlsOrFilesOnDrop",
@@ -2033,12 +2020,6 @@ BASE_FEATURE_PARAM(bool,
                    "exclude-canvas-font-cache",
                    false);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
-
-// When enabled, this flag partitions the :visited link hashtable by
-// <link url, top-level site, frame origin>
-BASE_FEATURE(kPartitionVisitedLinkDatabase,
-             "PartitionVisitedLinkDatabase",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of the PaintCache for Path2D objects that are rasterized
 // out of process.  Has no effect when kCanvasOopRasterization is disabled.
@@ -2258,19 +2239,6 @@ BASE_FEATURE_PARAM(bool,
                    "rest",
                    false);
 
-BASE_FEATURE(kProduceCompileHints2,
-             "ProduceCompileHints2",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(double,
-                   kProduceCompileHintsNoiseLevel,
-                   &kProduceCompileHints2,
-                   "noise-probability",
-                   0.5);
-BASE_FEATURE_PARAM(double,
-                   kProduceCompileHintsDataProductionLevel,
-                   &kProduceCompileHints2,
-                   "data-production-probability",
-                   0.005);
 BASE_FEATURE(kForceProduceCompileHints,
              "ForceProduceCompileHints",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2309,6 +2277,18 @@ BASE_FEATURE(kReleaseResourceStrongReferencesOnMemoryPressure,
 BASE_FEATURE(kReleaseResourceDecodedDataOnMemoryPressure,
              "ReleaseResourceDecodedDataOnMemoryPressure",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Flag guard for removing usage of the CommitNavigationParams.redirects
+// array of URLs in the renderer process.
+BASE_FEATURE(kRemoveCommitRedirectUrlsArray,
+             "RemoveCommitRedirectUrlsArray",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Disables sending the Purpose: "prefetch" header for prefetches and
+// prerenders.
+BASE_FEATURE(kRemovePurposeHeaderForPrefetch,
+             "RemovePurposeHeaderForPrefetch",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRenderBlockingFonts,
              "RenderBlockingFonts",
@@ -2480,6 +2460,21 @@ BASE_FEATURE_PARAM(std::string,
                    &kServiceWorkerSyntheticResponse,
                    "allowed_urls",
                    "");
+
+// 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
+const base::FeatureParam<SoftNavigationHeuristicsMode>::Option
+    kSoftNavigationHeuristicsModes[] = {
+        {SoftNavigationHeuristicsMode::kBasic, "basic"},
+        {SoftNavigationHeuristicsMode::kAdvancedPaintAttribution,
+         "advanced_paint_attribution"},
+        {SoftNavigationHeuristicsMode::kPrePaintBasedAttribution,
+         "pre_paint_based_attribution"}};
+BASE_FEATURE_ENUM_PARAM(SoftNavigationHeuristicsMode,
+                        kSoftNavigationHeuristicsModeParam,
+                        &kSoftNavigationHeuristics,
+                        "mode",
+                        SoftNavigationHeuristicsMode::kBasic,
+                        &kSoftNavigationHeuristicsModes);
 
 // If enabled, force renderer process foregrounded from CommitNavigation to
 // DOMContentLoad (crbug/351953350).
@@ -2680,6 +2675,10 @@ BASE_FEATURE(kWebRtcAudioSinkUseTimestampAligner,
              "WebRtcAudioSinkUseTimestampAligner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebRtcPqcForDtls,
+             "WebRtcPqcForDtls",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable borderless mode for desktop PWAs. go/borderless-mode
 BASE_FEATURE(kWebAppBorderless,
              "WebAppBorderless",
@@ -2691,7 +2690,7 @@ BASE_FEATURE(kWebAppBorderless,
 // https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
 BASE_FEATURE(kWebAppEnableScopeExtensions,
              "WebAppEnableScopeExtensions",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls scope extensions feature in web apps. Enables parsing of "site"
 // entries in "scope_extensions" field in web app manifests. See explainer for
@@ -2738,19 +2737,6 @@ BASE_FEATURE_PARAM(bool,
                    &kWebAudioBypassOutputBuffering,
                    "latency_exact",
                    true);
-
-// This feature flag controls whether the WebAudio destination resampler is
-// bypassed. When enabled, if the WebAudio context's sample rate differs from
-// the hardware's sample rate, the resampling step that normally occurs within
-// the WebAudio destination node is skipped. This allows the AudioService to
-// handle any necessary resampling, potentially reducing latency and overhead.
-BASE_FEATURE(kWebAudioRemoveAudioDestinationResampler,
-             "WebAudioRemoveAudioDestinationResampler",
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 /// Enables cache-aware WebFonts loading. See https://crbug.com/570205.
 // The feature is disabled on Android for WebView API issue discussed at
@@ -2808,7 +2794,7 @@ BASE_FEATURE(kWebRtcUseMinMaxVEADimensions,
 // Kill switch for crbug.com/407785197.
 BASE_FEATURE(kWebRtcAllowDataChannelRecordingInWebrtcInternals,
              "WebRtcAllowDataChannelRecordingInWebrtcInternals",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Kill switch for https://crbug.com/338955051.
 BASE_FEATURE(kWebUSBTransferSizeLimit,
@@ -2825,6 +2811,11 @@ BASE_FEATURE(kWebviewAccelerateSmallCanvases,
 // Kill switch for crbug.com/409059706.
 BASE_FEATURE(kWorkerThreadSequentialShutdown,
              "WorkerThreadSequentialShutdown",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// WorkerThread termination respects the current thread termination request.
+BASE_FEATURE(kWorkerThreadRespectTermRequest,
+             "WorkerThreadRespectTermRequest",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNoReferrerForPreloadFromSubresource,

@@ -14,7 +14,6 @@ static_library("account_manager") {
     "account_apps_availability_factory.h",
     "account_manager_edu_coexistence_controller.cc",
     "account_manager_edu_coexistence_controller.h",
-    "account_manager_facade_factory_ash.cc",
     "account_manager_policy_controller.cc",
     "account_manager_policy_controller.h",
     "account_manager_policy_controller_factory.cc",
@@ -43,7 +42,6 @@ static_library("account_manager") {
   deps = [
     "//ash/constants",
     "//ash/webui/settings/public/constants",
-    "//chrome/browser:browser_process",
     "//chrome/browser/ash/arc/auth",
     "//chrome/browser/ash/child_accounts",
     "//chrome/browser/ash/login/session",

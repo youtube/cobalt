@@ -34,6 +34,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBar.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarAnimatingView.java",
+    "java/src/org/chromium/chrome/browser/toolbar/ToolbarResourceUtils.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarTabController.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarTabControllerImpl.java",
     "java/src/org/chromium/chrome/browser/toolbar/VoiceToolbarButtonController.java",
@@ -62,7 +63,6 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/toolbar/bottom/BottomControlsViewBinder.java",
     "java/src/org/chromium/chrome/browser/toolbar/bottom/ScrollingBottomViewResourceFrameLayout.java",
     "java/src/org/chromium/chrome/browser/toolbar/bottom/ScrollingBottomViewSceneLayer.java",
-    "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionToolbarManager.java",
     "java/src/org/chromium/chrome/browser/toolbar/home_button/HomeButton.java",
     "java/src/org/chromium/chrome/browser/toolbar/home_button/HomeButtonCoordinator.java",
     "java/src/org/chromium/chrome/browser/toolbar/home_page_button/HomePageButtonData.java",
@@ -105,6 +105,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarSettingsFragment.java",
     "java/src/org/chromium/chrome/browser/toolbar/top/ActionModeController.java",
     "java/src/org/chromium/chrome/browser/toolbar/top/CaptureReadinessResult.java",
+    "java/src/org/chromium/chrome/browser/toolbar/top/HomeButtonDisplay.java",
     "java/src/org/chromium/chrome/browser/toolbar/top/NavigationPopup.java",
     "java/src/org/chromium/chrome/browser/toolbar/top/OptionalBrowsingModeButtonController.java",
     "java/src/org/chromium/chrome/browser/toolbar/top/PhoneCaptureStateToken.java",
@@ -238,12 +239,21 @@ android_library("java") {
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionButtonViewBinder.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListCoordinator.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopupContents.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionsBridge.java",
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionToolbarManagerImpl.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuButtonCoordinator.java",
     ]
 
     srcjar_deps += [ "//extensions/browser:extension_action_enums" ]
+
+    deps += [
+      "//base/version_info/android:version_constants_java",
+      "//components/embedder_support/android:content_view_java",
+      "//components/embedder_support/android:web_contents_delegate_java",
+      "//components/thin_webview:factory_java",
+      "//components/thin_webview:java",
+    ]
   }
 }
 
@@ -259,6 +269,7 @@ generate_jni("jni_headers") {
   if (enable_extensions_core) {
     sources += [
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionAction.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopupContents.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionsBridge.java",
     ]
   }
@@ -324,7 +335,6 @@ android_resources("java_resources") {
     "java/res/drawable/ic_switch_to_incognito.xml",
     "java/res/drawable/ic_widgets.xml",
     "java/res/drawable/menu_bg_bottom_tinted.xml",
-    "java/res/drawable/modern_toolbar_text_box_background_with_primary_color.xml",
     "java/res/drawable/modern_toolbar_text_box_background_with_primary_color_square.xml",
     "java/res/drawable/new_tab_icon.xml",
     "java/res/drawable/optional_button_background.xml",

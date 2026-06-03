@@ -33,13 +33,13 @@ import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager.Incog
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModelObserver;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.sensitive_content.SensitiveContentFeatures;
 
 import java.lang.annotation.Retention;
@@ -101,9 +101,7 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
 
                     setNewTabButtonEnabledState(/* enabled= */ true);
 
-                    if (OmniboxFeatures.sAndroidHubSearch.isEnabled()) {
-                        mHubSearchEnabledStateSupplier.set(true);
-                    }
+                    mHubSearchEnabledStateSupplier.set(true);
                 }
 
                 @Override
@@ -113,7 +111,7 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
     private final TabModelObserver mTabModelObserver =
             new TabModelObserver() {
                 @Override
-                public void onFinishingTabClosure(Tab tab) {
+                public void onFinishingTabClosure(Tab tab, @TabClosingSource int closingSource) {
                     mLastClosedTabId = tab.getId();
                 }
             };
@@ -143,6 +141,8 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
      * @param edgeToEdgeSupplier Supplier to the {@link EdgeToEdgeController} instance.
      * @param compositorViewHolderSupplier Supplier to the {@link CompositorViewHolder} instance.
      * @param tabGroupCreationUiDelegate Orchestrates the tab group creation UI flow.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     IncognitoTabSwitcherPane(
             @NonNull Context context,
@@ -154,7 +154,8 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
             @NonNull UserEducationHelper userEducationHelper,
             @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @NonNull ObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
-            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate) {
+            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         super(
                 context,
                 factory,
@@ -163,7 +164,8 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
                 userEducationHelper,
                 edgeToEdgeSupplier,
                 compositorViewHolderSupplier,
-                tabGroupCreationUiDelegate);
+                tabGroupCreationUiDelegate,
+                xrSpaceModeObservableSupplier);
 
         mIncognitoTabGroupModelFilterSupplier = incognitoTabGroupModelFilterSupplier;
         mLastClosedTabId = Tab.INVALID_TAB_ID;
@@ -288,7 +290,7 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
             coordinator.resetWithListOfTabs(null);
             cancelWaitForTabStateInitializedTimer();
 
-            if (OmniboxFeatures.sAndroidHubSearch.isEnabled() && incognitoReauthShowing) {
+            if (incognitoReauthShowing) {
                 mHubSearchEnabledStateSupplier.set(false);
             }
         } else {

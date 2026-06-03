@@ -65,6 +65,7 @@ export interface SettingsPaymentsSectionElement {
     canMakePaymentToggle: SettingsToggleButtonElement,
     creditCardSharedMenu: CrActionMenuElement,
     ibanSharedActionMenu: CrLazyRenderElement<CrActionMenuElement>,
+    manageLink: HTMLElement,
     mandatoryAuthToggle: SettingsToggleButtonElement,
     menuEditCreditCard: HTMLElement,
     menuRemoveCreditCard: HTMLElement,
@@ -241,12 +242,12 @@ export class SettingsPaymentsSectionElement extends
     // Create listener function.
     const setCreditCardsListener =
         (cardList: chrome.autofillPrivate.CreditCardEntry[]) => {
-          this.creditCards = cardList;
+          this.setCreditCards_(cardList);
         };
 
     const setPersonalDataListener: PersonalDataChangedListener =
         (_addressList, cardList, ibanList, payOverTimeIssuerList) => {
-          this.creditCards = cardList;
+          this.setCreditCards_(cardList);
           this.ibans = ibanList;
           if (this.shouldShowPayOverTimeSettings_) {
             this.payOverTimeIssuers = payOverTimeIssuerList;
@@ -281,6 +282,15 @@ export class SettingsPaymentsSectionElement extends
 
     // Record that the user opened the payments settings.
     chrome.metricsPrivate.recordUserAction('AutofillCreditCardsViewed');
+
+    // Measure clicks on the 'Google Account' link for managing payment methods.
+    const manageAccountAnchor = this.$.manageLink.querySelector('a');
+    if (manageAccountAnchor !== null) {
+      manageAccountAnchor.addEventListener('click', () => {
+        MetricsBrowserProxyImpl.getInstance().recordAction(
+            'Autofill.PaymentMethodsSettingsPage.ManagePaymentMethodsLinkClicked');
+      });
+    }
   }
 
   override disconnectedCallback() {
@@ -290,6 +300,19 @@ export class SettingsPaymentsSectionElement extends
     this.paymentsManager_.removePersonalDataManagerListener(
         this.setPersonalDataListener_);
     this.setPersonalDataListener_ = null;
+  }
+
+  private setCreditCards_(cardList: chrome.autofillPrivate.CreditCardEntry[]) {
+    this.creditCards = cardList;
+
+    // To align with Android, only record this histogram when the pref is
+    // enabled.
+    const autofillEnabledPref = this.get('prefs.autofill.credit_card_enabled');
+    if (!!autofillEnabledPref && autofillEnabledPref.value) {
+      MetricsBrowserProxyImpl.getInstance().recordBooleanHistogram(
+          'Autofill.PaymentMethodsSettingsPage.CardsViewedWithoutExistingCards',
+          this.creditCards.length === 0);
+    }
   }
 
   /**
@@ -342,6 +365,13 @@ export class SettingsPaymentsSectionElement extends
    */
   private onAddCreditCardClick_(e: Event) {
     e.preventDefault();
+
+    MetricsBrowserProxyImpl.getInstance().recordBooleanHistogram(
+        'Autofill.PaymentMethodsSettingsPage.AddCardClicked2', true);
+    MetricsBrowserProxyImpl.getInstance().recordBooleanHistogram(
+        'Autofill.PaymentMethodsSettingsPage.AddCardClickedWithoutExistingCards2',
+        this.creditCards.length === 0);
+
     const date = new Date();  // Default to current month/year.
     const expirationMonth = date.getMonth() + 1;  // Months are 0 based.
     this.activeCreditCard_ = {

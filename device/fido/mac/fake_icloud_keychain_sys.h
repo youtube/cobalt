@@ -26,6 +26,12 @@ namespace device::fido::icloud_keychain {
 // and install it with `SetSystemInterfaceForTesting`.
 class API_AVAILABLE(macos(13.3)) FakeSystemInterface : public SystemInterface {
  public:
+  enum class LargeBlobSupportState {
+    kNotSupported,
+    kSupportedAndEnabled,
+    kSupportedButDisabled,
+  };
+
   FakeSystemInterface();
 
   // set_auth_state sets the state that `GetAuthState` will report.
@@ -73,6 +79,12 @@ class API_AVAILABLE(macos(13.3)) FakeSystemInterface : public SystemInterface {
   // the requested RP ID so all credentials specified here will be returned.)
   void SetCredentials(std::vector<DiscoverableCredentialMetadata> creds);
 
+  void set_large_blob_write_success(bool did_write) {
+    large_blob_write_success_ = did_write;
+  }
+
+  void set_large_blob_read_data(std::vector<uint8_t> data);
+
   // SystemInterface:
   bool IsAvailable() const override;
 
@@ -88,14 +100,20 @@ class API_AVAILABLE(macos(13.3)) FakeSystemInterface : public SystemInterface {
   void MakeCredential(
       NSWindow* window,
       CtapMakeCredentialRequest request,
+      MakeCredentialOptions options,
       base::OnceCallback<void(ASAuthorization*, NSError*)> callback) override;
 
   void GetAssertion(
       NSWindow* window,
       CtapGetAssertionRequest request,
+      LargeBlobAssertionInputs large_blob_inputs,
       base::OnceCallback<void(ASAuthorization*, NSError*)> callback) override;
 
   void Cancel() override;
+
+  void set_large_blob_support_state(LargeBlobSupportState state) {
+    large_blob_support_state_ = state;
+  }
 
  protected:
   friend class base::RefCounted<SystemInterface>;
@@ -122,6 +140,12 @@ class API_AVAILABLE(macos(13.3)) FakeSystemInterface : public SystemInterface {
   unsigned cancel_count_ = 0;
 
   std::vector<DiscoverableCredentialMetadata> creds_;
+
+  LargeBlobSupportState large_blob_support_state_ =
+      LargeBlobSupportState::kNotSupported;
+
+  bool large_blob_write_success_ = false;
+  std::optional<std::vector<uint8_t>> large_blob_read_data_;
 };
 
 }  // namespace device::fido::icloud_keychain

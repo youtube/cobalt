@@ -49,8 +49,12 @@ bool FakeProxy::MainFrameWillHappenForTesting() {
   return false;
 }
 
-double FakeProxy::GetPercentDroppedFrames() const {
+double FakeProxy::GetAverageThroughput() const {
   return 0.0;
+}
+
+bool FakeProxy::IsRenderingPaused() const {
+  return false;
 }
 
 }  // namespace cc

@@ -36,13 +36,15 @@ template <typename T>
 class TelemetryLogger
     : public base::RefCountedDeleteOnSequence<TelemetryLogger<T>> {
  public:
-  // To be implemented by TelemetryLogger embedders.
+  // To be implemented by TelemetryLogger embedders. Methods, including the
+  // destructor, are invoked on the sequence which the TelemetryLogger runs.
+  // Callbacks must be answered on the same sequence.
   class Delegate {
    public:
     // Stores a value indicating when the next upload attempt may be made, as
     // indicated by the server.
-    virtual bool StoreNextAllowedAttemptTime(base::Time time) = 0;
-    virtual std::optional<base::Time> GetNextAllowedAttemptTime() const = 0;
+    virtual void StoreNextAllowedAttemptTime(base::Time time,
+                                             base::OnceClosure callback) = 0;
 
     // Perform an HTTP POST request with `response_body`, invoking
     // `callback` upon completion. `http_status` and `response_body` may be
@@ -66,24 +68,30 @@ class TelemetryLogger
   };
 
   TelemetryLogger(scoped_refptr<base::SequencedTaskRunner> task_runner,
-                  std::unique_ptr<Delegate> delegate)
+                  std::unique_ptr<Delegate> delegate,
+                  bool auto_flush)
       : base::RefCountedDeleteOnSequence<TelemetryLogger<T>>(task_runner),
-        delegate_(std::move(delegate)) {
+        delegate_(std::move(delegate)),
+        auto_flush_(auto_flush) {
     DETACH_FROM_SEQUENCE(sequence_checker_);
   }
   TelemetryLogger(const TelemetryLogger&) = delete;
   TelemetryLogger& operator=(const TelemetryLogger&) = delete;
 
-  // Factory function that creates the per-process TelemetryLogger singleton.
+  // Factory function that creates the per-process TelemetryLogger singleton. If
+  // `auto_flush` is set, the instance will periodically transmit buffered
+  // events. Otherwise, the caller is responsible for calling `Flush`.
   static scoped_refptr<TelemetryLogger> Create(
-      std::unique_ptr<Delegate> delegate) {
+      std::unique_ptr<Delegate> delegate,
+      std::optional<base::Time> first_allowed_attempt_time,
+      bool auto_flush) {
     auto logger = base::MakeRefCounted<TelemetryLogger<T>>(
         base::ThreadPool::CreateSequencedTaskRunner(
             {base::MayBlock(), base::WithBaseSyncPrimitives()}),
-        std::move(delegate));
+        std::move(delegate), auto_flush);
     logger->owning_task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&TelemetryLogger::SetInitialCooldownIfExists, logger));
+        FROM_HERE, base::BindOnce(&TelemetryLogger::SetInitialCooldownIfExists,
+                                  logger, first_allowed_attempt_time));
     return logger;
   }
 
@@ -103,6 +111,7 @@ class TelemetryLogger
   // If a delayed upload is scheduled, the timer class will hold a reference
   // to this class util the timer is triggered.
   void Flush(base::OnceClosure callback) {
+    VLOG(2) << __func__;
     owning_task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
@@ -226,8 +235,9 @@ class TelemetryLogger
                  delegate_->MinimumCooldownTime());
     VLOG(1) << "Cooldown time received from server: "
             << response.next_request_wait_millis() << " ms";
-    delegate_->StoreNextAllowedAttemptTime(base::Time::Now() + cooldown_time);
     SetCooldown(cooldown_time);
+    delegate_->StoreNextAllowedAttemptTime(base::Time::Now() + cooldown_time,
+                                           base::DoNothing());
   }
 
   void SetCooldown(base::TimeDelta cooldown_time) {
@@ -241,22 +251,23 @@ class TelemetryLogger
             << "ms, " << base::Time::Now() + cooldown_time;
     cooldown_timer_.Start(
         FROM_HERE, cooldown_time,
-        base::BindOnce(&TelemetryLogger::Transmit, base::WrapRefCounted(this),
-                       base::DoNothing()));
+        auto_flush_
+            ? base::BindOnce(&TelemetryLogger::Transmit,
+                             base::WrapRefCounted(this), base::DoNothing())
+            : base::DoNothing());
   }
 
-  void SetInitialCooldownIfExists() {
+  void SetInitialCooldownIfExists(
+      std::optional<base::Time> first_allowed_attempt_time) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     CHECK(!cooldown_timer_.IsRunning());
 
-    std::optional<base::Time> next_allowed_attempt_time =
-        delegate_->GetNextAllowedAttemptTime();
-    if (!next_allowed_attempt_time) {
+    if (!first_allowed_attempt_time) {
       return;
     }
     VLOG(2) << __func__
-            << ": next allowed attempt time: " << *next_allowed_attempt_time;
-    SetCooldown(*next_allowed_attempt_time - base::Time::Now());
+            << ": next allowed attempt time: " << *first_allowed_attempt_time;
+    SetCooldown(*first_allowed_attempt_time - base::Time::Now());
   }
 
   friend class base::RefCountedDeleteOnSequence<TelemetryLogger<T>>;
@@ -264,6 +275,7 @@ class TelemetryLogger
 
   bool is_transmitting_ = false;
   std::unique_ptr<Delegate> delegate_;
+  const bool auto_flush_;
   std::vector<T> events_;
   std::vector<T> upload_queue_;
   base::OneShotTimer cooldown_timer_;

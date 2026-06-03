@@ -8,6 +8,7 @@
 
 #include "third_party/blink/renderer/platform/geometry/path.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "ui/gfx/geometry/outsets_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/quad_f.h"
@@ -57,7 +58,8 @@ String ContouredRect::ToString() const {
     return rect_string;
   }
 
-  return rect_string + " curvature:(" + GetCornerCurvature().ToString() + ")";
+  return StrCat(
+      {rect_string, " curvature:(", GetCornerCurvature().ToString(), ")"});
 }
 
 bool ContouredRect::IntersectsQuad(const gfx::QuadF& quad) const {
@@ -87,6 +89,7 @@ void ContouredRect::OutsetForMarginOrShadow(const gfx::OutsetsF& outsets) {
   radii.SetBottomLeft(gfx::ScaleSize(radii.BottomLeft(), scale_x, scale_y));
   rect_.SetRadii(radii);
   rect_.SetRect(new_rect);
+  SetOriginRect(rect_);
 }
 
 bool ContouredRect::XInterceptsAtY(float y,
@@ -154,11 +157,31 @@ String ContouredRect::Corner::ToString() const {
                         curvature_);
 }
 
+gfx::PointF ContouredRect::Corner::QuadraticControlPoint() const {
+  if (IsConcave()) {
+    return Inverse().QuadraticControlPoint();
+  }
+
+  // For hyperellipses (round and above), there is no equivalent quadratic, so
+  // we use the outer point.
+  if (Curvature() >= CornerCurvature::kRound) {
+    return Outer();
+  }
+
+  // For hypoellipses (between bevel and round), the quadratic curve is very
+  // close to the superellipse. Given a point (P, P) at t=0.5, the quadratic
+  // control point is at 2 * P - 0.5.
+  const float normalized_control_point =
+      2 * HalfCornerForCurvature(curvature_) - 0.5;
+  return MapPoint(
+      gfx::Vector2dF(normalized_control_point, normalized_control_point));
+}
+
 // This method creates a corner from a target (this) and an origin.
 // The resulting "aligned" corner has its coordinates and curvature adjusted
 // in such a way that it would have consistent thickness along its entire path.
 Corner ContouredRect::Corner::AlignedToOrigin(const Corner& origin) const {
-  if (IsZero() || *this == origin) {
+  if (origin.IsEmpty() || *this == origin) {
     return *this;
   }
 

@@ -336,8 +336,6 @@ class PLATFORM_EXPORT Color {
   }
 
   RGBA32 Rgb() const;
-  void GetRGBA(float& r, float& g, float& b, float& a) const;
-  void GetRGBA(double& r, double& g, double& b, double& a) const;
 
   // Get the lightness of the color in the specified colorspace. The colorspace
   // can be any that has a lightness component (Lab, OkLab, Lch, OkLch or HSL).
@@ -351,6 +349,7 @@ class PLATFORM_EXPORT Color {
     opaque.SetAlpha(1.0f);
     return opaque;
   }
+  Color InvertSRGB() const;
 
   // This is an implementation of Porter-Duff's "source-over" equation
   // TODO(https://crbug.com/1333988): Implement CSS Color level 4 blending,

@@ -15,6 +15,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/common/chrome_constants.h"
+#include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -47,11 +48,8 @@ const bool ProfilePrefStoreManager::kPlatformSupportsPreferenceTracking =
 
 ProfilePrefStoreManager::ProfilePrefStoreManager(
     const base::FilePath& profile_path,
-    const std::string& seed,
-    const std::string& legacy_device_id)
-    : profile_path_(profile_path),
-      seed_(seed),
-      legacy_device_id_(legacy_device_id) {}
+    const std::string& seed)
+    : profile_path_(profile_path), seed_(seed) {}
 
 ProfilePrefStoreManager::~ProfilePrefStoreManager() = default;
 
@@ -88,7 +86,8 @@ PersistentPrefStore* ProfilePrefStoreManager::CreateProfilePrefStore(
     mojo::PendingRemote<prefs::mojom::ResetOnLoadObserver>
         reset_on_load_observer,
     mojo::PendingRemote<prefs::mojom::TrackedPreferenceValidationDelegate>
-        validation_delegate) {
+        validation_delegate,
+    os_crypt_async::OSCryptAsync* os_crypt) {
   if (!kPlatformSupportsPreferenceTracking) {
     return new JsonPrefStore(profile_path_.Append(chrome::kPreferencesFilename),
                              nullptr, io_task_runner);
@@ -97,14 +96,15 @@ PersistentPrefStore* ProfilePrefStoreManager::CreateProfilePrefStore(
       CreateTrackedPrefStoreConfiguration(
           std::move(tracking_configuration), reporting_ids_count,
           std::move(reset_on_load_observer), std::move(validation_delegate)),
-      io_task_runner);
+      io_task_runner, /*os_crypt=*/os_crypt);
 }
 
 bool ProfilePrefStoreManager::InitializePrefsFromMasterPrefs(
     std::vector<prefs::mojom::TrackedPreferenceMetadataPtr>
         tracking_configuration,
     size_t reporting_ids_count,
-    base::Value::Dict master_prefs) {
+    base::Value::Dict master_prefs,
+    os_crypt_async::OSCryptAsync* os_crypt) {
   // Create the profile directory if it doesn't exist yet (very possible on
   // first run).
   if (!base::CreateDirectory(profile_path_))
@@ -115,7 +115,7 @@ bool ProfilePrefStoreManager::InitializePrefsFromMasterPrefs(
         CreateTrackedPrefStoreConfiguration(std::move(tracking_configuration),
                                             reporting_ids_count, {},
                                             mojo::NullRemote()),
-        master_prefs);
+        master_prefs, /*os_crypt=*/os_crypt);
   }
 
   // This will write out to a single combined file which will be immediately
@@ -146,7 +146,7 @@ ProfilePrefStoreManager::CreateTrackedPrefStoreConfiguration(
       profile_path_.Append(chrome::kPreferencesFilename),
       profile_path_.Append(chrome::kSecurePreferencesFilename),
       std::move(tracking_configuration), reporting_ids_count, seed_,
-      legacy_device_id_, "ChromeRegistryHashStoreValidationSeed",
+      "ChromeRegistryHashStoreValidationSeed",
 #if BUILDFLAG(IS_WIN)
       base::AsString16(g_preference_validation_registry_path_for_testing
                            ? *g_preference_validation_registry_path_for_testing

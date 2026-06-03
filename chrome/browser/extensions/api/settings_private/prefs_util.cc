@@ -27,6 +27,7 @@
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/generated_safe_browsing_pref.h"
+#include "chrome/browser/safe_browsing/generated_security_settings_bundle_pref.h"
 #include "chrome/browser/ssl/generated_https_first_mode_pref.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
@@ -373,6 +374,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[::prefs::kHttpsOnlyModeEnabled] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::kGeneratedHttpsFirstModePref] =
+      settings_api::PrefType::kNumber;
+  (*s_allowlist)[::prefs::kSecuritySettingsBundle] =
+      settings_api::PrefType::kNumber;
+  (*s_allowlist)[::safe_browsing::kGeneratedSecuritySettingsBundlePref] =
       settings_api::PrefType::kNumber;
 
   // Tracking protection page
@@ -1293,6 +1298,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   // Glic prefs
 #if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
+    (*s_allowlist)[glic::prefs::kGlicPinnedToTabstrip] =
+        settings_api::PrefType::kBoolean;
     (*s_allowlist)[glic::prefs::kGlicLauncherEnabled] =
         settings_api::PrefType::kBoolean;
     (*s_allowlist)[glic::prefs::kGlicClosedCaptioningEnabled] =
@@ -1303,6 +1310,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
         settings_api::PrefType::kBoolean;
     (*s_allowlist)[glic::prefs::kGlicTabContextEnabled] =
         settings_api::PrefType::kBoolean;
+    (*s_allowlist)[glic::prefs::kGlicUserStatus] =
+        settings_api::PrefType::kDictionary;
     (*s_allowlist)[prefs::kGeminiSettings] =
         settings_api::PrefType::kNumber;
   }

@@ -222,15 +222,6 @@ class RenderViewContextMenuTest : public testing::Test {
   RenderViewContextMenuTest& operator=(const RenderViewContextMenuTest&) =
       delete;
 
-  // Proxy defined here to minimize friend classes in RenderViewContextMenu
-  static bool ExtensionContextAndPatternMatch(
-      const content::ContextMenuParams& params,
-      MenuItem::ContextList contexts,
-      const URLPatternSet& patterns) {
-    return RenderViewContextMenu::ExtensionContextAndPatternMatch(
-        params, contexts, patterns);
-  }
-
   // Returns a test item.
   std::unique_ptr<MenuItem> CreateTestItem(const Extension* extension,
                                            int uid) {
@@ -250,174 +241,6 @@ class RenderViewContextMenuTest : public testing::Test {
  private:
   content::RenderViewHostTestEnabler rvh_test_enabler_;
 };
-
-// Generates a URLPatternSet with a single pattern
-static URLPatternSet CreatePatternSet(const std::string& pattern) {
-  URLPattern target(URLPattern::SCHEME_HTTP);
-  target.Parse(pattern);
-
-  URLPatternSet rv;
-  rv.AddPattern(target);
-
-  return rv;
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForPage) {
-  content::ContextMenuParams params = CreateParams(0);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForLink) {
-  content::ContextMenuParams params = CreateParams(MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::LINK);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForImage) {
-  content::ContextMenuParams params = CreateParams(MenuItem::IMAGE);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForVideo) {
-  content::ContextMenuParams params = CreateParams(MenuItem::VIDEO);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::VIDEO);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForAudio) {
-  content::ContextMenuParams params = CreateParams(MenuItem::AUDIO);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::AUDIO);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, MatchWhenLinkedImageMatchesTarget) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::IMAGE | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::LINK);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.link/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, MatchWhenLinkedImageMatchesSource) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::IMAGE | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::LINK);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.image/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, NoMatchWhenLinkedImageMatchesNeither) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::IMAGE | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::LINK);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForFrame) {
-  content::ContextMenuParams params = CreateParams(MenuItem::FRAME);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::FRAME);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForEditable) {
-  content::ContextMenuParams params = CreateParams(MenuItem::EDITABLE);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::EDITABLE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForSelection) {
-  content::ContextMenuParams params = CreateParams(MenuItem::SELECTION);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::SELECTION);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForSelectionOnLink) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::SELECTION | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::SELECTION);
-  contexts.Add(MenuItem::LINK);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForSelectionOnImage) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::SELECTION | MenuItem::IMAGE);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::SELECTION);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
 
 // Check that the fenced frame untrusted network status gated command ids are
 // within the valid command id range.
@@ -623,9 +446,9 @@ class RenderViewContextMenuPrefsTest
   Browser* GetBrowser() {
     if (!browser_) {
       Browser::CreateParams create_params(profile(), true);
-      auto test_window = std::make_unique<TestBrowserWindow>();
-      create_params.window = test_window.get();
-      browser_.reset(Browser::Create(create_params));
+      browser_window_ = std::make_unique<TestBrowserWindow>();
+      create_params.window = browser_window_.get();
+      browser_ = Browser::DeprecatedCreateOwnedForTesting(create_params);
     }
     return browser_.get();
   }
@@ -634,9 +457,9 @@ class RenderViewContextMenuPrefsTest
     if (!browser_) {
       Browser::CreateParams create_params(Browser::Type::TYPE_APP, profile(),
                                           true);
-      auto test_window = std::make_unique<TestBrowserWindow>();
-      create_params.window = test_window.get();
-      browser_.reset(Browser::Create(create_params));
+      browser_window_ = std::make_unique<TestBrowserWindow>();
+      create_params.window = browser_window_.get();
+      browser_ = Browser::DeprecatedCreateOwnedForTesting(create_params);
     }
     return browser_.get();
   }
@@ -655,6 +478,7 @@ class RenderViewContextMenuPrefsTest
   std::unique_ptr<ScopedTestingLocalState> testing_local_state_;
   raw_ptr<TemplateURLService> template_url_service_;
   std::unique_ptr<Browser> browser_;
+  std::unique_ptr<TestBrowserWindow> browser_window_;
   GURL last_preresolved_url_;
   base::OnceClosure preresolved_finished_closure_;
 

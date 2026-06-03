@@ -362,21 +362,25 @@ id<GREYMatcher> SearchIconButton() {
   id<GREYMatcher> matcher =
       editEnabled ? grey_sufficientlyVisible()
                   : grey_accessibilityTrait(UIAccessibilityTraitNotEnabled);
-  [[EarlGrey selectElementWithMatcher:ButtonWithAccessibilityLabelId(
-                                          IDS_IOS_BOOKMARK_CONTEXT_MENU_EDIT)]
+
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_BOOKMARK_CONTEXT_MENU_EDIT)]
       assertWithMatcher:matcher];
 
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_CONTENT_CONTEXT_OPENLINKNEWTAB)]
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_CONTENT_CONTEXT_OPENLINKNEWTAB)]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   [[EarlGrey selectElementWithMatcher:
-                 ButtonWithAccessibilityLabelId(
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
                      IDS_IOS_CONTENT_CONTEXT_OPENLINKNEWINCOGNITOTAB)]
       assertWithMatcher:grey_sufficientlyVisible()];
 
-  [[EarlGrey selectElementWithMatcher:ContextMenuCopyButton()]
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_CONTENT_CONTEXT_COPY)]
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 
@@ -682,9 +686,10 @@ id<GREYMatcher> SearchIconButton() {
       selectElementWithMatcher:ContextBarCenterButtonWithLabel(
                                    [BookmarkEarlGreyUI contextBarMoreString])]
       performAction:grey_tap()];
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(menuButtonId)]
-      performAction:grey_tap()];
+
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     menuButtonId)] performAction:grey_tap()];
 
   // Verify that the editor is present.
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(editorId)]

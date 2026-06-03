@@ -24,6 +24,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
@@ -194,6 +195,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/ash/account_manager/account_manager_util.h"
@@ -228,10 +230,6 @@
 #include "content/public/common/page_zoom.h"
 #include "ui/accessibility/accessibility_features.h"
 #endif
-
-#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_PDF)
-#include "chrome/browser/accessibility/pdf_ocr_controller_factory.h"
-#endif  // !BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_PDF)
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 #include "chrome/browser/background/extensions/background_mode_manager.h"
@@ -508,6 +506,10 @@ ProfileImpl::ProfileImpl(
   // TODO(crbug.com/40225390): Move this into
   // ProfileUserManagerController::OnProfileCreationStarted().
   if (ash::ProfileHelper::IsUserProfile(this)) {
+    // TODO(crbug.com/404133029): Avoid g_browser_process usage.
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory =
+        g_browser_process->shared_url_loader_factory();
+
     // |ash::InitializeAccountManager| is called during a User's session
     // initialization but some tests do not properly login to a User Session.
     // This invocation of |ash::InitializeAccountManager| is used only during
@@ -516,7 +518,8 @@ ProfileImpl::ProfileImpl(
     // multiple times.
     // TODO(crbug.com/40635309): Remove this call.
     ash::InitializeAccountManager(
-        path_, base::DoNothing() /* initialization_callback */);
+        std::move(shared_url_loader_factory), path_,
+        base::DoNothing() /* initialization_callback */);
 
     auto* account_manager = g_browser_process->platform_part()
                                 ->GetAccountManagerFactory()
@@ -560,6 +563,11 @@ void ProfileImpl::TakePrefsFromStartupData() {
   user_cloud_policy_manager_ = startup_data->TakeUserCloudPolicyManager();
   profile_policy_connector_ = startup_data->TakeProfilePolicyConnector();
   pref_registry_ = startup_data->TakePrefRegistrySyncable();
+
+  // The extension prefs value store requires a profile, so it can't be created
+  // in StartupData.
+  prefs_->UpdateExtensionPrefStore(
+      CreateExtensionPrefStore(this, /*incognito_pref_store=*/false));
 
   ProfileKeyStartupAccessor::GetInstance()->Reset();
 }
@@ -655,7 +663,7 @@ void ProfileImpl::LoadPrefsForNormalStartup(bool async_prefs) {
       profile_policy_connector_->policy_service(),
       g_browser_process->browser_policy_connector(),
       std::move(pref_validation_delegate), GetIOTaskRunner(), key_.get(), path_,
-      async_prefs);
+      async_prefs, g_browser_process->os_crypt_async());
   key_->SetPrefs(prefs_.get());
 }
 
@@ -846,19 +854,6 @@ void ProfileImpl::DoFinalInit(CreateMode create_mode) {
   // changes from Google Mobile Services, as early as possible.
   PasswordManagerSettingsServiceFactory::GetForProfile(this);
 #else
-
-#if BUILDFLAG(ENABLE_PDF)
-  bool pcf_ocr_may_be_needed = true;
-#if BUILDFLAG(IS_CHROMEOS)
-  // `PdfOcrControllerFactory` is not needed in the not-signed-in profile of
-  // ChromeOS as no user navigation to PDFs is possible there.
-  pcf_ocr_may_be_needed = IsSignedIn();
-#endif
-  // Create the PDF OCR controller so that it can self-activate as needed.
-  if (pcf_ocr_may_be_needed) {
-    screen_ai::PdfOcrControllerFactory::GetForProfile(this);
-  }
-#endif  // BUILDFLAG(ENABLE_PDF)
 
   if (features::IsMainNodeAnnotationsEnabled()) {
     screen_ai::AXMainNodeAnnotatorControllerFactory::GetForProfile(this);

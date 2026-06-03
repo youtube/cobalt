@@ -12,7 +12,6 @@
 #include "ash/frame/wide_frame_view.h"
 #include "ash/public/cpp/arc_resize_lock_type.h"
 #include "ash/public/cpp/ash_constants.h"
-#include "ash/public/cpp/rounded_corner_utils.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/public/cpp/window_backdrop.h"
 #include "ash/public/cpp/window_properties.h"
@@ -39,11 +38,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ui/base/window_pin_type.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/base/window_state_type.h"
 #include "chromeos/ui/frame/caption_buttons/caption_button_model.h"
 #include "chromeos/ui/frame/default_frame_header.h"
+#include "chromeos/ui/frame/frame_utils.h"
 #include "chromeos/ui/frame/header_view.h"
 #include "chromeos/ui/frame/immersive/immersive_fullscreen_controller.h"
 #include "components/exo/shell_surface_util.h"
@@ -661,15 +662,15 @@ void ClientControlledShellSurface::DidReceiveCompositorFrameAck() {
 void ClientControlledShellSurface::OnBoundsChangeEvent(
     chromeos::WindowStateType current_state,
     chromeos::WindowStateType requested_state,
-    int64_t display_id,
-    const gfx::Rect& window_bounds,
+    int64_t requested_display_id,
+    const gfx::Rect& requested_bounds_in_display,
     int bounds_change,
     bool is_adjusted_bounds) {
   // 1) Do no update the bounds unless we have geometry from client.
   // 2) Do not update the bounds if window is minimized unless it
   // exiting the minimzied state.
   // The bounds will be provided by client when unminimized.
-  if (geometry().IsEmpty() || window_bounds.IsEmpty() ||
+  if (geometry().IsEmpty() || requested_bounds_in_display.IsEmpty() ||
       (widget_->IsMinimized() &&
        requested_state == chromeos::WindowStateType::kMinimized) ||
       !delegate_) {
@@ -678,37 +679,31 @@ void ClientControlledShellSurface::OnBoundsChangeEvent(
 
   // Sends the client bounds, which matches the geometry
   // when frame is enabled.
-  const gfx::Rect client_bounds = GetClientBoundsForWindowBoundsAndWindowState(
-      window_bounds, requested_state);
+  const gfx::Rect client_bounds_in_display =
+      GetClientBoundsForWindowBoundsAndWindowState(requested_bounds_in_display,
+                                                   requested_state);
 
   gfx::Size current_size = GetFrameView()->GetBoundsForClientView().size();
-  bool is_resize = client_bounds.size() != current_size &&
+  bool is_resize = client_bounds_in_display.size() != current_size &&
                    !widget_->IsMaximized() && !widget_->IsFullscreen();
 
   // Make sure to use the up-to-date scale factor.
   display::Display display;
   const bool display_exists =
-      display::Screen::GetScreen()->GetDisplayWithDisplayId(display_id,
-                                                            &display);
+      display::Screen::GetScreen()->GetDisplayWithDisplayId(
+          requested_display_id, &display);
   DCHECK(display_exists && display.is_valid());
   const float scale =
       use_default_scale_cancellation_ ? 1.f : display.device_scale_factor();
-  const gfx::Rect scaled_client_bounds =
-      gfx::ScaleToRoundedRect(client_bounds, scale);
-  delegate_->OnBoundsChanged(current_state, requested_state, display_id,
-                             scaled_client_bounds, is_resize, bounds_change,
-                             is_adjusted_bounds);
+  const gfx::Rect scaled_client_bounds_in_display =
+      gfx::ScaleToRoundedRect(client_bounds_in_display, scale);
 
-  auto* window_state = GetWindowState();
-  if (server_reparent_window_ &&
-      window_state->GetDisplay().id() != display_id) {
-    ScopedSetBoundsLocally scoped_set_bounds(this);
-    int container_id = window_state->window()->parent()->GetId();
-    aura::Window* new_parent =
-        ash::Shell::GetRootWindowControllerWithDisplayId(display_id)
-            ->GetContainer(container_id);
-    new_parent->AddChild(window_state->window());
-  }
+  requested_display_id_ = requested_display_id;
+
+  delegate_->OnBoundsChanged(current_state, requested_state,
+                             requested_display_id,
+                             scaled_client_bounds_in_display, is_resize,
+                             bounds_change, is_adjusted_bounds);
 }
 
 void ClientControlledShellSurface::ChangeZoomLevel(ZoomChange change) {
@@ -1093,7 +1088,14 @@ void ClientControlledShellSurface::SetWidgetBounds(const gfx::Rect& bounds,
     window->SetBoundsInScreen(adjusted_bounds, target_display);
   }
 
-  if (bounds != adjusted_bounds || is_display_move_pending) {
+  // Do not send back the adjusted bounds while waiting for client to
+  // acknowledge the display move.
+  bool has_display_move_requested =
+      requested_display_id_ != display_id_ &&
+      requested_display_id_ != display::kInvalidDisplayId;
+
+  if ((bounds != adjusted_bounds || is_display_move_pending) &&
+      !has_display_move_requested) {
     // Notify client that bounds were adjusted or window moved across displays.
     auto state_type = GetWindowState()->GetStateType();
     gfx::Rect adjusted_bounds_in_display(adjusted_bounds);
@@ -1235,6 +1237,19 @@ bool ClientControlledShellSurface::OnPreWidgetCommit() {
 
   ash::WindowState* window_state = GetWindowState();
   state_changed_ = window_state->GetStateType() != pending_window_state_;
+
+  // When the RoundedWindows feature is off, ARC++ incorrectly requests
+  // square windows (zero radii). Override the requested corners radii with the
+  // correct rounded corners.
+  // TODO(b:409867780): Remove this after ARC++ provides the correct window
+  // rounded corners.
+  if (!chromeos::features::IsRoundedWindowsEnabled()) {
+    SetWindowCornersRadii(ash::WindowState::ShouldWindowStateHaveRoundedCorners(
+                              pending_window_state_)
+                              ? chromeos::GetWindowRoundedCorners()
+                              : gfx::RoundedCornersF());
+  }
+
   if (!state_changed_) {
     // Animate PIP window movement unless it is being dragged.
     client_controlled_state_->set_next_bounds_change_animation_type(
@@ -1311,6 +1326,10 @@ void ClientControlledShellSurface::ShowWidget(bool inactive) {
 }
 
 void ClientControlledShellSurface::OnPostWidgetCommit() {
+  if (requested_display_id_ == display_id_) {
+    requested_display_id_ = display::kInvalidDisplayId;
+  }
+
   DCHECK(widget_);
 
   UpdateFrame();

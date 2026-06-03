@@ -193,7 +193,10 @@ class OpenscreenSessionHost::AudioCapturingCallback final
   using AudioDataCallback =
       base::RepeatingCallback<void(std::unique_ptr<media::AudioBus> audio_bus,
                                    base::TimeTicks recorded_time)>;
-  using ErrorCallback = base::OnceCallback<void(std::string_view)>;
+
+  // NOTE: the caller is expected to take ownership of the error message, since
+  // we cannot otherwise make any guarantees about its lifetime.
+  using ErrorCallback = base::OnceCallback<void(std::string)>;
   AudioCapturingCallback(AudioDataCallback audio_data_callback,
                          ErrorCallback error_callback,
                          mojo::Remote<mojom::SessionObserver>& observer)
@@ -232,11 +235,11 @@ class OpenscreenSessionHost::AudioCapturingCallback final
 
   void OnCaptureError(media::AudioCapturerSource::ErrorCode code,
                       const std::string& message) override {
-    std::string error_message = base::StrCat(
-        {"AudioCaptureError occurred, code: ",
-         base::NumberToString(static_cast<int>(code)), ", message: ", message});
-    if (!error_callback_.is_null()) {
-      std::move(error_callback_).Run(error_message);
+    if (error_callback_) {
+      std::move(error_callback_)
+          .Run(base::StrCat({"AudioCaptureError occurred, code: ",
+                             base::NumberToString(static_cast<int>(code)),
+                             ", message: ", message}));
     }
   }
 
@@ -333,13 +336,15 @@ OpenscreenSessionHost::OpenscreenSessionHost(
 OpenscreenSessionHost::~OpenscreenSessionHost() {
   StopSession();
 
+  // Tear down the cast environment now that the session has been stopped.
+  cast_environment_.reset();
+
   // If we provided access to our network context proxy, we need to clear it.
   if (set_network_context_proxy_) {
     openscreen_platform::ClearNetworkContextGetter();
   }
 
   if (deletion_cb_) {
-    CHECK(!cast_environment_);
     std::move(deletion_cb_).Run();
   }
 }
@@ -396,9 +401,9 @@ void OpenscreenSessionHost::OnNegotiated(
     }
     CHECK(video_config);
 
-    // Ultimately used by the video encoder that executes on
-    // `video_encode_thread_` to determine how many threads should be used to
-    // encode video content.
+    // Ultimately used by the video encoder that executes on the video encode
+    // thread to determine how many threads should be used to encode video
+    // content.
     video_config->video_codec_params.value().number_of_encode_threads =
         NumberOfEncodeThreads();
   }
@@ -407,20 +412,20 @@ void OpenscreenSessionHost::OnNegotiated(
   // instantiated once.
   const bool initially_starting_session = !cast_environment_;
   if (initially_starting_session) {
-    CHECK(!audio_encode_thread_ && !video_encode_thread_);
-    audio_encode_thread_ = base::ThreadPool::CreateSingleThreadTaskRunner(
+    auto audio_encode_thread = base::ThreadPool::CreateSingleThreadTaskRunner(
         {base::TaskPriority::USER_BLOCKING,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
         base::SingleThreadTaskRunnerThreadMode::DEDICATED);
-    video_encode_thread_ = base::ThreadPool::CreateSingleThreadTaskRunner(
+    auto video_encode_thread = base::ThreadPool::CreateSingleThreadTaskRunner(
         {base::TaskPriority::USER_BLOCKING,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN,
          base::WithBaseSyncPrimitives(), base::MayBlock()},
         base::SingleThreadTaskRunnerThreadMode::DEDICATED);
     cast_environment_ = base::MakeRefCounted<media::cast::CastEnvironment>(
         *base::DefaultTickClock::GetInstance(),
-        base::SingleThreadTaskRunner::GetCurrentDefault(), audio_encode_thread_,
-        video_encode_thread_, std::move(deletion_cb_));
+        base::SingleThreadTaskRunner::GetCurrentDefault(),
+        std::move(audio_encode_thread), std::move(video_encode_thread),
+        std::move(deletion_cb_));
   }
 
   if (state_ == State::kRemoting) {
@@ -465,8 +470,8 @@ void OpenscreenSessionHost::OnNegotiated(
         video_config->use_hardware_encoder) {
       gpu_factories_factory_ = std::make_unique<MirroringGpuFactoriesFactory>(
           cast_environment_, *gpu_,
-          base::BindRepeating(&OpenscreenSessionHost::OnGpuFactoryContextLost,
-                              weak_factory_.GetWeakPtr(), *video_config));
+          base::BindOnce(&OpenscreenSessionHost::OnGpuFactoryContextLost,
+                         weak_factory_.GetWeakPtr(), *video_config));
       gpu_factories = &gpu_factories_factory_->GetInstance();
     }
 
@@ -734,7 +739,7 @@ void OpenscreenSessionHost::OnAsyncInitialized(
 }
 
 void OpenscreenSessionHost::ReportAndLogError(SessionError error,
-                                              std::string_view message) {
+                                              std::string message) {
   base::UmaHistogramEnumeration("MediaRouter.MirroringService.SessionError",
                                 error);
   logger_.LogError(error, message);
@@ -770,8 +775,9 @@ void OpenscreenSessionHost::StopStreaming() {
   // The factory should be deleted on the VIDEO thread to ensure it is not
   // deleted before BindOnVideoThread() can be called.
   if (gpu_factories_factory_) {
-    video_encode_thread_->DeleteSoon(FROM_HERE,
-                                     std::move(gpu_factories_factory_));
+    cast_environment_
+        ->GetTaskRunner(media::cast::CastEnvironment::ThreadId::kVideo)
+        ->DeleteSoon(FROM_HERE, std::move(gpu_factories_factory_));
   }
 }
 
@@ -793,8 +799,6 @@ void OpenscreenSessionHost::StopSession() {
   // provider.
   media_remoter_.reset();
   rpc_dispatcher_.reset();
-  audio_encode_thread_.reset();
-  video_encode_thread_.reset();
   video_capture_client_.reset();
   resource_provider_.reset();
   gpu_.reset();

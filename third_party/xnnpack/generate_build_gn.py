@@ -59,6 +59,7 @@ _HEADER = '''
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 import("//build/config/android/config.gni")
+import("//third_party/xnnpack/build_defs.gni")
 
 config("xnnpack_config") {
   include_dirs = [
@@ -80,28 +81,9 @@ config("xnnpack_config") {
 
   defines = [
     "CHROMIUM",
-    "XNN_ENABLE_ASSEMBLY=1",
-    "XNN_ENABLE_GEMM_M_SPECIALIZATION=1",
-    "XNN_ENABLE_MEMOPT=1",
-    "XNN_ENABLE_CPUINFO=1",
-    "XNN_ENABLE_SPARSE=1",
     "XNN_LOG_LEVEL=0",
     "XNN_LOG_TO_STDIO=0",
-    "XNN_ENABLE_AVX512BF16=0",
-  ]
-
-  if (current_cpu == "arm64") {
-    defines += [
-      "XNN_ENABLE_ARM_DOTPROD=1",
-      "XNN_ENABLE_ARM_I8MM=1",
-    ]
-  }
-
-  if (current_cpu == "x86" || current_cpu == "x64") {
-    defines += [
-      "XNN_ENABLE_AVXVNNI=1",
-    ]
-  }
+  ] + xnn_defines
 }
 '''.strip()
 
@@ -236,7 +218,10 @@ _PLATFORMS = [
     _Platform(gn_cpu='x64', bazel_cpu='k8', bazel_platform='//:linux_x64'),
     _Platform(gn_cpu='arm64',
               bazel_cpu='aarch64',
-              bazel_platform='//:linux_aarch64')
+              bazel_platform='//:linux_aarch64'),
+    _Platform(gn_cpu='riscv64',
+              bazel_cpu='riscv64',
+              bazel_platform='//:linux_riscv64')
 ]
 
 
@@ -388,7 +373,7 @@ def _query_object_builds(platform: _Platform) -> list[ObjectBuild]:
         'aquery',
         f'--platforms={platform.bazel_platform}',
         f'--cpu={platform.bazel_cpu}',
-        'mnemonic("CppCompile", filter("//:", deps(@xnnpack//:XNNPACK)))',
+        'mnemonic("CppCompile", deps(@xnnpack//:XNNPACK))',
         "--output=jsonproto",
     ])
     logging.info('parsing actions from bazel aquery...')

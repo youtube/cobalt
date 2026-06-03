@@ -10,9 +10,10 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
-#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
@@ -49,6 +50,31 @@ AutofillClient::PopupOpenArgs& AutofillClient::PopupOpenArgs::operator=(
     const AutofillClient::PopupOpenArgs&) = default;
 AutofillClient::PopupOpenArgs& AutofillClient::PopupOpenArgs::operator=(
     AutofillClient::PopupOpenArgs&&) = default;
+
+AutofillClient::EntitySaveOrUpdatePromptResult::EntitySaveOrUpdatePromptResult(
+    bool did_user_decline,
+    std::optional<EntityInstance> entity)
+    : did_user_decline(did_user_decline), entity(std::move(entity)) {}
+
+AutofillClient::EntitySaveOrUpdatePromptResult::
+    EntitySaveOrUpdatePromptResult() = default;
+
+AutofillClient::EntitySaveOrUpdatePromptResult::EntitySaveOrUpdatePromptResult(
+    const AutofillClient::EntitySaveOrUpdatePromptResult&) = default;
+
+AutofillClient::EntitySaveOrUpdatePromptResult::EntitySaveOrUpdatePromptResult(
+    AutofillClient::EntitySaveOrUpdatePromptResult&&) = default;
+
+AutofillClient::EntitySaveOrUpdatePromptResult&
+AutofillClient::EntitySaveOrUpdatePromptResult::operator=(
+    const AutofillClient::EntitySaveOrUpdatePromptResult&) = default;
+
+AutofillClient::EntitySaveOrUpdatePromptResult&
+AutofillClient::EntitySaveOrUpdatePromptResult::operator=(
+    AutofillClient::EntitySaveOrUpdatePromptResult&&) = default;
+
+AutofillClient::EntitySaveOrUpdatePromptResult::
+    ~EntitySaveOrUpdatePromptResult() = default;
 
 version_info::Channel AutofillClient::GetChannel() const {
   return version_info::Channel::UNKNOWN;
@@ -102,7 +128,7 @@ void AutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
   std::move(callback).Run(std::nullopt);
 }
 
-AutofillAiDelegate* AutofillClient::GetAutofillAiDelegate() {
+AutofillAiManager* AutofillClient::GetAutofillAiManager() {
   return nullptr;
 }
 
@@ -254,5 +280,15 @@ const syncer::SyncService* AutofillClient::GetSyncService() const {
   return const_cast<const syncer::SyncService*>(
       const_cast<AutofillClient*>(this)->GetSyncService());
 }
+
+optimization_guide::ModelQualityLogsUploaderService*
+AutofillClient::GetMqlsUploadService() {
+  return nullptr;
+}
+
+void AutofillClient::ShowEntitySaveOrUpdateBubble(
+    EntityInstance new_entity,
+    std::optional<EntityInstance> old_entity,
+    EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback) {}
 
 }  // namespace autofill

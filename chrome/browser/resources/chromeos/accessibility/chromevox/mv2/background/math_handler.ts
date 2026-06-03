@@ -5,8 +5,10 @@
 /**
  * @fileoverview Handles math output and exploration.
  */
+import {SRE} from '/chromevox/mv2/third_party/sre/sre_browser.js';
 import {AutomationPredicate} from '/common/automation_predicate.js';
 import type {CursorRange} from '/common/cursors/range.js';
+import {TestImportManager} from '/common/testing/test_import_manager.js';
 
 import {Msgs} from '../common/msgs.js';
 import {QueueMode} from '../common/tts_types.js';
@@ -15,9 +17,6 @@ import {ChromeVox} from './chromevox.js';
 import type {InternalKeyEvent} from './input/background_keyboard_handler.js';
 
 import AutomationNode = chrome.automation.AutomationNode;
-
-// Speech Rule Engine is included as a global variable in background.html.
-declare let SRE: any;
 
 /**
  * Handles specialized code to navigate, announce, and interact with math
@@ -37,9 +36,13 @@ export class MathHandler {
    * @return Boolean indicating whether any math was spoken.
    */
   speak(): boolean {
-    const mathml = this.node_.mathContent;
+    let mathml = this.node_.mathContent;
     if (!mathml) {
       return false;
+    }
+    // Ensure it has a `math` root node.
+    if (!/^<math>${mathml}<\/math>$/.test(mathml)) {
+      mathml = '<math>' + mathml + '</math>';
     }
 
     let text: string|null = null;
@@ -94,3 +97,5 @@ export class MathHandler {
     return false;
   }
 }
+
+TestImportManager.exportForTesting(MathHandler);

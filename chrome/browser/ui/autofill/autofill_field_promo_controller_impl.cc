@@ -5,15 +5,13 @@
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller_impl.h"
 
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_field_promo_view.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
-#include "components/autofill_ai/core/browser/autofill_ai_metrics.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -95,8 +93,7 @@ void AutofillFieldPromoControllerImpl::OnShowPromoResult(
   if (!result) {
     Hide();
   } else if (feature_promo_ == feature_engagement::kIPHAutofillAiOptInFeature) {
-    autofill_ai::LogOptInFunnelEvent(
-        autofill_ai::AutofillAiOptInFunnelEvents::kIphShown);
+    LogOptInFunnelEvent(AutofillAiOptInFunnelEvents::kIphShown);
   }
 }
 

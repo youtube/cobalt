@@ -138,9 +138,6 @@ CreateAppShimRequirement() {
 // requirement.
 // - False otherwise (|app_shim_audit_token| does not satisfy the constructed
 // designated requirement).
-//
-// This is used prior to macOS 11.7 where it is not possible to ad-hoc code sign
-// the app shim at runtime.
 bool IsAcceptablyCodeSignedLegacy(audit_token_t app_shim_audit_token) {
   static base::NoDestructor<
       base::expected<base::apple::ScopedCFTypeRef<SecRequirementRef>,
@@ -213,9 +210,8 @@ bool VerifyCodeDirectoryHash(
       base::SysCFStringRefToUTF8(app_id), base::apple::CFDataToSpan(cd_hash));
 }
 
-// Returns whether |app_shim_audit_token|'s code signature is trusted. Since an
-// ad-hoc code signature is used on macOS 11.7 and above, the verification
-// consists of:
+// Returns whether |app_shim_audit_token|'s code signature is trusted. The
+// verification consists of:
 //  - verifying the signature is valid.
 //  - verifying the code directory hash in the signature matches the value
 //    stored for this app at signing time.
@@ -506,8 +502,7 @@ void AppShimManager::UpdateAppBadge(
 
 mojo::Remote<mac_notifications::mojom::MacNotificationProvider>
 AppShimManager::LaunchNotificationProvider(const webapps::AppId& app_id) {
-  CHECK(
-      base::FeatureList::IsEnabled(features::kAppShimNotificationAttribution));
+  CHECK(web_app::UseNotificationAttributionForWebAppShims());
 
   mojo::Remote<mac_notifications::mojom::MacNotificationProvider> remote;
   auto bind_provider = base::BindOnce(
@@ -547,8 +542,7 @@ AppShimManager::LaunchNotificationProvider(const webapps::AppId& app_id) {
 void AppShimManager::ShowNotificationPermissionRequest(
     const webapps::AppId& app_id,
     RequestNotificationPermissionCallback callback) {
-  CHECK(
-      base::FeatureList::IsEnabled(features::kAppShimNotificationAttribution));
+  CHECK(web_app::UseNotificationAttributionForWebAppShims());
 
   if (notification_permission_result_for_testing_.has_value()) {
     std::move(callback).Run(*notification_permission_result_for_testing_);
@@ -771,7 +765,7 @@ void AppShimManager::OnShimProcessConnected(
 
   auto notification_action_handler = bootstrap->TakeNotificationActionHandler();
   std::optional<mojo::ReceiverId> notification_action_receiver_id;
-  if (base::FeatureList::IsEnabled(features::kAppShimNotificationAttribution) &&
+  if (web_app::UseNotificationAttributionForWebAppShims() &&
       notification_action_handler) {
     notification_action_receiver_id =
         notification_action_handler_receivers_.Add(
@@ -794,8 +788,7 @@ void AppShimManager::OnShimProcessConnected(
       break;
     }
     case chrome::mojom::AppShimLaunchType::kNotificationAction:
-      if (base::FeatureList::IsEnabled(
-              features::kAppShimNotificationAttribution) &&
+      if (web_app::UseNotificationAttributionForWebAppShims() &&
           notification_action_receiver_id.has_value()) {
         // Wait for the notification action to be handled before finishing up
         // the connection process to ensure Chrome and the App Shim stay alive

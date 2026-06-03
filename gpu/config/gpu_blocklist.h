@@ -9,10 +9,11 @@
 
 #include "base/containers/span.h"
 #include "gpu/config/gpu_control_list.h"
+#include "gpu/gpu_export.h"
 
 namespace gpu {
 
-class GPU_EXPORT GpuBlocklist : public GpuControlList {
+class GPU_CONFIG_EXPORT GpuBlocklist : public GpuControlList {
  public:
   GpuBlocklist(const GpuBlocklist&) = delete;
   GpuBlocklist& operator=(const GpuBlocklist&) = delete;

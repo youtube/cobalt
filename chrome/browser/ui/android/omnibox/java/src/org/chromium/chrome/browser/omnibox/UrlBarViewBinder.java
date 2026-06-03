@@ -12,12 +12,12 @@ import android.text.TextUtils;
 import android.view.ActionMode;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.RequiresApi;
 
 import com.google.android.material.color.MaterialColors;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.AutocompleteText;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.UrlBarTextState;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -97,15 +97,14 @@ class UrlBarViewBinder {
             view.setPaddingRelative(
                     view.getPaddingStart(), verticalPadding, view.getPaddingEnd(), verticalPadding);
             view.setUseSmallTextHeight(useSmallText);
+            view.setHint(getHintForTextSize(model));
         } else if (UrlBarProperties.HINT_TEXT_COLOR.equals(propertyKey)) {
             view.setHintTextColor(model.get(UrlBarProperties.HINT_TEXT_COLOR));
         } else if (UrlBarProperties.INCOGNITO_COLORS_ENABLED.equals(propertyKey)) {
             final boolean incognitoColorsEnabled =
                     model.get(UrlBarProperties.INCOGNITO_COLORS_ENABLED);
             updateHighlightColor(view, incognitoColorsEnabled);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                updateCursorAndSelectHandleColor(view, incognitoColorsEnabled);
-            }
+            updateCursorAndSelectHandleColor(view, incognitoColorsEnabled);
         } else if (UrlBarProperties.URL_DIRECTION_LISTENER.equals(propertyKey)) {
             view.setUrlDirectionListener(model.get(UrlBarProperties.URL_DIRECTION_LISTENER));
         } else if (UrlBarProperties.TEXT_CHANGE_LISTENER.equals(propertyKey)) {
@@ -129,7 +128,7 @@ class UrlBarViewBinder {
         } else if (UrlBarProperties.LONG_CLICK_LISTENER.equals(propertyKey)) {
             view.setOnLongClickListener(model.get(UrlBarProperties.LONG_CLICK_LISTENER));
         } else if (UrlBarProperties.HINT_TEXT.equals(propertyKey)) {
-            view.setHint(model.get(UrlBarProperties.HINT_TEXT));
+            view.setHint(getHintForTextSize(model));
         }
     }
 
@@ -153,7 +152,6 @@ class UrlBarViewBinder {
         view.setHighlightColor(highlightColor);
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.Q)
     private static void updateCursorAndSelectHandleColor(UrlBar view, boolean useIncognitoColors) {
         // These get* methods may fail on some devices, so we're calling all of them before
         // applying tint to any of the drawables. See https://crbug.com/1263630.
@@ -170,6 +168,15 @@ class UrlBarViewBinder {
         textSelectHandle.mutate().setTint(color);
         textSelectHandleLeft.mutate().setTint(color);
         textSelectHandleRight.mutate().setTint(color);
+    }
+
+    private static @Nullable String getHintForTextSize(PropertyModel model) {
+        // Android TextView's set a desired size based on the max of the hint text width and the
+        // "regular" width. In small text mode, where we don't intend to show the hint, we set it to
+        // null to avoid over-allocating space for text that will never be shown.
+        return model.get(UrlBarProperties.USE_SMALL_TEXT)
+                ? null
+                : model.get(UrlBarProperties.HINT_TEXT);
     }
 
     private UrlBarViewBinder() {}

@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_observer.h"
+#include "chrome/browser/signin/signin_browser_test_base.h"
 #include "chrome/browser/signin/web_signin_interceptor.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
@@ -31,8 +32,11 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/profile_destruction_waiter.h"
 #include "components/google/core/common/google_util.h"
+#include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/accounts_mutator.h"
+#include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -80,7 +84,8 @@ void SimulateEscapeKeyPress(content::WebContents* web_content) {
 
 }  // namespace
 
-class DiceWebSigninInterceptionBubbleBrowserTest : public InProcessBrowserTest {
+class DiceWebSigninInterceptionBubbleBrowserTest
+    : public SigninBrowserTestBase {
  public:
   DiceWebSigninInterceptionBubbleBrowserTest() = default;
 
@@ -663,6 +668,103 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptionBubbleBrowserTest,
                    "Signin_Signin_FromChromeSigninInterceptBubble"));
 }
 
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptionBubbleBrowserTest,
+                       ChromeSigninSignedOutDismiss) {
+  base::HistogramTester histogram_tester;
+
+  ASSERT_TRUE(GetAvatarButton()->GetEnabled());
+
+  AccountInfo account_info = SetAccountsCookiesAndTokens({"test@gmail.com"})[0];
+  auto bubble_paramerers = GetTestChromeSigninBubbleParameters();
+  bubble_paramerers.intercepted_account = account_info;
+
+  // Creating the bubble through the static function.
+  std::unique_ptr<ScopedWebSigninInterceptionBubbleHandle> handle =
+      DiceWebSigninInterceptionBubbleView::CreateBubble(
+          browser(), GetAvatarButton(), bubble_paramerers,
+          base::BindOnce(&DiceWebSigninInterceptionBubbleBrowserTest::
+                             OnInterceptionComplete,
+                         base::Unretained(this)));
+  // `bubble` is owned by the view hierarchy.
+  DiceWebSigninInterceptionBubbleView* bubble =
+      static_cast<DiceWebSigninInterceptionBubbleView::ScopedHandle*>(
+          handle.get())
+          ->GetBubbleViewForTesting();
+
+  views::Widget* widget = bubble->GetWidget();
+  // Equivalent to `kInterceptionBubbleBaseHeight` default.
+  bubble->SetHeightAndShowWidget(/*height=*/500);
+  EXPECT_FALSE(callback_result_.has_value());
+
+  views::test::WidgetDestroyedWaiter closing_observer(widget);
+  EXPECT_FALSE(bubble->GetAccepted());
+  // Remove account from Chrome.
+  identity_manager()->GetAccountsMutator()->RemoveAccount(
+      account_info.account_id,
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown);
+
+  // Widget will close now.
+  closing_observer.Wait();
+
+  ASSERT_TRUE(callback_result_.has_value());
+  EXPECT_EQ(callback_result_, SigninInterceptionResult::kDismissed);
+  EXPECT_FALSE(GetAvatarButton()->IsButtonActionDisabled());
+
+  histogram_tester.ExpectUniqueSample("Signin.InterceptResult.ChromeSignin",
+                                      SigninInterceptionResult::kDismissed, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.Intercept.BubbleDismissReason",
+      SigninInterceptionDismissReason::kUserNotEligible, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptionBubbleBrowserTest,
+                       ChromeSigninSigninDismiss) {
+  base::HistogramTester histogram_tester;
+
+  ASSERT_TRUE(GetAvatarButton()->GetEnabled());
+
+  AccountInfo account_info = SetAccountsCookiesAndTokens({"test@gmail.com"})[0];
+  auto bubble_paramerers = GetTestChromeSigninBubbleParameters();
+  bubble_paramerers.intercepted_account = account_info;
+
+  // Creating the bubble through the static function.
+  std::unique_ptr<ScopedWebSigninInterceptionBubbleHandle> handle =
+      DiceWebSigninInterceptionBubbleView::CreateBubble(
+          browser(), GetAvatarButton(), bubble_paramerers,
+          base::BindOnce(&DiceWebSigninInterceptionBubbleBrowserTest::
+                             OnInterceptionComplete,
+                         base::Unretained(this)));
+  // `bubble` is owned by the view hierarchy.
+  DiceWebSigninInterceptionBubbleView* bubble =
+      static_cast<DiceWebSigninInterceptionBubbleView::ScopedHandle*>(
+          handle.get())
+          ->GetBubbleViewForTesting();
+
+  views::Widget* widget = bubble->GetWidget();
+  // Equivalent to `kInterceptionBubbleBaseHeight` default.
+  bubble->SetHeightAndShowWidget(/*height=*/500);
+  EXPECT_FALSE(callback_result_.has_value());
+
+  views::test::WidgetDestroyedWaiter closing_observer(widget);
+  EXPECT_FALSE(bubble->GetAccepted());
+  // Make account primary.
+  identity_manager()->GetPrimaryAccountMutator()->SetPrimaryAccount(
+      account_info.account_id, signin::ConsentLevel::kSignin);
+
+  // Widget will close now.
+  closing_observer.Wait();
+
+  ASSERT_TRUE(callback_result_.has_value());
+  EXPECT_EQ(callback_result_, SigninInterceptionResult::kDismissed);
+  EXPECT_FALSE(GetAvatarButton()->IsButtonActionDisabled());
+
+  histogram_tester.ExpectUniqueSample("Signin.InterceptResult.ChromeSignin",
+                                      SigninInterceptionResult::kDismissed, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.Intercept.BubbleDismissReason",
+      SigninInterceptionDismissReason::kUserNotEligible, 1);
+}
+
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
 struct InterceptTypesParam {
   WebSigninInterceptor::SigninInterceptionType intercept_type;
@@ -703,7 +805,7 @@ class DiceWebSigninInterceptionBubbleWithParamBrowserTest
 IN_PROC_BROWSER_TEST_P(DiceWebSigninInterceptionBubbleWithParamBrowserTest,
                        AvatarEffectWithInterceptType) {
   AvatarToolbarButton* avatar_button = GetAvatarButton();
-  ASSERT_FALSE(avatar_button->HasExplicitButtonAction());
+  ASSERT_FALSE(avatar_button->HasExplicitButtonState());
   ASSERT_TRUE(avatar_button->GetText().empty());
 
   // Creating the bubble through the static function.
@@ -723,7 +825,7 @@ IN_PROC_BROWSER_TEST_P(DiceWebSigninInterceptionBubbleWithParamBrowserTest,
   // Equivalent to `kInterceptionBubbleBaseHeight` default.
   bubble->SetHeightAndShowWidget(/*height=*/500);
 
-  EXPECT_TRUE(avatar_button->HasExplicitButtonAction());
+  EXPECT_TRUE(avatar_button->HasExplicitButtonState());
   EXPECT_EQ(avatar_button->GetText(), expected_avatar_text());
 
   views::Widget* widget = bubble->GetWidget();
@@ -736,7 +838,7 @@ IN_PROC_BROWSER_TEST_P(DiceWebSigninInterceptionBubbleWithParamBrowserTest,
   // Widget will close now.
   closing_observer.Wait();
 
-  EXPECT_FALSE(avatar_button->HasExplicitButtonAction());
+  EXPECT_FALSE(avatar_button->HasExplicitButtonState());
   EXPECT_TRUE(avatar_button->GetText().empty());
 }
 

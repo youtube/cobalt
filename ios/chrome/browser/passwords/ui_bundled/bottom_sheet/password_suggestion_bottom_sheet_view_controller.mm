@@ -7,6 +7,7 @@
 #import "base/apple/foundation_util.h"
 #import "base/feature_list.h"
 #import "base/metrics/user_metrics.h"
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/ios/browser/form_suggestion.h"
 #import "components/password_manager/core/browser/features/password_features.h"
@@ -36,6 +37,17 @@ CGFloat const kSpacingBeforeTitle = 16;
 
 // Spacing use for the spacing after the logo title in the bottom sheet.
 CGFloat const kSpacingAfterTitle = 4;
+
+// Vertical spacing between the labels of a password suggestion cell.
+CGFloat const kSpacingBetweenCellLabels = 2;
+
+// Returns the username to display for the given `suggestion`.
+NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
+  NSString* username = suggestion.value;
+  return ([username length] == 0)
+             ? l10n_util::GetNSString(IDS_IOS_PASSWORD_BOTTOM_SHEET_NO_USERNAME)
+             : username;
+}
 
 }  // namespace
 
@@ -142,6 +154,12 @@ CGFloat const kSpacingAfterTitle = 4;
   [self.handler viewDidDisappear];
 }
 
+#pragma mark - Getters
+
+- (NSArray<FormSuggestion*>*)suggestions {
+  return _suggestions;
+}
+
 #pragma mark - PasswordSuggestionBottomSheetConsumer
 
 - (void)setSuggestions:(NSArray<FormSuggestion*>*)suggestions
@@ -185,16 +203,23 @@ CGFloat const kSpacingAfterTitle = 4;
                                  children:@[
                                    [strongSelf openPasswordManagerAction]
                                  ]]];
-      [menuElements
-          addObject:[UIMenu
-                        menuWithTitle:@""
-                                image:nil
-                           identifier:nil
-                              options:UIMenuOptionsDisplayInline
-                             children:@[
-                               [strongSelf
-                                   openPasswordDetailsForIndexPath:indexPath]
-                             ]]];
+
+      // The option to open password details shouldn't be available for recovery
+      // passwords as they are not displayed in the Password Manager for now.
+      FormSuggestion* formSuggestion =
+          [strongSelf.suggestions objectAtIndex:indexPath.row];
+      if (formSuggestion.type !=
+          autofill::SuggestionType::kBackupPasswordEntry) {
+        [menuElements
+            addObject:[UIMenu
+                          menuWithTitle:@""
+                                  image:nil
+                             identifier:nil
+                                options:UIMenuOptionsDisplayInline
+                               children:@[ [strongSelf
+                                            openPasswordDetailsForSuggestion:
+                                                formSuggestion] ]]];
+      }
     }
 
     return [UIMenu menuWithTitle:@"" children:menuElements];
@@ -310,29 +335,27 @@ CGFloat const kSpacingAfterTitle = 4;
   return titleView;
 }
 
-// Returns the string to display at a given row in the table view.
-- (NSString*)suggestionAtRow:(NSInteger)row {
-  NSString* username = [self.delegate usernameAtRow:row];
-  return ([username length] == 0)
-             ? l10n_util::GetNSString(IDS_IOS_PASSWORD_BOTTOM_SHEET_NO_USERNAME)
-             : username;
-}
-
 // Loads the favicon associated with the provided cell.
 // Defaults to the globe symbol if no URL is associated with the cell.
-- (void)loadFaviconAtIndexPath:(NSIndexPath*)indexPath
-                       forCell:(UITableViewCell*)cell {
+// In case of a recovery password suggestion, the favicon is replaced by a
+// symbol.
+- (void)loadFaviconForCell:(UITableViewCell*)cell
+    associatedWithSuggestion:(FormSuggestion*)suggestion {
   DCHECK(cell);
-
   TableViewURLCell* URLCell =
       base::apple::ObjCCastStrict<TableViewURLCell>(cell);
-  auto faviconLoadedBlock = ^(FaviconAttributes* attributes) {
-    DCHECK(attributes);
-    // It doesn't matter which cell the user sees here, all the credentials
-    // listed are for the same page and thus share the same favicon.
-    [URLCell.faviconView configureWithAttributes:attributes];
-  };
-  [self.delegate loadFaviconWithBlockHandler:faviconLoadedBlock];
+
+  if (suggestion.type == autofill::SuggestionType::kBackupPasswordEntry) {
+    [URLCell replaceFaviconWithSymbol:kHistorySymbol];
+  } else {
+    auto faviconLoadedBlock = ^(FaviconAttributes* attributes) {
+      DCHECK(attributes);
+      // It doesn't matter which cell the user sees here, all the credentials
+      // listed are for the same page and thus share the same favicon.
+      [URLCell.faviconView configureWithAttributes:attributes];
+    };
+    [self.delegate loadFaviconWithBlockHandler:faviconLoadedBlock];
+  }
 }
 
 // Creates the UI action used to open the password manager.
@@ -353,11 +376,10 @@ CGFloat const kSpacingAfterTitle = 4;
               handler:passwordManagerButtonTapHandler];
 }
 
-// Creates the UI action used to open the password details for form suggestion
-// at index path.
-- (UIAction*)openPasswordDetailsForIndexPath:(NSIndexPath*)indexPath {
+// Creates the UI action used to open the password details for the given
+// `formSuggestion`.
+- (UIAction*)openPasswordDetailsForSuggestion:(FormSuggestion*)formSuggestion {
   __weak __typeof(self) weakSelf = self;
-  FormSuggestion* formSuggestion = [_suggestions objectAtIndex:indexPath.row];
   void (^showDetailsButtonTapHandler)(UIAction*) = ^(UIAction* action) {
     // Open Password Details.
     weakSelf.disableBottomSheetOnExit = NO;
@@ -374,13 +396,6 @@ CGFloat const kSpacingAfterTitle = 4;
                         handler:showDetailsButtonTapHandler];
 }
 
-// Returns the accessibility label for the given cell.
-- (NSString*)cellAccessibilityLabel:(TableViewURLCell*)cell {
-  return l10n_util::GetNSStringF(IDS_IOS_AUTOFILL_ACCNAME_SUGGESTION,
-                                 base::SysNSStringToUTF16(cell.titleLabel.text),
-                                 base::SysNSStringToUTF16(_domain));
-}
-
 // Returns the accessibility value for the cell at the provided index path.
 - (NSString*)cellAccessibilityValueAtIndexPath:(NSIndexPath*)indexPath {
   return l10n_util::GetNSStringF(IDS_IOS_AUTOFILL_SUGGESTION_INDEX_VALUE,
@@ -393,31 +408,41 @@ CGFloat const kSpacingAfterTitle = 4;
 - (TableViewURLCell*)layoutCell:(TableViewURLCell*)cell
               forTableViewWidth:(CGFloat)tableViewWidth
                     atIndexPath:(NSIndexPath*)indexPath {
-  cell.selectionStyle = UITableViewCellSelectionStyleNone;
+  CHECK(_suggestions.count);
+  FormSuggestion* formSuggestion = [_suggestions objectAtIndex:indexPath.row];
 
   // Note that both the credentials and URLs will use middle truncation, as it
   // generally makes it easier to differentiate between different ones, without
   // having to resort to displaying multiple lines to show the full username
   // and URL.
-  cell.titleLabel.text = [self suggestionAtRow:indexPath.row];
+  cell.titleLabel.text = GetSuggestionDisplayUsername(formSuggestion);
   cell.titleLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
   cell.titleLabel.numberOfLines = 1;
   cell.URLLabel.text = _domain;
   cell.URLLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
   cell.URLLabel.numberOfLines = 1;
   cell.URLLabel.hidden = NO;
-  cell.accessibilityLabel = [self cellAccessibilityLabel:cell];
+  if (formSuggestion.type == autofill::SuggestionType::kBackupPasswordEntry) {
+    cell.thirdRowLabel.text = l10n_util::GetNSString(
+        IDS_IOS_PASSWORD_BOTTOM_SHEET_RECOVERY_PASSWORD_LABEL);
+    cell.thirdRowLabel.hidden = NO;
+  }
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kIOSFillRecoveryPassword)) {
+    cell.labelSpacing = kSpacingBetweenCellLabels;
+  }
   cell.accessibilityValue = [self cellAccessibilityValueAtIndexPath:indexPath];
   cell.separatorInset = [self separatorInsetForTableViewWidth:tableViewWidth
                                                   atIndexPath:indexPath];
   cell.accessoryType = [self accessoryType:indexPath];
+  cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
   [cell setFaviconContainerBackgroundColor:
             [UIColor colorNamed:kPrimaryBackgroundColor]];
   cell.titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
   cell.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
 
-  [self loadFaviconAtIndexPath:indexPath forCell:cell];
+  [self loadFaviconForCell:cell associatedWithSuggestion:formSuggestion];
   return cell;
 }
 

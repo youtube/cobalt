@@ -4,6 +4,7 @@
 
 #include "ui/accessibility/ax_tree.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 
 #if BUILDFLAG(IS_LINUX)
@@ -5142,7 +5143,7 @@ TEST(AXTreeTest, UnserializeErrors) {
 #endif
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 TEST(AXTreeTest, CreateAndClearLinuxExtraAnnouncementNodes) {
   AXNodeData root;
   root.id = 1;
@@ -5316,7 +5317,7 @@ TEST(AXTreeTest, LinuxExtraAnnouncementNodeIndices) {
     EXPECT_EQ(1U, polite_node.GetUnignoredIndexInParent());
   }
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
 #if AX_FAIL_FAST_BUILD()
 TEST(AXTreeTest, ReparentToNewRoot) {

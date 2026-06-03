@@ -23,6 +23,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/not_fatal_until.h"
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -52,6 +53,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test/mock_mandatory_reauth_manager.h"
+#include "components/autofill/core/browser/payments/test/mock_virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/test_credit_card_save_manager.h"
 #include "components/autofill/core/browser/payments/test_payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test_virtual_card_enrollment_manager.h"
@@ -481,31 +483,6 @@ auto UnorderedElementsCompareEqual(Matchers... matchers) {
       ::testing::Pointee(ComparesEqual(std::move(matchers)))...);
 }
 
-class MockVirtualCardEnrollmentManager
-    : public TestVirtualCardEnrollmentManager {
- public:
-  MockVirtualCardEnrollmentManager(
-      PaymentsDataManager* payments_data_manager,
-      payments::TestPaymentsNetworkInterface* payments_network_interface,
-      TestAutofillClient* autofill_client)
-      : TestVirtualCardEnrollmentManager(payments_data_manager,
-                                         payments_network_interface,
-                                         autofill_client) {}
-  MOCK_METHOD(
-      void,
-      InitVirtualCardEnroll,
-      (const CreditCard& credit_card,
-       VirtualCardEnrollmentSource virtual_card_enrollment_source,
-       std::optional<payments::GetDetailsForEnrollmentResponseDetails>
-           get_details_for_enrollment_response_details,
-       PrefService* user_prefs,
-       VirtualCardEnrollmentManager::RiskAssessmentFunction
-           risk_assessment_function,
-       VirtualCardEnrollmentManager::VirtualCardEnrollmentFieldsLoadedCallback
-           virtual_card_enrollment_fields_loaded_callback),
-      (override));
-};
-
 // TODO(crbug.com/40270301): Move MockCreditCardSaveManager to new header and cc
 // file.
 class MockCreditCardSaveManager : public TestCreditCardSaveManager {
@@ -533,12 +510,6 @@ class MockCreditCardSaveManager : public TestCreditCardSaveManager {
 class FormDataImporterTest : public testing::Test {
  public:
   FormDataImporterTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kAutofillUseFRAddressModel,
-         features::kAutofillUseINAddressModel,
-         features::kAutofillUseNLAddressModel},
-        {});
-
     // Advance the clock to year 20XX.
     task_environment().FastForwardBy(base::Days(365) * 31);
   }
@@ -777,7 +748,8 @@ class FormDataImporterTest : public testing::Test {
   std::unique_ptr<PrefService> prefs_;
   syncer::TestSyncService sync_service_;
   TestAutofillClient autofill_client_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillUseINAddressModel};
 };
 
 // Tests that the country is not complemented if a country is part of the form.

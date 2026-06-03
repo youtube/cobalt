@@ -289,21 +289,18 @@ class InstallTest(XcodeUtilTest):
 
   def test_install_runtime_dmg_with_builtin_runtime(self):
     with mock.patch('xcode_util.is_runtime_builtin', return_value=True):
-      with mock.patch('iossim_util.delete_simulator_runtime_and_wait'
-                     ) as mock_delete_simulator_runtime_and_wait:
+      with mock.patch(
+          'xcode_util._install_runtime_dmg') as mock__install_runtime_dmg:
         with mock.patch(
-            'xcode_util._install_runtime_dmg') as mock__install_runtime_dmg:
-          with mock.patch('iossim_util.add_simulator_runtime'
-                         ) as mock_add_simulator_runtime:
-            with mock.patch('iossim_util.override_default_iphonesim_runtime'
-                           ) as mock_override_default_iphonesim_runtime:
-              result = xcode_util.install_runtime_dmg(
-                  mac_toolchain='mac_toolchain',
-                  runtime_cache_folder='/path/to/runtime_cache_folder',
-                  ios_version='15.0',
-                  xcode_build_version='14a123')
+            'iossim_util.add_simulator_runtime') as mock_add_simulator_runtime:
+          with mock.patch('iossim_util.override_default_iphonesim_runtime'
+                         ) as mock_override_default_iphonesim_runtime:
+            result = xcode_util.install_runtime_dmg(
+                mac_toolchain='mac_toolchain',
+                runtime_cache_folder='/path/to/runtime_cache_folder',
+                ios_version='15.0',
+                xcode_build_version='14a123')
 
-    self.assertFalse(mock_delete_simulator_runtime_and_wait.called)
     self.assertFalse(mock__install_runtime_dmg.called)
     self.assertFalse(mock_add_simulator_runtime.called)
     self.assertFalse(mock_override_default_iphonesim_runtime.called)
@@ -374,6 +371,7 @@ class InstallTest(XcodeUtilTest):
     mock_get_simulator_runtime_info_by_build.assert_called_once_with('20C52')
     mock__install_runtime_dmg.assert_not_called()
 
+  @mock.patch('xcode_util.ensure_xcode_ready_in_apps', return_value=None)
   @mock.patch('xcode_util.is_local_run', return_value=True)
   @mock.patch('xcode_util.version', return_value=('', 'TestXcodeVersion'))
   @mock.patch(
@@ -381,7 +379,7 @@ class InstallTest(XcodeUtilTest):
   @mock.patch('xcode_util.get_latest_runtime_build_cipd', return_value=object())
   @mock.patch('xcode_util.install')
   def test_local_run(self, mock_install, mock_get_latest_runtime_build_cipd, _1,
-                     _2, _3):
+                     _2, _3, _4):
     ios_version = '14.4'
     install_success, is_legacy_xcode = xcode_util.install_xcode(
         self.mac_toolchain, self.xcode_build_version, self.xcode_app_path, '',
@@ -392,6 +390,7 @@ class InstallTest(XcodeUtilTest):
         self.xcode_build_version, ios_version)
     self.assertFalse(mock_install.called)
 
+  @mock.patch('xcode_util.ensure_xcode_ready_in_apps', return_value=None)
   @mock.patch('xcode_util.is_local_run', return_value=True)
   @mock.patch('xcode_util.version', return_value=('', 'TestXcodeVersion'))
   @mock.patch(
@@ -400,7 +399,7 @@ class InstallTest(XcodeUtilTest):
   @mock.patch('xcode_util.install')
   def test_local_run_no_cipd_runtime(self, mock_install,
                                      mock_get_latest_runtime_build_cipd, _1, _2,
-                                     _3):
+                                     _3, _4):
     ios_version = '14.4'
     install_success, is_legacy_xcode = xcode_util.install_xcode(
         self.mac_toolchain, self.xcode_build_version, self.xcode_app_path, '',
@@ -575,6 +574,52 @@ Use "mac_toolchain help [command]" for more information about a command."""
       mock_describe_cipd_ref.side_effect = ['', '']
       result = xcode_util.get_latest_runtime_build_cipd('14c18', '15.0')
     self.assertIsNone(result)
+
+  @mock.patch('os.path.exists')
+  def test_check_xcode_exists_in_apps_exists(self, mock_exists):
+    mock_exists.return_value = True
+    result = xcode_util.check_xcode_exists_in_apps("16f6")
+    expected_path = "/Applications/xcode_16f6.app"
+    mock_exists.assert_called_once_with(expected_path)
+    self.assertTrue(result)
+
+  @mock.patch('os.path.exists')
+  def test_check_xcode_exists_in_apps_not_exist(self, mock_exists):
+    mock_exists.return_value = False
+    result = xcode_util.check_xcode_exists_in_apps("15.0")
+    expected_path = "/Applications/xcode_15.0.app"
+    mock_exists.assert_called_once_with(expected_path)
+    self.assertFalse(result)
+
+  @mock.patch('glob.glob')
+  @mock.patch('xcode_util.select')
+  def test_xcode_ready_no_xcode_apps_found(self, mock_select, mock_glob):
+    """Test case when no Xcode apps are found."""
+    mock_glob.return_value = []
+
+    xcode_util.ensure_xcode_ready_in_apps()
+
+    mock_glob.assert_called_once_with(
+        os.path.join("/Applications", "xcode_*.app"))
+    mock_select.assert_not_called()
+
+  @mock.patch('glob.glob')
+  @mock.patch('xcode_util.select')
+  def test_xcode_ready_xcode_apps_found(self, mock_select, mock_glob):
+    """Test case when Xcode apps are found."""
+    xcode_app_paths = [
+        "/Applications/xcode_1.app",
+        "/Applications/xcode_2.app",
+        "/Applications/xcode_3.app",
+    ]
+    mock_glob.return_value = xcode_app_paths
+
+    xcode_util.ensure_xcode_ready_in_apps()
+
+    mock_glob.assert_called_once_with(
+        os.path.join("/Applications", "xcode_*.app"))
+    mock_select.assert_has_calls(
+        [mock.call(app_path) for app_path in xcode_app_paths])
 
 
 class MoveRuntimeTests(XcodeUtilTest):

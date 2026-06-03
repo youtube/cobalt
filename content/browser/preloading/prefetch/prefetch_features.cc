@@ -50,16 +50,6 @@ const base::FeatureParam<bool>
     kPrefetchStateContaminationSwapsBrowsingContextGroup{
         &kPrefetchStateContaminationMitigation, "swaps_bcg", true};
 
-BASE_FEATURE(kPrefetchProxy, "PrefetchProxy", base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPrefetchCookieIndices,
-             "PrefetchCookieIndices",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPrefetchNewLimits,
-             "PrefetchNewLimits",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kPrefetchServiceWorkerNoFetchHandlerFix,
              "PrefetchServiceWorkerNoFetchHandlerFix",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -108,4 +98,15 @@ BASE_FEATURE(kPrefetchQueueingPartialFixWithoutScheduler,
              "PrefetchQueueingPartialFixWithoutScheduler",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kPrefetchCanaryCheckerParams,
+             "PrefetchCanaryCheckerParams",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPrefetchMultipleActiveSetSizeLimitForBase,
+             "PrefetchMultipleActiveSetSizeLimitForBase",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<size_t>
+    kPrefetchMultipleActiveSetSizeLimitForBaseValue{
+        &kPrefetchMultipleActiveSetSizeLimitForBase,
+        "prefetch_multiple_active_set_size_limit_for_base_value", 2};
 }  // namespace features

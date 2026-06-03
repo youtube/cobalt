@@ -4,15 +4,18 @@
 
 package org.chromium.chrome.browser.contextmenu;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.SuperscriptSpan;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.DefaultBrowserInfo;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -20,6 +23,7 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.ui.text.SpanApplier;
 import org.chromium.ui.text.SpanApplier.SpanInfo;
 
@@ -27,6 +31,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** List of all predefined Context Menu Items available in Chrome. */
+@NullMarked
 class ChromeContextMenuItem {
     @IntDef({
         Item.OPEN_IN_NEW_CHROME_TAB,
@@ -36,6 +41,7 @@ class ChromeContextMenuItem {
         Item.OPEN_IN_INCOGNITO_TAB,
         Item.OPEN_IN_OTHER_WINDOW,
         Item.OPEN_IN_NEW_WINDOW,
+        Item.SHOW_INTEREST_IN_ELEMENT,
         Item.OPEN_IN_EPHEMERAL_TAB,
         Item.COPY_LINK_ADDRESS,
         Item.COPY_LINK_TEXT,
@@ -43,7 +49,6 @@ class ChromeContextMenuItem {
         Item.SHARE_LINK,
         Item.DIRECT_SHARE_LINK,
         Item.READ_LATER,
-        Item.SHOW_INTEREST_IN_ELEMENT,
         Item.LOAD_ORIGINAL_IMAGE,
         Item.SAVE_IMAGE,
         Item.OPEN_IMAGE,
@@ -84,14 +89,14 @@ class ChromeContextMenuItem {
         int OPEN_IN_INCOGNITO_TAB = 5;
         int OPEN_IN_OTHER_WINDOW = 6;
         int OPEN_IN_NEW_WINDOW = 7;
-        int OPEN_IN_EPHEMERAL_TAB = 8;
-        int COPY_LINK_ADDRESS = 9;
-        int COPY_LINK_TEXT = 10;
-        int SAVE_LINK_AS = 11;
-        int SHARE_LINK = 12;
-        int DIRECT_SHARE_LINK = 13;
-        int READ_LATER = 14;
-        int SHOW_INTEREST_IN_ELEMENT = 15;
+        int SHOW_INTEREST_IN_ELEMENT = 8;
+        int OPEN_IN_EPHEMERAL_TAB = 9;
+        int COPY_LINK_ADDRESS = 10;
+        int COPY_LINK_TEXT = 11;
+        int SAVE_LINK_AS = 12;
+        int SHARE_LINK = 13;
+        int DIRECT_SHARE_LINK = 14;
+        int READ_LATER = 15;
         // Image Group
         int LOAD_ORIGINAL_IMAGE = 16;
         int SAVE_IMAGE = 17;
@@ -137,6 +142,7 @@ class ChromeContextMenuItem {
         R.id.contextmenu_open_in_incognito_tab, // Item.OPEN_IN_INCOGNITO_TAB
         R.id.contextmenu_open_in_other_window, // Item.OPEN_IN_OTHER_WINDOW
         R.id.contextmenu_open_in_new_window, // Item.OPEN_IN_NEW_WINDOW
+        R.id.contextmenu_show_interest_in_element, // Item.SHOW_INTEREST_IN_ELEMENT
         R.id.contextmenu_open_in_ephemeral_tab, // Item.OPEN_IN_EPHEMERAL_TAB
         R.id.contextmenu_copy_link_address, // Item.COPY_LINK_ADDRESS
         R.id.contextmenu_copy_link_text, // Item.COPY_LINK_TEXT
@@ -144,7 +150,6 @@ class ChromeContextMenuItem {
         R.id.contextmenu_share_link, // Item.SHARE_LINK
         R.id.contextmenu_direct_share_link, // Item.DIRECT_SHARE_LINK
         R.id.contextmenu_read_later, // Item.READ_LATER
-        R.id.contextmenu_show_interest_in_element, // Item.SHOW_INTEREST_IN_ELEMENT
         R.id.contextmenu_load_original_image, // Item.LOAD_ORIGINAL_IMAGE
         R.id.contextmenu_save_image, // Item.SAVE_IMAGE
         R.id.contextmenu_open_image, // Item.OPEN_IMAGE
@@ -181,6 +186,7 @@ class ChromeContextMenuItem {
         R.string.contextmenu_open_in_incognito_tab, // Item.OPEN_IN_INCOGNITO_TAB:
         R.string.contextmenu_open_in_other_window, // Item.OPEN_IN_OTHER_WINDOW:
         R.string.contextmenu_open_in_new_window, // Item.OPEN_IN_NEW_WINDOW:
+        R.string.contextmenu_show_interest_in_element, // Item.SHOW_INTEREST_IN_ELEMENT
         R.string.contextmenu_open_in_ephemeral_tab, // Item.OPEN_IN_EPHEMERAL_TAB:
         R.string.contextmenu_copy_link_address, // Item.COPY_LINK_ADDRESS:
         R.string.contextmenu_copy_link_text, // Item.COPY_LINK_TEXT:
@@ -188,7 +194,6 @@ class ChromeContextMenuItem {
         R.string.contextmenu_share_link, // Item.SHARE_LINK
         0, // Item.DIRECT_SHARE_LINK is not handled by this mapping.
         R.string.contextmenu_read_later, // Item.READ_LATER
-        R.string.contextmenu_show_interest_in_element, // Item.SHOW_INTEREST_IN_ELEMENT
         R.string.contextmenu_load_original_image, // Item.LOAD_ORIGINAL_IMAGE:
         R.string.contextmenu_save_image, // Item.SAVE_IMAGE:
         R.string.contextmenu_open_image, // Item.OPEN_IMAGE:
@@ -253,11 +258,11 @@ class ChromeContextMenuItem {
             case Item.OPEN_IN_BROWSER_ID:
                 return DefaultBrowserInfo.getTitleOpenInDefaultBrowser(false);
             case Item.SEARCH_BY_IMAGE:
-                return context.getString(
-                        getStringId(item),
+                TemplateUrl templateUrl =
                         TemplateUrlServiceFactory.getForProfile(profile)
-                                .getDefaultSearchEngineTemplateUrl()
-                                .getShortName());
+                                .getDefaultSearchEngineTemplateUrl();
+                assumeNonNull(templateUrl);
+                return context.getString(getStringId(item), templateUrl.getShortName());
             case Item.READ_LATER:
                 return addOrRemoveNewLabel(context, item, null, showInProductHelp);
             case Item.OPEN_IN_EPHEMERAL_TAB:

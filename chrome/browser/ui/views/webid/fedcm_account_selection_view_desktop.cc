@@ -218,12 +218,8 @@ bool FedCmAccountSelectionView::Show(
           new_accounts_[0]->browser_trusted_login_state ==
               Account::LoginState::kSignIn &&
           state_ != State::LOADING;
-      // The IDP claimed login state controls whether we show disclosure text,
-      // if we do not skip the next dialog. Also skip when
-      // `disclosure_fields` is empty (controlled by the fields API).
       bool should_show_request_permission_dialog =
-          new_accounts_[0]->login_state != Account::LoginState::kSignIn &&
-          !new_idp_data.disclosure_fields.empty();
+          !new_accounts_[0]->fields.empty();
 
       if (should_show_verifying_sheet) {
         state_ = State::VERIFYING;
@@ -547,7 +543,8 @@ void FedCmAccountSelectionView::OnAccountSelected(
   DCHECK(state_ != State::IDP_SIGNIN_STATUS_MISMATCH);
   DCHECK(state_ != State::AUTO_REAUTHN);
 
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -561,15 +558,12 @@ void FedCmAccountSelectionView::OnAccountSelected(
   }
 
   const content::IdentityProviderData& idp_data = *account->identity_provider;
-  // If the account is a returning user or if the account is selected from UI
-  // which shows the disclosure text or if the dialog doesn't need to ask for
-  // the user's permission to share their id/email/name/picture, show the
-  // verifying sheet.
-  if (account->login_state != Account::LoginState::kSignUp ||
-      state_ == State::REQUEST_PERMISSION ||
+  // If the account dialog doesn't need to ask for the user's permission to
+  // share their id/email/name/picture or if the account is selected from UI
+  // which shows the disclosure text, show the verifying sheet.
+  if (account->fields.empty() || state_ == State::REQUEST_PERMISSION ||
       (state_ == State::SINGLE_ACCOUNT_PICKER &&
-       dialog_type_ == DialogType::BUBBLE) ||
-      idp_data.disclosure_fields.empty()) {
+       dialog_type_ == DialogType::BUBBLE)) {
     state_ = State::VERIFYING;
     if (!NotifyDelegateOfAccountSelection(*account, idp_data)) {
       // `this` was deleted.
@@ -609,7 +603,8 @@ void FedCmAccountSelectionView::OnAccountSelected(
 void FedCmAccountSelectionView::OnLinkClicked(LinkType link_type,
                                               const GURL& url,
                                               const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -641,7 +636,8 @@ void FedCmAccountSelectionView::OnCloseButtonClicked(const ui::Event& event) {
   // Because the close button is a safe button to click and may be visible
   // even when the widget is (partially) occluded, we do not check
   // `is_occluded_by_pip_` here.
-  if (input_protector_->IsPossiblyUnintendedInteraction(event)) {
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false)) {
     return;
   }
 
@@ -675,7 +671,8 @@ void FedCmAccountSelectionView::OnCloseButtonClicked(const ui::Event& event) {
 void FedCmAccountSelectionView::OnLoginToIdP(const GURL& idp_config_url,
                                              const GURL& idp_login_url,
                                              const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -698,7 +695,8 @@ void FedCmAccountSelectionView::OnLoginToIdP(const GURL& idp_config_url,
 }
 
 void FedCmAccountSelectionView::OnGotIt(const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -707,7 +705,8 @@ void FedCmAccountSelectionView::OnGotIt(const ui::Event& event) {
 }
 
 void FedCmAccountSelectionView::OnMoreDetails(const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }

@@ -1,73 +1,140 @@
-// Copyright 2023 The Chromium Authors
+// Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base.test.transit;
 
-import org.chromium.base.test.transit.ConditionalState.Phase;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@link Transition} into a {@link Station}, either from another {@link Station} or as an entry
- * point.
+ * A generic {@link Transition} out of one or more {@link Facility}s into another {@link Facility}.
  */
 @NullMarked
-class Trip extends Transition {
-    private final List<Station<?>> mOrigins;
-    private final List<Station<?>> mDestinations;
+public class Trip extends Transition {
+    private final @Nullable Station<?> mOriginStation;
+    private final @Nullable Station<?> mDestinationStation;
+    private final List<Facility<?>> mFacilitiesToExit;
+    private final List<Facility<?>> mFacilitiesToEnter;
+    private final List<CarryOn> mCarryOnsToDrop;
+    private final List<CarryOn> mCarryOnsToPickUp;
+    private final String mTransitionName;
 
-    /**
-     * Constructor. Trip is instantiated to move between {@link Station}s.
-     *
-     * <p>The initial Transition is entering a single station.
-     *
-     * <p>Besides this, usually trips are triggered from one {@link Station} to another. With
-     * multiwindow, there can be any number of stations being exited and any number of stations
-     * being entered.
-     *
-     * @param origins the {@link Station}s to depart from.
-     * @param destinations the {@link Station}s to travel to.
-     * @param options the {@link TransitionOptions}.
-     * @param trigger the action that triggers the transition. e.g. clicking a View.
-     */
+    /** Use {@link TripBuilder} to create a Trip. */
     Trip(
-            List<Station<?>> origins,
-            List<Station<?>> destinations,
+            @Nullable Station<?> originStation,
+            @Nullable Station<?> destinationStation,
+            List<Facility<?>> facilitiesToExit,
+            List<Facility<?>> facilitiesToEnter,
+            List<CarryOn> carryOnsToDrop,
+            List<CarryOn> carryOnsToPickUp,
             TransitionOptions options,
             @Nullable Trigger trigger) {
         super(
                 options,
-                getStationsPlusFacilitiesWithPhase(origins, Phase.ACTIVE),
-                getStationsPlusFacilitiesWithPhase(destinations, Phase.NEW),
+                aggregateStates(originStation, facilitiesToExit, carryOnsToDrop),
+                aggregateStates(destinationStation, facilitiesToEnter, carryOnsToPickUp),
                 trigger);
-        mOrigins = origins;
-        mDestinations = destinations;
-    }
+        mOriginStation = originStation;
+        mDestinationStation = destinationStation;
+        mFacilitiesToExit = facilitiesToExit;
+        mFacilitiesToEnter = facilitiesToEnter;
+        mCarryOnsToDrop = carryOnsToDrop;
+        mCarryOnsToPickUp = carryOnsToPickUp;
 
-    private static List<? extends ConditionalState> getStationsPlusFacilitiesWithPhase(
-            List<Station<?>> stations, @Phase int phase) {
-        List<ConditionalState> allConditionalStates = new ArrayList<>();
-        for (Station<?> station : stations) {
-            allConditionalStates.add(station);
-            allConditionalStates.addAll(station.getFacilitiesWithPhase(phase));
-        }
-        return allConditionalStates;
+        String transitionTypeName = determineTransitionTypeName();
+        mTransitionName = determineTransitionName(transitionTypeName);
     }
 
     @Override
     protected void onAfterTransition() {
         super.onAfterTransition();
-        TrafficControl.notifyActiveStationsChanged(mOrigins, mDestinations);
+
+        if (mOriginStation != null || mDestinationStation != null) {
+            TrafficControl.notifyActiveStationsChanged(
+                    mOriginStation != null ? List.of(mOriginStation) : Collections.emptyList(),
+                    mDestinationStation != null
+                            ? List.of(mDestinationStation)
+                            : Collections.emptyList());
+        }
     }
 
     @Override
     public String toDebugString() {
-        return String.format(
-                "Trip %d (%s to %s)",
-                mId, getStateListString(mOrigins), getStateListString(mDestinations));
+        return mTransitionName;
+    }
+
+    private static List<? extends ConditionalState> aggregateStates(
+            @Nullable Station<?> station, List<Facility<?>> facilities, List<CarryOn> carryOns) {
+        List<ConditionalState> states = new ArrayList<>();
+        if (station != null) {
+            states.add(station);
+        }
+        states.addAll(facilities);
+        states.addAll(carryOns);
+        return states;
+    }
+
+    private String determineTransitionTypeName() {
+        if (mDestinationStation != null) {
+            if (mOriginStation != null) {
+                return "StationToStationTrip";
+            } else {
+                return "StationSpawn";
+            }
+        } else {
+            if (mOriginStation != null) {
+                return "LastStation";
+            }
+        }
+
+        if (!mFacilitiesToEnter.isEmpty()) {
+            if (!mFacilitiesToExit.isEmpty()) {
+                return "FacilitySwap";
+            } else {
+                return "FacilityCheckIn";
+            }
+        } else if (!mFacilitiesToExit.isEmpty()) {
+            return "FacilityCheckOut";
+        }
+
+        if (!mCarryOnsToPickUp.isEmpty()) {
+            if (!mCarryOnsToDrop.isEmpty()) {
+                return "CarryOnSwap";
+            } else {
+                return "CarryOnPickUp";
+            }
+        } else if (!mCarryOnsToDrop.isEmpty()) {
+            return "CarryOnDrop";
+        }
+
+        return "GenericTrip";
+    }
+
+    private String determineTransitionName(String transitionTypeName) {
+        if (!mEnteredStates.isEmpty()) {
+            String facilitiesToEnterString = getStateListString(mEnteredStates);
+            if (!mExitedStates.isEmpty()) {
+                String facilitiesToExitString = getStateListString(mExitedStates);
+                return String.format(
+                        "%s %d (from %s to %s)",
+                        transitionTypeName, mId, facilitiesToExitString, facilitiesToEnterString);
+            } else {
+                return String.format(
+                        "%s %d (enter %s)", transitionTypeName, mId, facilitiesToEnterString);
+            }
+        } else {
+            if (!mExitedStates.isEmpty()) {
+                String facilitiesToExitString = getStateListString(mExitedStates);
+                return String.format(
+                        "%s %d (exit %s)", transitionTypeName, mId, facilitiesToExitString);
+            } else {
+                return String.format("%s %d", transitionTypeName, mId);
+            }
+        }
     }
 }

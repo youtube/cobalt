@@ -59,7 +59,7 @@ enum PseudoId : uint8_t {
   // "PseudoElementStyles" in computed_style_extra_fields.json5 to
   // (kLastTrackedPublicPseudoId - kFirstPublicPseudoId + 1).
   //
-  // The above is necessary because presence of a public pseudo element style
+  // The above is necessary because presence of a public pseudo-element style
   // for an element is tracked on the element's ComputedStyle. This is done for
   // all public IDs until kLastTrackedPublicPseudoId.
   kPseudoIdNone,
@@ -89,16 +89,21 @@ enum PseudoId : uint8_t {
   // The following IDs are public but not tracked.
   kPseudoIdViewTransition,
   kPseudoIdViewTransitionGroup,
+  kPseudoIdViewTransitionGroupChildren,
   kPseudoIdViewTransitionImagePair,
   kPseudoIdViewTransitionOld,
   kPseudoIdViewTransitionNew,
   // Internal IDs follow:
   kPseudoIdFirstLineInherited,
+
+  // These five must be together, due to code in
+  // CollectMatchingRulesInternal().
   kPseudoIdScrollbarThumb,
   kPseudoIdScrollbarButton,
   kPseudoIdScrollbarTrack,
   kPseudoIdScrollbarTrackPiece,
   kPseudoIdScrollbarCorner,
+
   kPseudoIdScrollMarkerGroupAfter,
   kPseudoIdScrollMarkerGroupBefore,
   kPseudoIdResizer,
@@ -147,6 +152,7 @@ inline bool IsTransitionPseudoElement(PseudoId pseudo_id) {
   switch (pseudo_id) {
     case kPseudoIdViewTransition:
     case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionGroupChildren:
     case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionOld:
     case kPseudoIdViewTransitionNew:
@@ -160,6 +166,7 @@ inline bool PseudoElementHasArguments(PseudoId pseudo_id) {
   switch (pseudo_id) {
     case kPseudoIdHighlight:
     case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionGroupChildren:
     case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionNew:
     case kPseudoIdViewTransitionOld:
@@ -290,7 +297,7 @@ enum GridAutoFlow {
                          int(kInternalAutoFlowDirectionColumn)
 };
 
-static const size_t kContainmentBits = 5;
+static const size_t kContainmentBits = 6;
 enum Containment {
   kContainsNone = 0x0,
   kContainsLayout = 0x1,
@@ -298,6 +305,7 @@ enum Containment {
   kContainsPaint = 0x4,
   kContainsBlockSize = 0x8,
   kContainsInlineSize = 0x10,
+  kContainsViewTransition = 0x20,
   kContainsSize = kContainsBlockSize | kContainsInlineSize,
   kContainsStrict =
       kContainsStyle | kContainsLayout | kContainsPaint | kContainsSize,

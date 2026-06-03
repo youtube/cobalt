@@ -36,6 +36,7 @@
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_clock.h"
@@ -111,6 +112,12 @@ constexpr size_t kLongTaskUkmSampleInterval = 100;
 
 const char kSwapsPerInsertionHistogram[] =
     "Renderer.Core.Timing.Performance.SwapsPerPerformanceEntryInsertion";
+
+const char kParserResumeByUserTiming[] =
+    "Blink.HTMLParsing.ResumedByUserTiming";
+
+const char kParserResumingCalledBeforePausing[] =
+    "Blink.HTMLParsing.IsParserResumingCalledBeforePausing";
 
 bool IsMeasureOptionsEmpty(const PerformanceMeasureOptions& options) {
   return !options.hasDetail() && !options.hasEnd() && !options.hasStart() &&
@@ -910,6 +917,7 @@ PerformanceMark* Performance::mark(ScriptState* script_state,
         Document* document = window->GetFrame()->GetDocument();
         if (mark_name == mark_parser_blocking) {
           document->NotifyParserPauseByUserTiming();
+          is_parser_yielded_ = true;
           // Schedule a timeout based resume event here since pausing the parser
           // can be a potential footgun. It's not guaranteed that the parser
           // resume mark is called after the parser pause mark.
@@ -922,12 +930,24 @@ PerformanceMark* Performance::mark(ScriptState* script_state,
               WTF::BindOnce(
                   [](Document* document) {
                     document->NotifyParserResumeByUserTiming();
+                    base::UmaHistogramBoolean(kParserResumeByUserTiming, false);
                   },
                   WrapPersistent(document)),
               base::Milliseconds(timeout));
         } else if (mark_name == mark_parser_restart) {
-          // If the parser is pausing, resume it.
-          document->NotifyParserResumeByUserTiming();
+          base::UmaHistogramBoolean(kParserResumingCalledBeforePausing,
+                                    !is_parser_yielded_);
+          // If the parser is pausing, resume it. This has to be called as a new
+          // task to ensure that the script is not running to resume the parser.
+          document->GetTaskRunner(TaskType::kInternalLoading)
+              ->PostTask(FROM_HERE,
+                         WTF::BindOnce(
+                             [](Document* document) {
+                               document->NotifyParserResumeByUserTiming();
+                               base::UmaHistogramBoolean(
+                                   kParserResumeByUserTiming, true);
+                             },
+                             WrapPersistent(document)));
           parser_yield_task_handle_.Cancel();
         }
       }
@@ -1269,11 +1289,10 @@ bool Performance::CanExposeNode(Node* node) {
 }
 
 void Performance::AddPaintTiming(PerformancePaintTiming::PaintType type,
-                                 const DOMPaintTimingInfo& paint_timing_info,
-                                 bool is_triggered_by_soft_navigation) {
+                                 const DOMPaintTimingInfo& paint_timing_info) {
   PerformancePaintTiming* entry = MakeGarbageCollected<PerformancePaintTiming>(
-      type, paint_timing_info, DynamicTo<LocalDOMWindow>(GetExecutionContext()),
-      is_triggered_by_soft_navigation);
+      type, paint_timing_info,
+      DynamicTo<LocalDOMWindow>(GetExecutionContext()));
   DCHECK((type == PerformancePaintTiming::PaintType::kFirstPaint) ||
          (type == PerformancePaintTiming::PaintType::kFirstContentfulPaint));
 
@@ -1416,14 +1435,6 @@ void Performance::SetClocksForTesting(const base::Clock* clock,
 
 void Performance::ResetTimeOriginForTesting(base::TimeTicks time_origin) {
   time_origin_ = time_origin;
-}
-
-// TODO(https://crbug.com/1457049): remove this once visited links are
-// partitioned.
-bool Performance::softNavPaintMetricsSupported() const {
-  CHECK(
-      RuntimeEnabledFeatures::SoftNavigationHeuristicsExposeFPAndFCPEnabled());
-  return true;
 }
 
 }  // namespace blink

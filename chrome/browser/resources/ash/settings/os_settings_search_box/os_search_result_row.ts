@@ -706,6 +706,8 @@ export class OsSearchResultRowElement extends OsSearchResultRowElementBase {
         return 'os-settings:clock';
       case SearchResultIcon.kContrast:
         return 'os-settings:contrast';
+      case SearchResultIcon.kCreateImage:
+        return 'ash-internal:lobster';
       case SearchResultIcon.kCursorClick:
         return 'os-settings:cursor-click';
       case SearchResultIcon.kDetailedBuild:
@@ -809,6 +811,8 @@ export class OsSearchResultRowElement extends OsSearchResultRowElementBase {
         return 'os-settings:restore';
       case SearchResultIcon.kScanner:
         return 'os-settings:device-scan';
+      case SearchResultIcon.kScannerActions:
+        return 'os-settings:scanner';
       case SearchResultIcon.kSearch:
         return 'os-settings:explore';
       case SearchResultIcon.kSelectToSpeak:

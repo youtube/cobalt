@@ -564,16 +564,21 @@ class FocusModeSpokenFeedbackTest : public LoggedInSpokenFeedbackTest {
   ~FocusModeSpokenFeedbackTest() override = default;
 };
 
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV2,
+    FocusModeSpokenFeedbackTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo)));
+
 // Tests that when using `Search + Left/Right Arrow` key to navigate on the
 // focus panel, the user update the timer texfield and start a focus session,
 // which should also update the session duration for the controller.
-IN_PROC_BROWSER_TEST_F(FocusModeSpokenFeedbackTest,
+IN_PROC_BROWSER_TEST_P(FocusModeSpokenFeedbackTest,
                        AfterA11yFocusRingOnTimerTextfield) {
-  EnableChromeVox();
+  chromevox_test_utils()->EnableChromeVox();
 
   // Set a session duration with 25 min and let the timer textfield gain the
   // focus.
-  sm_.Call([] {
+  sm()->Call([] {
     auto* focus_mode_controller = FocusModeController::Get();
     focus_mode_controller->SetInactiveSessionDuration(base::Minutes(25));
     EXPECT_EQ(base::Minutes(25), focus_mode_controller->session_duration());
@@ -584,27 +589,27 @@ IN_PROC_BROWSER_TEST_F(FocusModeSpokenFeedbackTest,
     auto* timer_textfield = GetTimerTextfield(quick_settings);
     timer_textfield->RequestFocus();
   });
-  sm_.ExpectSpeechPattern("Edit timer*");
+  sm()->ExpectSpeechPattern("Edit timer*");
 
   // Update the session duration from 25 min to 250 min by appending a `0` key
   // to the end of the text.
-  sm_.Call([this] { SendKeyPress(ui::VKEY_0); });
+  sm()->Call([this] { SendKeyPress(ui::VKEY_0); });
 
   // Press `Search + Left Arrow` keys to the `Start Focus` button..
-  sm_.Call([this] {
+  sm()->Call([this] {
     SendKeyPressWithSearch(ui::VKEY_LEFT);
     SendKeyPressWithSearch(ui::VKEY_LEFT);
   });
-  sm_.ExpectSpeechPattern("Start Focus*");
+  sm()->ExpectSpeechPattern("Start Focus*");
 
   // Press `Enter` key to start a focus session and Verify the session
   // duration..
-  sm_.Call([this] {
+  sm()->Call([this] {
     SendKeyPress(ui::VKEY_RETURN);
     EXPECT_EQ(base::Minutes(250),
               FocusModeController::Get()->session_duration());
   });
-  sm_.Replay();
+  sm()->Replay();
 }
 
 }  // namespace ash

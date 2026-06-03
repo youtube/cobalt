@@ -86,6 +86,7 @@
 #include "ash/wm/workspace_controller.h"
 #include "base/containers/adapters.h"
 #include "base/containers/unique_ptr_adapters.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -1054,7 +1055,7 @@ void OverviewGrid::RemoveItem(OverviewItemBase* overview_item,
   auto iter = std::ranges::find(base::Reversed(item_list_), overview_item,
                                 &std::unique_ptr<OverviewItemBase>::get);
   CHECK(iter != item_list_.rend());
-
+  CHECK_EQ(iter->get(), overview_item);
   UpdateNumSavedDeskUnsupportedWindows(overview_item->GetWindows(),
                                        /*increment=*/false);
 
@@ -1062,6 +1063,10 @@ void OverviewGrid::RemoveItem(OverviewItemBase* overview_item,
   // iterating through the `item_list_`.
   std::unique_ptr<OverviewItemBase> tmp = std::move(*iter);
   item_list_.erase(std::next(iter).base());
+
+  if (!item_destroying) {
+    tmp->Shutdown();
+  }
   tmp.reset();
 
   if (overview_session_)
@@ -3093,6 +3098,7 @@ bool OverviewGrid::FitWindowRectsInBounds(
   // determine each item's scale.
   for (size_t i = 0u; i < item_count; ++i) {
     const auto& item = item_list_[i];
+    CHECK(item.get());
     if (ShouldExcludeItemFromGridLayout(item.get(), ignored_items)) {
       continue;
     }
@@ -3473,6 +3479,7 @@ void OverviewGrid::AddDropTargetImpl(OverviewItemBase* dragged_item,
 
   auto drop_target = std::make_unique<OverviewDropTarget>(this);
   drop_target_ = drop_target.get();
+  CHECK(drop_target);
   item_list_.insert(item_list_.begin() + position, std::move(drop_target));
 
   base::flat_set<OverviewItemBase*> ignored_items;

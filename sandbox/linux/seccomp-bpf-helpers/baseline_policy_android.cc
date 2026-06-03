@@ -41,29 +41,8 @@ using sandbox::bpf_dsl::ResultExpr;
 
 namespace sandbox {
 
-#ifndef SOCK_CLOEXEC
-#define SOCK_CLOEXEC O_CLOEXEC
-#endif
-
-#ifndef SOCK_NONBLOCK
-#define SOCK_NONBLOCK O_NONBLOCK
-#endif
-
-#ifndef UFFDIO_MOVE
-#define _UFFDIO_MOVE (0x05)
-struct uffdio_move {
-  __u64 dst;
-  __u64 src;
-  __u64 len;
-  __u64 mode;
-  __s64 move;
-};
-#define UFFDIO_MOVE _IOWR(UFFDIO, _UFFDIO_MOVE, struct uffdio_move)
-#endif
-
 namespace {
 
-#if !defined(__i386__)
 // Restricts the arguments to sys_socket() to AF_UNIX. Returns a BoolExpr that
 // evaluates to true if the syscall should be allowed.
 BoolExpr RestrictSocketArguments(const Arg<int>& domain,
@@ -75,7 +54,6 @@ BoolExpr RestrictSocketArguments(const Arg<int>& domain,
                      (type & ~kSockFlags) == SOCK_STREAM),
                protocol == 0);
 }
-#endif  // !defined(__i386__)
 
 ResultExpr RestrictAndroidIoctl(bool allow_userfaultfd_ioctls) {
   const Arg<unsigned int> request(1);
@@ -165,16 +143,12 @@ bool IsBaselinePolicyAllowed(int sysno) {
     case __NR_fdatasync:
     case __NR_flock:
     case __NR_fsync:
+#if defined(__LP64__)
     case __NR_ftruncate:
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
-    case __NR_ftruncate64:
-#endif
-#if defined(__x86_64__) || defined(__aarch64__)
     case __NR_newfstatat:
     case __NR_fstatfs:
-#elif defined(__i386__) || defined(__arm__) || \
-    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
+#else
+    case __NR_ftruncate64:
     case __NR_fstatat64:
     case __NR_fstatfs64:
 #endif
@@ -182,9 +156,6 @@ bool IsBaselinePolicyAllowed(int sysno) {
     // getcpu() is allowed on ARM chips because it is used in
     // //third_party/cpuinfo/ on those chips.
     case __NR_getcpu:
-#endif
-#if defined(__i386__) || defined(__arm__) || defined(__mips__)
-    case __NR_getdents:
 #endif
     case __NR_getdents64:
     case __NR_getpriority:
@@ -200,14 +171,11 @@ bool IsBaselinePolicyAllowed(int sysno) {
       // access. It may be possible to restrict the filesystem with SELinux.
       // Currently we rely on the app/service UID isolation to create a
       // filesystem "sandbox".
-#if !defined(ARCH_CPU_ARM64)
-    case __NR_open:
-#endif
     case __NR_openat:
     case __NR_pwrite64:
     case __NR_rt_sigtimedwait:
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
+#if !defined(__LP64__)
+    // TODO(crbug.com/40528912): bionic has no plans to support 64-bit time_t on ILP32.
     case __NR_rt_sigtimedwait_time64:
 #endif
     case __NR_sched_getparam:
@@ -219,21 +187,18 @@ bool IsBaselinePolicyAllowed(int sysno) {
     case __NR_set_thread_area:
 #endif
     case __NR_set_tid_address:
-#if defined(__i386__) || defined(__arm__)
-    case __NR_ugetrlimit:
-#else
+#if defined(__LP64__)
     case __NR_getrlimit:
+#else
+    case __NR_ugetrlimit:
 #endif
 
       // Permit socket operations so that renderers can connect to logd and
       // debuggerd. The arguments to socket() are further restricted below.
-      // Note that on i386, both of these calls map to __NR_socketcall, which
-      // is demultiplexed below.
-#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || \
-    defined(__mips__)
+      // Note that on i386 (until API level 38), both of these calls mapped
+      // to __NR_socketcall, which is demultiplexed below.
     case __NR_getsockopt:
     case __NR_connect:
-#endif
 
       return true;
     default:
@@ -265,14 +230,12 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
     return RestrictAndroidIoctl(options_.allow_userfaultfd_ioctls);
   }
 
-#if defined(MADV_PAGEOUT)
   if (sysno == __NR_madvise) {
     // Allow MADV_PAGEOUT
     const Arg<int> advice(2);
     return If(advice == MADV_PAGEOUT, Allow())
         .Else(BaselinePolicy::EvaluateSyscall(sysno));
   }
-#endif
 
   // Ptrace is allowed so the crash reporter can fork in a renderer
   // and then ptrace the parent. https://crbug.com/933418
@@ -293,9 +256,9 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
     }
     // https://crbug.com/655299
     if (sysno == __NR_clock_getres
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
-        || sysno == __NR_clock_getres_time64
+#if !defined(__LP64__)
+      // TODO(crbug.com/40528912): bionic has no plans to support 64-bit time_t on ILP32.
+      || sysno == __NR_clock_getres_time64
 #endif
     ) {
     return RestrictClockID();
@@ -314,11 +277,7 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
   }
 #endif
 
-  // Restrict socket-related operations. On non-i386 platforms, these are
-  // individual syscalls. On i386, the socketcall syscall demultiplexes many
-  // socket operations.
-#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || \
-      defined(__mips__)
+  // Restrict socket-related operations.
   if (sysno == __NR_socket) {
     const Arg<int> domain(0);
     const Arg<int> type(1);
@@ -348,7 +307,12 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
               Allow())
            .Else(BaselinePolicy::EvaluateSyscall(sysno));
   }
-#elif defined(__i386__)
+
+#if defined(__i386__)
+  // On i386 (until API level 38), the socketcall syscall demultiplexes socket
+  // operations and the individual system calls above aren't used.
+  // TODO(crbug.com/40528912): disallow and rewrite socketcall()s if individual
+  // syscalls like socket() are usable in the current environment.
   if (sysno == __NR_socketcall) {
     // The baseline policy allows other socketcall sub-calls.
     const Arg<int> socketcall(0);

@@ -879,41 +879,6 @@ TEST_P(PdfInkModuleTest, MaybeSetCursorWhenChangingZoom) {
   ink_module().OnGeometryChanged();
 }
 
-TEST_P(PdfInkModuleTest, ContentFocusedWithMouseWillPostMessage) {
-  EnableDrawAnnotationMode();
-
-  blink::WebMouseEvent mouse_down_event =
-      MouseEventBuilder().CreateLeftClickAtPosition(gfx::PointF()).Build();
-
-  EXPECT_CALL(client(), PostMessage)
-      .WillOnce([](const base::Value::Dict& dict) {
-        auto expected = base::test::ParseJsonDict(R"({
-            "type": "contentFocused",
-        })");
-        EXPECT_THAT(dict, base::test::DictionaryHasValues(expected));
-      });
-
-  ink_module().HandleInputEvent(mouse_down_event);
-}
-
-TEST_P(PdfInkModuleTest, ContentFocusedWithTouchWillPostMessage) {
-  EnableDrawAnnotationMode();
-
-  blink::WebTouchEvent touch_start_event =
-      CreateTouchEvent(blink::WebInputEvent::Type::kTouchStart,
-                       base::span_from_ref(gfx::PointF()));
-
-  EXPECT_CALL(client(), PostMessage)
-      .WillOnce([](const base::Value::Dict& dict) {
-        auto expected = base::test::ParseJsonDict(R"({
-            "type": "contentFocused",
-        })");
-        EXPECT_THAT(dict, base::test::DictionaryHasValues(expected));
-      });
-
-  ink_module().HandleInputEvent(touch_start_event);
-}
-
 class PdfInkModuleStrokeTest : public PdfInkModuleTest {
  protected:
   // Mouse locations used for `RunStrokeCheckTest()`.
@@ -2083,6 +2048,25 @@ TEST_P(PdfInkModuleStrokeTest, StrokeMissedEndEventThenMouseMoveDuringErasing) {
   RunStrokeMissedEndEventThenMouseMoveTest();
 }
 
+TEST_P(PdfInkModuleStrokeTest, StrokeWithNoEndEventThenTouchStart) {
+  EnableDrawAnnotationMode();
+  InitializeSimpleSinglePageBasicLayout();
+
+  blink::WebMouseEvent mouse_down_event =
+      MouseEventBuilder().CreateLeftClickAtPosition(kMouseDownPoint).Build();
+  EXPECT_TRUE(ink_module().HandleInputEvent(mouse_down_event));
+
+  blink::WebMouseEvent mouse_move_event =
+      CreateMouseMoveWithLeftButtonEventAtPoint(kMouseMovePoint);
+  EXPECT_TRUE(ink_module().HandleInputEvent(mouse_move_event));
+
+  // If the mouse up event has yet to happen, the next touch start event
+  // should not cause a crash.
+  EXPECT_TRUE(ink_module().HandleInputEvent(
+      CreateTouchEvent(blink::WebInputEvent::Type::kTouchStart,
+                       base::span_from_ref(kMouseDownPoint))));
+}
+
 TEST_P(PdfInkModuleStrokeTest, ChangeBrushColorDuringDrawing) {
   EnableDrawAnnotationMode();
   InitializeSimpleSinglePageBasicLayout();
@@ -2362,6 +2346,30 @@ TEST_P(PdfInkModuleStrokeTest, ChangeDrawingBrushTypeDuringDrawing) {
                                         PdfInkBrush::Type::kHighlighter)));
   EXPECT_TRUE(ink_module().HandleInputEvent(mouse_down_event));
   EXPECT_TRUE(ink_module().HandleInputEvent(mouse_up_event));
+}
+
+TEST_P(PdfInkModuleStrokeTest, EventWithPastTimeStamp) {
+  EnableDrawAnnotationMode();
+  InitializeSimpleSinglePageBasicLayout();
+
+  blink::WebMouseEvent mouse_down_event =
+      MouseEventBuilder().CreateLeftClickAtPosition(kMouseDownPoint).Build();
+  EXPECT_TRUE(ink_module().HandleInputEvent(mouse_down_event));
+
+  blink::WebMouseEvent mouse_move_event =
+      CreateMouseMoveWithLeftButtonEventAtPoint(kMouseMovePoint);
+  // Simulate a condition from https://crbug.com/421120183 where the event time
+  // stamp goes backwards in time. This should not crash.
+  mouse_move_event.SetTimeStamp(mouse_move_event.TimeStamp() -
+                                base::Milliseconds(10));
+  EXPECT_TRUE(ink_module().HandleInputEvent(mouse_move_event));
+
+  blink::WebMouseEvent mouse_up_event =
+      MouseEventBuilder().CreateLeftMouseUpAtPosition(kMouseUpPoint).Build();
+  EXPECT_TRUE(ink_module().HandleInputEvent(mouse_up_event));
+
+  EXPECT_EQ(2, ink_module().GetInputOfTypeCountForPageForTesting(
+                   /*page_index=*/0, ink::StrokeInput::ToolType::kMouse));
 }
 
 class PdfInkModuleUndoRedoTest : public PdfInkModuleStrokeTest {

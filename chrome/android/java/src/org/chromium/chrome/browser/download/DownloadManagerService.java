@@ -13,11 +13,9 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Handler;
 import android.provider.MediaStore.MediaColumns;
 import android.text.TextUtils;
-import android.util.Pair;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
@@ -89,14 +87,13 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
     private static final long UPDATE_DELAY_MILLIS = 1000;
     public static final long UNKNOWN_BYTES_RECEIVED = -1;
 
-    private static final Set<String> sFirstSeenDownloadIds = new HashSet<String>();
+    private static final Set<String> sFirstSeenDownloadIds = new HashSet<>();
 
     private static DownloadManagerService sDownloadManagerService;
     private static boolean sIsNetworkListenerDisabled;
     private static boolean sIsNetworkMetered;
 
-    private final HashMap<String, DownloadProgress> mDownloadProgressMap =
-            new HashMap<String, DownloadProgress>(4, 0.75f);
+    private final HashMap<String, DownloadProgress> mDownloadProgressMap = new HashMap<>(4, 0.75f);
 
     private final DownloadNotifier mDownloadNotifier;
     // Delay between UI updates.
@@ -123,8 +120,7 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
         default void broadcastDownloadSuccessful(DownloadInfo downloadInfo) {}
     }
 
-    @VisibleForTesting
-    protected final List<String> mAutoResumableDownloadIds = new ArrayList<String>();
+    @VisibleForTesting protected final List<String> mAutoResumableDownloadIds = new ArrayList<>();
 
     private final ObserverList<DownloadObserver> mDownloadObservers = new ObserverList<>();
 
@@ -138,9 +134,6 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
 
     // Whether any ChromeActivity is launched.
     private boolean mActivityLaunched;
-
-    // Disabling call to DownloadManager.addCompletedDownload() for test.
-    private boolean mDisableAddCompletedDownloadForTesting;
 
     /**
      * Interface to intercept download request to Android DownloadManager. This is implemented by
@@ -408,42 +401,23 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
         final boolean isSupportedMimeType = progress.mIsSupportedMimeType;
         final DownloadItem item = progress.mDownloadItem;
 
-        AsyncTask<Pair<Boolean, Boolean>> task =
-                new AsyncTask<Pair<Boolean, Boolean>>() {
+        AsyncTask<Boolean> task =
+                new AsyncTask<>() {
                     @Override
-                    public Pair<Boolean, Boolean> doInBackground() {
-                        boolean success =
-                                mDisableAddCompletedDownloadForTesting
-                                        || ContentUriUtils.isContentUri(
-                                                item.getDownloadInfo().getFilePath())
-                                        || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q);
+                    public Boolean doInBackground() {
                         boolean canResolve =
-                                success
-                                        && (MimeUtils.isOMADownloadDescription(
-                                                        item.getDownloadInfo().getMimeType())
-                                                || canResolveDownloadItem(
-                                                        item, isSupportedMimeType));
-                        return Pair.create(success, canResolve);
+                                MimeUtils.isOMADownloadDescription(
+                                                item.getDownloadInfo().getMimeType())
+                                        || canResolveDownloadItem(item, isSupportedMimeType);
+                        return canResolve;
                     }
 
                     @Override
-                    protected void onPostExecute(Pair<Boolean, Boolean> result) {
+                    protected void onPostExecute(Boolean result) {
                         DownloadInfo info = item.getDownloadInfo();
-                        if (result.first) {
-                            mDownloadNotifier.notifyDownloadSuccessful(
-                                    info,
-                                    item.getSystemDownloadId(),
-                                    result.second,
-                                    isSupportedMimeType);
-                            broadcastDownloadSuccessful(info);
-                        } else {
-                            info =
-                                    DownloadInfo.Builder.fromDownloadInfo(info)
-                                            .setFailState(FailState.CANNOT_DOWNLOAD)
-                                            .build();
-                            mDownloadNotifier.notifyDownloadFailed(info);
-                            // TODO(qinmin): get the failure message from native.
-                        }
+                        mDownloadNotifier.notifyDownloadSuccessful(
+                                info, item.getSystemDownloadId(), result, isSupportedMimeType);
+                        broadcastDownloadSuccessful(info);
                     }
                 };
         try {
@@ -486,7 +460,7 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
         if (mIsUiUpdateScheduled) return;
 
         mIsUiUpdateScheduled = true;
-        final List<DownloadProgress> progressPendingUpdate = new ArrayList<DownloadProgress>();
+        final List<DownloadProgress> progressPendingUpdate = new ArrayList<>();
         Iterator<DownloadProgress> iter = mDownloadProgressMap.values().iterator();
         while (iter.hasNext()) {
             DownloadProgress progress = iter.next();
@@ -1230,7 +1204,7 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
     // Deprecated after new download backend.
     @CalledByNative
     private List<DownloadItem> createDownloadItemList() {
-        return new ArrayList<DownloadItem>();
+        return new ArrayList<>();
     }
 
     // Deprecated after new download backend.
@@ -1399,7 +1373,7 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
         assert (downloadItem.getDownloadInfo().state() == DownloadState.COMPLETE);
 
         AsyncTask<Boolean> task =
-                new AsyncTask<Boolean>() {
+                new AsyncTask<>() {
                     @Override
                     public Boolean doInBackground() {
                         DownloadInfo info = downloadItem.getDownloadInfo();
@@ -1574,10 +1548,6 @@ public class DownloadManagerService implements DownloadServiceDelegate, ProfileM
                         url,
                         guid,
                         targetPath);
-    }
-
-    void disableAddCompletedDownloadToDownloadManager() {
-        mDisableAddCompletedDownloadForTesting = true;
     }
 
     /**

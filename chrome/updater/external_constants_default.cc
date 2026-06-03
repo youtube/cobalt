@@ -10,6 +10,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/external_constants.h"
 #include "chrome/updater/updater_branding.h"
@@ -30,11 +32,11 @@ class DefaultExternalConstants : public ExternalConstants {
 
   GURL CrashUploadURL() const override { return GURL(CRASH_UPLOAD_URL); }
 
-  GURL DeviceManagementURL() const override {
-    return GURL(DEVICE_MANAGEMENT_SERVER_URL);
-  }
-
   GURL AppLogoURL() const override { return GURL(APP_LOGO_URL); }
+
+  GURL EventLoggingURL() const override {
+    return GURL(UPDATER_EVENT_LOGGING_URL);
+  }
 
   bool UseCUP() const override { return true; }
 
@@ -62,6 +64,25 @@ class DefaultExternalConstants : public ExternalConstants {
 
   base::TimeDelta CecaConnectionTimeout() const override {
     return kCecaConnectionTimeout;
+  }
+
+  base::TimeDelta MinimumEventLoggingCooldown() const override {
+    return kMinimumEventLoggingCooldown;
+  }
+
+  std::optional<EventLoggingPermissionProvider>
+  GetEventLoggingPermissionProvider() const override {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && \
+    (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC))
+    return EventLoggingPermissionProvider{
+        .app_id = BROWSER_APPID,
+#if BUILDFLAG(IS_MAC)
+        .directory_name = BROWSER_NAME_STRING,
+#endif
+    };
+#else
+    return std::nullopt;
+#endif
   }
 
  private:

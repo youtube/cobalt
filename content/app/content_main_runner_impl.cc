@@ -19,6 +19,7 @@
 
 #include "base/allocator/allocator_check.h"
 #include "base/allocator/partition_alloc_support.h"
+#include "base/android/background_thread_pool_field_trial.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -219,6 +220,9 @@ extern int UtilityMain(MainFunctionParams);
 namespace content {
 
 namespace {
+
+using ::sandbox::policy::IsUnsandboxedSandboxType;
+using ::sandbox::policy::SandboxTypeFromCommandLine;
 
 #if defined(V8_USE_EXTERNAL_STARTUP_DATA) && BUILDFLAG(IS_ANDROID)
 #if defined __LP64__
@@ -686,17 +690,16 @@ NO_STACK_PROTECTOR int RunZygote(ContentMainDelegate* delegate) {
     // If the process is unsandboxed the HangWatcher can start now. Otherwise,
     // the sandbox can't be initialized with multiple threads, so the
     // HangWatcher will be started after the sandbox is initialized.
-    if (sandbox::policy::IsUnsandboxedSandboxType(
-            sandbox::policy::SandboxTypeFromCommandLine(*command_line))) {
+    if (IsUnsandboxedSandboxType(SandboxTypeFromCommandLine(*command_line))) {
       base::HangWatcher::GetInstance()->Start();
     } else {
       main_params.hang_watcher_not_started_time = base::TimeTicks::Now();
     }
   }
 
-  for (auto& kMainFunction : kMainFunctions) {
-    if (process_type == kMainFunction.name) {
-      return kMainFunction.function(std::move(main_params));
+  for (const MainFunction& main_function : kMainFunctions) {
+    if (process_type == main_function.name) {
+      return main_function.function(std::move(main_params));
     }
   }
 
@@ -762,18 +765,16 @@ NO_STACK_PROTECTOR int RunOtherNamedProcessTypeMain(
     base::HangWatcher::CreateHangWatcherInstance();
     unregister_thread_closure = base::HangWatcher::RegisterThread(
         base::HangWatcher::ThreadType::kMainThread);
-    bool start_hang_watcher_now;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     // On Linux/ChromeOS, the HangWatcher can't start until after the sandbox is
     // initialized, because the sandbox can't be started with multiple threads.
     // TODO(mpdenton): start the HangWatcher after the sandbox is initialized.
     // Currently there are no sandboxed processes that aren't launched from the
     // zygote so this doesn't disable the HangWatcher anywhere.
-    start_hang_watcher_now = sandbox::policy::IsUnsandboxedSandboxType(
-        sandbox::policy::SandboxTypeFromCommandLine(
-            *main_function_params.command_line));
+    const bool start_hang_watcher_now = IsUnsandboxedSandboxType(
+        SandboxTypeFromCommandLine(*main_function_params.command_line));
 #else
-    start_hang_watcher_now = true;
+    const bool start_hang_watcher_now = true;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     if (start_hang_watcher_now) {
       base::HangWatcher::GetInstance()->Start();
@@ -783,15 +784,15 @@ NO_STACK_PROTECTOR int RunOtherNamedProcessTypeMain(
     }
   }
 
-  for (size_t i = 0; i < std::size(kMainFunctions); ++i) {
-    if (process_type == kMainFunctions[i].name) {
+  for (const MainFunction& main_function : kMainFunctions) {
+    if (process_type == main_function.name) {
       auto exit_code =
           delegate->RunProcess(process_type, std::move(main_function_params));
       if (std::holds_alternative<int>(exit_code)) {
         DCHECK_GE(std::get<int>(exit_code), 0);
         return std::get<int>(exit_code);
       }
-      return kMainFunctions[i].function(
+      return main_function.function(
           std::move(std::get<MainFunctionParams>(exit_code)));
     }
   }
@@ -836,6 +837,12 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
       *base::CommandLine::ForCurrentProcess();
   std::string process_type =
       command_line.GetSwitchValueASCII(switches::kProcessType);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Initialize the background threadpool field trial before creating the
+  // thread pools.
+  base::android::BackgroundThreadPoolFieldTrial::Initialize();
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Create and start the ThreadPool early to allow the rest of the startup
   // code to use the thread_pool.h API.
@@ -908,8 +915,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   // TODO(https://crbug.com/380411640): Implement for other processes other than
   // GPU process.
   if (process_type != switches::kGpuProcess &&
-      !sandbox::policy::IsUnsandboxedSandboxType(
-          sandbox::policy::SandboxTypeFromCommandLine(command_line))) {
+      !IsUnsandboxedSandboxType(SandboxTypeFromCommandLine(command_line))) {
     enable_startup_tracing = false;
     needs_startup_tracing_after_mojo_init_ = true;
   }
@@ -1000,10 +1006,20 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 
   RegisterPathProvider();
 
-// On Android, InitializeICU() is called from content_jni_onload.cc
-// so that it is available before Content::main() is called.
-// https://crbug.com/1418738
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
+  if (!process_type.empty()) {
+    // In child process map ICU data files loaded by browser process.
+    int icu_data_fd = g_fds->MaybeGet(kAndroidICUDataDescriptor);
+    if (icu_data_fd == -1) {
+      return TerminateForFatalInitializationError();
+    }
+    auto icu_data_region = g_fds->GetRegion(kAndroidICUDataDescriptor);
+    if (!base::i18n::InitializeICUWithFileDescriptor(icu_data_fd,
+                                                     icu_data_region)) {
+      return TerminateForFatalInitializationError();
+    }
+  }
+#else
   if (!base::i18n::InitializeICU())
     return TerminateForFatalInitializationError();
 #endif  // BUILDFLAG(IS_ANDROID) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
@@ -1052,12 +1068,12 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 
 #if BUILDFLAG(IS_WIN)
   if (!sandbox::policy::Sandbox::Initialize(
-          sandbox::policy::SandboxTypeFromCommandLine(command_line),
-          content_main_params_->sandbox_info))
+          SandboxTypeFromCommandLine(command_line),
+          content_main_params_->sandbox_info)) {
     return TerminateForFatalInitializationError();
+  }
 #elif BUILDFLAG(IS_MAC)
-  if (!sandbox::policy::IsUnsandboxedSandboxType(
-          sandbox::policy::SandboxTypeFromCommandLine(command_line))) {
+  if (!IsUnsandboxedSandboxType(SandboxTypeFromCommandLine(command_line))) {
     // Verify that the sandbox was initialized prior to ContentMain using the
     // SeatbeltExecServer.
     CHECK(sandbox::Seatbelt::IsSandboxed());
@@ -1068,8 +1084,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   // resources in zygotes (including the unsandboxed zygote) allows them to be
   // initialized just once in the zygote, rather than in every forked child
   // process.
-  if (!sandbox::policy::IsUnsandboxedSandboxType(
-          sandbox::policy::SandboxTypeFromCommandLine(command_line)) ||
+  if (!IsUnsandboxedSandboxType(SandboxTypeFromCommandLine(command_line)) ||
       process_type == switches::kZygoteProcess) {
     PreSandboxInit();
   }

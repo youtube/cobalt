@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">Päivitä &amp;Chromium-käyttöjärjestelmä käynnistämällä se uudelleen</translation>
 <translation id="1040916596585577953">Chromium suosittelee tämän laajennuksen tarkistamista</translation>
 <translation id="1042552502243217427">Kun sivusto pyytää lupaa esiladata sen sivulla olevia linkkejä yksityisesti, Chromium käyttää Googlen palvelimia. Henkilöllisyytesi piilotetaan esiladatulta sivustolta, mutta Google oppii, mitä sivustoja esiladataan.</translation>
+<translation id="1051793555070215510">Auta meitä parantamaan Incognitoa vastaamalla tähän minuutin kestävään kyselyyn.</translation>
 <translation id="1065672644894730302">Asetuksiasi ei voi lukea. Kaikkia toimintoja ei voi välttämättä käyttää eikä asetuksiin tehtäviä muutoksia tallenneta.</translation>
 <translation id="1083934481477628225">Vanhempasi on laittanut Chromiumin "Sivustojen, sovellusten ja laajennusten käyttöluvat" pois päältä</translation>
 <translation id="1104942323762546749">Chromium yrittää viedä salasanojasi tiedostoon. Salli tämä kirjoittamalla Windows-salasanasi.</translation>
@@ -85,7 +86,6 @@
 <translation id="2126108037660393668">Ladattua tiedostoa ei voitu vahvistaa.</translation>
 <translation id="2137162749895930932">Sulje käännösnäyttö</translation>
 <translation id="215352261310130060">Chromium on estänyt tämän latauksen, koska sivusto ei käytä suojattua yhteyttä ja tiedostoa on ehkä peukaloitu</translation>
-<translation id="2157600032285353789">Voit avata esimerkiksi kirjanmerkit ja lukutilan Chromium-valikosta</translation>
 <translation id="2174178932569897599">Yksilöi Chromiumia</translation>
 <translation id="2174917724755363426">Asennus ei ole valmis. Haluatko varmasti perua sen?</translation>
 <translation id="2185166961232948079">Chromium – Kirjautuminen verkkoon – <ph name="PAGE_TITLE" /></translation>
@@ -220,11 +220,13 @@
 <translation id="3954172517175569325">Google-tilille tallennetut salasanat, maksutavat ja osoitteet poistetaan tältä laitteelta. Jos haluat käyttää niitä uudelleen Chromiumissa, kirjaudu takaisin sisään.</translation>
 <translation id="395904275706073188">Suojattuja sivuja ei voi lukea. Kokeile toista sivua.</translation>
 <translation id="3962647064319009959">Lue, miten Chromium pitää sinut turvassa</translation>
+<translation id="3971865010372729242">Kun kirjoitat osoitepalkkiin tai hakukenttään, Chromium lähettää kirjoittamasi tekstin organisaatiosi haku-, tekoäly- ja agenttityökaluille, jotta saat ehdotuksia.</translation>
 <translation id="3975724895399328945">Tietoa &amp;Google Chrome for Testingistä</translation>
 <translation id="3997429360543082038">Tietoa Chromium-käyttöjärjestelmästä</translation>
 <translation id="4019629340646866719">Toinen <ph name="BEGIN_LINK_CROS_OSS" />avoimen lähdekoodin ohjelmisto<ph name="END_LINK_CROS_OSS" /> tukee Chromium-käyttöjärjestelmää, kuten myös <ph name="BEGIN_LINK_LINUX_OSS" />Linux-kehitysympäristöä<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Käännä näyttö</translation>
 <translation id="4023601594785368013">Alkuperäinen kieli: <ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">Avaa minkä tahansa sovelluksen linkit Chromiumissa. Lisäksi se kiinnitetään tehtäväpalkkiin, jotta pääset siihen helposti.</translation>
 <translation id="4036079820698952681">Auta parantamaan Chromiumia ilmoittamalla <ph name="BEGIN_LINK" />nykyiset asetukset<ph name="END_LINK" />.</translation>
 <translation id="4050175100176540509">Uusimmassa versiossa on käytettävissä tärkeitä turvallisuusparannuksia ja uusia ominaisuuksia.</translation>
 <translation id="4055805654398742145">S&amp;alasanat</translation>
@@ -326,6 +328,7 @@
 <translation id="5524890928877629608">hakualueen vasen yläkulma: vasen <ph name="LEFT" /> %, ylä <ph name="TOP" /> %</translation>
 <translation id="5527463683072221100">Avaa PDF-tiedostot Chromiumissa</translation>
 <translation id="5579324208890605088">Käynnistysvirhe: Suorita asennusohjelma tavallisena käyttäjänä, ei järjestelmänvalvojana.</translation>
+<translation id="5580770360767802657">Chromiumin käyttäminen oletuksena ja kiinnittäminen</translation>
 <translation id="5596627076506792578">Lisäasetukset</translation>
 <translation id="5605834417512968703">Valitse, mitä haluat hakea kuvahaulla, tai poistu kuvahausta painamalla Escape</translation>
 <translation id="5618818588972826921">Valitse teksti tai kuva, jota haluat hakea kuvahaulla, tai poistu kuvahausta painamalla Escape</translation>
@@ -340,6 +343,7 @@
 <translation id="5775198138441669627">Jos unohdit tunnuslauseen tai haluat muuttaa asetusta, <ph name="SETTINGS_LINK" /> tilin Chromium-data</translation>
 <translation id="5800158606660203929">Yksilöi Chromiumia ja muuta sen asetuksia. Valitse Chromium oletusselaimeksi.</translation>
 <translation id="5809516625706423866">Internetyhteyden muodostaminen ei onnistu. HTTP 401 (ei lupaa). Tarkista välityspalvelimen asetukset.</translation>
+<translation id="5817952762723416573">Nopeuttaa sivustoja Chromiumin V8-moottorilla, mutta heikentää Chromiumin suojaa hyökkäyksiä vastaan. Tämä asetus on poissa päältä.</translation>
 <translation id="5821520528363214608">Chromium-datan käyttö ja tallennus Google-tilillä edellyttää Chromiumin päivittämistä</translation>
 <translation id="5824893331272123205">Paneelin lataaminen epäonnistui, yritä uudelleen</translation>
 <translation id="5862307444128926510">Tervetuloa Chromiumiin</translation>
@@ -356,7 +360,6 @@
 <translation id="5987687638152509985">Aloita synkronointi päivittämällä Chromium.</translation>
 <translation id="5988505247484123880">On tavallista, että avaamasi sivustot muistavat sinua kiinnostavat asiat personoidakseen käyttökokemustasi. Sivustot voivat myös tallentaa Chromiumiin tietoja kiinnostuksen kohteistasi.</translation>
 <translation id="6003112304606738118">Ladataan… <ph name="HOURS" /> tuntia jäljellä</translation>
-<translation id="6019451407441383358">Voit avata esimerkiksi kirjanmerkit ja lukutilan oikean yläkulman Chromium-valikosta</translation>
 <translation id="6040143037577758943">Sulje</translation>
 <translation id="6058380562449900225">Datasi suojaamiseksi salli Chromiumin poistaa luvat sivustoilta, joilla et ole käynyt viime aikoina. Tämä ei estä ilmoituksia.</translation>
 <translation id="6063093106622310249">&amp;Avaa Chromiumissa</translation>
@@ -430,6 +433,7 @@ Kaikki ominaisuudet eivät ehkä ole käytettävissä. Määritä jokin muu prof
 <translation id="6729124504294600478">Voit käyttää personointia ja muita ominaisuuksia, kun lisäät Chromiumin verkko- ja sovellustoimintaan ja linkitettyihin Googlen palveluihin</translation>
 <translation id="6734291798041940871">Chromium on jo asennettuna kaikille tietokoneen käyttäjille.</translation>
 <translation id="674245979920622322">Sivut, joilla et ole käynyt viime aikoina. Chromium poisti luvat: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja <ph name="COUNT" /> muuta</translation>
+<translation id="6751374565094704799">Nopeuttaa sivustoja Chromiumin V8-moottorilla, mutta heikentää Chromiumin suojaa hyökkäyksiä vastaan. Tämä asetus on päällä.</translation>
 <translation id="67706546131546258">Chromium suosittelee tiedoston skannaamista, koska se voi olla vaarallinen.</translation>
 <translation id="6779406956731413166">Toinen <ph name="BEGIN_LINK_CROS_OSS" />avoimen lähdekoodin ohjelmisto<ph name="END_LINK_CROS_OSS" /> tukee Chromium-käyttöjärjestelmää.</translation>
 <translation id="6831043979455480757">Käännä</translation>
@@ -526,7 +530,6 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="8118331347066725040">Lähetä palautetta Lensillä hakemisesta</translation>
 <translation id="8133124826068723441">Chromium-käyttöjärjestelmä ei voi synkronoida dataa, koska synkronointi ei ole käytettävissä verkkotunnuksessasi.</translation>
 <translation id="813913629614996137">Alustetaan…</translation>
-<translation id="8166782796394721554">Laita lisäsuojaus päälle Chromiumin JavaScript- ja WebAssembly-moottorissa</translation>
 <translation id="81770708095080097">Tämä tiedosto on vaarallinen, joten Chromium on estänyt sen.</translation>
 <translation id="8177472873527554730">Sisältöä ei löydy sivulta</translation>
 <translation id="8200109504272824693">Lisää tunnuslause, jotta voit käyttää ja tallentaa Chromium-dataa tililläsi: <ph name="USER_EMAIL" /></translation>
@@ -598,6 +601,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="9106612006984859720">Jotta saat tulevia Chromiumin päivityksiä, sinulla on oltava Windows 10 tai uudempi. Tietokoneen käyttöjärjestelmä on Windows 8.1.</translation>
 <translation id="91086099826398415">Avaa linkki uudella Chromiumin välilehdellä</translation>
 <translation id="911206726377975832">Poistetaanko myös selailutiedot?</translation>
+<translation id="9134482777260927479">Kotitehtäväapu</translation>
 <translation id="9148058034647219655">Poistu</translation>
 <translation id="9158494823179993217">Järjestelmänvalvojasi on määrittänyt Chromiumin avaamaan toisen selaimen, jolla <ph name="TARGET_URL_HOSTNAME" /> avataan.</translation>
 <translation id="9185526690718004400">Päivitä &amp;Chromium käynnistämällä se uudelleen</translation>

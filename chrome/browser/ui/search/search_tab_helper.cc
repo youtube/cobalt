@@ -23,7 +23,6 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -148,7 +147,7 @@ SearchTabHelper::SearchTabHelper(content::WebContents* web_contents)
     instant_service_->AddObserver(this);
   }
 
-  OmniboxTabHelper::CreateForWebContents(web_contents);
+  OmniboxTabHelper::CreateForWebContents(web_contents, profile());
   OmniboxTabHelper::FromWebContents(web_contents)->AddObserver(this);
 }
 

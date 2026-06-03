@@ -7,6 +7,7 @@
 #include "third_party/blink/renderer/core/html/html_table_col_element.h"
 #include "third_party/blink/renderer/core/layout/geometry/writing_mode_converter.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table.h"
 #include "third_party/blink/renderer/core/layout/table/table_borders.h"
@@ -433,7 +434,8 @@ void LayoutTableColumn::ForAllSynthesizedFragments(
     if (const BlockBreakToken* break_token = fragment.GetBreakToken()) {
       table_break_token_data =
           DynamicTo<TableBreakTokenData>(break_token->TokenData());
-      if (!table_break_token_data->has_entered_table_box) {
+      if (table_break_token_data &&
+          !table_break_token_data->has_entered_table_box) {
         // We haven't got to the table grid yet. No table columns here. Keep
         // looking.
         continue;

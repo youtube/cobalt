@@ -59,7 +59,7 @@ public class NtpCardsMediator {
 
             @Override
             public String getListItemTitle(int type, Context context) {
-                return getTitleForModuleType(type, context.getResources());
+                return getTitleForModuleType(type, context);
             }
 
             @Override
@@ -74,6 +74,11 @@ public class NtpCardsMediator {
 
             @Override
             public @Nullable Integer getTrailingIcon(int type) {
+                return null;
+            }
+
+            @Override
+            public @Nullable Integer getTrailingIconDescriptionResId(int type) {
                 return null;
             }
         };

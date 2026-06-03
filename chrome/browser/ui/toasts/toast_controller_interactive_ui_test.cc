@@ -57,8 +57,6 @@
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
-                                    kToastAnimation);
 
 class OmniboxInputWaiter : public OmniboxTabHelper::Observer {
  public:
@@ -123,8 +121,7 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
         {toast_features::kLinkCopiedToast, toast_features::kImageCopiedToast,
          toast_features::kReadingListToast,
          toast_features::kPinnedTabToastOnClose,
-         plus_addresses::features::kPlusAddressesEnabled,
-         plus_addresses::features::kPlusAddressFullFormFill},
+         plus_addresses::features::kPlusAddressesEnabled},
         {});
     InteractiveBrowserTest::SetUp();
   }
@@ -146,20 +143,11 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
 
 
   auto ShowToast(ToastParams params) {
-    return Steps(
-        Do(base::BindOnce(
-            [](ToastController* toast_controller, ToastParams toast_params) {
-              toast_controller->MaybeShowToast(std::move(toast_params));
-            },
-            GetToastController(), std::move(params))),
-        PollState(kToastAnimation,
-                  [this]() {
-                    toasts::ToastView* toast_view =
-                        GetToastController()->GetToastViewForTesting();
-                    return toast_view && toast_view->is_animating_for_testing();
-                  }),
-        WaitForState(kToastAnimation, false),
-        StopObservingState(kToastAnimation));
+    return Do(base::BindOnce(
+        [](ToastController* toast_controller, ToastParams toast_params) {
+          toast_controller->MaybeShowToast(std::move(toast_params));
+        },
+        GetToastController(), std::move(params)));
   }
 
   auto FireToastCloseTimer() {
@@ -521,7 +509,10 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
                        ToastRendersOverWebContents) {
 #if BUILDFLAG(IS_MAC)
   FullscreenController* const fullscreen_controller =
-      browser()->exclusive_access_manager()->fullscreen_controller();
+      browser()
+          ->GetFeatures()
+          .exclusive_access_manager()
+          ->fullscreen_controller();
   fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
 #else
   ui_test_utils::FullscreenWaiter waiter(browser(), {.tab_fullscreen = true});

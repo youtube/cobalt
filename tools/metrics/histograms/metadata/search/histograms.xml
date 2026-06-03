@@ -325,11 +325,11 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Search.ChoiceCompletedOnMonth.OnProfileLoad"
+<histogram name="Search.ChoiceCompletedOnMonth.OnProfileLoad2"
     enum="SearchEngineChoiceDate" expires_after="2026-05-01">
-<!-- When bumping expiry date, also update the enum (making the enumeration in sync with existing values). Escalate when data count
-exceeds 100 entries:
-https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/README.md#sustainability -->
+<!-- When bumping expiry date, also update the enum (making the enumeration in
+sync with existing values). Escalate when data count exceeds 1000 entries:
+https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/README.md#When-To-Use-Sparse-Histograms -->
 
   <owner>dgn@google.com</owner>
   <owner>tju@google.com</owner>
@@ -338,6 +338,10 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     Recorded on each profile load (tied to service construction), indicates the
     last engine choice timestamp formatted as YYYYMM integer. For convenience,
     the enum maps these to user readable `YYYY-MM` labels.
+
+    To avoid the histogram exceeding 1000 buckets (limit for sparse histograms),
+    the range is capped to [`2022-01`, `2050-12`], dates prior to 2022 being
+    recorded as `1000-01`, and dates after 2050 being recorded as `3000-01`.
 
     The value is serialized as a sparse histogram with integer values. Since
     each client can record the same value multiple times, it might be more
@@ -374,8 +378,21 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
   </summary>
 </histogram>
 
+<histogram name="Search.ChoicePrefsCheck.WipeOnMissingDse" enum="Boolean"
+    expires_after="2025-10-19">
+  <owner>dgn@chromium.org</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Records whether the search engine choice preferences would be wiped due to
+    the missing default search engine pref. Checked on profile load, and
+    recorded when we both have choice metadata and no default search engine
+    pref. The recorded value indicates whether the feature to wipe this value is
+    enabled.
+  </summary>
+</histogram>
+
 <histogram name="Search.ChoiceReprompt{Category}"
-    enum="SearchEngineChoiceReprompt" expires_after="2025-10-12">
+    enum="SearchEngineChoiceReprompt" expires_after="2025-12-14">
   <owner>droger@chromium.org</owner>
   <owner>chrome-waffle-eng@google.com</owner>
   <summary>
@@ -913,7 +930,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.DefaultSearchProviderType2{Population}"
-    enum="OmniboxSearchEngineType" expires_after="2025-10-12">
+    enum="OmniboxSearchEngineType" expires_after="2025-12-14">
   <owner>mpearson@chromium.org</owner>
   <owner>ftirelo@chromium.org</owner>
   <summary>

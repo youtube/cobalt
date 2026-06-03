@@ -20,6 +20,9 @@
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "extensions/browser/extension_function.h"
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class PrefService;
 
@@ -43,7 +46,6 @@ inline constexpr char kPasswordsKey[] = "passwords";
 inline constexpr char kPluginDataKeyDeprecated[] = "pluginData";
 inline constexpr char kServiceWorkersKey[] = "serviceWorkers";
 inline constexpr char kCacheStorageKey[] = "cacheStorage";
-inline constexpr char kWebSQLKey[] = "webSQL";
 
 // Option keys.
 inline constexpr char kExtensionsKey[] = "extension";

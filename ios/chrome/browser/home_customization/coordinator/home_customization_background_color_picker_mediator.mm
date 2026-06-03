@@ -7,59 +7,34 @@
 #import <Foundation/Foundation.h>
 
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_color_picker_consumer.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_color_palette_util.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "skia/ext/skia_utils_ios.h"
-#import "third_party/material_color_utilities/src/cpp/cam/hct.h"
-#import "third_party/material_color_utilities/src/cpp/palettes/core.h"
-#import "third_party/material_color_utilities/src/cpp/utils/utils.h"
-#import "ui/color/dynamic_color/palette_factory.h"
 
-// Define constants within the namespace
 namespace {
-
-// A block type that provides a dynamic color based on the current trait
-// collection.
-typedef UIColor* (^DynamicColorProviderBlock)(UITraitCollection* traits);
-
-// Represents a pair of tone values for a given color tone,
-// with separate values for light and dark UI modes.
-struct ToneSet {
-  // The tone value to use in light mode.
-  int light_mode;
-
-  // The tone value to use in dark mode.
-  int dark_mode;
+// Array of seed colors (in RGB integer format) used to generate background
+// color palette configurations in the color picker.
+const SkColor kSeedColorRGBs[] = {
+    0x8cabe4,  // Blue.
+    0x26a69a,  // Aqua.
+    0x00ff00,  // Green.
+    0x87ba81,  // Viridian.
+    0xfadf73,  // Citron.
+    0xff8000,  // Orange.
+    0xf3b2be,  // Rose.
+    0xff00ff,  // Fuchsia.
+    0xe5d5fc   // Violet.
 };
 
-// The tone value used for generating a light variant of the seed color.
-const ToneSet kLightTone = {
-    /*light_mode=*/90,
-    /*dark_mode=*/30,
-};
-
-// The tone value used for generating a medium variant of the seed color.
-const ToneSet kMediumTone = {
-    /*light_mode=*/80,
-    /*dark_mode=*/50,
-};
-
-// The tone value used for generating a dark variant of the seed color.
-const ToneSet kDarkTone = {
-    /*light_mode=*/40,
-    /*dark_mode=*/80,
-};
-
-// Returns a dynamic `UIColor` that adapts to the system's light or dark
-// appearance using tones derived from the given `TonalPalette`.
-DynamicColorProviderBlock GetDynamicProviderForPrimary(
-    const ui::TonalPalette& primary,
-    const ToneSet& toneSet) {
-  uint32_t lightARGB = primary.get(toneSet.light_mode);
-  uint32_t darkARGB = primary.get(toneSet.dark_mode);
-
-  return ^UIColor*(UITraitCollection* traits) {
-    BOOL isDark = (traits.userInterfaceStyle == UIUserInterfaceStyleDark);
-    return skia::UIColorFromSkColor(isDark ? darkARGB : lightARGB);
-  };
+// Returns a dynamic UIColor using two named color assets for light and dark
+// mode.
+UIColor* DynamicNamedColor(NSString* lightName, NSString* darkName) {
+  return
+      [UIColor colorWithDynamicProvider:^UIColor*(UITraitCollection* traits) {
+        BOOL isDark = (traits.userInterfaceStyle == UIUserInterfaceStyleDark);
+        return [UIColor colorNamed:isDark ? darkName : lightName];
+      }];
 }
 
 }  // namespace
@@ -69,51 +44,28 @@ DynamicColorProviderBlock GetDynamicProviderForPrimary(
 - (void)configureColorPalettes {
   NSMutableArray* configs = [NSMutableArray array];
 
-  // TODO(crbug.com/408243803):Add the UIColor seeds that will be used by Monet
-  // to generate the color palettes.
-  [@[
-    [UIColor redColor], [UIColor blueColor], [UIColor greenColor],
-    [UIColor orangeColor], [UIColor purpleColor]
-  ] enumerateObjectsUsingBlock:^(UIColor* seedColor, NSUInteger index,
-                                 BOOL* stop) {
-    [configs addObject:[self configurationForSeedColor:seedColor]];
-  }];
-
-  [_consumer setColorPaletteConfigurations:configs];
-}
-
-#pragma mark - Private
-
-// Creates and returns a color palette configuration from a seed color.
-- (HomeCustomizationColorPaletteConfiguration*)configurationForSeedColor:
-    (UIColor*)seedColor {
-  HomeCustomizationColorPaletteConfiguration* config =
+  HomeCustomizationColorPaletteConfiguration* defaultColorPalette =
       [[HomeCustomizationColorPaletteConfiguration alloc] init];
 
-  CGFloat red = 0.0;
-  CGFloat green = 0.0;
-  CGFloat blue = 0.0;
-  CGFloat alpha = 0.0;
-  [seedColor getRed:&red green:&green blue:&blue alpha:&alpha];
+  // The first choice should be the "no background" option (default appearance
+  // colors).
+  defaultColorPalette.lightColor =
+      DynamicNamedColor(@"ntp_background_color", kTertiaryBackgroundColor);
+  defaultColorPalette.mediumColor =
+      [UIColor colorNamed:@"fake_omnibox_solid_background_color"];
+  defaultColorPalette.darkColor =
+      DynamicNamedColor(kBlueColor, kTextPrimaryColor);
 
-  SkColor skColor =
-      SkColorSetARGB(alpha * 255.0, red * 255.0, green * 255.0, blue * 255.0);
+  [configs addObject:defaultColorPalette];
 
-  std::unique_ptr<ui::Palette> palette = ui::GeneratePalette(
-      skColor, ui::ColorProviderKey::SchemeVariant::kTonalSpot);
-  ui::TonalPalette primary = palette->primary();
+  for (int rgb : kSeedColorRGBs) {
+    [configs addObject:CreateColorPaletteConfigurationFromSeedColor(
+                           UIColorFromRGB(rgb))];
+  }
 
-  config.seedColor = seedColor;
-  config.lightColor =
-      [UIColor colorWithDynamicProvider:GetDynamicProviderForPrimary(
-                                            primary, kLightTone)];
-  config.mediumColor =
-      [UIColor colorWithDynamicProvider:GetDynamicProviderForPrimary(
-                                            primary, kMediumTone)];
-  config.darkColor =
-      [UIColor colorWithDynamicProvider:GetDynamicProviderForPrimary(
-                                            primary, kDarkTone)];
-  return config;
+  // TODO(crbug.com/408243803): Pass the current selection ID if the background
+  // is a color; pass 0 if the background is set to "no background".
+  [_consumer setColorPaletteConfigurations:configs selectedColorIndex:@(0)];
 }
 
 @end

@@ -185,7 +185,8 @@ TEST_F(FirmwareUpdateStartupNotificationTest,
 
 TEST_F(FirmwareUpdateStartupNotificationTest, StartupNotificationShownKiosk) {
   // Notification should not be shown at login if the user is in kiosk mode.
-  SimulateUserLogin({"user1@email.com", user_manager::UserType::kKioskApp});
+  SimulateUserLogin(
+      {"user1@email.com", user_manager::UserType::kKioskChromeApp});
   InitializeNotificationController();
   SimulateFetchingUpdates();
   EXPECT_FALSE(message_center()->FindVisibleNotificationById(
@@ -195,7 +196,7 @@ TEST_F(FirmwareUpdateStartupNotificationTest, StartupNotificationShownKiosk) {
 TEST_F(FirmwareUpdateStartupNotificationTest,
        StartupNotificationShownKioskPWA) {
   // Notification should not be shown at login if the user is in kiosk mode.
-  SimulateUserLogin({"user1@email.com", user_manager::UserType::kWebKioskApp});
+  SimulateUserLogin({"user1@email.com", user_manager::UserType::kKioskWebApp});
   InitializeNotificationController();
   SimulateFetchingUpdates();
   EXPECT_FALSE(message_center()->FindVisibleNotificationById(

@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "base/check_is_test.h"
 #include "base/containers/extend.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -76,6 +77,7 @@
 #include "components/spellcheck/browser/pref_names.h"
 #include "components/sync/base/command_line_switches.h"
 #include "components/sync/base/features.h"
+#include "components/sync/engine/net/http_bridge.h"
 #include "components/sync/service/sync_service_impl.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/variations/service/google_groups_manager.h"
@@ -86,14 +88,17 @@
 #include "extensions/buildflags/buildflags.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/extensions/extension_sync_service.h"  // nogncheck
+#include "extensions/browser/api/storage/storage_frontend.h"   // nogncheck
+#include "extensions/browser/extension_system_provider.h"      // nogncheck
+#include "extensions/browser/extensions_browser_client.h"      // nogncheck
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_sync_service.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_provider_factory.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "extensions/browser/api/storage/storage_frontend.h"  // nogncheck
-#include "extensions/browser/extension_system_provider.h"     // nogncheck
-#include "extensions/browser/extensions_browser_client.h"     // nogncheck
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -279,9 +284,12 @@ syncer::DataTypeController::TypeVector CreateChromeControllers(
   builder.SetSecurityEventRecorder(
       SecurityEventRecorderFactory::GetForProfile(profile));
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   builder.SetExtensionSyncService(ExtensionSyncService::Get(profile));
   builder.SetExtensionSystemProfile(profile);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   builder.SetThemeService(ThemeServiceFactory::GetForProfile(profile));
   builder.SetWebAppProvider(
       web_app::AreWebAppsEnabled(profile)
@@ -360,7 +368,13 @@ std::unique_ptr<syncer::SyncClient> BuildSyncClient(Profile* profile) {
 }
 
 std::unique_ptr<KeyedService> BuildSyncService(
+    std::optional<syncer::CreateHttpPostProviderFactory>
+        create_http_post_provider_factory_for_test,
     content::BrowserContext* context) {
+  if (create_http_post_provider_factory_for_test.has_value()) {
+    CHECK_IS_TEST();
+  }
+
   syncer::SyncServiceImpl::InitParams init_params;
 
   Profile* profile = Profile::FromBrowserContext(context);
@@ -373,6 +387,16 @@ std::unique_ptr<KeyedService> BuildSyncService(
   init_params.sync_client = BuildSyncClient(profile);
   init_params.url_loader_factory = profile->GetDefaultStoragePartition()
                                        ->GetURLLoaderFactoryForBrowserProcess();
+  init_params.create_http_post_provider_factory =
+      std::move(create_http_post_provider_factory_for_test)
+          .value_or(base::BindRepeating(
+              [](const std::string& user_agent,
+                 std::unique_ptr<network::PendingSharedURLLoaderFactory>
+                     pending_url_loader_factory)
+                  -> std::unique_ptr<syncer::HttpPostProviderFactory> {
+                return std::make_unique<syncer::HttpBridgeFactory>(
+                    user_agent, std::move(pending_url_loader_factory));
+              }));
   init_params.network_connection_tracker =
       content::GetNetworkConnectionTracker();
   init_params.channel = chrome::GetChannel();
@@ -545,12 +569,16 @@ SyncServiceFactory::SyncServiceFactory()
 #endif  // BUILDFLAG(IS_ANDROID)
   DependsOn(WebDataServiceFactory::GetInstance());
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   DependsOn(
       extensions::ExtensionsBrowserClient::Get()->GetExtensionSystemFactory());
   DependsOn(extensions::StorageFrontend::GetFactoryInstance());
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   DependsOn(web_app::WebAppProviderFactory::GetInstance());
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
 #if BUILDFLAG(IS_CHROMEOS)
   DependsOn(app_list::AppListSyncableServiceFactory::GetInstance());
   DependsOn(
@@ -569,7 +597,8 @@ SyncServiceFactory::~SyncServiceFactory() = default;
 std::unique_ptr<KeyedService>
 SyncServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return BuildSyncService(context);
+  return BuildSyncService(
+      /*create_http_post_provider_factory_for_test=*/std::nullopt, context);
 }
 
 bool SyncServiceFactory::ServiceIsNULLWhileTesting() const {
@@ -614,8 +643,11 @@ SyncServiceFactory::GetAllSyncServices() {
 
 // static
 BrowserContextKeyedServiceFactory::TestingFactory
-SyncServiceFactory::GetDefaultFactory() {
-  return base::BindRepeating(&BuildSyncService);
+SyncServiceFactory::GetDefaultFactory(
+    std::optional<syncer::CreateHttpPostProviderFactory>
+        create_http_post_provider_factory_for_test) {
+  return base::BindRepeating(
+      &BuildSyncService, std::move(create_http_post_provider_factory_for_test));
 }
 
 #if BUILDFLAG(IS_ANDROID)

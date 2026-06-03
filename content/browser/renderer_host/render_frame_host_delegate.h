@@ -61,6 +61,9 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 #include "services/device/public/mojom/nfc.mojom.h"
 #endif
 
@@ -343,9 +346,9 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // Gets the GeolocationContext associated with this delegate.
   virtual device::mojom::GeolocationContext* GetGeolocationContext();
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
   // Gets an NFC implementation within the context of this delegate.
-  virtual void GetNFC(RenderFrameHost* render_frame_host,
+  virtual void GetNFC(RenderFrameHostImpl* render_frame_host,
                       mojo::PendingReceiver<device::mojom::NFC> receiver);
 #endif
 
@@ -608,6 +611,15 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // copied to the clipboard from the `render_frame_host`.
   virtual void OnTextCopiedToClipboard(RenderFrameHostImpl* render_frame_host,
                                        const std::u16string& copied_text) {}
+
+  // Allows embedder to override the clipboard types if a policy has inspected
+  // or modified the clipboard content. Called from
+  // `ClipboardHostImpl::ReadAvailableTypes()` by the browser process when a
+  // renderer needs to read available formats. Returns `std::nullopt` if there
+  // is no override for the current clipboard state.
+  virtual std::optional<std::vector<std::u16string>>
+  GetClipboardTypesIfPolicyApplied(
+      const ui::ClipboardSequenceNumberToken& seqno);
 
   // Notified when the main frame of `source` adjusts the page scale.
   virtual void OnPageScaleFactorChanged(PageImpl& source) {}

@@ -87,6 +87,8 @@ union AILanguageModelPromptContent {
 struct AILanguageModelPrompt {
   AILanguageModelPromptRole role;
   array<AILanguageModelPromptContent> content;
+  // Whether this prompt is an assistant response prefix.
+  bool is_prefix = false;
 };
 
 // This is used when creating a new AILanguageModel.
@@ -109,7 +111,8 @@ interface AIManagerCreateLanguageModelClient {
            AILanguageModelInstanceInfo info);
 
   // Called when the manager cannot create an AILanguageModel.
-  OnError(AIManagerCreateClientError error);
+  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
+  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
 };
 
 // A session for prompting a model with inputs to obtain streaming responses.

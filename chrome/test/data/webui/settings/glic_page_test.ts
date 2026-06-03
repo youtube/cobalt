@@ -315,6 +315,7 @@ suite('GlicPage', function() {
       page.setPrefValue(PrefName.GEOLOCATION_ENABLED, true);
       page.setPrefValue(PrefName.MICROPHONE_ENABLED, true);
       page.setPrefValue(PrefName.TAB_CONTEXT_ENABLED, true);
+      page.setPrefValue(PrefName.TABSTRIP_BUTTON_ENABLED, true);
 
       const shortcutInputSelector = 'mainShortcutSetting .shortcut-input';
 
@@ -328,7 +329,7 @@ suite('GlicPage', function() {
       // Toggles should all have values from the real pref and be enabled.
       let toggles = page.shadowRoot!.querySelectorAll(
           'settings-toggle-button[checked]:not([disabled])');
-      assertEquals(4, toggles.length);
+      assertEquals(5, toggles.length);
 
       await setDisallowedByAdminAndSimulateUpdate(true);
 
@@ -354,7 +355,7 @@ suite('GlicPage', function() {
 
       toggles = page.shadowRoot!.querySelectorAll(
           'settings-toggle-button[checked]:not([disabled])');
-      assertEquals(4, toggles.length);
+      assertEquals(5, toggles.length);
     });
 
     test('ClickGlicRowInGlicSection', async () => {
@@ -419,6 +420,36 @@ suite('GlicPage', function() {
       const closedCaptionsToggle =
           $<SettingsToggleButtonElement>('closedCaptionsToggle')!;
       assertFalse(isVisible(closedCaptionsToggle));
+    });
+
+    test('tabstripButtonToggleEnabled', () => {
+      page.setPrefValue(PrefName.TABSTRIP_BUTTON_ENABLED, true);
+
+      assertTrue(
+          $<SettingsToggleButtonElement>('tabstripButtonToggle')!.checked);
+    });
+
+    test('tabstripButtonToggleDisabled', () => {
+      page.setPrefValue(PrefName.TABSTRIP_BUTTON_ENABLED, false);
+
+      assertFalse(
+          $<SettingsToggleButtonElement>('tabstripButtonToggle')!.checked);
+    });
+
+    test('tabstripButtonToggleChanged', () => {
+      page.setPrefValue(PrefName.TABSTRIP_BUTTON_ENABLED, false);
+
+      const tabstripButtonToggle =
+          $<SettingsToggleButtonElement>('tabstripButtonToggle');
+      assertTrue(!!tabstripButtonToggle);
+
+      tabstripButtonToggle.click();
+      assertTrue(page.getPref(PrefName.TABSTRIP_BUTTON_ENABLED).value);
+      assertTrue(tabstripButtonToggle.checked);
+
+      tabstripButtonToggle.click();
+      assertFalse(page.getPref(PrefName.TABSTRIP_BUTTON_ENABLED).value);
+      assertFalse(tabstripButtonToggle.checked);
     });
 
     suite('Metrics', () => {
@@ -588,6 +619,89 @@ suite('GlicPage', function() {
       assertFalse(page.getPref(PrefName.CLOSED_CAPTIONS_ENABLED).value);
       assertFalse(closedCaptionsToggle.checked);
       await verifyUserAction('Glic.Settings.ClosedCaptions.Disabled');
+    });
+  });
+
+  suite('DataProtection_UserStatusCheckEnabled', () => {
+    test('DataProtectionStringsShownForEligibleUser', () => {
+      page.setPrefValue(
+          PrefName.USER_STATUS, {isEnterpriseAccountDataProtected: true});
+      const locationToggle =
+          $<SettingsToggleButtonElement>('geolocationToggle')!;
+      assertEquals(
+          page.i18n('glicLocationToggleSublabelDataProtected'),
+          locationToggle.subLabel);
+      assertEquals('', locationToggle.learnMoreUrl);
+      const microphoneToggle =
+          $<SettingsToggleButtonElement>('microphoneToggle')!;
+      assertEquals(
+          page.i18n('glicMicrophoneToggleSublabelDataProtected'),
+          microphoneToggle.subLabel);
+      assertEquals(undefined, microphoneToggle.learnMoreUrl);
+      const tabAccessToggle =
+          $<SettingsToggleButtonElement>('tabAccessToggle')!;
+      assertEquals(
+          page.i18n('glicTabAccessToggleSublabelDataProtected'),
+          tabAccessToggle.subLabel);
+      assertEquals(
+          'https://example.com/data-protection', tabAccessToggle.learnMoreUrl);
+      const learnMoreLabel =
+          $<HTMLAnchorElement>('shortcutTabAccessConsider1LearnMoreLabel')!;
+      assertEquals('https://example.com/data-protection', learnMoreLabel.href);
+    });
+
+    test('DataProtectionStringsNotShownForIneligibleUser', () => {
+      page.setPrefValue(
+          PrefName.USER_STATUS, {isEnterpriseAccountDataProtected: false});
+      const locationToggle =
+          $<SettingsToggleButtonElement>('geolocationToggle')!;
+      assertEquals(
+          page.i18n('glicLocationToggleSublabel'), locationToggle.subLabel);
+      assertEquals(
+          page.i18n('glicLocationToggleLearnMoreUrl'),
+          locationToggle.learnMoreUrl);
+      const microphoneToggle =
+          $<SettingsToggleButtonElement>('microphoneToggle')!;
+      assertEquals(
+          page.i18n('glicMicrophoneToggleSublabel'), microphoneToggle.subLabel);
+      assertEquals(undefined, microphoneToggle.learnMoreUrl);
+      const tabAccessToggle =
+          $<SettingsToggleButtonElement>('tabAccessToggle')!;
+      assertEquals(
+          page.i18n('glicTabAccessToggleSublabel'), tabAccessToggle.subLabel);
+      assertEquals(
+          'https://example.com/tab-access', tabAccessToggle.learnMoreUrl);
+      const learnMoreLabel =
+          $<HTMLAnchorElement>('shortcutTabAccessConsider1LearnMoreLabel')!;
+      assertEquals('https://example.com/tab-access', learnMoreLabel.href);
+    });
+  });
+
+  suite('DataProtection_UserStatusCheckDisabled', () => {
+    test('DataProtectionStringsNotShown', () => {
+      page.setPrefValue(
+          PrefName.USER_STATUS, {isEnterpriseAccountDataProtected: true});
+      const locationToggle =
+          $<SettingsToggleButtonElement>('geolocationToggle')!;
+      assertEquals(
+          page.i18n('glicLocationToggleSublabel'), locationToggle.subLabel);
+      assertEquals(
+          page.i18n('glicLocationToggleLearnMoreUrl'),
+          locationToggle.learnMoreUrl);
+      const microphoneToggle =
+          $<SettingsToggleButtonElement>('microphoneToggle')!;
+      assertEquals(
+          page.i18n('glicMicrophoneToggleSublabel'), microphoneToggle.subLabel);
+      assertEquals(undefined, microphoneToggle.learnMoreUrl);
+      const tabAccessToggle =
+          $<SettingsToggleButtonElement>('tabAccessToggle')!;
+      assertEquals(
+          page.i18n('glicTabAccessToggleSublabel'), tabAccessToggle.subLabel);
+      assertEquals(
+          'https://example.com/tab-access', tabAccessToggle.learnMoreUrl);
+      const learnMoreLabel =
+          $<HTMLAnchorElement>('shortcutTabAccessConsider1LearnMoreLabel')!;
+      assertEquals('https://example.com/tab-access', learnMoreLabel.href);
     });
   });
 });

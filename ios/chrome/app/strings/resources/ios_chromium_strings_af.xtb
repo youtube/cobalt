@@ -176,6 +176,7 @@ Jou data is met jou wagfrase geënkripteer. Voer dit in om Chromium-data in jou 
 <translation id="5259423875997548710">Soek visuele elemente in Chromium.</translation>
 <translation id="5308226104666789935">Chromium kan nie vir opdaterings kyk nie</translation>
 <translation id="5311557153294205270">Voeg die ingevoerde URL’s by jou boekmerke in Chromium.</translation>
+<translation id="5383251701169024761">Kies Chromium vir Outovul om jou gestoorde wagwoorde maklik in ander apps te kry.</translation>
 <translation id="538767207339317086">Laat Chromium-aanmelding toe</translation>
 <translation id="5389058611415066188">Bly veilig met Chromium</translation>
 <translation id="5415273218238091735">Chromium-wenk</translation>
@@ -276,7 +277,6 @@ Net iemand met jou wagfrase kan jou geënkripteerde data lees. Die wagfrase word
 <translation id="7763454117143368771">Gebruik Chromium as jou verstekblaaier om beskerm te word teen gevaarlike werwe en jou wagwoorde veilig te hou</translation>
 <translation id="7784950022329154821">Sluit Incognito-oortjies wanneer jy Chromium toemaak</translation>
 <translation id="78025249032851484">Jou Chromium is verouderd.</translation>
-<translation id="7811371919871579588">Kies Chromium vir Outovul om jou gestoorde wagwoorde maklik in ander apps te kry.</translation>
 <translation id="7859018312476869945">Wanneer jy iets in die adresbalk of soekkassie tik, stuur Chromium wat jy tik na jou versteksoekenjin toe om beter voorstelle te kry. Dit is af in Incognito.</translation>
 <translation id="7890287942691234100">Begin Chromium-skandeerder gebruik</translation>
 <translation id="7905064834449738336">Wanneer jy ’n wagwoord gebruik, waarsku Chromium jou as dit aanlyn gepubliseer is. Wanneer dit gedoen word, word jou wagwoorde en gebruikername geënkripteer sodat niemand, insluitend Google, hulle kan lees nie.</translation>
@@ -331,6 +331,7 @@ Probeer om ’n paar minute te wag voordat jy afmeld. As jy nou afmeld, sal hier
 <translation id="9050790730841755540">Gebruik Chromium enige tyd wanneer jy op skakels in ander apps tik.</translation>
 <translation id="9059693977935746710">Jy hoef nie hierdie wagwoord te onthou nie. Dit sal vir <ph name="EMAIL" /> in Wagwoordbestuurder gestoor word</translation>
 <translation id="9089354809943900324">Chromium is verouderd</translation>
+<translation id="9105645282262300612">Chromium-wenk: Soek wat jy sien</translation>
 <translation id="9152995302810511799">Chromium-wenk: Kry Chromium se sterkste sekuriteit</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium word bestuur.</translation>
 <translation id="921174536258924340">Chromium kon nie alle wagwoorde nagaan nie. Probeer môre weer of <ph name="BEGIN_LINK" />gaan wagwoorde in jou Google-rekening na<ph name="END_LINK" />.</translation>

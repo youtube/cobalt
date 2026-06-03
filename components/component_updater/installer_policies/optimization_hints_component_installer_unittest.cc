@@ -14,9 +14,9 @@
 #include "base/test/task_environment.h"
 #include "base/version.h"
 #include "components/component_updater/mock_component_updater_service.h"
+#include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/optimization_hints_component_update_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -101,7 +101,7 @@ TEST_F(OptimizationHintsComponentInstallerTest,
   std::unique_ptr<OptimizationHintsMockComponentUpdateService> cus(
       new OptimizationHintsMockComponentUpdateService());
   EXPECT_CALL(*cus, RegisterComponent(testing::_))
-      .Times(1)
+
       .WillOnce(testing::Return(true));
   RegisterOptimizationHintsComponent(cus.get());
   RunUntilIdle();

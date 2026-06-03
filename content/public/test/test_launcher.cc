@@ -22,6 +22,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_helpers.h"
+#include "base/hash/hash.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -395,8 +396,7 @@ int LaunchTestsInternal(TestLauncherDelegate* launcher_delegate,
 #if GTEST_HAS_DEATH_TEST
       // Ensure death test child processes don't reuse the user data dir of
       // their parent process.
-      if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-              "gtest_internal_run_death_test")) {
+      if (command_line->HasSwitch("gtest_internal_run_death_test")) {
         command_line->RemoveSwitch(user_data_dir_switch);
       }
 #endif  // GTEST_HAS_DEATH_TEST

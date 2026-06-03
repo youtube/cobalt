@@ -450,7 +450,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.CanvasOopRaster.OopRasterAndGpuAcceleration"
-    enum="CanvasOopRasterAndGpuAcceleration" expires_after="2025-10-12">
+    enum="CanvasOopRasterAndGpuAcceleration" expires_after="2025-12-14">
   <owner>vasilyt@chromium.org</owner>
   <owner>nazabris@microsoft.com</owner>
   <owner>jochin@microsoft.com</owner>
@@ -556,6 +556,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.Dawn.AdapterFeatureLevel" enum="DawnAdapterFeatureLevel"
+    expires_after="2025-12-06">
+  <owner>kylechar@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Tracks whether the Dawn device used by Graphite supports Core or
+    Compatibility level.
+  </summary>
+</histogram>
+
 <histogram name="GPU.Dawn.InfoCollectionTimeMS" units="ms"
     expires_after="2026-04-28">
   <owner>enga@chromium.org</owner>
@@ -563,6 +573,20 @@ chromium-metrics-reviews@google.com.
   <summary>
     Measures the time to collect Dawn information during GPU info collection.
     NOTE: metric expired from 2024-06-25 to 2025-05-01.
+  </summary>
+</histogram>
+
+<histogram name="GPU.DirectComposition.CommitAndClearPendingOverlaysDuration"
+    units="microseconds" expires_after="2025-12-09">
+  <owner>vasilyt@chromium.org</owner>
+  <owner>tangm@microsoft.com</owner>
+  <summary>
+    Records the duration of CommitAndClearPendingOverlays, which contains the
+    work to update the DCLayerTree's visual contents, visual tree, and commit.
+    This estimates the amount of work DCLayerTree needs to do per frame and can
+    be used to compare incremental tree updating algorithms.
+
+    Only reported on systems which have high resolution timers.
   </summary>
 </histogram>
 
@@ -579,7 +603,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.DCLayer.YUVOverlayCount"
-    units="overlays" expires_after="2025-09-28">
+    units="overlays" expires_after="2025-11-30">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -604,7 +628,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="GPU.DirectComposition.DCLayerResult.Video.{GPUProtectedVideoType}"
-    enum="DCLayerResult" expires_after="2025-09-28">
+    enum="DCLayerResult" expires_after="2025-11-30">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -615,7 +639,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.HardwareOverlaysSupported"
-    enum="BooleanOverlaySupported" expires_after="2025-10-12">
+    enum="BooleanOverlaySupported" expires_after="2025-12-14">
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -801,6 +825,7 @@ chromium-metrics-reviews@google.com.
   <owner>chikamune@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time it takes to synchronously establish the GPU channel.
     Logged on the first run of a sync call to EstableGpuChannelSync is made.
@@ -1046,7 +1071,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.IntelGpuSeriesType" enum="IntelGpuSeriesType"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>sunnyps@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -1067,7 +1092,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.Mac.BackpressureUs" units="microseconds"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>magchen@chromium.org</owner>
   <owner>ccameron@chromium.org</owner>
   <summary>
@@ -1134,6 +1159,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.OsCompositor.NumLayersModified" units="layers"
+    expires_after="2025-12-02">
+  <owner>vasilyt@chromium.org</owner>
+  <owner>tangm@microsoft.com</owner>
+  <summary>
+    A count of the number of OS compositor layers that were dirtied in a single
+    commit. This estimates the amount of work the OS compositor needs to do per
+    frame and can be used to compare incremental tree updating algorithms.
+  </summary>
+</histogram>
+
 <histogram name="GPU.Output.HDR" enum="Boolean" expires_after="2025-11-16">
   <owner>hubbe@chromium.org</owner>
   <owner>cassew@chromium.org</owner>
@@ -1146,7 +1182,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.OutputSurface.InsertRenderPassRecording" enum="Boolean"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1170,7 +1206,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.PaintOpReader.DeserializationError"
-    enum="PaintOpDeserializationError" expires_after="2025-10-12">
+    enum="PaintOpDeserializationError" expires_after="2025-12-14">
   <owner>junov@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1182,7 +1218,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.Presentation.VSyncCallbackDelay" units="microseconds"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>magchen@chromium.org</owner>
   <owner>vmiura@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1230,18 +1266,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Gpu.Rasterization.Raster.MSAASampleCountLog2" units="count"
-    expires_after="2025-07-13">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    log2() of MSAA sample count of a raster task. Value is in [log2(1),log2(64)]
-    or [0,6] range. If log2() of the MSAA sample count is 0 (MSAA sample count
-    is 1), it means MSAA is disabled.
-  </summary>
-</histogram>
-
-<histogram name="GPU.Sandboxed" enum="Boolean" expires_after="2025-09-28">
+<histogram name="GPU.Sandboxed" enum="Boolean" expires_after="2025-11-30">
   <owner>akhna@google.com</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -1252,7 +1277,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ShaderLoadPrefixOK" enum="BooleanMatched"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>vikassoni@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -1282,7 +1307,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SkiaBackendType" enum="SkiaBackendType"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -1327,7 +1352,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.TransferCache.ReusedTimes" units="Reuses"
-    expires_after="2025-09-21">
+    expires_after="2025-11-23">
   <owner>boliu@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1405,7 +1430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.WebGLDisplayType" enum="EGLDisplayType"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>geofflang@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1633,7 +1658,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Exo.Surface.{ExoSurfaceCodePaths}" enum="Boolean"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>fangzhoug@chromium.org</owner>
   <owner>petermcneeley@chromium.org</owner>
   <owner>chromeos-gfx-display@google.com</owner>
@@ -1767,7 +1792,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.BeginFrameSource.VSyncCallbackDelay" units="microseconds"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>magchen@chromium.org</owner>
   <owner>vmiura@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1783,7 +1808,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.CreateFallbackImageResult"
-    enum="CreateFallbackImageResult" expires_after="2025-10-05">
+    enum="CreateFallbackImageResult" expires_after="2025-12-07">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1799,8 +1824,7 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
     An enum status result for attempted delegated compositing (success or
-    failure reason) recorded every drawn frame. Currently only recorded for
-    LaCros delegated compositing.
+    failure reason) recorded every drawn frame.
   </summary>
 </histogram>
 
@@ -1837,7 +1861,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.DisplayCompositor.RootDamageRect.Overlay"
-    enum="BooleanOverlayDamageRect" expires_after="2025-09-21">
+    enum="BooleanOverlayDamageRect" expires_after="2025-11-30">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -1886,7 +1910,7 @@ chromium-metrics-reviews@google.com.
   <summary>
     Time spent computing the number of active File Descriptors. This is logged
     once every 5 minutes as the cost of this computation is estimated to be at
-    least 1ms. Currently only recorded for LaCros delegated compositing.
+    least 1ms.
 
     Warning: This metric does not include reports from clients with
     low-resolution clocks.
@@ -1900,7 +1924,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     {FdStat} File Descriptors for the GPU process. This is logged once every 5
     minutes as the cost of this computation is estimated to be at least 1ms.
-    Currently only recorded for LaCros delegated compositing.
   </summary>
   <token key="FdStat">
     <variant name="NumActive" summary="Current number of active"/>

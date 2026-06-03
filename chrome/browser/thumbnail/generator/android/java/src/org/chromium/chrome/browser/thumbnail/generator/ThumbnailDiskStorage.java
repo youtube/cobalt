@@ -64,14 +64,12 @@ public class ThumbnailDiskStorage implements ThumbnailGeneratorCallback {
     // background thread.
     // It is static because cached thumbnails are shared across all instances of the class.
     @VisibleForTesting
-    static final LinkedHashSet<Pair<String, Integer>> sDiskLruCache =
-            new LinkedHashSet<Pair<String, Integer>>();
+    static final LinkedHashSet<Pair<String, Integer>> sDiskLruCache = new LinkedHashSet<>();
 
     // Maps content ID to a set of the requested sizes (maximum required dimension of the smaller
     // side) of the thumbnail with that ID.
     @VisibleForTesting
-    static final HashMap<String, HashSet<Integer>> sIconSizesMap =
-            new HashMap<String, HashSet<Integer>>();
+    static final HashMap<String, HashSet<Integer>> sIconSizesMap = new HashMap<>();
 
     @VisibleForTesting final ThumbnailGenerator mThumbnailGenerator;
 
@@ -184,7 +182,7 @@ public class ThumbnailDiskStorage implements ThumbnailGeneratorCallback {
 
             // Create a copy of the set of icon sizes because they can't be removed from the set
             // while iterating through the set
-            ArrayList<Integer> iconSizes = new ArrayList<Integer>(sIconSizesMap.get(mContentId));
+            ArrayList<Integer> iconSizes = new ArrayList<>(sIconSizesMap.get(mContentId));
             for (int iconSize : iconSizes) {
                 removeFromDiskHelper(Pair.create(mContentId, iconSize));
             }
@@ -298,7 +296,7 @@ public class ThumbnailDiskStorage implements ThumbnailGeneratorCallback {
                 if (sIconSizesMap.containsKey(contentId)) {
                     sIconSizesMap.get(contentId).add(iconSizePx);
                 } else {
-                    HashSet<Integer> iconSizes = new HashSet<Integer>();
+                    HashSet<Integer> iconSizes = new HashSet<>();
                     iconSizes.add(iconSizePx);
                     sIconSizesMap.put(contentId, iconSizes);
                 }
@@ -356,7 +354,7 @@ public class ThumbnailDiskStorage implements ThumbnailGeneratorCallback {
             if (sIconSizesMap.containsKey(contentId)) {
                 sIconSizesMap.get(contentId).add(iconSizePx);
             } else {
-                HashSet<Integer> iconSizes = new HashSet<Integer>();
+                HashSet<Integer> iconSizes = new HashSet<>();
                 iconSizes.add(iconSizePx);
                 sIconSizesMap.put(contentId, iconSizes);
             }

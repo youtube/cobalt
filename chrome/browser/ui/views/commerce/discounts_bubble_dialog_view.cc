@@ -4,6 +4,10 @@
 
 #include "chrome/browser/ui/views/commerce/discounts_bubble_dialog_view.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "base/functional/callback_forward.h"
 #include "base/i18n/time_formatting.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
@@ -254,8 +258,7 @@ BEGIN_METADATA(DiscountsBubbleDialogView)
 END_METADATA
 
 // DiscountsBubbleCoordinator
-DiscountsBubbleCoordinator::DiscountsBubbleCoordinator(views::View* anchor_view)
-    : anchor_view_(anchor_view) {}
+DiscountsBubbleCoordinator::DiscountsBubbleCoordinator() = default;
 
 DiscountsBubbleCoordinator::~DiscountsBubbleCoordinator() = default;
 
@@ -268,6 +271,7 @@ void DiscountsBubbleCoordinator::OnWidgetDestroying(views::Widget* widget) {
 }
 
 void DiscountsBubbleCoordinator::Show(
+    views::View* anchor_view,
     content::WebContents* web_contents,
     const commerce::DiscountInfo& discount_info,
     base::OnceClosure on_dialog_closing_callback) {
@@ -276,7 +280,7 @@ void DiscountsBubbleCoordinator::Show(
   on_dialog_closing_callback_ = std::move(on_dialog_closing_callback);
 
   auto bubble = std::make_unique<DiscountsBubbleDialogView>(
-      anchor_view_, web_contents, discount_info);
+      anchor_view, web_contents, discount_info);
   tracker_.SetView(bubble.get());
   auto* widget = DiscountsBubbleDialogView::CreateBubble(std::move(bubble));
   bubble_widget_observation_.Observe(widget);

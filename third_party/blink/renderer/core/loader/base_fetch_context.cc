@@ -31,6 +31,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -81,14 +82,16 @@ bool BaseFetchContext::CalculateIfAdSubresource(
     const ResourceRequestHead& request,
     base::optional_ref<const KURL> alias_url,
     ResourceType type,
-    const FetchInitiatorInfo& initiator_info) {
+    const FetchInitiatorInfo& initiator_info,
+    subresource_filter::ScopedRule* out_rule) {
   // A derived class should override this if they have more signals than just
   // the SubresourceFilter.
   SubresourceFilter* filter = GetSubresourceFilter();
   const KURL& url = alias_url.has_value() ? alias_url.value() : request.Url();
 
   return request.IsAdResource() ||
-         (filter && filter->IsAdResource(url, request.GetRequestDestination()));
+         (filter &&
+          filter->IsAdResource(url, request.GetRequestDestination(), out_rule));
 }
 
 void BaseFetchContext::PrintAccessDeniedMessage(const KURL& url) const {
@@ -97,16 +100,16 @@ void BaseFetchContext::PrintAccessDeniedMessage(const KURL& url) const {
   }
 
   String message;
+  StringView prefix("Unsafe attempt to load URL ");
   if (Url().IsNull()) {
-    message = "Unsafe attempt to load URL " + url.ElidedString() + '.';
-  } else if (url.IsLocalFile() || Url().IsLocalFile()) {
-    message = "Unsafe attempt to load URL " + url.ElidedString() +
-              " from frame with URL " + Url().ElidedString() +
-              ". 'file:' URLs are treated as unique security origins.\n";
+    message = StrCat({prefix, url.ElidedString(), "."});
   } else {
-    message = "Unsafe attempt to load URL " + url.ElidedString() +
-              " from frame with URL " + Url().ElidedString() +
-              ". Domains, protocols and ports must match.\n";
+    message =
+        StrCat({prefix, url.ElidedString(), " from frame with URL ",
+                Url().ElidedString(),
+                url.IsLocalFile() || Url().IsLocalFile()
+                    ? ". 'file:' URLs are treated as unique security origins.\n"
+                    : ". Domains, protocols and ports must match.\n"});
   }
 
   console_logger_->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
@@ -215,7 +218,7 @@ BaseFetchContext::CanRequestInternal(
       console_logger_->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
           mojom::ConsoleMessageSource::kJavaScript,
           mojom::ConsoleMessageLevel::kError,
-          "Not allowed to load local resource: " + url.GetString()));
+          StrCat({"Not allowed to load local resource: ", url.GetString()})));
     }
     RESOURCE_LOADING_DVLOG(1) << "ResourceFetcher::requestResource URL was not "
                                  "allowed by SecurityOrigin::CanDisplay";

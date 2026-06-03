@@ -343,9 +343,9 @@ CSSParserMode StyleResolverState::GetParserMode() const {
 }
 
 Element* StyleResolverState::GetAnimatingElement() const {
-  // When querying pseudo element styles for an element that does not generate
-  // such a pseudo element, the styled_element_ is the originating element. Make
-  // sure we only do animations for true pseudo elements.
+  // When querying pseudo-element styles for an element that does not generate
+  // such a pseudo-element, the styled_element_ is the originating element. Make
+  // sure we only do animations for true pseudo-elements.
   return IsForPseudoElement() ? GetPseudoElement() : styled_element_;
 }
 
@@ -399,11 +399,17 @@ void StyleResolverState::SetComputedStyleFlagsFromAuthorFlags(
     StyleBuilder().SetHasAuthorBorderRadius();
   }
 
-  if ((InsideLink() != EInsideLink::kInsideVisitedLink &&
-       (author_flags & CSSProperty::kHighlightColors)) ||
-      (InsideLink() == EInsideLink::kInsideVisitedLink &&
-       (author_flags & CSSProperty::kVisitedHighlightColors))) {
-    StyleBuilder().SetHasAuthorHighlightColors();
+  if (RuntimeEnabledFeatures::CSSDoNotHideVisitedColorEnabled()) {
+    if (author_flags & CSSProperty::kHighlightColors) {
+      StyleBuilder().SetHasAuthorHighlightColors();
+    }
+  } else {
+    if ((InsideLink() != EInsideLink::kInsideVisitedLink &&
+         (author_flags & CSSProperty::kHighlightColors)) ||
+        (InsideLink() == EInsideLink::kInsideVisitedLink &&
+         (author_flags & CSSProperty::kVisitedHighlightColors))) {
+      StyleBuilder().SetHasAuthorHighlightColors();
+    }
   }
 }
 

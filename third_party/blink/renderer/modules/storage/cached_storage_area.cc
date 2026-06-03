@@ -19,11 +19,11 @@
 #include "base/rand_util.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_manager.h"
-#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/platform/scheduler/public/main_thread.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
@@ -40,7 +40,7 @@ enum class StorageFormat : uint8_t { UTF16 = 0, Latin1 = 1 };
 // These methods are used to pack and unpack the page_url/storage_area_id into
 // source strings to/from the browser.
 String PackSource(const KURL& page_url, const String& storage_area_id) {
-  return page_url.GetString() + "\n" + storage_area_id;
+  return StrCat({page_url.GetString(), "\n", storage_area_id});
 }
 
 void UnpackSource(const String& source,
@@ -113,35 +113,12 @@ bool CachedStorageArea::SetItem(const String& key,
                       StringToUint8Vector(value, value_format),
                       optional_old_value, source_string,
                       MakeSuccessCallback(source));
-    EnqueueCheckpointMicrotask(source);
   }
   if (!IsSessionStorage())
     EnqueuePendingMutation(key, value, old_value, source_string);
   else if (old_value != value)
     EnqueueStorageEvent(key, old_value, value, page_url, source_id);
   return true;
-}
-
-void CachedStorageArea::EnqueueCheckpointMicrotask(Source* source) {
-  if (checkpoint_queued_) {
-    return;
-  }
-
-  LocalDOMWindow* window = source->GetDOMWindow();
-  if (!window) {
-    return;
-  }
-
-  checkpoint_queued_ = true;
-  window->GetAgent()->event_loop()->EnqueueMicrotask(WTF::BindOnce(
-      &CachedStorageArea::NotifyCheckpoint, weak_factory_.GetWeakPtr()));
-}
-
-void CachedStorageArea::NotifyCheckpoint() {
-  checkpoint_queued_ = false;
-  if (remote_area_) {
-    remote_area_->Checkpoint();
-  }
 }
 
 void CachedStorageArea::RemoveItem(const String& key, Source* source) {
@@ -162,7 +139,6 @@ void CachedStorageArea::RemoveItem(const String& key, Source* source) {
     remote_area_->Delete(StringToUint8Vector(key, GetKeyFormat()),
                          optional_old_value, source_string,
                          MakeSuccessCallback(source));
-    EnqueueCheckpointMicrotask(source);
   }
   if (!IsSessionStorage())
     EnqueuePendingMutation(key, String(), old_value, source_string);
@@ -201,7 +177,6 @@ void CachedStorageArea::Clear(Source* source) {
   if (!is_session_storage_for_prerendering_) {
     remote_area_->DeleteAll(source_string, std::move(new_observer),
                             MakeSuccessCallback(source));
-    EnqueueCheckpointMicrotask(source);
   }
   if (!IsSessionStorage())
     EnqueuePendingMutation(String(), String(), String(), source_string);
@@ -838,11 +813,10 @@ Vector<uint8_t> CachedStorageArea::StringToUint8Vector(
           return Vector<uint8_t>();
         Vector<uint8_t> buffer_vector(length * 3);
 
-        WTF::unicode::ConversionResult result =
-            WTF::unicode::ConvertLatin1ToUTF8(input.Span8(),
-                                              base::span(buffer_vector));
+        unicode::ConversionResult result = unicode::ConvertLatin1ToUtf8(
+            input.Span8(), base::span(buffer_vector));
         // (length * 3) should be sufficient for any conversion
-        DCHECK_NE(result.status, WTF::unicode::kTargetExhausted);
+        DCHECK_NE(result.status, unicode::kTargetExhausted);
         buffer_vector.Shrink(static_cast<wtf_size_t>(result.converted.size()));
         return buffer_vector;
       }

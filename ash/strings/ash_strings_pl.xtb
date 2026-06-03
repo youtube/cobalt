@@ -1014,6 +1014,7 @@ W celu wydłużenia czasu pracy na baterii niektóre funkcje zostały ograniczo
 <translation id="4305817255990598646">Przełącz</translation>
 <translation id="4307713728991152670">Skonfiguruj wyświetlanie najnowszych zdjęć, plików multimedialnych i aplikacji z telefonu</translation>
 <translation id="4312840429157639164">Podgląd z kamery został przyciągnięty do prawego górnego rogu. Konflikt z obszarem systemowym.</translation>
+<translation id="4312935606722154789">Połącz lub rozdziel 2 sąsiednie okna</translation>
 <translation id="4316910396681052118">WSZYSTKIE APLIKACJE</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Ukryj wszystkie sugestie dotyczące przeglądarki Chrome</translation>
@@ -1453,7 +1454,6 @@ Brak połączonych urządzeń.</translation>
 <translation id="5691772641933328258">Nie rozpoznano odcisku palca</translation>
 <translation id="5693255400847650006">Mikrofon w użyciu</translation>
 <translation id="5699366815052349604">Przypisz aktywne okno do wszystkich biurek</translation>
-<translation id="5701785125601597013">Korzystając z funkcji sterowania telefonem, możesz szybko wysyłać wiadomości i odpowiadać na nie na telefonie</translation>
 <translation id="570390244361237317">Wszystkie aplikacje; aby uzyskać dostęp do wszystkich aplikacji, poruszaj się za pomocą klawiszy strzałek</translation>
 <translation id="5705197514573687092">Pokaż ustawienia trybu skupienia. Licznik czasu został ustawiony na <ph name="FOCUS_DURATION" /></translation>
 <translation id="5707775774148071965">Twoje urządzenie obsługuje większą szybkość transmisji danych niż kabel. Wydajność urządzenia może być ograniczona.</translation>
@@ -1583,7 +1583,6 @@ Brak połączonych urządzeń.</translation>
 <translation id="6095425951508823973">Dodaj połączenie, korzystając z programu <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Edytowane w zeszłym miesiącu</translation>
 <translation id="6103838137565245112">system</translation>
-<translation id="610395411842312282">Połącz 2 sąsiednie okna w grupę</translation>
 <translation id="6108952804512516814">Utwórz przy pomocy AI</translation>
 <translation id="6114505516289286752">Pliki z mową w języku: <ph name="LANGUAGE" /> zostały pobrane</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>

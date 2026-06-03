@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /><ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">你现在只能使用课堂工具</translation>
 <translation id="1762483337755424125">转写内容</translation>
 <translation id="1765169783255151332">快速切换按键</translation>
 <translation id="1768959921651994223">身份验证类型</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">失败 - 已停止</translation>
 <translation id="3102119246920354026">缓存</translation>
 <translation id="3103783611481501187">超现实</translation>
+<translation id="3119672627216736407">提供翻译</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">水池</translation>
 <translation id="3122883569442693641">更多详情</translation>
@@ -1050,7 +1052,7 @@
 <translation id="5655283760733841251">调高键盘亮度</translation>
 <translation id="5655296450510165335">设备注册</translation>
 <translation id="5655776422854483175">无打印作业</translation>
-<translation id="5659593005791499971">电子邮件</translation>
+<translation id="5659593005791499971">邮箱</translation>
 <translation id="5662240986744577912">使用切换开关可启用或停用隐私保护屏幕</translation>
 <translation id="5669267381087807207">正在激活</translation>
 <translation id="5670702108860320605">BSSID</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">要完成更改，请输入您的旧密码和新密码</translation>
 <translation id="6061772781719867950">HTTPS 请求失败</translation>
 <translation id="6073292342939316679">调低键盘亮度</translation>
+<translation id="6074608334942655098">停止翻译</translation>
 <translation id="6074752328838739425">隐藏摘要</translation>
 <translation id="6075872808778243331">(Android) HTTP 延迟时间</translation>
 <translation id="6078323886959318429">添加快捷方式</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">在 Chromebook 帮助论坛中向专家提问</translation>
-<translation id="7309823890857024809">极简风静物画，几枝虞美人花放在玻璃花瓶中，采用黑色背景</translation>
 <translation id="7311368985037279727">键盘颜色</translation>
 <translation id="7317831949569936035">学校注册</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@
 <translation id="8088963492174775412">按下即可录制</translation>
 <translation id="8094062939584182041">允许 Google 就此问题向您发送电子邮件</translation>
 <translation id="8104083085214006426">您正在使用不安全的开放网络</translation>
+<translation id="8108879170356113798"><ph name="NUM_SECONDS" /> 秒后你将只能使用课堂工具</translation>
 <translation id="811820734797650957">(Android) 可对网关执行 ping 操作</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">确认</translation>
@@ -1810,7 +1813,7 @@
 <translation id="9003499805101629690">披萨</translation>
 <translation id="9003704114456258138">频率</translation>
 <translation id="9017411601860840405">霓虹灯</translation>
-<translation id="901834265349196618">电子邮件</translation>
+<translation id="901834265349196618">邮箱</translation>
 <translation id="9022897536196898720">花朵</translation>
 <translation id="9024331582947483881">全屏</translation>
 <translation id="9025198690966128418">用作个人设备</translation>

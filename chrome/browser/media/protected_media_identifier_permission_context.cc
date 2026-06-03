@@ -45,7 +45,7 @@
 ProtectedMediaIdentifierPermissionContext::
     ProtectedMediaIdentifierPermissionContext(
         content::BrowserContext* browser_context)
-    : PermissionContextBase(
+    : permissions::ContentSettingPermissionContextBase(
           browser_context,
           ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
           network::mojom::PermissionsPolicyFeature::kEncryptedMedia) {}
@@ -54,7 +54,7 @@ ProtectedMediaIdentifierPermissionContext::
     ~ProtectedMediaIdentifierPermissionContext() = default;
 
 ContentSetting
-ProtectedMediaIdentifierPermissionContext::GetPermissionStatusInternal(
+ProtectedMediaIdentifierPermissionContext::GetContentSettingStatusInternal(
     content::RenderFrameHost* render_frame_host,
     const GURL& requesting_origin,
     const GURL& embedding_origin) const {
@@ -67,8 +67,8 @@ ProtectedMediaIdentifierPermissionContext::GetPermissionStatusInternal(
     return CONTENT_SETTING_BLOCK;
   }
 
-  ContentSetting content_setting =
-      permissions::PermissionContextBase::GetPermissionStatusInternal(
+  ContentSetting content_setting = permissions::
+      ContentSettingPermissionContextBase::GetContentSettingStatusInternal(
           render_frame_host, requesting_origin, embedding_origin);
   DCHECK(content_setting == CONTENT_SETTING_ALLOW ||
 #if BUILDFLAG(IS_ANDROID)

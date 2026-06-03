@@ -251,6 +251,8 @@ TEST(CSSSelectorParserTest, TransitionPseudoStyles) {
        CSSSelector::kPseudoViewTransitionGroup},
       {"html::view-transition-image-pair(foo)", true, "foo",
        CSSSelector::kPseudoViewTransitionImagePair},
+      {"html::view-transition-group-children(foo)", true, "foo",
+       CSSSelector::kPseudoViewTransitionGroupChildren},
       {"html::view-transition-old(foo)", true, "foo",
        CSSSelector::kPseudoViewTransitionOld},
       {"html::view-transition-new(foo)", true, "foo",
@@ -1083,7 +1085,7 @@ static const SelectorTestCase invalid_pseudo_has_arguments_data[] = {
     {":has(:has(.a), .b)", ""},
     {":has(:is(:has(.a)))", ":has(:is())"},
 
-    // restrict use of pseudo element inside :has()
+    // restrict use of pseudo-element inside :has()
     {":has(::-webkit-progress-bar)", ""},
     {":has(::-webkit-progress-value)", ""},
     {":has(::-webkit-slider-runnable-track)", ""},
@@ -1134,7 +1136,7 @@ static const SelectorTestCase has_nesting_data[] = {
     {":host(:has(.a))", ""},
     {":host-context(:has(.a))", ""},
     {"::cue(:has(.a))", ""},
-    // :has() is not allowed after pseudo elements:
+    // :has() is not allowed after pseudo-elements:
     {"::part(foo):has(:hover)", ""},
     {"::part(foo):has(:hover:focus)", ""},
     {"::part(foo):has(:focus, :hover)", ""},

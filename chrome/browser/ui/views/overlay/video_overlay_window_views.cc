@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
@@ -36,6 +37,7 @@
 #include "chrome/browser/ui/views/overlay/skip_ad_label_button.h"
 #include "chrome/browser/ui/views/overlay/toggle_camera_button.h"
 #include "chrome/browser/ui/views/overlay/toggle_microphone_button.h"
+#include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_tucker.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/global_media_controls/public/format_duration.h"
 #include "components/vector_icons/vector_icons.h"
@@ -63,8 +65,6 @@
 #include "ui/views/window/non_client_view.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "ash/public/cpp/ash_constants.h"
-#include "ash/public/cpp/rounded_corner_utils.h"
 #include "ash/public/cpp/window_properties.h"  // nogncheck
 #include "chromeos/ui/base/app_types.h"
 #include "chromeos/ui/base/chromeos_ui_constants.h"
@@ -82,6 +82,10 @@
 #include "ui/base/ime/win/tsf_input_scope.h"
 #include "ui/base/win/shell.h"
 #endif
+
+#if BUILDFLAG(IS_MAC)
+#include "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h"
+#endif  // BUILDFLAG(IS_MAC)
 
 namespace {
 
@@ -309,11 +313,11 @@ class OverlayWindowFrameView : public views::NonClientFrameView {
     // check.
     ui::Layer* root_view_layer = GetWidget()->GetRootView()->layer();
     if (root_view_layer) {
-      aura::Window* window = GetWidget()->GetNativeWindow();
-      window->SetProperty(aura::client::kWindowCornerRadiusKey,
-                          chromeos::kPipRoundedCornerRadius);
-      ash::SetCornerRadius(window, root_view_layer,
-                           chromeos::kPipRoundedCornerRadius);
+      const gfx::RoundedCornersF window_radii(
+          chromeos::kPipRoundedCornerRadius);
+
+      root_view_layer->SetRoundedCornerRadius(window_radii);
+      root_view_layer->SetIsFastRoundedCorner(true);
     }
   }
 #endif
@@ -369,8 +373,8 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
 
   // The 2024 updated controls use dark mode colors.
   if (Use2024UI()) {
-    overlay_window->SetColorModeOverride(
-        ui::ColorProviderKey::ColorMode::kDark);
+    overlay_window->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark,
+                                         /*background_color=*/std::nullopt);
   }
 
   overlay_window->CalculateAndUpdateWindowBounds();
@@ -389,9 +393,29 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
   params.layer_type = ui::LAYER_NOT_DRAWN;
   params.delegate = new OverlayWindowWidgetDelegate();
 
+// Fade in animation is disabled for Document and Video Picture-in-Picture on
+// Windows. On Windows, resizable windows can not be translucent. See
+// crbug.com/425711450.
+#if !BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(
+          media::kPictureInPictureShowWindowAnimation)) {
+    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
+  }
+#endif
+
+#if BUILDFLAG(IS_MAC)
+  // On Mac, we override the default native widget with our own subclass, which
+  // allows us to get the default window styling (e.g. corner radius) even
+  // though we're using `views::Widget::InitParams::remove_standard_frame`.
+  params.native_widget =
+      new VideoOverlayWindowNativeWidgetMac(overlay_window.get());
+#endif  // BUILDFLAG(IS_MAC)
+
 #if BUILDFLAG(IS_CHROMEOS)
   params.init_properties_container.SetProperty(chromeos::kAppTypeKey,
                                                chromeos::AppType::BROWSER);
+  params.rounded_corners =
+      gfx::RoundedCornersF(chromeos::kPipRoundedCornerRadius);
 #endif
 
   overlay_window->Init(std::move(params));
@@ -471,6 +495,8 @@ VideoOverlayWindowViews::~VideoOverlayWindowViews() {
     overlay_view_->RemoveObserver(this);
   }
   display::Screen::GetScreen()->RemoveObserver(this);
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
+      this);
 }
 
 gfx::Size& VideoOverlayWindowViews::GetNaturalSize() {
@@ -781,6 +807,12 @@ bool VideoOverlayWindowViews::IsLayoutPendingForTesting() const {
          update_controls_bounds_timer_->IsRunning();
 }
 
+void VideoOverlayWindowViews::FinishTuckAnimationForTesting() {
+  if (tucker_) {
+    tucker_->FinishAnimationForTesting();  // IN-TEST
+  }
+}
+
 void VideoOverlayWindowViews::OnDisplayMetricsChanged(
     const display::Display& display,
     uint32_t changed_metrics) {
@@ -805,6 +837,18 @@ void VideoOverlayWindowViews::OnViewVisibilityChanged(
 
   // The visibility of `overlay_view_` affects our minimum size.
   OnSizeConstraintsChanged();
+}
+
+void VideoOverlayWindowViews::SetForcedTucking(bool tuck) {
+  if (!tucker_) {
+    tucker_ = std::make_unique<PictureInPictureTucker>(*this);
+  }
+  is_tucking_forced_ = tuck;
+  if (tuck) {
+    tucker_->Tuck();
+  } else {
+    tucker_->Untuck();
+  }
 }
 
 void VideoOverlayWindowViews::OnAutoPipSettingOverlayViewHidden() {
@@ -1449,7 +1493,8 @@ void VideoOverlayWindowViews::SetUpViews() {
 void VideoOverlayWindowViews::OnRootViewReady() {
 #if BUILDFLAG(IS_CHROMEOS)
   GetNativeWindow()->SetProperty(ash::kWindowPipTypeKey, true);
-  highlight_border_overlay_ = std::make_unique<HighlightBorderOverlay>(this);
+  highlight_border_overlay_ =
+      std::make_unique<HighlightBorderOverlay>(this, nullptr);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   GetRootView()->SetPaintToLayer(ui::LAYER_TEXTURED);
@@ -1898,10 +1943,33 @@ bool VideoOverlayWindowViews::IsActive() const {
 void VideoOverlayWindowViews::Close() {
   views::Widget::Close();
   MaybeUnregisterFrameSinkHierarchy();
+  if (fade_animator_) {
+    fade_animator_->CancelAndReset();
+  }
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
+      this);
 }
 
 void VideoOverlayWindowViews::ShowInactive() {
+// Fade in animation is disabled for Document and Video Picture-in-Picture on
+// Windows. On Windows, resizable windows can not be translucent. See
+// crbug.com/425711450.
+#if BUILDFLAG(IS_WIN)
   views::Widget::ShowInactive();
+#else
+  if (base::FeatureList::IsEnabled(
+          media::kPictureInPictureShowWindowAnimation)) {
+    if (!fade_animator_) {
+      fade_animator_ = std::make_unique<PictureInPictureWidgetFadeAnimator>();
+    }
+    fade_animator_->AnimateShowWindow(
+        this,
+        PictureInPictureWidgetFadeAnimator::WidgetShowType::kShowInactive);
+  } else {
+    views::Widget::ShowInactive();
+  }
+#endif
+
   views::Widget::SetVisibleOnAllWorkspaces(true);
 #if BUILDFLAG(IS_CHROMEOS)
   non_client_view()->frame_view()->UpdateWindowRoundedCorners();
@@ -1931,13 +1999,27 @@ void VideoOverlayWindowViews::ShowInactive() {
 
   // If this is not the first time the window is shown, this will be a no-op.
   has_been_shown_ = true;
+
+  // If we're still tucked from a previous session and it's no longer necessary,
+  // then untuck now.
+  if (is_tucking_forced_ && !PictureInPictureWindowManager::GetInstance()
+                                 ->IsPictureInPictureForceTucked()) {
+    SetForcedTucking(false);
+  }
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowShown(
+      this);
 }
 
 void VideoOverlayWindowViews::Hide() {
   // If there is an existing overlay view, remove it now.
   RemoveOverlayViewIfExists();
   views::Widget::Hide();
+  if (fade_animator_) {
+    fade_animator_->CancelAndReset();
+  }
   MaybeUnregisterFrameSinkHierarchy();
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
+      this);
 }
 
 bool VideoOverlayWindowViews::IsVisible() const {
@@ -1962,6 +2044,9 @@ void VideoOverlayWindowViews::UpdateNaturalSize(const gfx::Size& natural_size) {
   // Update the views::Widget bounds to adhere to sizing spec. This will also
   // update the layout of the controls.
   SetBounds(CalculateAndUpdateWindowBounds());
+  if (is_tucking_forced_) {
+    tucker_->Tuck();
+  }
 }
 
 void VideoOverlayWindowViews::SetPlaybackState(PlaybackState playback_state) {

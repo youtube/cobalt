@@ -5,7 +5,10 @@
 #ifndef CHROME_BROWSER_GLIC_BROWSER_UI_GLIC_TAB_INDICATOR_HELPER_H_
 #define CHROME_BROWSER_GLIC_BROWSER_UI_GLIC_TAB_INDICATOR_HELPER_H_
 
+#include <vector>
+
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "components/tabs/public/tab_interface.h"
@@ -23,7 +26,7 @@ namespace glic {
 // latter is currently handled by
 // BrowserTabStripController::OnTabStripModelChanged. This class is only
 // responsible for propagating glic focus changes for a fixed TabInterface,
-// without handling moving.
+// without handling moving and for changes to the sharing status of a tab.
 class GlicTabIndicatorHelper {
  public:
   explicit GlicTabIndicatorHelper(tabs::TabInterface* tab);
@@ -35,10 +38,13 @@ class GlicTabIndicatorHelper {
   void UpdateTab();
 
   // Called when the focused tab changes with the focused tab data object.
-  void OnFocusedTabChanged(FocusedTabData focused_tab_data);
+  void OnFocusedTabChanged(const FocusedTabData& focused_tab_data);
 
   // Called when the client changes the context access indicator status.
   void OnIndicatorStatusChanged(bool enabled);
+
+  // Called when the tab's pinning status is updated.
+  void OnTabPinningStatusChanged(tabs::TabInterface*, bool pinned);
 
   // Called when the tab is detached.
   void OnTabWillDetach(tabs::TabInterface* tab,
@@ -50,10 +56,7 @@ class GlicTabIndicatorHelper {
   raw_ptr<tabs::TabInterface> tab_;
   bool tab_is_focused_ = false;
   bool is_detached_ = false;
-  base::CallbackListSubscription focus_change_subscription_;
-  base::CallbackListSubscription indicator_change_subscription_;
-  base::CallbackListSubscription will_detach_subscription_;
-  base::CallbackListSubscription did_insert_subscription_;
+  std::vector<base::CallbackListSubscription> subscriptions_;
 };
 
 }  // namespace glic

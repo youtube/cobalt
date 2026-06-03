@@ -20,7 +20,6 @@
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
-#include "base/debug/stack_trace.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/not_fatal_until.h"
@@ -106,18 +105,6 @@ size_t AutocompleteResult::GetMaxMatches(
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   constexpr size_t kMaxFeaturedKeywordAutocompleteMatches = 9;
 #endif
-#if BUILDFLAG(IS_IOS)
-  // By default, iPad has the same max as iPhone.
-  // `kDefaultMaxAutocompleteMatches` defines a hard limit on the number of
-  // autocomplete suggestions on iPad, so if an experiment defines
-  // MaxZeroSuggestMatches to 15, it would be 15 on iPhone and 10 on iPad.
-  constexpr size_t kMaxAutocompleteMatchesOnIPad = 10;
-  // By default, iPad has the same max as iPhone. `kMaxZeroSuggestMatchesOnIPad`
-  // defines a hard limit on the number of ZPS suggestions on iPad, so if an
-  // experiment defines MaxZeroSuggestMatches to 15, it would be 15 on iPhone
-  // and 10 on iPad.
-  size_t kMaxZeroSuggestMatchesOnIPad = OmniboxFieldTrial::kIpadZPSLimit.Get();
-#endif
 
   // Verify possible return values are between (0,
   // `kMaxAutocompletePositionValue`).
@@ -135,15 +122,6 @@ size_t AutocompleteResult::GetMaxMatches(
                         kMaxAutocompletePositionValue,
                 "Bad kMaxFeaturedKeywordAutocompleteMatches.");
 #endif
-#if BUILDFLAG(IS_IOS)
-  static_assert(
-      kMaxAutocompleteMatchesOnIPad > 0 &&
-          kMaxAutocompleteMatchesOnIPad < kMaxAutocompletePositionValue,
-      "Bad kMaxAutocompleteMatchesOnIPad.");
-  CHECK(kMaxZeroSuggestMatchesOnIPad > 0 &&
-        kMaxZeroSuggestMatchesOnIPad < kMaxAutocompletePositionValue)
-      << "Bad kMaxZeroSuggestMatchesOnIPad.";
-#endif
 
 // When the user types '@', show 9, instead of the usual 8, matches on desktop.
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -158,12 +136,6 @@ size_t AutocompleteResult::GetMaxMatches(
         omnibox::kMaxZeroSuggestMatches,
         OmniboxFieldTrial::kMaxZeroSuggestMatchesParam,
         kDefaultMaxZeroSuggestMatches);
-#if BUILDFLAG(IS_IOS)
-    if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-      field_trial_value =
-          std::min(field_trial_value, kMaxZeroSuggestMatchesOnIPad);
-    }
-#endif
     DCHECK(kMaxAutocompletePositionValue > field_trial_value);
     return field_trial_value;
   }
@@ -175,12 +147,6 @@ size_t AutocompleteResult::GetMaxMatches(
       OmniboxFieldTrial::kUIMaxAutocompleteMatchesParam,
       kDefaultMaxAutocompleteMatches);
   DCHECK(kMaxAutocompletePositionValue > field_trial_value);
-#if BUILDFLAG(IS_IOS)
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    field_trial_value =
-        std::min(field_trial_value, kMaxAutocompleteMatchesOnIPad);
-  }
-#endif
   return field_trial_value;
 }
 
@@ -391,6 +357,7 @@ void AutocompleteResult::SortAndCull(
     TemplateURLService* template_url_service,
     OmniboxTriggeredFeatureService* triggered_feature_service,
     bool is_lens_active,
+    bool can_show_contextual_suggestions,
     bool mia_enabled,
     std::optional<AutocompleteMatch> default_match_to_preserve) {
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(
@@ -428,17 +395,16 @@ void AutocompleteResult::SortAndCull(
   }
 
   // Used to determine how many search / url suggestions should appear in zps
-  // if kOmniboxUrlSuggestionsOnFocus is enabled.
-  auto url_suggestions_on_focus_config =
-      omnibox_feature_configs::OmniboxUrlSuggestionsOnFocus::Get();
+  // if kOmniboxZpsSuggestionLimit is enabled.
+  auto zps_suggestion_limit_config =
+      omnibox_feature_configs::OmniboxZpsSuggestionLimit::Get();
   size_t max_search_suggestions = 8u;
   size_t max_url_suggestions = 0u;
   size_t max_suggestions = 8u;
-  if (url_suggestions_on_focus_config.enabled) {
-    max_search_suggestions =
-        url_suggestions_on_focus_config.max_search_suggestions;
-    max_url_suggestions = url_suggestions_on_focus_config.max_url_suggestions;
-    max_suggestions = url_suggestions_on_focus_config.max_suggestions;
+  if (zps_suggestion_limit_config.enabled) {
+    max_search_suggestions = zps_suggestion_limit_config.max_search_suggestions;
+    max_url_suggestions = zps_suggestion_limit_config.max_url_suggestions;
+    max_suggestions = zps_suggestion_limit_config.max_suggestions;
   }
 
   // If at zero suggest or `kGroupingFrameworkForNonZPS` is enabled and the
@@ -461,13 +427,14 @@ void AutocompleteResult::SortAndCull(
       }
     } else if constexpr (is_desktop) {
       const size_t contextual_zps_limit =
-          is_lens_active ? 0u
-                         : omnibox_feature_configs::ContextualSearch::Get()
-                               .contextual_zps_limit;
-      // Make space for the extra Lens action. It needs to be included above
-      // any contextual search matches but does not count against their limit.
+          can_show_contextual_suggestions && !is_lens_active
+              ? omnibox_feature_configs::ContextualSearch::Get()
+                    .contextual_zps_limit
+              : 0u;
       const size_t contextual_action_limit =
-          omnibox_feature_configs::ContextualSearch::Get().show_open_lens_action
+          omnibox_feature_configs::ContextualSearch::Get()
+                      .show_open_lens_action &&
+                  !is_lens_active
               ? 1u
               : 0u;
       if (omnibox::IsLensSearchbox(page_classification)) {
@@ -549,13 +516,35 @@ void AutocompleteResult::SortAndCull(
             std::ranges::any_of(matches_, [](const auto& match) {
               return match.IsContextualSearchSuggestion();
             })) {
-          sections.push_back(
-              std::make_unique<DesktopWebSearchZpsContextualOnlySection>(
-                  suggestion_groups_map_, contextual_action_limit,
-                  contextual_zps_limit));
+          if (omnibox_feature_configs::ContextualSearch::Get()
+                  .contextual_suggestions_ablate_search_only) {
+            // URL suggestions.
+            sections.push_back(std::make_unique<DesktopWebURLZpsSection>(
+                suggestion_groups_map_, max_url_suggestions));
+            // ONLY contextual search suggestions.
+            sections.push_back(
+                std::make_unique<DesktopWebSearchZpsContextualOnlySection>(
+                    suggestion_groups_map_, contextual_action_limit,
+                    contextual_zps_limit));
+          } else if (omnibox_feature_configs::ContextualSearch::Get()
+                         .contextual_suggestions_ablate_url_only) {
+            // Regular search suggestions + contextual search suggestions.
+            sections.push_back(std::make_unique<DesktopWebSearchZpsSection>(
+                suggestion_groups_map_,
+                max_search_suggestions + contextual_action_limit,
+                contextual_action_limit, contextual_zps_limit));
+          } else {
+            // ONLY contextual search suggestions.
+            sections.push_back(
+                std::make_unique<DesktopWebSearchZpsContextualOnlySection>(
+                    suggestion_groups_map_, contextual_action_limit,
+                    contextual_zps_limit));
+          }
         } else {
+          // URL suggestions.
           sections.push_back(std::make_unique<DesktopWebURLZpsSection>(
               suggestion_groups_map_, max_url_suggestions));
+          // Regular search suggestions + contextual search suggestions.
           sections.push_back(std::make_unique<DesktopWebSearchZpsSection>(
               suggestion_groups_map_,
               max_search_suggestions + contextual_action_limit,
@@ -570,44 +559,30 @@ void AutocompleteResult::SortAndCull(
         }
 #endif
       }
+      if (omnibox_feature_configs::Toolbelt::Get().enabled) {
+        sections.push_back(
+            std::make_unique<ToolbeltSection>(suggestion_groups_map_));
+      }
     } else if constexpr (is_ios) {
-      if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-        size_t num_trending_queries =
-            OmniboxFieldTrial::kIpadAdditionalTrendingQueries.Get();
-        size_t total_count = OmniboxFieldTrial::kIpadZPSLimit.Get();
-
-        if (omnibox::IsNTPPage(page_classification)) {
-          sections.push_back(std::make_unique<IOSIpadNTPZpsSection>(
-              num_trending_queries, total_count, suggestion_groups_map_,
-              mia_enabled));
-        } else if (omnibox::IsSearchResultsPage(page_classification)) {
-          sections.push_back(std::make_unique<IOSIpadSRPZpsSection>(
-              total_count, suggestion_groups_map_));
-        } else {
-          sections.push_back(std::make_unique<IOSIpadWebZpsSection>(
-              total_count, suggestion_groups_map_));
+      if (omnibox::IsLensSearchbox(page_classification)) {
+        switch (page_classification) {
+          case OmniboxEventProto::LENS_SIDE_PANEL_SEARCHBOX:
+            sections.push_back(std::make_unique<IOSLensMultimodalZpsSection>(
+                suggestion_groups_map_));
+            break;
+          default:
+            // kLensOverlayNotFatalUntil update after launch.
+            NOTREACHED(base::NotFatalUntil::M200);
         }
+      } else if (omnibox::IsNTPPage(page_classification)) {
+        sections.push_back(std::make_unique<IOSNTPZpsSection>(
+            suggestion_groups_map_, mia_enabled));
+      } else if (omnibox::IsSearchResultsPage(page_classification)) {
+        sections.push_back(
+            std::make_unique<IOSSRPZpsSection>(suggestion_groups_map_));
       } else {
-        if (omnibox::IsLensSearchbox(page_classification)) {
-          switch (page_classification) {
-            case OmniboxEventProto::LENS_SIDE_PANEL_SEARCHBOX:
-              sections.push_back(std::make_unique<IOSLensMultimodalZpsSection>(
-                  suggestion_groups_map_));
-              break;
-            default:
-              // kLensOverlayNotFatalUntil update after launch.
-              NOTREACHED(base::NotFatalUntil::M200);
-          }
-        } else if (omnibox::IsNTPPage(page_classification)) {
-          sections.push_back(std::make_unique<IOSNTPZpsSection>(
-              suggestion_groups_map_, mia_enabled));
-        } else if (omnibox::IsSearchResultsPage(page_classification)) {
-          sections.push_back(
-              std::make_unique<IOSSRPZpsSection>(suggestion_groups_map_));
-        } else {
-          sections.push_back(
-              std::make_unique<IOSWebZpsSection>(suggestion_groups_map_));
-        }
+        sections.push_back(
+            std::make_unique<IOSWebZpsSection>(suggestion_groups_map_));
       }
     }
     matches_ = Section::GroupMatches(std::move(sections), matches_);
@@ -753,6 +728,10 @@ void AutocompleteResult::SplitActionsToSuggestions() {
     return;
   }
   for (size_t i = 0; i < matches_.size(); i++) {
+    if (matches_[i].IsToolbelt()) {
+      // The toolbelt has pedal-like actions that should not be split out.
+      continue;
+    }
     for (size_t j = 0; j < matches_[i].actions.size(); j++) {
       if (matches_[i].actions[j]->ActionId() == OmniboxActionId::PEDAL) {
         *matches_.insert(matches_.begin() + i + 1,
@@ -1223,8 +1202,8 @@ size_t AutocompleteResult::CalculateNumMatchesPerUrlCount(
 }
 
 void AutocompleteResult::Reset() {
+  session_ = {};
   ClearMatches();
-  session_.Reset();
 }
 
 void AutocompleteResult::ClearMatches() {
@@ -1233,22 +1212,6 @@ void AutocompleteResult::ClearMatches() {
 #if BUILDFLAG(IS_ANDROID)
   DestroyJavaObject();
 #endif
-}
-
-AutocompleteResult::SessionData::SessionData() = default;
-
-AutocompleteResult::SessionData::~SessionData() = default;
-
-void AutocompleteResult::SessionData::Reset() {
-  zero_prefix_enabled_ = false;
-  num_zero_prefix_suggestions_shown_ = 0u;
-  zero_prefix_search_suggestions_shown_in_session_ = false;
-  zero_prefix_url_suggestions_shown_in_session_ = false;
-  typed_search_suggestions_shown_in_session_ = false;
-  typed_url_suggestions_shown_in_session_ = false;
-  contextual_search_suggestions_shown_in_session_ = false;
-  lens_action_shown_in_session_ = false;
-  gws_event_id_hashes_.clear();
 }
 
 void AutocompleteResult::SwapMatchesWith(AutocompleteResult* other) {

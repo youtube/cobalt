@@ -46,6 +46,10 @@ base::Value::Dict MakeFakeMetadata() {
   base::Value::List full_version_list;
   full_version_list.Append(std::move(brand_version));
 
+  base::Value::List form_factors;
+  form_factors.Append("Mobile");
+  form_factors.Append("XR");
+
   base::Value::Dict metadata;
   metadata.Set("brands", std::move(brands));
   metadata.Set("fullVersionList", std::move(full_version_list));
@@ -57,6 +61,7 @@ base::Value::Dict MakeFakeMetadata() {
   metadata.Set("mobile", true);
   metadata.Set("bitness", "512");
   metadata.Set("wow64", true);
+  metadata.Set("formFactors", std::move(form_factors));
 
   return metadata;
 }
@@ -209,9 +214,8 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserNavigatorUADataTest, CDPOverride) {
               DictHasValue("result.result.value", "1.2.3"));
   EXPECT_THAT(GetUAMetadataValue(kWow64Script),
               DictHasValue("result.result.value", true));
-  // TODO(crbug.com/40910451): Allow overriding formFactors.
   EXPECT_THAT(GetUAMetadataValue(kFormFactorScript),
-              DictHasValue("result.result.value", ""));
+              DictHasValue("result.result.value", "Mobile, XR"));
 }
 
 class HeadlessBrowserUAHeaderTest : public HeadlessBrowserTest {

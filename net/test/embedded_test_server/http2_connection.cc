@@ -12,6 +12,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
@@ -189,7 +191,8 @@ Http2Connection::Http2Connection(
     std::unique_ptr<StreamSocket> socket,
     EmbeddedTestServerConnectionListener* connection_listener,
     EmbeddedTestServer* embedded_test_server)
-    : socket_(std::move(socket)),
+    : HttpConnection(Protocol::kHttp2),
+      socket_(std::move(socket)),
       connection_listener_(connection_listener),
       embedded_test_server_(embedded_test_server),
       read_buf_(base::MakeRefCounted<IOBufferWithSize>(4096)) {

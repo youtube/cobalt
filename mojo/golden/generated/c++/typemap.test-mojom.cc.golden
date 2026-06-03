@@ -21,12 +21,14 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "mojo/public/cpp/bindings/features.h"
 #include "mojo/public/cpp/bindings/lib/default_construct_tag_internal.h"
 #include "mojo/public/cpp/bindings/lib/generated_code_util.h"
 #include "mojo/public/cpp/bindings/lib/message_internal.h"
 #include "mojo/public/cpp/bindings/lib/proxy_to_responder.h"
 #include "mojo/public/cpp/bindings/lib/send_message_helper.h"
+#include "mojo/public/cpp/bindings/lib/serialization.h"
 #include "mojo/public/cpp/bindings/lib/serialization_util.h"
 #include "mojo/public/cpp/bindings/lib/unserialized_message_context.h"
 #include "mojo/public/cpp/bindings/lib/validate_params.h"
@@ -96,7 +98,10 @@ bool Typemapped::Validate(
     mojo::internal::ValidationContext* validation_context) {
   return Data_::Validate(data, validation_context);
 }
+// The declaration includes the definition on other builds.
+#if defined(ARCH_CPU_ARM64) && BUILDFLAG(IS_ANDROID)
 const char IFaceWithTypemap::Name_[] = "golden.IFaceWithTypemap";
+#endif // defined(ARCH_CPU_ARM64) && BUILDFLAG(IS_ANDROID)
 
 IFaceWithTypemap::IPCStableHashFunction IFaceWithTypemap::MessageToMethodInfo_(mojo::Message& message) {
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -431,13 +436,17 @@ static const mojo::internal::GenericValidationInfo kIFaceWithTypemapValidationIn
 };
 
 bool IFaceWithTypemapRequestValidator::Accept(mojo::Message* message) {
-  const char* name = ::golden::IFaceWithTypemap::Name_;
-  return mojo::internal::ValidateRequestGenericPacked(message, name, kIFaceWithTypemapValidationInfo);
+  return mojo::internal::ValidateRequestGenericPacked(
+    message,
+    ::golden::IFaceWithTypemap::Name_,
+    kIFaceWithTypemapValidationInfo);
 }
 
 bool IFaceWithTypemapResponseValidator::Accept(mojo::Message* message) {
-  const char* name = ::golden::IFaceWithTypemap::Name_;
-  return mojo::internal::ValidateResponseGenericPacked(message, name, kIFaceWithTypemapValidationInfo);
+  return mojo::internal::ValidateResponseGenericPacked(
+    message,
+    ::golden::IFaceWithTypemap::Name_,
+    kIFaceWithTypemapValidationInfo);
 }
 
 

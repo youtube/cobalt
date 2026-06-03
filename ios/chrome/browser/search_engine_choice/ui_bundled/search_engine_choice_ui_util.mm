@@ -15,38 +15,53 @@
 #import "components/search_engines/template_url_service.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
-#import "third_party/search_engines_data/search_engines_scaled_resources_map.h"
 #import "ui/base/resource/resource_bundle.h"
 #import "ui/resources/grit/ui_resources.h"
+
+#if BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS)
+#import "third_party/search_engines_data/search_engines_scaled_resources_map.h"
+#endif
+
+namespace {
+
+const CGFloat kSearchEngineMinFaviconSizePt = 8;
+
+}  // namespace
+
+int GetResourceIdFromTemplateURL(const TemplateURL& template_url) {
+#if BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS)
+  // This would be better served by ResourcesUtil::GetThemeResourceId(), but
+  // the symbol appears to be unreachable from the ios/chrome/browser.
+  std::string resource_name = template_url.GetBuiltinImageResourceId();
+  auto resource_it = std::ranges::find_if(
+      kSearchEnginesScaledResources,
+      [&](const auto& resource) { return resource.path == resource_name; });
+
+  // Note: it is possible to have no resource id for a prepopulated search
+  // engine that was selected from a country outside of EEA countries.
+  if (resource_it != std::end(kSearchEnginesScaledResources)) {
+    return resource_it->id;
+  }
+
+  if (resource_name == "IDR_SEARCH_ENGINE_GOOGLE_IMAGE") {
+    // Unlike the other logos which are in `kSearchEnginesScaledResources`,
+    // the Google logo is included via
+    // `components/resources/search_engine_choice_scaled_resources.grdp`
+    // TODO(crbug.com/422992330): Fix this discrepancy now that all OSE assets
+    // are restricted to branded builds.
+    return IDR_SEARCH_ENGINE_GOOGLE_IMAGE;
+  }
+#endif
+
+  return IDR_DEFAULT_FAVICON;
+}
 
 UIImage* SearchEngineFaviconFromTemplateURL(const TemplateURL& template_url) {
   // Only works for prepopulated search engines.
   CHECK_GT(template_url.prepopulate_id(), 0)
       << base::UTF16ToUTF8(template_url.short_name());
 
-  // This would be better served by ResourcesUtil::GetThemeResourceId(), but
-  // the symbol appears to be unreachable from the ios/chrome/browser.
-  std::string resource_name = template_url.data().GetBuiltinImageResourceId();
-  int resource_id = IDR_DEFAULT_FAVICON;
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // Google resources are part of the Chrome resources bundle and require
-  // special case handling.
-  if (resource_name == "IDR_SEARCH_ENGINE_GOOGLE_IMAGE") {
-    resource_id = IDR_SEARCH_ENGINE_GOOGLE_IMAGE;
-  } else
-#endif
-  {
-    auto resource_it = std::ranges::find_if(
-        kSearchEnginesScaledResources,
-        [&](const auto& resource) { return resource.path == resource_name; });
-
-    // Note: it is possible to have no resource id for a prepopulated search
-    // engine that was selected from a country outside of EEA countries.
-    if (resource_it != std::end(kSearchEnginesScaledResources)) {
-      resource_id = resource_it->id;
-    }
-  }
-
+  int resource_id = GetResourceIdFromTemplateURL(template_url);
   ui::ResourceBundle& resource_bundle = ui::ResourceBundle::GetSharedInstance();
   return resource_bundle.GetNativeImageNamed(resource_id).ToUIImage();
 }
@@ -78,11 +93,12 @@ void GetSearchEngineFavicon(
         TemplateURLRef::SearchTermsArgs(std::u16string()),
         template_url_service->search_terms_data()));
     favicon_loader->FaviconForPageUrl(
-        itemURL, kDesiredMediumFaviconSizePt, kMinFaviconSizePt,
+        itemURL, kDesiredMediumFaviconSizePt, kSearchEngineMinFaviconSizePt,
         /*fallback_to_google_server=*/YES, favicon_block_handler);
   } else {
     GURL itemURL = template_url.favicon_url();
     favicon_loader->FaviconForIconUrl(itemURL, kDesiredMediumFaviconSizePt,
-                                      kMinFaviconSizePt, favicon_block_handler);
+                                      kSearchEngineMinFaviconSizePt,
+                                      favicon_block_handler);
   }
 }

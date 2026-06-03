@@ -101,9 +101,6 @@ void GpuRasterBufferProvider::RasterBufferImpl::Playback(
     const RasterSource::PlaybackSettings& playback_settings,
     const GURL& url) {
   TRACE_EVENT0("cc", "GpuRasterBuffer::Playback");
-
-  viz::RasterContextProvider::ScopedRasterContextLock scoped_context(
-      client_->worker_context_provider_, url.possibly_invalid_spec().c_str());
   PlaybackOnWorkerThread(raster_source, raster_full_rect, raster_dirty_rect,
                          new_content_id, transform, playback_settings, url);
 
@@ -259,6 +256,8 @@ void GpuRasterBufferProvider::RasterBufferImpl::PlaybackOnWorkerThreadInternal(
     const RasterSource::PlaybackSettings& playback_settings,
     const GURL& url,
     RasterQuery* query) {
+  viz::RasterContextProvider::ScopedRasterContextLock scoped_context(
+      client_->worker_context_provider_, url.possibly_invalid_spec().c_str());
   gpu::raster::RasterInterface* ri =
       client_->worker_context_provider_->RasterInterface();
   DCHECK(ri);
@@ -355,14 +354,6 @@ void GpuRasterBufferProvider::RasterBufferImpl::RasterizeSource(
           ? (client_->is_using_dmsaa_ ? gpu::raster::kDMSAA
                                       : gpu::raster::kMSAA)
           : gpu::raster::kNoMSAA;
-  // msaa_sample_count should be 1, 2, 4, 8, 16, 32, 64,
-  // and log2(msaa_sample_count) should be [0,6].
-  // If playback_settings.msaa_sample_count <= 0, the MSAA is not used. It is
-  // equivalent to MSAA sample count 1.
-  uint32_t sample_count =
-      std::clamp(playback_settings.msaa_sample_count, 1, 64);
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Gpu.Rasterization.Raster.MSAASampleCountLog2",
-                              std::bit_width(sample_count) - 1, 0, 7, 7);
   // With Raw Draw, the framebuffer will be the rasterization target. It cannot
   // support LCD text, so disable LCD text for Raw Draw backings.
   // TODO(penghuang): remove it when sktext::gpu::Slug can be serialized.

@@ -176,6 +176,7 @@ Kako biste promijenili tu postavku, <ph name="BEGIN_LINK" />izbrišite podatke C
 <translation id="5259423875997548710">Pretraživanje vizualnih elemenata u Chromiumu.</translation>
 <translation id="5308226104666789935">Chromium ne može provjeriti ima li ažuriranja</translation>
 <translation id="5311557153294205270">Dodaje unesene URL-ove vašim oznakama u Chromiumu.</translation>
+<translation id="5383251701169024761">Da biste lako dohvatili spremljene zaporke u drugim aplikacijama, odaberite Chromium za automatsko popunjavanje.</translation>
 <translation id="538767207339317086">Dopusti prijavu u Chromium</translation>
 <translation id="5389058611415066188">Ostanite sigurni uz Chromium</translation>
 <translation id="5415273218238091735">Savjet za Chromium</translation>
@@ -276,7 +277,6 @@ Vaše šifrirane podatke može pročitati samo osoba koja ima vašu šifru. Šif
 <translation id="7763454117143368771">Koristite Chromium kao zadani preglednik da biste se zaštitili od opasnih web-lokacija i očuvali sigurnost svojih zaporki</translation>
 <translation id="7784950022329154821">Zaključaj anonimne kartice pri zatvaranju Chromiuma</translation>
 <translation id="78025249032851484">Chromium je zastario.</translation>
-<translation id="7811371919871579588">Da biste jednostavno dohvatili spremljene zaporke u drugim aplikacijama, odaberite Chromium za automatsko popunjavanje.</translation>
 <translation id="7859018312476869945">Kad upisujete u adresnu traku ili okvir za pretraživanje, ono što upisujete Chromium šalje vašoj zadanoj tražilici kako bi vam pružio bolje prijedloge. To je isključeno u anonimnom načinu.</translation>
 <translation id="7890287942691234100">Počnite koristiti Chromiumov skener</translation>
 <translation id="7905064834449738336">Kad upotrijebite zaporku, Chromium vas upozorava ako je objavljena online. Tom su prilikom vaše zaporke i korisnička imena šifrirani, tako da ih nitko ne može pročitati, uključujući Google.</translation>
@@ -331,6 +331,7 @@ Pokušajte pričekati nekoliko minuta prije odjave. Ako se sada odjavite, ovi ć
 <translation id="9050790730841755540">Upotrebljavajte Chromium svaki put kad dodirnete veze u drugim aplikacijama.</translation>
 <translation id="9059693977935746710">Nećete morati pamtiti tu zaporku. Spremit će se u Upravitelj zaporki za <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium je zastario</translation>
+<translation id="9105645282262300612">Savjet za Chromium: pretražite ono što vidite</translation>
 <translation id="9152995302810511799">Savjet za Chromium: odaberite najsnažniju Chromiumovu zaštitu</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium je upravljan.</translation>
 <translation id="921174536258924340">Chromium nije uspio provjeriti sve zaporke. Pokušajte ponovno sutra ili <ph name="BEGIN_LINK" />provjerite zaporke na svojem Google računu<ph name="END_LINK" />.</translation>

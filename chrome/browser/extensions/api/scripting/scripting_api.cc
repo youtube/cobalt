@@ -7,6 +7,7 @@
 #include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/json/json_writer.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -118,7 +119,8 @@ std::vector<mojom::JSSourcePtr> FileSourcesToJSSources(
   for (auto& file_source : file_sources) {
     js_sources.push_back(
         mojom::JSSource::New(std::move(*file_source.data),
-                             extension.GetResourceURL(file_source.file_name)));
+                             extension.ResolveExtensionURL(
+                                 base::EscapePath(file_source.file_name))));
   }
 
   return js_sources;
@@ -135,7 +137,8 @@ std::vector<mojom::CSSSourcePtr> FileSourcesToCSSSources(
     css_sources.push_back(mojom::CSSSource::New(
         std::move(*file_source.data),
         InjectionKeyForFile(host_id,
-                            extension.GetResourceURL(file_source.file_name))));
+                            extension.ResolveExtensionURL(
+                                base::EscapePath(file_source.file_name)))));
   }
 
   return css_sources;
@@ -575,7 +578,8 @@ ExtensionFunction::ResponseAction ScriptingRemoveCSSFunction::Run() {
     for (const auto& file : *injection.files) {
       sources.push_back(mojom::CSSSource::New(
           empty_code,
-          InjectionKeyForFile(host_id, extension()->GetResourceURL(file))));
+          InjectionKeyForFile(host_id, extension()->ResolveExtensionURL(
+                                           base::EscapePath(file)))));
     }
   } else {
     DCHECK(injection.css);

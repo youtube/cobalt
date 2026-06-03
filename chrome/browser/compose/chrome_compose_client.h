@@ -11,6 +11,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/token.h"
 #include "chrome/browser/compose/compose_session.h"
 #include "chrome/browser/compose/proactive_nudge_tracker.h"
@@ -23,7 +24,7 @@
 #include "components/compose/core/browser/compose_dialog_controller.h"
 #include "components/compose/core/browser/compose_manager.h"
 #include "components/compose/core/browser/compose_manager_impl.h"
-#include "components/optimization_guide/core/optimization_guide_decision.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/prefs/pref_member.h"
 #include "content/public/browser/context_menu_params.h"

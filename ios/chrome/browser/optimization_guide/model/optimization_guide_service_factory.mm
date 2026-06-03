@@ -6,10 +6,11 @@
 
 #import "base/feature_list.h"
 #import "base/path_service.h"
+#import "components/application_locale_storage/application_locale_storage.h"
+#import "components/optimization_guide/core/delivery/prediction_manager.h"
+#import "components/optimization_guide/core/hints/optimization_guide_store.h"
 #import "components/optimization_guide/core/optimization_guide_constants.h"
 #import "components/optimization_guide/core/optimization_guide_features.h"
-#import "components/optimization_guide/core/optimization_guide_store.h"
-#import "components/optimization_guide/core/prediction_manager.h"
 #import "ios/chrome/browser/optimization_guide/model/ios_chrome_hints_manager.h"
 #import "ios/chrome/browser/optimization_guide/model/ios_chrome_prediction_model_store.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
@@ -21,16 +22,6 @@
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace {
-
-// Returns the BackgroundDownloadService for `weak_profile`.
-download::BackgroundDownloadService* GetBackgroundDownloadService(
-    base::WeakPtr<ProfileIOS> weak_profile) {
-  if (ProfileIOS* profile = weak_profile.get()) {
-    return BackgroundDownloadServiceFactory::GetForProfile(profile);
-  }
-
-  return nullptr;
-}
 
 std::unique_ptr<KeyedService> BuildOptimizationGuideService(
     web::BrowserState* context) {
@@ -56,10 +47,9 @@ std::unique_ptr<KeyedService> BuildOptimizationGuideService(
 
   auto service = std::make_unique<OptimizationGuideService>(
       proto_db_provider, profile_path, profile->IsOffTheRecord(),
-      GetApplicationContext()->GetApplicationLocale(), hint_store,
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get(), hint_store,
       profile->GetPrefs(), BrowserListFactory::GetForProfile(profile),
       profile->GetSharedURLLoaderFactory(),
-      base::BindOnce(&GetBackgroundDownloadService, profile->AsWeakPtr()),
       IdentityManagerFactory::GetForProfile(profile));
 
   service->DoFinalInit(

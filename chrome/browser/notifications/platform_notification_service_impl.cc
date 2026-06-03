@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -27,6 +28,7 @@
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/safety_hub/disruptive_notification_permissions_manager.h"
@@ -140,7 +142,10 @@ static bool ShouldDisplayWebNotificationOnFullScreen(Profile* profile,
     //  (b) the browser is fullscreen
     //  (c) the browser has focus.
     if (active_contents->GetURL().DeprecatedGetOriginAsURL() == origin &&
-        browser->exclusive_access_manager()->context()->IsFullscreen() &&
+        browser->GetFeatures()
+            .exclusive_access_manager()
+            ->context()
+            ->IsFullscreen() &&
         browser->window()->IsActive()) {
       return true;
     }
@@ -320,9 +325,7 @@ void PlatformNotificationServiceImpl::DisplayPersistentNotification(
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (safe_browsing::IsSafeBrowsingEnabled(*profile_->GetPrefs()) &&
-      !safe_browsing::IsURLAllowlistedByPolicy(origin, *profile_->GetPrefs()) &&
-      base::FeatureList::IsEnabled(
-          safe_browsing::kOnDeviceNotificationContentDetectionModel)) {
+      !safe_browsing::IsURLAllowlistedByPolicy(origin, *profile_->GetPrefs())) {
     auto* notification_content_service = safe_browsing::
         NotificationContentDetectionServiceFactory::GetForProfile(profile_);
     if (notification_content_service) {

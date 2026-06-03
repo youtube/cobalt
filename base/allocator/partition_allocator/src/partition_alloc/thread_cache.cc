@@ -497,7 +497,7 @@ ThreadCache::ThreadCache(PartitionRoot* root)
       thread_id_(internal::base::PlatformThread::CurrentId()),
       next_(nullptr),
       prev_(nullptr),
-      scheduler_loop_quarantine_branch_(root) {
+      scheduler_loop_quarantine_branch_(root, this) {
   ThreadCacheRegistry::Instance().RegisterThreadCache(this);
 
   memset(&stats_, 0, sizeof(stats_));
@@ -519,17 +519,17 @@ ThreadCache::ThreadCache(PartitionRoot* root)
   }
 
   // When enabled, initialize scheduler loop quarantine branch.
-  // This branch is only used within this thread, so not `lock_required`.
   const auto& scheduler_loop_quarantine_config =
       root_->settings.scheduler_loop_quarantine_thread_local_config;
-  PA_CHECK(!scheduler_loop_quarantine_config.enable_quarantine ||
-           !scheduler_loop_quarantine_config.quarantine_config.lock_required);
   scheduler_loop_quarantine_branch_.Configure(
       root_->scheduler_loop_quarantine_root, scheduler_loop_quarantine_config);
 }
 
 ThreadCache::~ThreadCache() {
   ThreadCacheRegistry::Instance().UnregisterThreadCache(this);
+  // Ordering is important here, as `scheduler_loop_quarantine_branch_` may
+  // return quarantined allocations to this thread cache through `Purge()`.
+  scheduler_loop_quarantine_branch_.Destroy();
   Purge();
 }
 
@@ -824,6 +824,10 @@ void ThreadCache::PurgeInternal() {
   for (auto& bucket : buckets_) {
     ClearBucket(bucket, 0);
   }
+}
+
+PartitionRoot* ThreadCache::GetRoot() {
+  return root_;
 }
 
 bool ThreadCache::IsInFreelist(uintptr_t address,

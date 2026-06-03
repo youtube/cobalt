@@ -26,6 +26,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
@@ -2111,8 +2112,7 @@ RTCVideoEncoder::Impl::CreateI420SharedMemoryFrameByLibyuv(
   // The timestamp is set later in EncodeOneFrame().
   auto frame = media::VideoFrame::WrapExternalData(
       media::PIXEL_FORMAT_I420, input_frame_coded_size_,
-      gfx::Rect(input_visible_size_), input_visible_size_,
-      static_cast<uint8_t*>(mapping.memory()), mapping.size(),
+      gfx::Rect(input_visible_size_), input_visible_size_, mapping,
       base::TimeDelta());
   if (!frame) {
     NotifyErrorStatus({media::EncoderStatus::Codes::kEncoderFailedEncode,

@@ -147,6 +147,12 @@
       <message name="IDS_IOS_ACCNAME_LENS" desc="The accessibility label for the Lens visual search button in the location bar [Length: unlimited]">
         Lens visual search
       </message>
+      <message name="IDS_IOS_ACCNAME_MIA" desc="The accessibility label for the AI Mode search button on the new tab page [Length: unlimited]">
+        Ask AI mode
+      </message>
+      <message name="IDS_IOS_ACCNAME_NEW_INCOGNITO_TAB" desc="The accessibility label for the new incognito tab button on the new tab page [Length: unlimited]">
+        New incognito tab
+      </message>
       <message name="IDS_IOS_ACCNAME_RELOAD" desc="The accessibility label for the reload button [Length: unlimited] [iOS only]">
         Reload
       </message>
@@ -261,8 +267,11 @@
       <message name="IDS_IOS_ADVANCED_SIGNIN_SETTINGS_CANCEL_SYNC_ALERT_MESSAGE" desc="Alert title to ask if the user really wants to cancel sign-in and sync.">
         Cancel sync? You can turn on sync anytime in settings.
       </message>
-      <message name="IDS_IOS_AI_HUB_GEMINI_LABEL" desc="The button label for the Gemini entry point of the AI hub.">
-        Ask Gemini
+      <message name="IDS_IOS_AI_HUB_BWG_LABEL" translateable="false" desc="The button label for the Gemini entry point of the AI hub.">
+        Ask Me
+      </message>
+      <message name="IDS_IOS_AI_HUB_HIDE_READER_MODE_LABEL" desc="The button label for hiding Reader mode when it's active from the AI hub.">
+        Hide Reader
       </message>
       <message name="IDS_IOS_AI_HUB_LENS_LABEL" desc="The button label for the Lens entry point of the AI hub.">
         Search screen
@@ -1031,6 +1040,18 @@
         {count, plural,
           =1 {Item saved in your Google Account, {email}}
           other {Items saved in your Google Account, {email}}}
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_PRIMARY_BUTTON" desc="Text for the BWG Consent primary button.">
+        Yes, I'm in
+      </message>
+      <message name="IDS_IOS_BWG_FIRST_RUN_SECONDARY_BUTTON" desc="Text for the BWG First Run secondary button.">
+        No thanks
+      </message>
+      <message name="IDS_IOS_BWG_IPH_TEXT" desc="Text for the BWG In-Product Help bubble.">
+        You can open Gemini here
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_PRIMARY_BUTTON" desc="Text for the BWG Promo primary button.">
+        Try it out
       </message>
       <message name="IDS_IOS_CALL_OMNIBOX_ACTION" desc="Call suggestion action button [iOS only]">
         Call
@@ -2552,15 +2573,6 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_GENERIC_PASSKIT_ERROR" desc="Generic error message on failure reading a PassKit object. [Length: 60em] [iOS only]">
         Sorry, your Pass cannot be installed to Passbook at this time.
       </message>
-      <message name="IDS_IOS_GLIC_CONSENT_PRIMARY_BUTTON" desc="Text for the GLIC Consent primary button.">
-        Yes, I'm in
-      </message>
-      <message name="IDS_IOS_GLIC_FIRST_RUN_SECONDARY_BUTTON" desc="Text for the GLIC First Run secondary button.">
-        No thanks
-      </message>
-      <message name="IDS_IOS_GLIC_PROMO_PRIMARY_BUTTON" desc="Text for the GLIC Promo primary button.">
-        Try it out
-      </message>
       <message name="IDS_IOS_GOOGLE_ACCOUNTS_MANAGEMENT_FROM_ACCOUNT_SETTINGS_TITLE" desc="Title of a page that shows all accounts on the user's device and lets them add, remove and otherwise manage their accounts. Avoid long strings given the limited space between surrounding buttons.">
         Accounts on this device
       </message>
@@ -2705,6 +2717,15 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL" desc="Accessibility label for the Home Customization menu in the new tab page.">
         Customize your home screen
       </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_FRAMING_VIEW_CANCEL_BUTTON_LABEL" desc="Label for the cancel button to exit the background customization framing view.">
+        Cancel
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_FRAMING_VIEW_PINCH_TO_RESIZE" desc="Instructional text shown in the framing view to indicate that the user can pinch to frame the image.">
+        Pinch to resize
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_FRAMING_VIEW_SAVE_BUTTON_LABEL" desc="Label for the save button in the framing view that saves the selected framing configuration for the image.">
+        Save
+      </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_COLOR_TITLE" desc="Title of an option in the background customization action sheet that allows the user to pick a solid background color.">
         Select Color
       </message>
@@ -2713,6 +2734,9 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_PRESET_GALLERY_TITLE" desc="Title of an option in the background customization action sheet that opens a preset background gallery.">
         Browse Gallery
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_CONTEXT_MENU_DELETE_RECENT_BACKGROUND_TITLE" desc="Title of the context menu option to delete a background from the recently used list in background customization.">
+        Delete Background
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_DISCOVER_TITLE" desc="The title of the Shortcuts toggle in the Home Customization menu's main page.">
         Discover feed
@@ -2813,6 +2837,12 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_ENTER_PASSPHRASE_TITLE" desc="The title of the identity error info bar when the passphrase is required. [iOS only]">
         Enter your passphrase
       </message>
+      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_GET_ALL_YOUR_PASSWORDS_ON_THIS_DEVICE" desc="The error message that explains a sync error: Passwords stored in the user's Google Account can't be synced to the device (due to missing trusted vault keys). [iOS only]">
+        Verify it’s you to get all your passwords on this device
+      </message>
+      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_GET_ALL_YOUR_PASSWORDS_TITLE" desc="The title of the identity error info bar when a user needs to fix an error for being able to access their passwords.">
+        Get all your passwords
+      </message>
       <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_KEEP_USING_PASSWORDS_MESSAGE" desc="The error message in the identity error info bar related to keep using passwords. [iOS only]">
         Keep using the passwords in your Google Account
       </message>
@@ -2822,20 +2852,14 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_MAKE_SURE_YOU_CAN_ALWAYS_USE_PASSWORDS_MESSAGE" desc="The error message in the identity error info bar related to making sure you can always use your passwords. [iOS only]">
         Make sure you can always use the passwords in your Google Account
       </message>
+      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_OKAY_BUTTON_LABEL" desc="Button label for the message shown in the Sync Error Card (due to missing trusted vault keys) for confirming that a user wants to get all their passwords on their device.">
+        Okay
+      </message>
       <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_VERIFY_BUTTON_LABEL" desc="The label of the verify your account action button in the identity error info bar. [iOS only]">
         Verify
       </message>
       <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_VERIFY_ITS_YOU_TITLE" desc="The title of the identity error info bar when identity verification is needed. [iOS only]">
         Verify it's you
-      </message>
-      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_GET_ALL_YOUR_PASSWORDS_TITLE" desc="The title of the identity error info bar when a user needs to fix an error for being able to access their passwords.">
-        Get all your passwords
-      </message>
-      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_GET_ALL_YOUR_PASSWORDS_ON_THIS_DEVICE" desc="The error message that explains a sync error: Passwords stored in the user's Google Account can't be synced to the device (due to missing trusted vault keys). [iOS only]">
-        Verify it’s you to get all your passwords on this device
-      </message>
-      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_OKAY_BUTTON_LABEL" desc="Button label for the message shown in the Sync Error Card (due to missing trusted vault keys) for confirming that a user wants to get all their passwords on their device.">
-        Okay
       </message>
       <message name="IDS_IOS_IDLE_TIMEOUT_ALL_ACTIONS_SNACKBAR_MESSAGE" desc="Title of the idle timeout policy dialog when browsing data is about to be cleared, tabs will be closed and the user will be signed out.">
         Tabs were closed and browsing data was deleted. You were signed out
@@ -3053,8 +3077,26 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_INTENTS_URL_PARAMETER" desc="The URL the user would like to pass as input parameter to Shortcuts that require a URL as input [iOS only].">
         URL
       </message>
-      <message name="IDS_IOS_IPH_BUBBLE_NEXT" desc="Label of a button that appears in an in-product help Tip. Pressing this button will dismiss the Tip, and the next tip will be shown after dismissal.">
+      <message name="IDS_IOS_INTERACTIVE_LENS_OVERLAY_PROMO_BUBBLE_TEXT" desc="The text for the IPH bubble in interactive lens overlay promo in the First Run Experience.">
+        Try circling or tapping the picture to search
+      </message>
+      <message name="IDS_IOS_INTERACTIVE_LENS_OVERLAY_PROMO_SKIP_BUTTON" desc="The text for the button that allows users to skip the interactive lens overlay promo in the First Run Experience.">
+        Skip
+      </message>
+      <message name="IDS_IOS_INTERACTIVE_LENS_OVERLAY_PROMO_START_BROWSING_BUTTON" desc="The text for the button that allows users to start browsing after the interactive lens overlay promo in the First Run Experience.">
+        Start browsing
+      </message>
+      <message name="IDS_IOS_INTERACTIVE_LENS_OVERLAY_PROMO_SUBTITLE" desc="The subtitle for the interactive lens overlay promo in the First Run Experience.">
+        You can now open Google Lens from your address bar and search anything you see
+      </message>
+      <message name="IDS_IOS_INTERACTIVE_LENS_OVERLAY_PROMO_TITLE" desc="The title for the interactive lens overlay promo in the First Run Experience.">
+        Search anything on your screen
+      </message>
+      <message name="IDS_IOS_IPH_BUBBLE_GOT_IT" desc="Label of a button that appears in an in-product help Tip. Pressing this button will dismiss the last Tip.">
         Got it
+      </message>
+      <message name="IDS_IOS_IPH_BUBBLE_NEXT" desc="Label of a button that appears in an in-product help Tip. Pressing this button will dismiss the Tip, and the next tip will be shown after dismissal.">
+        Next
       </message>
       <message name="IDS_IOS_IPH_BUBBLE_SNOOZE" desc="Label of a button that appears in an in-product help Tip. Pressing this button will dismiss the Tip, the user will be reminded of the same Tip later on. Used as a button title in an info bubble." meaning="Used as a button title in an info bubble.">
         Remind me later
@@ -3266,21 +3308,6 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_LENS_OVERLAY_OMNIBOX_FOCUS" desc="The accessible name for the search box, tapping the area will focus the search box to start editing [iOS only].">
         Search bar
       </message>
-      <message name="IDS_IOS_LENS_OVERLAY_ONBOARDING_BUTTON_CANCEL" desc="The label for the cancel action button in the lens overlay onboarding consent dialog that cancels the current search. [iOS only].">
-        Cancel
-      </message>
-      <message name="IDS_IOS_LENS_OVERLAY_ONBOARDING_BUTTON_SEARCH" desc="The label for the screen action button in the lens overlay onboarding consent dialog. [iOS only].">
-        Search screen
-      </message>
-      <message name="IDS_IOS_LENS_OVERLAY_ONBOARDING_DESCRIPTION" desc="The description for the lens overlay onboarding consent dialog. [iOS only].">
-        When you use Google Lens, a screenshot of the page is sent to Google.
-      </message>
-      <message name="IDS_IOS_LENS_OVERLAY_ONBOARDING_LEARN_MORE_ACTION" desc="The inline label for the 'learn more' action leading to an explanatory URL [iOS only].">
-        Learn more
-      </message>
-      <message name="IDS_IOS_LENS_OVERLAY_ONBOARDING_TITLE" desc="The title for the lens overlay onboarding consent dialog. [iOS only].">
-        Search anything on your screen with Google Lens
-      </message>
       <message name="IDS_IOS_LENS_OVERLAY_SHEET_GRABBER_ACCESSIBILITY_HINT" desc="Accessibility hint for the bottom sheet grabber in Lens Overlay. Read by Text To Speech [iOS only].">
         Readjust the height of the sheet
       </message>
@@ -3289,9 +3316,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_LENS_OVERLAY_SPEEDBUMP_MENU_CAMERA" desc="The label displayed in the speedbump menu that leads to the camera search option.">
         Search with camera
-      </message>
-      <message name="IDS_IOS_LENS_OVERLAY_SPEEDBUMP_MENU_SCREEN" desc="The label displayed in the speedbump menu that leads to the visual screen search option.">
-        Search your screen
       </message>
       <message name="IDS_IOS_LENS_OVERLAY_TOOLTIP_TEXT" desc="The Lens overlay tooltip displayed text.">
         Search your screen
@@ -3712,6 +3736,9 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_BODY" desc="Text for the body of a Tips notification that encourages the user to search with Lens">
         Shop, translate, and identify what you see with your camera.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_OVERLAY_BODY" desc="Text for the body of a Tips notification that encourages the user to use the Lens Overlay feature.">
+        Learn more as you browse and search what you see on any page to explore products, places and text.
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_OMNIBOX_POSITION_BODY" desc="Text for the body of a Tips notification that reminds the user to set their preferred omnibox position">
         Switch the position of your address bar for a customized experience.
@@ -4161,14 +4188,14 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_CONTINUE" desc="The action button to use the selected credentials to fill the username on a username only form without password.">
         Continue
       </message>
-      <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_MORE_PASSWORDS" desc="This message is mentioned on the first password suggestion of the Password Bottom Sheet if there are more than one suggestion available and all other suggestions are hidden, which is the case initially, until the user expands the list by double tapping on this suggestion. This is spoken by VoiceOver. [iOS only]">
-        Double tap for more passwords.
-      </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_NO_USERNAME" desc="Text shown for an option in a list of the user's saved passwords, when the user did not save a username along with the password.">
         No username ••••••••
       </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_PASSWORD_MANAGER" desc="The password bottom sheet's long press menu item to open the password manager.">
         Password Manager
+      </message>
+      <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_RECOVERY_PASSWORD_LABEL" desc="Text shown for a recovery password suggestion available in the Password Bottom Sheet. Indicates to the user that the recovery password can be used to log in if the main password doesn't work. [iOS only]">
+        Temp recovery in case of trouble
       </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_SELECT_PASSWORD" desc="This message is mentioned right after the title when the Password Bottom Sheet opens. For example, in English, it would say: 'Google Password Manager. Select a password to fill.'. This is spoken by VoiceOver. [iOS only]">
         Select a password to fill.
@@ -5190,6 +5217,12 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_REVIEWS_OMNIBOX_ACTION_ACCESSIBILITY_LABEL" desc="The accessibility label for the Reviews suggestion action button  [iOS only]">
         Read customer evaluations of products, services, or experience to help inform your decisions with reviews
       </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_SECONDARY_ACTION" desc="Safari import entry point screen - Button text to create a reminder to import data from Safari. [iOS only]">
+        Remind me later
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_TITLE" desc="Safari import entry point screen - Title.">
+        Bring your data from Safari
+      </message>
       <message name="IDS_IOS_SAFETY_CHECK_COMPACT_DESCRIPTION_COMPROMISED_PASSWORD" desc="Tag label description displayed for the Safety Check module in the Magic Stack when the Password check finds a compromised password issue. [iOS only]">
         You have compromised passwords.
       </message>
@@ -5432,10 +5465,10 @@ While in Incognito, sites can't use cookies to see your browsing activity across
         This password is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="EMAIL">$1<ex>johndoe@gmail.com</ex></ph>.
       </message>
       <message name="IDS_IOS_SAVE_TO_DRIVE_ACCOUNT_PICKER_BODY" desc="Text when a user attempts to download a file and is eligible to save it to Google Drive, then is presented with the account picker dialog to select a destination for their download, and if applicable e.g. they choose Drive as a destination, which account they want to use to save the file. [iOS only]" meaning="Text when a user attempts to download a file and is eligible to save it to Google Drive, then is presented with the account picker dialog to select a destination for their download, and if applicable e.g. they choose Drive as a destination, which account they want to use to save the file. [iOS only]">
-        Choose where to save <ph name="FILENAME">$1<ex>file.zip</ex></ph>
+        Choose where to save &quot;<ph name="BEGIN_BOLD">BEGIN_BOLD</ph><ph name="FILENAME">$1<ex>file.zip</ex></ph><ph name="END_BOLD">END_BOLD</ph>&quot;
       </message>
       <message name="IDS_IOS_SAVE_TO_DRIVE_ACCOUNT_PICKER_BODY_WITH_SIZE" desc="Text when a user attempts to download a file and is eligible to save it to Google Drive, then is presented with the account picker dialog to select a destination for their download, and if applicable e.g. they choose Drive as a destination, which account they want to use to save the file. [iOS only]" meaning="Text when a user attempts to download a file and is eligible to save it to Google Drive, then is presented with the account picker dialog to select a destination for their download, and if applicable e.g. they choose Drive as a destination, which account they want to use to save the file. [iOS only]">
-        Choose where to save <ph name="FILENAME">$1<ex>file.zip</ex></ph> (<ph name="FILE_SIZE">$2<ex>456KB</ex></ph>)
+        Choose where to save &quot;<ph name="BEGIN_BOLD">BEGIN_BOLD</ph><ph name="FILENAME">$1<ex>file.zip</ex></ph><ph name="END_BOLD">END_BOLD</ph>&quot; (<ph name="FILE_SIZE">$2<ex>456KB</ex></ph>)
       </message>
       <message name="IDS_IOS_SAVE_TO_DRIVE_ACCOUNT_PICKER_SUBMIT" desc="Dialog primary button label to validate the account picked to save a file to Google Drive. [iOS only]" meaning="This button saves the file to the user's Google Drive storage i.e. this means 'Save' as in 'Save in Google Drive'.">
         Save
@@ -5447,7 +5480,7 @@ While in Incognito, sites can't use cookies to see your browsing activity across
         Ask which account to use every time
       </message>
       <message name="IDS_IOS_SAVE_TO_PHOTOS_ACCOUNT_PICKER_BODY" desc="Text when a user attempts to save an image to Google Photos, then is presented with the account picker dialog to select which account they want to use to save the image. [iOS only]">
-        Select the account you want to use to save <ph name="FILENAME">$1<ex>image.jpeg</ex></ph> - <ph name="FILESIZE">$2<ex>4 MB</ex></ph>
+        Select the account you want to use to save &quot;<ph name="BEGIN_BOLD">BEGIN_BOLD</ph><ph name="FILENAME">$1<ex>image.jpeg</ex></ph><ph name="END_BOLD">END_BOLD</ph>&quot; - <ph name="FILESIZE">$2<ex>4 MB</ex></ph>
       </message>
       <message name="IDS_IOS_SAVE_TO_PHOTOS_ACCOUNT_PICKER_GOOGLE_PHOTOS_TITLE" desc="The title of the save to photos account picker. [iOS only]" meaning="This title represents the `Google Photos` brand, and the current string represents the `Photos` part of the brand's' name.">
         Photos
@@ -5795,6 +5828,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SETTINGS_PRIVACY_TITLE" desc="Title for the Privacy and Security preferences.">
         Privacy and security
+      </message>
+      <message name="IDS_IOS_SETTINGS_SAFARI_IMPORT_TITLE" desc="Title for the Safari import entry point in settings.">
+        Safari import
       </message>
       <message name="IDS_IOS_SETTINGS_SAFETY_CHECK_ISSUES_FOUND_TIME" desc="Footer for the safety check section telling the user when issues were found.">
         Issues found <ph name="TIME">$1<ex>10 minutes ago</ex></ph>.
@@ -6620,9 +6656,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_EMPTY_TITLE" desc="Title shown above a message on the regular tab switcher when there are no tabs. [iOS only]">
         You'll find your tabs here
       </message>
-      <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_TITLE" desc="The accessibility label of the Regular Tabs page (as opposed to the Incognito Tabs page) in the tab grid UI. [iOS only]">
-        Open tabs
-      </message>
       <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_UNAVAILABLE_MESSAGE" desc="Message shown in the Regular Tabs page of the tab grid when the IncognitoModeAvailability enterprise policy is set to forced. [iOS only]">
         Your organization requires you to browse privately.
 <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
@@ -6630,8 +6663,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_UNAVAILABLE_TITLE" desc="Title shown above a message in the Regular Tabs page of the tab grid when the IncognitoModeAvailability enterprise policy is set to forced. [iOS only]">
         Only Incognito mode is available
       </message>
-      <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_WITH_GROUPS_TITLE" desc="The accessibility label of the Regular Tabs page (as opposed to the Incognito Tabs page) in the tab grid UI when Tab Groups are enabled. [iOS only]">
-        Open tabs and tab groups
+      <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_WITH_GROUPS_TITLE" desc="The accessibility label of the Regular Tabs page (as opposed to the Incognito Tabs page) in the tab grid UI when Tab Groups are enabled. This is a noun group, not a verb for an action.[iOS only]">
+        Currently open tabs and tab groups
       </message>
       <message name="IDS_IOS_TAB_GRID_REMOTE_TABS_TITLE" desc="The accessibility label of the Remote Tabs page in the tab grid UI. [iOS only]">
         Tabs from other devices
@@ -6682,8 +6715,14 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GROUPS_PANEL_CELL_ACCESSIBILITY_LABEL_FORMAT" desc="Format for the accessibility label of a cell in the Tab Groups panel in Tab Grid. [iOS only]">
         Open <ph name="GROUP_TITLE">$1<ex>Travel</ex></ph>, group of <ph name="NUMBER_OF_TABS">$2<ex>4 Tabs</ex></ph>, <ph name="CREATION_TEXT">$3<ex>created 3 days ago</ex></ph>
       </message>
-      <message name="IDS_IOS_TAB_GROUPS_PANEL_NOTIFICATION_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the notification cell that can appear at the top of the Tab Groups panel.">
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_NOTIFICATION_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the notification cell that can appear at the top of the tab groups panel.">
         Double tap to close this notification.
+      </message>
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_OUT_OF_DATE_MESSAGE_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the out-of-date cell that can appear at the top of the tab groups panel when the app is out-of-date to support shared tab groups.">
+        Double tap to close this notification.
+      </message>
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_OUT_OF_DATE_MESSAGE_UPDATE_BUTTON" desc="Title of the button in the out-of-date message of the tab groups panel.">
+        Update
       </message>
       <message name="IDS_IOS_TAB_GROUP_ACTIVITY_LABEL_USER_ADDED_TEXT" desc="Text in the label that indicates a user added a tab in a shared tab group.">
         Added
@@ -7183,6 +7222,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_TRANSLATE_SETTING_RESET_NOTIFICATION" desc="Message appearing after the user pressed the button to reset the translate settings. [Length: 30em] [iOS only]">
         Your translate settings have been reset.
+      </message>
+      <message name="IDS_IOS_TRUSTED_VAULT_WIDGET_KEEP_USING_AND_SAVING_PASSWORDS_MESSAGE_WITH_EMAIL" desc="The error message in the Password Manager Trusted Vault widget promo related to the error preventing the user from using and saving passwords in their Google account. [iOS only]">
+        Keep using and saving the passwords in your Google Account <ph name="EMAIL">$1<ex>john.doe@gmail.com</ex></ph>
       </message>
       <message name="IDS_IOS_UI_BLOCKED_USE_OTHER_WINDOW_SWITCH_WINDOW_ACTION" desc="Button label that appears on a button to switch to some other window, when the user has multiple windows open, and one window is showing a dialog that has to be interacted with before any other window can be used.">
           Switch to open window

@@ -8,16 +8,18 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/tabs/test/split_tabs_interactive_test_mixin.h"
 #include "chrome/browser/ui/toolbar/bookmark_sub_menu_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_resize_area.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
+#include "chrome/browser/ui/views/test/split_tabs_interactive_test_mixin.h"
+#include "chrome/browser/ui/views/test/tab_strip_interactive_test_mixin.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -27,19 +29,64 @@
 #include "components/tabs/public/split_tab_visual_data.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/dns/mock_host_resolver.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event_modifiers.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/test/views_test_utils.h"
 
+namespace {
+class MultiContentsViewBoundsChangedObserver
+    : public views::ViewObserver,
+      public ui::test::StateObserver<int> {
+ public:
+  explicit MultiContentsViewBoundsChangedObserver(Browser* browser) {
+    auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+    CHECK(browser_view);
+    observation_.Observe(browser_view->multi_contents_view());
+  }
+
+  // ui::test::StateObserver:
+  int GetStateObserverInitialState() const override {
+    return bounds_changed_count_;
+  }
+
+  // views::ViewObserver:
+  void OnViewBoundsChanged(views::View* view) override {
+    bounds_changed_count_++;
+    OnStateObserverStateChanged(bounds_changed_count_);
+  }
+
+  void OnViewIsDeleting(views::View* view) override { observation_.Reset(); }
+
+ private:
+  raw_ptr<Browser> browser_;
+  int bounds_changed_count_ = 0;
+  base::ScopedObservation<views::View, views::ViewObserver> observation_{this};
+};
+
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewTab);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kThirdTab);
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFourthTab);
+}  // namespace
 
 class MultiContentsViewUiTest
-    : public SplitTabsInteractiveTestMixin<InteractiveBrowserTest> {
+    : public SplitTabsInteractiveTestMixin<
+          TabStripInteractiveTestMixin<InteractiveBrowserTest>> {
+ public:
+  void SetUpOnMainThread() override {
+    SplitTabsInteractiveTestMixin::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
  protected:
   TabStripModel* tab_strip_model() { return browser()->tab_strip_model(); }
+
+  GURL GetTestUrl() { return embedded_test_server()->GetURL("/title1.html"); }
 
   auto CreateTabsAndEnterSplitView() {
     auto result = Steps(
@@ -117,15 +164,10 @@ class MultiContentsViewUiTest
 
   auto SetMinWidth(int width) {
     auto result = Steps(Do([width, this]() {
-      multi_contents_view()->SetMinWidthForTesting(width);
+      multi_contents_view()->set_min_contents_width_for_testing(width);
     }));
     AddDescriptionPrefix(result, "SetMinWidth()");
     return result;
-  }
-
-  auto CheckTabIsActive(int index) {
-    return CheckResult([this]() { return tab_strip_model()->active_index(); },
-                       index);
   }
 
   auto CheckActiveContentsHasFocus() {
@@ -147,17 +189,37 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, ExistsWithFlag) {
 // visible
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, EnterAndExitSplitViews) {
   RunTestSequence(
-      CreateTabsAndEnterSplitView(), CheckTabIsActive(0), ExitSplitView(0),
-      CheckTabIsActive(0),
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
+      ExitSplitView(0), WaitForActiveTabChange(0),
       CheckResult([this]() { return tab_strip_model()->count(); }, 2u));
+}
+
+// Tests switching tabs with split views. This also adds coverage to ensuring
+// that there isn't any unnecessary re-layout during tab switching.
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, TabSwitchWithSplitView) {
+  DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(MultiContentsViewBoundsChangedObserver,
+                                      kMultiContentsViewBoundsChangedObserver);
+  RunTestSequence(
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUISettingsURL), 2),
+      WaitForActiveTabChange(2),
+      SelectTab(kTabStripElementId, 0, InputType::kMouse),
+      // Check if there is just one resizing event that happens when switching
+      // between a split view to a regular tab.
+      WaitForActiveTabChange(0),
+      ObserveState(kMultiContentsViewBoundsChangedObserver, browser()),
+      SelectTab(kTabStripElementId, 2, InputType::kMouse),
+      WaitForActiveTabChange(2),
+      CheckState(kMultiContentsViewBoundsChangedObserver, 1),
+      StopObservingState(kMultiContentsViewBoundsChangedObserver));
 }
 
 // Check that MultiContentsView changes its active view when inactive view is
 // focused using mouse click.
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                        ActivatesInactiveViewUsingMouseClick) {
-  RunTestSequence(CreateTabsAndEnterSplitView(), CheckTabIsActive(0),
-                  FocusInactiveTabInSplit(), CheckTabIsActive(1),
+  RunTestSequence(CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
+                  FocusInactiveTabInSplit(), WaitForActiveTabChange(1),
                   CheckActiveContentsHasFocus());
 }
 
@@ -166,7 +228,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                        ActivatesInactiveViewUsingKeyboard) {
   RunTestSequence(
-      CreateTabsAndEnterSplitView(), CheckTabIsActive(0),
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
       // The second contents view should be next in the focus order after
       // the resize handle so send a TAB key event to move focus to inactive tab
       FocusElement(
@@ -174,7 +236,26 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
       SendKeyPress(
           MultiContentsResizeHandle::kMultiContentsResizeHandleElementId,
           ui::VKEY_TAB),
-      CheckTabIsActive(1), CheckActiveContentsHasFocus());
+      WaitForActiveTabChange(1), CheckActiveContentsHasFocus());
+}
+
+// Check that MultiContentsView changes its active view when the tab shortcut
+// is used and the active view has focus.
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
+                       ActivatesInactiveViewUsingAccelerator) {
+  const int kControlCommandModifier =
+#if BUILDFLAG(IS_MAC)
+      ui::EF_COMMAND_DOWN;
+#else
+      ui::EF_CONTROL_DOWN;
+#endif
+
+  RunTestSequence(
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
+      FocusWebContents(kNewTab),
+      SendAccelerator(kBrowserViewElementId,
+                      ui::Accelerator(ui::VKEY_2, kControlCommandModifier)),
+      WaitForActiveTabChange(1), CheckActiveContentsHasFocus());
 }
 
 // Check focus for the MultiContentView when in split view
@@ -185,7 +266,90 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, ActiveContentsViewHasFocus) {
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUISettingsURL), 2),
       FocusWebContents(kSecondTab),
       CheckResult([this]() { return tab_strip_model()->count(); }, 3u),
-      EnterSplitView(2, 0), CheckTabIsActive(2), CheckActiveContentsHasFocus());
+      EnterSplitView(2, 0), WaitForActiveTabChange(2),
+      CheckActiveContentsHasFocus());
+}
+
+// Split view active tab change while browser window doesn't have focus. This
+// is used to simulate tab switching scenarios using Tab Search
+// TODO(https://crbug.com/422941990): Flaky (times out) on Linux and Windows
+// debug bots.
+#if !defined(NDEBUG) && (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX))
+#define MAYBE_TabChangeInSplitViewWithInactiveBrowserWindow \
+  DISABLED_TabChangeInSplitViewWithInactiveBrowserWindow
+#else
+#define MAYBE_TabChangeInSplitViewWithInactiveBrowserWindow \
+  TabChangeInSplitViewWithInactiveBrowserWindow
+#endif
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
+                       MAYBE_TabChangeInSplitViewWithInactiveBrowserWindow) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
+
+  RunTestSequence(
+      InstrumentTab(kFirstTab, 0),
+      NavigateWebContents(kFirstTab, GURL(chrome::kChromeUISettingsURL)),
+      FocusWebContents(kFirstTab),
+      AddInstrumentedTab(kNewTab, GURL(chrome::kChromeUISettingsURL), 1),
+      FocusWebContents(kNewTab),
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUISettingsURL), 2),
+      FocusWebContents(kSecondTab),
+      CheckResult([this]() { return tab_strip_model()->count(); }, 3u),
+      EnterSplitView(2, 0), WaitForActiveTabChange(2),
+      PressButton(kTabSearchButtonElementId),
+      WaitForShow(kTabSearchBubbleElementId),
+      Do([this]() { browser()->tab_strip_model()->ActivateTabAt(1); }),
+      WaitForHide(kTabSearchBubbleElementId), WaitForActiveTabChange(1),
+      CheckActiveContentsHasFocus());
+}
+
+// Switch to the not last used tab inside a split view from a not split tab
+// while the browser is inactive. This is used to simulate tab switching
+// scenarios using Tab Search
+// TODO(https://crbug.com/422941990): Flaky (times out) on Linux and Windows
+// debug bots.
+#if !defined(NDEBUG) && (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX))
+#define MAYBE_SwitchToSplitViewWithInactiveBrowserWindow \
+  DISABLED_SwitchToSplitViewWithInactiveBrowserWindow
+#else
+#define MAYBE_SwitchToSplitViewWithInactiveBrowserWindow \
+  SwitchToSplitViewWithInactiveBrowserWindow
+#endif
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
+                       MAYBE_SwitchToSplitViewWithInactiveBrowserWindow) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
+
+  RunTestSequence(
+      InstrumentTab(kFirstTab, 0),
+      NavigateWebContents(kFirstTab, GURL(chrome::kChromeUISettingsURL)),
+      FocusWebContents(kFirstTab),
+      AddInstrumentedTab(kNewTab, GURL(chrome::kChromeUISettingsURL), 1),
+      FocusWebContents(kNewTab),
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUISettingsURL), 2),
+      FocusWebContents(kSecondTab),
+      CheckResult([this]() { return tab_strip_model()->count(); }, 3u),
+      EnterSplitView(2, 0), WaitForActiveTabChange(2),
+      // Switch from the split view to a regular tab
+      SelectTab(kTabStripElementId, 0, InputType::kMouse),
+      WaitForActiveTabChange(0), FocusWebContents(kNewTab),
+      // Launch the tab search bubble using the tab search button
+      PressButton(kTabSearchButtonElementId),
+      WaitForShow(kTabSearchBubbleElementId),
+      // Switch from a regular tab directly to an inactive tab, which is on
+      // the left side of a split with the TabSearch bubble dialog opened.
+      Do([this]() { browser()->tab_strip_model()->ActivateTabAt(1); }),
+      WaitForHide(kTabSearchBubbleElementId), WaitForActiveTabChange(1),
+      CheckActiveContentsHasFocus(),
+      // Switch out of the split view back to the regular tab
+      SelectTab(kTabStripElementId, 0, InputType::kMouse),
+      WaitForActiveTabChange(0), FocusWebContents(kNewTab),
+      // Launch the tab search bubble using the tab search button
+      PressButton(kTabSearchButtonElementId),
+      WaitForShow(kTabSearchBubbleElementId),
+      // Switch from a regular tab directly to an inactive tab, which is on
+      // the right side of a split with the TabSearch bubble dialog opened.
+      Do([this]() { browser()->tab_strip_model()->ActivateTabAt(2); }),
+      WaitForHide(kTabSearchBubbleElementId), WaitForActiveTabChange(2),
+      CheckActiveContentsHasFocus());
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, ResizesToMinWidth) {
@@ -194,12 +358,11 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, ResizesToMinWidth) {
       // Artificially lower min width so that testing on smaller devices does
       // not affect results.
       SetMinWidth(60),
-      CheckResize(10000,
-                  base::BindRepeating([](double start_width, double end_width) {
-                    // On large window, uses flat min width.
-                    return end_width ==
-                           60 - MultiContentsView::contents_inset_for_testing();
-                  })));
+      CheckResize(
+          10000, base::BindRepeating([](double start_width, double end_width) {
+            // On large window, uses flat min width.
+            return end_width == 60 - MultiContentsView::kSplitViewContentInset;
+          })));
 }
 
 // TODO(crbug.com/399212996): Flaky on linux_chromium_asan_rel_ng, linux-rel
@@ -218,7 +381,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
             // On small window, uses percentage of window size vs. flat width
             // for min. Don't check exact number to avoid rounding issues.
             return end_width <
-                       (60 - MultiContentsView::contents_inset_for_testing()) &&
+                       (60 - MultiContentsView::kSplitViewContentInset) &&
                    end_width > 0;
           })));
 }
@@ -287,18 +450,18 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, InsetsOnlyInSplit) {
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                        ActivatesMostRecentlyActiveTabInSplit) {
   RunTestSequence(
-      CreateTabsAndEnterSplitView(), CheckTabIsActive(0),
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUISettingsURL), 2),
-      CheckTabIsActive(2),
+      WaitForActiveTabChange(2),
       // Since tab 0 and 1 are part of a split view and tab 0 was the most
       // recently focused half of the split it should become the active tab, but
       // both tabs will be visible.
       SelectTab(kTabStripElementId, 1, InputType::kMouse, 0),
-      CheckTabIsActive(0),
+      WaitForActiveTabChange(0),
       // Select another tab in the split view and ensure the active index
       // doesn't change since it isn't the currently focused tab.
       SelectTab(kTabStripElementId, 1, InputType::kMouse, 0),
-      CheckTabIsActive(0));
+      WaitForActiveTabChange(0));
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
@@ -359,8 +522,8 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                      GURL(chrome::kChromeUISettingsURL);
                  return first_web_contents_set && second_web_contents_set;
                }),
-      WaitForState(kMultiContentsViewSwapObserver, true), CheckTabIsActive(1),
-      CheckActiveContentsHasFocus());
+      WaitForState(kMultiContentsViewSwapObserver, true),
+      WaitForActiveTabChange(1), CheckActiveContentsHasFocus());
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
@@ -415,8 +578,8 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                      GURL(chrome::kChromeUISettingsURL);
                  return first_web_contents_set && second_web_contents_set;
                }),
-      WaitForState(kMultiContentsViewSwapObserver, true), CheckTabIsActive(1),
-      CheckActiveContentsHasFocus());
+      WaitForState(kMultiContentsViewSwapObserver, true),
+      WaitForActiveTabChange(1), CheckActiveContentsHasFocus());
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
@@ -447,7 +610,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                        MiniToolbarShownForInactiveContents) {
   RunTestSequence(
       // Open split view.
-      CreateTabsAndEnterSplitView(), CheckTabIsActive(0),
+      CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
       // Verify the mini toolbar is only visible for the inactive contents.
       Check([&]() {
         return !multi_contents_view()
@@ -458,7 +621,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
         return multi_contents_view()->mini_toolbar_for_testing(1)->GetVisible();
       }),
       // Focus inactive contents and verify active tab.
-      FocusInactiveTabInSplit(), CheckTabIsActive(1),
+      FocusInactiveTabInSplit(), WaitForActiveTabChange(1),
       // Verify the mini toolbar is only visile for the newly inactive contents.
       Check([&]() {
         return multi_contents_view()->mini_toolbar_for_testing(0)->GetVisible();
@@ -468,6 +631,53 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
                     ->mini_toolbar_for_testing(1)
                     ->GetVisible();
       }));
+}
+
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, ShowScrimOnOmniboxFocus) {
+  RunTestSequence(
+      InstrumentTab(kNewTab), AddInstrumentedTab(kSecondTab, GetTestUrl()),
+      SelectTab(kTabStripElementId, 0), EnterSplitView(0, 1),
+      FocusElement(kNewTab),
+      WaitForHide(MultiContentsView::kEndContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId),
+      FocusElement(kOmniboxElementId),
+      WaitForShow(MultiContentsView::kEndContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId),
+      // Move focus to the inactive tab and trigger scrim on the start tab
+      FocusInactiveTabInSplit(),
+      WaitForHide(MultiContentsView::kEndContainerViewScrimElementId),
+      FocusElement(kOmniboxElementId),
+      WaitForShow(MultiContentsView::kStartContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kEndContainerViewScrimElementId));
+}
+
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
+                       ScrimUpdatesForMultipleSplitTabs) {
+  RunTestSequence(
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kEndContainerViewScrimElementId),
+      // Create a split tab and verify that the scrim shows
+      AddInstrumentedTab(kSecondTab, GetTestUrl()),
+      SelectTab(kTabStripElementId, 0), FocusElement(kOmniboxElementId),
+      EnterSplitView(0, 1),
+      WaitForShow(MultiContentsView::kEndContainerViewScrimElementId),
+      // Create a second split tab
+      AddInstrumentedTab(kThirdTab, GetTestUrl()),
+      AddInstrumentedTab(kFourthTab, GetTestUrl()),
+      SelectTab(kTabStripElementId, 2), FocusElement(kOmniboxElementId),
+      EnterSplitView(2, 3),
+      WaitForShow(MultiContentsView::kEndContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId),
+      // Remove focus from the omnibox split to ensure the second split
+      // isn't showing a scrim
+      FocusElement(kThirdTab),
+      WaitForHide(MultiContentsView::kEndContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId),
+      // Ensure the scrim is showing when the first split tab is selected
+      // because it had the omnibox focus
+      SelectTab(kTabStripElementId, 0),
+      WaitForShow(MultiContentsView::kEndContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId));
 }
 
 // TODO(crbug.com/414590951): There's limited support for testing drag and drop
@@ -534,7 +744,8 @@ class MultiContentsViewDragEntrypointsUiTest : public MultiContentsViewUiTest {
     // Note, both branches of AnyOf end with WaitForShow to ensure that the
     // only way this step terminates successfully is if the view is shown.
     return AnyOf(
-        RunSubsequence(WaitForShow(kMultiContentsViewDropTargetElementId)),
+        RunSubsequence(WaitForShow(
+            MultiContentsDropTargetView::kMultiContentsDropTargetElementId)),
         RunSubsequence(
             Steps(
                 // Programmatically generate a list of mouse movement steps.
@@ -567,7 +778,8 @@ class MultiContentsViewDragEntrypointsUiTest : public MultiContentsViewUiTest {
                 }()),
             // This branch also waits for visibility to prevent it from exiting
             // prematurely.
-            WaitForShow(kMultiContentsViewDropTargetElementId)));
+            WaitForShow(MultiContentsDropTargetView::
+                            kMultiContentsDropTargetElementId)));
   }
 
  private:
@@ -580,7 +792,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewDragEntrypointsUiTest,
                        DISABLED_ShowsDropTargetOnLinkDragged) {
   RunTestSequence(
       AddInstrumentedTab(kNewTab, GetURL("/links.html"), 0),
-      CheckTabIsActive(0),
+      WaitForActiveTabChange(0),
       // Drag an href element to the drop target area. The drop
       // target should be shown.
       MoveMouseTo(kNewTab, DeepQuery{"#title1"}),
@@ -593,13 +805,14 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewDragEntrypointsUiTest,
                        DoesNotShowDropTargetOnNonURLDragged) {
   RunTestSequence(
       AddInstrumentedTab(kNewTab, GetURL("/button.html"), 0),
-      CheckTabIsActive(0),
+      WaitForActiveTabChange(0),
       // Dragging a non-url to the drop target area should have no
       // effect.
       MoveMouseTo(kNewTab, DeepQuery{"#button"}),
       DragMouseToWithoutWait(MultiContentsView::kMultiContentsViewElementId,
                              PointForDropTarget()),
-      WaitForHide(kMultiContentsViewDropTargetElementId));
+      WaitForHide(
+          MultiContentsDropTargetView::kMultiContentsDropTargetElementId));
 }
 
 class MultiContentsViewBookmarkDragEntrypointsUiTest
@@ -647,7 +860,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewBookmarkDragEntrypointsUiTest,
   const std::string kBookmarkButtonId = "bookmark_button";
   RunTestSequence(
       AddInstrumentedTab(kNewTab, GURL(chrome::kChromeUISettingsURL), 0),
-      CheckTabIsActive(0), WaitForShow(kBookmarkBarElementId),
+      WaitForActiveTabChange(0), WaitForShow(kBookmarkBarElementId),
       NameBookmarkButton(kBookmarkButtonId, bookmark_title),
       MoveMouseTo(kBookmarkButtonId),
       DragMouseToWithoutWait(MultiContentsView::kMultiContentsViewElementId,

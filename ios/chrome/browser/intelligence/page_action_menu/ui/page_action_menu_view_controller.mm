@@ -6,7 +6,11 @@
 
 #import "build/branding_buildflags.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_constants.h"
-#import "ios/chrome/browser/shared/public/commands/glic_commands.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
+#import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
+#import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -23,6 +27,7 @@ const CGFloat kStackViewMargins = 16;
 const CGFloat kMenuSidePadding = 16;
 const CGFloat kMenuTopPadding = 8;
 const CGFloat kMenuBottomPadding = 16;
+const CGFloat kMenuBottomPaddingWithoutReaderMode = 32;
 
 // The height of the menu's buttons.
 const CGFloat kButtonHeight = 60;
@@ -34,7 +39,7 @@ const CGFloat kSmallButtonIconSize = 18;
 const CGFloat kSmallButtonPadding = 8;
 
 // The corner radius of the menu and its elements.
-const CGFloat kMenuCornerRadius = 16;
+const CGFloat kMenuCornerRadius = 20;
 const CGFloat kButtonsCornerRadius = 16;
 
 // The height of the menu's header.
@@ -42,16 +47,34 @@ const CGFloat kMenuHeaderHeight = 58;
 
 }  // namespace
 
+@interface PageActionMenuViewController () <
+    UIAdaptivePresentationControllerDelegate>
+
+// Whether reader mode is currently active.
+@property(nonatomic, assign) BOOL readerModeActive;
+
+@end
+
 @implementation PageActionMenuViewController {
   UIStackView* _mainStackView;
+}
+
+- (instancetype)initWithReaderModeActive:(BOOL)readerModeActive {
+  self = [super initWithNibName:nil bundle:nil];
+  if (self) {
+    _readerModeActive = readerModeActive;
+  }
+  return self;
 }
 
 - (void)viewDidLoad {
   [super viewDidLoad];
 
+  self.presentationController.delegate = self;
+
   // Add blurred background.
   UIBlurEffect* blurEffect =
-      [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
+      [UIBlurEffect effectWithStyle:UIBlurEffectStyleRegular];
   UIVisualEffectView* blurEffectView =
       [[UIVisualEffectView alloc] initWithEffect:blurEffect];
   blurEffectView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -74,20 +97,30 @@ const CGFloat kMenuHeaderHeight = 58;
   [_mainStackView setCustomSpacing:kStackViewMargins
                          afterView:buttonsStackView];
 
-  // Adds the large Gemini entry point button.
-  UIButton* askGeminiButton = [self createAskGeminiButton];
-  [_mainStackView addArrangedSubview:askGeminiButton];
+  // If Reader Mode is enabled, we use a 3-button UI. Otherwise, we just show
+  // the `buttonsStackView`.
+  if (IsReaderModeAvailable()) {
+    // Adds the large Gemini entry point button.
+    UIButton* BWGButton = [self createBWGButton];
+    [_mainStackView addArrangedSubview:BWGButton];
+
+    [NSLayoutConstraint activateConstraints:@[
+      [BWGButton.heightAnchor
+          constraintGreaterThanOrEqualToConstant:kButtonHeight],
+    ]];
+  }
 
   // Activates constraints for the menu.
   AddSameConstraintsWithInsets(
       _mainStackView, self.view.safeAreaLayoutGuide,
       NSDirectionalEdgeInsetsMake(kMenuTopPadding, kMenuSidePadding,
-                                  kMenuBottomPadding, kMenuSidePadding));
+                                  IsReaderModeAvailable()
+                                      ? kMenuBottomPadding
+                                      : kMenuBottomPaddingWithoutReaderMode,
+                                  kMenuSidePadding));
   [NSLayoutConstraint activateConstraints:@[
     [menuHeader.heightAnchor constraintEqualToConstant:kMenuHeaderHeight],
     [buttonsStackView.heightAnchor
-        constraintGreaterThanOrEqualToConstant:kButtonHeight],
-    [askGeminiButton.heightAnchor
         constraintGreaterThanOrEqualToConstant:kButtonHeight],
   ]];
 
@@ -107,24 +140,32 @@ const CGFloat kMenuHeaderHeight = 58;
   self.sheetPresentationController.selectedDetentIdentifier =
       kAIHubDetentIdentifier;
   self.sheetPresentationController.preferredCornerRadius = kMenuCornerRadius;
+  self.sheetPresentationController.prefersEdgeAttachedInCompactHeight = YES;
   self.sheetPresentationController.prefersGrabberVisible = NO;
+}
+
+#pragma mark - UIAdaptivePresentationControllerDelegate
+
+- (void)presentationControllerDidDismiss:
+    (UIPresentationController*)presentationController {
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
 }
 
 #pragma mark - Private
 
 // The total height of the presented menu.
-// TODO(crbug.com/419245200): Adapt height for landscape.
 - (CGFloat)preferredMenuHeight {
   return
       [_mainStackView systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
           .height +
-      kMenuTopPadding + kMenuBottomPadding;
+      kMenuTopPadding +
+      (IsReaderModeAvailable() ? kMenuBottomPadding
+                               : kMenuBottomPaddingWithoutReaderMode);
 }
 
 // Dismisses the page action menu.
 - (void)dismissPageActionMenu {
-  // TODO(crbug.com/414374298): Handle button actions and make sure the
-  // coordinator is stopped when the menu is dismissed.
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
 }
 
 // Creates a top bar header with a logo and dismiss button.
@@ -148,7 +189,7 @@ const CGFloat kMenuHeaderHeight = 58;
 
   // Add the logo.
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-  // TODO(crbug.com/414374298): Use Chrome branded logo.
+  // TODO(crbug.com/419246126): Use Chrome branded logo.
   UIImageView* logoIcon = [[UIImageView alloc]
       initWithImage:[UIImage imageNamed:@"page_action_menu_header_chromium"]];
 #else
@@ -180,21 +221,53 @@ const CGFloat kMenuHeaderHeight = 58;
       createSmallButtonWithIcon:CustomSymbolWithPointSize(kCameraLensSymbol,
                                                           kSmallButtonIconSize)
                           title:l10n_util::GetNSString(
-                                    IDS_IOS_AI_HUB_LENS_LABEL)];
+                                    IDS_IOS_AI_HUB_LENS_LABEL)
+                    destructive:NO];
+  [lensButton addTarget:self
+                 action:@selector(handleLensEntryPointTapped:)
+       forControlEvents:UIControlEventTouchUpInside];
   [stackView addArrangedSubview:lensButton];
-  UIButton* readerModeButton =
-      [self createSmallButtonWithIcon:DefaultSymbolWithPointSize(
-                                          kReaderModeSymbolPostIOS18,
-                                          kSmallButtonIconSize)
-                                title:l10n_util::GetNSString(
-                                          IDS_IOS_AI_HUB_READER_MODE_LABEL)];
-  [stackView addArrangedSubview:readerModeButton];
+
+  if (IsReaderModeAvailable()) {
+    UIImage* readerModeImage =
+        _readerModeActive
+            ? DefaultSymbolWithPointSize(kHideActionSymbol,
+                                         kSmallButtonIconSize)
+            : DefaultSymbolWithPointSize(kReaderModeSymbolPostIOS18,
+                                         kSmallButtonIconSize);
+
+    NSString* readerModeLabelText =
+        _readerModeActive
+            ? l10n_util::GetNSString(IDS_IOS_AI_HUB_HIDE_READER_MODE_LABEL)
+            : l10n_util::GetNSString(IDS_IOS_AI_HUB_READER_MODE_LABEL);
+
+    UIButton* readerModeButton =
+        [self createSmallButtonWithIcon:readerModeImage
+                                  title:readerModeLabelText
+                            destructive:_readerModeActive];
+    [readerModeButton addTarget:self
+                         action:@selector(handleReaderModeTapped:)
+               forControlEvents:UIControlEventTouchUpInside];
+    [stackView addArrangedSubview:readerModeButton];
+  } else {
+    // TODO(crbug.com/419067173): Update the icon.
+    UIButton* BWGSmallButton =
+        [self createSmallButtonWithIcon:DefaultSymbolWithPointSize(
+                                            @"sparkle", kSmallButtonIconSize)
+                                  title:l10n_util::GetNSString(
+                                            IDS_IOS_AI_HUB_BWG_LABEL)
+                            destructive:NO];
+    [BWGSmallButton addTarget:self
+                       action:@selector(handleBWGTapped:)
+             forControlEvents:UIControlEventTouchUpInside];
+    [stackView addArrangedSubview:BWGSmallButton];
+  }
 
   return stackView;
 }
 
-// Creates a large button for the Gemini entry point.
-- (UIButton*)createAskGeminiButton {
+// Creates a large button for the BWG entry point.
+- (UIButton*)createBWGButton {
   // Create the background config.
   UIBackgroundConfiguration* backgroundConfig =
       [UIBackgroundConfiguration clearConfiguration];
@@ -212,7 +285,7 @@ const CGFloat kMenuHeaderHeight = 58;
     NSFontAttributeName : font,
   };
   NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
-      initWithString:l10n_util::GetNSString(IDS_IOS_AI_HUB_GEMINI_LABEL)];
+      initWithString:l10n_util::GetNSString(IDS_IOS_AI_HUB_BWG_LABEL)];
   [string addAttributes:titleAttributes range:NSMakeRange(0, string.length)];
   buttonConfiguration.attributedTitle = string;
 
@@ -220,14 +293,17 @@ const CGFloat kMenuHeaderHeight = 58;
                                          primaryAction:nil];
   button.translatesAutoresizingMaskIntoConstraints = NO;
   [button addTarget:self
-                action:@selector(handleGlicTapped:)
+                action:@selector(handleBWGTapped:)
       forControlEvents:UIControlEventTouchUpInside];
 
   return button;
 }
 
-// Creates and returns a small button with an icon and a title for the label.
-- (UIButton*)createSmallButtonWithIcon:(UIImage*)image title:(NSString*)title {
+// Creates and returns a small button with an icon and a title for the label. If
+// `destructive` is YES, the button applies red styling.
+- (UIButton*)createSmallButtonWithIcon:(UIImage*)image
+                                 title:(NSString*)title
+                           destructive:(BOOL)destructive {
   // Create the background config.
   UIBackgroundConfiguration* backgroundConfig =
       [UIBackgroundConfiguration clearConfiguration];
@@ -239,7 +315,9 @@ const CGFloat kMenuHeaderHeight = 58;
       [UIButtonConfiguration filledButtonConfiguration];
   buttonConfiguration.image = image;
   buttonConfiguration.imagePlacement = NSDirectionalRectEdgeTop;
-  buttonConfiguration.baseForegroundColor = [UIColor colorNamed:kBlue600Color];
+  buttonConfiguration.baseForegroundColor =
+      destructive ? [UIColor colorNamed:kRed500Color]
+                  : [UIColor colorNamed:kBlue600Color];
   buttonConfiguration.background = backgroundConfig;
   buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
       kSmallButtonPadding, 0, kSmallButtonPadding, 0);
@@ -249,7 +327,9 @@ const CGFloat kMenuHeaderHeight = 58;
                                            UIFontWeightRegular);
   NSDictionary* titleAttributes = @{
     NSFontAttributeName : font,
-    NSForegroundColorAttributeName : [UIColor colorNamed:kTextPrimaryColor]
+    NSForegroundColorAttributeName : destructive
+        ? [UIColor colorNamed:kRed500Color]
+        : [UIColor colorNamed:kTextPrimaryColor]
   };
   NSMutableAttributedString* string =
       [[NSMutableAttributedString alloc] initWithString:title];
@@ -263,15 +343,30 @@ const CGFloat kMenuHeaderHeight = 58;
   return button;
 }
 
-#pragma mark - Private
-
-// Dismisses this view controller and starts the GLIC overlay.
-- (void)handleGlicTapped:(UIButton*)button {
+// Dismisses this view controller and starts the BWG overlay.
+- (void)handleBWGTapped:(UIButton*)button {
   PageActionMenuViewController* __weak weakSelf = self;
-  [self dismissViewControllerAnimated:YES
-                           completion:^{
-                             [weakSelf.handler startGlicFlow];
-                           }];
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
+    [weakSelf.BWGHandler startBWGFlow];
+  }];
+}
+
+- (void)handleLensEntryPointTapped:(UIButton*)button {
+  PageActionMenuViewController* __weak weakSelf = self;
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
+    [weakSelf.lensOverlayHandler
+        createAndShowLensUI:YES
+                 entrypoint:LensOverlayEntrypoint::kAIHub
+                 completion:nil];
+  }];
+}
+
+- (void)handleReaderModeTapped:(UIButton*)button {
+  PageActionMenuViewController* __weak weakSelf = self;
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
+    weakSelf.readerModeActive ? [weakSelf.readerModeHandler hideReaderMode]
+                              : [weakSelf.readerModeHandler showReaderMode];
+  }];
 }
 
 @end

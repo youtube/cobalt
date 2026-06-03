@@ -15,18 +15,24 @@
        StartupBrowserCreatorPickerNoParamsTest.ShowPickerWhenAlreadyLaunched on
        the msan builder. See crbug.com/1169070. -->
   <ntp-logo id="logo" ?single-colored="${this.singleColoredLogo_}"
-      .dark="${this.isThemeDark_()}" .backgroundColor="${this.backgroundColor_}"
-      ?hidden="${!this.logoEnabled_}">
+      .theme="${this.theme_}" ?hidden="${!this.logoEnabled_}">
   </ntp-logo>
   <div id="searchboxContainer">
     <cr-searchbox id="searchbox" ?is-dark="${this.isThemeDark_()}"
         ?color-source-is-baseline="${this.colorSourceIsBaseline}"
+        @open-composebox="${this.toggleComposebox_}"
         @open-lens-search="${this.onOpenLensSearch_}"
         @open-voice-search="${this.onOpenVoiceSearch_}" ?shown="${this.realboxShown_}"
         ?had-secondary-side="${this.realboxHadSecondarySide}"
         @had-secondary-side-changed="${this.onRealboxHadSecondarySideChanged_}"
-        ?can-show-secondary-side="${this.realboxCanShowSecondarySide}">
+        ?can-show-secondary-side="${this.realboxCanShowSecondarySide}"
+        ?compose-button-enabled="${this.composeButtonEnabled}"
+        ?composebox-enabled="${this.composeboxEnabled}">
     </cr-searchbox>
+    ${this.showComposebox_ ? html`
+      <ntp-composebox @toggle-composebox="${this.toggleComposebox_}">
+      </ntp-composebox>
+    ` : ''}
     ${this.showLensUploadDialog_ ? html`
       <ntp-lens-upload-dialog id="lensUploadDialog"
           @close-lens-search="${this.onCloseLensSearch_}">
@@ -64,34 +70,33 @@
         </ntp-modules>
       `}
     ` : ''}
-    <a id="backgroundImageAttribution"
-        href="${this.backgroundImageAttributionUrl_}"
-        ?hidden="${!this.backgroundImageAttribution1_}">
-      <div id="backgroundImageAttribution1Container">
-        <div id="linkIcon" ?hidden="${!this.backgroundImageAttributionUrl_}"></div>
-        <div id="backgroundImageAttribution1">
-          ${this.backgroundImageAttribution1_}
+  ${!this.isFooterVisible_ ? html`
+      <a id="backgroundImageAttribution"
+          href="${this.backgroundImageAttributionUrl_}"
+          ?hidden="${!this.backgroundImageAttribution1_}">
+        <div id="backgroundImageAttribution1Container">
+          <div id="linkIcon" ?hidden="${!this.backgroundImageAttributionUrl_}"></div>
+          <div id="backgroundImageAttribution1">
+            ${this.backgroundImageAttribution1_}
+          </div>
         </div>
-      </div>
-      <div id="backgroundImageAttribution2"
-          ?hidden="${!this.backgroundImageAttribution2_}">
-        ${this.backgroundImageAttribution2_}
-      </div>
-    </a>
-    <!-- TODO(crbug.com/409296433) Hide ntp-customize-buttons on new-tab-page when
-      footer is enabled and visible. -->
-    <ntp-customize-buttons id="customizeButtons"
-        ?modules-shown-to-user="${this.modulesShownToUser}"
-        ?show-background-image="${this.showBackgroundImage_}"
-        ?show-customize="${this.showCustomize_}"
-        ?show-customize-chrome-text="${this.showCustomizeChromeText_}"
-        ?show-wallpaper-search="${this.showWallpaperSearch_}"
-        ?show-wallpaper-search-button="${this.showWallpaperSearchButton_}"
-        ?wallpaper-search-button-animation-enabled="${this.wallpaperSearchButtonAnimationEnabled_}"
-        @customize-click="${this.onCustomizeClick_}"
-        @show-customize-change="${this.onShowCustomizeChange_}"
-        @wallpaper-search-click="${this.onWallpaperSearchClick_}">
-    </ntp-customize-buttons>
+        <div id="backgroundImageAttribution2"
+            ?hidden="${!this.backgroundImageAttribution2_}">
+          ${this.backgroundImageAttribution2_}
+        </div>
+      </a>
+      <ntp-customize-buttons id="customizeButtons"
+          ?modules-shown-to-user="${this.modulesShownToUser}"
+          ?show-background-image="${this.showBackgroundImage_}"
+          ?show-customize="${this.showCustomize_}"
+          ?show-customize-chrome-text="${this.showCustomizeChromeText_}"
+          ?show-wallpaper-search="${this.showWallpaperSearch_}"
+          ?show-wallpaper-search-button="${this.showWallpaperSearchButton_}"
+          ?wallpaper-search-button-animation-enabled="${this.wallpaperSearchButtonAnimationEnabled_}"
+          @customize-click="${this.onCustomizeClick_}"
+          @wallpaper-search-click="${this.onWallpaperSearchClick_}">
+      </ntp-customize-buttons>
+    ` : ''}
     ${this.showThemeAttribution_() ? html`
       <div id="themeAttribution">
         <div>$i18n{themeCreatedBy}</div>
@@ -104,6 +109,9 @@
 ${this.showVoiceSearchOverlay_ ? html`
   <ntp-voice-search-overlay @close="${this.onVoiceSearchOverlayClose_}">
   </ntp-voice-search-overlay>
+` : ''}
+${this.showComposebox_ ? html`
+  <div id="composeboxScrim" @click="${this.toggleComposebox_}"></div>
 ` : ''}
 <svg>
   <defs>

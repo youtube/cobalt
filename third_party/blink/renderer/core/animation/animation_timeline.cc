@@ -116,17 +116,6 @@ void AnimationTimeline::ServiceAnimations(TimingUpdateReason reason) {
   if (IsProgressBased()) {
     if (last_current_phase_and_time_ != current_phase_and_time) {
       UpdateCompositorTimeline();
-      update_triggers_ = true;
-    }
-    if (RuntimeEnabledFeatures::AnimationTriggerEnabled()) {
-      if (update_triggers_) {
-        for (Animation* animation : animations_for_triggering_) {
-          if (AnimationTrigger* trigger = animation->GetTriggerInternal()) {
-            trigger->ActionAnimation(animation);
-          }
-        }
-        update_triggers_ = false;
-      }
     }
   }
 
@@ -225,23 +214,34 @@ void AnimationTimeline::MarkPendingIfCompositorPropertyAnimationChanges(
   }
 }
 
-void AnimationTimeline::AddAnimationForTriggering(Animation* animation) {
-  AnimationTrigger* trigger = animation->GetTriggerInternal();
-  DCHECK(IsProgressBased() && trigger &&
-         trigger->GetTimelineInternal() == this);
-  animations_for_triggering_.insert(animation);
+void AnimationTimeline::AddAnimationTrigger(AnimationTrigger* trigger) {
+  DCHECK(trigger && trigger->GetTimelineInternal() == this);
+  triggers_.insert(trigger);
   update_triggers_ = true;
 }
 
-void AnimationTimeline::RemoveAnimationForTriggering(Animation* animation) {
-  animations_for_triggering_.erase(animation);
+void AnimationTimeline::ServiceAnimationTriggers() {
+  DCHECK(RuntimeEnabledFeatures::AnimationTriggerEnabled());
+  PhaseAndTime current_phase_and_time = CurrentPhaseAndTime();
+
+  if (last_current_phase_and_time_ != current_phase_and_time) {
+    update_triggers_ = true;
+  }
+
+  if (update_triggers_) {
+    for (AnimationTrigger* trigger : triggers_) {
+      trigger->Update();
+    }
+  }
+
+  update_triggers_ = false;
 }
 
 void AnimationTimeline::Trace(Visitor* visitor) const {
   visitor->Trace(document_);
   visitor->Trace(animations_needing_update_);
   visitor->Trace(animations_);
-  visitor->Trace(animations_for_triggering_);
+  visitor->Trace(triggers_);
   ScriptWrappable::Trace(visitor);
 }
 

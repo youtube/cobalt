@@ -72,23 +72,23 @@ bool IsNavigatingToIsolatedApplication(NavigationHandle* handle) {
 }  // namespace
 
 // static
-std::unique_ptr<IsolatedWebAppThrottle>
-IsolatedWebAppThrottle::MaybeCreateThrottleFor(NavigationHandle* handle) {
-  BrowserContext* browser_context = NavigationRequest::From(handle)
-                                        ->frame_tree_node()
-                                        ->navigator()
-                                        .controller()
-                                        .GetBrowserContext();
+void IsolatedWebAppThrottle::MaybeCreateAndAdd(
+    NavigationThrottleRegistry& registry) {
+  BrowserContext* browser_context =
+      NavigationRequest::From(&registry.GetNavigationHandle())
+          ->frame_tree_node()
+          ->navigator()
+          .controller()
+          .GetBrowserContext();
 
   if (AreIsolatedWebAppsEnabled(browser_context)) {
-    return std::make_unique<IsolatedWebAppThrottle>(handle);
+    registry.AddThrottle(std::make_unique<IsolatedWebAppThrottle>(registry));
   }
-  return nullptr;
 }
 
 IsolatedWebAppThrottle::IsolatedWebAppThrottle(
-    NavigationHandle* navigation_handle)
-    : NavigationThrottle(navigation_handle) {}
+    NavigationThrottleRegistry& registry)
+    : NavigationThrottle(registry) {}
 
 IsolatedWebAppThrottle::~IsolatedWebAppThrottle() = default;
 
@@ -162,7 +162,6 @@ bool IsolatedWebAppThrottle::OpenUrlExternal(const GURL& url) {
   OpenURLParams params(url, Referrer(),
                        WindowOpenDisposition::NEW_FOREGROUND_TAB, transition,
                        /*is_renderer_initiated=*/false);
-  params.open_app_window_if_possible = true;
   GetContentClient()->browser()->OpenURL(
       navigation_handle()->GetStartingSiteInstance(), params,
       base::DoNothing());

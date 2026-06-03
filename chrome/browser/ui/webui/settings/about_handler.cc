@@ -129,20 +129,20 @@ std::u16string GetAllowedConnectionTypesMessage() {
 // Returns true if current user can change firmware, false otherwise.
 bool CanChangeFirmware(Profile* profile) {
   if (policy::ManagementServiceFactory::GetForPlatform()->IsManaged()) {
-    bool value = false;
+    bool value = true;
     // On a managed machine we allow firmware changes only if enabled by policy
     if (!ash::CrosSettings::Get()->GetBoolean(
             ash::kDeviceUserInitiatedFirmwareUpdatesEnabled, &value)) {
       // This can occur if the lookup for the policy's value fails,
       // for example if the policy is not present on the current version.
-      // In this case, default to false.
+      // In this case, default to true to allow.
       LOG(ERROR) << "Failed to get device setting.";
-      return false;
+      return true;
     }
     return value;
   }
-  return user_manager::UserManager::Get()->IsOwnerUser(
-      ash::BrowserContextHelper::Get()->GetUserByBrowserContext(profile));
+  // On unmanaged machines, always allow.
+  return true;
 }
 
 // Returns true if current user can change channel, false otherwise.

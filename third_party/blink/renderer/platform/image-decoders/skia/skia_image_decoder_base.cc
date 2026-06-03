@@ -337,7 +337,17 @@ void SkiaImageDecoderBase::Decode(wtf_size_t index) {
       }
     }
 
-    if (frame.GetStatus() == ImageFrame::kFrameInitialized) {
+    bool already_started_current_frame =
+        already_started_frame_.has_value() &&
+        already_started_frame_.value() == current_frame_index;
+    if (!already_started_current_frame) {
+      // `kFrameEmpty` and `kFrameComplete` are handled above.
+      // `kFrameInitialized` is possible when decoding a frame from scratch.
+      // `kFramePartial` is possible when resuming to decode a frame that
+      // previously returned `kIncompleteInput` from `incrementalDecode`.
+      DCHECK(frame.GetStatus() == ImageFrame::kFrameInitialized ||
+             frame.GetStatus() == ImageFrame::kFramePartial);
+
       SkCodec::FrameInfo frame_info;
       bool frame_info_received =
           codec_->getFrameInfo(current_frame_index, &frame_info);
@@ -363,10 +373,22 @@ void SkiaImageDecoderBase::Decode(wtf_size_t index) {
       }
       DCHECK_NE(color_type, kUnknown_SkColorType);
 
+      sk_sp<SkColorSpace> color_space;
+      if (const ColorProfileTransform* transform = ColorTransform()) {
+        const skcms_ICCProfile* dst_profile = transform->DstProfile();
+        DCHECK(dst_profile);  // Always non-null ptr to `dst_profile_` field.
+        color_space = SkColorSpace::Make(*dst_profile);
+      } else {
+        // Explicitly ask for no color transformation.  This avoids transforming
+        // into sRGB if/when `SkEncodedInfo::makeImageInfo` has set
+        // `codec_->getInfo().colorSpace()` to sRGB as a fallback.
+        color_space = nullptr;
+      }
+
       SkImageInfo image_info = codec_->getInfo()
                                    .makeColorType(color_type)
-                                   .makeColorSpace(ColorSpaceForSkImages())
-                                   .makeAlphaType(alpha_type);
+                                   .makeAlphaType(alpha_type)
+                                   .makeColorSpace(color_space);
 
       SkCodec::Options options;
       options.fFrameIndex = current_frame_index;
@@ -386,11 +408,13 @@ void SkiaImageDecoderBase::Decode(wtf_size_t index) {
           continue;
       }
       frame.SetStatus(ImageFrame::kFramePartial);
+      already_started_frame_.emplace(current_frame_index);
     }
 
     SkCodec::Result incremental_decode_result = codec_->incrementalDecode();
     switch (incremental_decode_result) {
       case SkCodec::kSuccess: {
+        already_started_frame_.reset();
         SkCodec::FrameInfo frame_info;
         bool frame_info_received =
             codec_->getFrameInfo(current_frame_index, &frame_info);
@@ -409,6 +433,7 @@ void SkiaImageDecoderBase::Decode(wtf_size_t index) {
         }
         break;
       default:
+        already_started_frame_.reset();
         frame.SetPixelsChanged(true);
         SetFailedFrameIndex(current_frame_index);
         break;

@@ -62,16 +62,17 @@ class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
     autofill_client_ = autofill_client;
   }
 
-  void SetVirtualCardEnrollmentFieldsLoadedCallback(
-      VirtualCardEnrollmentFieldsLoadedCallback
-          virtual_card_enrollment_fields_loaded_callback) {
-    virtual_card_enrollment_fields_loaded_callback_ =
-        std::move(virtual_card_enrollment_fields_loaded_callback);
+  void set_ignore_strike_database(bool ignore_strike_database) {
+    ignore_strike_database_ = ignore_strike_database;
   }
 
   bool AutofillClientIsPresent() { return autofill_client_ != nullptr; }
 
   // VirtualCardEnrollmentManager:
+  bool ShouldBlockVirtualCardEnrollment(
+      const std::string& instrument_id,
+      VirtualCardEnrollmentSource virtual_card_enrollment_source)
+      const override;
   void LoadRiskDataAndContinueFlow(
       PrefService* user_prefs,
       base::OnceCallback<void(const std::string&)> callback) override;
@@ -79,7 +80,8 @@ class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
       VirtualCardEnrollmentRequestType type,
       payments::PaymentsAutofillClient::PaymentsRpcResult result) override;
   void Reset() override;
-  void ShowVirtualCardEnrollBubble() override;
+  void ShowVirtualCardEnrollBubble(
+      VirtualCardEnrollmentFields* virtual_card_enrollment_fields) override;
 
   void OnVirtualCardEnrollmentBubbleCancelled();
 
@@ -89,6 +91,10 @@ class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
   bool reset_called_ = false;
 
   bool bubble_shown_ = false;
+
+  // Whether StrikeDatabase rules should be ignored when calling
+  // InitVirtualCardEnroll. Used to set up tests more easily.
+  bool ignore_strike_database_ = false;
 };
 
 }  // namespace autofill

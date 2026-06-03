@@ -39,7 +39,6 @@ import org.chromium.android_webview.AwContentsStatics;
 import org.chromium.android_webview.AwCookieManager;
 import org.chromium.android_webview.AwCrashyClassUtils;
 import org.chromium.android_webview.AwDarkMode;
-import org.chromium.android_webview.AwFeatureMap;
 import org.chromium.android_webview.AwLocaleConfig;
 import org.chromium.android_webview.AwNetworkChangeNotifierRegistrationPolicy;
 import org.chromium.android_webview.AwProxyController;
@@ -49,6 +48,7 @@ import org.chromium.android_webview.AwTracingController;
 import org.chromium.android_webview.HttpAuthDatabase;
 import org.chromium.android_webview.R;
 import org.chromium.android_webview.WebViewChromiumRunQueue;
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwResource;
 import org.chromium.android_webview.common.AwSwitches;
@@ -75,7 +75,6 @@ import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ResourceBundle;
 
-import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayDeque;
@@ -503,14 +502,18 @@ public class WebViewChromiumAwInit {
                                                     .getApplicationInfo()
                                                     .storageUuid;
                                     long startTimeGetCacheQuotaMs = SystemClock.uptimeMillis();
+                                    long cacheQuotaKiloBytes = -1;
                                     try {
-                                        long cacheQuotaKiloBytes =
+                                        // This can throw `SecurityException` if the app doesn't
+                                        // have sufficient privileges.
+                                        // See crbug.com/422174715
+                                        cacheQuotaKiloBytes =
                                                 storageManager.getCacheQuotaBytes(storageUuid)
                                                         / 1024;
                                         RecordHistogram.recordCount1MHistogram(
                                                 "Android.WebView.CacheQuotaSize",
                                                 (int) cacheQuotaKiloBytes);
-                                    } catch (IOException e) {
+                                    } catch (Exception e) {
                                     } finally {
                                         RecordHistogram.recordTimesHistogram(
                                                 "Android.WebView.GetCacheQuotaSizeTime",
@@ -519,19 +522,36 @@ public class WebViewChromiumAwInit {
                                     }
 
                                     long startTimeGetCacheSizeMs = SystemClock.uptimeMillis();
+                                    long cacheSizeKiloBytes = -1;
                                     try {
-                                        long cacheSizeKiloBytes =
+                                        // This can throw `SecurityException` if the app doesn't
+                                        // have sufficient privileges.
+                                        // See crbug.com/422174715
+                                        cacheSizeKiloBytes =
                                                 storageManager.getCacheSizeBytes(storageUuid)
                                                         / 1024;
                                         RecordHistogram.recordCount1MHistogram(
                                                 "Android.WebView.CacheSize",
                                                 (int) cacheSizeKiloBytes);
-                                    } catch (IOException e) {
+                                    } catch (Exception e) {
                                     } finally {
                                         RecordHistogram.recordTimesHistogram(
                                                 "Android.WebView.GetCacheSizeTime",
                                                 SystemClock.uptimeMillis()
                                                         - startTimeGetCacheSizeMs);
+                                    }
+                                    if (cacheQuotaKiloBytes != -1 && cacheSizeKiloBytes != -1) {
+                                        long quotaRemainingKiloBytes =
+                                                cacheQuotaKiloBytes - cacheSizeKiloBytes;
+                                        if (quotaRemainingKiloBytes >= 0) {
+                                            RecordHistogram.recordCount1MHistogram(
+                                                    "Android.WebView.CacheSizeWithinQuota",
+                                                    (int) quotaRemainingKiloBytes);
+                                        } else {
+                                            RecordHistogram.recordCount1MHistogram(
+                                                    "Android.WebView.CacheSizeExceedsQuota",
+                                                    -1 * (int) quotaRemainingKiloBytes);
+                                        }
                                     }
                                 },
                                 5000);
@@ -560,6 +580,7 @@ public class WebViewChromiumAwInit {
             long totalTimeTakenMs,
             long longestUiBlockingTaskTimeMs,
             @StartupTasksRunner.StartupMode int startupMode) {
+        long wallClockTimeMs = SystemClock.uptimeMillis() - startTimeMs;
         // Record asyncStartup API metrics
         mWebViewStartUpDiagnostics.setTotalTimeUiThreadChromiumInitMillis(totalTimeTakenMs);
         mWebViewStartUpDiagnostics.setMaxTimePerTaskUiThreadChromiumInitMillis(
@@ -602,6 +623,11 @@ public class WebViewChromiumAwInit {
                     finishCallSite,
                     CallSite.COUNT);
         }
+        RecordHistogram.recordTimesHistogram(
+                "Android.WebView.Startup.ChromiumInitTime.WallClockTime", wallClockTimeMs);
+        RecordHistogram.recordTimesHistogram(
+                "Android.WebView.Startup.ChromiumInitTime.WallClockTime" + startupModeString,
+                wallClockTimeMs);
 
         // Record traces
         TraceEvent.webViewStartupStartChromiumLocked(
@@ -784,12 +810,8 @@ public class WebViewChromiumAwInit {
     private void initPlatSupportLibrary() {
         try (ScopedSysTraceEvent e =
                 ScopedSysTraceEvent.scoped("WebViewChromiumAwInit.initPlatSupportLibrary")) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                AwDrawFnImpl.setDrawFnFunctionTable(DrawFunctor.getDrawFnFunctionTable());
-            }
-            DrawGLFunctor.setChromiumAwDrawGLFunction(AwContents.getAwDrawGLFunction());
+            AwDrawFnImpl.setDrawFnFunctionTable(DrawFunctor.getDrawFnFunctionTable());
             AwContents.setAwDrawSWFunctionTable(GraphicsUtils.getDrawSWFunctionTable());
-            AwContents.setAwDrawGLFunctionTable(GraphicsUtils.getDrawGLFunctionTable());
         }
     }
 
@@ -1026,6 +1048,7 @@ public class WebViewChromiumAwInit {
         private boolean mAsyncHasBeenTriggered;
         private long mLongestUiBlockingTaskTimeMs;
         private long mTotalTimeTakenMs;
+        private long mStartupTimeMs;
         private boolean mStartupStarted;
         private @CallSite int mStartCallSite = CallSite.COUNT;
         private @CallSite int mFinishCallSite = CallSite.COUNT;
@@ -1078,6 +1101,7 @@ public class WebViewChromiumAwInit {
                     SharedStatics.setStartupTriggered();
                 }
                 mFinishCallSite = callSite;
+                mStartupTimeMs = SystemClock.uptimeMillis();
             }
 
             // Early return to avoid repeating the return call within sync and async blocks
@@ -1151,7 +1175,7 @@ public class WebViewChromiumAwInit {
                     recordStartupMetrics(
                             mStartCallSite,
                             mFinishCallSite,
-                            /* startTimeMs= */ startTimeMs,
+                            /* startTimeMs= */ mStartupTimeMs,
                             /* totalTimeTakenMs= */ mTotalTimeTakenMs,
                             /* longestUiBlockingTaskTimeMs= */ mLongestUiBlockingTaskTimeMs,
                             calculateStartupMode(runMode));

@@ -31,6 +31,7 @@ source_set("passkey_browser_binder") {
     ":browser_bound_key_metadata",
     "//base",
     "//components/payments/content:utils",
+    "//components/payments/core",
     "//components/webdata/common",
   ]
 }
@@ -47,6 +48,7 @@ source_set("passkey_browser_binder_unittests") {
     "//base",
     "//base/test:test_support",
     "//components/payments/content:test_support",
+    "//components/payments/core",
     "//content/test:test_support",
     "//device/fido",
     "//testing/gmock",
@@ -88,9 +90,22 @@ if (is_android) {
     deps = [
       ":interface",
       "//base",
-      "//components/payments/content/android:browser_binding_jni",
+      "//components/payments/content/android/spc:browser_binding_jni",
       "//device/fido",
       "//third_party/jni_zero",
+    ]
+  }
+
+  source_set("android_unittests") {
+    testonly = true
+    sources = [ "browser_bound_key_store_android_unittest.cc" ]
+    deps = [
+      ":android",
+      ":interface",
+      "//base",
+      "//components/payments/content/android/spc:browser_binding_jni",
+      "//testing/gmock",
+      "//testing/gtest",
     ]
   }
 

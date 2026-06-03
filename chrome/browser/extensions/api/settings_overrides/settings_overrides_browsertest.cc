@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/check_deref.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "content/public/test/browser_test.h"
@@ -30,6 +31,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/default_search_manager.h"

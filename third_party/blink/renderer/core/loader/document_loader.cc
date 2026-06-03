@@ -36,6 +36,7 @@
 #include "base/auto_reset.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/to_vector.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -1163,7 +1164,7 @@ void DocumentLoader::UpdateForSameDocumentNavigation(
           soft_navigation_heuristics_task_id
               ? tracker->CommitSameDocumentNavigation(
                     soft_navigation_heuristics_task_id.value())
-              : tracker->RunningTask();
+              : tracker->CurrentTaskState();
     }
   }
 
@@ -2105,7 +2106,7 @@ void DocumentLoader::StartLoadingResponse() {
     frame_->Console().AddMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kJavaScript,
         mojom::blink::ConsoleMessageLevel::kError,
-        "Malformed multipart archive: " + url_.GetString()));
+        StrCat({"Malformed multipart archive: ", url_.GetString()})));
     FinishedLoading(base::TimeTicks::Now());
     return;
   }
@@ -2739,6 +2740,17 @@ void DocumentLoader::InitializeWindow(Document* owner_document) {
             std::move(initial_permission_statuses_).value());
   }
 
+  // If the response is created with the synthetic response, the browser expects
+  // that the CSP script-src directive is not added via the response header, but
+  // added via the <meta> tag in the response body. To ensure there are no
+  // scripts executed before <meta>, enforce the CSP not to allow script
+  // executions until the new CSP is added via <meta> tag.
+  if (response_.FromSyntheticResponse()) {
+    CHECK(frame_->IsOutermostMainFrame());
+    CHECK_EQ(commit_reason_, CommitReason::kRegular);
+    csp->DisallowScriptForSyntheticResponse();
+  }
+
   content_security_notifier_ =
       HeapMojoRemote<mojom::blink::ContentSecurityNotifier>(
           frame_->DomWindow());
@@ -3015,8 +3027,6 @@ void DocumentLoader::CommitNavigation() {
   // salt, the hashtable is unreadable to the Document.
   if (visited_link_salt_.has_value()) {
     if (base::FeatureList::IsEnabled(
-            blink::features::kPartitionVisitedLinkDatabase) ||
-        base::FeatureList::IsEnabled(
             blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks)) {
       document->GetVisitedLinkState().UpdateSalt(visited_link_salt_.value());
     }
@@ -3261,7 +3271,7 @@ void DocumentLoader::CreateParserPostCommit() {
   // script queries it via document.characterSet.
   if (commit_reason_ == CommitReason::kXSLT) {
     DocumentEncodingData data;
-    data.SetEncoding(WTF::TextEncoding(response_.TextEncodingName()));
+    data.SetEncoding(TextEncoding(response_.TextEncodingName()));
     document->SetEncodingData(data);
   }
 
@@ -3528,14 +3538,14 @@ void DocumentLoader::RecordConsoleMessagesForCommit() {
     // TODO(https://crbug.com/340616797): Add which document policy violated in
     // error string, instead of just displaying serialized required document
     // policy.
-    ConsoleError(
-        "Refused to display '" + response_.CurrentRequestUrl().ElidedString() +
-        "' because it violates the following document policy "
-        "required by its embedder: '" +
-        DocumentPolicy::Serialize(frame_policy_.required_document_policy)
-            .value_or("[Serialization Error]")
-            .c_str() +
-        "'.");
+    ConsoleError(StrCat(
+        {"Refused to display '", response_.CurrentRequestUrl().ElidedString(),
+         "' because it violates the following document policy required by its "
+         "embedder: '",
+         DocumentPolicy::Serialize(frame_policy_.required_document_policy)
+             .value_or("[Serialization Error]")
+             .c_str(),
+         "'."}));
   }
 
   // Report the ResourceResponse now that the new Document has been created and

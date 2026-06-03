@@ -34,11 +34,10 @@ bool GeolocationPermissionContextDelegate::DecidePermission(
                                            &permission_set, &new_permission)) {
     DCHECK_EQ(!!*callback, permission_set);
     if (permission_set) {
-      ContentSetting content_setting =
-          new_permission ? CONTENT_SETTING_ALLOW : CONTENT_SETTING_BLOCK;
+      PermissionDecision decision = new_permission ? PermissionDecision::kAllow
+                                                   : PermissionDecision::kDeny;
       context->NotifyPermissionSet(request_data, std::move(*callback),
-                                   /*persist=*/false, content_setting,
-                                   /*is_one_time=*/false,
+                                   /*persist=*/false, decision,
                                    /*is_final_decision=*/true);
     }
     return true;

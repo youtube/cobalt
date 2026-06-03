@@ -14,6 +14,7 @@ import android.widget.ImageButton;
 
 import androidx.annotation.ColorInt;
 
+import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
@@ -56,6 +57,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuButtonHelper;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.TokenHolder;
@@ -65,12 +67,6 @@ import java.util.List;
 /** A coordinator for the top toolbar component. */
 @NullMarked
 public class TopToolbarCoordinator implements Toolbar {
-
-    /** Observes toolbar URL expansion progress change. */
-    public interface UrlExpansionObserver {
-        /** Notified when toolbar URL expansion progress fraction changes. */
-        void onUrlExpansionProgressChanged();
-    }
 
     /** Observes toolbar color change. */
     public interface ToolbarColorObserver {
@@ -154,6 +150,8 @@ public class TopToolbarCoordinator implements Toolbar {
      * @param tabStripTransitionDelegateSupplier Supplier for the {@link
      *     TabStripTransitionDelegate}.
      * @param onLongClickListener OnLongClickListener for the toolbar.
+     * @param homeButtonDisplay The {@link HomeButtonDisplay} to manage the display and behavior of
+     *     home button(s). Should be null on custom tabs.
      */
     public TopToolbarCoordinator(
             ToolbarControlContainer controlContainer,
@@ -185,7 +183,8 @@ public class TopToolbarCoordinator implements Toolbar {
             ToolbarProgressBar progressBar,
             ObservableSupplier<@Nullable Tab> tabSupplier,
             ObservableSupplier<Boolean> toolbarNavControlsEnabledSupplier,
-            @Nullable BackButtonCoordinator backButtonCoordinator) {
+            @Nullable BackButtonCoordinator backButtonCoordinator,
+            @Nullable HomeButtonDisplay homeButtonDisplay) {
         mToolbarLayout = toolbarLayout;
         mMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
         mControlContainer = controlContainer;
@@ -225,7 +224,8 @@ public class TopToolbarCoordinator implements Toolbar {
                             tabSupplier,
                             mNtpLoadingSupplier,
                             toolbarNavControlsEnabledSupplier,
-                            normalThemeColorProvider);
+                            normalThemeColorProvider,
+                            /* isWebApp= */ false);
         }
 
         controlContainer.setPostInitializationDependencies(
@@ -248,7 +248,8 @@ public class TopToolbarCoordinator implements Toolbar {
                 mTrackerSupplier,
                 progressBar,
                 mReloadButtonCoordinator,
-                mBackButtonCoordinator);
+                mBackButtonCoordinator,
+                homeButtonDisplay);
         mToolbarLayout.setThemeColorProvider(normalThemeColorProvider);
         mAppMenuButtonHelperSupplier = appMenuButtonHelperSupplier;
         new OneShotCallback<>(mAppMenuButtonHelperSupplier, this::setAppMenuButtonHelper);
@@ -270,8 +271,6 @@ public class TopToolbarCoordinator implements Toolbar {
      *
      * <p>Calling this must occur after the native library have completely loaded.
      *
-     * @param tabSwitcherClickHandler The click handler for the tab switcher button.
-     * @param appMenuDelegate Allows interacting with the app menu.
      * @param profile The primary Profile associated with this Toolbar.
      * @param layoutUpdater A {@link Runnable} used to request layout update upon scene change.
      * @param bookmarkClickHandler The click handler for the bookmarks button.
@@ -283,6 +282,11 @@ public class TopToolbarCoordinator implements Toolbar {
      * @param topUiThemeColorProvider {@link ThemeColorProvider} for top UI.
      * @param bottomToolbarControlsOffsetSupplier Supplier of the offset, relative to the bottom of
      *     the viewport, of the bottom-anchored toolbar.
+     * @param suppressToolbarSceneLayerSupplier Supplier for whether suppress the update to the
+     *     toolbar scene layer.
+     * @param progressInfoCallback Callback when progress bar DrawingInfo has an update.
+     * @param captureResourceIdSupplier Provides an id for the captured resource shown by the
+     *     compositor.
      */
     public void initializeWithNative(
             Profile profile,
@@ -294,7 +298,9 @@ public class TopToolbarCoordinator implements Toolbar {
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
             TopUiThemeColorProvider topUiThemeColorProvider,
             ObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
-            ObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier) {
+            ObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
+            Callback<DrawingInfo> progressInfoCallback,
+            ObservableSupplier<Long> captureResourceIdSupplier) {
         mTrackerSupplier.set(TrackerFactory.getTrackerForProfile(profile));
         mToolbarLayout.setTabCountSupplier(mTabCountSupplier);
         getLocationBar().updateVisualsForState();
@@ -311,7 +317,7 @@ public class TopToolbarCoordinator implements Toolbar {
                     new TopToolbarOverlayCoordinator(
                             mToolbarLayout.getContext(),
                             layoutManager,
-                            mControlContainer::getProgressBarDrawingInfo,
+                            progressInfoCallback,
                             tabSupplier,
                             browserControlsVisibilityManager,
                             mResourceManagerSupplier,
@@ -321,7 +327,8 @@ public class TopToolbarCoordinator implements Toolbar {
                             LayoutType.BROWSING
                                     | LayoutType.SIMPLE_ANIMATION
                                     | LayoutType.TAB_SWITCHER,
-                            false);
+                            /* isVisibilityManuallyControlled= */ false,
+                            captureResourceIdSupplier);
             layoutManager.addSceneOverlay(mOverlayCoordinator);
             mToolbarLayout.setOverlayCoordinator(mOverlayCoordinator);
         }
@@ -344,20 +351,6 @@ public class TopToolbarCoordinator implements Toolbar {
     /** Returns the color of the hairline drawn underneath the toolbar. */
     public @ColorInt int getToolbarHairlineColor() {
         return mToolbarLayout.getToolbarHairlineColor();
-    }
-
-    /**
-     * @param urlExpansionObserver The observer that observes URL expansion progress change.
-     */
-    public void addUrlExpansionObserver(UrlExpansionObserver urlExpansionObserver) {
-        mToolbarLayout.addUrlExpansionObserver(urlExpansionObserver);
-    }
-
-    /**
-     * @param urlExpansionObserver The observer that observes URL expansion progress change.
-     */
-    public void removeUrlExpansionObserver(UrlExpansionObserver urlExpansionObserver) {
-        mToolbarLayout.removeUrlExpansionObserver(urlExpansionObserver);
     }
 
     /**
@@ -511,6 +504,15 @@ public class TopToolbarCoordinator implements Toolbar {
     }
 
     /**
+     * Sets the delegate for the optional button.
+     *
+     * @param delegate The {@link OptionalBrowsingModeButtonController.Delegate}.
+     */
+    public void setOptionalButtonDelegate(OptionalBrowsingModeButtonController.Delegate delegate) {
+        mOptionalButtonController.setDelegate(delegate);
+    }
+
+    /**
      * Gives inheriting classes the chance to update the visibility of the forward button.
      *
      * @param canGoForward Whether or not the current tab has any history to go forward to.
@@ -586,10 +588,11 @@ public class TopToolbarCoordinator implements Toolbar {
      * @param drawable The icon for the button.
      * @param description The content description for the button.
      * @param listener The {@link View.OnClickListener} to use for clicks to the button.
+     * @param {@link ButtonType} of the button.
      */
     public void addCustomActionButton(
-            Drawable drawable, String description, View.OnClickListener listener) {
-        mToolbarLayout.addCustomActionButton(drawable, description, listener);
+            Drawable drawable, String description, View.OnClickListener listener, int type) {
+        mToolbarLayout.addCustomActionButton(drawable, description, listener, type);
     }
 
     /**

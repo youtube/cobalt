@@ -18,6 +18,8 @@ source_set("lib") {
     "speech_recognition_recognizer_impl.h",
     "speech_recognition_service_impl.cc",
     "speech_recognition_service_impl.h",
+    "speech_timestamp_estimator.cc",
+    "speech_timestamp_estimator.h",
   ]
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
@@ -59,9 +61,9 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
-    "fake_speech_recognition_recognizer_client.h",
     "soda_speech_recognizer_impl_unittest.cc",
     "speech_recognition_recognizer_impl_unittest.cc",
+    "speech_timestamp_estimator_unittest.cc",
   ]
   deps = [
     ":lib",
@@ -91,4 +93,16 @@ source_set("unit_tests") {
       "//services/audio/public/cpp:test_support",
     ]
   }
+}
+
+source_set("test_mojo_client") {
+  testonly = true
+
+  sources = [ "fake_speech_recognition_recognizer_client.h" ]
+  deps = [
+    "//base",
+    "//media/mojo/common",
+    "//media/mojo/mojom:speech_recognition",
+    "//mojo/public/cpp/bindings",
+  ]
 }

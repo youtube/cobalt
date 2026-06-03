@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -513,7 +514,7 @@ IN_PROC_BROWSER_TEST_P(WebNavigationApiTestWithContextType, UserAction) {
   const extensions::Extension* extension =
       extension_registry()->enabled_extensions().GetByID(
           last_loaded_extension_id());
-  GURL url = extension->GetResourceURL(
+  GURL url = extension->ResolveExtensionURL(
       "a.html?" + base::NumberToString(embedded_test_server()->port()));
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -525,7 +526,7 @@ IN_PROC_BROWSER_TEST_P(WebNavigationApiTestWithContextType, UserAction) {
   params.page_url = url;
   params.frame_url = url;
   params.frame_origin = url::Origin::Create(params.frame_url);
-  params.link_url = extension->GetResourceURL("b.html");
+  params.link_url = extension->ResolveExtensionURL("b.html");
 
   // Get the child frame, which will be the one associated with the context
   // menu.
@@ -551,7 +552,7 @@ IN_PROC_BROWSER_TEST_P(WebNavigationApiTestWithContextType, RequestOpenTab) {
   const extensions::Extension* extension =
       extension_registry()->enabled_extensions().GetByID(
           last_loaded_extension_id());
-  GURL url = extension->GetResourceURL("a.html");
+  GURL url = extension->ResolveExtensionURL("a.html");
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 

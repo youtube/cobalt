@@ -9,6 +9,7 @@
 
 #include "base/files/file_util.h"
 #include "base/lazy_instance.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -66,7 +67,8 @@ GURL IconsInfo::GetIconURL(const Extension* extension,
                            ExtensionIconVariant::ColorScheme color_scheme) {
   const std::string& path =
       GetIcons(*extension, color_scheme).Get(size_in_px, match_type);
-  return path.empty() ? GURL() : extension->GetResourceURL(path);
+  return path.empty() ? GURL()
+                      : extension->ResolveExtensionURL(base::EscapePath(path));
 }
 
 bool IconsHandler::Parse(Extension* extension, std::u16string* error) {
@@ -91,13 +93,14 @@ bool IconsHandler::Parse(Extension* extension, std::u16string* error) {
   return true;
 }
 
-bool IconsHandler::Validate(const Extension* extension,
+bool IconsHandler::Validate(const Extension& extension,
                             std::string* error,
                             std::vector<InstallWarning>* warnings) const {
   // Analyze the icons for visibility using the default toolbar color, since
   // the majority of Chrome users don't modify their theme.
-  return file_util::ValidateExtensionIconSet(
-      IconsInfo::GetIcons(extension), extension, manifest_keys::kIcons, error);
+  return file_util::ValidateExtensionIconSet(IconsInfo::GetIcons(&extension),
+                                             &extension, manifest_keys::kIcons,
+                                             error);
 }
 
 base::span<const char* const> IconsHandler::Keys() const {

@@ -9,13 +9,16 @@
 
 #include <memory>
 
-#include "gpu/gpu_export.h"
+#include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 
 namespace gpu {
 
+class GpuMemoryBufferSupport;
+
 // Implementation of GPU memory buffer based on shared memory.
-class GPU_EXPORT GpuMemoryBufferImplSharedMemory : public GpuMemoryBufferImpl {
+class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplSharedMemory
+    : public GpuMemoryBufferImpl {
  public:
   GpuMemoryBufferImplSharedMemory(const GpuMemoryBufferImplSharedMemory&) =
       delete;
@@ -27,7 +30,7 @@ class GPU_EXPORT GpuMemoryBufferImplSharedMemory : public GpuMemoryBufferImpl {
   static constexpr gfx::GpuMemoryBufferType kBufferType =
       gfx::SHARED_MEMORY_BUFFER;
 
-  static std::unique_ptr<GpuMemoryBufferImplSharedMemory> Create(
+  static std::unique_ptr<GpuMemoryBufferImplSharedMemory> CreateForTesting(
       gfx::GpuMemoryBufferId id,
       const gfx::Size& size,
       gfx::BufferFormat format,
@@ -39,13 +42,6 @@ class GPU_EXPORT GpuMemoryBufferImplSharedMemory : public GpuMemoryBufferImpl {
       const gfx::Size& size,
       gfx::BufferFormat format,
       gfx::BufferUsage usage);
-
-  static std::unique_ptr<GpuMemoryBufferImplSharedMemory> CreateFromHandle(
-      gfx::GpuMemoryBufferHandle handle,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback);
 
   static bool IsUsageSupported(gfx::BufferUsage usage);
   static bool IsConfigurationSupported(gfx::BufferFormat format,
@@ -76,6 +72,15 @@ class GPU_EXPORT GpuMemoryBufferImplSharedMemory : public GpuMemoryBufferImpl {
   base::UnguessableToken GetSharedMemoryGUID() const;
 
  private:
+  friend class GpuMemoryBufferSupport;
+
+  static std::unique_ptr<GpuMemoryBufferImplSharedMemory> CreateFromHandle(
+      gfx::GpuMemoryBufferHandle handle,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      gfx::BufferUsage usage,
+      DestructionCallback callback);
+
   GpuMemoryBufferImplSharedMemory(
       gfx::GpuMemoryBufferId id,
       const gfx::Size& size,

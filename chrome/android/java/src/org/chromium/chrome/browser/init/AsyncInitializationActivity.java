@@ -12,7 +12,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.view.Display;
-import android.view.Menu;
 import android.view.View;
 import android.view.WindowManager;
 
@@ -452,10 +451,10 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
     }
 
     /**
-     * Allows subclasses to override the instance state passed to super.onCreate().
-     * The original instance state will still be available via getSavedInstanceState().
+     * Allows subclasses to override the instance state passed to super.onCreate(). The original
+     * instance state will still be available via getSavedInstanceState().
      */
-    protected Bundle transformSavedInstanceStateForOnCreate(Bundle savedInstanceState) {
+    protected @Nullable Bundle transformSavedInstanceStateForOnCreate(Bundle savedInstanceState) {
         return savedInstanceState;
     }
 
@@ -665,12 +664,6 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
 
     @Override
     public abstract boolean shouldStartGpuProcess();
-
-    @CallSuper
-    @Override
-    public void onContextMenuClosed(Menu menu) {
-        if (mWindowAndroid != null) mWindowAndroid.onContextMenuClosed();
-    }
 
     /**
      * Called when the content view gets drawn for the first time. See {@link FirstDrawDetector} for

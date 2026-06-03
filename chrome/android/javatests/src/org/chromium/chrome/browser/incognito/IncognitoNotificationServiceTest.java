@@ -96,7 +96,6 @@ public class IncognitoNotificationServiceTest {
                             Matchers.greaterThanOrEqualTo(1));
                 });
 
-        boolean isIncognitoNotificationDisplayed = false;
         CriteriaHelper.pollInstrumentationThread(
                 () -> {
                     List<? extends StatusBarNotificationProxy> activeNotifications =
@@ -127,7 +126,7 @@ public class IncognitoNotificationServiceTest {
 
         final Profile incognitoProfile =
                 ThreadUtils.runOnUiThreadBlocking(
-                        new Callable<Profile>() {
+                        new Callable<>() {
                             @Override
                             public Profile call() {
                                 return mActivityTestRule

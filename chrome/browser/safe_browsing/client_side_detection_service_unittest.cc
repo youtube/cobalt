@@ -33,11 +33,11 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
+#include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/mock_optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/proto/features/scam_detection.pb.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
@@ -122,8 +122,7 @@ class ClientSideDetectionServiceTest
       : profile_manager_(TestingBrowserProcess::GetGlobal()) {
     EXPECT_TRUE(profile_manager_.SetUp());
     profile_ = profile_manager_.CreateTestingProfile("test-user");
-    std::vector<base::test::FeatureRefAndParams> enabled_features = {
-        {kSafeBrowsingRemoveCookiesInAuthRequests, {}}};
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {};
     if (ShouldEnableESBDailyPhishingLimit()) {
       base::FieldTrialParams params;
       params["kMaxReportsPerIntervalESB"] = "10";
@@ -482,9 +481,9 @@ TEST_P(ClientSideDetectionServiceTest,
         EXPECT_THAT(
             request.headers.GetHeader(net::HttpRequestHeaders::kAuthorization),
             testing::Optional("Bearer " + access_token));
-        // Cookies should be removed when token is set.
+        // Cookies should still be included when token is set.
         EXPECT_EQ(request.credentials_mode,
-                  network::mojom::CredentialsMode::kOmit);
+                  network::mojom::CredentialsMode::kInclude);
       }));
   SetClientReportPhishingResponse(response.SerializeAsString(), net::OK);
   EXPECT_TRUE(SendClientReportPhishingRequest(url, score, access_token));
@@ -1681,13 +1680,24 @@ TEST_P(ClientSideDetectionServiceTest,
   // service class.
   csd_service_->SetOnDeviceAvailabilityForTesting(false);
 
-  csd_service_->LogOnDeviceModelEligibilityReason();
+  csd_service_->IsOnDeviceModelAvailable(
+      /*log_failed_eligibility_reason=*/true);
 
   // We expect the histogram value for
   // SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure to be
   // kModelTobeInstalled as we set the EXPECT_CALL above when calling for
   // function GetOnDeviceModelEligibility within the optimization guide service,
   // which is called in the service delegate.
+  histogram_tester.ExpectUniqueSample(
+      "SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure",
+      optimization_guide::OnDeviceModelEligibilityReason::kModelToBeInstalled,
+      1);
+
+  csd_service_->IsOnDeviceModelAvailable(
+      /*log_failed_eligibility_reason=*/false);
+
+  // The histogram is not logged again because
+  // log_failed_eligibility_reason is set to false.
   histogram_tester.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure",
       optimization_guide::OnDeviceModelEligibilityReason::kModelToBeInstalled,

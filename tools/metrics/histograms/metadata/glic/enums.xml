@@ -33,9 +33,35 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Get context failed"/>
   <int value="2" label="Invalid action proto"/>
   <int value="3" label="Target not found"/>
+  <int value="4" label="Failed to start task"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:ActInFocusedTabErrorReason) -->
+
+<!-- LINT.IfChange(ActiveTabSharingState) -->
+
+<enum name="ActiveTabSharingState">
+  <int value="0" label="Active tab is shared">
+    There is an active tab and it is shared with the web client. Tab context
+    permission is granted. The web client may apply additional restrictions that
+    could still block the shared tab contents from being actually used.
+  </int>
+  <int value="1" label="Cannot share the active tab">
+    There is no tab shared with the web client. There is a candidate tab that
+    cannot be shared with the web client as determined by the browser. Tab
+    context permission is granted.
+  </int>
+  <int value="2" label="No active tab can be shared">
+    There is no browser tab that could be shared with the web client. Tab
+    context permission is granted.
+  </int>
+  <int value="3" label="Tab access permission not granted">
+    The user did not grant permission for Glic to access tab contents. This
+    state precludes all other states.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:ActiveTabSharingState) -->
 
 <!-- LINT.IfChange(DeepScanAccessPoint) -->
 
@@ -56,6 +82,23 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h:DeepScanAccessPoint) -->
 
+<!-- LINT.IfChange(DisplayPosition) -->
+
+<enum name="DisplayPosition">
+  <int value="0" label="Top Left"/>
+  <int value="1" label="Center Left"/>
+  <int value="2" label="Bottom Left"/>
+  <int value="3" label="Top Center"/>
+  <int value="4" label="Center Center"/>
+  <int value="5" label="Bottom Center"/>
+  <int value="6" label="Top Right"/>
+  <int value="7" label="Center Right"/>
+  <int value="8" label="Bottom Right"/>
+  <int value="9" label="Unknown"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:DisplayPosition) -->
+
 <!-- LINT.IfChange(FreWebUiState) -->
 
 <enum name="FreWebUiState">
@@ -70,7 +113,8 @@ chromium-metrics-reviews@google.com.
              This state will be held for the remainder of
              `kMinHoldLoadingTimeMs`."/>
   <int value="4"
-      label="Loading panel is displayed until web client is ready, or until"/>
+      label="Loading panel is displayed until web client is ready, or until
+             `kMaxWaitTimeMs` timeout is reached."/>
   <int value="5" label="'Something went wrong' error panel is displayed."/>
   <int value="6" label="Connection offline panel is displayed."/>
   <int value="7" label="Web view is displayed."/>
@@ -88,6 +132,19 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:AttachChangeReason) -->
 
+<!-- LINT.IfChange(GlicBrowserActiveState) -->
+
+<enum name="GlicBrowserActiveState">
+  <int value="0" label="Browser active"/>
+  <int value="1" label="Browser recently active 1 to 5s"/>
+  <int value="2" label="Browser recently active 5 to 10s"/>
+  <int value="3" label="Browser recently active 10 to 30s"/>
+  <int value="4" label="Browser inactive"/>
+  <int value="5" label="Browser hidden"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.cc:BrowserActiveState) -->
+
 <!-- LINT.IfChange(GlicDetailedWebClientState) -->
 
 <enum name="GlicDetailedWebClientState">
@@ -98,32 +155,27 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Temporary unresponsive"/>
   <int value="5" label="Permanent unresponsive"/>
   <int value="6" label="Responsive"/>
+  <int value="7" label="Responsive Inactive"/>
+  <int value="8" label="Unresponsive Inactive"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/glic_api_host.ts:DetailedWebClientState) -->
 
-<!-- LINT.IfChange(GlicEntryPointImpression) -->
+<!-- LINT.IfChange(GlicEntryPointStatus) -->
 
-<enum name="GlicEntryPointImpression">
-  <int value="0" label="User has not completed fre."/>
-  <int value="1"
-      label="User has completed fre, browser entry point is enabled, and os
-             entry point is disabled."/>
-  <int value="2"
-      label="User has completed fre, browser entry point is disabled, and os
-             entry point is enabled."/>
-  <int value="3"
-      label="User has completed fre, both browser and os entry points are
-             enabled."/>
-  <int value="4"
-      label="User has completed fre, neither entry point is enabled."/>
-  <int value="5"
-      label="User is not allowed to see glic, e.g. due to enterprise policy."/>
-  <int value="6"
-      label="User has not completed fre, neither entry point is enabled."/>
+<enum name="GlicEntryPointStatus">
+  <int value="0" label="Not eligible and FRE not started."/>
+  <int value="1" label="Eligible and FRE not started."/>
+  <int value="2" label="Not Eligible and FRE incomplete."/>
+  <int value="3" label="Eligible and FRE incomplete."/>
+  <int value="4" label="OS entry point disabled."/>
+  <int value="5" label="Tabstrip button disabled."/>
+  <int value="6" label="Both Tabstrip and OS entrypoints enabled."/>
+  <int value="7" label="Only three-dot menu entry enabled."/>
+  <int value="8" label="Completed the FRE and not eligible."/>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:EntryPointImpression) -->
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:EntryPointStatus) -->
 
 <!-- LINT.IfChange(GlicHotkeyUsage) -->
 
@@ -284,6 +336,28 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Non-PDF main doc; PDF found"/>
   <int value="3" label="Non-PDF main doc; PDF not found"/>
 </enum>
+
+<!-- LINT.IfChange(WebClientUnresponsiveState) -->
+
+<enum name="WebClientUnresponsiveState">
+  <int value="0" label="Entered; webview event">
+    Entered unresponsive state, detected by a webview unresponsive event&quot;
+  </int>
+  <int value="1" label="Entered; heartbeat">
+    Entered unresponsive state, detected by Glic's custom heartbeat check&quot;
+  </int>
+  <int value="2" label="Already unresponsive; webview event">
+    Already on unresponsive state, detected again by a webview unresponsive
+    event&quot;
+  </int>
+  <int value="3" label="Already unresponsive; heartbeat">
+    Already on unresponsive state, detected again by Glic's custom heartbeat
+    check&quot;
+  </int>
+  <int value="4" label="Exited">Exited unresponsive state&quot;</int>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_app_controller.ts:WebClientUnresponsiveState) -->
 
 <!-- LINT.IfChange(WebUiState) -->
 

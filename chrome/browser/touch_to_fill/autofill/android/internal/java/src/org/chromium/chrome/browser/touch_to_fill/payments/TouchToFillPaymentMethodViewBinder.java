@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.touch_to_fill.payments;
 
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties.ON_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties.TEXT_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CURRENT_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.APPLY_DEACTIVATED_STYLE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.CARD_IMAGE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.FIRST_LINE_LABEL;
@@ -14,14 +17,17 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.ON_CREDIT_CARD_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.SECOND_LINE_LABEL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.DISMISS_HANDLER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.FooterProperties.OPEN_MANAGEMENT_UI_CALLBACK;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.FooterProperties.OPEN_MANAGEMENT_UI_TITLE_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.FooterProperties.SCAN_CREDIT_CARD_CALLBACK;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.FooterProperties.SHOULD_SHOW_SCAN_CREDIT_CARD;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.FooterProperties.SHOW_PAYMENT_METHOD_SETTINGS_CALLBACK;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.HeaderProperties.IMAGE_DRAWABLE_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.HeaderProperties.SUBTITLE_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.HeaderProperties.TITLE_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.IBAN_NICKNAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.IBAN_VALUE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.ON_IBAN_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.LOYALTY_CARD_ICON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.LOYALTY_CARD_NUMBER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.MERCHANT_NAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.ON_LOYALTY_CARD_CLICK_ACTION;
@@ -34,6 +40,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -42,6 +49,7 @@ import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.AllLoyaltyCardsItemProperties;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -104,7 +112,11 @@ class TouchToFillPaymentMethodViewBinder {
                 view.destroy();
             }
         } else if (propertyKey == SHEET_ITEMS) {
+            // SHEET_ITEMS and CURRENT_SCREEN properties are always updated together.
+            view.setCurrentScreen(model.get(CURRENT_SCREEN));
             TouchToFillPaymentMethodCoordinator.setUpCardItems(model, view);
+        } else if (propertyKey == CURRENT_SCREEN) {
+            // Intentionally ignored.
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
@@ -240,10 +252,31 @@ class TouchToFillPaymentMethodViewBinder {
             TextView merchantName = view.findViewById(R.id.merchant_name);
             merchantName.setText(model.get(MERCHANT_NAME));
             merchantName.setVisibility(View.VISIBLE);
+        } else if (propertyKey == LOYALTY_CARD_ICON) {
+            ImageView loyaltyCardIcon = view.findViewById(R.id.loyalty_card_icon);
+            loyaltyCardIcon.setImageDrawable(model.get(LOYALTY_CARD_ICON));
         } else if (propertyKey == ON_LOYALTY_CARD_CLICK_ACTION) {
             view.setOnClickListener(unusedView -> model.get(ON_LOYALTY_CARD_CLICK_ACTION).run());
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
+        }
+    }
+
+    static View createAllLoyaltyCardsItemView(ViewGroup parent) {
+        View view =
+                LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.touch_to_fill_all_loyalty_cards_item, parent, false);
+        AutofillUiUtils.setFilterTouchForSecurity(view);
+        return view;
+    }
+
+    static void bindAllLoyaltyCardsItemView(
+            PropertyModel model, View view, PropertyKey propertyKey) {
+        if (propertyKey == AllLoyaltyCardsItemProperties.ON_CLICK_ACTION) {
+            view.setOnClickListener(
+                    unusedView -> model.get(AllLoyaltyCardsItemProperties.ON_CLICK_ACTION).run());
+        } else {
+            assert false : "Unhandled update to property: " + propertyKey;
         }
     }
 
@@ -273,45 +306,60 @@ class TouchToFillPaymentMethodViewBinder {
         } else if (propertyKey == TITLE_ID) {
             TextView sheetHeaderTitle = view.findViewById(R.id.touch_to_fill_sheet_title);
             sheetHeaderTitle.setText(view.getContext().getString(model.get(TITLE_ID)));
+        } else if (propertyKey == SUBTITLE_ID) {
+            TextView sheetHeaderTitle = view.findViewById(R.id.touch_to_fill_sheet_subtitle);
+            sheetHeaderTitle.setVisibility(View.VISIBLE);
+            sheetHeaderTitle.setText(view.getContext().getString(model.get(SUBTITLE_ID)));
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
     }
 
-    static View createFillButtonView(ViewGroup parent) {
-        View buttonView =
-                LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.touch_to_fill_fill_button, parent, false);
+    /**
+     * Factory used to create a new "Continue" or "Autofill" button that fills in data into the
+     * focused field.
+     *
+     * @param parent The parent {@link ViewGroup} of the new item.
+     */
+    static Button createFillButtonView(ViewGroup parent) {
+        Button buttonView =
+                (Button)
+                        LayoutInflater.from(parent.getContext())
+                                .inflate(R.layout.touch_to_fill_fill_button, parent, false);
         AutofillUiUtils.setFilterTouchForSecurity(buttonView);
         return buttonView;
     }
 
-    static void bindFillButtonView(PropertyModel model, View view, PropertyKey propertyKey) {
-        if (propertyKey == ON_CREDIT_CARD_CLICK_ACTION) {
-            view.setOnClickListener(unusedView -> model.get(ON_CREDIT_CARD_CLICK_ACTION).run());
-            TextView buttonTitleText = view.findViewById(R.id.touch_to_fill_button_title);
-            buttonTitleText.setText(R.string.autofill_payment_method_continue_button);
-        } else if (propertyKey == ON_IBAN_CLICK_ACTION) {
-            view.setOnClickListener(unusedView -> model.get(ON_IBAN_CLICK_ACTION).run());
-            TextView buttonTitleText = view.findViewById(R.id.touch_to_fill_button_title);
-            buttonTitleText.setText(R.string.autofill_payment_method_continue_button);
-        } else if (propertyKey == ON_LOYALTY_CARD_CLICK_ACTION) {
-            view.setOnClickListener(unusedView -> model.get(ON_LOYALTY_CARD_CLICK_ACTION).run());
-            TextView buttonTitleText = view.findViewById(R.id.touch_to_fill_button_title);
-            buttonTitleText.setText(R.string.autofill_loyalty_card_autofill_button);
-        } else if (propertyKey == CARD_IMAGE
-                || propertyKey == MAIN_TEXT
-                || propertyKey == MAIN_TEXT_CONTENT_DESCRIPTION
-                || propertyKey == MINOR_TEXT
-                || propertyKey == FIRST_LINE_LABEL
-                || propertyKey == SECOND_LINE_LABEL
-                || propertyKey == IBAN_VALUE
-                || propertyKey == IBAN_NICKNAME
-                || propertyKey == ITEM_COLLECTION_INFO
-                || propertyKey == APPLY_DEACTIVATED_STYLE
-                || propertyKey == LOYALTY_CARD_NUMBER
-                || propertyKey == MERCHANT_NAME) {
-            // Skip, because none of these changes affect the button
+    /**
+     * Factory used to create a new "Wallet settings" button that redirects the user to the
+     * corresponding Chrome settings page.
+     *
+     * @param parent The parent {@link ViewGroup} of the new item.
+     */
+    static Button createWalletSettingsButtonView(ViewGroup parent) {
+        Button buttonView =
+                (Button)
+                        LayoutInflater.from(parent.getContext())
+                                .inflate(
+                                        R.layout.touch_to_fill_wallet_settings_button,
+                                        parent,
+                                        false);
+        AutofillUiUtils.setFilterTouchForSecurity(buttonView);
+        return buttonView;
+    }
+
+    /**
+     * Called whenever a property in the given model changes. It updates the given view accordingly.
+     *
+     * @param model The observed {@link PropertyModel}. Its data need to be reflected in the view.
+     * @param button The {@link Button} from the bottom sheet to update.
+     * @param key The {@link PropertyKey} which changed.
+     */
+    static void bindButtonView(PropertyModel model, Button button, PropertyKey propertyKey) {
+        if (propertyKey == TEXT_ID) {
+            button.setText(model.get(TEXT_ID));
+        } else if (propertyKey == ON_CLICK_ACTION) {
+            button.setOnClickListener(unusedView -> model.get(ON_CLICK_ACTION).run());
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
@@ -369,9 +417,11 @@ class TouchToFillPaymentMethodViewBinder {
             setScanCreditCardButton(view, model.get(SHOULD_SHOW_SCAN_CREDIT_CARD));
         } else if (propertyKey == SCAN_CREDIT_CARD_CALLBACK) {
             setScanCreditCardCallback(view, model.get(SCAN_CREDIT_CARD_CALLBACK));
-        } else if (propertyKey == SHOW_PAYMENT_METHOD_SETTINGS_CALLBACK) {
-            setShowPaymentMethodsSettingsCallback(
-                    view, model.get(SHOW_PAYMENT_METHOD_SETTINGS_CALLBACK));
+        } else if (propertyKey == OPEN_MANAGEMENT_UI_TITLE_ID) {
+            setShowPaymentMethodsSettingsTitle(
+                    view, view.getContext().getString(model.get(OPEN_MANAGEMENT_UI_TITLE_ID)));
+        } else if (propertyKey == OPEN_MANAGEMENT_UI_CALLBACK) {
+            setShowPaymentMethodsSettingsCallback(view, model.get(OPEN_MANAGEMENT_UI_CALLBACK));
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
@@ -392,8 +442,13 @@ class TouchToFillPaymentMethodViewBinder {
         scanCreditCard.setOnClickListener(unused -> callback.run());
     }
 
+    private static void setShowPaymentMethodsSettingsTitle(View view, String title) {
+        TextView managePaymentMethodsButton = view.findViewById(R.id.open_management_ui);
+        managePaymentMethodsButton.setText(title);
+    }
+
     private static void setShowPaymentMethodsSettingsCallback(View view, Runnable callback) {
-        View managePaymentMethodsButton = view.findViewById(R.id.manage_payment_methods);
+        View managePaymentMethodsButton = view.findViewById(R.id.open_management_ui);
         managePaymentMethodsButton.setOnClickListener(unused -> callback.run());
     }
 }

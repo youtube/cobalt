@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_ON_DEVICE_INTERNALS_ON_DEVICE_INTERNALS_PAGE_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_ON_DEVICE_INTERNALS_ON_DEVICE_INTERNALS_PAGE_HANDLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_page.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -57,9 +58,11 @@ class PageHandler : public mojom::PageHandler,
       ml::ModelPerformanceHint performance_hint,
       mojo::PendingReceiver<on_device_model::mojom::OnDeviceModel> model,
       LoadModelCallback callback) override;
-  void GetEstimatedPerformanceClass(
-      GetEstimatedPerformanceClassCallback callback) override;
+  void GetDevicePerformanceInfo(
+      GetDevicePerformanceInfoCallback callback) override;
   void GetPageData(GetPageDataCallback callback) override;
+  void SetFeatureRecentlyUsedState(int feature_key,
+                                   bool is_recently_used) override;
   void DecodeBitmap(mojo_base::BigBuffer image_buffer,
                     DecodeBitmapCallback callback) override;
   void ResetModelCrashCount() override;
@@ -71,10 +74,17 @@ class PageHandler : public mojom::PageHandler,
                          int source_line,
                          const std::string& message) override;
 
+  // Called when device performance info is received. Creates and fully
+  // populates a `PageData` to be returned via `callback`.
+  void OnReceivedPerformanceInfoForPageData(
+      GetPageDataCallback callback,
+      on_device_model::mojom::DevicePerformanceInfoPtr performance_info);
+
   mojo::Receiver<mojom::PageHandler> receiver_;
   mojo::Remote<mojom::Page> page_;
 
   mojo::Remote<Service> service_;
+  on_device_model::mojom::DevicePerformanceInfoPtr performance_info_;
 
   // Logger to receive the debug logs from the optimization guide service. Not
   // owned. Guaranteed to outlive |this|, since the logger is owned by the

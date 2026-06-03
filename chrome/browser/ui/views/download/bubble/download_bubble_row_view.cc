@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -642,7 +643,8 @@ void DownloadBubbleRowView::OnMainButtonPressed(const ui::Event& event) {
       !info_->main_button_enabled() || !info_->model()) {
     return;
   }
-  if (input_protector_->IsPossiblyUnintendedInteraction(event)) {
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/true)) {
     return;
   }
   if (info_->has_subpage()) {
@@ -660,7 +662,8 @@ void DownloadBubbleRowView::OnActionButtonPressed(
     DownloadCommands::Command command,
     const ui::Event& event) {
   if (!bubble_controller_ || !info_->model() ||
-      input_protector_->IsPossiblyUnintendedInteraction(event)) {
+      input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/true)) {
     return;
   }
   bubble_controller_->ProcessDownloadButtonPress(info_->model()->GetWeakPtr(),

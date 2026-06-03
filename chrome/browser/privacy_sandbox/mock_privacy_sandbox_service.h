@@ -121,7 +121,7 @@ class MockPrivacySandboxService : public PrivacySandboxService {
               (override));
   MOCK_METHOD(bool, ShouldUsePrivacyPolicyChinaDomain, (), (override));
   MOCK_METHOD(void, TopicsToggleChanged, (bool), (const, override));
-  MOCK_METHOD(bool, TopicsConsentRequired, (), (const, override));
+  MOCK_METHOD(bool, TopicsConsentRequired, (), (override));
   MOCK_METHOD(bool, TopicsHasActiveConsent, (), (const, override));
   MOCK_METHOD(privacy_sandbox::TopicsConsentUpdateSource,
               TopicsConsentLastUpdateSource,
@@ -129,6 +129,9 @@ class MockPrivacySandboxService : public PrivacySandboxService {
               (const, override));
   MOCK_METHOD(base::Time, TopicsConsentLastUpdateTime, (), (const, override));
   MOCK_METHOD(std::string, TopicsConsentLastUpdateText, (), (const, override));
+  MOCK_METHOD(void, UpdateTopicsApiResult, (bool), (override));
+  MOCK_METHOD(void, UpdateProtectedAudienceApiResult, (bool), (override));
+  MOCK_METHOD(void, UpdateMeasurementApiResult, (bool), (override));
 
  private:
   std::unique_ptr<privacy_sandbox::MockPrivacySandboxQueueManager>

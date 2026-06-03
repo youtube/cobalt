@@ -267,6 +267,9 @@ void ProfileImportProcess::DetermineProfileImportType() {
 }
 
 void ProfileImportProcess::DetermineSourceOfImportCandidate() {
+  // Even though kHomeAndWorkSuperset is a kind of new profile, it doesn't need
+  // to be handled here, since H/W is only available for users eligible to
+  // account address storage.
   if (import_type_ != AutofillProfileImportType::kNewProfile) {
     return;
   }
@@ -471,6 +474,8 @@ void ProfileImportProcess::CollectMetrics(
       autofill_metrics::LogNewProfileStorageLocation(
           *confirmed_import_candidate_);
     }
+  } else if (import_type_ == AutofillProfileImportType::kHomeAndWorkSuperset) {
+    autofill_metrics::LogHomeWorkSupersetImportDecision(user_decision_);
   } else if (is_confirmable_update()) {
     autofill_metrics::LogProfileUpdateImportDecision(
         user_decision_, existing_profiles,

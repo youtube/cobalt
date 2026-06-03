@@ -26,7 +26,6 @@
 #include "components/viz/service/display_embedder/compositor_gpu_thread.h"
 #include "components/viz/service/gl/exit_code.h"
 #include "components/viz/service/viz_service_export.h"
-#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/command_buffer/common/shm_count.h"
 #include "gpu/command_buffer/service/sequence_id.h"
 #include "gpu/config/gpu_info.h"
@@ -226,6 +225,10 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
 
   void GetVideoMemoryUsageStats(
       GetVideoMemoryUsageStatsCallback callback) override;
+  void AddVideoMemoryUsageStatsOnCompositorGpu(
+      GetVideoMemoryUsageStatsCallback callback,
+      gpu::VideoMemoryUsageStats video_memory_usage_stats);
+
   // These methods can be called from the CrBrowserMain thread and the
   // VizCompositorThread (with InputVizard) for PeakGpuMemory tracking.
   void StartPeakMemoryMonitor(uint32_t sequence_num) override;
@@ -428,9 +431,6 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
 
   bool IsNativeBufferSupported(gfx::BufferFormat format,
                                gfx::BufferUsage usage);
-  void RecordLogMessage(int severity,
-                        const std::string& header,
-                        const std::string& message);
 
 #if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   void CreateArcVideoDecodeAcceleratorOnMainThread(

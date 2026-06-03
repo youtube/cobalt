@@ -7,10 +7,10 @@ package org.chromium.chrome.browser.tab_group_sync;
 import android.text.TextUtils;
 
 import org.chromium.base.Callback;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.components.prefs.PrefService;
@@ -94,9 +94,7 @@ public final class TabGroupSyncRemoteObserver implements TabGroupSyncService.Obs
 
         // Shared tab groups should always auto-open if supported.
         boolean isAutoOpenEnabled =
-                ChromeFeatureList.isEnabled(ChromeFeatureList.TAB_GROUP_SYNC_AUTO_OPEN_KILL_SWITCH)
-                        && (mPrefService.getBoolean(Pref.AUTO_OPEN_SYNCED_TAB_GROUPS)
-                                || isCollaboration);
+                mPrefService.getBoolean(Pref.AUTO_OPEN_SYNCED_TAB_GROUPS) || isCollaboration;
         if (!isAutoOpenEnabled) return;
 
         mEnableLocalObserverCallback.onResult(false);
@@ -138,6 +136,7 @@ public final class TabGroupSyncRemoteObserver implements TabGroupSyncService.Obs
 
         mEnableLocalObserverCallback.onResult(false);
         mLocalTabGroupMutationHelper.closeTabGroup(localId, ClosingSource.DELETED_FROM_SYNC);
+        RecordHistogram.recordCount1000Histogram("TabGroups.CloseTabGroupsDeletedRemotely", 1);
         mEnableLocalObserverCallback.onResult(true);
     }
 

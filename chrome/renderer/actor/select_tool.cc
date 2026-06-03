@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "base/check.h"
+#include "base/notimplemented.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/url_constants.h"
@@ -28,17 +29,18 @@ using blink::WebOptionElement;
 using blink::WebSelectElement;
 using blink::WebString;
 
-SelectTool::SelectTool(mojom::SelectActionPtr action,
-                       content::RenderFrame& frame)
-    : frame_(frame), action_(std::move(action)) {}
+SelectTool::SelectTool(content::RenderFrame& frame,
+                       Journal::TaskId task_id,
+                       Journal& journal,
+                       mojom::SelectActionPtr action)
+    : ToolBase(frame, task_id, journal), action_(std::move(action)) {}
 
 SelectTool::~SelectTool() = default;
 
-void SelectTool::Execute(ToolFinishedCallback callback) {
+mojom::ActionResultPtr SelectTool::Execute() {
   ValidatedResult validated_result = Validate();
   if (!validated_result.has_value()) {
-    std::move(callback).Run(std::move(validated_result.error()));
-    return;
+    return std::move(validated_result.error());
   }
 
   WebSelectElement select = validated_result.value().select;
@@ -47,13 +49,12 @@ void SelectTool::Execute(ToolFinishedCallback callback) {
 
   // Check if the set value is now the current value in the <select>
   if (select.Value() != value) {
-    std::move(callback).Run(
-        MakeResult(mojom::ActionResultCode::kSelectUnexpectedValue,
-                   absl::StrFormat("ValueAfter [%s]", select.Value().Utf8())));
-    return;
+    return MakeResult(
+        mojom::ActionResultCode::kSelectUnexpectedValue,
+        absl::StrFormat("ValueAfter [%s]", select.Value().Utf8()));
   }
 
-  std::move(callback).Run(MakeOkResult());
+  return MakeOkResult();
 }
 
 std::string SelectTool::DebugString() const {
@@ -62,10 +63,8 @@ std::string SelectTool::DebugString() const {
 }
 
 SelectTool::ValidatedResult SelectTool::Validate() const {
-  if (!frame_->GetWebFrame()->FrameWidget()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kFrameWentAway));
-  }
+  CHECK(frame_->GetWebFrame());
+  CHECK(frame_->GetWebFrame()->FrameWidget());
 
   mojom::ToolTargetPtr& target = action_->target;
 

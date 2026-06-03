@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "mojo/public/cpp/system/data_pipe.h"
@@ -565,6 +566,18 @@ void WebTransport::Close(mojom::WebTransportCloseInfoPtr close_info) {
 
 void WebTransport::CloseIfNonceMatches(base::UnguessableToken nonce) {
   transport_->CloseIfNonceMatches(nonce);
+}
+
+void WebTransport::OnBeforeConnect(const net::IPEndPoint& server_address) {
+  if (torn_down_ || closing_) {
+    return;
+  }
+
+  DCHECK(handshake_client_);
+
+  // Here we assume that the server_address is not going to handed to the
+  // initiator renderer.
+  handshake_client_->OnBeforeConnect(server_address);
 }
 
 void WebTransport::OnConnected(

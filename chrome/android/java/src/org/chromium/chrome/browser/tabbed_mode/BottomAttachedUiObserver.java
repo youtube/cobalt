@@ -36,8 +36,9 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
-import org.chromium.ui.InsetObserver;
+import org.chromium.ui.insets.InsetObserver;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -462,9 +463,7 @@ public class BottomAttachedUiObserver
 
         // When bottom chin constraint exists, the chin will have the same coloring mechanism as
         // the OS navigation bar as if E2E is disabled.
-        if (EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.EDGE_TO_EDGE_SAFE_AREA_CONSTRAINT)) {
+        if (EdgeToEdgeUtils.isSafeAreaConstraintEnabled()) {
             boolean hasScrollablePortion =
                     bottomOffset < mBottomControlsHeight - mBottomControlsMinHeight;
             boolean chinNotScrollable =
@@ -552,13 +551,19 @@ public class BottomAttachedUiObserver
     @Override
     public void onSheetContentChanged(BottomSheetContent newContent) {
         if (newContent != null) {
-            mBottomSheetColor = newContent.getBackgroundColor();
+            mBottomSheetColor = mBottomSheetController.getSheetBackgroundColor();
         }
         updateBottomAttachedColor();
     }
 
     @Override
-    public void onSheetOffsetChanged(float heightFraction, float offsetPx) {}
+    public void onSheetOffsetChanged(float heightFraction, float offsetPx) {
+        Integer newColor = mBottomSheetController.getSheetBackgroundColor();
+        if (Objects.equals(newColor, mBottomSheetColor)) return;
+
+        mBottomSheetColor = newColor;
+        updateBottomAttachedColor();
+    }
 
     @Override
     public void onSheetStateChanged(@SheetState int newState, @StateChangeReason int reason) {}

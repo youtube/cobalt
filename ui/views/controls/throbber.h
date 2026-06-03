@@ -41,6 +41,7 @@ class VIEWS_EXPORT Throbber : public View {
 
   int GetDiameter() const { return diameter_; }
   void SetColorId(ui::ColorId color) { color_id_ = color; }
+  std::optional<ui::ColorId> GetColorId() { return color_id_; }
 
  protected:
   // Specifies whether the throbber is currently animating or not
@@ -60,6 +61,8 @@ class VIEWS_EXPORT Throbber : public View {
 
   // Overrides the default color, ui::kColorThrobber, if set.
   std::optional<ui::ColorId> color_id_;
+
+  base::WeakPtrFactory<Throbber> weak_ptr_factory_{this};
 };
 
 BEGIN_VIEW_BUILDER(VIEWS_EXPORT, Throbber, View)

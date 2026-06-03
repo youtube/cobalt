@@ -29,13 +29,19 @@ class MockBaseDialogUIDelegate : public BaseDialogUIDelegate {
   ~MockBaseDialogUIDelegate() override = default;
 
   MOCK_METHOD(void, ResizeNativeView, (int height), (override));
-  MOCK_METHOD(void, ShowNativeView, (), (override));
+  MOCK_METHOD(void,
+              ShowNativeView,
+              (base::OnceCallback<void()> callback),
+              (override));
   MOCK_METHOD(void, CloseNativeView, (), (override));
   MOCK_METHOD(PrivacySandboxNotice, GetPrivacySandboxNotice, (), (override));
   MOCK_METHOD(void,
               SetPrivacySandboxNotice,
               (PrivacySandboxNotice),
               (override));
+  MOCK_METHOD(void, OpenPrivacySandboxSettings, (), (override));
+  MOCK_METHOD(void, OpenPrivacySandboxAdMeasurementSettings, (), (override));
+  MOCK_METHOD(BrowserWindowInterface*, GetBrowser, (), (override));
 };
 
 class MockBaseDialogPage : public dialog::mojom::BaseDialogPage {
@@ -58,6 +64,19 @@ class PrivacySandboxBaseDialogHandlerTest : public testing::Test {
  public:
   PrivacySandboxBaseDialogHandlerTest() = default;
 
+  void ShowDialogAndRunCallback() {
+    base::OnceCallback<void()> captured_callback;
+    EXPECT_CALL(mock_delegate_, ShowNativeView(testing::_))
+        .Times(1)
+        .WillOnce([&](base::OnceCallback<void()> callback) {
+          captured_callback = std::move(callback);
+        });
+    handler_.ShowDialog();
+    ASSERT_FALSE(handler_.IsNativeDialogShownForTesting());
+    std::move(captured_callback).Run();
+    ASSERT_TRUE(handler_.IsNativeDialogShownForTesting());
+  }
+
  protected:
   content::BrowserTaskEnvironment task_environment_;
   MockBaseDialogPage mock_page_;
@@ -69,13 +88,131 @@ class PrivacySandboxBaseDialogHandlerTest : public testing::Test {
 };
 
 TEST_F(PrivacySandboxBaseDialogHandlerTest, ShowDialog) {
-  EXPECT_CALL(mock_delegate_, ShowNativeView()).Times(1);
-  handler_.ShowDialog();
+  ShowDialogAndRunCallback();
 }
 
-TEST_F(PrivacySandboxBaseDialogHandlerTest, EventOccurred) {
+TEST_F(PrivacySandboxBaseDialogHandlerTest, EventOccurredAfterDialogShown) {
+  ShowDialogAndRunCallback();
+
   EXPECT_CALL(view_manager_, OnEventOccurred(kTestNotice, kTestEvent));
   handler_.EventOccurred(kTestNotice, kTestEvent);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerTest,
+       EventsOccurredBeforeAndAfterDialogShown) {
+  EXPECT_CALL(view_manager_, OnEventOccurred(testing::_, testing::_)).Times(0);
+  handler_.EventOccurred(PrivacySandboxNotice::kTopicsConsentNotice,
+                         PrivacySandboxNoticeEvent::kShown);
+  handler_.EventOccurred(PrivacySandboxNotice::kTopicsConsentNotice,
+                         PrivacySandboxNoticeEvent::kOptIn);
+  // Verify that the view manager's OnEventOccurred is not called.
+  testing::Mock::VerifyAndClearExpectations(&view_manager_);
+  {
+    testing::InSequence s;
+    EXPECT_CALL(view_manager_,
+                OnEventOccurred(PrivacySandboxNotice::kTopicsConsentNotice,
+                                PrivacySandboxNoticeEvent::kShown));
+    EXPECT_CALL(view_manager_,
+                OnEventOccurred(PrivacySandboxNotice::kTopicsConsentNotice,
+                                PrivacySandboxNoticeEvent::kOptIn));
+  }
+  ShowDialogAndRunCallback();
+  // Verify that the view manager's OnEventOccurred is called for both events in
+  // the correct sequence after we have shown the dialog and run the callback.
+  testing::Mock::VerifyAndClearExpectations(&view_manager_);
+  // Verify that the view manager's OnEventOccurred is called immediately since
+  // the dialog has already been shown.
+  EXPECT_CALL(view_manager_,
+              OnEventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                              PrivacySandboxNoticeEvent::kAck));
+  handler_.EventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                         PrivacySandboxNoticeEvent::kAck);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerTest,
+       EventOccurred_OpenProtectedAudienceMeasurementSettings) {
+  ShowDialogAndRunCallback();
+  EXPECT_CALL(
+      view_manager_,
+      OnEventOccurred(PrivacySandboxNotice::kProtectedAudienceMeasurementNotice,
+                      PrivacySandboxNoticeEvent::kSettings))
+      .Times(1);
+
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxSettings()).Times(1);
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxAdMeasurementSettings())
+      .Times(0);
+
+  handler_.EventOccurred(
+      PrivacySandboxNotice::kProtectedAudienceMeasurementNotice,
+      PrivacySandboxNoticeEvent::kSettings);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerTest,
+       EventOccurred_OpenThreeAdsApisSettings) {
+  ShowDialogAndRunCallback();
+  EXPECT_CALL(view_manager_,
+              OnEventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                              PrivacySandboxNoticeEvent::kSettings))
+      .Times(1);
+
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxSettings()).Times(1);
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxAdMeasurementSettings())
+      .Times(0);
+
+  handler_.EventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                         PrivacySandboxNoticeEvent::kSettings);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerTest,
+       EventOccurred_OpenAdMeasurementSettings) {
+  ShowDialogAndRunCallback();
+  EXPECT_CALL(view_manager_,
+              OnEventOccurred(PrivacySandboxNotice::kMeasurementNotice,
+                              PrivacySandboxNoticeEvent::kSettings))
+      .Times(1);
+
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxSettings()).Times(0);
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxAdMeasurementSettings())
+      .Times(1);
+
+  handler_.EventOccurred(PrivacySandboxNotice::kMeasurementNotice,
+                         PrivacySandboxNoticeEvent::kSettings);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerTest, EventOccurred_NonSettingsEvent) {
+  ShowDialogAndRunCallback();
+  EXPECT_CALL(view_manager_, OnEventOccurred(kTestNotice, kTestEvent)).Times(1);
+
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxSettings()).Times(0);
+  EXPECT_CALL(mock_delegate_, OpenPrivacySandboxAdMeasurementSettings())
+      .Times(0);
+
+  handler_.EventOccurred(kTestNotice, kTestEvent);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerTest,
+       EventOccurredBeforeShown_OpenThreeAdsApisSettings) {
+  EXPECT_CALL(view_manager_, OnEventOccurred(testing::_, testing::_)).Times(0);
+  handler_.EventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                         PrivacySandboxNoticeEvent::kShown);
+  handler_.EventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                         PrivacySandboxNoticeEvent::kSettings);
+  // Verify that the view manager's OnEventOccurred is not called.
+  testing::Mock::VerifyAndClearExpectations(&view_manager_);
+  {
+    testing::InSequence s;
+    EXPECT_CALL(view_manager_,
+                OnEventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                                PrivacySandboxNoticeEvent::kShown));
+    EXPECT_CALL(mock_delegate_, OpenPrivacySandboxSettings()).Times(1);
+    EXPECT_CALL(view_manager_,
+                OnEventOccurred(PrivacySandboxNotice::kThreeAdsApisNotice,
+                                PrivacySandboxNoticeEvent::kSettings));
+  }
+  ShowDialogAndRunCallback();
+  // Verify that the view manager's OnEventOccurred is called for both events in
+  // the correct sequence after we have shown the dialog and run the callback.
+  testing::Mock::VerifyAndClearExpectations(&view_manager_);
 }
 
 TEST_F(PrivacySandboxBaseDialogHandlerTest, ResizeDialog) {
@@ -142,6 +279,18 @@ TEST_F(PrivacySandboxBaseDialogHandlerNullDelegateTest, EventOccurred) {
                               PrivacySandboxNoticeEvent::kOptIn));
   handler_.EventOccurred(PrivacySandboxNotice::kTopicsConsentNotice,
                          PrivacySandboxNoticeEvent::kOptIn);
+}
+
+TEST_F(PrivacySandboxBaseDialogHandlerNullDelegateTest,
+       EventOccurred_SettingsEvent) {
+  EXPECT_CALL(
+      view_manager_,
+      OnEventOccurred(PrivacySandboxNotice::kProtectedAudienceMeasurementNotice,
+                      PrivacySandboxNoticeEvent::kSettings));
+
+  EXPECT_NO_FATAL_FAILURE(handler_.EventOccurred(
+      PrivacySandboxNotice::kProtectedAudienceMeasurementNotice,
+      PrivacySandboxNoticeEvent::kSettings));
 }
 
 TEST_F(PrivacySandboxBaseDialogHandlerNullDelegateTest,

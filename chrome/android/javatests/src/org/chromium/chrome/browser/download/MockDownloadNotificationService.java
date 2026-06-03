@@ -13,6 +13,7 @@ import android.graphics.Bitmap;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.browser.profiles.OtrProfileId;
+import org.chromium.components.download.DownloadDangerType;
 import org.chromium.components.offline_items_collection.ContentId;
 import org.chromium.components.offline_items_collection.FailState;
 import org.chromium.components.offline_items_collection.OfflineItem.Progress;
@@ -24,7 +25,7 @@ import java.util.List;
 
 /** Mock class to DownloadNotificationService for testing purpose. */
 public class MockDownloadNotificationService extends DownloadNotificationService {
-    private final List<Integer> mNotificationIds = new ArrayList<Integer>();
+    private final List<Integer> mNotificationIds = new ArrayList<>();
     private boolean mPaused;
     private int mLastNotificationId = DEFAULT_NOTIFICATION_ID;
     private int mNumberOfNotifications;
@@ -172,6 +173,29 @@ public class MockDownloadNotificationService extends DownloadNotificationService
                                 shouldPromoteOrigin,
                                 otrProfileId,
                                 failState));
+    }
+
+    @Override
+    public void notifyDownloadDangerous(
+            ContentId id,
+            String fileName,
+            GURL originalUrl,
+            boolean shouldPromoteOrigin,
+            OtrProfileId otrProfileId,
+            boolean canDownloadWhileMetered,
+            boolean isTransient,
+            @DownloadDangerType int dangerType) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        MockDownloadNotificationService.super.notifyDownloadDangerous(
+                                id,
+                                fileName,
+                                originalUrl,
+                                shouldPromoteOrigin,
+                                otrProfileId,
+                                canDownloadWhileMetered,
+                                isTransient,
+                                dangerType));
     }
 
     @Override

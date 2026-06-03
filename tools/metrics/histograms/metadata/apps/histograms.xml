@@ -183,7 +183,7 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.ThenChange(//tools/metrics/histograms/metadata/ash/histograms.xml:AshDisplayModes) -->
 
 <histogram name="AppManagement.AppDetailViews{AppType}"
-    enum="AppManagementUserAction" expires_after="2025-10-12">
+    enum="AppManagementUserAction" expires_after="2025-12-14">
   <owner>sharminzaman@google.com</owner>
   <owner>ovn@google.com</owner>
   <owner>cros-web-apps-team@google.com</owner>
@@ -814,6 +814,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Apps.AppList.GeminiSearchBoxIcon" enum="SearchBoxIconEvent"
+    expires_after="2026-03-01">
+  <owner>yawano@google.com</owner>
+  <owner>assistive-eng@google.com</owner>
+  <summary>
+    Impression or click events for a Gemini search box icon. This metric was
+    previously recorded as Assistant.NewEntryPoint.Eligibility and
+    Assistant.NewEntryPoint.Launcher before M138.
+  </summary>
+</histogram>
+
 <histogram name="Apps.AppList.HelpAppProvider.ListSearchResultState"
     enum="HelpAppProviderListSearchResultState" expires_after="2026-03-01">
   <owner>chenjih@google.com</owner>
@@ -1197,84 +1208,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records errors in processing other Apps.AppList.Search.* metrics. These are
     expected to be rare and bucket proportion is not meaningful.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.Search.Federated.Actions"
-    enum="AppListFederatedActions" expires_after="2025-05-01">
-  <owner>amandadeacon@chromium.org</owner>
-  <owner>alanlxl@chromium.org</owner>
-  <owner>amoylan@chromium.org</owner>
-  <summary>
-    Emitted on usage of launcher search. Records overall impressions, launches,
-    abandons, and ignores, for the query list view when federated analytics is
-    enabled.
-
-    Impression. Emitted if either a) the view is displayed for 2 seconds or b)
-    the user interacted with a result, eg. by clicking it.
-
-    Launch. Emitted after an impression, if a result is clicked in the query
-    list view.
-
-    Abandon. Emitted after an impression, if the user closes the launcher or
-    moves to another UI view.
-
-    Ignore. Emitted after an impression, if the user launches a result from a
-    different currently visible UI view.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.Search.Federated.InitStatus"
-    enum="AppListFederatedInitStatus" expires_after="2025-09-09">
-  <owner>amandadeacon@chromium.org</owner>
-  <owner>alanlxl@chromium.org</owner>
-  <owner>amoylan@chromium.org</owner>
-  <summary>
-    Records status in initialization of federated analytics. These are expected
-    to be rare, and the bucket proportion is not meaningful.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.Search.Federated.QueryLengthOnStorageSuccess"
-    units="characters" expires_after="2025-05-01">
-  <owner>amandadeacon@chromium.org</owner>
-  <owner>alanlxl@chromium.org</owner>
-  <owner>amoylan@chromium.org</owner>
-  <summary>
-    Records the length of launcher query strings which are successfully reported
-    to on-device (Federated Service) storage.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.Search.Federated.ReportStatus"
-    enum="AppListFederatedReportStatus" expires_after="2025-09-09">
-  <owner>amandadeacon@chromium.org</owner>
-  <owner>alanlxl@chromium.org</owner>
-  <owner>amoylan@chromium.org</owner>
-  <summary>
-    Records status in reporting of federated analytics examples. These are
-    expected to be rare, and the bucket proportion is not meaningful.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.Search.Federated.SearchSessionConclusion"
-    enum="AppListFederatedSearchSessionConclusion" expires_after="2025-03-09">
-  <owner>amandadeacon@chromium.org</owner>
-  <owner>amoylan@chromium.org</owner>
-  <summary>
-    Tracks the conclusion of each search session starting from the search box.
-    Records launcher dismissals (&quot;quit&quot;), launches, and viewings of
-    answer card results, for the query list view when federated analytics is
-    enabled.
-
-    Quit. Emitted if the user dismisses search without launching a result or
-    seeing an answer card.
-
-    Launch. Emitted if the user launches a search result.
-
-    AnswerCardSeen. Emitted if an answer card is displayed for some threshold
-    period of time, and the user then dismisses the launcher without launching a
-    result.
   </summary>
 </histogram>
 
@@ -1863,7 +1796,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Apps.AppListBubble.{AppListPage}.AppLaunchesByEntity{ExperimentalArm}"
-    enum="AppListEntity" expires_after="2025-09-28">
+    enum="AppListEntity" expires_after="2025-11-30">
   <owner>anasalazar@google.com</owner>
   <owner>anooshree@google.com</owner>
   <owner>tbarzic@chromium.org</owner>
@@ -2310,7 +2243,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.ContextMenuExecuteCommand.{ContextMenuFromApp}{Mode}"
-    enum="ChromeOSUICommands" expires_after="2025-10-12">
+    enum="ChromeOSUICommands" expires_after="2025-12-14">
   <owner>tbarzic@chromium.org</owner>
   <owner>newcomer@chromium.org</owner>
   <owner>mmourgos@chromium.org</owner>
@@ -2359,7 +2292,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.CreateShortcutIcon.Linux.Result"
-    enum="WebAppCreateShortcutIconLinuxResult" expires_after="2025-10-12">
+    enum="WebAppCreateShortcutIconLinuxResult" expires_after="2025-12-14">
   <owner>estade@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2492,7 +2425,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.FullRestoreWindowCount2" units="count"
-    expires_after="2025-10-15">
+    expires_after="2025-12-14">
   <owner>dandersson@chromium.org</owner>
   <owner>fanafan@chromium.org</owner>
   <owner>chromeos-wm-corexp@google.com</owner>
@@ -2595,7 +2528,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.MediaApp.Load.OtherOpenWindowCount" units="windows"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>tapted@chromium.org</owner>
   <owner>patricialor@chromium.org</owner>
   <summary>
@@ -2651,7 +2584,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.OobeAppRecommendationsService.ServerResponseCodes"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2025-07-06">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-06">
   <owner>bohdanty@google.com</owner>
   <owner>cros-oobe@google.com</owner>
   <summary>
@@ -2809,7 +2742,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.RestoredAppLaunch" enum="AppType"
-    expires_after="2025-10-15">
+    expires_after="2025-12-14">
   <owner>dandersson@chromium.org</owner>
   <owner>fanafan@chromium.org</owner>
   <owner>chromeos-wm-corexp@google.com</owner>
@@ -2820,7 +2753,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.RestoreInitSetting" enum="RestoreSetting"
-    expires_after="2025-10-15">
+    expires_after="2025-12-14">
   <owner>dandersson@chromium.org</owner>
   <owner>fanafan@chromium.org</owner>
   <owner>chromeos-wm-corexp@google.com</owner>
@@ -2831,7 +2764,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.RestoreSetting" enum="RestoreSetting"
-    expires_after="2025-10-15">
+    expires_after="2025-12-14">
   <owner>dandersson@chromium.org</owner>
   <owner>fanafan@chromium.org</owner>
   <owner>chromeos-wm-corexp@google.com</owner>

@@ -12,12 +12,12 @@
 #include "chrome/browser/optimization_guide/optimization_guide_tab_url_provider.h"
 #include "chrome/browser/optimization_guide/optimization_guide_web_contents_observer.h"
 #include "chrome/test/base/testing_profile.h"
-#include "components/optimization_guide/core/hints_fetcher.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/hints_fetcher.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_store.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
-#include "components/optimization_guide/core/optimization_guide_store.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/core/proto_database_provider_test_base.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -63,8 +63,7 @@ class ChromeHintsManagerFetchingTest
          },
          {optimization_guide::features::kOptimizationHints,
           {{"max_host_keyed_hint_cache_size", "1"}}}},
-        {optimization_guide::features::
-             kRemoteOptimizationGuideFetchingAnonymousDataConsent});
+        {});
   }
   ChromeHintsManagerFetchingTest(const ChromeHintsManagerFetchingTest&) =
       delete;
@@ -99,7 +98,7 @@ class ChromeHintsManagerFetchingTest
 
     hint_store_ = std::make_unique<optimization_guide::OptimizationGuideStore>(
         db_provider_.get(), temp_dir(),
-        task_environment_.GetMainThreadTaskRunner(), /*pref_service=*/nullptr);
+        task_environment_.GetMainThreadTaskRunner());
 
     tab_url_provider_ = std::make_unique<FakeTabUrlProvider>();
 

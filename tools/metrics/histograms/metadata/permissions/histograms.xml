@@ -194,7 +194,7 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(PredictionModels) -->
 
 <variants name="PredictionModels">
-  <variant name="Aiv3"/>
+  <variant name="AIv3"/>
   <variant name="OnDevicePredictionService"/>
   <variant name="PredictionService"/>
 </variants>
@@ -313,7 +313,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Action.{PermissionType}.CrossOriginFrame"
-    enum="PermissionAction" expires_after="2025-10-12">
+    enum="PermissionAction" expires_after="2025-12-14">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -433,16 +433,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Permissions.AIv1.PermissionRequestRelevance"
-    enum="PermissionRequestRelevance" expires_after="2026-03-07">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records the generated relevance signal after a successful execution of the
-    AIv1 model.
-  </summary>
-</histogram>
-
 <histogram name="Permissions.AIv1.PreviousSessionFinishedInTime"
     enum="BooleanSuccess" expires_after="2026-01-11">
   <owner>elklm@chromium.org</owner>
@@ -474,6 +464,36 @@ chromium-metrics-reviews@google.com.
     Records whether a session was created successfully for the on-device AIv1
     model each time we inquire the model. We also log failures when the model is
     not available.
+  </summary>
+</histogram>
+
+<histogram name="Permissions.AIv3.ModelHandlerProviderExists"
+    enum="BooleanSuccess" expires_after="2025-12-02">
+  <owner>elklm@chromium.org</owner>
+  <owner>hempjudith@google.com</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records whether the PredictionModelHandlerProvider exists for the AIv3.
+  </summary>
+</histogram>
+
+<histogram name="Permissions.AIv3.PermissionsAiv3HandlerExists"
+    enum="BooleanSuccess" expires_after="2025-12-02">
+  <owner>elklm@chromium.org</owner>
+  <owner>hempjudith@google.com</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records whether the PermissionsAiv3Handler exists for the AIv3.
+  </summary>
+</histogram>
+
+<histogram name="Permissions.AIv3.RelevanceHasValue" enum="BooleanSuccess"
+    expires_after="2025-12-02">
+  <owner>elklm@chromium.org</owner>
+  <owner>hempjudith@google.com</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records whether the AIv3 model execution callback has a relevance value.
   </summary>
 </histogram>
 
@@ -640,7 +660,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.CrowdDeny.SafeBrowsing.RequestDuration" units="ms"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -710,7 +730,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Engagement.Accepted{PermissionRequestTypes}"
-    units="%" expires_after="2025-09-28">
+    units="%" expires_after="2025-11-30">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -922,7 +942,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.PageInfo.Changed.{PermissionType}.{ReloadInfoBar}"
-    enum="PermissionChangeAction" expires_after="2025-10-05">
+    enum="PermissionChangeAction" expires_after="2025-12-07">
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1707,7 +1727,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Revocation.Notifications.DidRecordUkm"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>engedy@chromium.org</owner>
   <owner>willxu@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1791,7 +1811,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Usage.ElapsedTimeSinceLastUsage.{PermissionType}"
-    units="ms" expires_after="2025-10-12">
+    units="ms" expires_after="2025-12-14">
   <owner>lyf@chromium.org</owner>
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1835,6 +1855,39 @@ chromium-metrics-reviews@google.com.
     the {PredictionModel} and await its response for a permission request.
   </summary>
   <token key="PredictionModel" variants="PredictionModels"/>
+</histogram>
+
+<histogram name="Permissions.{Version}.PermissionRequestRelevance"
+    enum="PermissionRequestRelevance" expires_after="2026-03-07">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the generated relevance signal after a successful execution of the
+    available model.
+  </summary>
+  <token key="Version">
+    <variant name="AIv1"/>
+    <variant name="AIv3"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Permissions.{Version}.{PermissionType}.PermissionRequestRelevance"
+    enum="PermissionRequestRelevance" expires_after="2026-03-07">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the generated relevance signal after a successful execution of the
+    available model.
+  </summary>
+  <token key="Version">
+    <variant name="AIv1"/>
+    <variant name="AIv3"/>
+  </token>
+  <token key="PermissionType">
+    <variant name="Geolocation"/>
+    <variant name="Notifications"/>
+  </token>
 </histogram>
 
 <histogram name="SiteEngagementService.EngagementScore" units="units"
@@ -1918,7 +1971,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebsiteSettings.AllSitesAction2"
-    enum="WebSiteSettingsAllSitesAction2" expires_after="2025-09-28">
+    enum="WebSiteSettingsAllSitesAction2" expires_after="2025-11-30">
   <owner>sauski@google.com</owner>
   <owner>alimariam@google.com</owner>
   <summary>

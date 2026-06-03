@@ -27,8 +27,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.edge_to_edge.layout.EdgeToEdgeLayoutCoordinator;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ImmutableWeakReference;
+import org.chromium.ui.insets.InsetObserver;
 
 /**
  * Dialog class in Chrome
@@ -66,7 +66,10 @@ public class ChromeDialog extends ComponentDialog {
         if (mShouldPadForWindowInsets && getWindow() != null) {
             mInsetObserver =
                     new InsetObserver(
-                            new ImmutableWeakReference<>(getWindow().getDecorView().getRootView()));
+                            new ImmutableWeakReference<>(getWindow().getDecorView().getRootView()),
+                            // Keyboard overlay mode is enabled by default and is currently only
+                            // relevant to the DeferredImeWindowInsetApplicationCallback.
+                            /* enableKeyboardOverlayMode= */ true);
         }
         // Currently, only the EdgeToEdgeLayoutCoordinator is listening to this InsetObserver,
         // and that class can handle cases with a null Window / null InsetObserver. Before

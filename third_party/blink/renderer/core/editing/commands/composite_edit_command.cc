@@ -99,7 +99,7 @@ namespace {
 
 bool IsWhitespaceForRebalance(const Text& text_node, UChar character) {
   if (IsWhitespace(character)) {
-    if (character == kNewlineCharacter &&
+    if (character == uchar::kLineFeed &&
         RuntimeEnabledFeatures::InsertLineBreakIfPhrasingContentEnabled()) {
       return !text_node.GetLayoutObject() ||
              text_node.GetLayoutObject()->StyleRef().ShouldCollapseBreaks();
@@ -387,8 +387,8 @@ void CompositeEditCommand::InsertNodeAt(Node* insert_child,
   } else if (ref_child_text_node && CaretMaxOffset(ref_child) > offset) {
     SplitTextNode(ref_child_text_node, offset);
 
-    // Mutation events (bug 22634) from the text node insertion may have
-    // removed the refChild
+    // Synchronous events (bug 22634) from the text node insertion may have
+    // removed the refChild.
     if (!ref_child->isConnected())
       return;
     InsertNodeBefore(insert_child, ref_child, editing_state);

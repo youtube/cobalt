@@ -108,7 +108,6 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.mock.MockRenderFrameHost;
 import org.chromium.content_public.browser.test.mock.MockWebContents;
 import org.chromium.content_public.common.ContentSwitches;
-import org.chromium.device.DeviceFeatureList;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.ui.test.util.GmsCoreVersionRestriction;
 import org.chromium.url.GURL;
@@ -997,12 +996,6 @@ public class Fido2CredentialRequestTest {
     @Test
     @SmallTest
     public void testInternalAuthenticatorMakeCredential_attestationIncluded() {
-        // This test can't work on Android N because it lacks the java.nio.file
-        // APIs used to load the test data.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createSuccessfulMakeCredentialIntentWithAttestation());
 
@@ -1025,12 +1018,6 @@ public class Fido2CredentialRequestTest {
     @SmallTest
     public void testInternalAuthenticatorMakeCredential_rkRequired_attestationKept()
             throws Exception {
-        // This test can't work on Android N because it lacks the java.nio.file
-        // APIs used to load the test data.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createSuccessfulMakeCredentialIntentWithAttestation());
 
@@ -1058,12 +1045,6 @@ public class Fido2CredentialRequestTest {
     @SmallTest
     public void testInternalAuthenticatorMakeCredential_rkPreferred_attestationKept()
             throws Exception {
-        // This test can't work on Android N because it lacks the java.nio.file
-        // APIs used to load the test data.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createSuccessfulMakeCredentialIntentWithAttestation());
 
@@ -1090,12 +1071,6 @@ public class Fido2CredentialRequestTest {
     @Test
     @SmallTest
     public void testInternalAuthenticatorMakeCredential_credprops() throws Exception {
-        // This test can't work on Android N because it lacks the java.nio.file
-        // APIs used to load the test data.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createSuccessfulMakeCredentialIntentWithCredProps());
 
@@ -2729,7 +2704,6 @@ public class Fido2CredentialRequestTest {
     @Test
     @SmallTest
     @UseMethodParameter(SameOriginTestParams.class)
-    @EnableFeatures(DeviceFeatureList.WEBAUTHN_REMOTE_DESKTOP_ALLOWED_ORIGINS)
     public void testMakeCredential_remoteDesktopClientOverride_generatesCorrectClientDataJson(
             boolean sameOriginWithAncestors) {
         mIntentSender.setNextResultIntent(
@@ -2793,7 +2767,6 @@ public class Fido2CredentialRequestTest {
     @Test
     @SmallTest
     @UseMethodParameter(SameOriginTestParams.class)
-    @EnableFeatures(DeviceFeatureList.WEBAUTHN_REMOTE_DESKTOP_ALLOWED_ORIGINS)
     public void testGetAssertion_remoteDesktopClientOverride_generatesCorrectClientDataJson(
             boolean sameOriginWithAncestors) {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());

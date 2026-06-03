@@ -209,7 +209,6 @@ struct NSEdgeAndCornerThicknesses {
   BOOL _willUpdateRestorableState;
   BOOL _willSaveRestorableStateAfterDelay;
   BOOL _isEnforcingNeverMadeVisible;
-  BOOL _preventKeyWindow;
   BOOL _activationIndependence;
   BOOL _isTooltip;
   BOOL _isHeadless;
@@ -221,6 +220,7 @@ struct NSEdgeAndCornerThicknesses {
 @synthesize isTooltip = _isTooltip;
 @synthesize isHeadless = _isHeadless;
 @synthesize isShufflingForOrdering = _isShufflingForOrdering;
+@synthesize preventKeyWindow = _preventKeyWindow;
 @synthesize childWindowAddedHandler = _childWindowAddedHandler;
 @synthesize childWindowRemovedHandler = _childWindowRemovedHandler;
 @synthesize commandDispatchParentOverride = _commandDispatchParentOverride;
@@ -730,12 +730,11 @@ struct NSEdgeAndCornerThicknesses {
 
   _willUpdateRestorableState = NO;
 
-  // On macOS 12+, create restorable state archives with secure encoding. See
-  // the article at
+  // Create restorable state archives with secure encoding. See the article at
   // https://sector7.computest.nl/post/2022-08-process-injection-breaking-all-macos-security-layers-with-a-single-vulnerability/
   // for more details.
-  NSKeyedArchiver* encoder = [[NSKeyedArchiver alloc]
-      initRequiringSecureCoding:base::mac::MacOSMajorVersion() >= 12];
+  NSKeyedArchiver* encoder =
+      [[NSKeyedArchiver alloc] initRequiringSecureCoding:YES];
   encoder.delegate = self;
   [self encodeRestorableStateWithCoder:encoder];
   [encoder finishEncoding];

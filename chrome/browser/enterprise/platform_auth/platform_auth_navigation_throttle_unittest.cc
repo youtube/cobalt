@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/mock_callback.h"
@@ -76,7 +77,7 @@ class PlatformAuthNavigationThrottleTest : public testing::Test {
   }
 
   std::unique_ptr<content::MockNavigationThrottleRegistry>
-  CreateRegistryWithThrottle(content::NavigationHandle* navigation_handle) {
+  CreateRegistryWithThrottle(content::MockNavigationHandle* navigation_handle) {
     auto registry = std::make_unique<content::MockNavigationThrottleRegistry>(
         navigation_handle,
         content::MockNavigationThrottleRegistry::RegistrationMode::kHold);

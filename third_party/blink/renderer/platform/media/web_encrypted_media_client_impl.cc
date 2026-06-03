@@ -10,6 +10,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "media/base/key_systems.h"
 #include "media/base/media_permission.h"
@@ -61,8 +62,6 @@ std::string ConvertCreateCdmStatusToString(media::CreateCdmStatus status) {
     case media::CreateCdmStatus::kNotAllowedOnUniqueOrigin:
       return "EME use is not allowed on unique origins.";
 #if BUILDFLAG(IS_ANDROID)
-    case media::CreateCdmStatus::kMediaDrmBridgeCreationFailed:
-      return "MediaDrmBridge creation failed.";
     case media::CreateCdmStatus::kMediaCryptoNotAvailable:
       return "MediaCrypto not available.";
     case media::CreateCdmStatus::kAndroidMediaDrmIllegalArgument:
@@ -337,7 +336,7 @@ void WebEncryptedMediaClientImpl::OnConfigSelected(
 
   // Use the returned key system which should be used for CDM creation.
   request.RequestSucceeded(WebContentDecryptionModuleAccessImpl::Create(
-      origin, *accumulated_configuration, *cdm_config,
+      origin, *accumulated_configuration, request.KeySystem(), *cdm_config,
       weak_factory_.GetWeakPtr()));
 }
 

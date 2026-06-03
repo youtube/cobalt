@@ -43,13 +43,10 @@ public class DeviceFormFactor {
      * Tablet or desktop form factor, including {@code #LARGETABLET} below.
      *
      * <p>Based on screen size of the device, as identified by <code>
-     * isNonMultiDisplayContextOnTablet() == true</code>.
-     *
-     * <p>TODO(crbug.com/415126396): Change to mean <code>
      * isNonMultiDisplayContextOnTablet() == true &&
      * isDesktop() == false</code>.
      */
-    public static final String TABLET = "Tablet";
+    public static final String ONLY_TABLET = "Tablet";
 
     /**
      * Tablet or desktop form factor, including {@code #LARGETABLET} below.

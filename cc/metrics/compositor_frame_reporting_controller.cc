@@ -9,8 +9,6 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/metrics/histogram_macros.h"
 #include "cc/metrics/compositor_frame_reporter.h"
-#include "cc/metrics/dropped_frame_counter.h"
-#include "cc/metrics/event_latency_tracing_recorder.h"
 #include "cc/metrics/frame_sequence_tracker_collection.h"
 #include "cc/metrics/latency_ukm_reporter.h"
 #include "cc/metrics/scroll_jank_dropped_frame_tracker.h"
@@ -34,15 +32,7 @@ CompositorFrameReportingController::CompositorFrameReportingController(
       predictor_jank_tracker_(std::make_unique<PredictorJankTracker>()),
       scroll_jank_dropped_frame_tracker_(
           std::make_unique<ScrollJankDroppedFrameTracker>()),
-      scroll_jank_ukm_reporter_(std::make_unique<ScrollJankUkmReporter>()),
-      previous_latency_predictions_main_(base::Microseconds(-1)),
-      previous_latency_predictions_impl_(base::Microseconds(-1)),
-      event_latency_predictions_(CompositorFrameReporter::EventLatencyInfo(
-          /*num_dispatch_stages=*/static_cast<int>(
-              EventMetrics::DispatchStage::kMaxValue),
-          /*num_compositor_stages=*/static_cast<int>(
-              StageType::kStageTypeCount) -
-              1)) {
+      scroll_jank_ukm_reporter_(std::make_unique<ScrollJankUkmReporter>()) {
   if (should_report_ukm) {
     // UKM metrics should be reported if and only if `latency_ukm_reporter` is
     // set on `global_trackers_`.
@@ -75,10 +65,6 @@ CompositorFrameReportingController::~CompositorFrameReportingController() {
   predictor_jank_tracker_->set_scroll_jank_ukm_reporter(nullptr);
   scroll_jank_dropped_frame_tracker_->set_scroll_jank_ukm_reporter(nullptr);
   if (global_trackers_.frame_sorter) {
-    if (global_trackers_.dropped_frame_counter) {
-      global_trackers_.frame_sorter->RemoveObserver(
-          global_trackers_.dropped_frame_counter);
-    }
     if (global_trackers_.frame_sequence_trackers) {
       global_trackers_.frame_sorter->RemoveObserver(
           global_trackers_.frame_sequence_trackers);
@@ -371,13 +357,20 @@ void CompositorFrameReportingController::DidSubmitCompositorFrame(
     DCHECK_EQ(main_reporter->frame_id(), current_frame_id);
     submit_info.events_metrics.main_event_metrics.reserve(
         submit_info.events_metrics.main_event_metrics.size() +
-        submit_info.events_metrics.impl_event_metrics.size());
+        submit_info.events_metrics.impl_event_metrics.size() +
+        submit_info.events_metrics.raster_event_metrics.size());
     submit_info.events_metrics.main_event_metrics.insert(
         submit_info.events_metrics.main_event_metrics.end(),
         std::make_move_iterator(
             submit_info.events_metrics.impl_event_metrics.begin()),
         std::make_move_iterator(
             submit_info.events_metrics.impl_event_metrics.end()));
+    submit_info.events_metrics.main_event_metrics.insert(
+        submit_info.events_metrics.main_event_metrics.end(),
+        std::make_move_iterator(
+            submit_info.events_metrics.raster_event_metrics.begin()),
+        std::make_move_iterator(
+            submit_info.events_metrics.raster_event_metrics.end()));
   }
 
   if (main_reporter) {
@@ -403,6 +396,8 @@ void CompositorFrameReportingController::DidSubmitCompositorFrame(
         submit_info.time);
     impl_reporter->AddEventsMetrics(
         std::move(submit_info.events_metrics.impl_event_metrics));
+    impl_reporter->AddEventsMetrics(
+        std::move(submit_info.events_metrics.raster_event_metrics));
     impl_reporter->set_checkerboarded_needs_raster(
         submit_info.checkerboarded_needs_raster);
     impl_reporter->set_checkerboarded_needs_record(
@@ -508,6 +503,7 @@ void CompositorFrameReportingController::MaybePassEventMetricsFromDroppedFrames(
          it = events_metrics_from_dropped_frames_.erase(it)) {
       reporter.AddEventsMetrics(std::move(it->second.main_event_metrics));
       reporter.AddEventsMetrics(std::move(it->second.impl_event_metrics));
+      reporter.AddEventsMetrics(std::move(it->second.raster_event_metrics));
     }
   } else {
     // Main with accompanying impl - just take main events and don't remove them
@@ -596,29 +592,6 @@ void CompositorFrameReportingController::DidPresentCompositorFrame(
     reporter->TerminateFrame(termination_status,
                              details.presentation_feedback.timestamp);
 
-    static constexpr base::TimeDelta
-        kDefaultLatencyPredictionDeviationThreshold =
-            viz::BeginFrameArgs::DefaultInterval() / 2;
-    base::TimeDelta latency_prediction_deviation_threshold;
-    if (EventLatencyTracingRecorder::IsEventLatencyTracingEnabled()) {
-      latency_prediction_deviation_threshold =
-          details.presentation_feedback.interval.is_zero()
-              ? kDefaultLatencyPredictionDeviationThreshold
-              : (details.presentation_feedback.interval) / 2;
-      switch (reporter->get_reporter_type()) {
-        case CompositorFrameReporter::ReporterType::kImpl:
-          reporter->CalculateCompositorLatencyPrediction(
-              previous_latency_predictions_impl_,
-              latency_prediction_deviation_threshold);
-          break;
-        case CompositorFrameReporter::ReporterType::kMain:
-          reporter->CalculateCompositorLatencyPrediction(
-              previous_latency_predictions_main_,
-              latency_prediction_deviation_threshold);
-          break;
-      }
-    }
-
     // If the page was transitioned from invisible to visible, need to throw
     // away EventsMetrics from `events_metrics_from_dropped_frames_` because
     // these measurement would be invalid due to the duration of page being
@@ -635,14 +608,6 @@ void CompositorFrameReportingController::DidPresentCompositorFrame(
     }
 
     if (termination_status == FrameTerminationStatus::kPresentedFrame) {
-      if (EventLatencyTracingRecorder::IsEventLatencyTracingEnabled()) {
-        // TODO(crbug.com/40228308): Consider using a separate container to
-        // differentiate event predictions with and without a main dispatch
-        // stage.
-        reporter->CalculateEventLatencyPrediction(
-            event_latency_predictions_, latency_prediction_deviation_threshold);
-      }
-
       // For presented frames, if `reporter` was cloned from another reporter,
       // and the original reporter is still alive, then check whether the cloned
       // reporter has a 'partial update decider'. It is still possible for the
@@ -882,18 +847,6 @@ void CompositorFrameReportingController::CreateReportersForDroppedFrames(
                              args.deadline);
     reporter->set_is_backfill(true);
   }
-}
-
-void CompositorFrameReportingController::SetDroppedFrameCounter(
-    DroppedFrameCounter* counter) {
-  if (global_trackers_.dropped_frame_counter && global_trackers_.frame_sorter) {
-    global_trackers_.frame_sorter->RemoveObserver(
-        global_trackers_.dropped_frame_counter);
-  }
-  if (global_trackers_.frame_sorter) {
-    global_trackers_.frame_sorter->AddObserver(counter);
-  }
-  global_trackers_.dropped_frame_counter = counter;
 }
 
 }  // namespace cc

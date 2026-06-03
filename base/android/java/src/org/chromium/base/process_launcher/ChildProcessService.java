@@ -12,7 +12,6 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.os.Binder;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -36,9 +35,11 @@ import org.chromium.base.JavaUtils;
 import org.chromium.base.Log;
 import org.chromium.base.MemoryPressureLevel;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.library_loader.IRelroLibInfo;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.version_info.VersionConstantsBridge;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -120,6 +121,17 @@ public class ChildProcessService {
         mApplicationContext = applicationContext;
     }
 
+    // These are the strings we will use to compare a child to parent process to ensure they are
+    // running the same code.
+    public static String[] convertToStrings(ApplicationInfo appInfo) {
+        String sourceDir = appInfo.sourceDir;
+        String sharedLibraryFiles = null;
+        if (appInfo.sharedLibraryFiles != null) {
+            sharedLibraryFiles = TextUtils.join(":", appInfo.sharedLibraryFiles);
+        }
+        return new String[] {sourceDir, sharedLibraryFiles};
+    }
+
     // Binder object used by clients for this service.
     private final IChildProcessService.Stub mBinder =
             new IChildProcessService.Stub() {
@@ -153,8 +165,9 @@ public class ChildProcessService {
                 }
 
                 @Override
-                public ApplicationInfo getAppInfo() {
-                    return mApplicationContext.getApplicationInfo();
+                public String[] getAppInfoStrings() {
+                    ApplicationInfo appInfo = mApplicationContext.getApplicationInfo();
+                    return convertToStrings(appInfo);
                 }
 
                 @Override
@@ -176,7 +189,7 @@ public class ChildProcessService {
                     int pid = Process.myPid();
                     int zygotePid = 0;
                     long startupTimeMillis = -1;
-                    Bundle relroBundle = null;
+                    IRelroLibInfo relroInfo = null;
                     if (LibraryLoader.getInstance().isLoadedByZygote()) {
                         zygotePid = sZygotePid;
                         startupTimeMillis = sZygoteStartupTimeMillis;
@@ -185,13 +198,13 @@ public class ChildProcessService {
                         m.initInChildProcess();
                         // In a number of cases the app zygote decides not to produce a RELRO FD.
                         // The bundle will tell the receiver to silently ignore it.
-                        relroBundle = m.getSharedRelrosBundle();
+                        relroInfo = m.getSharedRelrosAidl();
                     }
                     // After finishSetupConnection() the parent process will stop accepting
-                    // |relroBundle| from this process to ensure that another FD to shared memory
+                    // |relroInfo| from this process to ensure that another FD to shared memory
                     // is not sent later.
                     parentProcess.finishSetupConnection(
-                            pid, zygotePid, startupTimeMillis, relroBundle);
+                            pid, zygotePid, startupTimeMillis, relroInfo);
                     mParentProcess = parentProcess;
                     processConnectionArgs(args, callbacks, binderBox);
                 }
@@ -256,8 +269,8 @@ public class ChildProcessService {
                 }
 
                 @Override
-                public void consumeRelroBundle(Bundle bundle) {
-                    mDelegate.consumeRelroBundle(bundle);
+                public void consumeRelroLibInfo(IRelroLibInfo libInfo) {
+                    mDelegate.consumeRelroLibInfo(libInfo);
                 }
             };
 
@@ -292,6 +305,7 @@ public class ChildProcessService {
         AndroidInfo.sendToNative(mChildProcessArgs.androidInfo);
         ApkInfo.sendToNative(mChildProcessArgs.apkInfo);
         DeviceInfo.sendToNative(mChildProcessArgs.deviceInfo);
+        VersionConstantsBridge.setChannel(mChildProcessArgs.channel);
     }
 
     private void mainThreadMain() {

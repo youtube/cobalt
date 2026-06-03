@@ -16,8 +16,8 @@
 #import "base/memory/weak_ptr.h"
 #import "base/metrics/histogram.h"
 #import "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #import "base/observer_list.h"
-#import "base/types/optional_ref.h"
 #import "components/autofill/core/browser/filling/form_filler.h"
 #import "components/autofill/core/browser/form_structure.h"
 #import "components/autofill/core/browser/foundations/autofill_driver_router.h"
@@ -409,9 +409,10 @@ void AutofillDriverIOS::AskForValuesToFill(const FormData& form,
       [](AutofillDriver& driver, const FormData& form,
          const FieldGlobalId& field_id, const gfx::Rect& bounding_box,
          AutofillSuggestionTriggerSource trigger_source,
-         base::optional_ref<const PasswordSuggestionRequest> request) {
+         std::optional<PasswordSuggestionRequest> password_request) {
         driver.GetAutofillManager().OnAskForValuesToFill(
-            form, field_id, bounding_box, trigger_source, request);
+            form, field_id, bounding_box, trigger_source,
+            std::move(password_request));
       };
   // The caret position is currently not extracted on iOS.
   gfx::Rect caret_bounds;

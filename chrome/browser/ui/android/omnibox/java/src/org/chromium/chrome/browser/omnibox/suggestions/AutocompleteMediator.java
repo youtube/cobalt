@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.omnibox.suggestions;
 
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -639,8 +640,9 @@ class AutocompleteMediator
         // When invoked directly from a browser, we want to trigger switch to tab animation.
         // If invoked from other activities, ex. searchActivity, we do not need to trigger the
         // animation since Android will show the animation for switching apps.
-        if (tab.getWindowAndroid().getActivityState() == ActivityState.STOPPED
-                || tab.getWindowAndroid().getActivityState() == ActivityState.DESTROYED) {
+        WindowAndroid windowAndroid = tab.getWindowAndroidChecked();
+        if (windowAndroid.getActivityState() == ActivityState.STOPPED
+                || windowAndroid.getActivityState() == ActivityState.DESTROYED) {
             mBringTabToFrontCallback.onResult(tab);
             return true;
         }
@@ -934,11 +936,7 @@ class AutocompleteMediator
 
         if (mAutocompleteInput.getPageClassification() == PageClassification.ANDROID_HUB_VALUE) {
             RecordUserAction.record("HubSearch.KeyboardEnterPressed");
-
-            if (!OmniboxFeatures.sAndroidHubSearchEnterPerformsSearch.getValue()) {
-                // For Hub Search, searching by keyboard typed query is not allowed so do nothing.
-                return;
-            }
+            // For Hub Search, default behavior kicks off search by pressing enter, do not return.
         }
 
         if (mAutocomplete.isPresent()) {

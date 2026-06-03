@@ -26,6 +26,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/syslog_logging.h"
@@ -51,10 +52,6 @@
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
 #include "chrome/browser/ash/login/quickstart_controller.h"
-#include "chromeos/ash/experiences/arc/arc_features.h"
-#include "chromeos/ash/experiences/arc/arc_prefs.h"
-#include "chromeos/ash/experiences/arc/arc_util.h"
-#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 // Make sure to include new screen to all relevant metric enums.
 // LINT.IfChange(UsageMetrics)
 #include "chrome/browser/ash/login/screens/account_selection_screen.h"
@@ -81,6 +78,7 @@
 #include "chrome/browser/ash/login/screens/error_screen.h"
 #include "chrome/browser/ash/login/screens/family_link_notice_screen.h"
 #include "chrome/browser/ash/login/screens/fingerprint_setup_screen.h"
+#include "chrome/browser/ash/login/screens/fjord_touch_controller_screen.h"
 #include "chrome/browser/ash/login/screens/gaia_info_screen.h"
 #include "chrome/browser/ash/login/screens/gaia_screen.h"
 #include "chrome/browser/ash/login/screens/gemini_intro_screen.h"
@@ -185,6 +183,8 @@
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/family_link_notice_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fingerprint_setup_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_oobe_util.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_touch_controller_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_info_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gemini_intro_screen_handler.h"
@@ -253,6 +253,10 @@
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "chromeos/ash/components/timezone/timezone_provider.h"
 #include "chromeos/ash/components/timezone/timezone_request.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 #include "chromeos/ash/services/cros_healthd/private/cpp/dlc_utils.h"
 #include "chromeos/ash/services/rollback_network_config/public/mojom/rollback_network_config.mojom.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -801,12 +805,10 @@ WizardController::CreateScreens() {
       base::BindRepeating(&WizardController::OnPackagedLicenseScreenExit,
                           weak_factory_.GetWeakPtr())));
 
-  if (features::IsOobeGaiaInfoScreenEnabled()) {
-    append(std::make_unique<GaiaInfoScreen>(
-        oobe_ui->GetView<GaiaInfoScreenHandler>()->AsWeakPtr(),
-        base::BindRepeating(&WizardController::OnGaiaInfoScreenExit,
-                            weak_factory_.GetWeakPtr())));
-  }
+  append(std::make_unique<GaiaInfoScreen>(
+      oobe_ui->GetView<GaiaInfoScreenHandler>()->AsWeakPtr(),
+      base::BindRepeating(&WizardController::OnGaiaInfoScreenExit,
+                          weak_factory_.GetWeakPtr())));
 
   append(std::make_unique<GaiaScreen>(
       oobe_ui->GetView<GaiaScreenHandler>()->AsWeakPtr(),
@@ -907,15 +909,11 @@ WizardController::CreateScreens() {
       base::BindRepeating(&WizardController::OnThemeSelectionScreenExit,
                           weak_factory_.GetWeakPtr())));
 
-  if (base::FeatureList::IsEnabled(
-          remoting::features::kEnableCrdAdminRemoteAccessV2)) {
-    append(std::make_unique<RemoteActivityNotificationScreen>(
-        oobe_ui->GetView<RemoteActivityNotificationScreenHandler>()
-            ->AsWeakPtr(),
-        base::BindRepeating(
-            &WizardController::OnRemoteActivityNotificationScreenExit,
-            weak_factory_.GetWeakPtr())));
-  }
+  append(std::make_unique<RemoteActivityNotificationScreen>(
+      oobe_ui->GetView<RemoteActivityNotificationScreenHandler>()->AsWeakPtr(),
+      base::BindRepeating(
+          &WizardController::OnRemoteActivityNotificationScreenExit,
+          weak_factory_.GetWeakPtr())));
 
   append(std::make_unique<CryptohomeRecoveryScreen>(
       oobe_ui->GetView<CryptohomeRecoveryScreenHandler>()->AsWeakPtr(),
@@ -1030,6 +1028,11 @@ WizardController::CreateScreens() {
       oobe_ui->GetErrorScreen(),
       base::BindRepeating(&WizardController::OnAppLaunchSplashScreenExit,
                           weak_factory_.GetWeakPtr())));
+
+  if (fjord_util::ShouldShowFjordOobe()) {
+    append(std::make_unique<FjordTouchControllerScreen>(
+        oobe_ui->GetView<FjordTouchControllerScreenHandler>()->AsWeakPtr()));
+  }
 
   return result;
 }
@@ -1389,6 +1392,10 @@ void WizardController::ShowAppLaunchSplashScreen() {
   SetCurrentScreen(GetScreen(AppLaunchSplashScreenView::kScreenId));
 }
 
+void WizardController::ShowFjordTouchControllerScreen() {
+  SetCurrentScreen(GetScreen(FjordTouchControllerScreenView::kScreenId));
+}
+
 void WizardController::OnUserCreationScreenExit(
     UserCreationScreen::Result result) {
   OnScreenExit(UserCreationView::kScreenId,
@@ -1405,22 +1412,12 @@ void WizardController::OnUserCreationScreenExit(
       break;
     case UserCreationScreen::Result::SIGNIN:
       if (features::IsOobeSoftwareUpdateEnabled()) {
-        if (features::IsOobeGaiaInfoScreenEnabled()) {
-          GetLocalState()->SetBoolean(prefs::kOobeIsConsumerSegment, true);
-          StartupUtils::SaveScreenAfterConsumerUpdate(
-              GaiaInfoScreenView::kScreenId.name);
-          ShowConsumerUpdateScreen();
-        } else {
-          GetLocalState()->SetBoolean(prefs::kOobeIsConsumerSegment, true);
-          StartupUtils::SaveScreenAfterConsumerUpdate(GaiaView::kScreenId.name);
-          ShowConsumerUpdateScreen();
-        }
+        GetLocalState()->SetBoolean(prefs::kOobeIsConsumerSegment, true);
+        StartupUtils::SaveScreenAfterConsumerUpdate(
+            GaiaInfoScreenView::kScreenId.name);
+        ShowConsumerUpdateScreen();
       } else {
-        if (features::IsOobeGaiaInfoScreenEnabled()) {
-          ShowGaiaInfoScreen();
-        } else {
-          AdvanceToScreen(GaiaView::kScreenId);
-        }
+        ShowGaiaInfoScreen();
       }
       break;
     case UserCreationScreen::Result::SKIPPED:
@@ -1472,8 +1469,7 @@ void WizardController::OnConsumerUpdateScreenExit(
   const std::string screen_name =
       GetLocalState()->GetString(prefs::kOobeScreenAfterConsumerUpdate);
   if (screen_name == GaiaInfoScreenView::kScreenId.name) {
-    if (features::IsOobeGaiaInfoScreenEnabled() &&
-        HasScreen(PrefToScreenId(screen_name))) {
+    if (HasScreen(PrefToScreenId(screen_name))) {
       AdvanceToScreen(PrefToScreenId(screen_name));
     } else {
       AdvanceToScreen(GaiaView::kScreenId);
@@ -1507,30 +1503,17 @@ void WizardController::OnGaiaScreenExit(GaiaScreen::Result result) {
           break;
         }
       }
-      if (features::IsOobeGaiaInfoScreenEnabled()) {
-        if (wizard_context_->is_user_creation_enabled) {
-          // `Result::BACK` and `Result::BACK_CHILD` are only triggered when
-          // pressing back button. It goes back to GaiaInfoScreenView if user
-          // creation is enabled; otherwise, it behaves the same as
-          // `Result::CANCEL` which is triggered by pressing ESC key.
-          if (result == GaiaScreen::Result::BACK) {
-            if (wizard_context_->is_add_person_flow) {
-              AdvanceToScreen(UserCreationView::kScreenId);
-            } else {
-              AdvanceToScreen(GaiaInfoScreenView::kScreenId);
-            }
-            break;
+      if (wizard_context_->is_user_creation_enabled) {
+        // `Result::BACK` and `Result::BACK_CHILD` are only triggered when
+        // pressing back button. It goes back to GaiaInfoScreenView if user
+        // creation is enabled; otherwise, it behaves the same as
+        // `Result::CANCEL` which is triggered by pressing ESC key.
+        if (result == GaiaScreen::Result::BACK) {
+          if (wizard_context_->is_add_person_flow) {
+            AdvanceToScreen(UserCreationView::kScreenId);
+          } else {
+            AdvanceToScreen(GaiaInfoScreenView::kScreenId);
           }
-        }
-      } else {
-        // TODO: delete this part after removing the feature flag (b:282728089)
-        if (result == GaiaScreen::Result::BACK &&
-            wizard_context_->is_user_creation_enabled) {
-          // `Result::BACK` is only triggered when pressing back button. It goes
-          // back to UserCreationScreen if screen is enabled; otherwise, it
-          // behaves the same as `Result::CANCEL` which is triggered by pressing
-          // ESC key.
-          AdvanceToScreen(UserCreationView::kScreenId);
           break;
         }
       }
@@ -2108,9 +2091,11 @@ void WizardController::OnQuickStartScreenExit(QuickStartScreen::Result result) {
       ShowNetworkScreen();
       return;
     case QuickStartScreen::Result::CANCEL_AND_RETURN_TO_GAIA_INFO:
+      CHECK(StartupUtils::IsOobeCompleted());
       AdvanceToScreen(GaiaInfoScreenView::kScreenId);
       return;
     case ash::QuickStartScreen::Result::FALLBACK_URL_ON_GAIA:
+      CHECK(StartupUtils::IsOobeCompleted());
       wizard_context_->gaia_config.gaia_path =
           WizardContext::GaiaPath::kQuickStartFallback;
       wizard_context_->gaia_config.quick_start_fallback_path_contents =
@@ -2118,12 +2103,14 @@ void WizardController::OnQuickStartScreenExit(QuickStartScreen::Result result) {
       AdvanceToScreen(GaiaView::kScreenId);
       return;
     case QuickStartScreen::Result::CANCEL_AND_RETURN_TO_SIGNIN:
+      CHECK(StartupUtils::IsOobeCompleted());
       AdvanceToScreen(GaiaView::kScreenId);
       return;
     // Last step of the QuickStart flow. This is triggered immediately
     // after the 'RecoveryEligibility' screen and continues OOBE into
     // the TermsOfServiceScreen
     case QuickStartScreen::Result::SETUP_COMPLETE_NEXT_BUTTON:
+      CHECK(StartupUtils::IsOobeCompleted());
       quickstart_controller_->RecordFlowFinished();
       AdvanceToScreen(TermsOfServiceScreenView::kScreenId);
   }
@@ -2307,7 +2294,10 @@ void WizardController::OnEnrollmentDone() {
   // We need a log to understand when the device finished enrollment.
   VLOG(1) << "Enrollment done";
 
-  if (auto app = KioskController::Get().GetAutoLaunchApp(); app.has_value()) {
+  if (fjord_util::ShouldShowFjordOobe()) {
+    ShowFjordTouchControllerScreen();
+  } else if (auto app = KioskController::Get().GetAutoLaunchApp();
+             app.has_value()) {
     AutoLaunchKioskApp(app.value());
   } else if (ash::InstallAttributes::Get()->IsEnterpriseManaged()) {
     // Could be not managed in tests.

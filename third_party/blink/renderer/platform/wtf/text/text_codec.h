@@ -34,7 +34,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-namespace WTF {
+namespace blink {
 
 class TextEncoding;
 
@@ -115,14 +115,9 @@ class WTF_EXPORT TextCodec {
 
 typedef void (*EncodingNameRegistrar)(const char* alias, const char* name);
 
-typedef std::unique_ptr<TextCodec> (
-    *NewTextCodecFunction)(const TextEncoding&, const void* additional_data);
-typedef void (*TextCodecRegistrar)(const char* name,
-                                   NewTextCodecFunction,
-                                   const void* additional_data);
+typedef std::unique_ptr<TextCodec> (*NewTextCodecFunction)(const TextEncoding&);
+typedef void (*TextCodecRegistrar)(const char* name, NewTextCodecFunction);
 
-}  // namespace WTF
-
-using WTF::TextCodec;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_TEXT_CODEC_H_

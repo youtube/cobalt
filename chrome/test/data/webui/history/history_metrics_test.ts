@@ -28,6 +28,8 @@ suite('Metrics', function() {
 
   setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    // Make viewport tall enough to render all items.
+    document.body.style.height = '1000px';
 
     testService = new TestBrowserService();
     BrowserServiceImpl.setInstance(testService);
@@ -68,6 +70,7 @@ suite('Metrics', function() {
     assertEquals(1, histogram[HistoryPageViewHistogram.HISTORY]);
 
     navigateTo('/syncedTabs', app);
+    await microtasksFinished();
     assertEquals(1, histogram[HistoryPageViewHistogram.SIGNIN_PROMO]);
     await testService.whenCalled('otherDevicesInitialized');
 
@@ -77,6 +80,7 @@ suite('Metrics', function() {
 
     assertEquals(1, histogram[HistoryPageViewHistogram.SYNCED_TABS]);
     navigateTo('/history', app);
+    await microtasksFinished();
     assertEquals(2, histogram[HistoryPageViewHistogram.HISTORY]);
   });
 
@@ -95,8 +99,9 @@ suite('Metrics', function() {
       historyEntry,
     ]);
     await flushTasks();
+    await microtasksFinished();
 
-    let items = app.$.history.shadowRoot!.querySelectorAll('history-item');
+    let items = app.$.history.shadowRoot.querySelectorAll('history-item');
     assertTrue(!!items[1]);
     items[1].shadowRoot.querySelector<HTMLElement>('#bookmark-star')!.click();
     assertEquals(1, actionMap['BookmarkStarClicked']);
@@ -119,17 +124,18 @@ suite('Metrics', function() {
         'change-query',
         {bubbles: true, composed: true, detail: {search: 'goog'}}));
     assertEquals(1, actionMap['Search']);
-    app.set('queryState_.incremental', true);
+    const queryManager = app.shadowRoot!.querySelector('history-query-manager');
+    assertTrue(!!queryManager);
+    queryManager.queryState = {...queryManager.queryState, incremental: true};
     await Promise.all([
       testService.handler.whenCalled('queryHistory'),
       flushTasks(),
     ]);
 
-    app.$.history.shadowRoot!.querySelector('iron-list')!.fire('iron-resize');
     await waitAfterNextRender(app.$.history);
     flush();
 
-    items = app.$.history.shadowRoot!.querySelectorAll('history-item');
+    items = app.$.history.shadowRoot.querySelectorAll('history-item');
     assertTrue(!!items[0]);
     assertTrue(!!items[4]);
     items[0].$.link.click();
@@ -142,25 +148,25 @@ suite('Metrics', function() {
     assertEquals(1, actionMap['RemoveSelected']);
     await flushTasks();
 
-    app.$.history.shadowRoot!.querySelector<HTMLElement>(
-                                 '.cancel-button')!.click();
+    app.$.history.shadowRoot.querySelector<HTMLElement>(
+                                '.cancel-button')!.click();
     assertEquals(1, actionMap['CancelRemoveSelected']);
     app.$.toolbar.deleteSelectedItems();
     await flushTasks();
 
     testService.handler.setResultFor('removeVisits', Promise.resolve());
-    app.$.history.shadowRoot!.querySelector<HTMLElement>(
-                                 '.action-button')!.click();
+    app.$.history.shadowRoot.querySelector<HTMLElement>(
+                                '.action-button')!.click();
     assertEquals(1, actionMap['ConfirmRemoveSelected']);
     await flushTasks();
 
-    items = app.$.history.shadowRoot!.querySelectorAll('history-item');
+    items = app.$.history.shadowRoot.querySelectorAll('history-item');
     assertTrue(!!items[0]);
     items[0].$['menu-button'].click();
     await flushTasks();
 
-    app.$.history.shadowRoot!.querySelector<HTMLElement>(
-                                 '#menuRemoveButton')!.click();
+    app.$.history.shadowRoot.querySelector<HTMLElement>(
+                                '#menuRemoveButton')!.click();
     await Promise.all([
       testService.handler.whenCalled('removeVisits'),
       flushTasks(),

@@ -1,4 +1,6 @@
 // META: title=Language Model Response JSON Schema
+// META: script=/resources/testdriver.js
+// META: script=/resources/testdriver-vendor.js
 // META: script=resources/utils.js
 // META: timeout=long
 
@@ -6,7 +8,7 @@
 
 promise_test(async t => {
   await ensureLanguageModel();
-  const session = await LanguageModel.create();
+  const session = await createLanguageModel();
   // Circular reference is not valid.
   const invalidRepsonseJsonSchema = {};
   invalidRepsonseJsonSchema.self = invalidRepsonseJsonSchema;
@@ -17,7 +19,7 @@ promise_test(async t => {
 
 promise_test(async t => {
   await ensureLanguageModel();
-  const session = await LanguageModel.create();
+  const session = await createLanguageModel();
   const validRepsonseJsonSchema = {
     type: "object",
     required: ["Rating"],
@@ -30,14 +32,36 @@ promise_test(async t => {
       },
     },
   };
-  const promptPromise = session.prompt(kTestPrompt, { responseConstraint : validRepsonseJsonSchema });
-  const result = await promptPromise;
-  assert_true(typeof result === "string");
+  const promptPromise = session.prompt('hello', { responseConstraint : validRepsonseJsonSchema });
+  // Both the prompt and schema should be present.
+  assert_regexp_match(await promptPromise, /hello.*Rating/s);
 }, 'Prompt API should work when a valid response json schema is provided.');
 
 promise_test(async t => {
   await ensureLanguageModel();
-  const session = await LanguageModel.create();
+  const session = await createLanguageModel();
+  const validRepsonseJsonSchema = {
+    type: "object",
+    required: ["Rating"],
+    additionalProperties: false,
+    properties: {
+      Rating: {
+        type: "number",
+        minimum: 0,
+        maximum: 5,
+      },
+    },
+  };
+  const promptPromise = session.prompt('hello', {
+    responseConstraint : validRepsonseJsonSchema,
+    omitResponseConstraintInput : true
+  });
+  assert_regexp_match(await promptPromise, /hello$/);
+}, 'Prompt API should omit response schema from input.');
+
+promise_test(async t => {
+  await ensureLanguageModel();
+  const session = await createLanguageModel();
   const promptPromise = session.prompt(kTestPrompt, { responseConstraint : /hello/ });
   const result = await promptPromise;
   assert_true(typeof result === "string");

@@ -27,10 +27,9 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
-#include "components/optimization_guide/core/model_util.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/optimization_guide_test_util.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/translate/core/common/translate_util.h"
 #include "components/translate/core/language_detection/language_detection_model.h"
@@ -129,19 +128,25 @@ class LanguageDetectionModelServiceDisabledBrowserTest
                                     "LanguageDetectionAPI");
   }
 
-  void TestLanguageDetectionAvailable(Browser* browser,
-                                      const std::string_view result) {
-    ASSERT_EQ(EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
-                     base::StringPrintf(R"(
+  std::string EvalJsCatchingError(Browser* browser, std::string_view script) {
+    return EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                  base::StringPrintf(R"(
         (async () => {
             try {
-            return await LanguageDetector.availability();
+                %s
             } catch (e) {
             return e.toString();
             }
             })();
-        )"))
-                  .ExtractString(),
+        )",
+                                     script))
+        .ExtractString();
+  }
+
+  void TestLanguageDetectionAvailable(Browser* browser,
+                                      const std::string_view result) {
+    ASSERT_EQ(EvalJsCatchingError(
+                  browser, "return await LanguageDetector.availability();"),
               result);
   }
 
@@ -685,6 +690,58 @@ IN_PROC_BROWSER_TEST_F(LanguageDetectionModelServiceBrowserTest, Availability) {
   auto model_file = getter.WaitForModelFile();
 
   TestLanguageDetectionAvailable(browser(), "available");
+}
+
+// Tests the behavior of availability().
+IN_PROC_BROWSER_TEST_F(LanguageDetectionModelServiceBrowserTest,
+                       HebrewLanguageTags) {
+  base::ScopedAllowBlockingForTesting allow_io_for_test_setup;
+  ASSERT_TRUE(language_detection_model_service());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), english_url()));
+
+  ModelFileGetter getter(*language_detection_model_service());
+  OptimizationGuideKeyedServiceFactory::GetForProfile(browser()->profile())
+      ->OverrideTargetModelForTesting(
+          optimization_guide::proto::OPTIMIZATION_TARGET_LANGUAGE_DETECTION,
+          optimization_guide::TestModelInfoBuilder()
+              .SetModelFilePath(model_file_path())
+              .Build());
+
+  getter.RequestModelFile();
+  auto model_file = getter.WaitForModelFile();
+
+  // Should accept both the "he" and "iw" tag.
+  ASSERT_EQ(EvalJsCatchingError(browser(),
+                                R"(
+              await LanguageDetector.create({expectedInputLanguages: ['iw']});
+              return 'OK';
+            )"),
+            "OK");
+  ASSERT_EQ(EvalJsCatchingError(browser(),
+                                R"(
+              await LanguageDetector.create({expectedInputLanguages: ['he']});
+              return 'OK';
+            )"),
+            "OK");
+
+  // Should transform both the iw and he tag to just the he tag.
+  ASSERT_EQ(EvalJsCatchingError(browser(),
+                                R"(
+              const detector = await LanguageDetector.create(
+                  {expectedInputLanguages: ['iw', 'he']});
+              return detector.expectedInputLanguages.join(',');
+            )"),
+            "he");
+
+  // The detectedLanguage for hebrew should be he and not iw.
+  ASSERT_EQ(EvalJsCatchingError(browser(),
+                                R"(
+              const detector = await LanguageDetector.create(
+                  {expectedInputLanguages: ['iw', 'he']});
+              const results = await detector.detect('זוהי מחרוזת בעברית');
+              return results[0].detectedLanguage;
+            )"),
+            "he");
 }
 
 }  // namespace

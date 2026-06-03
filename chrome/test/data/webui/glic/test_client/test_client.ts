@@ -10,6 +10,8 @@ import './sections/sizing.js';
 import './sections/permissions.js';
 import './sections/file.js';
 import './sections/action.js';
+import './sections/apc.js';
+import './sections/multi_tab.js';
 
 import type {OpenSettingsOptions} from '/glic/glic_api/glic_api.js';
 import {SettingsPageField, WebClientMode} from '/glic/glic_api/glic_api.js';
@@ -106,10 +108,6 @@ $.contextAccessIndicator.addEventListener('click', () => {
   getBrowser()!.setContextAccessIndicator!($.contextAccessIndicator.checked);
 });
 
-$.contextAccessIndicatorV2.addEventListener('click', () => {
-  getBrowser()!.setContextAccessIndicator!($.contextAccessIndicatorV2.checked);
-});
-
 $.closebn.addEventListener('click', () => {
   getBrowser()!.closePanel!();
 });
@@ -186,6 +184,16 @@ $.setClosedCaptioningFalse.addEventListener('click', async () => {
     logMessage('Set closed captioning false done.');
   } catch (e) {
     logMessage(`Error setting closed captioning false: ${e}`);
+  }
+});
+
+$.maybeRefreshUserStatusBn.addEventListener('click', async () => {
+  logMessage('Calling maybeRefreshUserStatus...');
+  try {
+    await getBrowser()!.maybeRefreshUserStatus!();
+    logMessage('maybeRefreshUserStatus done.');
+  } catch (e) {
+    logMessage(`maybeRefreshUserStatus failed: ${e}`);
   }
 });
 

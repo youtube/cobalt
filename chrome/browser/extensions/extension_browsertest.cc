@@ -7,6 +7,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/test_future.h"
 #include "base/version_info/channel.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/extension_browser_test_util.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
+#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/extensions/window_controller.h"
@@ -46,18 +48,21 @@
 #include "extensions/test/extension_test_notification_observer.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
-#else
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
 #include "base/check.h"
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_test_helper.h"
 #include "chrome/test/base/android/android_ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
@@ -148,86 +153,13 @@ void ExtensionProtocolTestResourcesHandler(const base::FilePath& test_dir_root,
   }
 }
 
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
 // ActivityType that doesn't restore tabs on cold start. Any type other than
 // kTabbed is fine.
 const auto kTestActivityType = chrome::android::ActivityType::kCustomTab;
-#endif  // BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
-
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-// TestTabModel provides a means of creating a tab associated with a given
-// profile. The new tab can then be added to Android's TabModelList.
-class ExtensionBrowserTest::TestTabModel : public TabModel {
- public:
-  explicit TestTabModel(Profile* profile)
-      : TabModel(profile, kTestActivityType),
-        web_contents_(content::WebContents::Create(
-            content::WebContents::CreateParams(GetProfile()))) {}
-
-  ~TestTabModel() override = default;
-
-  // TabModel:
-  int GetTabCount() const override { return 0; }
-  int GetActiveIndex() const override { return 0; }
-  base::android::ScopedJavaLocalRef<jobject> GetJavaObject() const override {
-    return nullptr;
-  }
-  content::WebContents* GetActiveWebContents() const override {
-    return web_contents_.get();
-  }
-  content::WebContents* GetWebContentsAt(int index) const override {
-    return web_contents_.get();
-  }
-  TabAndroid* GetTabAt(int index) const override { return nullptr; }
-  void SetActiveIndex(int index) override {}
-  void ForceCloseAllTabs() override {}
-  void CloseTabAt(int index) override {}
-  void CreateTab(TabAndroid* parent,
-                 content::WebContents* web_contents,
-                 bool select) override {}
-  void HandlePopupNavigation(TabAndroid* parent,
-                             NavigateParams* params) override {}
-  content::WebContents* CreateNewTabForDevTools(const GURL& url,
-                                                bool new_window) override {
-    return nullptr;
-  }
-  bool IsSessionRestoreInProgress() const override { return false; }
-  bool IsActiveModel() const override { return false; }
-  void AddObserver(TabModelObserver* observer) override {}
-  void RemoveObserver(TabModelObserver* observer) override {}
-  int GetTabCountNavigatedInTimeWindow(
-      const base::Time& begin_time,
-      const base::Time& end_time) const override {
-    return 0;
-  }
-  void CloseTabsNavigatedInTimeWindow(const base::Time& begin_time,
-                                      const base::Time& end_time) override {}
-
-  // TODO(crbug.com/415351293): Implement these.
-  // TabListInterface implementation.
-  void OpenTab(const GURL& url, int index) override {}
-  void DiscardTab(int index) override {}
-  void DuplicateTab(int index) override {}
-  tabs::TabInterface* GetTab(int index) override { return nullptr; }
-  void HighlightTabs(std::set<int> indicies) override {}
-  void MoveTab(int from_index, int to_index) override {}
-  void CloseTab(int index) override {}
-  std::vector<tabs::TabInterface*> GetAllTabs() override { return {}; }
-  void PinTab(int index) override {}
-  void UnpinTab(int index) override {}
-  std::optional<tab_groups::TabGroupId> CreateGroup(
-      std::set<int> indicies) override {
-    return std::nullopt;
-  }
-  void MoveGroupTo(tab_groups::TabGroupId group_id, int index) override {}
-
- private:
-  // The WebContents associated with this tab's profile.
-  std::unique_ptr<content::WebContents> web_contents_;
-};
-#endif  // BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
 
 ExtensionBrowserTest::ExtensionBrowserTest(ContextType context_type)
     : context_type_(context_type),
@@ -315,11 +247,9 @@ void ExtensionBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
   }
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   if (ShouldAllowMV2Extensions()) {
     mv2_enabler_.emplace();
   }
-#endif
 }
 
 void ExtensionBrowserTest::SetUpOnMainThread() {
@@ -360,11 +290,9 @@ void ExtensionBrowserTest::TearDown() {
 void ExtensionBrowserTest::TearDownOnMainThread() {
   TearDownTestProtocolHandler();
 
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-  if (tab_model_) {
-    TabModelList::RemoveTabModel(tab_model_.get());
-    tab_model_.reset();
-  }
+#if BUILDFLAG(IS_ANDROID)
+  // Close any incognito tabs.
+  incognito_tab_model_.reset();
 #endif
 
   // Stop observing any notifications when we're tearing down the test.
@@ -784,21 +712,6 @@ content::WebContents* ExtensionBrowserTest::GetActiveWebContents() const {
   return chrome_test_utils::GetActiveWebContents(this);
 }
 
-Profile* ExtensionBrowserTest::GetOrCreateIncognitoProfile() {
-  Profile* incognito_profile =
-      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
-
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-  // Ensure ExtensionSystem is properly initialized for `incognito_profile`
-  // in split mode.
-  // TODO(crbug.com/356905053): Remove this workaround when the proper
-  // extension runtime is implemented on Android.
-  util::InitExtensionSystemForIncognitoSplit(incognito_profile);
-#endif
-
-  return incognito_profile;
-}
-
 base::FilePath ExtensionBrowserTest::PackExtension(
     const base::FilePath& dir_path,
     int extra_run_flags) {
@@ -887,18 +800,20 @@ bool ExtensionBrowserTest::GetCurrentTabTitle(std::u16string* title) {
 content::WebContents* ExtensionBrowserTest::PlatformOpenURLOffTheRecord(
     Profile* profile,
     const GURL& url) {
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
   // Android doesn't have an OpenURLOffTheRecord() helper so we roll our own.
   Profile* incognito_profile =
       this->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
-  if (tab_model_) {
-    TabModelList::RemoveTabModel(tab_model_.get());
-    tab_model_.reset();
-  }
-  // Create a tab model for the incognito profile then navigate to the URL.
-  tab_model_ = std::make_unique<TestTabModel>(incognito_profile);
-  TabModelList::AddTabModel(tab_model_.get());
-  content::WebContents* web_contents = tab_model_->GetActiveWebContents();
+  // Close any old incognito tabs before creating the new tab model.
+  incognito_tab_model_.reset();
+  // Create a tab model for the incognito profile.
+  incognito_tab_model_ = std::make_unique<OwningTestTabModel>(
+      incognito_profile, kTestActivityType);
+  incognito_tab_model_->SetIsActiveModel(true);
+  incognito_tab_model_->AddEmptyTab(0, /*select=*/true);
+  content::WebContents* web_contents =
+      incognito_tab_model_->GetActiveWebContents();
+  TabAndroid::AttachTabHelpers(web_contents);
   // This blocks until the navigation completes. The return value is ignored
   // because some tests intentionally navigate to blocked URLs which fail to
   // load.
@@ -912,7 +827,7 @@ content::WebContents* ExtensionBrowserTest::PlatformOpenURLOffTheRecord(
 
 content::RenderFrameHost* ExtensionBrowserTest::NavigateToURLInNewTab(
     const GURL& url) {
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
   // Navigate and block until navigation finishes.
   android_ui_test_utils::OpenUrlInNewTab(profile(), GetActiveWebContents(),
                                          url);
@@ -1000,7 +915,7 @@ content::ServiceWorkerContext* ExtensionBrowserTest::GetServiceWorkerContext(
 }
 
 int ExtensionBrowserTest::GetTabCount() {
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
   TabModel* tab_model =
       TabModelList::GetTabModelForWebContents(GetActiveWebContents());
   return tab_model->GetTabCount();
@@ -1010,7 +925,7 @@ int ExtensionBrowserTest::GetTabCount() {
 }
 
 bool ExtensionBrowserTest::IsTabSelected(int index) {
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
   TabModel* tab_model =
       TabModelList::GetTabModelForWebContents(GetActiveWebContents());
   return tab_model->GetActiveIndex() == index;
@@ -1021,7 +936,7 @@ bool ExtensionBrowserTest::IsTabSelected(int index) {
 
 void ExtensionBrowserTest::CloseTabForWebContents(
     content::WebContents* web_contents) {
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
   TabModel* tab_model = TabModelList::GetTabModelForWebContents(web_contents);
   CHECK(tab_model);
   for (int index = 0; index < tab_model->GetTabCount(); ++index) {
@@ -1107,10 +1022,16 @@ content::WebContents* ExtensionBrowserTest::web_contents() {
   return web_contents_.get();
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 ExtensionService* ExtensionBrowserTest::extension_service() {
   return ExtensionSystem::Get(profile())->extension_service();
 }
-#endif
+
+void ExtensionBrowserTest::UseHttpsTestServer() {
+  https_test_server_ = std::make_unique<net::EmbeddedTestServer>(
+      net::EmbeddedTestServer::TYPE_HTTPS);
+  https_test_server_.get()->AddDefaultHandlers(GetChromeTestDataDir());
+  https_test_server_.get()->SetSSLConfig(
+      net::EmbeddedTestServer::CERT_TEST_NAMES);
+}
 
 }  // namespace extensions

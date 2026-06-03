@@ -353,6 +353,12 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
       View* button,
       const ui::Event& event) const;
 
+  // Returns true if key events should be allowed during input protection. If
+  // true, calls to
+  // `InputEventActivationProtector::IsPossiblyUnintendedInteraction` will
+  // ignore key events.
+  virtual bool ShouldAllowKeyEventsDuringInputProtection() const;
+
   // For Dialog boxes, if there is a "Cancel" button or no dialog button at all,
   // this is called when the user presses the "Cancel" button.  This function
   // should return true if the window can be closed after it returns, or false
@@ -384,6 +390,8 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
   void set_fixed_width(int fixed_width) { fixed_width_ = fixed_width; }
   int fixed_width() const { return fixed_width_; }
 
+  // Sets an extra view on the dialog button row. This can only be called once,
+  // because of how the view is propagated into the Dialog.
   template <typename T = View>
   T* SetExtraView(std::unique_ptr<T> extra_view) {
     T* view = extra_view.get();

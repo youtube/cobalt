@@ -43,11 +43,6 @@ const char kDefaultTileHeight[] = "default-tile-height";
 // many frames. Only effective if compositor image animations are enabled.
 const char kDisableImageAnimationResync[] = "disable-image-animation-resync";
 
-// When using CPU rasterizing disable low resolution tiling. This uses
-// less power, particularly during animations, but more white may be seen
-// during fast scrolling especially on slower devices.
-const char kDisableLowResTiling[] = "disable-low-res-tiling";
-
 // Disable partial raster in the renderer. Disabling this switch also disables
 // the use of persistent gpu memory buffers.
 const char kDisablePartialRaster[] = "disable-partial-raster";
@@ -75,10 +70,6 @@ const char kEnableGpuMemoryBufferCompositorResources[] =
 const char kEnableLeakDetectionHeapSnapshot[] =
     "enable-leak-detection-heap-snapshot";
 
-// When using CPU rasterizing generate low resolution tiling. Low res
-// tiles may be displayed during fast scrolls especially on slower devices.
-const char kEnableLowResTiling[] = "enable-low-res-tiling";
-
 // Enable the creation of compositing layers when it would prevent LCD text.
 const char kEnablePreferCompositingToLCDText[] =
     "enable-prefer-compositing-to-lcd-text";
@@ -92,6 +83,10 @@ const char kEnableRasterSideDarkModeForImages[] =
 
 // Enable rasterizer that writes directly to GPU memory associated with tiles.
 const char kEnableZeroCopy[] = "enable-zero-copy";
+
+// Sets the total amount of memory that may be allocated for GPU resources in
+// cc.
+const char kForceGpuMemAvailableMb[] = "force-gpu-mem-available-mb";
 
 // The number of multisample antialiasing samples for GPU rasterization.
 // Requires MSAA support on GPU to have an effect. 0 disables MSAA.
@@ -107,14 +102,6 @@ extern const char kIntensiveWakeUpThrottlingPolicy[] =
     "intensive-wake-up-throttling-policy";
 extern const char kIntensiveWakeUpThrottlingPolicy_ForceDisable[] = "0";
 extern const char kIntensiveWakeUpThrottlingPolicy_ForceEnable[] = "1";
-
-// Used to communicate managed policy for KeyboardFocusableScrollers feature.
-// This feature is typically controlled by a RuntimeEnabledFeature, but requires
-// an enterprise policy override.
-extern const char kKeyboardFocusableScrollersEnabled[] =
-    "keyboard-focusable-scrollers-enabled";
-extern const char kKeyboardFocusableScrollersOptOut[] =
-    "keyboard-focusable-scrollers-opt-out";
 
 // A command line to indicate if there ia any legacy tech report urls being set.
 // If so, we will send report from blink to browser process.
@@ -133,12 +120,6 @@ const char kMinHeightForGpuRasterTile[] = "min-height-for-gpu-raster-tile";
 // enterprise policy override.
 extern const char kCSSCustomStateDeprecatedSyntaxEnabled[] =
     "css-custom-state-deprecated-syntax-enabled";
-
-// Used to communicate managed policy for SelectParserRelaxation. This feature
-// is typically controlled by a RuntimeEnabledFeature, but requires an
-// enterprise policy override.
-extern const char kDisableSelectParserRelaxation[] =
-    "disable-select-parser-relaxation";
 
 // Sets the timeout seconds of the network-quiet timers in IdlenessDetector.
 // Used by embedders who want to change the timeout time in order to run web

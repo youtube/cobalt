@@ -569,16 +569,22 @@ WebInputEventResult PointerEventManager::SendTouchPointerEvent(
   if (non_hovering_pointers_canceled_)
     return WebInputEventResult::kNotHandled;
 
-  ProcessCaptureAndPositionOfPointerEvent(pointer_event, target);
+  target = ProcessCaptureAndPositionOfPointerEvent(pointer_event, target);
 
   // Setting the implicit capture for touch
   if (pointer_event->type() == event_type_names::kPointerdown) {
+    // Note: The `ProcessCaptureAndPositionOfPointerEvent` call above does not
+    // modify `target` for this touch pointerdown because the pointer was in
+    // inactive button state hence was uncaptured.
+    //
+    // This is true even if the two pointerid's for a double-tap happen to be
+    // the same.  This is because the first pointerup synchronously calls
+    // `ProcessCaptureAndPositionOfPointerEvent` below to immediately settle the
+    // capture release.
     SetPointerCapture(pointer_event->pointerId(), target);
   }
 
-  WebInputEventResult result = DispatchPointerEvent(
-      GetEffectiveTargetForPointerEvent(target, pointer_event->pointerId()),
-      pointer_event);
+  WebInputEventResult result = DispatchPointerEvent(target, pointer_event);
 
   if (pointer_event->type() == event_type_names::kPointerup ||
       pointer_event->type() == event_type_names::kPointercancel) {
@@ -1103,15 +1109,9 @@ WebInputEventResult PointerEventManager::SendMousePointerEvent(
 
   Element* captured_click_target = nullptr;
   if (consider_click_dispatch) {
-    // Remember the capture target for the click dispatch later, if applicable.
+    // Remember the capture target for the click dispatch later.
     captured_click_target =
         GetEffectiveTargetForPointerEvent(nullptr, pointer_event->pointerId());
-    // Dispatch the click event only when the flag is disabled.
-    if (!RuntimeEnabledFeatures::ClickToCapturedPointerEnabled()) {
-      mouse_event_manager_->DispatchMouseClickIfNeeded(
-          mouse_target, captured_click_target, mouse_event,
-          pointer_event->pointerId(), pointer_event->pointerType());
-    }
   }
 
   if (pointer_event->type() == event_type_names::kPointerup ||
@@ -1145,20 +1145,17 @@ WebInputEventResult PointerEventManager::SendMousePointerEvent(
     }
   }
 
-  // Dispatch the click event if applicable, when the flag is enabled.
-  if (consider_click_dispatch &&
-      RuntimeEnabledFeatures::ClickToCapturedPointerEnabled()) {
+  if (consider_click_dispatch) {
     ProcessPendingPointerCapture(pointer_event);
     mouse_event_manager_->DispatchMouseClickIfNeeded(
         mouse_target, captured_click_target, mouse_event,
         pointer_event->pointerId(), pointer_event->pointerType());
-    // TODO(https://crbug.com/40851596): The following call to
-    // `ProcessCaptureAndPositionOfPointerEvent()` does not see any pending
-    // capture.  Clean this up after the flag is enabled.
   }
 
   // Send got/lostpointercapture rightaway if necessary.
   if (pointer_event->type() == event_type_names::kPointerup) {
+    // If a click was dispatched above, the following call only sets element
+    // under pointer/mouse and skips sending got/lostpointercapture events.
     ProcessCaptureAndPositionOfPointerEvent(pointer_event, target,
                                             &mouse_event);
   } else if (pointer_event->type() == event_type_names::kPointercancel) {

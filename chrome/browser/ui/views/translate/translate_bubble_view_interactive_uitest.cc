@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/views/translate/translate_bubble_controller.h"
 #include "chrome/browser/ui/views/translate/translate_bubble_view.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -324,6 +325,10 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, ClickOpenLanguageSettings) {
         // V1. Verify that the “Open language settings” option is not shown in
         // incognito mode.
         EnsureNotPresent(TranslateBubbleView::kOpenLanguageSettings));
+
+    // Close bubble at the end of test to avoid unexpected bubble cleanup in
+    // test fixture while the menu is open.
+    GetCurrentTranslateBubble()->CloseBubble();
   } else {
     RunTestSequence(
         views::InteractionSequenceViews::WithInitialView(

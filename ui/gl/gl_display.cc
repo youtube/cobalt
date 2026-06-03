@@ -19,6 +19,7 @@
 #include "base/strings/string_split.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/system/sys_info.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "gl_display.h"
 #include "gl_switches.h"
@@ -31,7 +32,7 @@
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_surface.h"
-#include "ui/gl/startup_trace.h"
+#include "ui/gl/gpu_switching_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
@@ -64,7 +65,7 @@ EGLDisplay GetPlatformANGLEDisplay(
     const std::vector<std::string>& enabled_features,
     const std::vector<std::string>& disabled_features,
     const std::vector<EGLAttrib>& extra_display_attribs) {
-  GPU_STARTUP_TRACE_EVENT("gl_display::GetPlatformANGLEDisplay");
+  TRACE_EVENT("gpu,startup", "gl_display::GetPlatformANGLEDisplay");
   std::vector<EGLAttrib> display_attribs(extra_display_attribs);
 
   display_attribs.push_back(EGL_PLATFORM_ANGLE_TYPE_ANGLE);
@@ -368,49 +369,6 @@ const char* DisplayTypeString(DisplayType display_type) {
   }
 }
 
-const char* GetDebugMessageTypeString(EGLint source) {
-  switch (source) {
-    case EGL_DEBUG_MSG_CRITICAL_KHR:
-      return "Critical";
-    case EGL_DEBUG_MSG_ERROR_KHR:
-      return "Error";
-    case EGL_DEBUG_MSG_WARN_KHR:
-      return "Warning";
-    case EGL_DEBUG_MSG_INFO_KHR:
-      return "Info";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-void EGLAPIENTRY LogEGLDebugMessage(EGLenum error,
-                                    const char* command,
-                                    EGLint message_type,
-                                    EGLLabelKHR thread_label,
-                                    EGLLabelKHR object_label,
-                                    const char* message) {
-  std::string formatted_message = std::string("EGL Driver message (") +
-                                  GetDebugMessageTypeString(message_type) +
-                                  ") " + command + ": " + message;
-
-  // Assume that all labels that have been set are strings
-  if (thread_label) {
-    formatted_message += " thread: ";
-    formatted_message += static_cast<const char*>(thread_label);
-  }
-  if (object_label) {
-    formatted_message += " object: ";
-    formatted_message += static_cast<const char*>(object_label);
-  }
-
-  if (message_type == EGL_DEBUG_MSG_CRITICAL_KHR ||
-      message_type == EGL_DEBUG_MSG_ERROR_KHR) {
-    LOG(ERROR) << formatted_message;
-  } else {
-    DVLOG(1) << formatted_message;
-  }
-}
-
 void SetEglDebugMessageControl() {
   static bool egl_debug_message_control_is_set = false;
   if (!egl_debug_message_control_is_set) {
@@ -427,7 +385,7 @@ void SetEglDebugMessageControl() {
         EGL_NONE,
     };
 
-    eglDebugMessageControlKHR(&LogEGLDebugMessage, controls);
+    eglDebugMessageControlKHR(&ui::LogEGLDebugMessage, controls);
   }
 }
 
@@ -499,7 +457,8 @@ void GLDisplayEGL::Shutdown() {
     gpu_switching_observer_.reset();
   }
 
-  angle::ResetPlatform(display_);
+  DCHECK(g_driver_egl.fn.eglGetProcAddressFn);
+  angle::ResetPlatform(display_, g_driver_egl.fn.eglGetProcAddressFn);
   DCHECK(g_driver_egl.fn.eglTerminateFn);
   eglTerminate(display_);
 
@@ -619,7 +578,7 @@ bool GLDisplayEGL::InitializeDisplay(bool supports_angle,
                                      std::vector<DisplayType> init_displays,
                                      EGLDisplayPlatform native_display,
                                      gl::GLDisplayEGL* existing_display) {
-  GPU_STARTUP_TRACE_EVENT("gl::GLDisplayEGL::InitializeDisplay");
+  TRACE_EVENT("gpu,startup", "gl::GLDisplayEGL::InitializeDisplay");
   if (display_ != EGL_NO_DISPLAY)
     return true;
 
@@ -655,7 +614,8 @@ bool GLDisplayEGL::InitializeDisplay(bool supports_angle,
     if (!existing_display) {
       // Init ANGLE platform now that we have the global display.
       if (supports_angle) {
-        if (!angle::InitializePlatform(display)) {
+        if (!angle::InitializePlatform(display,
+                                       g_driver_egl.fn.eglGetProcAddressFn)) {
           LOG(ERROR) << "ANGLE Platform initialization failed.";
         }
 
@@ -673,7 +633,7 @@ bool GLDisplayEGL::InitializeDisplay(bool supports_angle,
     }
 
     {
-      GPU_STARTUP_TRACE_EVENT("eglInitializeFn display");
+      TRACE_EVENT("gpu,startup", "eglInitializeFn display");
       if (!eglInitialize(display, nullptr, nullptr)) {
         bool is_last = disp_index == init_displays.size() - 1;
 
@@ -718,7 +678,7 @@ bool GLDisplayEGL::InitializeDisplay(bool supports_angle,
 }
 
 void GLDisplayEGL::InitializeCommon(bool for_testing) {
-  GPU_STARTUP_TRACE_EVENT("gl::GLDisplayEGL::InitializeCommon");
+  TRACE_EVENT("gpu,startup", "gl::GLDisplayEGL::InitializeCommon");
   // According to https://source.android.com/compatibility/android-cdd.html the
   // EGL_IMG_context_priority extension is mandatory for Virtual Reality High
   // Performance support, but due to a bug in Android Nougat the extension

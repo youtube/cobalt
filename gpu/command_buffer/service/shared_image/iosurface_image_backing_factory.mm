@@ -22,7 +22,7 @@
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gfx/buffer_format_util.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/mac/io_surface.h"
 #include "ui/gl/buildflags.h"
 #include "ui/gl/gl_context.h"
@@ -121,7 +121,8 @@ constexpr SharedImageUsageSet kSupportedUsage =
     SHARED_IMAGE_USAGE_MACOS_VIDEO_TOOLBOX |
     SHARED_IMAGE_USAGE_HIGH_PERFORMANCE_GPU |
     SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
-    SHARED_IMAGE_USAGE_WEBGPU_STORAGE_TEXTURE | SHARED_IMAGE_USAGE_CPU_UPLOAD;
+    SHARED_IMAGE_USAGE_WEBGPU_STORAGE_TEXTURE | SHARED_IMAGE_USAGE_CPU_UPLOAD |
+    SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE;
 
 }  // anonymous namespace
 

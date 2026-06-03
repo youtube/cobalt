@@ -19,6 +19,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -32,6 +33,8 @@
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/install_approval.h"
 #include "chrome/browser/extensions/install_tracker.h"
+#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
+#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/extensions/scoped_active_install.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
@@ -69,8 +72,6 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
-#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "extensions/browser/api/management/management_api.h"
 #endif
@@ -1356,7 +1357,6 @@ WebstorePrivateGetMV2DeprecationStatusFunction::
 
 ExtensionFunction::ResponseAction
 WebstorePrivateGetMV2DeprecationStatusFunction::Run() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   ManifestV2ExperimentManager* experiment_manager =
       ManifestV2ExperimentManager::Get(browser_context());
   MV2ExperimentStage current_stage =
@@ -1381,12 +1381,6 @@ WebstorePrivateGetMV2DeprecationStatusFunction::Run() {
   return RespondNow(ArgumentList(
       api::webstore_private::GetMV2DeprecationStatus::Results::Create(
           api_status)));
-#else
-  // Android does not support Manifest V2 experiments.
-  return RespondNow(ArgumentList(
-      api::webstore_private::GetMV2DeprecationStatus::Results::Create(
-          api::webstore_private::MV2DeprecationStatus::kInactive)));
-#endif
 }
 
 }  // namespace extensions

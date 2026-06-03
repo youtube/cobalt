@@ -68,6 +68,35 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
     LargeFont,
   };
 
+  // The gender to use for languages that are grammatically gendered. kOther is
+  // the default.
+  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.ui.base
+  enum class Gender {
+    kOther = 0,
+    kFeminine,
+    kMasculine,
+    kNeuter,
+    kDefault = kOther,
+  };
+
+#if BUILDFLAG(IS_ANDROID)
+  // The purpose for a pak file represented by an FdAndRegion. These correspond
+  // to entries in the android_webview/common/aw_descriptors.h and
+  // chrome/common/chrome_descriptors.h enums.
+  enum class LocalePakPurpose {
+    kWebViewMain = 0,
+    kNonWebViewMain,
+    kWebViewFallback,
+    kNonWebViewFallback,
+  };
+
+  struct FdAndRegion {
+    int fd;
+    base::MemoryMappedFile::Region region;
+    LocalePakPurpose purpose;
+  };
+#endif  // BUILDFLAG(IS_ANDROID)
+
   struct COMPONENT_EXPORT(UI_BASE) FontDetails {
     explicit FontDetails(std::string typeface = std::string(),
                          int size_delta = 0,
@@ -111,9 +140,8 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
     // the pack file to continue loading or an empty value to cancel loading.
     // |pack_path| will contain the complete default path for the pack file if
     // known or just the pack file name otherwise.
-    virtual base::FilePath GetPathForLocalePack(
-        const base::FilePath& pack_path,
-        const std::string& locale) = 0;
+    virtual base::FilePath GetPathForLocalePack(const base::FilePath& pack_path,
+                                                std::string_view locale) = 0;
 
     // Return an image resource or an empty value to attempt retrieval of the
     // default resource.
@@ -156,6 +184,21 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
     virtual ~Delegate() = default;
   };
 
+  // RAII object for tests that wraps SwapSharedInstanceForTesting() to swap out
+  // (and then back in) the current shared instance and, on Android, also the
+  // Android global locale packs.
+  class COMPONENT_EXPORT(UI_BASE) SharedInstanceSwapperForTesting {
+   public:
+    SharedInstanceSwapperForTesting();
+    ~SharedInstanceSwapperForTesting();
+
+   private:
+    raw_ptr<ResourceBundle> instance_;
+#if BUILDFLAG(IS_ANDROID)
+    std::vector<ResourceBundle::FdAndRegion> android_locale_packs_;
+#endif  // BUILDFLAG(IS_ANDROID)
+  };
+
   using LottieData = std::vector<uint8_t>;
   using LottieImageParseFunction = gfx::ImageSkia (*)(LottieData);
   using LottieThemedImageParseFunction = ui::ImageModel (*)(LottieData);
@@ -196,8 +239,21 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
   // Delete the ResourceBundle for this process if it exists.
   static void CleanupSharedInstance();
 
-  // Returns the existing shared instance and sets it to the given instance.
-  static ResourceBundle* SwapSharedInstanceForTesting(ResourceBundle* instance);
+  // Returns the existing shared instance and sets it to the given instance. On
+  // Android, it also sets the global android locale pack data to
+  // |new_android_locale_packs| and returns the original data in
+  // |old_android_locale_packs|.
+  //
+  // Prefer to use the RAII class SharedInstanceSwapperForTesting instead of
+  // calling this directly when possible.
+  static ResourceBundle* SwapSharedInstanceForTesting(
+      ResourceBundle* instance
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      const std::vector<ResourceBundle::FdAndRegion>& new_android_locale_packs,
+      std::vector<ResourceBundle::FdAndRegion>* old_android_locale_packs
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   // Returns true after the global resource loader instance has been created.
   static bool HasSharedInstance();
@@ -214,12 +270,12 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
   ResourceBundle& operator=(const ResourceBundle&) = delete;
 
   // Loads a secondary locale data pack using the given file region.
-  void LoadSecondaryLocaleDataWithPakFileRegion(
+  void LoadAdditionalLocaleDataWithPakFileRegion(
       base::File pak_file,
       const base::MemoryMappedFile::Region& region);
 
   // Check if the .pak for the given locale exists.
-  static bool LocaleDataPakExists(const std::string& locale);
+  static bool LocaleDataPakExists(std::string_view locale, Gender gender);
 
   // Registers additional data pack files with this ResourceBundle.  When
   // looking for a DataResource, we will search these files after searching the
@@ -382,7 +438,7 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
   // returned path is not guaranteed to reference an existing file.
   // Used on Android to load the local file in the browser process and pass it
   // to the sandboxed renderer process.
-  static base::FilePath GetLocaleFilePath(const std::string& app_locale);
+  static base::FilePath GetLocaleFilePath(std::string_view app_locale);
 
   // Returns the maximum scale factor currently loaded.
   // Returns k100Percent if no resource is loaded.
@@ -404,6 +460,8 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
     return can_override_locale_string_resources_;
   }
 #endif
+
+  const base::FilePath& GetOverriddenPakPath() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ResourceBundleTest, DelegateGetPathForLocalePack);
@@ -499,8 +557,6 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
   gfx::Image& GetEmptyImage();
   const ui::ImageModel& GetEmptyImageModel();
 
-  const base::FilePath& GetOverriddenPakPath() const;
-
   // If mangling of localized strings is enabled, mangles |str| to make it
   // longer and to add begin and end markers so that any truncation of it is
   // visible and returns the mangled string. If not, returns |str|.
@@ -521,8 +577,7 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
   std::unique_ptr<base::Lock> locale_resources_data_lock_;
 
   // Handles for data sources.
-  std::unique_ptr<ResourceHandle> locale_resources_data_;
-  std::unique_ptr<ResourceHandle> secondary_locale_resources_data_;
+  std::vector<std::unique_ptr<ResourceHandle>> locale_resources_data_;
   std::vector<std::unique_ptr<ResourceHandle>> resource_handles_;
 
   // The maximum scale factor currently loaded.

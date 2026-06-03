@@ -30,15 +30,27 @@ public class DomDistillerFeatures {
                 && sReaderModeImprovementsEnableCustomCpaTimeout.getValue();
     }
 
+    /** Returns whether the readability triggering heuristic should be used. */
+    public static boolean shouldUseReadabilityTriggeringHeuristic() {
+        return sReaderModeUseReadability.isEnabled()
+                && sReaderModeUseReadabilityUseHeuristic.getValue();
+    }
+
     // Feature names -- alphabetical ordering.
     public static final String READER_MODE_AUTO_DISTILL = "ReaderModeAutoDistill";
+    public static final String READER_MODE_DISTILL_IN_APP = "ReaderModeDistillInApp";
     public static final String READER_MODE_IMPROVEMENTS = "ReaderModeImprovements";
+    public static final String READER_MODE_USE_READABILITY = "ReaderModeUseReadability";
 
     // Feature flags -- alphabetical ordering.
     public static final MutableFlagWithSafeDefault sReaderModeAutoDistill =
             newMutableFlagWithSafeDefault(READER_MODE_AUTO_DISTILL, /* defaultValue= */ false);
+    public static final MutableFlagWithSafeDefault sReaderModeDistillInApp =
+            newMutableFlagWithSafeDefault(READER_MODE_DISTILL_IN_APP, /* defaultValue= */ false);
     public static final MutableFlagWithSafeDefault sReaderModeImprovements =
             newMutableFlagWithSafeDefault(READER_MODE_IMPROVEMENTS, /* defaultValue= */ false);
+    public static final MutableFlagWithSafeDefault sReaderModeUseReadability =
+            newMutableFlagWithSafeDefault(READER_MODE_USE_READABILITY, /* defaultValue= */ false);
 
     // Feature params -- alphabetical ordering.
     public static final MutableBooleanParamWithSafeDefault
@@ -53,6 +65,8 @@ public class DomDistillerFeatures {
                     sReaderModeImprovements.newBooleanParam("custom_cpa_timeout_enabled", false);
     public static final MutableIntParamWithSafeDefault sReaderModeImprovementsCustomCpaTimeout =
             sReaderModeImprovements.newIntParam("custom_cpa_timeout", 300);
+    public static final MutableBooleanParamWithSafeDefault sReaderModeUseReadabilityUseHeuristic =
+            sReaderModeUseReadability.newBooleanParam("use_heuristic", false);
 
     // Private functions below:
 

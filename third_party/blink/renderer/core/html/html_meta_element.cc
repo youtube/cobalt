@@ -554,6 +554,10 @@ void HTMLMetaElement::NameRemoved(const AtomicString& name_value) {
   } else if (RuntimeEnabledFeatures::AppTitleEnabled(GetExecutionContext()) &&
              EqualIgnoringASCIICase(name_value, "application-title")) {
     GetDocument().UpdateApplicationTitle();
+  } else if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
+             EqualIgnoringASCIICase(name_value,
+                                    keywords::kResponsiveEmbeddedSizing)) {
+    GetDocument().ResponsiveEmbeddedSizingChanged();
   }
 }
 
@@ -668,6 +672,11 @@ void HTMLMetaElement::ProcessContent() {
   if (name_value.empty())
     return;
 
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
+      EqualIgnoringASCIICase(name_value, keywords::kResponsiveEmbeddedSizing)) {
+    GetDocument().ResponsiveEmbeddedSizingChanged();
+  }
+
   if (EqualIgnoringASCIICase(name_value, "theme-color") &&
       GetDocument().GetFrame()) {
     GetDocument().GetFrame()->DidChangeThemeColor(
@@ -734,7 +743,7 @@ void HTMLMetaElement::ProcessContent() {
   }
 }
 
-WTF::TextEncoding HTMLMetaElement::ComputeEncoding() const {
+TextEncoding HTMLMetaElement::ComputeEncoding() const {
   HTMLAttributeList attribute_list;
   for (const Attribute& attr : Attributes())
     attribute_list.push_back(

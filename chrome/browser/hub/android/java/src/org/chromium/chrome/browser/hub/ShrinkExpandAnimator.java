@@ -14,7 +14,12 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.UsedByReflection;
 
-/** Animator for scaling a {@link ShrinkExpandImageView} from one rect to another. */
+/**
+ * Animator for scaling a {@link ShrinkExpandImageView} from one rect to another.
+ *
+ * <p>Note: This needs to be a field to prevent the {@link java.lang.ref.WeakReference} in {@link
+ * android.animation.ObjectAnimator} from being GC'd.
+ */
 // TODO(crbug.com/40286625): Move to hub/internal/ once TabSwitcherLayout no longer depends on this.
 @NullMarked
 public class ShrinkExpandAnimator {
@@ -34,6 +39,9 @@ public class ShrinkExpandAnimator {
 
     /**
      * Create an animator that scales and translates a view from one rect to another.
+     *
+     * <p>Note: This needs to be a field to prevent the {@link java.lang.ref.WeakReference} in
+     * {@link android.animation.ObjectAnimator} from being GC'd.
      *
      * @param view the ShrinkExpandImageView to apply the translation and scaling to. It should have
      *     a default scale of 1.0f and translation of 0.0f and be the size of {@code initialRect}.

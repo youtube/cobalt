@@ -8,6 +8,7 @@ import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.BUFFE
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.ERROR;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PAUSED;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PLAYING;
+import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PLAYBACK_CREATION;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.STOPPED;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.UNKNOWN;
 
@@ -68,6 +69,8 @@ public class MiniPlayerLayout extends LinearLayout {
     private int mYOffset;
     private PlaybackMode mRequestedPlaybackMode = PlaybackMode.UNSPECIFIED;
 
+    private ProgressBar mSpinner;
+
     /** Constructor for inflating from XML. */
     public MiniPlayerLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -95,6 +98,8 @@ public class MiniPlayerLayout extends LinearLayout {
         mErrorLayout = (LinearLayout) findViewById(R.id.error_layout);
 
         mLoadingMessage = (TextView) findViewById(R.id.loading_message);
+
+        mSpinner = (ProgressBar) findViewById(R.id.readaloud_spinner);
 
         // Set dynamic colors.
         Context context = getContext();
@@ -232,6 +237,7 @@ public class MiniPlayerLayout extends LinearLayout {
     void onPlaybackStateChanged(@PlaybackListener.State int state) {
         switch (state) {
                 // UNKNOWN is currently the "reset" state and can be treated same as buffering.
+            case PLAYBACK_CREATION:
             case BUFFERING:
             case UNKNOWN:
                 showBufferingLayout();
@@ -282,8 +288,10 @@ public class MiniPlayerLayout extends LinearLayout {
         if (mRequestedPlaybackMode == PlaybackMode.OVERVIEW) {
             mLoadingMessage.setText(
                     mContext.getString(R.string.readaloud_mini_player_loading_ai_playback));
+            mSpinner.setContentDescription(mContext.getString(R.string.readaloud_mini_player_spinner_overview_content_description));
         } else {
             mLoadingMessage.setText(mContext.getString(R.string.readaloud_playback_loading));
+            mSpinner.setContentDescription(mContext.getString(R.string.readaloud_mini_player_spinner_classic_content_description));
         }
     }
 

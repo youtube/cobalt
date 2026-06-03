@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/html/forms/internal_popup_menu.h"
 
 #include "base/containers/span.h"
+#include "base/strings/string_view_util.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -335,8 +336,8 @@ void InternalPopupMenu::WriteDocument(SegmentedBuffer& data) {
           owner_element, owner_element.GetComputedStyle(), temp_scrollbar,
           target.first);
       if (part_style) {
-        AppendOwnerElementPseudoStyles(WTF::StrCat({target.second, ":hover"}),
-                                       data, *part_style);
+        AppendOwnerElementPseudoStyles(StrCat({target.second, ":hover"}), data,
+                                       *part_style);
       }
     }
   }
@@ -345,54 +346,31 @@ void InternalPopupMenu::WriteDocument(SegmentedBuffer& data) {
 
   data.Append(ChooserResourceLoader::GetPickerCommonStyleSheet());
   data.Append(ChooserResourceLoader::GetListPickerStyleSheet());
-  if (taller_options_) {
-    int padding = static_cast<int>(roundf(4 * scale_factor));
-    int min_height = static_cast<int>(roundf(24 * scale_factor));
-    PagePopupClient::AddString(String::Format("option, optgroup {"
-                                              "padding-top: %dpx;"
-                                              "}\n"
-                                              "option {"
-                                              "padding-bottom: %dpx;"
-                                              "min-block-size: %dpx;"
-                                              "display: flex;"
-                                              "align-items: center;"
-                                              "}\n",
-                                              padding, padding, min_height),
-                               data);
-    // Sets the min target size of <option> to 24x24 CSS pixels to meet
-    // Accessibility standards.
-    if (RuntimeEnabledFeatures::SelectOptionAccessibilityTargetSizeEnabled()) {
-      PagePopupClient::AddString(
-          String::Format("option {"
-                         "display: block;"
-                         "align-content: center;"
-                         "min-inline-size: %dpx;"
-                         "min-block-size: %dpx;"
-                         "box-sizing: border-box;"
-                         "}\n",
-                         min_height, std::max(24, min_height)),
-          data);
-    }
-  }
-
-  if (RuntimeEnabledFeatures::SelectColorsRemoveImportantEnabled()) {
-    // We want to use -internal-inactive-list-box-selection here to match
-    // html.css, but we can't because this isn't a UA stylesheet. This code
-    // figures out what that color would resolve to and uses it.
-    Color disabled_bg_color_light =
-        LayoutTheme::GetTheme().InactiveListBoxSelectionBackgroundColor(
-            mojom::blink::ColorScheme::kLight);
-    Color disabled_bg_color_dark =
-        LayoutTheme::GetTheme().InactiveListBoxSelectionBackgroundColor(
-            mojom::blink::ColorScheme::kDark);
-    String listbox_bg_color = String::Format(
-        "option:checked:disabled {"
-        "background-color: light-dark(%s, %s) !important;"
-        "}",
-        disabled_bg_color_light.SerializeAsCSSColor().Ascii().c_str(),
-        disabled_bg_color_dark.SerializeAsCSSColor().Ascii().c_str());
-    PagePopupClient::AddString(listbox_bg_color, data);
-  }
+  int padding = static_cast<int>(roundf(4 * scale_factor));
+  int min_height = static_cast<int>(roundf(24 * scale_factor));
+  PagePopupClient::AddString(String::Format("option, optgroup {"
+                                            "padding-top: %dpx;"
+                                            "}\n"
+                                            "option {"
+                                            "padding-bottom: %dpx;"
+                                            "min-block-size: %dpx;"
+                                            "display: flex;"
+                                            "align-items: center;"
+                                            "}\n",
+                                            padding, padding, min_height),
+                             data);
+  // Sets the min target size of <option> to 24x24 CSS pixels to meet
+  // Accessibility standards.
+  PagePopupClient::AddString(
+      String::Format("option {"
+                     "display: block;"
+                     "align-content: center;"
+                     "min-inline-size: %dpx;"
+                     "min-block-size: %dpx;"
+                     "box-sizing: border-box;"
+                     "}\n",
+                     min_height, std::max(24, min_height)),
+      data);
 
   PagePopupClient::AddString(
       "</style></head><body><div id=main>Loading...</div><script>\n"
@@ -688,10 +666,6 @@ void InternalPopupMenu::Dispose() {
 
 void InternalPopupMenu::Show(PopupMenu::ShowEventType type) {
   DCHECK(!popup_);
-  taller_options_ =
-      type == PopupMenu::kTouch ||
-      RuntimeEnabledFeatures::ForceTallerSelectPopupEnabled() ||
-      RuntimeEnabledFeatures::SelectOptionAccessibilityTargetSizeEnabled();
   popup_ = chrome_client_->OpenPagePopup(this);
 }
 

@@ -98,6 +98,12 @@ uint32_t InputFlagsToContentHint(int input_flags) {
 
 }  // namespace
 
+bool ZwpTextInputV3Impl::SurroundingText::operator==(
+    const SurroundingText& other) const {
+  // Only compare the data that is sent to IME.
+  return text == other.text && cursor == other.cursor && anchor == other.anchor;
+}
+
 ZwpTextInputV3Impl::ImeData::ImeData() = default;
 ZwpTextInputV3Impl::ImeData::~ImeData() = default;
 void ZwpTextInputV3Impl::ImeData::Reset() {
@@ -106,8 +112,14 @@ void ZwpTextInputV3Impl::ImeData::Reset() {
   content_type.reset();
 }
 
-ZwpTextInputV3Impl::InputEvents::InputEvents() = default;
+ZwpTextInputV3Impl::InputEvents::InputEvents()
+    : preedit(std::make_unique<PreeditData>()) {}
 ZwpTextInputV3Impl::InputEvents::~InputEvents() = default;
+void ZwpTextInputV3Impl::InputEvents::Reset() {
+  preedit = std::make_unique<PreeditData>();
+  commit = {};
+  delete_surrounding_text.reset();
+}
 
 ZwpTextInputV3Impl::ZwpTextInputV3Impl(
     WaylandConnection* connection,
@@ -134,7 +146,7 @@ ZwpTextInputV3Impl::~ZwpTextInputV3Impl() = default;
 
 void ZwpTextInputV3Impl::Reset() {
   // Clear last committed values.
-  ResetCommittedImeData();
+  committed_ime_data_.Reset();
   // There is no explicit reset API in v3. See [1].
   // Disable+enable to force a reset has been discussed as a possible solution.
   // But this is not implemented yet in compositors. In fact, it was seen in
@@ -154,8 +166,9 @@ void ZwpTextInputV3Impl::Reset() {
   //
   // [1]
   // https://gitlab.freedesktop.org/wayland/wayland-protocols/-/merge_requests/34
-  ResetPendingImeData();
-  ResetInputEventsState();
+  pending_ime_data_.Reset();
+  pending_input_events_.Reset();
+  applied_input_events_.Reset();
 }
 
 void ZwpTextInputV3Impl::SetClient(ZwpTextInputV3Client* context) {
@@ -171,24 +184,25 @@ void ZwpTextInputV3Impl::OnClientDestroyed(ZwpTextInputV3Client* context) {
 
 void ZwpTextInputV3Impl::Enable() {
   // Pending state is reset on enable.
-  ResetPendingImeData();
-  ResetInputEventsState();
+  pending_ime_data_.Reset();
+  pending_input_events_.Reset();
+  applied_input_events_.Reset();
   zwp_text_input_v3_enable(obj_.get());
   Commit();
 }
 
 void ZwpTextInputV3Impl::Disable() {
   // Avoid sending pending requests if done is received after disabling.
-  ResetPendingImeData();
+  pending_ime_data_.Reset();
   // Do not process pending input events after deactivating.
-  ResetInputEventsState();
+  pending_input_events_.Reset();
   zwp_text_input_v3_disable(obj_.get());
   Commit();
 }
 
 bool ZwpTextInputV3Impl::DoneSerialEqualsCommitCount() {
   return committed_ime_data_.commit_count ==
-         pending_input_events_.last_done_serial;
+         applied_input_events_.last_done_serial;
 }
 
 void ZwpTextInputV3Impl::SetCursorRect(const gfx::Rect& rect) {
@@ -249,21 +263,23 @@ void ZwpTextInputV3Impl::SetSurroundingText(
     cursor = base::checked_cast<int32_t>(
         selection_range.IsValid() ? selection_range.end() : text.length());
   }
-  auto data =
-      std::make_unique<SetSurroundingTextData>(std::move(text), cursor, anchor);
+  auto surrounding_text = std::make_unique<SurroundingText>(
+      std::move(text), cursor, anchor, text_with_preedit.length(),
+      preedit_range.IsValid() ? preedit_range : selection_range);
   if (committed_ime_data_.surrounding_text &&
-      *committed_ime_data_.surrounding_text == *data) {
+      *committed_ime_data_.surrounding_text == *surrounding_text) {
     return;
   }
-  pending_ime_data_.surrounding_text = std::move(data);
+  pending_ime_data_.surrounding_text = std::move(surrounding_text);
   SendPendingImeData();
 }
 
 bool ZwpTextInputV3Impl::SendSurroundingText() {
   CHECK(DoneSerialEqualsCommitCount());
-  if (const auto& data = pending_ime_data_.surrounding_text) {
-    zwp_text_input_v3_set_surrounding_text(obj_.get(), data->text.c_str(),
-                                           data->cursor, data->anchor);
+  if (const auto& surrounding = pending_ime_data_.surrounding_text) {
+    zwp_text_input_v3_set_surrounding_text(
+        obj_.get(), surrounding->text.c_str(), surrounding->cursor,
+        surrounding->anchor);
     committed_ime_data_.surrounding_text =
         std::move(pending_ime_data_.surrounding_text);
     return true;
@@ -323,19 +339,6 @@ void ZwpTextInputV3Impl::SendPendingImeData() {
   }
 }
 
-void ZwpTextInputV3Impl::ResetPendingImeData() {
-  pending_ime_data_.Reset();
-}
-
-void ZwpTextInputV3Impl::ResetCommittedImeData() {
-  committed_ime_data_.Reset();
-}
-
-void ZwpTextInputV3Impl::ResetInputEventsState() {
-  pending_input_events_.preedit = std::nullopt;
-  pending_input_events_.commit = std::nullopt;
-}
-
 void ZwpTextInputV3Impl::Commit() {
   zwp_text_input_v3_commit(obj_.get());
   // It will wrap around to 0 once it reaches uint32_t max value. It is
@@ -365,8 +368,8 @@ void ZwpTextInputV3Impl::OnPreeditString(void* data,
                                          int32_t cursor_begin,
                                          int32_t cursor_end) {
   auto* self = static_cast<ZwpTextInputV3Impl*>(data);
-  self->pending_input_events_.preedit = {text ? text : std::string(),
-                                         cursor_begin, cursor_end};
+  self->pending_input_events_.preedit = std::make_unique<PreeditData>(
+      text ? text : std::string(), cursor_begin, cursor_end);
 }
 
 void ZwpTextInputV3Impl::OnCommitString(void* data,
@@ -381,7 +384,9 @@ void ZwpTextInputV3Impl::OnDeleteSurroundingText(
     struct zwp_text_input_v3* text_input,
     uint32_t before_length,
     uint32_t after_length) {
-  NOTIMPLEMENTED_LOG_ONCE();
+  auto* self = static_cast<ZwpTextInputV3Impl*>(data);
+  self->pending_input_events_.delete_surrounding_text =
+      std::make_unique<DeleteSurroundingText>(before_length, after_length);
 }
 
 void ZwpTextInputV3Impl::OnDone(void* data,
@@ -389,27 +394,92 @@ void ZwpTextInputV3Impl::OnDone(void* data,
                                 uint32_t serial) {
   // TODO(crbug.com/40113488) apply delete surrounding
   auto* self = static_cast<ZwpTextInputV3Impl*>(data);
-  self->pending_input_events_.last_done_serial = serial;
+  self->applied_input_events_.last_done_serial = serial;
 
   if (!self->client_) {
     return;
   }
+  auto& surrounding_text = self->committed_ime_data_.surrounding_text;
+  const auto& commit_string = self->pending_input_events_.commit;
+  const auto& preedit_data = self->pending_input_events_.preedit;
+  CHECK(preedit_data);
+  const auto& delete_surrounding_text =
+      self->pending_input_events_.delete_surrounding_text;
+  if (surrounding_text && delete_surrounding_text &&
+      surrounding_text->delete_around_range.IsValid()) {
+    // Delete surrounding text.
+    // If preedit is present, surrounding text will be deleted around the
+    // preedit range. So deletion of surrounding text implicitly clears
+    // preedit in that case.
+    int32_t index = surrounding_text->delete_around_range.start() -
+                    delete_surrounding_text->before_length;
+    DVLOG_IF(1, index < 0)
+        << "got before_length=" << delete_surrounding_text->before_length
+        << " which results in negative index for deletion around range="
+        << surrounding_text->delete_around_range;
+    uint32_t length =
+        (index < 0 ? surrounding_text->delete_around_range.end()
+                   : delete_surrounding_text->before_length +
+                         surrounding_text->delete_around_range.length()) +
+        delete_surrounding_text->after_length;
+    // Force minimum index of 0.
+    index = std::max(0, index);
+    if (index + length > surrounding_text->full_length) {
+      DVLOG(1) << "got before_length=" << delete_surrounding_text->before_length
+               << " after_length=" << delete_surrounding_text->after_length
+               << " which makes the deletion around range="
+               << surrounding_text->delete_around_range
+               << " extend beyond text length="
+               << surrounding_text->full_length;
+      // Update length to ensure deletion is within text range
+      length = surrounding_text->full_length - index;
+    }
+    self->client_->OnDeleteSurroundingText(index, length);
+    self->applied_input_events_.delete_surrounding_text =
+        std::move(self->pending_input_events_.delete_surrounding_text);
 
-  if (const auto& commit_string = self->pending_input_events_.commit) {
+    // Update the range and surrounding text length to ensure that if another
+    // deletion is received before surrounding text is sent again it does not
+    // include the deleted text.
+    size_t delete_start = base::checked_cast<size_t>(index);
+    size_t delete_end = delete_start;
+    surrounding_text->full_length -= length;
+
+    // Update full length in case SetSurroundingText is not called before the
+    // next delete_surrounding_text + done.
+    surrounding_text->full_length += commit_string.length();
+
+    // Add incoming preedit to deletion range and update full length in case
+    // SetSurroundingText is not called before the next
+    // delete_surrounding_text + done.
+
+    delete_end += preedit_data->text.length();
+    surrounding_text->full_length += preedit_data->text.length();
+    surrounding_text->delete_around_range =
+        gfx::Range(delete_start, delete_end);
+  }
+
+  if (!commit_string.empty()) {
     // Replace the existing preedit with the commit string.
-    self->client_->OnCommitString(commit_string->c_str());
-  }
-  if (const auto preedit_data = self->pending_input_events_.preedit) {
-    // Finally process any new preedit string.
-    gfx::Range preedit_cursor =
-        (preedit_data->cursor_begin < 0 || preedit_data->cursor_end < 0)
-            ? gfx::Range::InvalidRange()
-            : gfx::Range(preedit_data->cursor_begin, preedit_data->cursor_end);
-    self->client_->OnPreeditString(preedit_data->text.c_str(), {},
-                                   preedit_cursor);
+    self->client_->OnCommitString(commit_string);
+    self->applied_input_events_.commit =
+        std::move(self->pending_input_events_.commit);
   }
 
-  self->ResetInputEventsState();
+  // Finally process any new preedit string (only if it changed).
+  gfx::Range preedit_cursor =
+      (preedit_data->cursor_begin < 0 || preedit_data->cursor_end < 0)
+          ? gfx::Range::InvalidRange()
+          : gfx::Range(preedit_data->cursor_begin, preedit_data->cursor_end);
+  CHECK(self->applied_input_events_.preedit);
+  if (*self->applied_input_events_.preedit !=
+      *self->pending_input_events_.preedit) {
+    self->client_->OnPreeditString(preedit_data->text, {}, preedit_cursor);
+    self->applied_input_events_.preedit =
+        std::move(self->pending_input_events_.preedit);
+  }
+
+  self->pending_input_events_.Reset();
   self->SendPendingImeData();
 }
 

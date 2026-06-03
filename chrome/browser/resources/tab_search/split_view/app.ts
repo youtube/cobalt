@@ -8,7 +8,6 @@ import '../tab_search_item.js';
 
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {CrLazyListElement} from 'chrome://resources/cr_elements/cr_lazy_list/cr_lazy_list.js';
-import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -45,7 +44,7 @@ export class SplitNewTabPageAppElement extends CrLitElement {
 
   static override get properties() {
     return {
-      allInvisibleTabs_: {type: Array},
+      allEligibleTabs_: {type: Array},
       scrollTarget_: {type: Object},
       focusedIndex_: {type: Number},
       focusedItem_: {type: Object},
@@ -53,13 +52,12 @@ export class SplitNewTabPageAppElement extends CrLitElement {
     };
   }
 
-  protected accessor allInvisibleTabs_: TabData[] = [];
+  protected accessor allEligibleTabs_: TabData[] = [];
   protected accessor scrollTarget_: HTMLElement|null = null;
   protected accessor focusedIndex_: number = -1;
   protected accessor focusedItem_: HTMLElement|null = null;
   protected accessor minViewportHeight_: number = 0;
   protected title_: string = '';
-  private activeTabId_: number = -1;
   private apiProxy_: TabSearchApiProxy = TabSearchApiProxyImpl.getInstance();
   private listenerIds_: number[] = [];
   private visibilityChangedListener_: () => void;
@@ -95,7 +93,9 @@ export class SplitNewTabPageAppElement extends CrLitElement {
         callbackRouter.tabsChanged.addListener(this.onTabsChanged_.bind(this)),
         callbackRouter.tabUpdated.addListener(this.onTabUpdated_.bind(this)),
         callbackRouter.tabsRemoved.addListener(this.onTabsRemoved_.bind(this)),
-        callbackRouter.tabUnsplit.addListener(this.redirectToNtp_.bind(this)));
+        callbackRouter.tabUnsplit.addListener(this.redirectToNtp_.bind(this)),
+        callbackRouter.hostWindowChanged.addListener(
+            this.hostWindowChanged_.bind(this)));
 
     this.scrollTarget_ = this.$.splitTabsList;
 
@@ -130,10 +130,7 @@ export class SplitNewTabPageAppElement extends CrLitElement {
   }
 
   protected onClose_() {
-    // Close should never be triggered from an inactive tab, so this should
-    // always close the tab hosting this WebUI.
-    assert(this.activeTabId_ >= 0);
-    this.apiProxy_.closeTab(this.activeTabId_);
+    this.apiProxy_.closeWebUiTab();
   }
 
   protected onTabClick_(e: Event) {
@@ -149,10 +146,10 @@ export class SplitNewTabPageAppElement extends CrLitElement {
   }
 
   private onTabsChanged_(profileData: ProfileData) {
-    const activeWindow = profileData.windows.find(({active}) => active)!;
-    this.activeTabId_ = activeWindow.tabs.find((tab) => tab.active)!.tabId;
-    this.allInvisibleTabs_ =
-        activeWindow.tabs.filter(tab => !tab.visible)
+    const hostWindow =
+        profileData.windows.find(({isHostWindow}) => isHostWindow)!;
+    this.allEligibleTabs_ =
+        hostWindow.tabs.filter(tab => !tab.visible && !tab.split)
             .map(tab => this.getTabData_(tab, true, TabItemType.OPEN_TAB));
     this.sortTabs_();
     this.updateComplete.then(() => {
@@ -161,37 +158,37 @@ export class SplitNewTabPageAppElement extends CrLitElement {
   }
 
   private onTabUpdated_(tabUpdateInfo: TabUpdateInfo) {
-    const {tab, inActiveWindow} = tabUpdateInfo;
-    if (!inActiveWindow) {
+    const {tab, inActiveWindow, inHostWindow} = tabUpdateInfo;
+    if (!inHostWindow) {
       return;
     }
 
     const tabData = this.getTabData_(tab, inActiveWindow, TabItemType.OPEN_TAB);
     const tabIndex =
-        this.allInvisibleTabs_.findIndex(el => el.tab.tabId === tab.tabId);
+        this.allEligibleTabs_.findIndex(el => el.tab.tabId === tab.tabId);
     if (tabIndex >= 0) {
-      this.allInvisibleTabs_[tabIndex] = tabData;
+      this.allEligibleTabs_[tabIndex] = tabData;
     } else {
-      this.allInvisibleTabs_.push(tabData);
+      this.allEligibleTabs_.push(tabData);
     }
-    this.allInvisibleTabs_ =
-        this.allInvisibleTabs_.filter(tab => !(tab.tab as Tab).visible);
+    this.allEligibleTabs_ = this.allEligibleTabs_.filter(
+        tab => !(tab.tab as Tab).visible && !(tab.tab as Tab).split);
     this.sortTabs_();
   }
 
   private onTabsRemoved_(tabsRemovedInfo: TabsRemovedInfo) {
-    if (this.allInvisibleTabs_.length === 0) {
+    if (this.allEligibleTabs_.length === 0) {
       return;
     }
 
     const ids = new Set(tabsRemovedInfo.tabIds);
-    this.allInvisibleTabs_ =
-        this.allInvisibleTabs_.filter(tab => !ids.has(tab.tab.tabId));
+    this.allEligibleTabs_ =
+        this.allEligibleTabs_.filter(tab => !ids.has(tab.tab.tabId));
     this.sortTabs_();
   }
 
   private sortTabs_() {
-    this.allInvisibleTabs_.sort((a, b) => {
+    this.allEligibleTabs_.sort((a, b) => {
       const tabA = a.tab as Tab;
       const tabB = b.tab as Tab;
       // Move tabs with media alerts to the top of the list.
@@ -207,7 +204,7 @@ export class SplitNewTabPageAppElement extends CrLitElement {
           0;
     });
 
-    this.title_ = this.allInvisibleTabs_.length === 0 ?
+    this.title_ = this.allEligibleTabs_.length === 0 ?
         loadTimeData.getString('splitViewEmptyTitle') :
         loadTimeData.getString('splitViewTitle');
   }
@@ -230,10 +227,17 @@ export class SplitNewTabPageAppElement extends CrLitElement {
     window.location.replace(loadTimeData.getString('newTabPageUrl'));
   }
 
+  private hostWindowChanged_() {
+    this.apiProxy_.getProfileData().then(({profileData}) => {
+      this.onTabsChanged_(profileData);
+    });
+  }
+
   private updateViewportHeight_(profileData: ProfileData) {
-    const activeWindow = profileData.windows.find(({active}) => active)!;
+    const hostWindow =
+        profileData.windows.find(({isHostWindow}) => isHostWindow)!;
     this.minViewportHeight_ =
-        activeWindow ? activeWindow.height - this.$.header.offsetHeight : 0;
+        hostWindow ? hostWindow.height - this.$.header.offsetHeight : 0;
   }
 }
 

@@ -166,8 +166,6 @@ class UserManagerTest : public testing::Test {
       user_manager_->Destroy();
     }
 
-    // Shut down the DeviceSettingsService.
-    DeviceSettingsService::Get()->UnsetSessionManager();
     TestingBrowserProcess::GetGlobal()->SetProfileManager(nullptr);
 
     // Unregister the in-memory local settings instance.

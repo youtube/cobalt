@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder.h"
+#include "third_party/blink/renderer/modules/mediarecorder/video_track_recorder.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -1201,7 +1202,7 @@ void MediaRecorderHandler::Trace(Visitor* visitor) const {
 }
 
 void MediaRecorderHandler::OnVideoEncodingError(
-    const media::EncoderStatus& error_status) {
+    media::EncoderStatus error_status) {
   if (recorder_) {
     recorder_->OnError(DOMExceptionCode::kEncodingError,
                        String(media::EncoderStatusCodeToString(error_status)));

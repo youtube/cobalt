@@ -30,7 +30,6 @@
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/create_or_edit_tab_group_coordinator_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/create_tab_group_coordinator.h"
@@ -72,7 +71,6 @@ using collaboration::IOSCollaborationControllerDelegate;
 #pragma mark - ChromeCoordinator
 
 - (void)start {
-  CHECK(IsTabGroupInGridEnabled());
   Browser* browser = self.browser;
   BOOL incognito = browser->GetProfile()->IsOffTheRecord();
   _view = [[TabGroupIndicatorView alloc] init];
@@ -113,6 +111,12 @@ using collaboration::IOSCollaborationControllerDelegate;
   [self stopTabGroupConfirmationCoordinator];
   [_mediator disconnect];
   _mediator = nil;
+}
+
+#pragma mark - Getters/setters
+
+- (BOOL)viewVisible {
+  return !_view.hidden;
 }
 
 #pragma mark - TabGroupIndicatorMediatorDelegate
@@ -178,7 +182,8 @@ using collaboration::IOSCollaborationControllerDelegate;
 }
 
 - (void)startLeaveOrDeleteSharedGroup:(base::WeakPtr<const TabGroup>)tabGroup
-                            forAction:(TabGroupActionType)actionType {
+                            forAction:(TabGroupActionType)actionType
+                     withConfirmation:(BOOL)confirmation {
   [self stopTabGroupConfirmationCoordinator];
 
   __weak __typeof(self) weakSelf = self;
@@ -188,6 +193,11 @@ using collaboration::IOSCollaborationControllerDelegate;
         if (!strongSelf) {
           std::move(resultCallback)
               .Run(CollaborationControllerDelegate::Outcome::kCancel);
+          return;
+        }
+        if (!confirmation) {
+          std::move(resultCallback)
+              .Run(CollaborationControllerDelegate::Outcome::kSuccess);
           return;
         }
         auto completionBlock = base::CallbackToBlock(std::move(resultCallback));

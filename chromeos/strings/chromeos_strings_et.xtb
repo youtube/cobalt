@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Saate nüüd kasutada ainult kursuse tööriistu</translation>
 <translation id="1762483337755424125">Transkriptsioon</translation>
 <translation id="1765169783255151332">Kiire klahvide vahetus</translation>
 <translation id="1768959921651994223">Autentimise tüüp</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">Ebaõnnestus – peatatud</translation>
 <translation id="3102119246920354026">Vahemälu</translation>
 <translation id="3103783611481501187">sürreaalne</translation>
+<translation id="3119672627216736407">Tõlge on saadaval</translation>
 <translation id="3122464029669770682">Protsessor</translation>
 <translation id="3122614491980756867">basseinidega</translation>
 <translation id="3122883569442693641">Rohkem üksikasju</translation>
@@ -755,6 +757,7 @@
 <translation id="430786093962686457">šifoonist</translation>
 <translation id="4310735698903592804">Google'i AI platvormil toimivad hiljutised taustapildid</translation>
 <translation id="4320904097188876154">neoonroosades toonides</translation>
+<translation id="432961742358282111">Definitsioonide hankimiseks, tõlkimiseks või ühikute teisendamiseks paremklõpsake või puudutage pikalt. Kasutage selle funktsiooni haldamiseks vasak- või paremnooleklahvi.</translation>
 <translation id="4333390807948134856">Klahv <ph name="KEY_NAME" /> on alla vajutatud</translation>
 <translation id="4334293042716981313">Võite ka <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />kirjutada ise oma viiba<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">klahv</translation>
@@ -1136,6 +1139,7 @@
 <translation id="6058625436358447366">Toimingu lõpuleviimiseks sisestage oma vana ja uus parool</translation>
 <translation id="6061772781719867950">Ebaõnnestunud HTTP-päringud</translation>
 <translation id="6073292342939316679">vähendab klaviatuuri eredust</translation>
+<translation id="6074608334942655098">Lõpeta tõlkimine</translation>
 <translation id="6074752328838739425">Peida kokkuvõte</translation>
 <translation id="6075872808778243331">(Android) HTTP latentsusaeg</translation>
 <translation id="6078323886959318429">Otsetee lisamine</translation>
@@ -1433,7 +1437,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Küsige Chromebooki abifoorumis asjatundjatelt nõu</translation>
-<translation id="7309823890857024809">minimaalne natüürmort klaasvaasis moonidest mustal taustal</translation>
 <translation id="7311368985037279727">klaviatuuri värv</translation>
 <translation id="7317831949569936035">Koolis kasutamiseks registreerimine</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1616,7 @@ Laadige nende transkriptsioonide hankimiseks alla transkriptsiooni mudel (kuni 1
 <translation id="8088963492174775412">Vajutage salvestamiseks</translation>
 <translation id="8094062939584182041">Luban Google'il endale selle teema kohta meile saata</translation>
 <translation id="8104083085214006426">Kasutate avatud ja ebaturvalist võrku</translation>
+<translation id="8108879170356113798">Saate kursuse tööriistu kasutada <ph name="NUM_SECONDS" /> sekundi pärast</translation>
 <translation id="811820734797650957">(Android) Lüüsi saab pingida</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Kinnita</translation>

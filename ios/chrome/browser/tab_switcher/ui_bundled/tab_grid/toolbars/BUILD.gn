@@ -26,7 +26,6 @@ source_set("toolbars") {
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
-    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_mode",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_paging",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid:grid_toolbars_mutator",
@@ -67,7 +66,6 @@ source_set("toolbars_ui") {
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_paging",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_ui_constants",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid:grid_ui_constants",
-    "//ios/chrome/common",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
     "//ios/public/provider/chrome/browser/raccoon:raccoon_api",
@@ -82,6 +80,7 @@ source_set("unit_tests") {
     ":toolbars_ui",
     "//base/test:test_support",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/keyboard/ui_bundled",
     "//testing/gtest",
     "//ui/base",
   ]

@@ -7,9 +7,10 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ref.h"
-#include "base/memory/stack_allocated.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
+#include "chrome/renderer/actor/page_stability_monitor.h"
 #include "chrome/renderer/actor/tool_base.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -19,20 +20,16 @@ class RenderFrame;
 
 namespace actor {
 
+class Journal;
+
 // Renderer-side tool executor.
 //
 // This class is responsible for receiving tool request messages and invoking
 // the requested tool in the renderer.
-//
-// WARNING: This class is stack allocated but is written in a way that implies
-// that tools can be asynchronously executed. In practice the tools are
-// synchronous, and there's a lot of re-entrancy.
 class ToolExecutor {
-  STACK_ALLOCATED();
-
  public:
   using ToolExecutorCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
-  explicit ToolExecutor(content::RenderFrame* frame);
+  explicit ToolExecutor(content::RenderFrame* frame, Journal& journal);
   ~ToolExecutor();
 
   ToolExecutor(const ToolExecutor&) = delete;
@@ -42,13 +39,17 @@ class ToolExecutor {
                   ToolExecutorCallback callback);
 
  private:
-  void ToolFinished(ToolExecutorCallback callback,
-                    mojom::ActionResultPtr result);
+  void ToolFinished(mojom::ActionResultPtr result);
 
-  // Raw ref since the executor is currently only stack allocated by the
-  // render frame so it must be outlived.
+  // Raw ref since the executor is owned by the RenderFrameObserver which has
+  // the same lifetime as RenderFrame.
   base::raw_ref<content::RenderFrame> frame_;
-  std::unique_ptr<ToolBase> tool_;
+  base::raw_ref<Journal> journal_;
+  std::unique_ptr<PageStabilityMonitor> page_stability_monitor_;
+  ToolExecutorCallback completion_callback_;
+  std::unique_ptr<Journal::PendingAsyncEntry> journal_entry_;
+
+  base::WeakPtrFactory<ToolExecutor> weak_ptr_factory_{this};
 };
 
 }  // namespace actor

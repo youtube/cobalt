@@ -671,6 +671,11 @@ PasswordForm PasswordSaveManagerImpl::BuildPendingCredentials(
   pending_credentials.password_value =
       HasGeneratedPassword() ? generation_manager_->generated_password()
                              : password_to_save.value;
+  const std::optional<std::u16string> backup_password =
+      parsed_submitted_form.GetPasswordBackup();
+  if (backup_password) {
+    pending_credentials.SetPasswordBackupNote(backup_password.value());
+  }
   pending_credentials.date_last_used = base::Time::Now();
   pending_credentials.form_has_autofilled_value =
       parsed_submitted_form.form_has_autofilled_value;

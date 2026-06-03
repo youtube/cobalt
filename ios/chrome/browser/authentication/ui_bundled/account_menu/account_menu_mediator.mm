@@ -379,13 +379,6 @@
   [self.delegate didTapAddAccount];
 }
 
-- (void)didTapSettingsButton {
-  if (self.userInteractionsBlocked) {
-    return;
-  }
-  [self.delegate didTapSettingsButton];
-}
-
 #pragma mark - Callbacks
 
 // Callback for didTapAddAccount
@@ -453,23 +446,31 @@
   _identityToSignin = nil;
 }
 
-- (ChangeProfileContinuation)authenticationFlowWillChangeProfile {
+- (void)authenticationFlowWillSwitchProfileWithReadyCompletion:
+    (ReadyForProfileSwitchingCompletion)readyCompletion {
   _authenticationFlow = nil;
   [_delegate signinFinished];
+  ChangeProfileContinuation continuation;
   switch (_accessPoint) {
     case AccountMenuAccessPoint::kNewTabPage:
-      return CreateChangeProfileOpensNTPContinuation();
+      continuation = CreateChangeProfileOpensNTPContinuation();
+      break;
     case AccountMenuAccessPoint::kSettings:
-      return CreateChangeProfileSettingsContinuation();
+      continuation = CreateChangeProfileSettingsContinuation();
+      break;
     case AccountMenuAccessPoint::kWeb: {
       GetApplicationContext()->GetLocalState()->SetBoolean(
           prefs::kHasSwitchedAccountsViaWebFlow, true);
       if (_prepareChangeProfile) {
         _prepareChangeProfile();
-      };
-      return CreateChangeProfileOpensURLContinuation(_url);
+      }
+      continuation = CreateChangeProfileOpensURLContinuation(_url);
+      break;
     }
   }
+  void (^completion)() = base::CallbackToBlock(
+      base::BindOnce(std::move(readyCompletion), std::move(continuation)));
+  [self.delegate profileWillSwitchWithCompletion:completion];
 }
 
 #pragma mark - Private

@@ -1005,8 +1005,7 @@ external/wpt/reporting/same-origin-report-credentials.https.sub.html
 external/wpt/resize-observer/scrollbars-2.html
 external/wpt/resource-timing/object-not-found-after-TAO-cross-origin-redirect.html
 external/wpt/scheduler/post-task-with-signal-from-detached-iframe.html
-external/wpt/scroll-animations/css/progress-based-animation-timeline.html
-external/wpt/scroll-animations/scroll-timelines/setting-playback-rate.html
+external/wpt/scroll-animations/
 external/wpt/scroll-to-text-fragment/iframe-scroll.sub.html
 external/wpt/secure-contexts/shared-worker-insecure-first.https.html
 external/wpt/selection/addRange-40.html
@@ -1533,9 +1532,7 @@ tables/mozilla/bugs/bug4527.html
 transforms/2d/transform-borderbox.html
 transforms/3d/general/perspective-units.html
 transforms/3d/hit-testing/backface-hit-test.html
-transforms/3d/point-mapping/3d-point-mapping-3.html
 transforms/3d/point-mapping/3d-point-mapping-preserve-3d.html
-transforms/3d/point-mapping/3d-point-mapping.html
 transforms/combine-transforms-properties-transform.html
 transforms/perspective-fixed-pos-descendant.html
 transforms/svg-vs-css.xhtml

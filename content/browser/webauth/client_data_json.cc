@@ -129,6 +129,24 @@ std::string BuildClientDataJson(ClientDataJsonParams params) {
           ToJSONString(params.payment_options->payee_origin->Serialize()));
     }
 
+    if (params.payment_options->payment_entities_logos.has_value()) {
+      const std::vector<blink::mojom::ShownPaymentEntityLogoPtr>& logos =
+          *params.payment_options->payment_entities_logos;
+      ret.append(R"(,"paymentEntitiesLogos":[)");
+      for (auto logo_iterator = logos.begin(); logo_iterator != logos.end();
+           ++logo_iterator) {
+        ret.append(R"({"url":)");
+        ret.append(ToJSONString((*logo_iterator)->url.spec()));
+        ret.append(R"(,"label":)");
+        ret.append(ToJSONString((*logo_iterator)->label));
+        ret.append("}");
+        if ((logo_iterator + 1) != logos.end()) {
+          ret.append(",");
+        }
+      }
+      ret.append("]");
+    }
+
     ret.append(R"(,"total":{)");
 
     ret.append(R"("value":)");
@@ -145,6 +163,11 @@ std::string BuildClientDataJson(ClientDataJsonParams params) {
     ret.append(R"(,"displayName":)");
     ret.append(ToJSONString(params.payment_options->instrument->display_name));
 
+    if (!params.payment_options->instrument->details.empty()) {
+      ret.append(R"(,"details":)");
+      ret.append(ToJSONString(params.payment_options->instrument->details));
+    }
+
     ret.append("}");
     if (params.payment_options->browser_bound_public_key.has_value()) {
       ret.append(R"(,"browserBoundPublicKey":)");
@@ -155,7 +178,7 @@ std::string BuildClientDataJson(ClientDataJsonParams params) {
   } else if (params.payment_options &&
              params.payment_options->browser_bound_public_key.has_value() &&
              params.type == ClientDataRequestType::kWebAuthnCreate) {
-    ret.append(R"(","payment":{"browserBoundPublicKey":)");
+    ret.append(R"(,"payment":{"browserBoundPublicKey":)");
     ret.append(ToJSONString(Base64UrlEncodeOmitPadding(
         *params.payment_options->browser_bound_public_key)));
     ret.append("}");

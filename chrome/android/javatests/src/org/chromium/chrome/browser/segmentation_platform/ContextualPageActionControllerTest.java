@@ -51,6 +51,7 @@ public class ContextualPageActionControllerTest {
 
     @Test
     @MediumTest
+    @Restriction(DeviceFormFactor.PHONE) // Flaky on larger form factors crbug.com/422817837
     public void testContextualPageModelExecution() {
         LibraryLoader.getInstance().ensureInitialized();
 

@@ -10,6 +10,7 @@
 #include "build/build_config.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_request_data.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/resolvers/content_setting_permission_resolver.h"
@@ -40,22 +41,20 @@ DownloadPermissionRequest::DownloadPermissionRequest(
 DownloadPermissionRequest::~DownloadPermissionRequest() = default;
 
 void DownloadPermissionRequest::PermissionDecided(
-    ContentSetting result,
-    bool is_one_time,
+    PermissionDecision decision,
     bool is_final_decision,
     const permissions::PermissionRequestData& request_data) {
-  DCHECK(!is_one_time);
+  DCHECK(decision != PermissionDecision::kAllowThisTime);
   DCHECK(is_final_decision);
   if (!host_)
     return;
 
   // This may invalidate |host_|.
-  if (result == ContentSetting::CONTENT_SETTING_ALLOW) {
+  if (decision == PermissionDecision::kAllow) {
     host_->Accept(requesting_origin_);
-  } else if (result == ContentSetting::CONTENT_SETTING_BLOCK) {
+  } else if (decision == PermissionDecision::kDeny) {
     host_->Cancel(requesting_origin_);
   } else {
-    DCHECK_EQ(CONTENT_SETTING_DEFAULT, result);
     host_->CancelOnce(requesting_origin_);
   }
 }

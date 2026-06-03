@@ -138,7 +138,6 @@ Sačekajte nekoliko minuta pre nego što se odjavite. Ako se odjavite odmah, ovi
 <translation id="4724297637870447613">Koristite Chrome svuda</translation>
 <translation id="4738647308035481133">Google Chrome stranica</translation>
 <translation id="4742795653798179840">Izbrisani Chrome podaci</translation>
-<translation id="4749294594657945639">Da biste lako pristupali sačuvanim lozinkama u drugim aplikacijama, koristite Chrome za automatsko popunjavanje.</translation>
 <translation id="4761869838909035636">Pokrenite Chrome bezbednosnu proveru</translation>
 <translation id="4798859546468762093">Da biste dobili personalizaciju i druge funkcije, uvrstite Chrome u: <ph name="FEATURE_NAME_1" /> i <ph name="FEATURE_NAME_2" /></translation>
 <translation id="4819268619367838612">Chrome šalje Google-u podatke o korišćenju i otkazivanju radi poboljšanja aplikacije. <ph name="BEGIN_LINK" />Upravljajte<ph name="END_LINK" /></translation>
@@ -215,6 +214,7 @@ Podaci se šifruju pomoću pristupne fraze. Unesite je da biste koristili i sa�
 <translation id="6533470733797826516">Brže se prijavljujte pomoću automatskog popunjavanja u Chrome-u</translation>
 <translation id="6536544321553662809">Podesite Chrome kao podrazumevani pregledač da biste lako delili i otvarali linkove</translation>
 <translation id="6545449117344801102">Chrome otkriva adrese i koristi Google mape da bi vam pružao uputstva i lokalne informacije.</translation>
+<translation id="6611692150236062461">Da biste lako pristupali sačuvanim lozinkama u drugim aplikacijama, odaberite Chrome za automatsko popunjavanje.</translation>
 <translation id="6636941099779251629">Organizacija zahteva da se prijavite da biste koristili Chrome. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
 <translation id="6646696210740573446">Šalje maskirani deo URL-a Google-u preko servera za privatnost koji krije IP adresu. Chrome može da pošalje URL-ove Google-u, uključujući delove sadržaja stranice, i ako neki sajt pokuša da ukrade vašu lozinku ili probate da preuzmete štetni fajl.</translation>
 <translation id="6647304104688527905">Otvara novu karticu u Chrome-u.</translation>
@@ -313,6 +313,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 Podaci su šifrovani pomoću pristupne fraze <ph name="TIME" />. Unesite je da biste koristili i sačuvali Chrome podatke na Google nalogu.</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">Obaveštenja o svim problemima u vezi sa privatnošću ili bezbednošću koje Chrome otkrije za vas.</translation>
+<translation id="855027533751209304">Savet za Chrome: Pretražujte ono što vidite</translation>
 <translation id="8558480467877843976">Sada možete da koristite Chrome svaki put kada pregledate ili dodirnete linkove u porukama, dokumentima i drugim aplikacijama.</translation>
 <translation id="8603022514504485810">Google menadžer lozinki nije uspeo da proveri sve lozinke. Probajte ponovo sutra ili <ph name="BEGIN_LINK" />proverite lozinke na Google nalogu.<ph name="END_LINK" /></translation>
 <translation id="8630122478628016441">Uključite Zaključaj kartice bez arhiviranja posle zatvaranja Chrome-a.</translation>

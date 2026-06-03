@@ -4,6 +4,7 @@
 
 package org.chromium.content.browser.input;
 
+
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
@@ -51,7 +52,7 @@ public class SelectPopup
     }
 
     private final WebContentsImpl mWebContents;
-    private View mContainerView;
+    private @Nullable View mContainerView;
     private @Nullable Ui mPopupView;
     private long mNativeSelectPopup;
     private long mNativeSelectPopupSourceFrame;
@@ -111,7 +112,7 @@ public class SelectPopup
     // ViewAndroidDelegate.ContainerViewObserver
 
     @Override
-    public void onUpdateContainerView(ViewGroup view) {
+    public void onUpdateContainerView(@Nullable ViewGroup view) {
         mContainerView = view;
         hide();
     }
@@ -142,7 +143,9 @@ public class SelectPopup
             boolean multiple,
             int[] selectedIndices,
             boolean rightAligned) {
-        if (mContainerView.getParent() == null || mContainerView.getVisibility() != View.VISIBLE) {
+        if (mContainerView == null
+                || mContainerView.getParent() == null
+                || mContainerView.getVisibility() != View.VISIBLE) {
             mNativeSelectPopupSourceFrame = nativeSelectPopupSourceFrame;
             selectMenuItems(null);
             return;

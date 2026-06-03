@@ -41,8 +41,6 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.base.task.PostTask;
-import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.feed.FeedActionDelegateImpl;
 import org.chromium.chrome.browser.back_press.BackPressMetrics;
@@ -69,7 +67,6 @@ import org.chromium.chrome.browser.magic_stack.HomeModulesMetricsUtils;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegateHost;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
-import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
@@ -136,6 +133,10 @@ public class NewTabPage
     // Key for the scroll position data that may be stored in a navigation entry.
     public static final String CONTEXT_MENU_USER_ACTION_PREFIX = "Suggestions";
 
+    // This is to count simultaneous NTP for the "NewTabPage.Count" UMA metric. This is
+    // incremented/decremented on the UI thread.
+    private static int sTotalCount;
+
     protected final Tab mTab;
     private final Supplier<Tab> mActivityTabProvider;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
@@ -149,7 +150,6 @@ public class NewTabPage
     protected final TileGroup.Delegate mTileGroupDelegate;
     private final boolean mIsTablet;
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
-    private final ContextMenuManager mContextMenuManager;
     private final ObserverList<MostVisitedTileClickObserver> mMostVisitedTileClickObservers;
     private final BottomSheetController mBottomSheetController;
     private FeedSurfaceProvider mFeedSurfaceProvider;
@@ -240,7 +240,7 @@ public class NewTabPage
 
             // Fallback added for metric records only.
             restoringState.addObserver(
-                    new Callback<Integer>() {
+                    new Callback<>() {
                         long mStart;
 
                         @Override
@@ -634,16 +634,6 @@ public class NewTabPage
 
         NewTabPageUma.recordContentSuggestionsDisplayStatus(profile);
 
-        // TODO(twellington): Move this somewhere it can be shared with NewTabPageView?
-        Runnable closeContextMenuCallback = activity::closeContextMenu;
-        mContextMenuManager =
-                new ContextMenuManager(
-                        mNewTabPageManager.getNavigationDelegate(),
-                        mFeedSurfaceProvider.getTouchEnabledDelegate(),
-                        closeContextMenuCallback,
-                        NewTabPage.CONTEXT_MENU_USER_ACTION_PREFIX);
-        windowAndroid.addContextMenuCloseListener(mContextMenuManager);
-
         mNewTabPageLayout.initialize(
                 mNewTabPageManager,
                 activity,
@@ -657,10 +647,13 @@ public class NewTabPage
                 mTab.getProfile(),
                 windowAndroid,
                 mIsTablet,
-                mTabStripHeightSupplier);
+                mTabStripHeightSupplier,
+                () -> mTemplateUrlService.getComposeplateUrl());
 
-        mNewTabPageLayout.updateSearchBoxHintText();
         initializeHomeModules();
+
+        sTotalCount++;
+        NewTabPageUma.recordSimultaneousNtpCount(sTotalCount);
 
         TraceEvent.end(TAG);
     }
@@ -850,7 +843,6 @@ public class NewTabPage
     private void onSearchEngineUpdated() {
         updateSearchProviderHasLogo();
 
-        PostTask.postTask(TaskTraits.UI_DEFAULT, mNewTabPageLayout::updateSearchBoxHintText);
         setSearchProviderInfoOnView(
                 mSearchProviderHasLogo, mTemplateUrlService.isDefaultSearchEngineGoogle());
         // TODO(crbug.com/40226731): Remove this call when the Feed position experiment is
@@ -1065,7 +1057,6 @@ public class NewTabPage
             mOmniboxStub.removeUrlFocusChangeListener(feedReliabilityLogger);
         }
         mFeedSurfaceProvider.destroy();
-        mTab.getWindowAndroid().removeContextMenuCloseListener(mContextMenuManager);
         if (mVoiceRecognitionHandler != null) {
             mVoiceRecognitionHandler.removeObserver(this);
         }
@@ -1078,6 +1069,7 @@ public class NewTabPage
         if (mHomeModulesCoordinator != null) {
             mHomeModulesCoordinator.destroy();
         }
+        sTotalCount--;
         mIsDestroyed = true;
     }
 

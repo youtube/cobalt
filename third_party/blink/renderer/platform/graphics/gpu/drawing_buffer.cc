@@ -54,7 +54,6 @@
 #include "gpu/command_buffer/client/context_support.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/capabilities.h"
-#include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "gpu/config/gpu_feature_info.h"
@@ -1871,15 +1870,14 @@ void DrawingBuffer::ResolveAndPresentSwapChainIfNeeded() {
   }
 
   CopyStagingTextureToBackColorBufferIfNeeded();
-  gpu::SyncToken sync_token;
-  gl_->GenUnverifiedSyncTokenCHROMIUM(sync_token.GetData());
+  gpu::SyncToken sync_token = back_color_buffer_->EndAccess();
 
   auto* sii = ContextProvider()->SharedImageInterface();
   sii->PresentSwapChain(sync_token,
                         back_color_buffer_->shared_image->mailbox());
 
-  sync_token = sii->GenUnverifiedSyncToken();
-  gl_->WaitSyncTokenCHROMIUM(sync_token.GetConstData());
+  back_color_buffer_->BeginAccess(sii->GenUnverifiedSyncToken(),
+                                  /*readonly=*/false);
 
   // If a multisample fbo is used it already preserves the previous contents.
   if (preserve_drawing_buffer_ == kPreserve && !WantExplicitResolve()) {
@@ -1891,7 +1889,7 @@ void DrawingBuffer::ResolveAndPresentSwapChainIfNeeded() {
     GLuint dest_texture_id =
         staging_texture_ ? staging_texture_ : back_color_buffer_->texture_id();
     front_color_buffer_->BeginAccess(gpu::SyncToken(), /*readonly=*/true);
-    ;
+
     gl_->CopySubTextureCHROMIUM(front_color_buffer_->texture_id(), 0,
                                 dest_texture_target, dest_texture_id, 0, 0, 0,
                                 0, 0, size_.width(), size_.height(), GL_FALSE,
@@ -1957,7 +1955,8 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
     usage = usage | gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
     gpu::SharedImageInterface::SwapChainSharedImages shared_images =
         sii->CreateSwapChain(color_buffer_format_, size, color_space_, origin,
-                             back_buffer_alpha_type, usage);
+                             back_buffer_alpha_type, usage,
+                             "WebGLDrawingBuffer");
     back_buffer_shared_image = std::move(shared_images.back_buffer);
     front_buffer_shared_image = std::move(shared_images.front_buffer);
   } else {

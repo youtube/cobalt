@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Nå kan du bare bruke Kursverktøy</translation>
 <translation id="1762483337755424125">Transkripsjon</translation>
 <translation id="1765169783255151332">Bytt taster raskt</translation>
 <translation id="1768959921651994223">Autentiseringstype</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">Mislykket – stoppet</translation>
 <translation id="3102119246920354026">Buffer</translation>
 <translation id="3103783611481501187">surrealistisk</translation>
+<translation id="3119672627216736407">En oversettelse er tilgjengelig</translation>
 <translation id="3122464029669770682">Prosessor</translation>
 <translation id="3122614491980756867">bassenger</translation>
 <translation id="3122883569442693641">Mer informasjon</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">For å fullføre passordendringen, skriv inn det gamle og det nye passordet</translation>
 <translation id="6061772781719867950">Mislykkede HTTP-forespørsler</translation>
 <translation id="6073292342939316679">tastaturlysstyrke ned</translation>
+<translation id="6074608334942655098">Avslutt oversetting</translation>
 <translation id="6074752328838739425">Skjul sammendraget</translation>
 <translation id="6075872808778243331">(Android) HTTP-tidsforsinkelse</translation>
 <translation id="6078323886959318429">Legg til snarvei</translation>
@@ -1267,7 +1270,7 @@
 <translation id="6596816719288285829">IP-adresse</translation>
 <translation id="6599673642868607614">Takk for tilbakemeldingen. Tilbakemeldingen din hjelper oss med å gjøre Chromebook-opplevelsen bedre, og den blir gjennomgått av teamet vårt. På grunn av det store antallet rapporter kan vi ikke sende svar.</translation>
 <translation id="6608043585557830684">Transkripsjon er av. Slå det på i innstillingene eller på <ph name="THREE_DOTS_MENU_ICON" />-menyen.</translation>
-<translation id="660846213831377756">Mustaster</translation>
+<translation id="660846213831377756">Musetaster</translation>
 <translation id="6618744767048954150">Kjører</translation>
 <translation id="6620487321149975369">Utskriftsjobber vises i loggen med mindre de fjernes manuelt</translation>
 <translation id="6624819909909965616">Kan ikke laste opp filer som er større enn 10 MB</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Spør ekspertene i Chromebook-hjelpeforumet</translation>
-<translation id="7309823890857024809">minimalistisk stilleben med noen kornvalmuestilker i en glassvase på svart bakgrunn</translation>
 <translation id="7311368985037279727">tastaturfarge</translation>
 <translation id="7317831949569936035">Skoleregistrering</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@ Last ned transkripsjonsmodellen (opptil 100 MB) for å få disse transkripsjonen
 <translation id="8088963492174775412">Trykk for å ta opp</translation>
 <translation id="8094062939584182041">La Google sende deg e-post om dette problemet</translation>
 <translation id="8104083085214006426">Du bruker et åpent og usikret nettverk</translation>
+<translation id="8108879170356113798">Du kan bare bruke kursverktøy om <ph name="NUM_SECONDS" /> sekunder</translation>
 <translation id="811820734797650957">(Android) Gatewayen kan pinges</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Bekreft</translation>
