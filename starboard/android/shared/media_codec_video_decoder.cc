@@ -33,12 +33,14 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/object_pool.h"
 #include "starboard/common/player.h"
 #include "starboard/common/size.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -47,6 +49,7 @@
 namespace starboard {
 namespace {
 
+using features::FeatureList;
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
@@ -55,6 +58,22 @@ using std::placeholders::_2;
 class VideoFrameImpl : public VideoFrame {
  public:
   typedef std::function<void()> VideoFrameReleaseCallback;
+
+  void* operator new(size_t size) {
+    if (FeatureList::IsEnabled(features::kEnableVideoFrameImplMemoryPool)) {
+      return starboard::common::ObjectPool<VideoFrameImpl>::GetInstance()
+          ->Allocate();
+    }
+    return ::operator new(size);
+  }
+
+  void operator delete(void* ptr) {
+    if (FeatureList::IsEnabled(features::kEnableVideoFrameImplMemoryPool)) {
+      starboard::common::ObjectPool<VideoFrameImpl>::GetInstance()->Free(ptr);
+      return;
+    }
+    ::operator delete(ptr);
+  }
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodecBridge* media_codec_bridge,

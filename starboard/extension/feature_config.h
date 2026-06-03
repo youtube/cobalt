@@ -111,6 +111,12 @@ STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
                   false)
 
+// Enable thread-safe memory pool for VideoFrameImpl to eliminate steady-state
+// heap allocations.
+STARBOARD_FEATURE(kEnableVideoFrameImplMemoryPool,
+                  "EnableVideoFrameImplMemoryPool",
+                  true)
+
 // By default, Cobalt destroys and recreates AudioTrack during Seek().
 // Set the following variable to true to force it to Flush() AudioTrack
 // during Seek().
