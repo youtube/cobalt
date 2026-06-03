@@ -15,61 +15,10 @@
 #include <utility>
 
 #include "third_party/blink/renderer/modules/bluetooth/bluetooth.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webusb/usb.h"  // nogncheck
 #include "third_party/blink/renderer/modules/hid/hid.h"  // nogncheck
+#include "third_party/blink/renderer/modules/ml/navigator_ml.h"  // nogncheck
 #include "third_party/blink/renderer/modules/serial/serial.h"  // nogncheck
-#include "third_party/blink/renderer/modules/ml/navigator_ml.h"  // nogncheck
-#include "third_party/blink/renderer/platform/bindings/wrapper_type_info.h"
-
-// Generated V8 Binding Headers
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_advertising_event.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_characteristic_properties.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_device.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_manufacturer_data_map.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_characteristic.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_descriptor.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_server.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_service.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_service_data_map.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_uuid.h"  // nogncheck
-
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_alternate_interface.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_configuration.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_connection_event.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_device.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_endpoint.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_in_transfer_result.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_interface.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_isochronous_in_transfer_packet.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_isochronous_in_transfer_result.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_isochronous_out_transfer_packet.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_isochronous_out_transfer_result.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_usb_out_transfer_result.h"  // nogncheck
-
-#include "third_party/blink/renderer/bindings/modules/v8/v8_hid.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_hid_connection_event.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_hid_device.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_hid_input_report_event.h"  // nogncheck
-
-#include "third_party/blink/renderer/bindings/modules/v8/v8_serial.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_serial_port.h"  // nogncheck
-
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ndef_message.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ndef_reader.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ndef_reading_event.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ndef_record.h"  // nogncheck
-
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ml.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_graph.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_graph_builder.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_operand.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_tensor.h"  // nogncheck
-#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_context.h"  // nogncheck
-
-#include "third_party/blink/renderer/modules/ml/navigator_ml.h"  // nogncheck
+#include "third_party/blink/renderer/modules/webusb/usb.h"  // nogncheck
 #include "third_party/blink/renderer/modules/xr/xr_frame_provider.h"  // nogncheck
 #include "third_party/blink/renderer/modules/xr/xr_session.h"  // nogncheck
 #include "third_party/blink/renderer/modules/xr/xr_system.h"  // nogncheck
@@ -155,45 +104,6 @@ STUB_V8_WRAPPER(V8MLOperand)
 STUB_V8_WRAPPER(V8MLTensor)
 STUB_V8_WRAPPER(V8MLContext)
 
-// --- Web Bluetooth, WebUSB, WebHID, and Web Serial C++ Stubs ---
-
-const WrapperTypeInfo& Bluetooth::wrapper_type_info_ = g_dummy_wrapper_type_info;
-const WrapperTypeInfo& USB::wrapper_type_info_ = g_dummy_wrapper_type_info;
-const WrapperTypeInfo& HID::wrapper_type_info_ = g_dummy_wrapper_type_info;
-const WrapperTypeInfo& Serial::wrapper_type_info_ = g_dummy_wrapper_type_info;
-
-Bluetooth* Bluetooth::bluetooth(Navigator&) {
-  return nullptr;
-}
-
-USB* USB::usb(NavigatorBase&) {
-  return nullptr;
-}
-
-HID* HID::hid(NavigatorBase&) {
-  return nullptr;
-}
-
-Serial* Serial::serial(NavigatorBase&) {
-  return nullptr;
-}
-
-// --- WebNN / ML C++ Stubs ---
-
-const char NavigatorML::kSupplementName[] = "NavigatorML";
-
-ML* NavigatorML::ml(NavigatorBase&) {
-  return nullptr;
-}
-
-// WebNN V8 Wrappers
-STUB_V8_WRAPPER(V8ML)
-STUB_V8_WRAPPER(V8MLContext)
-STUB_V8_WRAPPER(V8MLTensor)
-STUB_V8_WRAPPER(V8MLGraph)
-STUB_V8_WRAPPER(V8MLGraphBuilder)
-STUB_V8_WRAPPER(V8MLOperand)
-
 // WebXR V8 Wrappers
 STUB_V8_WRAPPER(V8XRAnchor)
 STUB_V8_WRAPPER(V8XRAnchorSet)
@@ -246,9 +156,34 @@ STUB_V8_WRAPPER(V8XRWebGLContext)
 
 #undef STUB_V8_WRAPPER
 
-// --- WebNN C++ Stubs ---
+// --- Web Bluetooth, WebUSB, WebHID, and Web Serial C++ Stubs ---
 
-ML* NavigatorML::ml(NavigatorBase& navigator) {
+const WrapperTypeInfo& Bluetooth::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& USB::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& HID::wrapper_type_info_ = g_dummy_wrapper_type_info;
+const WrapperTypeInfo& Serial::wrapper_type_info_ = g_dummy_wrapper_type_info;
+
+Bluetooth* Bluetooth::bluetooth(Navigator&) {
+  return nullptr;
+}
+
+USB* USB::usb(NavigatorBase&) {
+  return nullptr;
+}
+
+HID* HID::hid(NavigatorBase&) {
+  return nullptr;
+}
+
+Serial* Serial::serial(NavigatorBase&) {
+  return nullptr;
+}
+
+// --- WebNN / ML C++ Stubs ---
+
+const char NavigatorML::kSupplementName[] = "NavigatorML";
+
+ML* NavigatorML::ml(NavigatorBase&) {
   return nullptr;
 }
 
