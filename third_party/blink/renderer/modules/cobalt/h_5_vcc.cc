@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_storage/h_5_vcc_storage.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_updater/h_5_vcc_updater.h"
 
 namespace blink {
 
@@ -48,7 +49,8 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       system_(MakeGarbageCollected<H5vccSystem>(window)),
       runtime_(MakeGarbageCollected<H5vccRuntime>(window)),
       storage_(MakeGarbageCollected<H5vccStorage>(window)),
-      settings_(MakeGarbageCollected<H5vccSettings>(window)) {}
+      settings_(MakeGarbageCollected<H5vccSettings>(window)),
+      updater_(MakeGarbageCollected<H5vccUpdater>(window)) {}
 
 void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(crash_log_);
@@ -59,6 +61,7 @@ void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(runtime_);
   visitor->Trace(storage_);
   visitor->Trace(settings_);
+  visitor->Trace(updater_);
   Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

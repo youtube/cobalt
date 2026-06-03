@@ -538,6 +538,21 @@ typedef struct SbMediaAudioSampleInfo {
 SB_EXPORT SbMediaSupportType
 SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 
+// Returns whether the platform supports a transition from the stream
+// configuration described by |current_mime| to |new_mime| for an active
+// SbPlayer instance. Returns |true| if the transition is supported, and will
+// return |false| if the platform cannot support the changeType() call.
+//
+// More information on SourceBuffer.ChangeType() can be found at the following
+// link:
+//   https://www.w3.org/TR/media-source/#dom-sourcebuffer-changetype
+//
+// |current_mime|: The current active stream MIME configuration. Must not be
+// NULL.
+// |new_mime|: The target stream MIME configuration. Must not be NULL.
+SB_EXPORT bool SbMediaCanChangeType(const char* current_mime,
+                                    const char* new_mime);
+
 // Returns the number of audio outputs currently available on this device.
 // Even if the number of outputs or their audio configurations can't be
 // determined, it is expected that the platform will at least return a single
