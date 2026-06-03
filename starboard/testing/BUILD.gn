@@ -26,3 +26,12 @@ static_library("fake_graphics_context_provider") {
     "//starboard/egl_and_gles:buildflags",
   ]
 }
+
+static_library("scoped_feature_list") {
+  testonly = true
+
+  sources = [
+    "scoped_feature_list.cc",
+    "scoped_feature_list.h",
+  ]
+}
