@@ -271,6 +271,20 @@ cobalt_bindings_exclude_patterns = [
   "*explicit_congestion_notification*",
   "*v8_union_mediastreamtrack_string*",
 ]
+  
+cobalt_hardware_exclude_patterns = [
+  "*v8_bluetooth*",
+  "*v8_hid.*",
+  "*v8_hid_*",
+  "*v8_ndef*",
+  "*v8_request_device_options*",
+  "*v8_serial.*",
+  "*v8_serial_*",
+  "*v8_serial_port*",
+  "*v8_usb.*",
+  "*v8_usb_*",
+  "*v8_watch_advertisements_options*",
+]
 
 cobalt_webgpu_exclude_patterns = [
   "*v8_canvas_2d_gpu_*",
