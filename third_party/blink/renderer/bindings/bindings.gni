@@ -295,3 +295,14 @@ cobalt_webxr_exclude_patterns = [
   "*v8_xr.*",
   "*v8_xr_*",
 ]
+
+cobalt_ai_exclude_patterns = [
+  "*v8_rewriter*",
+  "*v8_translator*",
+  "*v8_writer*",
+  "*v8_summarizer*",
+  "*v8_language_model*",
+  "*v8_proofreader*",
+  "*v8_create_monitor*",
+  "*v8_language_detector*",
+]
