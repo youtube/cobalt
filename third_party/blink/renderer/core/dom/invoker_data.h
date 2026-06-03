@@ -28,17 +28,23 @@ class InvokerData final : public GarbageCollected<InvokerData>,
   InvokerData(const InvokerData&) = delete;
   InvokerData& operator=(const InvokerData&) = delete;
 
+  HTMLElement* GetInvokedPopover() const { return invoked_popover_; }
+  void SetInvokedPopover(HTMLElement* popover) {
+    CHECK(!popover || popover->popoverOpen());
+    invoked_popover_ = popover;
+  }
+
   Element::InterestState GetInterestState() const { return interest_state_; }
   void SetInterestState(Element::InterestState new_state) {
     interest_state_ = new_state;
   }
 
-  HTMLElement* GetInvokedPopover() const { return invoked_popover_; }
-  void SetInvokedPopover(HTMLElement* popover) {
-    CHECK_NE(!popover, !invoked_popover_)
-        << "Invoked popover must be cleared before being reset";
-    CHECK(!popover || popover->popoverOpen());
-    invoked_popover_ = popover;
+  Element* ActiveInterestTarget() const { return active_interest_target_; }
+  void SetActiveInterestTarget(Element* new_target) {
+    CHECK(new_target == active_interest_target_ ||
+          !new_target != !active_interest_target_)
+        << "Active target must be cleared before being changed";
+    active_interest_target_ = new_target;
   }
 
   bool HasInterestGainedTask() const {
@@ -63,6 +69,7 @@ class InvokerData final : public GarbageCollected<InvokerData>,
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(invoked_popover_);
+    visitor->Trace(active_interest_target_);
     ElementRareDataField::Trace(visitor);
   }
 
@@ -71,6 +78,7 @@ class InvokerData final : public GarbageCollected<InvokerData>,
   TaskHandle interest_lost_task_;
   Element::InterestState interest_state_{Element::InterestState::kNoInterest};
   Member<HTMLElement> invoked_popover_;
+  Member<Element> active_interest_target_;
 };
 
 }  // namespace blink

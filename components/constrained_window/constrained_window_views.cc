@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "base/check_op.h"
-#include "base/debug/crash_logging.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
@@ -81,9 +80,11 @@ class ModalDialogHostObserverViews : public ModalDialogHostObserver {
     }
   }
   void OnHostDestroying() override {
-    dialog_widget_->Close();
+    // Synchronously close the dialog widget to avoid dangling references to the
+    // host.
     modal_dialog_host_observation_.Reset();
     host_ = nullptr;
+    dialog_widget_->CloseNow();
   }
 
  private:
@@ -282,19 +283,6 @@ views::Widget* CreateWebModalDialogViews(views::WidgetDelegate* dialog,
   DCHECK_EQ(ui::mojom::ModalType::kChild, dialog->GetModalType());
   web_modal::WebContentsModalDialogManager* manager =
       web_modal::WebContentsModalDialogManager::FromWebContents(web_contents);
-
-  // TODO(http://crbug/1273287): Drop "if" and DEBUG_ALIAS_FOR_GURL after fix.
-  if (!manager) {
-    const GURL& url = web_contents->GetLastCommittedURL();
-    DEBUG_ALIAS_FOR_GURL(url_alias, url);
-
-    SCOPED_CRASH_KEY_STRING32("WebModal", "scheme", url.scheme_piece());
-    SCOPED_CRASH_KEY_STRING32("WebModal", "host", url.host_piece());
-    LOG_IF(FATAL, !manager)
-        << "CreateWebModalDialogViews without a manager"
-        << ", scheme=" << url.scheme_piece() << ", host=" << url.host_piece();
-  }
-
   web_modal::ModalDialogHost* const dialog_host =
       manager->delegate()->GetWebContentsModalDialogHost();
   CHECK(dialog_host);

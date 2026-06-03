@@ -1,0 +1,191 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "components/facilitated_payments/core/browser/pix_account_linking_manager.h"
+
+#include <memory>
+
+#include "base/test/task_environment.h"
+#include "components/autofill/core/browser/data_manager/payments/test_payments_data_manager.h"
+#include "components/autofill/core/browser/payments/payments_customer_data.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/common/autofill_prefs.h"
+#include "components/facilitated_payments/core/browser/mock_device_delegate.h"
+#include "components/facilitated_payments/core/browser/mock_facilitated_payments_client.h"
+#include "components/facilitated_payments/core/browser/network_api/mock_facilitated_payments_network_interface.h"
+#include "components/facilitated_payments/core/browser/pix_account_linking_manager_test_api.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/sync/test/test_sync_service.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace payments::facilitated {
+
+class PixAccountLinkingManagerTest : public testing::Test {
+ public:
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+
+  PixAccountLinkingManagerTest() {
+    manager_ = std::make_unique<PixAccountLinkingManager>(&client_);
+    multiple_request_payments_network_interface_ = std::make_unique<
+        MockMultipleRequestFacilitatedPaymentsNetworkInterface>(
+        *identity_test_env_.identity_manager(), *payments_data_manager_);
+  }
+
+  void SetUp() override {
+    pref_service_ = autofill::test::PrefServiceForTesting();
+    payments_data_manager_ =
+        std::make_unique<autofill::TestPaymentsDataManager>();
+    payments_data_manager_->SetPrefService(pref_service_.get());
+    payments_data_manager_->SetSyncServiceForTest(&sync_service_);
+    payments_data_manager_->SetPaymentsCustomerData(
+        std::make_unique<autofill::PaymentsCustomerData>("123456"));
+    ON_CALL(client_, GetPaymentsDataManager)
+        .WillByDefault(testing::Return(payments_data_manager_.get()));
+    mock_device_delegate_ = std::make_unique<MockDeviceDelegate>();
+    ON_CALL(client_, GetDeviceDelegate)
+        .WillByDefault(testing::Return(mock_device_delegate_.get()));
+
+    // Success path setup. The Pix account linking user pref is default enabled.
+    ON_CALL(*mock_device_delegate(), IsPixAccountLinkingSupported)
+        .WillByDefault(testing::Return(true));
+    ON_CALL(client_, GetMultipleRequestFacilitatedPaymentsNetworkInterface)
+        .WillByDefault(testing::Return(
+            multiple_request_payments_network_interface_.get()));
+  }
+
+  void TearDown() override {
+    payments_data_manager_->ClearAllServerDataForTesting();
+    payments_data_manager_.reset();
+  }
+
+ protected:
+  MockFacilitatedPaymentsClient& client() { return client_; }
+  PixAccountLinkingManager* manager() { return manager_.get(); }
+  MockDeviceDelegate* mock_device_delegate() {
+    return mock_device_delegate_.get();
+  }
+  inline PixAccountLinkingManagerTestApi test_api() {
+    return PixAccountLinkingManagerTestApi(manager_.get());
+  }
+  MockMultipleRequestFacilitatedPaymentsNetworkInterface*
+  multiple_request_payments_network_interface() {
+    return multiple_request_payments_network_interface_.get();
+  }
+
+  std::unique_ptr<PrefService> pref_service_;
+  std::unique_ptr<autofill::TestPaymentsDataManager> payments_data_manager_;
+
+ private:
+  // Order matters here because `manager_` keeps a reference to `client_`.
+  MockFacilitatedPaymentsClient client_;
+  std::unique_ptr<PixAccountLinkingManager> manager_;
+  syncer::TestSyncService sync_service_;
+  std::unique_ptr<MockMultipleRequestFacilitatedPaymentsNetworkInterface>
+      multiple_request_payments_network_interface_;
+  signin::IdentityTestEnvironment identity_test_env_;
+  std::unique_ptr<MockDeviceDelegate> mock_device_delegate_;
+};
+
+TEST_F(PixAccountLinkingManagerTest, SuccessPathShowsPrompt) {
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       PixAccountLinkingNotSupported_PromptNotShown) {
+  ON_CALL(*mock_device_delegate(), IsPixAccountLinkingSupported)
+      .WillByDefault(testing::Return(false));
+
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       PixAccountLinkingPrefDisabled_PromptNotShown) {
+  autofill::prefs::SetFacilitatedPaymentsPixAccountLinking(pref_service_.get(),
+                                                           false);
+
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest, OnAccepted) {
+  EXPECT_CALL(client(), DismissPrompt);
+  EXPECT_CALL(*mock_device_delegate(), LaunchPixAccountLinkingPage);
+
+  test_api().OnAccepted();
+}
+
+TEST_F(PixAccountLinkingManagerTest, PromptDeclined_UserPrefUpdated) {
+  // The account linking user pref should be default enabled .
+  ASSERT_TRUE(autofill::prefs::IsFacilitatedPaymentsPixAccountLinkingEnabled(
+      pref_service_.get()));
+
+  EXPECT_CALL(client(), DismissPrompt);
+
+  test_api().OnDeclined();
+
+  // Verify that declining the prompt disables the account linking user pref.
+  EXPECT_FALSE(autofill::prefs::IsFacilitatedPaymentsPixAccountLinkingEnabled(
+      pref_service_.get()));
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       GetDetailsForCreatePaymentInstrumentBackendRequest) {
+  EXPECT_CALL(
+      *multiple_request_payments_network_interface(),
+      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_));
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       OnGetDetailsForCreatePaymentInstrumentResponseReceived_Eligible) {
+  test_api().OnGetDetailsForCreatePaymentInstrumentResponseReceived(
+      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
+      true);
+
+  EXPECT_TRUE(test_api().is_eligible_for_pix_account_linking().value());
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       OnGetDetailsForCreatePaymentInstrumentResponseReceived_NotEligible) {
+  test_api().OnGetDetailsForCreatePaymentInstrumentResponseReceived(
+      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
+      false);
+
+  EXPECT_FALSE(test_api().is_eligible_for_pix_account_linking().value());
+}
+
+TEST_F(
+    PixAccountLinkingManagerTest,
+    GetDetailsForCreatePaymentInstrumentResponseNotReceived_EligibilityNotSet) {
+  EXPECT_EQ(test_api().is_eligible_for_pix_account_linking(), std::nullopt);
+}
+
+TEST_F(
+    PixAccountLinkingManagerTest,
+    NoPaymentsCustomerData_GetDetailsForCreatePaymentInstrumentNotCalled_AccountLinkingEligible) {
+  payments_data_manager_->ClearPaymentsCustomerData();
+  // Backend call for GetDetailsForPaymentInstrument should not be called if
+  // user is not a payments customer.
+  EXPECT_CALL(
+      *multiple_request_payments_network_interface(),
+      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_))
+      .Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+
+  // If a user is not a payments customer, they are eligible for account linking
+  // by default.
+  EXPECT_TRUE(test_api().is_eligible_for_pix_account_linking().value());
+}
+
+}  // namespace payments::facilitated

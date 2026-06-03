@@ -74,6 +74,7 @@ import org.chromium.chrome.modules.readaloud.PlaybackArgs.PlaybackVoice;
 import org.chromium.chrome.modules.readaloud.PlaybackListener;
 import org.chromium.chrome.modules.readaloud.Player;
 import org.chromium.chrome.modules.readaloud.ReadAloudPlaybackHooks;
+import org.chromium.chrome.modules.readaloud.ReadAloudPlaybackHooks.SendFeedbackCallback;
 import org.chromium.chrome.modules.readaloud.ReadAloudPlaybackHooksFactory;
 import org.chromium.chrome.modules.readaloud.contentjs.Extractor;
 import org.chromium.chrome.modules.readaloud.contentjs.Highlighter;
@@ -86,9 +87,9 @@ import org.chromium.content_public.browser.GlobalRenderFrameHostId;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.ConnectionType;
 import org.chromium.net.NetworkChangeNotifier;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.url.GURL;
 
 import java.time.Duration;
@@ -175,6 +176,17 @@ public class ReadAloudController
     private boolean mIsScreenOnAndUnlocked = true;
     private boolean mKeepScreenOnFlagIsSet;
     @Nullable private CallbackController mCallbackController;
+
+  private final SendFeedbackCallback mSendFeedbackCallback =
+      new SendFeedbackCallback() {
+        @Override
+        public void onSuccess() {}
+
+        @Override
+        public void onFailure(Throwable t) {
+          Log.e(TAG, "Failed to send feedback.", t);
+        }
+      };
 
     /**
      * ReadAloud entrypoint defined in readaloud/enums.xml.
@@ -495,15 +507,16 @@ public class ReadAloudController
     private final ReadAloudReadabilityHooks.ReadabilityPerModeCallback mReadabilityPerModeCallback =
             new ReadAloudReadabilityHooks.ReadabilityPerModeCallback() {
                 @Override
-                public void onSuccess(String url, Map<PlaybackArgs.PlaybackMode, ReadAloudReadabilityHooks.ReadabilityResult> readabilityPerMode) {
+                public void onSuccess(
+                        String url,
+                        Map<PlaybackArgs.PlaybackMode, ReadAloudReadabilityHooks.ReadabilityResult>
+                                readabilityPerMode) {
                     if (url.isEmpty() || url == null) {
                         assert false;
                         return;
                     }
                     ReadabilityInfo readabilityInfo =
-                            new ReadabilityInfo(
-                                    readabilityPerMode,
-                                    sClock.currentTimeMillis());
+                            new ReadabilityInfo(readabilityPerMode, sClock.currentTimeMillis());
                     boolean isReadable = readabilityInfo.isReadable();
 
                     Log.d(TAG, "onSuccess called for %s", url);
@@ -514,15 +527,8 @@ public class ReadAloudController
                     // If destroy() was already called, stop now. Recording metrics should be okay.
                     if (mIsDestroyed) return;
 
-                    // Register _KnownReadable trial before checking more playback conditions
-                    if (isReadable) {
-                        ReadAloudFeatures.activateKnownReadableTrial();
-                    }
-
                     int urlHash = urlToHash(url);
-                    sReadabilityInfoMap.put(
-                            urlHash,
-                            readabilityInfo);
+                    sReadabilityInfoMap.put(urlHash, readabilityInfo);
                     mPendingRequests.remove(urlHash);
                     notifyReadabilityMayHaveChanged();
                 }
@@ -562,10 +568,9 @@ public class ReadAloudController
             FullscreenManager fullscreenManager) {
         sInstances.add(this);
         mCallbackController = new CallbackController();
-        ReadAloudFeatures.init();
         mActivity = activity;
         mProfileSupplier = profileSupplier;
-        new OneShotCallback<Profile>(mProfileSupplier, this::onProfileAvailable);
+        new OneShotCallback<>(mProfileSupplier, this::onProfileAvailable);
         mTabModel = tabModel;
         mIncognitoTabModel = incognitoTabModel;
         mBottomSheetController = bottomSheetController;
@@ -913,7 +918,7 @@ public class ReadAloudController
                 || DeviceConditions.getCurrentNetConnectionType(mActivity.getApplicationContext())
                         == ConnectionType.CONNECTION_NONE
                 // TODO(crbug.com/363326024): Remove once feature is supported for PDF.
-                || (tab.isNativePage() && tab.getNativePage().isPdf())) {
+                || (tab.isNativePage() && assumeNonNull(tab.getNativePage()).isPdf())) {
             return false;
         }
 
@@ -1219,7 +1224,6 @@ public class ReadAloudController
         ApplicationStatus.unregisterActivityStateListener(this);
         resetCurrentPlayback(ReasonForStoppingPlayback.APP_DESTROYED);
         mStateToRestoreOnBringingToForeground = null;
-        ReadAloudFeatures.shutdown();
         InsetObserver insetObserver = mActivityWindowAndroid.getInsetObserver();
         if (insetObserver != null) {
             insetObserver.removeObserver(this);
@@ -1494,13 +1498,19 @@ public class ReadAloudController
 
     @Override
     public void onPositiveFeedback() {
-      // TODO(crbug.com/401256755): Implement feedback mechanism.
+      if (mPlayback == null) {
+        return;
+      }
+      mPlayback.sendFeedback(FeedbackType.POSITIVE, NegativeFeedbackReason.OTHER, mSendFeedbackCallback);
       mFeedbackType.set(FeedbackType.POSITIVE);
     }
 
     @Override
     public void onNegativeFeedback(NegativeFeedbackReason reason) {
-      // TODO(crbug.com/401256755): Implement feedback mechanism.
+      if (mPlayback == null) {
+        return;
+      }
+      mPlayback.sendFeedback(FeedbackType.NEGATIVE, reason, mSendFeedbackCallback);
       mFeedbackType.set(FeedbackType.NEGATIVE);
     }
 

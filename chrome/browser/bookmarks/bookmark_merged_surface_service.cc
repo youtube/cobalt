@@ -318,8 +318,7 @@ void BookmarkMergedSurfaceService::Move(const bookmarks::BookmarkNode* node,
   // like to move their bookmark to a different storage.
   CHECK(browser);
   ShowBookmarkAccountStorageMoveDialog(
-      browser, node, new_parent.as_non_permanent_folder(), index,
-      BookmarkAccountStorageMoveDialogType::kDownloadOrUpload);
+      browser, node, new_parent.as_non_permanent_folder(), index);
 }
 
 void BookmarkMergedSurfaceService::LoadForTesting(
@@ -607,5 +606,17 @@ void BookmarkMergedSurfaceService::BookmarkAllUserNodesRemoved(
     const base::Location& location) {
   for (auto& observer : observers_) {
     observer.BookmarkAllUserNodesRemoved();
+  }
+}
+
+void BookmarkMergedSurfaceService::ExtensiveBookmarkChangesBeginning() {
+  for (auto& observer : observers_) {
+    observer.ExtensiveBookmarkChangesBeginning();
+  }
+}
+
+void BookmarkMergedSurfaceService::ExtensiveBookmarkChangesEnded() {
+  for (auto& observer : observers_) {
+    observer.ExtensiveBookmarkChangesEnded();
   }
 }

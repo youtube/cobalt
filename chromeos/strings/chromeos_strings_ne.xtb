@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">तपाईं हाल कक्षाका टुलहरू मात्र प्रयोग गर्न सक्नुहुन्छ</translation>
 <translation id="1762483337755424125">ट्रान्स्क्रिप्ट</translation>
 <translation id="1765169783255151332">तुरुन्तै कीहरू अदलबदल गर्नुहोस्</translation>
 <translation id="1768959921651994223">प्रमाणीकरणको प्रकार</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">प्रिन्ट गर्न सकिएन - प्रिन्ट गर्दा गर्दै रोकियो</translation>
 <translation id="3102119246920354026">केस</translation>
 <translation id="3103783611481501187">अद्भुत</translation>
+<translation id="3119672627216736407">अनुवाद उपलब्ध छ</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">पुल</translation>
 <translation id="3122883569442693641">थप विवरणहरू</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">यो कार्य पूरा गर्न आफ्नो पुरानो र नयाँ पासवर्ड प्रविष्टि गर्नुहोस्</translation>
 <translation id="6061772781719867950">HTTP अनुरोधहरू पठाउन सकिएन</translation>
 <translation id="6073292342939316679">"किबोर्डको चमक घटाउनुहोस्" जनाउने आइकन</translation>
+<translation id="6074608334942655098">अनुवाद गर्न छाड्नुहोस्</translation>
 <translation id="6074752328838739425">सारांश लुकाउनुहोस्</translation>
 <translation id="6075872808778243331">(Android) HTTP को विलम्बता</translation>
 <translation id="6078323886959318429">सर्टकट हाल्नुहोस्</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook को मद्दतसम्बन्धी फोरममा विशेषज्ञसँग मद्दत माग्नुहोस्</translation>
-<translation id="7309823890857024809">कालो ब्याकग्राउन्डमा सिसाको फूलदानीमा पपी फूलका केही डाँठहरू भएको साधारण स्थिर फोटो</translation>
 <translation id="7311368985037279727">किबोर्डको रङ</translation>
 <translation id="7317831949569936035">स्कुलको इमेल ठेगाना हालेर डिभाइस दर्ता गर्ने प्रक्रिया</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@
 <translation id="8088963492174775412">रेकर्ड गर्न थिच्नुहोस्</translation>
 <translation id="8094062939584182041">Google लाई तपाईंलाई यो समस्याका बारेमा इमेल पठाउने अनुमति दिनुहोस्</translation>
 <translation id="8104083085214006426">तपाईं खुला र असुरक्षित नेटवर्क प्रयोग गर्दै हुनुहुन्छ</translation>
+<translation id="8108879170356113798">तपाईं अबको <ph name="NUM_SECONDS" /> सेकेन्डपछि कक्षाका टुलहरू मात्र प्रयोग गर्न सक्नु हुने छ</translation>
 <translation id="811820734797650957">(Android) गेटवे पिङ गर्न सकिन्छ</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° से.</translation>
 <translation id="8131740175452115882">निश्चित</translation>

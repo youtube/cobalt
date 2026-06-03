@@ -83,7 +83,7 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void createPayIntentTest() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData =
                 new PaymentMethodData("bobPayMethod", "{\"key\":\"value\"}");
         PaymentMethodData maxPayMethodData = new PaymentMethodData("maxPayMethod", "{}");
@@ -92,12 +92,11 @@ public class WebPaymentIntentHelperTest {
 
         PaymentItem total = new PaymentItem(new PaymentCurrencyAmount("CAD", "200"));
 
-        List<PaymentItem> displayItems = new ArrayList<PaymentItem>();
+        List<PaymentItem> displayItems = new ArrayList<>();
         displayItems.add(new PaymentItem(new PaymentCurrencyAmount("CAD", "50")));
         displayItems.add(new PaymentItem(new PaymentCurrencyAmount("CAD", "150")));
 
-        Map<String, PaymentDetailsModifier> modifiers =
-                new HashMap<String, PaymentDetailsModifier>();
+        Map<String, PaymentDetailsModifier> modifiers = new HashMap<>();
         PaymentDetailsModifier bobPaymodifier = new PaymentDetailsModifier(total, bobPayMethodData);
         modifiers.put("bobPay", bobPaymodifier);
 
@@ -111,7 +110,7 @@ public class WebPaymentIntentHelperTest {
                         /* requestShipping= */ true,
                         /* shippingType= */ "delivery");
 
-        List<PaymentShippingOption> shippingOptions = new ArrayList<PaymentShippingOption>();
+        List<PaymentShippingOption> shippingOptions = new ArrayList<>();
         shippingOptions.add(
                 new PaymentShippingOption(
                         "shippingId",
@@ -221,18 +220,17 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void createPayIntentDeprecatedExtraTest() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
         PaymentItem total = new PaymentItem(new PaymentCurrencyAmount("CAD", "200"));
 
-        List<PaymentItem> displayItems = new ArrayList<PaymentItem>();
+        List<PaymentItem> displayItems = new ArrayList<>();
         displayItems.add(new PaymentItem(new PaymentCurrencyAmount("CAD", "50")));
         displayItems.add(new PaymentItem(new PaymentCurrencyAmount("CAD", "150")));
 
-        Map<String, PaymentDetailsModifier> modifiers =
-                new HashMap<String, PaymentDetailsModifier>();
+        Map<String, PaymentDetailsModifier> modifiers = new HashMap<>();
         PaymentDetailsModifier modifier = new PaymentDetailsModifier(total, bobPayMethodData);
         modifiers.put("modifier_key", modifier);
 
@@ -294,18 +292,17 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void verifyRemoveDeprecatedFieldsFromPayIntent() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
         PaymentItem total = new PaymentItem(new PaymentCurrencyAmount("CAD", "200"));
 
-        List<PaymentItem> displayItems = new ArrayList<PaymentItem>();
+        List<PaymentItem> displayItems = new ArrayList<>();
         displayItems.add(new PaymentItem(new PaymentCurrencyAmount("CAD", "50")));
         displayItems.add(new PaymentItem(new PaymentCurrencyAmount("CAD", "150")));
 
-        Map<String, PaymentDetailsModifier> modifiers =
-                new HashMap<String, PaymentDetailsModifier>();
+        Map<String, PaymentDetailsModifier> modifiers = new HashMap<>();
         PaymentDetailsModifier modifier = new PaymentDetailsModifier(total, bobPayMethodData);
         modifiers.put("modifier_key", modifier);
 
@@ -349,7 +346,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("paymentAppPackageName should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -379,7 +376,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("paymentAppActivityName should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -409,7 +406,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("id should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -439,7 +436,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("id should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -469,7 +466,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("merchantName should not be null.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -496,7 +493,7 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void emptyMerchantNameNoExceptionTest() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -526,7 +523,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("schemelessOrigin should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -556,7 +553,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("schemelessOrigin should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -586,7 +583,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("schemelessIframeOrigin should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -616,7 +613,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("schemelessIframeOrigin should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -646,7 +643,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("certificateChain[0] should not be null.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -679,7 +676,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("methodDataMap's entry value should not be null.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         methodDataMap.put("bobPay", null);
 
         PaymentItem total = new PaymentItem(new PaymentCurrencyAmount("CAD", "200"));
@@ -736,7 +733,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("methodDataMap should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
 
         PaymentItem total = new PaymentItem(new PaymentCurrencyAmount("CAD", "200"));
 
@@ -764,7 +761,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("total should not be null.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -793,14 +790,13 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("PaymentDetailsModifier should not be null.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
         PaymentItem total = new PaymentItem(new PaymentCurrencyAmount("CAD", "200"));
 
-        Map<String, PaymentDetailsModifier> modifiers =
-                new HashMap<String, PaymentDetailsModifier>();
+        Map<String, PaymentDetailsModifier> modifiers = new HashMap<>();
         modifiers.put("bobPay", null);
 
         WebPaymentIntentHelper.createPayIntent(
@@ -837,6 +833,34 @@ public class WebPaymentIntentHelperTest {
     @Test
     @SmallTest
     @Feature({"Payments"})
+    public void parsePaymentResponseDoesNotRequireIntentForCancel() throws Throwable {
+        mErrorString = null;
+        WebPaymentIntentHelper.parsePaymentResponse(
+                Activity.RESULT_CANCELED,
+                /* data= */ null,
+                /* requestedPaymentOptions= */ null,
+                (errorString) -> mErrorString = errorString,
+                (methodName, details, payerData) -> Assert.fail("Payment should have error."));
+        Assert.assertEquals(ErrorStrings.RESULT_CANCELED, mErrorString);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Payments"})
+    public void parsePaymentResponseDoesNotRequireIntentExtrasForCancel() throws Throwable {
+        mErrorString = null;
+        WebPaymentIntentHelper.parsePaymentResponse(
+                Activity.RESULT_CANCELED,
+                /* data= */ new Intent(),
+                /* requestedPaymentOptions= */ null,
+                (errorString) -> mErrorString = errorString,
+                (methodName, details, payerData) -> Assert.fail("Payment should have error."));
+        Assert.assertEquals(ErrorStrings.RESULT_CANCELED, mErrorString);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Payments"})
     public void parsePaymentResponseMissingIntentExtrasTest() throws Throwable {
         Intent intent = new Intent();
         mErrorString = null;
@@ -861,7 +885,7 @@ public class WebPaymentIntentHelperTest {
                 intent,
                 /* requestedPaymentOptions= */ null,
                 (errorString) -> mErrorString = errorString,
-                (methodName, details, payerData) -> Assert.fail("Parsing should fail."));
+                (methodName, details, payerData) -> Assert.fail("Payment should have error."));
         Assert.assertEquals(ErrorStrings.RESULT_CANCELED, mErrorString);
     }
 
@@ -1118,7 +1142,7 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void createIsReadyToPayIntentWithIdentity() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData =
                 new PaymentMethodData("bobPayMethod", "{\"key\":\"value\"}");
         PaymentMethodData maxPayMethodData = new PaymentMethodData("maxPayMethod", "{}");
@@ -1174,7 +1198,7 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void verifyDeprecatedFieldsInIsReadyToPayIntent() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData =
                 new PaymentMethodData("bobPayMethod", "{\"key\":\"value\"}");
         PaymentMethodData maxPayMethodData = new PaymentMethodData("maxPayMethod", "{}");
@@ -1216,7 +1240,7 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void verifyRemoveDeprecatedFieldsFromIsReadyToPayIntent() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData =
                 new PaymentMethodData("bobPayMethod", "{\"key\":\"value\"}");
         PaymentMethodData maxPayMethodData = new PaymentMethodData("maxPayMethod", "{}");
@@ -1252,7 +1276,7 @@ public class WebPaymentIntentHelperTest {
     @SmallTest
     @Feature({"Payments"})
     public void createIsReadyToPayIntentWithoutIdentity() throws Throwable {
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData =
                 new PaymentMethodData("bobPayMethod", "{\"key\":\"value\"}");
         PaymentMethodData maxPayMethodData = new PaymentMethodData("maxPayMethod", "{}");
@@ -1297,7 +1321,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("callerPackageName should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -1321,7 +1345,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("paymentAppPackageName should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 
@@ -1345,7 +1369,7 @@ public class WebPaymentIntentHelperTest {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("paymentAppPackageName should not be null or empty.");
 
-        Map<String, PaymentMethodData> methodDataMap = new HashMap<String, PaymentMethodData>();
+        Map<String, PaymentMethodData> methodDataMap = new HashMap<>();
         PaymentMethodData bobPayMethodData = new PaymentMethodData("method", "null");
         methodDataMap.put("bobPay", bobPayMethodData);
 

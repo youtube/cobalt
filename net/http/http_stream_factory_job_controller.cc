@@ -269,6 +269,8 @@ LoadState HttpStreamFactory::JobController::GetLoadState() const {
 
 void HttpStreamFactory::JobController::OnRequestComplete() {
   DCHECK(request_);
+  CHECK(!switched_to_http_stream_pool_);
+
   request_ = nullptr;
   // This is called when the delegate is destroying its HttpStreamRequest, so
   // it's no longer safe to call into it after this point.
@@ -1496,19 +1498,24 @@ bool HttpStreamFactory::JobController::IsQuicAllowedForHost(
 void HttpStreamFactory::JobController::SwitchToHttpStreamPool() {
   CHECK(request_info_.socket_tag == SocketTag());
   CHECK_EQ(stream_type_, HttpStreamRequest::HTTP_STREAM);
+  CHECK(session_->host_resolver()->IsHappyEyeballsV3Enabled());
 
   switched_to_http_stream_pool_ = true;
 
   bool disable_cert_network_fetches =
       !!(request_info_.load_flags & LOAD_DISABLE_CERT_NETWORK_FETCHES);
+  NextProtoSet allowed_alpns =
+      request_info_.is_http1_allowed
+          ? NextProtoSet::All()
+          : NextProtoSet{NextProto::kProtoHTTP2, NextProto::kProtoQUIC};
   url::SchemeHostPort destination(origin_url_);
   session_->ApplyTestingFixedPort(destination);
   HttpStreamPoolRequestInfo pool_request_info(
       std::move(destination), request_info_.privacy_mode,
       request_info_.socket_tag, request_info_.network_anonymization_key,
       request_info_.secure_dns_policy, disable_cert_network_fetches,
-      alternative_service_info_, request_info_.is_http1_allowed,
-      request_info_.load_flags, proxy_info_, net_log_);
+      alternative_service_info_, allowed_alpns, request_info_.load_flags,
+      proxy_info_, net_log_);
   if (is_preconnect_) {
     int rv = session_->http_stream_pool()->Preconnect(
         std::move(pool_request_info), num_streams_,
@@ -1522,31 +1529,22 @@ void HttpStreamFactory::JobController::SwitchToHttpStreamPool() {
     return;
   }
 
+  // Exchange `request_` and `delegate_` to prevent them from being dangling.
+  session_->http_stream_pool()->HandleStreamRequest(
+      std::exchange(request_, nullptr), std::exchange(delegate_, nullptr),
+      std::move(pool_request_info), priority_, allowed_bad_certs_,
+      enable_ip_based_pooling_, enable_alternative_services_);
+
+  // Delete `this` later as this method is called while running DoLoop().
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&JobController::CallOnSwitchesToHttpStreamPool,
-                     ptr_factory_.GetWeakPtr(), std::move(pool_request_info),
-                     base::TimeTicks::Now()));
+      FROM_HERE, base::BindOnce(&JobController::MaybeNotifyFactoryOfCompletion,
+                                ptr_factory_.GetWeakPtr()));
 }
 
 void HttpStreamFactory::JobController::OnPoolPreconnectsComplete(int rv) {
   CHECK(switched_to_http_stream_pool_);
   factory_->OnPreconnectsCompleteInternal();
   MaybeNotifyFactoryOfCompletion();
-}
-
-void HttpStreamFactory::JobController::CallOnSwitchesToHttpStreamPool(
-    HttpStreamPoolRequestInfo request_info,
-    base::TimeTicks post_task_time) {
-  CHECK(request_);
-  CHECK(delegate_);
-
-  base::UmaHistogramTimes("Net.HttpStreamPool.SwitchesToPoolPostTaskTime",
-                          base::TimeTicks::Now() - post_task_time);
-
-  // `request_` and `delegate_` will be reset later.
-
-  delegate_->OnSwitchesToHttpStreamPool(std::move(request_info));
 }
 
 }  // namespace net

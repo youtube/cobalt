@@ -301,7 +301,7 @@ public class Features {
 
     // WebViewCompat.prerenderUrl
     // WebViewCompat.clearPrerender
-    public static final String PRERENDER_WITH_URL = "PRERENDER_URL_V2";
+    public static final String PRERENDER_WITH_URL = "PRERENDER_URL_V3";
 
     // WebStorageCompat.deleteBrowsingData
     // WebStorageCompat.deleteBrowsingDataForSite
@@ -363,4 +363,10 @@ public class Features {
 
     // Profile.warmUpRendererProcess
     public static final String WARM_UP_RENDERER_PROCESS = "WARM_UP_RENDERER_PROCESS";
+
+    // Profile.setExtraHeaderForOrigins
+    // Profile.hasExtraHeaderForOrigins
+    // Profile.clearExtraHeaderForOrigins
+    // Profile.clearAllExtraHeadersForOrigins
+    public static final String EXTRA_HEADER_FOR_ORIGINS = "EXTRA_HEADER_FOR_ORIGINS";
 }

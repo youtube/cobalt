@@ -49,6 +49,7 @@
 #include "chrome/browser/ui/webui/whats_new/whats_new_util.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
@@ -62,10 +63,6 @@
 #include "base/mac/mac_util.h"
 #include "chrome/browser/app_controller_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
-
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#include "chrome/browser/win/conflicts/incompatible_applications_updater.h"
-#endif
 
 #if BUILDFLAG(ENABLE_RLZ)
 #include "components/google/core/common/google_util.h"
@@ -338,15 +335,6 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
 
   const bool is_incognito_or_guest = profile_->IsOffTheRecord();
   bool is_post_crash_launch = HasPendingUncleanExit(profile_);
-  bool has_incompatible_applications = false;
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  if (is_post_crash_launch) {
-    // Check if there are any incompatible applications cached from the last
-    // Chrome run.
-    has_incompatible_applications =
-        IncompatibleApplicationsUpdater::HasCachedApplications();
-  }
-#endif
 
   // Presentation of promotional and/or educational tabs may be controlled via
   // administrative policy.
@@ -391,8 +379,8 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
 
   auto result = DetermineStartupTabs(
       StartupTabProviderImpl(), process_startup, is_incognito_or_guest,
-      is_post_crash_launch, has_incompatible_applications, promotions_enabled,
-      whats_new_enabled, privacy_sandbox_dialog_required);
+      is_post_crash_launch, promotions_enabled, whats_new_enabled,
+      privacy_sandbox_dialog_required);
   StartupTabs tabs = std::move(result.tabs);
 
   // Return immediately if we start an async restore, since the remainder of
@@ -464,7 +452,6 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
     chrome::startup::IsProcessStartup process_startup,
     bool is_incognito_or_guest,
     bool is_post_crash_launch,
-    bool has_incompatible_applications,
     bool promotions_enabled,
     bool whats_new_enabled,
     bool privacy_sandbox_dialog_required) {
@@ -484,13 +471,6 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
   if (is_incognito_or_guest || is_post_crash_launch) {
     if (!tabs.empty()) {
       return {std::move(tabs), launch_result};
-    }
-
-    if (is_post_crash_launch) {
-      tabs = provider.GetPostCrashTabs(has_incompatible_applications);
-      if (!tabs.empty()) {
-        return {std::move(tabs), launch_result};
-      }
     }
 
     return {StartupTabs({StartupTab(GURL(chrome::kChromeUINewTabURL))}),

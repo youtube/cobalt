@@ -12,6 +12,7 @@
 #include "build/build_config.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/ipc/client/gpu_ipc_client_export.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
@@ -21,7 +22,8 @@ class GpuChannelHost;
 
 // Tracks shared images created by a single context and ensures they are deleted
 // if the context is lost.
-class GPU_EXPORT ClientSharedImageInterface : public SharedImageInterface {
+class GPU_IPC_CLIENT_EXPORT ClientSharedImageInterface
+    : public SharedImageInterface {
  public:
   ClientSharedImageInterface(SharedImageInterfaceProxy* proxy,
                              scoped_refptr<gpu::GpuChannelHost> channel);
@@ -87,21 +89,19 @@ class GPU_EXPORT ClientSharedImageInterface : public SharedImageInterface {
   void UpdateSharedImage(const SyncToken& sync_token,
                          scoped_refptr<gfx::D3DSharedFence> d3d_shared_fence,
                          const Mailbox& mailbox) override;
-  bool CopyNativeGmbToSharedMemorySync(
-      gfx::GpuMemoryBufferHandle buffer_handle,
-      base::UnsafeSharedMemoryRegion memory_region) override;
   void CopyNativeGmbToSharedMemoryAsync(
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
       base::OnceCallback<void(bool)> callback) override;
-  bool IsConnected() override;
-#endif
+#endif  // BUILDFLAG(IS_WIN)
+
   SwapChainSharedImages CreateSwapChain(viz::SharedImageFormat format,
                                         const gfx::Size& size,
                                         const gfx::ColorSpace& color_space,
                                         GrSurfaceOrigin surface_origin,
                                         SkAlphaType alpha_type,
-                                        SharedImageUsageSet usage) override;
+                                        SharedImageUsageSet usage,
+                                        std::string_view debug_label) override;
   void DestroySharedImage(const SyncToken& sync_token,
                           const Mailbox& mailbox) override;
   void DestroySharedImage(
@@ -114,16 +114,9 @@ class GPU_EXPORT ClientSharedImageInterface : public SharedImageInterface {
       const gfx::ColorSpace& color_space,
       GrSurfaceOrigin surface_origin,
       SkAlphaType alpha_type,
-      SharedImageUsageSet usage) override;
-  scoped_refptr<ClientSharedImage> NotifyMailboxAdded(
-      const Mailbox& mailbox,
-      viz::SharedImageFormat format,
-      const gfx::Size& size,
-      const gfx::ColorSpace& color_space,
-      GrSurfaceOrigin surface_origin,
-      SkAlphaType alpha_type,
       SharedImageUsageSet usage,
-      uint32_t texture_target) override;
+      uint32_t texture_target,
+      std::string_view debug_label) override;
 
   scoped_refptr<ClientSharedImage> ImportSharedImage(
       ExportedSharedImage exported_shared_image) override;

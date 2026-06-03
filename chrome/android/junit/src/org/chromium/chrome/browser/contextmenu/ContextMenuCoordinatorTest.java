@@ -46,7 +46,6 @@ import org.chromium.blink_public.common.ContextMenuDataMediaType;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuItem.Item;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator.ContextMenuGroup;
-import org.chromium.chrome.browser.contextmenu.ContextMenuCoordinator.ListItemType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.widget.ContextMenuDialog;
@@ -63,6 +62,8 @@ import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragStateTracker;
+import org.chromium.ui.listmenu.ListItemType;
+import org.chromium.ui.listmenu.MenuModelBridge;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -154,6 +155,7 @@ public class ContextMenuCoordinatorTest {
 
     @Mock ContextMenuNativeDelegate mNativeDelegate;
     @Mock WebContentsImpl mWebContentsMock;
+    @Mock private MenuModelBridge mMenuModelBridge;
 
     private ContextMenuCoordinator mCoordinator;
     private Activity mActivity;
@@ -171,6 +173,7 @@ public class ContextMenuCoordinatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
                         GURL.emptyGURL(),
                         GURL.emptyGURL(),
@@ -226,6 +229,7 @@ public class ContextMenuCoordinatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
                         GURL.emptyGURL(),
                         GURL.emptyGURL(),
@@ -286,6 +290,7 @@ public class ContextMenuCoordinatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
                         GURL.emptyGURL(),
                         GURL.emptyGURL(),
@@ -328,6 +333,7 @@ public class ContextMenuCoordinatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.VIDEO,
                         GURL.emptyGURL(),
                         GURL.emptyGURL(),
@@ -608,6 +614,7 @@ public class ContextMenuCoordinatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
                         GURL.emptyGURL(),
                         GURL.emptyGURL(),
@@ -626,7 +633,7 @@ public class ContextMenuCoordinatorTest {
                         /* additionalNavigationParams= */ null);
 
         final WindowAndroid windowAndroid = Mockito.mock(WindowAndroid.class);
-        doReturn(new WeakReference<Activity>(mActivity)).when(windowAndroid).getActivity();
+        doReturn(new WeakReference<>(mActivity)).when(windowAndroid).getActivity();
 
         List<Pair<Integer, ModelList>> rawItems = new ArrayList<>();
 

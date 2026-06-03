@@ -4,9 +4,10 @@
 <translation id="1173075331199604451">Μενού φωνής</translation>
 <translation id="1178581264944972037">Παύση</translation>
 <translation id="1246424317317450637">Έντονη γραφή</translation>
-<translation id="1370273601702151510">Μου αρέσει</translation>
+<translation id="1357114957607379632">Δημιουργία αναπαραγωγής AI…</translation>
 <translation id="1483137792530497944">Ποταμός</translation>
 <translation id="1586836055630070874">Χαλαρωτική</translation>
+<translation id="1639239467298939599">Φόρτωση</translation>
 <translation id="1666704368140506043">Προσβλητικό περιεχόμενο</translation>
 <translation id="1741047078107369903">Θερμή</translation>
 <translation id="1807863182207623884">Ρουμπίνι</translation>
@@ -17,10 +18,9 @@
 <translation id="2575502321843437554">Δεν είναι αρκετά ενδιαφέρον</translation>
 <translation id="2611765907167846862">Γαλήνια</translation>
 <translation id="3023502830214299618">Δυστυχώς, δεν είναι διαθέσιμη προς το παρόν η αναπαραγωγή για αυτή τη σελίδα. Δοκιμάστε ξανά αργότερα.</translation>
-<translation id="3457812538570616687">Δεν μου αρέσει</translation>
 <translation id="3493899379487634969">Τι πρόβλημα υπήρξε;</translation>
+<translation id="3730775656877876887">Δημιουργία αναπαραγωγής AI</translation>
 <translation id="3778044272390020426">Μενού επιλογών αρνητικών σχολίων</translation>
-<translation id="3807208219231826020">Καθάρισμα αναπαραγωγής</translation>
 <translation id="385051799172605136">Πίσω</translation>
 <translation id="3936324432406465283">Ταχύτητα αναπαραγωγής</translation>
 <translation id="4020327272915390518">Μενού επιλογών</translation>
@@ -30,19 +30,19 @@
 <translation id="4525525184005340968">Κοιλάδα</translation>
 <translation id="4710974520964166851">Χαλαρή</translation>
 <translation id="4773921449011281499">Ήρεμη</translation>
+<translation id="4867493576811701175">Κουμπί Μου αρέσει, επιλέξτε το για να υποβάλετε σχόλιο ότι σας αρέσει αυτή η λειτουργία</translation>
 <translation id="4872475766448853257">Μετάβαση πίσω κατά <ph name="NUMBER_OF_SECONDS" /> δευτερόλεπτα</translation>
 <translation id="4967513477347430212">Ακτή</translation>
 <translation id="5026371835667036198">Ζωηρή</translation>
 <translation id="5234971936051226002">Το πρόγραμμα αναπαραγωγής "Ακρόαση αυτής της σελίδας" ελαχιστοποιήθηκε.</translation>
 <translation id="5251803541071282808">Cloud</translation>
-<translation id="5526614127710223793">Επιλογέας λειτουργίας αναπαραγωγής</translation>
+<translation id="5528503854289436485">Αναπαραγωγή AI</translation>
 <translation id="5596627076506792578">Περισσότερες επιλογές</translation>
 <translation id="565342223183747919">Πατήστε για εναλλαγή της λειτουργίας αναπαραγωγής</translation>
 <translation id="5694491020339060116">Μενού ταχύτητας αναπαραγωγής</translation>
 <translation id="5965409657393819302">Τεχνικό πρόβλημα</translation>
 <translation id="6218961554829577610">Δεν μου άρεσε η φωνή</translation>
 <translation id="6315170314923504164">Φωνή</translation>
-<translation id="6330455646577575965">Αναπαραγωγή ήχου AI</translation>
 <translation id="6343633247422081848">Βρύα</translation>
 <translation id="6550675742724504774">Επιλογές</translation>
 <translation id="6727569846535331147"><ph name="PITCH" />, <ph name="TONE" /></translation>
@@ -61,11 +61,11 @@
 <translation id="8136852699834914183">Η αναπαραγωγή δεν είναι διαθέσιμη για αυτή τη σελίδα.</translation>
 <translation id="8198036737896977997">Αέρας</translation>
 <translation id="8264989794233974275">Αύξηση/μείωση ταχύτητας <ph name="PLAYBACK_SPEED" />x.</translation>
+<translation id="837054959055425654">Κουμπί Δεν μου αρέσει, επιλέξτε το για να ανοίξετε μια φόρμα υποβολής λεπτομερών σχολίων σχετικά με ένα πρόβλημα με αυτή τη λειτουργία</translation>
 <translation id="8407011429883244666">Κλείσιμο προγράμματος αναπαραγωγής</translation>
 <translation id="8462210863277153423">Το URL σας θα μεταφορτωθεί με τα σχόλια για τη βελτίωση της ποιότητας και της έρευνας.</translation>
 <translation id="8481839122437406573">Ήρεμη</translation>
 <translation id="8756370108715456837">Δεν είναι σωστό βάσει στοιχείων</translation>
-<translation id="881960277396325853">Δημιουργία ήχου AI…</translation>
 <translation id="8953618380150219653">Το πρόγραμμα αναπαραγωγής "Ακρόαση αυτής της σελίδας" άνοιξε σε πλήρες ύψος.</translation>
 <translation id="978117257931832348">Χαμηλός τόνος</translation>
 </translationbundle>

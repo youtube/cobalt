@@ -72,6 +72,10 @@ const base::FeatureParam<int> kAndroidSpareRendererMemoryThreshold{
 const base::FeatureParam<bool> kAndroidSpareRendererKillWhenBackgrounded{
     &kAndroidWarmUpSpareRendererWithTimeout, "kill_when_backgrounded", false};
 
+// Only allow the navigation related allocation to use the spare renderer.
+const base::FeatureParam<bool> kAndroidSpareRendererOnlyForNavigation{
+    &kAndroidWarmUpSpareRendererWithTimeout, "only_for_navigation", false};
+
 // Whether to allow attaching an inner WebContents not owned by the outer
 // WebContents. This is for prototyping purposes and should not be enabled in
 // production.
@@ -194,6 +198,14 @@ BASE_FEATURE(kCacheControlNoStoreEnterBackForwardCache,
 // calls gated by the killswitch will fail graceully.
 BASE_FEATURE(kCapturedSurfaceControlKillswitch,
              "CapturedSurfaceControlKillswitch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables a CHECK in RendererDidNavigate to ensure that session
+// history navigations commit in the expected SiteInstance when the
+// document sequence number matches. Helps detect navigation process
+// mismatches and potential security issues.
+BASE_FEATURE(kCheckSiteInstanceOnHistoryNavigation,
+             "CheckSiteInstanceOnHistoryNavigation",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Clear the window.name property for the top-level cross-site navigations that
@@ -702,17 +714,13 @@ BASE_FEATURE(kPrefetchPrerenderIntegration,
              "PrefetchPrerenderIntegration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If explicitly disabled, prefetch proxy is not used.
+BASE_FEATURE(kPrefetchProxy, "PrefetchProxy", base::FEATURE_ENABLED_BY_DEFAULT);
+
 // If enabled, browser-initiated prefetch is allowed.
 // Please see crbug.com/40946257 for more details.
 BASE_FEATURE(kPrefetchBrowserInitiatedTriggers,
              "PrefetchBrowserInitiatedTriggers",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// This was used for enabling a new limit and scheduler for prerender triggers
-// (crbug.com/40275452). Now the new implementation is used by default and this
-// flag is just for injecting parameters through field trials.
-BASE_FEATURE(kPrerender2NewLimitAndScheduler,
-             "Prerender2NewLimitAndScheduler",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables exposure of ads APIs in the renderer: Attribution Reporting,
@@ -879,6 +887,24 @@ BASE_FEATURE(kRenderDocumentCompositorReuse,
              "RenderDocumentCompositorReuse",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, set a soft limit on the number of renderer processes on
+// Android, after which Chrome will reuse existing processes when possible.
+// This diverges from current Clank behavior, where we do not set any upper
+// bound and instead delegate that to the system. 42 is approximated from
+// 8GBs ((8192 - 1024) / (16384 / 96)), and has nothing to do with Douglas
+// Adams' book. 1GB is a carve-out for integrated GPU VRAM.
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kRendererProcessLimitOnAndroid,
+             "RendererProcessLimitOnAndroid",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(size_t,
+                   kRendererProcessLimitOnAndroidCount,
+                   &kRendererProcessLimitOnAndroid,
+                   "count",
+                   42u);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Enables retrying to obtain list of available cameras after restarting the
 // video capture service if a previous attempt failed, which could be caused
 // by a service crash.
@@ -999,6 +1025,13 @@ BASE_FEATURE(kSecurePaymentConfirmationDebug,
 BASE_FEATURE(kServiceWorkerPaymentApps,
              "ServiceWorkerPaymentApps",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, UI thread tasks can check ServiceWorker registration information
+// from the thread pool without waiting for running the receiving task. Please
+// see crbug.com/421530699 for more details.
+BASE_FEATURE(kServiceWorkerBackgroundUpdateForRegisteredStorageKeys,
+             "ServiceWorkerBackgroundUpdateForRegisteredStorageKeys",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // http://tc39.github.io/ecmascript_sharedmem/shmem.html
 // This feature is also enabled independently of this flag for cross-origin
@@ -1206,8 +1239,33 @@ BASE_FEATURE(kVerifyDidCommitParams,
              "VerifyDidCommitParams",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables a CHECK in NavigationRequest::ValidateCommitOrigin() to verify
+// that the origin used at commit time matches the expected origin stored
+// in the FrameNavigationEntry, whenever PageState is non-empty.
+//
+// This helps catch session history corruption or stale origin-related state
+// being sent to the renderer, which could violate origin isolation and lead
+// to security issues (see crbug.com/41492620).
+//
+// This feature is disabled by default while we diagnose on Canary only.
+BASE_FEATURE(kValidateCommitOriginAtCommit,
+             "ValidateCommitOriginAtCommit",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables future V8 VM features
 BASE_FEATURE(kV8VmFuture, "V8VmFuture", base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+// Enables V8 to use a set of experimental optimizations for Android Desktop.
+// This feature flag is intended to control various performance-related
+// tweaks.
+//
+// TODO(crbug.com/425860368): This feature may need to be updated or removed
+// based on the evolution of V8's performance features for high-end devices.
+BASE_FEATURE(kV8AndroidDesktopHighEndConfig,
+             "V8AndroidDesktopHighEndConfig",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // Enables per PWA System Media Controls. Only supported on Windows and macOS.
 BASE_FEATURE(kWebAppSystemMediaControls,
@@ -1313,14 +1371,29 @@ const base::FeatureParam<bool> kWebUIBundledCodeCacheGenerateResourceMap{
 // Previously, this was only supported on ChromeOS and Linux.
 // Intentionally enabled by default and will be used as a kill switch in case
 // of regressions.
+// TODO(crbug.com/399911225): enable by default and remove this feature once
+// major sources of JS errors are fixed. Currently this is only enabled on 1%
+// stable and 50% non-stable.
 BASE_FEATURE(kWebUIJSErrorReportingExtended,
             "WebUIJSErrorReportingExtended",
-            base::FEATURE_ENABLED_BY_DEFAULT);
+            base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Controls whether the WebUSB API is enabled:
 // https://wicg.github.io/webusb
 BASE_FEATURE(kWebUsb, "WebUSB", base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Apply `PrefetchPriority::kHighest` for Webview Prefetch API.
+BASE_FEATURE(kWebViewPrefetchHighestPrefetchPriority,
+             "WebViewPrefetchHighestPrefetchPriority",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Set an additional `PrefetchScheduler` burst limit for
+// `PrefetchPriority::kHighest` prefetches.
+constexpr base::FeatureParam<size_t>
+    kWebViewPrefetchHighestPrefetchPriorityBurstLimit{
+        &kWebViewPrefetchHighestPrefetchPriority,
+        "WebViewPrefetchHighestPrefetchPriorityBurstLimit", 1};
 
 // Controls whether the WebXR Device API is enabled.
 BASE_FEATURE(kWebXr, "WebXR", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1333,10 +1406,18 @@ BASE_FEATURE(kWebPermissionsApi,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// When enabled, will no longer cache java side AccessibilityNodeInfo objects.
 BASE_FEATURE(kAccessibilityDeprecateJavaNodeCache,
              "AccessibilityDeprecateJavaNodeCache",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, will optimize scrolling.
+const base::FeatureParam<bool>
+    kAccessibilityDeprecateJavaNodeCacheOptimizeScroll{
+        &kAccessibilityDeprecateJavaNodeCache, "optimize_scroll", false};
+
+// When enabled, will no longer cache java side AccessibilityNodeInfo objects.
+const base::FeatureParam<bool> kAccessibilityDeprecateJavaNodeCacheDisableCache{
+    &kAccessibilityDeprecateJavaNodeCache, "disable_cache", false};
 
 // When enabled, TYPE_ANNOUNCE events will no longer be sent for live regions in
 // the web contents.
@@ -1355,6 +1436,12 @@ BASE_FEATURE(kAccessibilityIncludeLongClickAction,
 // This version of the experiment explores enabling OS-level adjustments.
 BASE_FEATURE(kAccessibilityPageZoomV2,
              "AccessibilityPageZoomV2",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables populating the supplemental description information via the
+// Android supplemental description API.
+BASE_FEATURE(kAccessibilityPopulateSupplementalDescriptionApi,
+             "kAccessibilityPopulateSupplementalDescriptionApi",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of a unified code path for AXTree snapshots.
@@ -1406,11 +1493,7 @@ BASE_FEATURE(kReduceGpuPriorityOnBackground,
 // it won't work.
 BASE_FEATURE(kUserMediaScreenCapturing,
              "UserMediaScreenCapturing",
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
              base::FEATURE_DISABLED_BY_DEFAULT
-#endif
 );
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1449,7 +1532,12 @@ const base::FeatureParam<int> kNavigationCapturingIPHGuardrailStorageDuration{
 
 BASE_FEATURE(kPwaNavigationCapturing,
              "PwaNavigationCapturing",
+#if BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
              base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 const base::FeatureParam<CapturingState>::Option kNavigationCapturingParams[] =
     {{CapturingState::kDefaultOn, "on_by_default"},
      {CapturingState::kDefaultOff, "off_by_default"},
@@ -1459,7 +1547,12 @@ const base::FeatureParam<CapturingState>::Option kNavigationCapturingParams[] =
 
 const base::FeatureParam<CapturingState> kNavigationCapturingDefaultState{
     &kPwaNavigationCapturing, "link_capturing_state",
-    CapturingState::kReimplOnViaClientMode, &kNavigationCapturingParams};
+#if BUILDFLAG(IS_CHROMEOS)
+    CapturingState::kReimplDefaultOff,
+#else
+    CapturingState::kReimplOnViaClientMode,
+#endif
+    &kNavigationCapturingParams};
 
 const base::FeatureParam<std::string> kForcedOffCapturingAppsOnFirstNavigation{
     &kPwaNavigationCapturing, "initial_nav_forced_off_apps", ""};

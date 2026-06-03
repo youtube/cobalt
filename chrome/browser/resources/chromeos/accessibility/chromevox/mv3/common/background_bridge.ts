@@ -14,6 +14,7 @@ import {BridgeConstants} from './bridge_constants.js';
 import type {Command} from './command.js';
 import type {EarconId} from './earcon_id.js';
 import type {EventSourceType} from './event_source_type.js';
+import type {InternalKeyEvent} from './internal_key_event.js';
 import type {SerializableLog} from './log_types.js';
 import type {QueueMode, TtsSpeechProperties} from './tts_types.js';
 
@@ -34,6 +35,20 @@ interface ForcedAction {
 }
 
 export const BackgroundBridge = {
+  BackgroundKeyboardHandler: {
+    onKeyDown(evt: InternalKeyEvent): Promise<boolean> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.BackgroundKeyboardHandler.TARGET,
+          BridgeConstants.BackgroundKeyboardHandler.Action.ON_KEY_DOWN, evt);
+    },
+
+    onKeyUp(evt: InternalKeyEvent): Promise<boolean> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.BackgroundKeyboardHandler.TARGET,
+          BridgeConstants.BackgroundKeyboardHandler.Action.ON_KEY_UP, evt);
+    },
+  },
+
   Braille: {
     /**
      * Translate braille cells into text.
@@ -69,6 +84,15 @@ export const BackgroundBridge = {
       return BridgeHelper.sendMessage(
           BridgeConstants.Braille.TARGET, BridgeConstants.Braille.Action.WRITE,
           text);
+    },
+  },
+
+  BrailleBackground: {
+    brailleRoute(displayPosition: number): Promise<void> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.BrailleBackground.TARGET,
+          BridgeConstants.BrailleBackground.Action.BRAILLE_ROUTE,
+          displayPosition);
     },
   },
 
@@ -199,6 +223,28 @@ export const BackgroundBridge = {
     },
   },
 
+  LibLouis: {
+    message(data: string): Promise<void> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.LibLouis.TARGET,
+          BridgeConstants.LibLouis.Action.MESSAGE, data);
+    },
+
+    error(message: string): Promise<void> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.LibLouis.TARGET,
+          BridgeConstants.LibLouis.Action.ERROR, message);
+    },
+  },
+
+  LocaleOutputHelper: {
+    onVoicesChanged(): Promise<void> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.LocaleOutputHelper.TARGET,
+          BridgeConstants.LocaleOutputHelper.Action.ON_VOICES_CHANGED);
+    },
+  },
+
   LogStore: {
     /** Clear the log buffer. */
     clearLog(): Promise<void> {
@@ -312,6 +358,14 @@ export const BackgroundBridge = {
       return BridgeHelper.sendMessage(
           BridgeConstants.PanelBackground.TARGET,
           BridgeConstants.PanelBackground.Action.WAIT_FOR_PANEL_COLLAPSE);
+    },
+  },
+
+  PrimaryTts: {
+    onVoicesChanged(): Promise<void> {
+      return BridgeHelper.sendMessage(
+          BridgeConstants.PrimaryTts.TARGET,
+          BridgeConstants.PrimaryTts.Action.ON_VOICES_CHANGED);
     },
   },
 

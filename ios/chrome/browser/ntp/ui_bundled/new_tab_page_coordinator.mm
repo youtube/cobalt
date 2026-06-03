@@ -18,10 +18,12 @@
 #import "components/feed/core/v2/public/common_enums.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
 #import "components/feed/feed_feature_list.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "components/policy/policy_constants.h"
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/prefs/pref_service.h"
 #import "components/search/search.h"
+#import "components/search_engines/template_url_service.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/signin/public/identity_manager/tribool.h"
@@ -54,6 +56,7 @@
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_coordinator.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_delegate.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
@@ -83,7 +86,11 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_commands.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_mediator.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_utils.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_view_controller.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service_factory.h"
 #import "ios/chrome/browser/overscroll_actions/ui_bundled/overscroll_actions_controller.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
@@ -100,12 +107,15 @@
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
+#import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_coordinator.h"
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_params.h"
@@ -122,6 +132,7 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/public/fakebox_focuser.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/coordinator/tab_group_indicator_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
+#import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/material_timing.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
@@ -153,7 +164,8 @@
                                      OverscrollActionsControllerDelegate,
                                      ProfileStateObserver,
                                      SceneStateObserver,
-                                     FamilyLinkUserCapabilitiesObserving> {
+                                     FamilyLinkUserCapabilitiesObserving,
+                                     NewTabPageShortcutsHandler> {
   // Observes changes in the IdentityManager.
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityObserverBridge;
@@ -360,9 +372,7 @@
   [self configureContentSuggestionsCoordinator];
   [self configureFeedMetricsRecorder];
   [self configureNTPViewController];
-  if (IsTabGroupInGridEnabled()) {
-    [self configureTabGroupIndicator];
-  }
+  [self configureTabGroupIndicator];
 
   self.started = YES;
 }
@@ -715,17 +725,12 @@
   CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
   headerViewController.fakeboxFocuserHandler =
       HandlerForProtocol(dispatcher, FakeboxFocuser);
-  headerViewController.lensHandler =
-      HandlerForProtocol(dispatcher, LensCommands);
-  headerViewController.applicationHandler =
-      HandlerForProtocol(dispatcher, ApplicationCommands);
-  headerViewController.browserCoordinatorHandler =
-      HandlerForProtocol(dispatcher, BrowserCoordinatorCommands);
   headerViewController.helpHandler =
       HandlerForProtocol(dispatcher, HelpCommands);
 
+  headerViewController.NTPShortcutsHandler = self;
+
   headerViewController.commandHandler = self;
-  headerViewController.customizationDelegate = self;
   headerViewController.delegate = self.NTPViewController;
   headerViewController.layoutGuideCenter =
       LayoutGuideCenterForBrowser(self.browser);
@@ -754,6 +759,11 @@
   NTPMediator.NTPContentDelegate = self;
   NTPMediator.headerConsumer = self.headerViewController;
   NTPMediator.consumer = self.NTPViewController;
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    PlaceholderService* placeholderService =
+        ios::PlaceholderServiceFactory::GetForProfile(self.profile);
+    NTPMediator.placeholderService = placeholderService;
+  }
   [NTPMediator setUp];
 }
 
@@ -775,7 +785,7 @@
       self.contentSuggestionsCoordinator.magicStackCollectionView;
   self.NTPViewController.contentSuggestionsViewController =
       self.contentSuggestionsCoordinator.viewController;
-
+  self.NTPViewController.NTPShortcutsHandler = self;
   self.NTPViewController.feedVisible = [self isFeedVisible];
 
   self.feedWrapperViewController = [self.componentFactory
@@ -876,17 +886,19 @@
   }
   [self dismissCustomizationMenu];
   [self.NTPMetricsRecorder recordIdentityDiscTapped];
-  id<ApplicationCommands> handler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
-
   BOOL isSignedIn =
       self.authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin);
   if (![self isSignInAllowed]) {
-    [handler showSettingsFromViewController:self.baseViewController];
+    id<SettingsCommands> handler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), SettingsCommands);
+    [handler
+        showGoogleServicesSettingsFromViewController:self.baseViewController];
   } else if (isSignedIn) {
     if (IsIdentityDiscAccountMenuEnabled()) {
       [self showAccountMenu:identityDisc];
     } else {
+      id<ApplicationCommands> handler = HandlerForProtocol(
+          self.browser->GetCommandDispatcher(), ApplicationCommands);
       [handler showSettingsFromViewController:self.baseViewController];
     }
   } else {
@@ -1637,6 +1649,9 @@
 - (void)handleChangeInModules {
   DCHECK(self.NTPViewController);
 
+  _headerViewController.isGoogleDefaultSearchEngine =
+      [self isGoogleDefaultSearchEngine];
+
   [self.NTPViewController resetViewHierarchy];
 
   if (self.feedViewController) {
@@ -1903,6 +1918,58 @@
   }
   [_customizationCoordinator stop];
   _customizationCoordinator = nil;
+}
+
+#pragma mark - NewTabPageShortcutsHandler
+
+- (void)openLensViewFinder {
+  [self.NTPMetricsRecorder recordLensTapped];
+  TriggerHapticFeedbackForSelectionChange();
+  OpenLensInputSelectionCommand* command = [[OpenLensInputSelectionCommand
+      alloc]
+          initWithEntryPoint:LensEntrypoint::NewTabPage
+           presentationStyle:LensInputSelectionPresentationStyle::SlideFromRight
+      presentationCompletion:nil];
+  [self dismissCustomizationMenu];
+  id<LensCommands> lensHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), LensCommands);
+  [lensHandler openLensInputSelection:command];
+}
+
+- (void)openMIA {
+  OpenNewTabCommand* command =
+      [OpenNewTabCommand commandWithURLFromChrome:GetURLForMIA()];
+  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ApplicationCommands);
+  [applicationHandler openURLInNewTab:command];
+}
+
+- (void)preloadVoiceSearch {
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler preloadVoiceSearch];
+}
+
+- (void)loadVoiceSearchFromView:(UIView*)voiceSearchSourceView {
+  [self.NTPMetricsRecorder recordVoiceSearchTapped];
+  [self dismissCustomizationMenu];
+
+  LayoutGuideCenter* layoutGuideCenter =
+      LayoutGuideCenterForBrowser(self.browser);
+  [layoutGuideCenter referenceView:voiceSearchSourceView
+                         underName:kVoiceSearchButtonGuide];
+
+  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ApplicationCommands);
+  [applicationHandler startVoiceSearch];
+}
+
+- (void)openIncognitoSearch {
+  OpenNewTabCommand* command = [OpenNewTabCommand commandWithIncognito:YES];
+  command.shouldFocusOmnibox = YES;
+  id<ApplicationCommands> applicationHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ApplicationCommands);
+  [applicationHandler openURLInNewTab:command];
 }
 
 @end

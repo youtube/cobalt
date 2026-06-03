@@ -206,6 +206,15 @@ static PositionType CanonicalPosition(const PositionType& position) {
       } else if (editing_root->contains(prev_editing_root)) {
         return prev;
       }
+      // If `prev/next_editing_root` is not in the same block as `editing_root`,
+      // but the `position` is editable and visually equivalent position,
+      // directly return the `position`.
+      // See https://issues.chromium.org/issues/40890187 for more details.
+      if (RuntimeEnabledFeatures::
+              UsePositionIfIsVisuallyEquivalentCandidateEnabled() &&
+          IsVisuallyEquivalentCandidate(position)) {
+        return position;
+      }
     }
     return PositionType();
   }
@@ -1411,8 +1420,10 @@ static PositionTemplate<Strategy> SkipWhitespaceAlgorithm(
   // it as trailing white space.
   for (; char_it.length(); char_it.Advance(1)) {
     UChar c = char_it.CharacterAt(0);
-    if ((!IsSpaceOrNewline(c) && c != kNoBreakSpaceCharacter) || c == '\n')
+    if ((!unicode::IsSpaceOrNewline(c) && c != uchar::kNoBreakSpace) ||
+        c == '\n') {
       return runner;
+    }
     runner = char_it.EndPosition();
   }
   return runner;
@@ -1427,7 +1438,7 @@ PositionInFlatTree SkipWhitespace(const PositionInFlatTree& position) {
 }
 
 template <typename Strategy>
-static Vector<gfx::QuadF> ComputeTextBounds(
+Vector<gfx::QuadF> ComputeTextBounds(
     const EphemeralRangeTemplate<Strategy>& range) {
   const PositionTemplate<Strategy>& start_position = range.StartPosition();
   const PositionTemplate<Strategy>& end_position = range.EndPosition();

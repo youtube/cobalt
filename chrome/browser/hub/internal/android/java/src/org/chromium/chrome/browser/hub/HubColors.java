@@ -10,6 +10,7 @@ import android.content.res.Resources;
 import android.graphics.Color;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.ColorRes;
 import androidx.annotation.DimenRes;
 import androidx.core.content.ContextCompat;
 
@@ -21,7 +22,6 @@ import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.ValueUtils;
-import org.chromium.ui.util.XrUtils;
 
 /** Util class to handle various color operations shared between hub classes. */
 @NullMarked
@@ -44,9 +44,6 @@ public final class HubColors {
     /** Returns the background color generic surfaces should use per the given color scheme. */
     public static @ColorInt int getBackgroundColor(
             Context context, @HubColorScheme int colorScheme) {
-        // On an XRDevice in FSM the background color of the Hub view is set to transparent always.
-        if (XrUtils.getInstance().isFsmOnXrDevice()) return Color.TRANSPARENT;
-
         switch (colorScheme) {
             case HubColorScheme.DEFAULT:
                 return SurfaceColorUpdateUtils.getGridTabSwitcherBackgroundColor(
@@ -58,6 +55,12 @@ public final class HubColors {
                 assert false;
                 return Color.TRANSPARENT;
         }
+    }
+
+    public static @ColorInt int getBackgroundColor(
+            Context context, @HubColorScheme int colorScheme, boolean isXrFullSpaceMode) {
+        if (isXrFullSpaceMode) return Color.TRANSPARENT;
+        return getBackgroundColor(context, colorScheme);
     }
 
     /** Returns the color toolbar action button uses per the given color scheme. */
@@ -217,9 +220,22 @@ public final class HubColors {
         }
     }
 
-    public static ColorStateList getActionButtonColor(Context context, @ColorInt int color) {
+    public static ColorStateList getActionButtonColor(
+            Context context, @ColorInt int enabledColor, boolean isGtsUpdateEnabled) {
+        if (isGtsUpdateEnabled) {
+            @ColorRes int disabledColorRes = R.color.hub_action_button_disabled_icon_color;
+            @ColorInt int disabledColor = ContextCompat.getColor(context, disabledColorRes);
+            return generateDisabledAndNormalStatesColorStateList(enabledColor, disabledColor);
+        }
+
         @DimenRes int disabledAlpha = R.dimen.default_disabled_alpha;
-        return generateDisabledAndNormalStatesColorStateList(context, color, disabledAlpha);
+        return generateDisabledAndNormalStatesColorStateList(context, enabledColor, disabledAlpha);
+    }
+
+    public static ColorStateList getActionButtonBgColor(Context context, @ColorInt int color) {
+        @ColorRes int disabledColorRes = R.color.hub_action_button_disabled_background_color;
+        @ColorInt int disabledColor = ContextCompat.getColor(context, disabledColorRes);
+        return generateDisabledAndNormalStatesColorStateList(color, disabledColor);
     }
 
     /**
@@ -235,6 +251,12 @@ public final class HubColors {
     private static ColorStateList generateDisabledAndNormalStatesColorStateList(
             Context context, int color, int disabledAlpha) {
         int[] colors = new int[] {getColorWithAlphaApplied(context, color, disabledAlpha), color};
+        return new ColorStateList(DISABLED_AND_NORMAL_STATES, colors);
+    }
+
+    private static ColorStateList generateDisabledAndNormalStatesColorStateList(
+            int color, int disabledColor) {
+        int[] colors = new int[] {disabledColor, color};
         return new ColorStateList(DISABLED_AND_NORMAL_STATES, colors);
     }
 

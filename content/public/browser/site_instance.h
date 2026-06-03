@@ -10,11 +10,13 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/types/id_type.h"
+#include "base/types/pass_key.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/browsing_instance_id.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/process_allocation_context.h"
 #include "content/public/browser/site_instance_process_assignment.h"
+#include "content/public/browser/site_instance_process_creation_client.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "url/gurl.h"
 
@@ -112,9 +114,9 @@ class CONTENT_EXPORT SiteInstance : public base::RefCounted<SiteInstance> {
   virtual BrowsingInstanceId GetBrowsingInstanceId() = 0;
 
   // Whether this SiteInstance has a running process associated with it.
-  // This may return true before the first call to GetOrCreateProcess(), in
-  // cases where we use process-per-site and there is an existing process
-  // available.
+  // This may return true before the first call to
+  // SiteInstanceImpl::GetOrCreateProcess(), in cases where we use
+  // process-per-site and there is an existing process available.
   virtual bool HasProcess() = 0;
 
   // Returns the current RenderProcessHost being used to render pages for this
@@ -126,11 +128,17 @@ class CONTENT_EXPORT SiteInstance : public base::RefCounted<SiteInstance> {
   // SiteInstanceImpl shall be used.
   virtual RenderProcessHost* GetProcess() = 0;
 
+  // Returns the current RenderProcessHost being used to render pages for this
+  // SiteInstance. This method will create a renderer process if there is not
+  // one. The function is exported only for the renderer prelauncher in cast.
+  // TODO(crbug.com/424051832): Remove the function after migrating
+  // RendererPrelauncher to use the spare renderer.
+  virtual RenderProcessHost* GetOrCreateProcess(
+      base::PassKey<SiteInstanceProcessCreationClient>) = 0;
+
   // Test-only function that returns the current RenderProcessHost for this
   // SiteInstance and creates one if there is no RenderProcessHost.
-  // TODO(crbug.com/391970626): Rename the function to
-  // GetOrCreatProcessForTesting() or remove it.
-  virtual RenderProcessHost* GetOrCreateProcess() = 0;
+  virtual RenderProcessHost* GetOrCreateProcessForTesting() = 0;
 
   // Returns the ID of the SiteInstanceGroup this SiteInstance belongs to. If
   // the SiteInstance has no group, return 0, which is an invalid

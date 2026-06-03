@@ -23,22 +23,21 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-
-#if !BUILDFLAG(IS_NACL)
 #include "third_party/boringssl/src/include/openssl/rand.h"
-#endif
 
 namespace memory_simulator {
 class MemoryHolder;
+}
+
+namespace gwp_asan::internal {
+class ExtremeLightweightDetectorQuarantineBranch;
 }
 
 namespace base {
 
 namespace internal {
 
-#if !BUILDFLAG(IS_NACL)
 void ConfigureBoringSSLBackedRandBytesFieldTrial();
-#endif
 
 // Returns a random double in range [0, 1). For use in allocator shim to avoid
 // infinite recursion. Thread-safe.
@@ -189,7 +188,6 @@ class RandomBitGenerator {
   ~RandomBitGenerator() = default;
 };
 
-#if !BUILDFLAG(IS_NACL)
 class NonAllocatingRandomBitGenerator {
  public:
   using result_type = uint64_t;
@@ -205,7 +203,6 @@ class NonAllocatingRandomBitGenerator {
   NonAllocatingRandomBitGenerator() = default;
   ~NonAllocatingRandomBitGenerator() = default;
 };
-#endif
 
 // Shuffles [first, last) randomly. Thread-safe.
 template <typename Itr>
@@ -274,6 +271,8 @@ class BASE_EXPORT InsecureRandomGenerator {
   friend class MetricsSubSampler;
   // test::InsecureRandomGenerator can be used for testing.
   friend class test::InsecureRandomGenerator;
+
+  friend class gwp_asan::internal::ExtremeLightweightDetectorQuarantineBranch;
 
   FRIEND_TEST_ALL_PREFIXES(RandUtilTest,
                            InsecureRandomGeneratorProducesBothValuesOfAllBits);

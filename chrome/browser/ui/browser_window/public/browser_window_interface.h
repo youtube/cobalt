@@ -7,9 +7,14 @@
 
 #include <vector>
 
-#include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "content/public/browser/page_navigator.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "base/callback_list.h"
 #include "ui/base/window_open_disposition.h"
+#endif
 
 // This is the public interface for a browser window. Most features in
 // //chrome/browser depend on this interface, and thus to prevent circular
@@ -17,7 +22,16 @@
 // Ping erikchen for assistance if this class does not have the functionality
 // your feature needs. This comment will be deleted after there are 10+ features
 // in BrowserWindowFeatures.
+//
+// This interface is shared between desktop platforms and the experimental
+// desktop android platform. As such, the features exposed directly on this
+// class should only be those that apply to all these platforms, and should only
+// be features that are core to the concept of a browser window. Classes related
+// to specific features should likely instead be stored either as an entry in
+// the UnownedUserData (via BrowserWindowInterface::GetUnownedUserDataHost())
+// or on DesktopBrowserWindowCapabilities.
 
+#if !BUILDFLAG(IS_ANDROID)
 namespace tabs {
 class TabInterface;
 }  // namespace tabs
@@ -39,13 +53,22 @@ class Browser;
 class BrowserActions;
 class BrowserUserEducationInterface;
 class BrowserWindowFeatures;
+class DesktopBrowserWindowCapabilities;
 class ExclusiveAccessManager;
 class GURL;
+class ImmersiveModeController;
 class Profile;
 class SessionID;
 class TabStripModel;
-class ImmersiveModeController;
+#endif  // BUILDFLAG(IS_ANDROID)
 
+namespace ui {
+class BaseWindow;
+}  // namespace ui
+
+class UnownedUserDataHost;
+
+#if !BUILDFLAG(IS_ANDROID)
 // A feature which wants to show window level call to action UI  should call
 // BrowserWindowInterface::ShowCallToAction and keep alive the instance of
 // ScopedWindowCallToAction for the duration of the window-modal UI.
@@ -54,9 +77,31 @@ class ScopedWindowCallToAction {
   ScopedWindowCallToAction() = default;
   virtual ~ScopedWindowCallToAction() = default;
 };
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 class BrowserWindowInterface : public content::PageNavigator {
  public:
+  // Returns the UnownedUserDataHost associated with this browser window. This
+  // is used to retrieve arbitrary features from the browser window without
+  // requiring BrowserWindowInterface to have knowledge of them.
+  virtual UnownedUserDataHost& GetUnownedUserDataHost() = 0;
+  virtual const UnownedUserDataHost& GetUnownedUserDataHost() const = 0;
+
+  // Returns the ui::BaseWindow for this browser window. This allows for
+  // generic window actions, such as activation, querying minimize/maximized
+  // state, etc.
+  virtual ui::BaseWindow* GetWindow() = 0;
+
+  // S T O P
+  // Please do not add new features here without consulting desktop leads
+  // (erikchen@) and Clank leads (twellington@, dtrainor@). See comment at the
+  // top of this file.
+  // The following methods will be removed in the future.
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Returns nullptr if no browser window with the given session ID exists.
+  static BrowserWindowInterface* FromSessionID(const SessionID& session_id);
+
   // The contents of the active tab is rendered in a views::WebView. When the
   // active tab switches, the contents of the views::WebView is modified, but
   // the instance itself remains the same.
@@ -86,9 +131,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   // Returns true if the browser controls are hidden due to being in fullscreen.
   virtual bool ShouldHideUIForFullscreen() const = 0;
 
-  // See Browser::IsAttemptingToCloseBrowser() for more details.
-  virtual bool IsAttemptingToCloseBrowser() const = 0;
-
   // Register callbacks invoked when browser has successfully processed its
   // close request and has been scheduled for deletion.
   using BrowserDidCloseCallback =
@@ -98,15 +140,6 @@ class BrowserWindowInterface : public content::PageNavigator {
 
   // Returns the top container view.
   virtual views::View* TopContainer() = 0;
-
-  // Returns true if the window is minimized.
-  virtual bool IsMinimized() const = 0;
-
-  // Returns true if the browser window is visible on the screen.
-  virtual bool IsVisibleOnScreen() const = 0;
-
-  // Returns true if the window is visible.
-  virtual bool IsVisible() const = 0;
 
   // WARNING: Many uses of base::WeakPtr are inappropriate and lead to bugs.
   // An appropriate use case is as a variable passed to an asynchronously
@@ -153,6 +186,7 @@ class BrowserWindowInterface : public content::PageNavigator {
   //   that is conceptually a BrowserWindowFeature and needs access to other
   //   BrowserWindowFeature.
   virtual BrowserWindowFeatures& GetFeatures() = 0;
+  virtual const BrowserWindowFeatures& GetFeatures() const = 0;
 
   // Returns the web contents modal dialog host pertaining to this
   // BrowserWindow.
@@ -245,21 +279,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   // incremental migration.
   virtual Browser* GetBrowserForMigrationOnly() = 0;
 
-  // Activates (brings to front) the window. Restores the window from minimized
-  // state if necessary.
-  virtual void ActivateWindow() = 0;
-
-  // Changes the blocked state of |web_contents|. WebContentses are considered
-  // blocked while displaying a web contents modal dialog. During that time
-  // renderer host will ignore any UI interaction within WebContents outside of
-  // the currently displaying dialog.
-  // Note that this is a duplicate of the same method in
-  // WebContentsModalDialogManagerDelegate. This is because there are two ways
-  // to open tab-modal dialogs, either via TabDialogManager or via
-  // //components/web_modal. See crbug.com/377820808.
-  virtual void SetWebContentsBlocked(content::WebContents* web_contents,
-                                     bool blocked) = 0;
-
   // Checks if the browser popup is tab modal dialog.
   virtual bool IsTabModalPopupDeprecated() const = 0;
 
@@ -270,6 +289,16 @@ class BrowserWindowInterface : public content::PageNavigator {
   // window level call to action Uis.
   virtual bool CanShowCallToAction() const = 0;
   virtual std::unique_ptr<ScopedWindowCallToAction> ShowCallToAction() = 0;
+
+  virtual DesktopBrowserWindowCapabilities* capabilities() = 0;
+  virtual const DesktopBrowserWindowCapabilities* capabilities() const = 0;
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  // S T O P
+  // Please do not add new features here without consulting desktop leads
+  // (erikchen@) and Clank leads (twellington@, dtrainor@). See comment at the
+  // top of this file.
+  // The following methods will be removed in the future.
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_INTERFACE_H_

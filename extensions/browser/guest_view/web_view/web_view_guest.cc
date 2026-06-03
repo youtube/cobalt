@@ -17,6 +17,7 @@
 #include "base/lazy_instance.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notimplemented.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -148,9 +149,6 @@ uint32_t GetStoragePartitionRemovalMask(uint32_t web_view_removal_mask) {
   if (web_view_removal_mask &
       webview::WEB_VIEW_REMOVE_DATA_MASK_LOCAL_STORAGE) {
     mask |= StoragePartition::REMOVE_DATA_MASK_LOCAL_STORAGE;
-  }
-  if (web_view_removal_mask & webview::WEB_VIEW_REMOVE_DATA_MASK_WEBSQL) {
-    mask |= StoragePartition::REMOVE_DATA_MASK_WEBSQL;
   }
 
   return mask;
@@ -1614,6 +1612,12 @@ bool WebViewGuest::IsPermissionRequestable(ContentSettingsType type) const {
       // Any permission that could be granted by the webview permissionrequest
       // API should be requestable.
       return true;
+    case blink::PermissionType::CLIPBOARD_READ_WRITE:
+    case blink::PermissionType::CLIPBOARD_SANITIZED_WRITE:
+      // Support only controlled frame.
+      // Technically, there's no difficulty in supporting webview also,
+      // but the need for this api was expressed only for CF.
+      return IsOwnedByControlledFrameEmbedder();
     default:
       // Any other permission could not be legitimately granted to the webview.
       // We preemptivly reject such requests here. The permissions system should

@@ -72,6 +72,11 @@ class SearchPreloadService : public KeyedService,
   // Clears all preloads from the service.
   void ClearPreloads();
 
+  void OnPrefetchHeadReceived(const network::mojom::URLResponseHead& head);
+  void OnOnSuggestPrefetchCompletedOrFailed(
+      const network::URLLoaderCompletionStatus& completion_status,
+      const std::optional<int>& response_code);
+
   // Called when autocomplete is updated.
   void OnAutocompleteResultChanged(content::WebContents* web_contents,
                                    const AutocompleteResult& result);
@@ -82,6 +87,17 @@ class SearchPreloadService : public KeyedService,
       const AutocompleteMatch& match,
       omnibox::mojom::NavigationPredictor navigation_predictor,
       content::WebContents* web_contents);
+
+  const std::optional<net::HttpNoVarySearchData>&
+  GetNoVarySearchDataCacheForTesting() const;
+  void SetNoVarySearchDataCacheForTesting(
+      std::optional<net::HttpNoVarySearchData> no_vary_search_data);
+
+  // Invalidates a pipeline with `canonical_url`.
+  //
+  // Returns true iff invalidated successfully.
+  bool InvalidatePipelineForTesting(content::WebContents& web_contents,
+                                    GURL canonical_url);
 
  private:
   // Reference is valid only as rvalue.
@@ -95,7 +111,27 @@ class SearchPreloadService : public KeyedService,
 
   std::optional<base::WeakPtr<SearchPreloadPipelineManager>> pipeline_manager_;
 
+  // Cache of No-Vary-Search header for the No-Vary-Search hint of the next
+  // prefetch.
+  std::optional<net::HttpNoVarySearchData> no_vary_search_data_cache_;
+
+  // If prefetch on-suggest failed, pause triggering preloads until this time.
+  base::TimeTicks pause_triggering_until_;
+
   base::WeakPtrFactory<SearchPreloadService> weak_factory_{this};
 };
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SearchPreloadServiceNoVarySearchDataCacheUpdate)
+enum class SearchPreloadServiceNoVarySearchDataCacheUpdate : uint8_t {
+  kUnchanged = 0,
+  kNullToSome = 1,
+  kSomeToNull = 2,
+  kSomeToSome = 3,
+  kMaxValue = kSomeToSome,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/omnibox/enums.xml:SearchPreloadServiceNoVarySearchDataCacheUpdate)
 
 #endif  // CHROME_BROWSER_PRELOADING_SEARCH_PRELOAD_SEARCH_PRELOAD_SERVICE_H_

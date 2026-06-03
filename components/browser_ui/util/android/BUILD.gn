@@ -18,6 +18,7 @@ android_library("java") {
     "java/src/org/chromium/components/browser_ui/util/DrawableUtils.java",
     "java/src/org/chromium/components/browser_ui/util/FirstDrawDetector.java",
     "java/src/org/chromium/components/browser_ui/util/GlobalDiscardableReferencePool.java",
+    "java/src/org/chromium/components/browser_ui/util/TimeTextResolver.java",
     "java/src/org/chromium/components/browser_ui/util/ToolbarUtils.java",
     "java/src/org/chromium/components/browser_ui/util/TraceEventVectorDrawableCompat.java",
     "java/src/org/chromium/components/browser_ui/util/date/CalendarFactory.java",
@@ -34,7 +35,9 @@ android_library("java") {
     "//cc:cc_java",
     "//components/browser_ui/notifications/android:utils_java",
     "//components/browser_ui/widget/android:java_resources",
+    "//components/download/public/common:public_java",
     "//components/embedder_support/android:util_java",
+    "//components/offline_items_collection/core:core_java",
     "//components/url_formatter/android:url_formatter_java",
     "//content/public/android:content_main_dex_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
@@ -73,6 +76,7 @@ robolectric_library("junit") {
     "java/src/org/chromium/components/browser_ui/util/BitmapCacheTest.java",
     "java/src/org/chromium/components/browser_ui/util/ComposedBrowserControlsVisibilityDelegateTest.java",
     "java/src/org/chromium/components/browser_ui/util/DimensionCompatUnitTest.java",
+    "java/src/org/chromium/components/browser_ui/util/TimeTextResolverUnitTest.java",
   ]
   deps = [
     ":java",

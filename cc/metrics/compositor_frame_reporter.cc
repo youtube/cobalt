@@ -30,7 +30,6 @@
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "cc/base/rolling_time_delta_history.h"
 #include "cc/metrics/custom_metrics_recorder.h"
-#include "cc/metrics/dropped_frame_counter.h"
 #include "cc/metrics/event_latency_tracing_recorder.h"
 #include "cc/metrics/event_latency_tracker.h"
 #include "cc/metrics/event_metrics.h"
@@ -49,8 +48,6 @@ using BlinkBreakdown = CompositorFrameReporter::BlinkBreakdown;
 using VizBreakdown = CompositorFrameReporter::VizBreakdown;
 using FrameFinalState = FrameInfo::FrameFinalState;
 
-constexpr int kFrameReportTypeCount =
-    static_cast<int>(FrameReportType::kMaxValue) + 1;
 constexpr int kStageTypeCount = static_cast<int>(StageType::kStageTypeCount);
 constexpr int kAllBreakdownCount =
     static_cast<int>(VizBreakdown::kBreakdownCount) +
@@ -71,25 +68,12 @@ constexpr int kFrameSequenceTrackerTypeCount =
 // also means too much memory usage.
 constexpr size_t kMaxOwnedPartialUpdateDependents = 300u;
 
-// Names for CompositorFrameReporter::FrameReportType, which should be
-// updated in case of changes to the enum.
-constexpr auto kReportTypeNames = std::to_array<const char*>({
-    "",
-    "MissedDeadlineFrame.",
-    "DroppedFrame.",
-    "CompositorOnlyFrame.",
-});
-
-static_assert(std::size(kReportTypeNames) == kFrameReportTypeCount,
-              "Compositor latency report types has changed.");
-
 // This value should be recalculated in case of changes to the number of values
 // in CompositorFrameReporter::DroppedFrameReportType or in
 // CompositorFrameReporter::StageType.
 constexpr int kStagesWithBreakdownCount = kStageTypeCount + kAllBreakdownCount;
 constexpr int kMaxCompositorLatencyHistogramIndex =
-    kFrameReportTypeCount *
-    (kFrameSequenceTrackerTypeCount + kStagesWithBreakdownCount);
+    kFrameSequenceTrackerTypeCount * kStagesWithBreakdownCount;
 
 constexpr base::TimeDelta kCompositorLatencyHistogramMin =
     base::Microseconds(1);
@@ -120,27 +104,7 @@ constexpr base::TimeDelta kEventLatencyHistogramMax = base::Seconds(5);
 constexpr int kEventLatencyHistogramBucketCount = 100;
 constexpr base::TimeDelta kHighLatencyMin = base::Milliseconds(75);
 
-// Number of breakdown stages of the current PipelineReporter
-constexpr int kNumOfCompositorStages =
-    static_cast<int>(StageType::kStageTypeCount) - 1;
-// Number of breakdown stages of the blink
-constexpr int kNumOfBlinkStages =
-    static_cast<int>(BlinkBreakdown::kBreakdownCount);
-// Number of breakdown stages of the viz
-constexpr int kNumOfVizStages = static_cast<int>(VizBreakdown::kBreakdownCount);
-// Number of dispatch stages of the current EventLatency
-constexpr int kNumDispatchStages =
-    static_cast<int>(EventMetrics::DispatchStage::kMaxValue);
-// Stores the weight of the most recent data point used in percentage when
-// predicting substages' latency. (It is stored and calculated in percentage
-// since TimeDelta calculate based on microseconds instead of nanoseconds,
-// therefore, decimals of stage durations in microseconds may be lost.)
-constexpr double kWeightOfCurStageInPercent = 25;
-// Used for comparing doubles
-constexpr double kEpsilon = 0.001;
-
 std::string GetCompositorLatencyHistogramName(
-    FrameReportType report_type,
     FrameSequenceTrackerType frame_sequence_tracker_type,
     StageType stage_type,
     std::optional<VizBreakdown> viz_breakdown,
@@ -150,12 +114,10 @@ std::string GetCompositorLatencyHistogramName(
       FrameSequenceTracker::GetFrameSequenceTrackerTypeName(
           frame_sequence_tracker_type);
   DCHECK(tracker_type_name);
-  bool impl_only_frame = report_type == FrameReportType::kCompositorOnlyFrame;
-  return base::StrCat(
-      {"CompositorLatency.", kReportTypeNames[static_cast<int>(report_type)],
-       tracker_type_name, *tracker_type_name ? "." : "",
-       CompositorFrameReporter::GetStageName(
-           stage_type, viz_breakdown, blink_breakdown, impl_only_frame)});
+  return base::StrCat({"CompositorLatency2.", tracker_type_name,
+                       *tracker_type_name ? "." : "",
+                       CompositorFrameReporter::GetStageName(
+                           stage_type, viz_breakdown, blink_breakdown)});
 }
 
 // Helper function to record UMA histogram for an EventLatency metric. There
@@ -195,40 +157,6 @@ void ReportEventLatencyMetric(
 
 base::TimeTicks ComputeSafeDeadlineForFrame(const viz::BeginFrameArgs& args) {
   return args.frame_time + (args.interval * 1.5);
-}
-
-// Returns the value of the exponentially weighted average for
-// SetEventLatencyPredictions.
-base::TimeDelta CalculateWeightedAverage(base::TimeDelta previous_value,
-                                         base::TimeDelta current_value) {
-  if (previous_value.is_negative())
-    return current_value;
-  return (kWeightOfCurStageInPercent * current_value +
-          (100 - kWeightOfCurStageInPercent) * previous_value) /
-         100;
-}
-
-// Calculate new prediction of latency based on old prediction and current
-// latency
-base::TimeDelta PredictLatency(base::TimeDelta previous_prediction,
-                               base::TimeDelta current_latency) {
-  return (kWeightOfCurStageInPercent * current_latency +
-          (100 - kWeightOfCurStageInPercent) * previous_prediction) /
-         100;
-}
-
-double DetermineHighestContribution(
-    double contribution_change,
-    double highest_contribution_change,
-    const std::string& stage_name,
-    std::vector<std::string>& high_latency_stages) {
-  if (std::abs(contribution_change - highest_contribution_change) < kEpsilon) {
-    high_latency_stages.push_back(stage_name);
-  } else if (contribution_change > highest_contribution_change) {
-    highest_contribution_change = contribution_change;
-    high_latency_stages = {stage_name};
-  }
-  return highest_contribution_change;
 }
 
 void TraceScrollJankMetrics(const EventMetrics::List& events_metrics,
@@ -569,21 +497,6 @@ CompositorFrameReporter::ProcessedVizBreakdown::CreateIterator(
                             buffer_ready_available_);
 }
 
-// CompositorFrameReporter::CompositorLatencyInfo ==============================
-
-CompositorFrameReporter::CompositorLatencyInfo::CompositorLatencyInfo() =
-    default;
-CompositorFrameReporter::CompositorLatencyInfo::CompositorLatencyInfo(
-    base::TimeDelta init_value)
-    : top_level_stages(kNumOfCompositorStages, init_value),
-      blink_breakdown_stages(kNumOfBlinkStages, init_value),
-      viz_breakdown_stages(kNumOfVizStages, init_value),
-      total_latency(init_value),
-      total_blink_latency(init_value),
-      total_viz_latency(init_value) {}
-CompositorFrameReporter::CompositorLatencyInfo::~CompositorLatencyInfo() =
-    default;
-
 // CompositorFrameReporter =====================================================
 
 CompositorFrameReporter::CompositorFrameReporter(
@@ -601,10 +514,8 @@ CompositorFrameReporter::CompositorFrameReporter(
       smooth_thread_(smooth_thread),
       layer_tree_host_id_(layer_tree_host_id),
       global_trackers_(trackers) {
-  DCHECK(global_trackers_.dropped_frame_counter);
   DCHECK(global_trackers_.frame_sorter);
-  if (global_trackers_.dropped_frame_counter
-          ->first_contentful_paint_received()) {
+  if (global_trackers_.frame_sorter->first_contentful_paint_received()) {
     global_trackers_.frame_sorter->AddNewFrame(args);
   }
   if (scrolling_thread_ == FrameInfo::SmoothEffectDrivingThread::kCompositor) {
@@ -634,8 +545,7 @@ CompositorFrameReporter::CompositorFrameReporter(
 const char* CompositorFrameReporter::GetStageName(
     StageType stage_type,
     std::optional<VizBreakdown> viz_breakdown,
-    std::optional<BlinkBreakdown> blink_breakdown,
-    bool impl_only) {
+    std::optional<BlinkBreakdown> blink_breakdown) {
   DCHECK(!viz_breakdown ||
          stage_type ==
              StageType::kSubmitCompositorFrameToPresentationCompositorFrame);
@@ -643,12 +553,10 @@ const char* CompositorFrameReporter::GetStageName(
          stage_type == StageType::kSendBeginMainFrameToCommit);
   switch (stage_type) {
     case StageType::kBeginImplFrameToSendBeginMainFrame:
-      return impl_only ? "BeginImplFrameToFinishImpl"
-                       : "BeginImplFrameToSendBeginMainFrame";
+      return "BeginImplFrameToSendBeginMainFrame";
     case StageType::kSendBeginMainFrameToCommit:
       if (!blink_breakdown) {
-        return impl_only ? "SendBeginMainFrameToBeginMainAbort"
-                         : "SendBeginMainFrameToCommit";
+        return "SendBeginMainFrameToCommit";
       }
       switch (*blink_breakdown) {
         case BlinkBreakdown::kHandleInputEvents:
@@ -683,8 +591,7 @@ const char* CompositorFrameReporter::GetStageName(
     case StageType::kActivation:
       return "Activation";
     case StageType::kEndActivateToSubmitCompositorFrame:
-      return impl_only ? "ImplFrameDoneToSubmitCompositorFrame"
-                       : "EndActivateToSubmitCompositorFrame";
+      return "EndActivateToSubmitCompositorFrame";
     case StageType::kSubmitCompositorFrameToPresentationCompositorFrame:
       if (!viz_breakdown)
         return "SubmitCompositorFrameToPresentationCompositorFrame";
@@ -795,16 +702,6 @@ CompositorFrameReporter::StageData::StageData(StageType stage_type,
     : stage_type(stage_type), start_time(start_time), end_time(end_time) {}
 CompositorFrameReporter::StageData::StageData(const StageData&) = default;
 CompositorFrameReporter::StageData::~StageData() = default;
-
-CompositorFrameReporter::EventLatencyInfo::EventLatencyInfo(
-    const int num_dispatch_stages,
-    const int num_compositor_stages)
-    : dispatch_durations(num_dispatch_stages, base::Microseconds(-1)),
-      transition_duration(base::Microseconds(-1)),
-      compositor_durations(num_compositor_stages, base::Microseconds(-1)),
-      total_duration(base::Microseconds(-1)),
-      transition_name("") {}
-CompositorFrameReporter::EventLatencyInfo::~EventLatencyInfo() = default;
 
 void CompositorFrameReporter::StartStage(
     CompositorFrameReporter::StageType stage_type,
@@ -991,17 +888,8 @@ void CompositorFrameReporter::TerminateReporter() {
     ReportPaintMetric();
   }
 
-  if (TestReportType(FrameReportType::kDroppedFrame)) {
-    global_trackers_.dropped_frame_counter->AddDroppedFrame();
-  } else {
-    if (has_partial_update_)
-      global_trackers_.dropped_frame_counter->AddPartialFrame();
-    else
-      global_trackers_.dropped_frame_counter->AddGoodFrame();
-  }
-  if (global_trackers_.dropped_frame_counter
-          ->first_contentful_paint_received()) {
-    // Delegates call to DFC->OnEndFrame.
+  global_trackers_.frame_sorter->AddFrameInfoToBuffer(frame_info);
+  if (global_trackers_.frame_sorter->first_contentful_paint_received()) {
     global_trackers_.frame_sorter->AddFrameResult(args_, frame_info);
   }
 }
@@ -1030,100 +918,16 @@ void CompositorFrameReporter::ReportCompositorLatencyMetrics() const {
     return;
 
   for (const StageData& stage : stage_history_) {
-    ReportStageHistogramWithBreakdown(stage);
-
-    if (stage.stage_type == StageType::kTotalLatency) {
-      for (size_t type = 0; type < active_trackers_.size(); ++type) {
-        if (active_trackers_.test(type)) {
-          // Report stage breakdowns.
-          ReportStageHistogramWithBreakdown(
-              stage, static_cast<FrameSequenceTrackerType>(type));
-        }
-      }
+    // Top-level breakdowns are only reported for presented frames.
+    if (TestReportType(FrameReportType::kNonDroppedFrame)) {
+      ReportStageHistogramWithBreakdown(stage);
     }
-  }
-
-  for (size_t type = 0; type < report_types_.size(); ++type) {
-    if (!report_types_.test(type))
-      continue;
-    FrameReportType report_type = static_cast<FrameReportType>(type);
-    UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type", report_type);
-    bool any_active_interaction = false;
-    for (size_t fst_type = 0; fst_type < active_trackers_.size(); ++fst_type) {
-      const auto tracker_type = static_cast<FrameSequenceTrackerType>(fst_type);
-      if (!active_trackers_.test(fst_type) ||
-          tracker_type == FrameSequenceTrackerType::kCustom ||
-          tracker_type == FrameSequenceTrackerType::kMaxType) {
-        continue;
+    for (size_t type = 0; type < active_trackers_.size(); ++type) {
+      if (active_trackers_.test(type)) {
+        // Report stage breakdowns for each `FrameSequenceTrackerType`
+        ReportStageHistogramWithBreakdown(
+            stage, static_cast<FrameSequenceTrackerType>(type));
       }
-      any_active_interaction = true;
-      switch (tracker_type) {
-        case FrameSequenceTrackerType::kCompositorAnimation:
-          UMA_HISTOGRAM_ENUMERATION(
-              "CompositorLatency.Type.CompositorAnimation", report_type);
-          break;
-        case FrameSequenceTrackerType::kMainThreadAnimation:
-          UMA_HISTOGRAM_ENUMERATION(
-              "CompositorLatency.Type.MainThreadAnimation", report_type);
-          break;
-        case FrameSequenceTrackerType::kPinchZoom:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.PinchZoom",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kRAF:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.RAF", report_type);
-          break;
-        case FrameSequenceTrackerType::kTouchScroll:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.TouchScroll",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kVideo:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.Video",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kWheelScroll:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.WheelScroll",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kScrollbarScroll:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.ScrollbarScroll",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kCanvasAnimation:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.CanvasAnimation",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kJSAnimation:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.JSAnimation",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kSETCompositorAnimation:
-          UMA_HISTOGRAM_ENUMERATION(
-              "CompositorLatency.Type.SETCompositorAnimation", report_type);
-          break;
-        case FrameSequenceTrackerType::kSETMainThreadAnimation:
-          UMA_HISTOGRAM_ENUMERATION(
-              "CompositorLatency.Type.SETMainThreadAnimation", report_type);
-          break;
-        case FrameSequenceTrackerType::kCompositorNativeAnimation:
-          UMA_HISTOGRAM_ENUMERATION(
-              "CompositorLatency.Type.NativePropertyAnimation", report_type);
-          break;
-        case FrameSequenceTrackerType::kCompositorRasterAnimation:
-          UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.RasterAnimation",
-                                    report_type);
-          break;
-        case FrameSequenceTrackerType::kCustom:
-        case FrameSequenceTrackerType::kMaxType:
-          NOTREACHED();
-      }
-    }
-    if (any_active_interaction) {
-      UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.AnyInteraction",
-                                report_type);
-    } else {
-      UMA_HISTOGRAM_ENUMERATION("CompositorLatency.Type.NoInteraction",
-                                report_type);
     }
   }
 
@@ -1226,50 +1030,37 @@ void CompositorFrameReporter::ReportCompositorLatencyHistogram(
              StageType::kSubmitCompositorFrameToPresentationCompositorFrame);
   DCHECK(!blink_breakdown ||
          stage_type == StageType::kSendBeginMainFrameToCommit);
-  for (size_t type = 0; type < report_types_.size(); ++type) {
-    if (!report_types_.test(type))
-      continue;
-    FrameReportType report_type = static_cast<FrameReportType>(type);
-    const int report_type_index = static_cast<int>(report_type);
-    const int frame_sequence_tracker_type_index =
-        static_cast<int>(frame_sequence_tracker_type);
-    const int stage_type_index =
-        blink_breakdown
-            ? kBlinkBreakdownInitialIndex + static_cast<int>(*blink_breakdown)
-        : viz_breakdown
-            ? kVizBreakdownInitialIndex + static_cast<int>(*viz_breakdown)
-            : static_cast<int>(stage_type);
-    const int histogram_index =
-        (stage_type_index == static_cast<int>(StageType::kTotalLatency)
-             ? kStagesWithBreakdownCount + frame_sequence_tracker_type_index
-             : stage_type_index) *
-            kFrameReportTypeCount +
-        report_type_index;
+  const int frame_sequence_tracker_type_index =
+      static_cast<int>(frame_sequence_tracker_type);
+  const int stage_type_index =
+      blink_breakdown
+          ? kBlinkBreakdownInitialIndex + static_cast<int>(*blink_breakdown)
+      : viz_breakdown
+          ? kVizBreakdownInitialIndex + static_cast<int>(*viz_breakdown)
+          : static_cast<int>(stage_type);
+  const int histogram_index =
+      stage_type_index * kFrameSequenceTrackerTypeCount +
+      frame_sequence_tracker_type_index;
 
-    CHECK_LT(stage_type_index, kStagesWithBreakdownCount);
-    CHECK_GE(stage_type_index, 0);
-    CHECK_LT(report_type_index, kFrameReportTypeCount);
-    CHECK_GE(report_type_index, 0);
-    CHECK_LT(histogram_index, kMaxCompositorLatencyHistogramIndex);
-    CHECK_GE(histogram_index, 0);
+  CHECK_LT(stage_type_index, kStagesWithBreakdownCount);
+  CHECK_GE(stage_type_index, 0);
+  CHECK_LT(histogram_index, kMaxCompositorLatencyHistogramIndex);
+  CHECK_GE(histogram_index, 0);
 
-    // Note: There's a 1:1 mapping between `histogram_index` and the name
-    // returned by `GetCompositorLatencyHistogramName()` which allows the use of
-    // `STATIC_HISTOGRAM_POINTER_GROUP()` to cache histogram objects.
-    STATIC_HISTOGRAM_POINTER_GROUP(
-        GetCompositorLatencyHistogramName(
-            report_type, frame_sequence_tracker_type, stage_type, viz_breakdown,
-            blink_breakdown),
-        histogram_index, kMaxCompositorLatencyHistogramIndex,
-        AddTimeMicrosecondsGranularity(time_delta),
-        base::Histogram::FactoryMicrosecondsTimeGet(
-            GetCompositorLatencyHistogramName(
-                report_type, frame_sequence_tracker_type, stage_type,
-                viz_breakdown, blink_breakdown),
-            kCompositorLatencyHistogramMin, kCompositorLatencyHistogramMax,
-            kCompositorLatencyHistogramBucketCount,
-            base::HistogramBase::kUmaTargetedHistogramFlag));
-  }
+  auto histogram_name = GetCompositorLatencyHistogramName(
+      frame_sequence_tracker_type, stage_type, viz_breakdown, blink_breakdown);
+
+  // Note: There's a 1:1 mapping between `histogram_index` and the name
+  // returned by `GetCompositorLatencyHistogramName()` which allows the use
+  // of `STATIC_HISTOGRAM_POINTER_GROUP()` to cache histogram objects.
+  STATIC_HISTOGRAM_POINTER_GROUP(
+      histogram_name, histogram_index, kMaxCompositorLatencyHistogramIndex,
+      AddTimeMicrosecondsGranularity(time_delta),
+      base::Histogram::FactoryMicrosecondsTimeGet(
+          histogram_name, kCompositorLatencyHistogramMin,
+          kCompositorLatencyHistogramMax,
+          kCompositorLatencyHistogramBucketCount,
+          base::HistogramBase::kUmaTargetedHistogramFlag));
 }
 
 void CompositorFrameReporter::ReportEventLatencyMetrics() const {
@@ -1546,18 +1337,12 @@ void CompositorFrameReporter::ReportCompositorLatencyTraceEvents(
           reporter->set_frame_type(ChromeFrameReporter2::BACKFILL);
         }
 
-        for (const auto& stage : high_latency_substages_) {
-          reporter->add_high_latency_contribution_stage(stage);
-        }
-
         reporter->set_surface_frame_trace_id(args_.trace_id);
         const std::optional<int64_t>& display_trace_id =
             viz_breakdown_.presentation_feedback.display_trace_id;
         if (display_trace_id) {
           reporter->set_display_trace_id(*display_trace_id);
         }
-
-        // TODO(crbug.com/40132773): Set 'drop reason' if applicable.
       });
 
   for (const auto& stage : stage_history_) {
@@ -1651,7 +1436,8 @@ void CompositorFrameReporter::ReportScrollJankMetrics() const {
   int32_t fling_input_count = 0;
   int32_t normal_input_count = 0;
   float total_predicted_delta = 0;
-  bool had_gesture_scrolls = false;
+  bool had_earliest_gesture_scroll = false;
+  bool had_latest_gesture_scroll = false;
   bool is_scroll_start = false;
 
   // This handles cases when we have multiple scroll events. Events for dropped
@@ -1669,27 +1455,20 @@ void CompositorFrameReporter::ReportScrollJankMetrics() const {
     if (!scroll_update) {
       continue;
     }
-
     total_predicted_delta += scroll_update->predicted_delta();
     base::TimeTicks generation_ts = scroll_update->GetDispatchStageTimestamp(
         EventMetrics::DispatchStage::kGenerated);
-    if (!had_gesture_scrolls) {
+    // Earliest is always applied, event when the scroll update failed to
+    // successfully produce a scroll.
+    if (!had_earliest_gesture_scroll ||
+        generation_ts < earliest_event_generation_ts) {
       earliest_event = scroll_update;
       earliest_event_generation_ts = generation_ts;
-      latest_event = scroll_update;
-      latest_event_generation_ts = generation_ts;
+      had_earliest_gesture_scroll = true;
     }
-    had_gesture_scrolls = true;
-    if (generation_ts < earliest_event_generation_ts) {
-      earliest_event = scroll_update;
-      earliest_event_generation_ts = generation_ts;
-    } else if (generation_ts > latest_event_generation_ts) {
-      latest_event = scroll_update;
-      latest_event_generation_ts = generation_ts;
-    }
-    last_coalesced_ts =
-        std::max(last_coalesced_ts, scroll_update->last_timestamp());
 
+    // We check the type first, as if this `is_scroll_start` we need to save the
+    // `latest_event`. Otherwise UKMs will not be emitted.
     switch (scroll_update->type()) {
       case EventMetrics::EventType::kFirstGestureScrollUpdate:
         is_scroll_start = true;
@@ -1703,9 +1482,19 @@ void CompositorFrameReporter::ReportScrollJankMetrics() const {
       default:
         NOTREACHED();
     }
+
+    if ((!had_latest_gesture_scroll ||
+         generation_ts > latest_event_generation_ts) &&
+        (scroll_update->did_scroll() || is_scroll_start)) {
+      latest_event = scroll_update;
+      latest_event_generation_ts = generation_ts;
+      had_latest_gesture_scroll = true;
+    }
+    last_coalesced_ts =
+        std::max(last_coalesced_ts, scroll_update->last_timestamp());
   }
 
-  if (!had_gesture_scrolls) {
+  if (!had_latest_gesture_scroll) {
     return;
   }
   if (is_scroll_start) {
@@ -1803,278 +1592,6 @@ void CompositorFrameReporter::AdoptReporter(
 
   owned_partial_update_dependents_.push(std::move(reporter));
   DiscardOldPartialUpdateReporters();
-}
-
-void CompositorFrameReporter::CalculateCompositorLatencyPrediction(
-    CompositorLatencyInfo& previous_predictions,
-    base::TimeDelta prediction_deviation_threshold) {
-  // `stage_history_` should not be empty since we are calling this function
-  // from DidPresentCompositorFrame(), which means there has to be some sort of
-  // stage data.
-  DCHECK(!stage_history_.empty());
-
-  // If the bad case of having `total_latency` of `previous_predictions` happens
-  // then it would mess up the prediction calculation, therefore, we want to
-  // reset the prediction by setting everything back to -1.
-  if (previous_predictions.total_latency.is_zero())
-    previous_predictions = CompositorLatencyInfo(base::Microseconds(-1));
-
-  base::TimeDelta total_pipeline_latency =
-      stage_history_.back().end_time - stage_history_[0].start_time;
-
-  // Do not record current breakdown stages' duration if the total latency of
-  // the current PipelineReporter is 0s. And no further predictions could be
-  // made in this case.
-  if (total_pipeline_latency.is_zero())
-    return;
-
-  processed_blink_breakdown_ = std::make_unique<ProcessedBlinkBreakdown>(
-      blink_start_time_, begin_main_frame_start_, blink_breakdown_);
-  processed_viz_breakdown_ =
-      std::make_unique<ProcessedVizBreakdown>(viz_start_time_, viz_breakdown_);
-
-  // Note that `current_stage_durations` would always have the same length as
-  // `previous_predictions`, since each index represent the breakdown stages of
-  // the PipelineReporter listed at enum class, StageType.
-  CompositorLatencyInfo current_stage_durations(base::Microseconds(0));
-  current_stage_durations.total_latency = total_pipeline_latency;
-
-  for (auto stage : stage_history_) {
-    if (stage.stage_type == StageType::kTotalLatency)
-      continue;
-    base::TimeDelta substageLatency = stage.end_time - stage.start_time;
-    current_stage_durations
-        .top_level_stages[static_cast<int>(stage.stage_type)] = substageLatency;
-  }
-
-  for (auto it = processed_blink_breakdown_->CreateIterator(); it.IsValid();
-       it.Advance()) {
-    current_stage_durations
-        .blink_breakdown_stages[static_cast<int>(it.GetBreakdown())] =
-        it.GetLatency();
-    current_stage_durations.total_blink_latency += it.GetLatency();
-  }
-
-  for (auto it = processed_viz_breakdown_->CreateIterator(true); it.IsValid();
-       it.Advance()) {
-    current_stage_durations
-        .viz_breakdown_stages[static_cast<int>(it.GetBreakdown())] =
-        it.GetDuration();
-    current_stage_durations.total_viz_latency += it.GetDuration();
-  }
-
-  // Do not record current pipeline details or update predictions if no frame
-  // is submitted.
-  if (current_stage_durations
-          .top_level_stages[static_cast<int>(
-              StageType::kSubmitCompositorFrameToPresentationCompositorFrame)]
-          .is_zero())
-    return;
-
-  // The previous prediction is initialized to be -1, so check if the current
-  // PipelineReporter is the first reporter ever to be calculated.
-  if (previous_predictions.total_latency == base::Microseconds(-1)) {
-    previous_predictions = current_stage_durations;
-  } else {
-    if ((current_stage_durations.total_latency -
-         previous_predictions.total_latency) >= prediction_deviation_threshold)
-      FindHighLatencyAttribution(previous_predictions, current_stage_durations);
-
-    for (int i = 0; i < kNumOfCompositorStages; i++) {
-      previous_predictions.top_level_stages[i] =
-          PredictLatency(previous_predictions.top_level_stages[i],
-                         current_stage_durations.top_level_stages[i]);
-    }
-    previous_predictions.total_latency =
-        PredictLatency(previous_predictions.total_latency,
-                       current_stage_durations.total_latency);
-
-    if (!current_stage_durations.total_blink_latency.is_zero()) {
-      for (int i = 0; i < kNumOfBlinkStages; i++) {
-        previous_predictions.blink_breakdown_stages[i] =
-            previous_predictions.total_blink_latency.is_zero()
-                ? current_stage_durations.blink_breakdown_stages[i]
-                : PredictLatency(
-                      previous_predictions.blink_breakdown_stages[i],
-                      current_stage_durations.blink_breakdown_stages[i]);
-      }
-      previous_predictions.total_blink_latency =
-          previous_predictions.total_blink_latency.is_zero()
-              ? current_stage_durations.total_blink_latency
-              : PredictLatency(previous_predictions.total_blink_latency,
-                               current_stage_durations.total_blink_latency);
-    }
-
-    // TODO(crbug.com/40233949): implement check that ensure the prediction is
-    // correct by checking if platform supports breakdown of the stage
-    // SubmitCompositorFrameToPresentationCompositorFrame.SwapStartToSwapEnd,
-    // then SwapStartToSwapEnd should always be 0s and data for breakdown of it
-    // should always be available. (See enum class `VizBreakdown` for stage
-    // details.)
-    if (!current_stage_durations.total_viz_latency.is_zero()) {
-      for (int i = 0; i < kNumOfVizStages; i++) {
-        previous_predictions.viz_breakdown_stages[i] =
-            previous_predictions.total_viz_latency.is_zero()
-                ? current_stage_durations.viz_breakdown_stages[i]
-                : PredictLatency(
-                      previous_predictions.viz_breakdown_stages[i],
-                      current_stage_durations.viz_breakdown_stages[i]);
-      }
-      previous_predictions.total_viz_latency =
-          previous_predictions.total_viz_latency.is_zero()
-              ? current_stage_durations.total_viz_latency
-              : PredictLatency(previous_predictions.total_viz_latency,
-                               current_stage_durations.total_viz_latency);
-    }
-  }
-}
-
-void CompositorFrameReporter::CalculateEventLatencyPrediction(
-    CompositorFrameReporter::EventLatencyInfo& predicted_event_latency,
-    base::TimeDelta prediction_deviation_threshold) {
-  if (events_metrics_.empty())
-    return;
-
-  // TODO(crbug.com/40228308): Explore calculating predictions for multiple
-  // events. Currently only kGestureScrollUpdate event predictions
-  // are being calculated, consider including other stages in future changes.
-  auto event_it = std::ranges::find_if(
-      events_metrics_, [](const std::unique_ptr<EventMetrics>& event) {
-        return event &&
-               event->type() == EventMetrics::EventType::kGestureScrollUpdate;
-      });
-  if (event_it == events_metrics_.end())
-    return;
-  auto& event_metrics = *event_it;
-
-  base::TimeTicks dispatch_start_time =
-      event_metrics->GetDispatchStageTimestamp(
-          EventMetrics::DispatchStage::kGenerated);
-
-  // Determine the last valid stage. First check kRendererMainFinished and if it
-  // doesn't exist, check kRendererCompositorFinished. If neither of them
-  // exists, there is not enough information for the prediction.
-  EventMetrics::DispatchStage last_valid_stage =
-      EventMetrics::DispatchStage::kGenerated;
-  if (event_metrics->GetDispatchStageTimestamp(
-          EventMetrics::DispatchStage::kRendererMainFinished) >
-      dispatch_start_time) {
-    last_valid_stage = EventMetrics::DispatchStage::kRendererMainFinished;
-  } else if (event_metrics->GetDispatchStageTimestamp(
-                 EventMetrics::DispatchStage::kRendererCompositorFinished) >
-             dispatch_start_time) {
-    last_valid_stage = EventMetrics::DispatchStage::kRendererCompositorFinished;
-  } else {
-    return;
-  }
-
-  base::TimeTicks dispatch_end_time =
-      event_metrics->GetDispatchStageTimestamp(last_valid_stage);
-  base::TimeDelta total_dispatch_duration =
-      dispatch_end_time - dispatch_start_time;
-  if (total_dispatch_duration.is_negative())
-    return;
-
-  CompositorFrameReporter::EventLatencyInfo actual_event_latency(
-      kNumDispatchStages, kNumOfCompositorStages);
-  actual_event_latency.total_duration = base::Microseconds(0);
-
-  // Determine dispatch stage durations.
-  base::TimeTicks previous_timetick = dispatch_start_time;
-  for (auto stage = EventMetrics::DispatchStage::kGenerated;
-       stage <= last_valid_stage;
-       stage = static_cast<EventMetrics::DispatchStage>(
-           static_cast<int>(stage) + 1)) {
-    if (stage != EventMetrics::DispatchStage::kGenerated) {
-      base::TimeTicks current_timetick =
-          event_metrics->GetDispatchStageTimestamp(stage);
-      // Only update stage if the current_timetick is later than the
-      // previous_timetick.
-      if (current_timetick > previous_timetick) {
-        base::TimeDelta stage_duration = current_timetick - previous_timetick;
-        actual_event_latency.dispatch_durations[static_cast<int>(stage) - 1] =
-            stage_duration;
-        actual_event_latency.total_duration += stage_duration;
-        previous_timetick = current_timetick;
-      }
-    }
-  }
-
-  // Determine dispatch-to-compositor transition stage duration.
-  auto stage_it =
-      std::ranges::lower_bound(stage_history_, dispatch_end_time, {},
-                               &CompositorFrameReporter::StageData::start_time);
-  if (stage_it != stage_history_.end()) {
-    if (dispatch_end_time < stage_it->start_time) {
-      base::TimeDelta stage_duration = stage_it->start_time - dispatch_end_time;
-      actual_event_latency.transition_duration = stage_duration;
-      actual_event_latency.total_duration += stage_duration;
-      actual_event_latency.transition_name =
-          EventLatencyTracingRecorder::GetDispatchToCompositorBreakdownName(
-              last_valid_stage, stage_it->stage_type);
-    }
-  }
-
-  // Determine compositor stage durations, which start from stage_it for
-  // EventLatency.
-  for (auto stage = stage_it; stage != stage_history_.end(); stage++) {
-    base::TimeDelta stage_duration = stage->end_time - stage->start_time;
-    if (stage_duration.is_positive()) {
-      actual_event_latency
-          .compositor_durations[static_cast<int>(stage->stage_type)] =
-          stage_duration;
-      actual_event_latency.total_duration += stage_duration;
-    }
-  }
-
-  // High latency attribution.
-  if (predicted_event_latency.total_duration.is_positive() &&
-      actual_event_latency.total_duration -
-              predicted_event_latency.total_duration >=
-          prediction_deviation_threshold) {
-    FindEventLatencyAttribution(event_metrics.get(), predicted_event_latency,
-                                actual_event_latency);
-  }
-
-  // Calculate new dispatch stage predictions.
-  base::TimeDelta predicted_total_duration = base::Microseconds(0);
-  for (int i = 0; i < kNumDispatchStages; i++) {
-    if (actual_event_latency.dispatch_durations[i].is_positive()) {
-      predicted_event_latency.dispatch_durations[i] = CalculateWeightedAverage(
-          predicted_event_latency.dispatch_durations[i],
-          actual_event_latency.dispatch_durations[i]);
-    }
-    if (predicted_event_latency.dispatch_durations[i].is_positive()) {
-      predicted_total_duration += predicted_event_latency.dispatch_durations[i];
-    }
-  }
-
-  // Calculate new dispatch-to-compositor transition stage predictions.
-  if (actual_event_latency.transition_duration.is_positive()) {
-    predicted_event_latency.transition_duration =
-        CalculateWeightedAverage(predicted_event_latency.transition_duration,
-                                 actual_event_latency.transition_duration);
-    if (predicted_event_latency.transition_duration.is_positive())
-      predicted_total_duration += predicted_event_latency.transition_duration;
-  }
-
-  // Calculate new compositor stage predictions.
-  // TODO(crbug.com/40228308): Explore using existing PipelineReporter
-  // predictions for the compositor stage.
-  for (int i = 0; i < kNumOfCompositorStages; i++) {
-    if (actual_event_latency.compositor_durations[i].is_positive()) {
-      predicted_event_latency.compositor_durations[i] =
-          CalculateWeightedAverage(
-              predicted_event_latency.compositor_durations[i],
-              actual_event_latency.compositor_durations[i]);
-    }
-    if (predicted_event_latency.compositor_durations[i].is_positive()) {
-      predicted_total_duration +=
-          predicted_event_latency.compositor_durations[i];
-    }
-  }
-
-  predicted_event_latency.total_duration = predicted_total_duration;
 }
 
 void CompositorFrameReporter::SetPartialUpdateDecider(
@@ -2251,184 +1768,6 @@ FrameInfo CompositorFrameReporter::GenerateFrameInfo() const {
 
   info.termination_time = frame_termination_time_;
   return info;
-}
-
-void CompositorFrameReporter::FindHighLatencyAttribution(
-    CompositorLatencyInfo& previous_predictions,
-    CompositorLatencyInfo& current_stage_durations) {
-  if (previous_predictions.total_latency.is_zero() ||
-      current_stage_durations.total_latency.is_zero())
-    return;
-
-  double contribution_change = -1;
-  double highest_contribution_change = -1;
-  std::vector<int> highest_contribution_change_index;
-  std::vector<int> highest_blink_contribution_change_index;
-  std::vector<int> highest_viz_contribution_change_index;
-
-  for (int i = 0; i < kNumOfCompositorStages; i++) {
-    switch (i) {
-      case static_cast<int>(StageType::kSendBeginMainFrameToCommit):
-        if (current_stage_durations.top_level_stages[i].is_zero() ||
-            previous_predictions.total_blink_latency.is_zero() ||
-            current_stage_durations.total_blink_latency.is_zero())
-          continue;
-
-        for (int j = 0; j < kNumOfBlinkStages; j++) {
-          contribution_change =
-              (current_stage_durations.blink_breakdown_stages[j] /
-               current_stage_durations.total_latency) -
-              (previous_predictions.blink_breakdown_stages[j] /
-               previous_predictions.total_latency);
-
-          if (contribution_change > highest_contribution_change) {
-            highest_contribution_change = contribution_change;
-            highest_contribution_change_index.clear();
-            highest_viz_contribution_change_index.clear();
-            highest_blink_contribution_change_index = {j};
-          } else if (std::abs(contribution_change -
-                              highest_contribution_change) < kEpsilon) {
-            highest_blink_contribution_change_index.push_back(j);
-          }
-        }
-        break;
-
-      case static_cast<int>(
-          StageType::kSubmitCompositorFrameToPresentationCompositorFrame):
-        if (current_stage_durations.top_level_stages[i].is_zero() ||
-            previous_predictions.total_viz_latency.is_zero() ||
-            current_stage_durations.total_viz_latency.is_zero())
-          continue;
-
-        for (int j = 0; j < kNumOfVizStages; j++) {
-          contribution_change =
-              (current_stage_durations.viz_breakdown_stages[j] /
-               current_stage_durations.total_latency) -
-              (previous_predictions.viz_breakdown_stages[j] /
-               previous_predictions.total_latency);
-
-          if (contribution_change > highest_contribution_change) {
-            highest_contribution_change = contribution_change;
-            highest_contribution_change_index.clear();
-            highest_blink_contribution_change_index.clear();
-            highest_viz_contribution_change_index = {j};
-          } else if (std::abs(contribution_change -
-                              highest_contribution_change) < kEpsilon) {
-            highest_viz_contribution_change_index.push_back(j);
-          }
-        }
-        break;
-
-      default:
-        contribution_change = (current_stage_durations.top_level_stages[i] /
-                               current_stage_durations.total_latency) -
-                              (previous_predictions.top_level_stages[i] /
-                               previous_predictions.total_latency);
-
-        if (contribution_change > highest_contribution_change) {
-          highest_contribution_change = contribution_change;
-          highest_blink_contribution_change_index.clear();
-          highest_viz_contribution_change_index.clear();
-          highest_contribution_change_index = {i};
-        } else if (std::abs(contribution_change - highest_contribution_change) <
-                   kEpsilon) {
-          highest_contribution_change_index.push_back(i);
-        }
-        break;
-    }
-  }
-
-  // It is not expensive to go through vector of indexes again since it is
-  // usually very small (possibilities of breakdown stages having the same
-  // change contribution is small).
-  for (auto index : highest_contribution_change_index) {
-    high_latency_substages_.push_back(
-        GetStageName(static_cast<StageType>(index)));
-  }
-  for (auto index : highest_blink_contribution_change_index) {
-    high_latency_substages_.push_back(
-        GetStageName(StageType::kSendBeginMainFrameToCommit, std::nullopt,
-                     static_cast<BlinkBreakdown>(index)));
-  }
-  for (auto index : highest_viz_contribution_change_index) {
-    high_latency_substages_.push_back(GetStageName(
-        StageType::kSubmitCompositorFrameToPresentationCompositorFrame,
-        static_cast<VizBreakdown>(index)));
-  }
-}
-
-void CompositorFrameReporter::FindEventLatencyAttribution(
-    EventMetrics* event_metrics,
-    CompositorFrameReporter::EventLatencyInfo& predicted_event_latency,
-    CompositorFrameReporter::EventLatencyInfo& actual_event_latency) {
-  if (!event_metrics)
-    return;
-
-  std::vector<std::string> high_latency_stages;
-  double contribution_change = -1;
-  double highest_contribution_change = -1;
-
-  // Check dispatch stage change
-  EventMetrics::DispatchStage dispatch_stage =
-      EventMetrics::DispatchStage::kGenerated;
-  base::TimeTicks dispatch_timestamp =
-      event_metrics->GetDispatchStageTimestamp(dispatch_stage);
-  while (dispatch_stage != EventMetrics::DispatchStage::kMaxValue) {
-    DCHECK(!dispatch_timestamp.is_null());
-    auto end_stage = static_cast<EventMetrics::DispatchStage>(
-        static_cast<int>(dispatch_stage) + 1);
-    base::TimeTicks end_timestamp =
-        event_metrics->GetDispatchStageTimestamp(end_stage);
-    while (end_timestamp.is_null() &&
-           end_stage != EventMetrics::DispatchStage::kMaxValue) {
-      end_stage = static_cast<EventMetrics::DispatchStage>(
-          static_cast<int>(end_stage) + 1);
-      end_timestamp = event_metrics->GetDispatchStageTimestamp(end_stage);
-    }
-    if (end_timestamp.is_null())
-      break;
-
-    contribution_change =
-        (actual_event_latency
-             .dispatch_durations[static_cast<int>(end_stage) - 1] /
-         actual_event_latency.total_duration) -
-        (predicted_event_latency
-             .dispatch_durations[static_cast<int>(end_stage) - 1] /
-         predicted_event_latency.total_duration);
-    std::string dispatch_stage_name =
-        EventLatencyTracingRecorder::GetDispatchBreakdownName(dispatch_stage,
-                                                              end_stage);
-    highest_contribution_change = DetermineHighestContribution(
-        contribution_change, highest_contribution_change, dispatch_stage_name,
-        high_latency_stages);
-
-    dispatch_stage = end_stage;
-    dispatch_timestamp = end_timestamp;
-  }
-
-  // Check dispatch-to-compositor stage change
-  contribution_change = (actual_event_latency.transition_duration /
-                         actual_event_latency.total_duration) -
-                        (predicted_event_latency.transition_duration /
-                         predicted_event_latency.total_duration);
-  highest_contribution_change = DetermineHighestContribution(
-      contribution_change, highest_contribution_change,
-      actual_event_latency.transition_name, high_latency_stages);
-
-  // Check compositor stage change
-  for (int i = 0; i < kNumOfCompositorStages; i++) {
-    contribution_change = (actual_event_latency.compositor_durations[i] /
-                           actual_event_latency.total_duration) -
-                          (predicted_event_latency.compositor_durations[i] /
-                           predicted_event_latency.total_duration);
-    highest_contribution_change = DetermineHighestContribution(
-        contribution_change, highest_contribution_change,
-        GetStageName(static_cast<StageType>(i)), high_latency_stages);
-  }
-
-  for (const auto& stage : high_latency_stages) {
-    event_metrics->SetHighLatencyStage(stage);
-  }
 }
 
 }  // namespace cc

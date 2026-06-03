@@ -18,9 +18,6 @@ public class ContentFeatureList {
     // Features files, then remove the constants below.
 
     // Alphabetical:
-    public static final String ACCESSIBILITY_DEPRECATE_JAVA_NODE_CACHE =
-            "AccessibilityDeprecateJavaNodeCache";
-
     public static final String ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE =
             "AccessibilityDeprecateTypeAnnounce";
 
@@ -28,6 +25,9 @@ public class ContentFeatureList {
             "AccessibilityIncludeLongClickAction";
 
     public static final String ACCESSIBILITY_PAGE_ZOOM_V2 = "AccessibilityPageZoomV2";
+
+    public static final String ACCESSIBILITY_POPULATE_SUPPLEMENTAL_DESCRIPTION_API =
+            "AccessibilityPopulateSupplementalDescriptionApi";
 
     public static final String ACCESSIBILITY_UNIFIED_SNAPSHOTS = "AccessibilityUnifiedSnapshots";
     public static final String ACCESSIBILITY_MANAGE_BROADCAST_RECEIVER_ON_BACKGROUND =
@@ -57,6 +57,20 @@ public class ContentFeatureList {
             "PrefetchBrowserInitiatedTriggers";
 
     public static final String DIPS_TTL = "DIPSTtl";
+
+    public static final MutableFlagWithSafeDefault sAccessibilityDeprecateJavaNodeCache =
+            new MutableFlagWithSafeDefault(
+                    ContentFeatureMap.getInstance(),
+                    ContentFeatures.ACCESSIBILITY_DEPRECATE_JAVA_NODE_CACHE,
+                    false);
+
+    public static final MutableBooleanParamWithSafeDefault
+            sAccessibilityDeprecateJavaNodeCacheOptimizeScroll =
+                    sAccessibilityDeprecateJavaNodeCache.newBooleanParam("optimize_scroll", false);
+
+    public static final MutableBooleanParamWithSafeDefault
+            sAccessibilityDeprecateJavaNodeCacheDisableCache =
+                    sAccessibilityDeprecateJavaNodeCache.newBooleanParam("disable_cache", false);
 
     public static final MutableFlagWithSafeDefault sGroupRebindingForGroupImportance =
             new MutableFlagWithSafeDefault(

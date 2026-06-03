@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
@@ -802,7 +803,7 @@ void NativeExtensionBindingsSystem::BindingAccessor(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = info.Holder()->GetCreationContextChecked();
+  v8::Local<v8::Context> context = info.HolderV2()->GetCreationContextChecked();
 
   // Force binding creation in the owning context (even if another context is
   // calling in). This is also important to ensure that objects created through

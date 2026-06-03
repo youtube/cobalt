@@ -41,6 +41,13 @@ public class TopToolbarOverlayMediator {
     private static @Nullable Integer sToolbarBackgroundColorForTesting;
     private static @Nullable Integer sUrlBarColorForTesting;
 
+    private final Callback<Integer> mOnBottomToolbarControlsOffsetChanged =
+            this::onBottomToolbarControlsOffsetChanged;
+    private final Callback<Boolean> mOnSuppressToolbarSceneLayerChanged =
+            this::onSuppressToolbarSceneLayerChanged;
+    private final Callback<Long> mOnCaptureResourceIdSupplierChange =
+            this::onCaptureResourceIdSupplierChange;
+
     /** An Android Context. */
     private final Context mContext;
 
@@ -86,6 +93,7 @@ public class TopToolbarOverlayMediator {
     private boolean mIsOnValidLayout;
 
     private final ObservableSupplier<@Nullable Tab> mTabSupplier;
+    private final ObservableSupplier<Long> mCaptureResourceIdSupplier;
     private float mViewportHeight;
 
     private @Nullable OffsetTag mTopControlsOffsetTag;
@@ -103,7 +111,8 @@ public class TopToolbarOverlayMediator {
             ObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
             ObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             int layoutsToShowOn,
-            boolean manualVisibilityControl) {
+            boolean manualVisibilityControl,
+            ObservableSupplier<Long> captureResourceIdSupplier) {
         mContext = context;
         mLayoutStateProvider = layoutStateProvider;
         mProgressInfoCallback = progressInfoCallback;
@@ -112,12 +121,14 @@ public class TopToolbarOverlayMediator {
         mModel = model;
         mBottomToolbarControlsOffsetSupplier = bottomToolbarControlsOffsetSupplier;
         mSuppressToolbarSceneLayerSupplier = suppressToolbarSceneLayerSupplier;
-        mBottomToolbarControlsOffsetSupplier.addObserver((unused) -> updateContentOffset());
-        mSuppressToolbarSceneLayerSupplier.addObserver((suppress) -> updateVisibility());
+        mBottomToolbarControlsOffsetSupplier.addObserver(mOnBottomToolbarControlsOffsetChanged);
+        mSuppressToolbarSceneLayerSupplier.addObserver(mOnSuppressToolbarSceneLayerChanged);
         mIsVisibilityManuallyControlled = manualVisibilityControl;
         mIsOnValidLayout = (mLayoutStateProvider.getActiveLayoutType() & layoutsToShowOn) > 0;
         mTabSupplier = tabSupplier;
         mControlsPosition = mBrowserControlsStateProvider.getControlsPosition();
+        mCaptureResourceIdSupplier = captureResourceIdSupplier;
+        mCaptureResourceIdSupplier.addObserver(mOnCaptureResourceIdSupplierChange);
         updateVisibility();
 
         mSceneChangeObserver =
@@ -347,8 +358,11 @@ public class TopToolbarOverlayMediator {
     void destroy() {
         mTabObserver.destroy();
 
+        mBottomToolbarControlsOffsetSupplier.removeObserver(mOnBottomToolbarControlsOffsetChanged);
+        mSuppressToolbarSceneLayerSupplier.removeObserver(mOnSuppressToolbarSceneLayerChanged);
         mLayoutStateProvider.removeObserver(mSceneChangeObserver);
         mBrowserControlsStateProvider.removeObserver(mBrowserControlsObserver);
+        mCaptureResourceIdSupplier.removeObserver(mOnCaptureResourceIdSupplierChange);
     }
 
     /** Update the visibility of the overlay. */
@@ -444,6 +458,18 @@ public class TopToolbarOverlayMediator {
         }
 
         mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, contentOffset);
+    }
+
+    private void onBottomToolbarControlsOffsetChanged(Integer ignored) {
+        updateContentOffset();
+    }
+
+    private void onSuppressToolbarSceneLayerChanged(Boolean ignored) {
+        updateVisibility();
+    }
+
+    private void onCaptureResourceIdSupplierChange(Long captureResourceId) {
+        mModel.set(TopToolbarOverlayProperties.CAPTURE_RESOURCE_ID, captureResourceId);
     }
 
     static void setIsTabletForTesting(Boolean isTablet) {

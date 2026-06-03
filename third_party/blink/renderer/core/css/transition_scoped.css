@@ -25,9 +25,15 @@
   left: 0;
 }
 
-::view-transition-image-pair(*) {
+::view-transition-image-pair(*),
+::view-transition-group-children(*) {
   position: absolute;
   inset: 0;
+}
+
+::view-transition-group-children(*) {
+  border-style: solid;
+  border-color: transparent;
 }
 
 ::view-transition-new(*),

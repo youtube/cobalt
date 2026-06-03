@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">&amp;ChromiumOS'i güncellemek için yeniden başlat</translation>
 <translation id="1040916596585577953">Chromium bu uzantıyı incelemenizi öneriyor.</translation>
 <translation id="1042552502243217427">Bir site kendi sayfasındaki bağlantıları gizli olarak önceden yüklemek istediğinde Chromium, Google sunucularını kullanır. Bu şekilde kimliğiniz önceden yüklenmiş siteden gizlenmiş olur, ancak Google hangi sitelerin önceden yüklendiğini öğrenir.</translation>
+<translation id="1051793555070215510">Bu 1 dakikalık ankete katılarak Gizli mod'u daha iyi hale getirmemize yardımcı olun.</translation>
 <translation id="1065672644894730302">Tercihleriniz okunamıyor. Bazı özellikler kullanılamayabilir. Tercihlerde yapılan değişiklikler kaydedilmeyecektir.</translation>
 <translation id="1083934481477628225">Ebeveyniniz, Chromium'a yönelik "Siteler, uygulamalar ve uzantılar için izinler"i kapattı.</translation>
 <translation id="1104942323762546749">Chromium, şifrelerinizi dışa aktarmak istiyor. Buna izin vermek için Windows şifrenizi yazın.</translation>
@@ -84,7 +85,6 @@
 <translation id="2126108037660393668">İndirilen dosya doğrulanamadı.</translation>
 <translation id="2137162749895930932">Çeviri ekranını kapat</translation>
 <translation id="215352261310130060">Sitede güvenli bağlantı kullanılmadığı ve dosya üzerinde oynanmış olabileceği için Chromium bu indirme işlemini engelledi</translation>
-<translation id="2157600032285353789">Yer işaretlerini, okuma modunu ve daha fazlasını Chromium menüsünden açabilirsiniz</translation>
 <translation id="2174178932569897599">Chromium'u özelleştir</translation>
 <translation id="2174917724755363426">Yükleme işlemi tamamlanmadı. İptal etmek istediğinizden emin misiniz?</translation>
 <translation id="2185166961232948079">Chromium - Ağda Oturum Açın - <ph name="PAGE_TITLE" /></translation>
@@ -217,11 +217,13 @@
 <translation id="3954172517175569325">Google Hesabınızda kaydettiğiniz şifreler, ödeme yöntemleri ve adresler bu cihazdan kaldırılır. Bu bilgileri Chromium'da tekrar kullanmak için yeniden oturum açın.</translation>
 <translation id="395904275706073188">Korumalı sayfalar okunamaz. Farklı bir sayfa deneyin.</translation>
 <translation id="3962647064319009959">Chromium'un güvenliğinizi nasıl sağladığını öğrenin</translation>
+<translation id="3971865010372729242">Adres çubuğuna veya arama kutusuna yazdığınızda Chromium, öneriler almak için, yazdıklarınızı kuruluşunuzun arama, yapay zeka ve temsilci araçlarına gönderir.</translation>
 <translation id="3975724895399328945">&amp;Google Chrome for Testing hakkında</translation>
 <translation id="3997429360543082038">ChromiumOS hakkında</translation>
 <translation id="4019629340646866719">ChromiumOS, <ph name="BEGIN_LINK_LINUX_OSS" />Linux geliştirme ortamında<ph name="END_LINK_LINUX_OSS" /> olduğu gibi ek <ph name="BEGIN_LINK_CROS_OSS" />açık kaynak yazılımlardan<ph name="END_LINK_CROS_OSS" /> yararlanılarak geliştirilmiştir.</translation>
 <translation id="4022972681110646219">Ekrandaki yazıları çevir</translation>
 <translation id="4023601594785368013">Orijinal dil: <ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">Uygulamalardaki bağlantıları Chromium'da açın. Ayrıca Chromium, kolay erişim için görev çubuğunuza sabitlenir.</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />Mevcut ayarlarınızı<ph name="END_LINK" /> bildirerek Chromium'u daha iyi hale getirmemize yardımcı olun</translation>
 <translation id="4050175100176540509">Son sürümde güvenlikle ilgili önemli iyileştirmeler ve yeni özellikler mevcuttur.</translation>
 <translation id="4055805654398742145">Ş&amp;ifre Yöneticisi</translation>
@@ -323,6 +325,7 @@
 <translation id="5524890928877629608">arama alanının sol üst köşesi: sol %<ph name="LEFT" />, üst %<ph name="TOP" /></translation>
 <translation id="5527463683072221100">PDF'leri Chromium'da aç</translation>
 <translation id="5579324208890605088">Başlatma hatası: Lütfen yükleyiciyi yönetici olarak değil, normal bir kullanıcı olarak çalıştırın.</translation>
+<translation id="5580770360767802657">Varsayılan olarak Chromium'u kullanın ve sabitleyin</translation>
 <translation id="5596627076506792578">Diğer seçenekler</translation>
 <translation id="5605834417512968703">Görsel Arama ile aramak istediğiniz öğeyi seçin veya Görsel Arama'dan çıkmak için Escape tuşuna basın</translation>
 <translation id="5618818588972826921">Görsel Arama ile aramak istediğiniz metni veya resmi seçin ya da Görsel Arama'dan çıkmak için Escape tuşuna basın</translation>
@@ -337,6 +340,7 @@
 <translation id="5775198138441669627">Parolanızı unuttuysanız veya bu ayarı değiştirmek istiyorsanız hesabınızdaki Chromium verilerini <ph name="SETTINGS_LINK" />.</translation>
 <translation id="5800158606660203929">Chromium'u özelleştirin ve kontrol edin. Chromium'u varsayılan tarayıcınız olarak ayarlayın.</translation>
 <translation id="5809516625706423866">İnternet'e bağlanılamadı. HTTP 401 Yetkisiz. Lütfen proxy yapılandırmanızı kontrol edin.</translation>
+<translation id="5817952762723416573">Chromium'un V8 motoruyla siteleri hızlandırır ancak bu durumda Chromium, saldırılara karşı biraz daha dirençsiz hale gelir. Bu ayar kapalı.</translation>
 <translation id="5821520528363214608">Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için Chromium'u güncelleyin</translation>
 <translation id="5824893331272123205">Bu panel yüklenemedi, tekrar deneyin</translation>
 <translation id="5862307444128926510">Chromium'a Hoş Geldiniz</translation>
@@ -353,7 +357,6 @@
 <translation id="5987687638152509985">Senkronizasyonu başlatmak için Chromium'u güncelleyin</translation>
 <translation id="5988505247484123880">Ziyaret ettiğiniz sitelerin deneyiminizi kişiselleştirmek için ilgi alanlarınızı hatırlaması olağan bir durumdur. Siteler, ilgi alanlarınız hakkındaki bilgileri Chromium'da da saklayabilir.</translation>
 <translation id="6003112304606738118">İndiriliyor... <ph name="HOURS" /> saat kaldı</translation>
-<translation id="6019451407441383358">Yer işaretlerini, okuma modunu ve daha fazlasını sağ üstteki Chromium menüsünden açabilirsiniz</translation>
 <translation id="6040143037577758943">Kapat</translation>
 <translation id="6058380562449900225">Verilerinizin korunması için Chromium'un, yakın zamanda ziyaret etmediğiniz sitelerin izinlerini kaldırmasına izin verin. Bu işlem, bildirimleri durdurmaz.</translation>
 <translation id="6063093106622310249">&amp;Chromium'da aç</translation>
@@ -427,6 +430,7 @@ Bazı özellikler kullanılamayabilir. Lütfen farklı bir profil dizini belirti
 <translation id="6729124504294600478">Kişiselleştirme ve diğer özelliklerden yararlanmak için Chromium'u Web ve Uygulama Etkinliği'nin yanı sıra bağlı Google hizmetlerine ekleyin</translation>
 <translation id="6734291798041940871">Chromium zaten bilgisayarınızdaki tüm kullanıcılar için yüklendi.</translation>
 <translation id="674245979920622322">Son zamanlarda ziyaret etmediniz. Chromium; <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ve <ph name="COUNT" /> izni daha kaldırdı.</translation>
+<translation id="6751374565094704799">Chromium'un V8 motoruyla siteleri hızlandırır ancak bu durumda Chromium, saldırılara karşı biraz daha dirençsiz hale gelir. Bu ayar açık.</translation>
 <translation id="67706546131546258">Chromium, tehlikeli olabileceği için bu dosyanın taranmasını öneriyor.</translation>
 <translation id="6779406956731413166">Chromium OS, ek <ph name="BEGIN_LINK_CROS_OSS" />açık kaynak yazılımlar<ph name="END_LINK_CROS_OSS" /> ile hazırlanmıştır.</translation>
 <translation id="6831043979455480757">Çevir</translation>
@@ -523,7 +527,6 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="8118331347066725040">Lens ile arama hakkında geri bildirim gönderin</translation>
 <translation id="8133124826068723441">Senkronizasyon alan adınızda kullanılamadığından ChromiumOS, verilerinizi senkronize edemedi.</translation>
 <translation id="813913629614996137">İlk kullanıma hazırlanıyor...</translation>
-<translation id="8166782796394721554">Chromium'un JavaScript ve WebAssembly motorunda ek korumayı etkinleştirin</translation>
 <translation id="81770708095080097">Bu dosya tehlikeli olduğu için Chromium tarafından engellendi.</translation>
 <translation id="8177472873527554730">Sayfada içerik bulunamadı</translation>
 <translation id="8200109504272824693">Chromium verilerini kullanmak ve <ph name="USER_EMAIL" /> hesabınıza kaydetmek için parolanızı girin</translation>
@@ -595,6 +598,7 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="9106612006984859720">Gelecekteki Chromium güncellemelerini almak için Windows 10 veya sonraki bir sürümün yüklü olması gerekir. Bu bilgisayar Windows 8.1 kullanıyor.</translation>
 <translation id="91086099826398415">Bağlantıyı Yeni Chromium &amp;sekmesinde aç</translation>
 <translation id="911206726377975832">Tarama verileriniz de silinsin mi?</translation>
+<translation id="9134482777260927479">Ödevlere yardım</translation>
 <translation id="9148058034647219655">Çıkış</translation>
 <translation id="9158494823179993217">Sistem yöneticiniz, Chromium'u, <ph name="TARGET_URL_HOSTNAME" /> sitesini alternatif bir tarayıcıda açacak şekilde yapılandırmış.</translation>
 <translation id="9185526690718004400">&amp;Chromium'u güncellemek için yeniden başlat</translation>

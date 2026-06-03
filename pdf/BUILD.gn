@@ -23,6 +23,7 @@ buildflag_header("buildflags") {
   flags = [
     "ENABLE_INK=$enable_ink",
     "ENABLE_PDF_INK2=$enable_pdf_ink2",
+    "ENABLE_PDF_SAVE_TO_DRIVE=$enable_pdf_save_to_drive",
     "ENABLE_PDF=$enable_pdf",
   ]
 }
@@ -325,7 +326,6 @@ if (enable_pdf) {
       "accessibility_structs.h",
       "pdf_accessibility_action_handler.h",
       "pdf_accessibility_data_handler.h",
-      "pdf_accessibility_image_fetcher.h",
     ]
 
     configs += [ ":strict" ]

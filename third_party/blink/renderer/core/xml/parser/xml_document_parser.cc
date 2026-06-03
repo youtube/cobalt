@@ -422,7 +422,10 @@ bool XMLDocumentParser::UpdateLeafTextNode() {
   buffered_text_.clear();
   leaf_text_node_ = nullptr;
 
-  // Mutation event handlers executed by appendData() might detach this parser.
+  // Synchronous event handlers executed by appendData() might detach this
+  // parser.
+  // TODO(358407357): it's possible that no synchronous event handlers can run
+  // here, so this could just be `return true`.
   return !IsStopped();
 }
 
@@ -940,7 +943,7 @@ static inline bool HandleNamespaceAttributes(
     AtomicString namespace_uri = ToAtomicString(ns.uri);
     if (ns.prefix) {
       namespace_q_name = AtomicString(
-          WTF::StrCat({WTF::g_xmlns_with_colon, ToAtomicString(ns.prefix)}));
+          StrCat({WTF::g_xmlns_with_colon, ToAtomicString(ns.prefix)}));
     }
     std::optional<QualifiedName> parsed_name = Element::ParseAttributeName(
         xmlns_names::kNamespaceURI, namespace_q_name, exception_state);
@@ -984,10 +987,9 @@ static inline bool HandleElementAttributes(
       }
     }
     AtomicString attr_q_name =
-        attr_prefix.empty()
-            ? ToAtomicString(attr.localname)
-            : AtomicString(
-                  WTF::StrCat({attr_prefix, ":", ToString(attr.localname)}));
+        attr_prefix.empty() ? ToAtomicString(attr.localname)
+                            : AtomicString(StrCat({attr_prefix, ":",
+                                                   ToString(attr.localname)}));
 
     std::optional<QualifiedName> parsed_name =
         Element::ParseAttributeName(attr_uri, attr_q_name, exception_state);
@@ -1068,7 +1070,7 @@ void XMLDocumentParser::StartElementNs(
   QualifiedName q_name(prefix, local_name, adjusted_uri);
   if (!prefix.empty() && adjusted_uri.empty()) {
     q_name = QualifiedName(g_null_atom,
-                           AtomicString(WTF::StrCat({prefix, ":", local_name})),
+                           AtomicString(StrCat({prefix, ":", local_name})),
                            g_null_atom);
   }
 
@@ -1489,9 +1491,9 @@ static base::span<const char> ConvertUTF16EntityToUTF8(
   auto utf16_entity = base::span(entity.data).first(entity.length);
   auto entity_buffer =
       base::as_writable_bytes(base::span(g_shared_xhtml_entity_result));
-  WTF::unicode::ConversionResult conversion_result =
-      WTF::unicode::ConvertUTF16ToUTF8(utf16_entity, entity_buffer);
-  if (conversion_result.status != WTF::unicode::kConversionOK) {
+  unicode::ConversionResult conversion_result =
+      unicode::ConvertUtf16ToUtf8(utf16_entity, entity_buffer);
+  if (conversion_result.status != unicode::kConversionOK) {
     return {};
   }
 

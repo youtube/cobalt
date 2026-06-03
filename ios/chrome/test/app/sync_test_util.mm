@@ -12,6 +12,7 @@
 #import "base/functional/bind.h"
 #import "base/memory/ptr_util.h"
 #import "base/path_service.h"
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
@@ -134,7 +135,7 @@ void AddSavedTabGroupDataToFakeServer(
 void AddSharedTabGroupDataToFakeServer(
     const sync_pb::SharedTabGroupDataSpecifics& specifics,
     int64_t creation_time,
-    const std::string& collaboration_id) {
+    const syncer::CollaborationId& collaboration_id) {
   sync_pb::EntitySpecifics group_entity_specifics;
   sync_pb::SharedTabGroupDataSpecifics* group_specifics =
       group_entity_specifics.mutable_shared_tab_group_data();
@@ -142,11 +143,11 @@ void AddSharedTabGroupDataToFakeServer(
 
   // `client_tag` should be the same value as
   // `SharedTabGroupDataSyncBridge::GetClientTag()`.
-  std::string client_tag = specifics.guid() + "|" + collaboration_id;
+  std::string client_tag = specifics.guid() + "|" + collaboration_id.value();
   int64_t update_time = group_specifics->update_time_windows_epoch_micros();
 
   sync_pb::SyncEntity::CollaborationMetadata metadata;
-  metadata.set_collaboration_id(collaboration_id);
+  metadata.set_collaboration_id(collaboration_id.value());
 
   std::string gaia_id =
       base::SysNSStringToUTF8([FakeSystemIdentity fakeIdentity3].gaiaID);
@@ -560,7 +561,7 @@ void AddSyncPassphrase(const std::string& sync_passphrase) {
   AddSyncPassphraseInternal(sync_passphrase);
 }
 
-void AddCollaboration(const std::string& collaboration_id) {
+void AddCollaboration(const syncer::CollaborationId& collaboration_id) {
   gSyncFakeServer->AddCollaboration(collaboration_id);
 }
 
@@ -588,7 +589,7 @@ void AddTabToFakeServer(const tab_groups::SavedTabGroupTab& tab) {
 }
 
 void AddSharedTabToFakeServer(const tab_groups::SavedTabGroupTab& tab,
-                              const std::string& collaboration_id) {
+                              const syncer::CollaborationId& collaboration_id) {
   // `unique_position` is currently not used in tests.
   sync_pb::SharedTabGroupDataSpecifics specifics;
   specifics.set_guid(tab.saved_tab_guid().AsLowercaseString());
@@ -622,9 +623,10 @@ void DeleteTabOrGroupFromFakeServer(const base::Uuid& uuid) {
   }
 }
 
-void AddCollaborationGroupToFakeServer(const std::string& collaboration_id) {
+void AddCollaborationGroupToFakeServer(
+    const syncer::CollaborationId& collaboration_id) {
   const data_sharing::GroupId group_id =
-      data_sharing::GroupId(collaboration_id);
+      data_sharing::GroupId(collaboration_id.value());
   const sync_pb::CollaborationGroupSpecifics collab_specifics =
       MakeCollaborationGroupSpecifics(group_id, base::Time::Now());
 
@@ -632,7 +634,7 @@ void AddCollaborationGroupToFakeServer(const std::string& collaboration_id) {
   *entity_specifics.mutable_collaboration_group() = collab_specifics;
 
   sync_pb::SyncEntity::CollaborationMetadata metadata;
-  metadata.set_collaboration_id(collaboration_id);
+  metadata.set_collaboration_id(collaboration_id.value());
 
   std::string client_tag = collab_specifics.collaboration_id();
   int64_t creation_time =

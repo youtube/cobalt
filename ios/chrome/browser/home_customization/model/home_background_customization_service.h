@@ -9,16 +9,19 @@
 
 #import "base/observer_list.h"
 #import "components/keyed_service/core/keyed_service.h"
-#import "components/sync/protocol/theme_specifics.pb.h"
+#import "components/sync/protocol/theme_specifics_ios.pb.h"
+#import "components/sync/protocol/theme_types.pb.h"
+#import "third_party/skia/include/core/SkColor.h"
 
-@class BackgroundCustomizationConfiguration;
 class GURL;
 class HomeBackgroundCustomizationServiceObserver;
+class PrefRegistrySimple;
+class PrefService;
 
 // Service for allowing customization of the Home surface background.
 class HomeBackgroundCustomizationService : public KeyedService {
  public:
-  explicit HomeBackgroundCustomizationService();
+  explicit HomeBackgroundCustomizationService(PrefService* pref_service);
 
   HomeBackgroundCustomizationService(
       const HomeBackgroundCustomizationService&) = delete;
@@ -30,8 +33,11 @@ class HomeBackgroundCustomizationService : public KeyedService {
   // KeyedService implementation:
   void Shutdown() override;
 
-  // Returns the current background data.
-  const sync_pb::ThemeSpecifics::NtpCustomBackground& GetCurrentBackground();
+  // Returns the current custom background data, if there is one.
+  std::optional<sync_pb::NtpCustomBackground> GetCurrentCustomBackground();
+
+  // Returns the current New Tab Page color theme, if there is one.
+  std::optional<sync_pb::UserColorTheme> GetCurrentColorTheme();
 
   /// Sets the background to the given parameters. This represents a background
   /// image url from the NtpBackgroundService.
@@ -51,15 +57,31 @@ class HomeBackgroundCustomizationService : public KeyedService {
                             const GURL& attribution_action_url,
                             const std::string& collection_id);
 
+  void SetBackgroundColor(
+      SkColor color,
+      sync_pb::UserColorTheme::BrowserColorVariant color_variant);
+
   // Adds/Removes HomeBackgroundCustomizationServiceObserver observers.
   void AddObserver(HomeBackgroundCustomizationServiceObserver* observer);
   void RemoveObserver(HomeBackgroundCustomizationServiceObserver* observer);
+
+  // Registers the profile prefs associated with this service.
+  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
  private:
   // Alerts observers when the background changes.
   void NotifyObserversOfBackgroundChange();
 
-  sync_pb::ThemeSpecifics::NtpCustomBackground current_background_;
+  // Stores the current theme to disk.
+  void StoreCurrentTheme();
+
+  // Loads the theme data from disk.
+  void LoadCurrentTheme();
+
+  sync_pb::ThemeSpecificsIos current_theme_;
+
+  // The PrefService associated with the Profile.
+  raw_ptr<PrefService> pref_service_;
 
   base::ObserverList<HomeBackgroundCustomizationServiceObserver> observers_;
 };

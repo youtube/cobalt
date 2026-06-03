@@ -12,7 +12,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -22,7 +21,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.Callback;
-import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.util.Batch;
@@ -36,9 +34,10 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
@@ -50,13 +49,9 @@ import java.util.List;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 public class ClosableTabListEditorTest {
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -75,12 +70,14 @@ public class ClosableTabListEditorTest {
 
     private ViewGroup mParentView;
     private SnackbarManager mSnackbarManager;
+    private WebPageStation mInitialPage;
 
     @Before
     public void setUp() throws Exception {
-        mTabModelSelector = sActivityTestRule.getActivity().getTabModelSelector();
-        mParentView = (ViewGroup) sActivityTestRule.getActivity().findViewById(R.id.coordinator);
-        mSnackbarManager = sActivityTestRule.getActivity().getSnackbarManager();
+        mInitialPage = mActivityTestRule.startOnBlankPage();
+        mTabModelSelector = mActivityTestRule.getActivity().getTabModelSelector();
+        mParentView = (ViewGroup) mActivityTestRule.getActivity().findViewById(R.id.coordinator);
+        mSnackbarManager = mActivityTestRule.getActivity().getSnackbarManager();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     var currentTabGroupModelFilterSupplier =
@@ -90,16 +87,16 @@ public class ClosableTabListEditorTest {
                     mEdgeToEdgeSupplier = new ObservableSupplierImpl<>();
                     mTabListEditorCoordinator =
                             new TabListEditorCoordinator(
-                                    sActivityTestRule.getActivity(),
-                                    sActivityTestRule
+                                    mActivityTestRule.getActivity(),
+                                    mActivityTestRule
                                             .getActivity()
                                             .getCompositorViewHolderForTesting(),
                                     mParentView,
-                                    sActivityTestRule.getActivity().getBrowserControlsManager(),
+                                    mActivityTestRule.getActivity().getBrowserControlsManager(),
                                     currentTabGroupModelFilterSupplier,
-                                    sActivityTestRule.getActivity().getTabContentManager(),
+                                    mActivityTestRule.getActivity().getTabContentManager(),
                                     mSetRecyclerViewPosition,
-                                    getMode(),
+                                    TabListCoordinator.TabListMode.GRID,
                                     /* displayGroups= */ true,
                                     mSnackbarManager,
                                     /* bottomSheetController= */ null,
@@ -120,7 +117,7 @@ public class ClosableTabListEditorTest {
     @After
     public void tearDown() {
         if (mTabListEditorCoordinator != null) {
-            if (sActivityTestRule.getActivity().findViewById(R.id.app_menu_list) != null) {
+            if (mActivityTestRule.getActivity().findViewById(R.id.app_menu_list) != null) {
                 Espresso.pressBack();
             }
 
@@ -132,11 +129,11 @@ public class ClosableTabListEditorTest {
                         mTabListEditorCoordinator.destroy();
                     });
 
-            if (sActivityTestRule
+            if (mActivityTestRule
                     .getActivity()
                     .getLayoutManager()
                     .isLayoutVisible(LayoutType.TAB_SWITCHER)) {
-                TabUiTestHelper.leaveTabSwitcher(sActivityTestRule.getActivity());
+                TabUiTestHelper.leaveTabSwitcher(mActivityTestRule.getActivity());
             }
         }
         ThreadUtils.runOnUiThreadBlocking(
@@ -145,27 +142,21 @@ public class ClosableTabListEditorTest {
                 });
     }
 
-    private @TabListCoordinator.TabListMode int getMode() {
-        return SysUtils.isLowEndDevice()
-                ? TabListCoordinator.TabListMode.LIST
-                : TabListCoordinator.TabListMode.GRID;
-    }
-
     private void prepareBlankTab(int num, boolean isIncognito) {
         for (int i = 0; i < num - 1; i++) {
             ChromeTabUtils.newTabFromMenu(
                     InstrumentationRegistry.getInstrumentation(),
-                    sActivityTestRule.getActivity(),
+                    mActivityTestRule.getActivity(),
                     isIncognito,
                     true);
-            sActivityTestRule.loadUrl("about:blank");
+            mActivityTestRule.loadUrl("about:blank");
         }
     }
 
     @Test
     @MediumTest
     public void testClosableTabListEditor_openTab() {
-        ChromeTabbedActivity cta = sActivityTestRule.getActivity();
+        ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         prepareBlankTab(2, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
         TabUiTestHelper.enterTabSwitcher(cta);
@@ -178,7 +169,7 @@ public class ClosableTabListEditorTest {
     @Test
     @MediumTest
     public void testClosableTabListEditor_closeTab() {
-        ChromeTabbedActivity cta = sActivityTestRule.getActivity();
+        ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         prepareBlankTab(2, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
         TabUiTestHelper.enterTabSwitcher(cta);

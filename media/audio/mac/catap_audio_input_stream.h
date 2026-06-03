@@ -42,18 +42,33 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   using NotifyOnCloseCallback = base::OnceCallback<void(AudioInputStream*)>;
 
  public:
-  // The supplied parameters must be compatible with the loopback device. In
-  // particular:
-  // - Number of channels must be either mono or stereo.
-  // - Sample rate must be the same as the sample rate of the current default
-  //   output device.
-  // - Number of frames per buffer must be 512, which is the default buffer size
-  //   for CoreAudio Taps.
-  // The parameters that are obtained by calling
-  // AudioManagerMac::GetInputStreamParameters() for a loopback device fulfills
-  // these requirements.
-  // TODO(crbug.com/417799564): Add an intermediate buffer that handles
-  // differences in buffer sizes and sample rates.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class OpenStatus {
+    kOk = 0,
+    kErrorDeviceAlreadyOpen = 1,
+    kErrorCreatingProcessTap = 2,
+    kErrorCreatingAggregateDevice = 3,
+    kErrorCreatingIOProcID = 4,
+    kErrorMissingAudioTapPermission = 5,
+    kGetProcessAudioDeviceIdsReturnedEmpty = 6,
+    kErrorConfiguringSampleRate = 7,
+    kErrorConfiguringFramesPerBuffer = 8,
+    kMaxValue = kErrorConfiguringFramesPerBuffer
+  };
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class CloseStatus {
+    kOk = 0,
+    kErrorDestroyingIOProcID = 1,
+    kErrorDestroyingAggregateDevice = 2,
+    kErrorDestroyingProcessTap = 3,
+    kMaxValue = kErrorDestroyingProcessTap
+  };
+
+  // Only mono or stereo channels are supported for loopback device
+  // compatibility.
   CatapAudioInputStream(std::unique_ptr<CatapApi> catap_api,
                         const AudioParameters& params,
                         const std::string& device_id,
@@ -89,6 +104,13 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   // process ID.
   NSArray<NSNumber*>* GetProcessAudioDeviceIds(pid_t chrome_process_id);
 
+  // Configure the sample rate of the aggregate device according to `params_`.
+  bool ConfigureSampleRateOfAggregateDevice();
+
+  // Configure the frames per buffer of the aggregate device according to
+  // `params_`.
+  bool ConfigureFramesPerBufferOfAggregateDevice();
+
   // Probe audio tap permission by getting and setting
   // AudioTapPropertyDescription. If either of these operations fail, this
   // function returns false which is an indication that we don't have system
@@ -118,6 +140,28 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   // capture is stopped. While the capture is running, sink_ is accessed on a
   // thread that is associated with the capturer.
   raw_ptr<AudioInputCallback> sink_;
+
+  // The next expected capture time is used as a fallback if the metadata in the
+  // callback is missing a host time stamp. Only accessed from the capture
+  // thread.
+  std::optional<base::TimeTicks> next_expected_capture_time_;
+
+  // Counter to track the number of callbacks with a missing host time stamp.
+  // Incremented from the capture thread. Used to calculate statistics of
+  // callbacks with missing host time when the capture has stopped.
+  int callbacks_with_missing_host_time_ = 0;
+
+  // Total number of callbacks, used to calculate the ratio of callbacks with
+  // missing host time stamp. Incremented from the capture thread. Used to
+  // calculate statistics of callbacks with missing host time when the capture
+  // has stopped.
+  int total_callbacks_ = 0;
+
+  // True if we have received a callback with host time after there's been at
+  // least one callback without host time. Changed from the capture thread while
+  // the capture is running, and then accessed from the main sequence once the
+  // capture has stopped.
+  bool recovered_from_missing_host_time_ = false;
 
   // Callback to send log messages to the client.
   AudioManager::LogCallback log_callback_ GUARDED_BY_CONTEXT(sequence_checker_);

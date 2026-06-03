@@ -17,6 +17,7 @@ function createWindowData() {
   return [
     {
       active: true,
+      isHostWindow: true,
       height: SAMPLE_WINDOW_HEIGHT,
       tabs: [
         createTab({
@@ -59,6 +60,7 @@ function createWindowData() {
     },
     {
       active: false,
+      isHostWindow: false,
       height: SAMPLE_WINDOW_HEIGHT,
       tabs: [
         createTab({
@@ -135,6 +137,7 @@ suite('SplitNewTabPageTest', () => {
     tab.title = 'New Title';
     const tabUpdateInfo = {
       inActiveWindow: true,
+      inHostWindow: true,
       tab: tab,
     };
     testApiProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
@@ -159,6 +162,7 @@ suite('SplitNewTabPageTest', () => {
     tab.visible = true;
     const tabUpdateInfo = {
       inActiveWindow: true,
+      inHostWindow: true,
       tab: tab,
     };
     testApiProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
@@ -167,6 +171,17 @@ suite('SplitNewTabPageTest', () => {
     const updatedTabSearchItems =
         splitNewTabPage.shadowRoot.querySelectorAll('tab-search-item');
     assertEquals(3, updatedTabSearchItems.length);
+  });
+
+  test('Uses tabs from the host window', async () => {
+    const windowData = createWindowData();
+    windowData[0]!.active = false;
+    windowData[1]!.active = true;
+    testApiProxy.setProfileData(createProfileData({windows: windowData}));
+    await splitNewTabPageSetup();
+    const initialTabSearchItems =
+        splitNewTabPage.shadowRoot.querySelectorAll('tab-search-item');
+    assertEquals(3, initialTabSearchItems.length);
   });
 
   test('Updates on tabs changed', async () => {
@@ -209,15 +224,25 @@ suite('SplitNewTabPageTest', () => {
         splitNewTabPage.shadowRoot.querySelectorAll('tab-search-item').length);
   });
 
+  test('Filters tabs from existing splits', async () => {
+    const windowData = createWindowData();
+    const tab = windowData[0]!.tabs[2] as Tab;
+    tab.split = true;
+    testApiProxy.setProfileData(createProfileData({windows: windowData}));
+    await splitNewTabPageSetup();
+    const initialTabSearchItems =
+        splitNewTabPage.shadowRoot.querySelectorAll('tab-search-item');
+    assertEquals(2, initialTabSearchItems.length);
+  });
+
   test('Closes current tab', async () => {
     await splitNewTabPageSetup();
-    assertEquals(0, testApiProxy.getCallCount('closeTab'));
+    assertEquals(0, testApiProxy.getCallCount('closeWebUiTab'));
     const closeButton =
         splitNewTabPage.shadowRoot.querySelector('cr-icon-button');
     assertTrue(!!closeButton);
     closeButton.click();
-    const [tabId] = await testApiProxy.whenCalled('closeTab');
-    assertEquals(ACTIVE_TAB_ID, tabId);
+    await testApiProxy.whenCalled('closeWebUiTab');
   });
 
   test('Replaces tab', async () => {

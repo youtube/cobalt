@@ -99,6 +99,15 @@ struct UserEducationSessionData {
 
   // The last known time the browser was active.
   base::Time most_recent_active_time;
+
+  // The (potentially non-monotonic but generally increasing) session number.
+  // Any code which relies on this number should respond to an out-of-order
+  // value as a cue to reset anything session-count-related, as it likely means
+  // the user has reset session data from the User Education internals page.
+  //
+  // Note that zero is a null/invalid value and should never be returned from a
+  // data read.
+  int session_number = 1;
 };
 
 // Data that must be kept across browser restart to support the feature promo
@@ -138,6 +147,44 @@ struct ProductMessagingData {
 
   // Notices that were shown this session.
   std::set<std::string> shown_notices;
+};
+
+// Data pertaining to a single NTP promo.
+struct KeyedNtpPromoData {
+  KeyedNtpPromoData();
+  KeyedNtpPromoData(const KeyedNtpPromoData&);
+  KeyedNtpPromoData(KeyedNtpPromoData&&) noexcept;
+  KeyedNtpPromoData& operator=(const KeyedNtpPromoData&);
+  KeyedNtpPromoData& operator=(KeyedNtpPromoData&&) noexcept;
+  ~KeyedNtpPromoData();
+
+  bool operator<=>(const KeyedNtpPromoData& other) const = default;
+
+  // Time at which the promo was first seen to be complete.
+  base::Time completed;
+
+  // The session in which this promo was last shown in the top spot.
+  int last_top_spot_session = 0;
+
+  // The number of session this promo has been shown in the top spot, since
+  // it most recently claimed the top spot. When reclaiming top spot,
+  // this value must be reset.
+  int top_spot_session_count = 0;
+};
+
+using KeyedNtpPromoDataMap = std::map<std::string, KeyedNtpPromoData>;
+
+// Data pertaining to the complete NTP promo system.
+struct NtpPromoData {
+  NtpPromoData();
+  NtpPromoData(const NtpPromoData&);
+  NtpPromoData(NtpPromoData&&) noexcept;
+  NtpPromoData& operator=(const NtpPromoData&);
+  NtpPromoData& operator=(NtpPromoData&&) noexcept;
+  ~NtpPromoData();
+
+  // Per-promo data.
+  KeyedNtpPromoDataMap promos;
 };
 
 }  // namespace user_education

@@ -43,7 +43,7 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/blink_buildflags.h"
 #include "build/build_config.h"
 
@@ -485,7 +485,6 @@ void SequenceManagerImpl::SetNextWakeUp(LazyNow* lazy_now,
 void SequenceManagerImpl::MaybeEmitTaskDetails(
     perfetto::EventContext& ctx,
     const SequencedTaskSource::SelectedTask& selected_task) const {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   // Other parameters are included only when "scheduler" category is enabled.
   const uint8_t* scheduler_category_enabled =
       TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED("scheduler");
@@ -499,7 +498,6 @@ void SequenceManagerImpl::MaybeEmitTaskDetails(
       settings().priority_settings.TaskPriorityToProto(selected_task.priority));
   sequence_manager_task->set_queue_name(selected_task.task_queue_name);
 
-#endif  //  BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 void SequenceManagerImpl::SetRunTaskSynchronouslyAllowed(

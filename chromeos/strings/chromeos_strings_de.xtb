@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Du kannst jetzt nur noch Unterrichtstools verwenden</translation>
 <translation id="1762483337755424125">Transkript</translation>
 <translation id="1765169783255151332">Schnell die Tasten wechseln</translation>
 <translation id="1768959921651994223">Authentifizierungstyp</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">Fehlgeschlagen – Angehalten</translation>
 <translation id="3102119246920354026">Cache</translation>
 <translation id="3103783611481501187">surreal</translation>
+<translation id="3119672627216736407">Übersetzung verfügbar</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">Schwimmbecken</translation>
 <translation id="3122883569442693641">Weitere Details</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">Gib zum Schluss dein altes und dein neues Passwort ein</translation>
 <translation id="6061772781719867950">Fehlgeschlagene HTTPS-Anfragen</translation>
 <translation id="6073292342939316679">Tastaturhelligkeit verringern</translation>
+<translation id="6074608334942655098">Nicht mehr übersetzen</translation>
 <translation id="6074752328838739425">Zusammenfassung ausblenden</translation>
 <translation id="6075872808778243331">(Android) HTTP-Latenz</translation>
 <translation id="6078323886959318429">Verknüpfung</translation>
@@ -1345,7 +1348,7 @@
 <translation id="695776212669661671">Pfeil nach rechts</translation>
 <translation id="6957792699151067488">Blume</translation>
 <translation id="6961170852793647506">Lege zuerst das Dokument in den Scanner</translation>
-<translation id="6965382102122355670">Ok</translation>
+<translation id="6965382102122355670">OK</translation>
 <translation id="6965978654500191972">Gerät</translation>
 <translation id="6972754398087986839">Ok</translation>
 <translation id="6975620886940770104"><ph name="GLOWSCAPES_LANDSCAPE" /> mit <ph name="GLOWSCAPES_FEATURE" /> (leuchtend)</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Experten im Chromebook-Hilfeforum fragen</translation>
-<translation id="7309823890857024809">minimalistisches Stillleben mit einigen Klatschmohnstielen in einer Glasvase vor schwarzem Hintergrund</translation>
 <translation id="7311368985037279727">Tastaturfarbe</translation>
 <translation id="7317831949569936035">Registrierung bei einer Bildungseinrichtung</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@ Wenn du das möchtest, lade das Transkriptmodell (bis zu 100 MB) herunter.</tra
 <translation id="8088963492174775412">Zum Aufnehmen drücken</translation>
 <translation id="8094062939584182041">Zulassen, dass Google dir eine E-Mail zu diesem Problem sendet</translation>
 <translation id="8104083085214006426">Du verwendest ein offenes und unsicheres Netzwerk</translation>
+<translation id="8108879170356113798">In <ph name="NUM_SECONDS" /> Sekunden kannst du nur noch Unterrichtstools verwenden</translation>
 <translation id="811820734797650957">(Android) Gateway kann kontaktiert werden</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Bestätigen</translation>

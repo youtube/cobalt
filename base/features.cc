@@ -4,6 +4,8 @@
 
 #include "base/features.h"
 
+#include <atomic>
+
 #include "base/files/file_path.h"
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/threading/platform_thread.h"
@@ -34,6 +36,16 @@
 #endif
 
 namespace base::features {
+
+namespace {
+
+// An atomic is used because this can be queried racily by a thread checking if
+// an optimization is enabled and a thread initializing this from the
+// FeatureList. All operations use std::memory_order_relaxed because there are
+// no dependent memory operations.
+std::atomic_bool g_is_reduce_ppms_enabled{false};
+
+}  // namespace
 
 // Alphabetical:
 
@@ -71,6 +83,8 @@ BASE_FEATURE_PARAM(size_t,
                    &kLowEndMemoryExperiment,
                    "LowMemoryDeviceThresholdMB",
                    LOW_MEMORY_DEVICE_THRESHOLD_MB);
+
+BASE_FEATURE(kReducePPMs, "ReducePPMs", FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 // Force to enable LowEndDeviceMode partially on Android 3Gb devices.
@@ -119,6 +133,11 @@ BASE_FEATURE(kPostGetMyMemoryStateToBackground,
              "PostGetMyMemoryStateToBackground",
              FEATURE_ENABLED_BY_DEFAULT);
 
+// Update child process binding state before unbinding.
+BASE_FEATURE(kUpdateStateBeforeUnbinding,
+            "UpdateStateBeforeUnbinding",
+            FEATURE_DISABLED_BY_DEFAULT);
+
 // Use shared service connection to rebind a service binding to update the LRU
 // in the ProcessList of OomAdjuster.
 BASE_FEATURE(kUseSharedRebindServiceConnection,
@@ -126,8 +145,15 @@ BASE_FEATURE(kUseSharedRebindServiceConnection,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+bool IsReducePPMsEnabled() {
+  return g_is_reduce_ppms_enabled.load(std::memory_order_relaxed);
+}
+
 void Init(EmitThreadControllerProfilerMetadata
               emit_thread_controller_profiler_metadata) {
+  g_is_reduce_ppms_enabled.store(FeatureList::IsEnabled(kReducePPMs),
+                                 std::memory_order_relaxed);
+
   sequence_manager::internal::SequenceManagerImpl::InitializeFeatures();
   sequence_manager::internal::ThreadController::InitializeFeatures(
       emit_thread_controller_profiler_metadata);

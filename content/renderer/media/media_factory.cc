@@ -18,6 +18,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -504,8 +505,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       enable_instant_source_buffer_gc, embedded_media_experience_enabled,
       std::move(metrics_provider),
       base::BindOnce(&blink::WebSurfaceLayerBridge::Create,
-                     parent_frame_sink_id,
-                     blink::WebSurfaceLayerBridge::ContainsVideo::kYes),
+                     parent_frame_sink_id),
       RenderThreadImpl::current()->SharedMainThreadContextProvider(),
       use_surface_layer,
       render_frame_->GetRenderFrameMediaPlaybackOptions()
@@ -779,8 +779,7 @@ MediaFactory::CreateWebMediaPlayerForMediaStream(
       std::move(compositor_worker_task_runner),
       render_thread->GetGpuFactories(), sink_id,
       base::BindOnce(&blink::WebSurfaceLayerBridge::Create,
-                     parent_frame_sink_id,
-                     blink::WebSurfaceLayerBridge::ContainsVideo::kYes),
+                     parent_frame_sink_id),
       std::move(submitter), use_surface_layer);
 }
 

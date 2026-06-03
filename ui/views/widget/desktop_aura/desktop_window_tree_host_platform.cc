@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -329,7 +330,8 @@ void DesktopWindowTreeHostPlatform::OnWidgetInitDone() {
 }
 
 void DesktopWindowTreeHostPlatform::OnWidgetThemeChanged(
-    ui::ColorProviderKey::ColorMode color_mode) {}
+    ui::ColorProviderKey::ColorMode color_mode,
+    std::optional<SkColor> background_color) {}
 
 void DesktopWindowTreeHostPlatform::OnActiveWindowChanged(bool active) {
 #if BUILDFLAG(IS_OZONE)

@@ -138,13 +138,13 @@ TEST(UnicodeUtilitiesTest, ContainsKanaLetters) {
 }
 
 TEST(UnicodeUtilitiesTest, FoldQuoteMarkOrSoftHyphenTest) {
-  const UChar kCharactersToFold[] = {kHebrewPunctuationGershayimCharacter,
-                                     kLeftDoubleQuotationMarkCharacter,
-                                     kRightDoubleQuotationMarkCharacter,
-                                     kHebrewPunctuationGereshCharacter,
-                                     kLeftSingleQuotationMarkCharacter,
-                                     kRightSingleQuotationMarkCharacter,
-                                     kSoftHyphenCharacter};
+  const UChar kCharactersToFold[] = {uchar::kHebrewPunctuationGershayim,
+                                     uchar::kLeftDoubleQuotationMark,
+                                     uchar::kRightDoubleQuotationMark,
+                                     uchar::kHebrewPunctuationGeresh,
+                                     uchar::kLeftSingleQuotationMark,
+                                     uchar::kRightSingleQuotationMark,
+                                     uchar::kSoftHyphen};
 
   String string_to_fold{base::span(kCharactersToFold)};
   Vector<UChar> buffer;

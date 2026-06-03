@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.notifications;
 import static org.chromium.chrome.browser.notifications.NotificationConstants.ACTION_REPORT_AS_SAFE;
 import static org.chromium.chrome.browser.notifications.NotificationConstants.ACTION_REPORT_UNWARNED_NOTIFICATION_AS_SPAM;
 import static org.chromium.chrome.browser.notifications.NotificationConstants.ACTION_REPORT_WARNED_NOTIFICATION_AS_SPAM;
-import static org.chromium.chrome.browser.notifications.NotificationContentDetectionManager.recordSuspiciousNotificationWarningInteractions;
 import static org.chromium.components.content_settings.PrefNames.NOTIFICATIONS_VIBRATE_ENABLED;
 
 import android.app.Notification;
@@ -18,8 +17,6 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.Spannable;
@@ -100,7 +97,7 @@ public class NotificationPlatformBridge {
     // uniqueness of pending intents when necessary.
     static final int PENDING_INTENT_REQUEST_CODE = 0;
 
-    private static final int[] EMPTY_VIBRATION_PATTERN = new int[0];
+    static final int[] EMPTY_VIBRATION_PATTERN = new int[0];
 
     // The duration after which the "provisionally unsubscribed" service notification is auto-closed
     // and the permission revocation commits.
@@ -141,17 +138,12 @@ public class NotificationPlatformBridge {
     //  c) in the case the user choses to "Undo", we will only be able to restore the notification
     //     they originally clicked "Unsubscribe" on.
     private static final Map<String, Map<String, Notification>>
-            sOriginsWithProvisionallyRevokedPermissions =
-                    new HashMap<String, Map<String, Notification>>();
+            sOriginsWithProvisionallyRevokedPermissions = new HashMap<>();
 
     // The `realtimeMillis` timestamp corresponding to the last time the pre-native processing for
     // the `PRE_UNSUBSCRIBE` intent was started. Used to measure the time, as perceived by the user,
     // that elapses until we see a duplicate intent being dispatched.
     private static long sLastPreUnsubscribePreNativeTaskStartRealMillis = -1;
-
-    // Maps "always allowed" origins to the notification id where the "Always allow" button was
-    // tapped. Used for reporting notifications to Google upon user consent.
-    private static final Map<String, String> sAlwaysAllowNotificationsMap = new HashMap<>();
 
     /** Encapsulates attributes that identify a notification and where it originates from. */
     private static class NotificationIdentifyingAttributes {
@@ -271,10 +263,8 @@ public class NotificationPlatformBridge {
                 BaseNotificationManagerProxyFactory.create();
         switch (intent.getAction()) {
             case NotificationConstants.ACTION_CLOSE_NOTIFICATION:
-                NotificationContentDetectionManager.recordInteractionForUMAIfSuspicious(
-                        attributes.origin,
-                        attributes.notificationId,
-                        SuspiciousNotificationWarningInteractions.DISMISS);
+                NotificationContentDetectionManager.dismissNotification(
+                        attributes.origin, attributes.notificationId);
                 return true;
             case NotificationConstants.ACTION_PRE_UNSUBSCRIBE:
                 onNotificationPreUnsubcribe(attributes);
@@ -289,52 +279,43 @@ public class NotificationPlatformBridge {
                 // `sOriginsWithProvisionallyRevokedPermissions` in place until native processing
                 // finishes in case there are other user interactions racing with this intent.
                 notificationManager.cancel(attributes.notificationId, PLATFORM_ID);
-
-                NotificationContentDetectionManager.recordInteractionForUMAIfSuspicious(
-                        attributes.origin,
-                        attributes.notificationId,
-                        SuspiciousNotificationWarningInteractions.UNSUBSCRIBE);
+                // Check if the committed unsubscribe action is facilitated by a notification
+                // warning. If it is, then log metrics and cleanup static maps.
+                NotificationContentDetectionManager.onUnsubscribeMaybeCommittedAfterWarning(
+                        attributes.notificationId, attributes.origin);
                 return true;
             case NotificationConstants.ACTION_SHOW_ORIGINAL_NOTIFICATION:
                 NotificationContentDetectionManager.showOriginalNotification(
                         attributes.notificationId);
                 return false;
             case NotificationConstants.ACTION_ALWAYS_ALLOW:
-                // Add entry to `sAlwaysAllowNotificationsMap` for possible reporting later.
-                sAlwaysAllowNotificationsMap.put(attributes.origin, attributes.notificationId);
-                onNotificationPreAlwaysAllow(attributes);
-                NotificationContentDetectionManager.recordInteractionForUMAIfSuspicious(
-                        attributes.origin,
+                NotificationContentDetectionManager.onNotificationPreAlwaysAllow(
                         attributes.notificationId,
-                        SuspiciousNotificationWarningInteractions.ALWAYS_ALLOW);
+                        attributes.origin,
+                        attributes.scopeUrl,
+                        attributes.profileId,
+                        attributes.incognito,
+                        attributes.webApkPackage,
+                        attributes.channelId);
                 return true;
             case NotificationConstants.ACTION_REPORT_AS_SAFE:
-                // Cancel notification immediately so that the user perceives the action to have
-                // been recognized; but return `true` as we still need native processing later to
-                // actually revoke the permission.
-                notificationManager.cancel(attributes.notificationId, PLATFORM_ID);
-                recordSuspiciousNotificationWarningInteractions(
+                NotificationContentDetectionManager.reportNotification(
+                        attributes.notificationId,
                         SuspiciousNotificationWarningInteractions.REPORT_AS_SAFE);
                 return true;
             case NotificationConstants.ACTION_REPORT_WARNED_NOTIFICATION_AS_SPAM:
-                // Cancel notification immediately so that the user perceives the action to have
-                // been recognized; but return `true` as we still need native processing later to
-                // actually revoke the permission.
-                notificationManager.cancel(attributes.notificationId, PLATFORM_ID);
-                recordSuspiciousNotificationWarningInteractions(
+                NotificationContentDetectionManager.reportNotification(
+                        attributes.notificationId,
                         SuspiciousNotificationWarningInteractions
                                 .REPORT_WARNED_NOTIFICATION_AS_SPAM);
-                NotificationContentDetectionManager.recordInteractionForUMAIfSuspicious(
-                        attributes.origin,
-                        attributes.notificationId,
-                        SuspiciousNotificationWarningInteractions.UNSUBSCRIBE);
+                // Reporting a warned notification also commits the unsubscribe action that is
+                // facilitated by the warning, so call this to log metrics and cleanup static maps.
+                NotificationContentDetectionManager.onUnsubscribeMaybeCommittedAfterWarning(
+                        attributes.notificationId, attributes.origin);
                 return true;
             case NotificationConstants.ACTION_REPORT_UNWARNED_NOTIFICATION_AS_SPAM:
-                // Cancel notification immediately so that the user perceives the action to have
-                // been recognized; but return `true` as we still need native processing later to
-                // actually revoke the permission.
-                notificationManager.cancel(attributes.notificationId, PLATFORM_ID);
-                recordSuspiciousNotificationWarningInteractions(
+                NotificationContentDetectionManager.reportNotification(
+                        attributes.notificationId,
                         SuspiciousNotificationWarningInteractions
                                 .REPORT_UNWARNED_NOTIFICATION_AS_SPAM);
                 return true;
@@ -944,7 +925,6 @@ public class NotificationPlatformBridge {
                         && ChromeFeatureList.isEnabled(
                                 ChromeFeatureList.SHOW_WARNINGS_FOR_SUSPICIOUS_NOTIFICATIONS);
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.NOTIFICATION_ONE_TAP_UNSUBSCRIBE)
-                && VERSION.SDK_INT >= VERSION_CODES.P
                 && identifyingAttributes.notificationType == NotificationType.WEB_PERSISTENT
                 && !skipUAButtons
                 && !shouldTreatNotificationAsSuspicious) {
@@ -959,20 +939,20 @@ public class NotificationPlatformBridge {
 
         // If this is an "Always allow" confirmation notification, append the report button. Remove
         // the entry from the `sAlwaysAllowNotificationsMap`, since it is no longer needed.
-        if (ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)
+        if (ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()
                 && skipUAButtons
-                && sAlwaysAllowNotificationsMap.containsKey(identifyingAttributes.origin)) {
+                && NotificationContentDetectionManager.sAlwaysAllowNotificationsMap.containsKey(
+                        identifyingAttributes.origin)) {
             // Don't show default icon on confirmation notification from Chrome.
             notificationBuilder.setSuppressShowingLargeIcon(true);
-            sAlwaysAllowNotificationsMap.remove(identifyingAttributes.origin);
+            NotificationContentDetectionManager.sAlwaysAllowNotificationsMap.remove(
+                    identifyingAttributes.origin);
             appendReportButton(notificationBuilder, identifyingAttributes, ACTION_REPORT_AS_SAFE);
         }
 
         // If reporting is enabled and the user is being shown the notification rather than a
         // warning, reporting as spam should be allowed on unsubscribe.
-        if (ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)
+        if (ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()
                 && !shouldTreatNotificationAsSuspicious) {
             Bundle extras = new Bundle();
             extras.putBoolean(
@@ -1004,54 +984,15 @@ public class NotificationPlatformBridge {
                             // see crbug.com/1077027.
                             try {
                                 if (shouldTreatNotificationAsSuspicious) {
-                                    Context context = ContextUtils.getApplicationContext();
-                                    Resources res = context.getResources();
                                     mNotificationContentDetectionManager.showWarning(
                                             identifyingAttributes.notificationId,
                                             identifyingAttributes.origin,
-                                            makeDefaults(
-                                                    vibrateEnabled
-                                                            ? vibrationPattern.length
-                                                            : EMPTY_VIBRATION_PATTERN.length,
-                                                    silent,
-                                                    vibrateEnabled),
-                                            makeVibrationPattern(
-                                                    vibrateEnabled
-                                                            ? vibrationPattern
-                                                            : EMPTY_VIBRATION_PATTERN),
-                                            createTickerText(
-                                                    res.getString(
-                                                            R.string.notification_warning_title),
-                                                    res.getString(
-                                                            R.string.notification_warning_body,
-                                                            UrlFormatter
-                                                                    .formatUrlForSecurityDisplay(
-                                                                            identifyingAttributes
-                                                                                    .origin,
-                                                                            SchemeDisplay
-                                                                                    .OMIT_HTTP_AND_HTTPS))),
+                                            vibrateEnabled,
+                                            vibrationPattern,
                                             timestamp,
                                             silent,
-                                            /* shouldSetChannelId= */ identifyingAttributes
-                                                    .webApkPackage.isEmpty(),
                                             identifyingAttributes.channelId,
                                             notification.getNotification(),
-                                            makePendingIntent(
-                                                    identifyingAttributes,
-                                                    NotificationConstants.ACTION_CLOSE_NOTIFICATION,
-                                                    /* actionIndex= */ -1,
-                                                    /* mutable= */ false),
-                                            makePendingIntent(
-                                                    identifyingAttributes,
-                                                    NotificationConstants
-                                                            .ACTION_SHOW_ORIGINAL_NOTIFICATION,
-                                                    /* actionIndex= */ -1,
-                                                    /* mutable= */ false),
-                                            makePendingIntent(
-                                                    identifyingAttributes,
-                                                    NotificationConstants.ACTION_PRE_UNSUBSCRIBE,
-                                                    /* actionIndex= */ -1,
-                                                    /* mutable= */ false),
                                             identifyingAttributes.scopeUrl,
                                             identifyingAttributes.profileId,
                                             identifyingAttributes.incognito,
@@ -1093,10 +1034,6 @@ public class NotificationPlatformBridge {
 
         if (sOriginsWithProvisionallyRevokedPermissions.containsKey(identifyingAttributes.origin)) {
             return Promise.fulfilled(true);
-        }
-
-        if (!UsageStatsService.isEnabled()) {
-            return Promise.fulfilled(false);
         }
 
         // Only native calls into this here code, so the native process must be running, which is
@@ -1199,8 +1136,7 @@ public class NotificationPlatformBridge {
         LibraryLoader.getInstance().ensureInitialized();
         String notificationTitle;
         String notificationBody;
-        if (ChromeFeatureList.isEnabled(
-                ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)) {
+        if (ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()) {
             notificationTitle =
                     res.getString(R.string.notification_provisionally_unsubscribed_title_new);
         } else {
@@ -1243,8 +1179,7 @@ public class NotificationPlatformBridge {
         // just not using NotificationBuilderBase.
         notificationBuilder.setSuppressShowingLargeIcon(true);
         notificationBuilder.setTimeoutAfter(
-                ChromeFeatureList.isEnabled(
-                                ChromeFeatureList.REPORT_NOTIFICATION_CONTENT_DETECTION_DATA)
+                ChromeFeatureList.sReportNotificationContentDetectionData.isEnabled()
                         ? NEW_PROVISIONAL_UNSUBSCRIBE_DURATION_MS
                         : PROVISIONAL_UNSUBSCRIBE_DURATION_MS);
         notificationBuilder.setExtras(extras);
@@ -1359,27 +1294,6 @@ public class NotificationPlatformBridge {
                 NotificationUmaTracker.ActionType.PRE_UNSUBSCRIBE);
     }
 
-    private static void appendUnsubscribeButton(
-            Notification.Builder notificationBuilder,
-            NotificationIdentifyingAttributes identifyingAttributes) {
-        PendingIntentProvider unsubscribeIntentProvider =
-                makePendingIntent(
-                        identifyingAttributes,
-                        NotificationConstants.ACTION_PRE_UNSUBSCRIBE,
-                        /* actionIndex= */ -1,
-                        false);
-
-        Context context = ContextUtils.getApplicationContext();
-        Resources res = context.getResources();
-
-        notificationBuilder.addAction(
-                new Notification.Action.Builder(
-                                /* iconId= */ 0,
-                                res.getString(R.string.notification_unsubscribe_button),
-                                unsubscribeIntentProvider.getPendingIntent())
-                        .build());
-    }
-
     private static void addProvisionallyUnsubscribedNotificationAction(
             NotificationBuilderBase notificationBuilder,
             NotificationIdentifyingAttributes identifyingAttributes,
@@ -1448,7 +1362,7 @@ public class NotificationPlatformBridge {
      * @param body Textual contents of the notification.
      * @return A character sequence containing the ticker's text.
      */
-    private static CharSequence createTickerText(String title, String body) {
+    static CharSequence createTickerText(String title, String body) {
         SpannableStringBuilder spannableStringBuilder = new SpannableStringBuilder();
 
         spannableStringBuilder.append(title);
@@ -1682,9 +1596,11 @@ public class NotificationPlatformBridge {
                     originalNotificationBackup.putParcelable(
                             NotificationConstants.EXTRA_NOTIFICATION_BACKUP_OF_ORIGINAL,
                             tappedNotification);
-                    if (tappedNotification.extras.containsKey(
-                            NotificationConstants
-                                    .EXTRA_ALLOW_REPORTING_AS_SPAM_IS_NOTIFICATION_WARNED)) {
+                    if (tappedNotification != null
+                            && tappedNotification.extras != null
+                            && tappedNotification.extras.containsKey(
+                                    NotificationConstants
+                                            .EXTRA_ALLOW_REPORTING_AS_SPAM_IS_NOTIFICATION_WARNED)) {
                         originalNotificationBackup.putBoolean(
                                 NotificationConstants
                                         .EXTRA_ALLOW_REPORTING_AS_SPAM_IS_NOTIFICATION_WARNED,
@@ -1795,8 +1711,11 @@ public class NotificationPlatformBridge {
         // the tapped notification. Otherwise, the user tapped report on the "Unsubscribe"
         // confirmation, which has the same notification id as the original notification.
         if (ACTION_REPORT_AS_SAFE.equals(action)
-                && sAlwaysAllowNotificationsMap.containsKey(identifyingAttributes.origin)) {
-            originNotificationId = sAlwaysAllowNotificationsMap.get(identifyingAttributes.origin);
+                && NotificationContentDetectionManager.sAlwaysAllowNotificationsMap.containsKey(
+                        identifyingAttributes.origin)) {
+            originNotificationId =
+                    NotificationContentDetectionManager.sAlwaysAllowNotificationsMap.get(
+                            identifyingAttributes.origin);
         }
 
         switch (action) {
@@ -1831,46 +1750,6 @@ public class NotificationPlatformBridge {
                                 identifyingAttributes.incognito);
                 return;
         }
-    }
-
-    /**
-     * Called when the user clicks the `ACTION_ALWAYS_ALLOW` button, dismisses all active
-     * notifications from the same origin and restores them to their original notifications in
-     * receiving order. Done pre-native to ensure the confirmation notification is displayed after
-     * active notifications are handled.
-     *
-     * @param identifyingAttributes Common attributes identifying a notification and its source.
-     */
-    private static void onNotificationPreAlwaysAllow(
-            NotificationIdentifyingAttributes identifyingAttributes) {
-        Context context = ContextUtils.getApplicationContext();
-        var notificationManager = BaseNotificationManagerProxyFactory.create();
-
-        notificationManager.getActiveNotifications(
-                (activeNotifications) -> {
-                    for (StatusBarNotificationProxy proxy : activeNotifications) {
-                        if (proxy.getId() != PLATFORM_ID
-                                || !getOriginFromNotificationTag(proxy.getTag())
-                                        .equals(identifyingAttributes.origin)) {
-                            continue;
-                        }
-
-                        Optional<Notification> notificationBackupOptional =
-                                getNotificationBackupOrCancel(
-                                        proxy.getNotification().extras,
-                                        proxy.getTag(),
-                                        NotificationConstants
-                                                .EXTRA_NOTIFICATION_BACKUP_FOR_SUSPICIOUS_VERDICT);
-
-                        if (notificationBackupOptional.isPresent()) {
-                            Notification.Builder builder =
-                                    Notification.Builder.recoverBuilder(
-                                            context, notificationBackupOptional.get());
-                            appendUnsubscribeButton(builder, identifyingAttributes);
-                            displayNotificationSilently(builder, proxy.getTag());
-                        }
-                    }
-                });
     }
 
     /**

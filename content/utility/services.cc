@@ -291,8 +291,7 @@ auto RunAccessibilityService(
 #endif  // BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 
 #if BUILDFLAG(IS_WIN)
-std::unique_ptr<media::MediaFoundationServiceBroker>
-RunMediaFoundationServiceBroker(
+auto RunMediaFoundationServiceBroker(
     mojo::PendingReceiver<media::mojom::MediaFoundationServiceBroker>
         receiver) {
   return std::make_unique<media::MediaFoundationServiceBroker>(
@@ -444,7 +443,9 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_ANDROID)
-  services.Add(RunMediaDrmSupportService);
+  if (base::FeatureList::IsEnabled(media::kMediaDrmQueryInSeparateProcess)) {
+    services.Add(RunMediaDrmSupportService);
+  }
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_VR) && !BUILDFLAG(IS_ANDROID)

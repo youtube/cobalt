@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/strings/string_util.h"
@@ -555,30 +556,6 @@ void BluetoothAdapterFloss::OnGetConnectionState(const FlossDeviceId& device_id,
   }
 }
 
-void BluetoothAdapterFloss::OnGetBondState(const FlossDeviceId& device_id,
-                                           DBusResult<uint32_t> ret) {
-  BluetoothDeviceFloss* device =
-      static_cast<BluetoothDeviceFloss*>(GetDevice(device_id.address));
-
-  if (!device) {
-    LOG(WARNING) << "GetBondState returned for a non-existing device "
-                 << device_id;
-    return;
-  }
-
-  if (!ret.has_value()) {
-    LOG(WARNING) << "GetBondState returned error: " << ret.error()
-                 << " on device: " << device_id;
-    return;
-  }
-
-  device->SetBondState(static_cast<FlossAdapterClient::BondState>(*ret),
-                       std::nullopt);
-  if (device->HasReadProperties()) {
-    NotifyDevicePairedChanged(device, device->IsPaired());
-  }
-}
-
 void BluetoothAdapterFloss::OnGetBatteryInformation(
     DBusResult<std::optional<BatterySet>> battery_set) {
   if (!battery_set.has_value() || !battery_set.value().has_value()) {
@@ -786,17 +763,6 @@ void BluetoothAdapterFloss::UpdateDeviceProperties(
         state,
         base::BindOnce(&BluetoothAdapterFloss::OnInitializeDeviceProperties,
                        weak_ptr_factory_.GetWeakPtr(), new_device_ptr));
-
-    // TODO(b/204708206): Convert "Paired" and "Connected" property into a
-    // property framework.
-    FlossDBusManager::Get()->GetAdapterClient()->GetBondState(
-        base::BindOnce(&BluetoothAdapterFloss::OnGetBondState,
-                       weak_ptr_factory_.GetWeakPtr(), device_found),
-        device_found);
-    FlossDBusManager::Get()->GetAdapterClient()->GetConnectionState(
-        base::BindOnce(&BluetoothAdapterFloss::OnGetConnectionState,
-                       weak_ptr_factory_.GetWeakPtr(), device_found),
-        device_found);
 
     FlossDBusManager::Get()->GetBatteryManagerClient()->GetBatteryInformation(
         base::BindOnce(&BluetoothAdapterFloss::OnGetBatteryInformation,

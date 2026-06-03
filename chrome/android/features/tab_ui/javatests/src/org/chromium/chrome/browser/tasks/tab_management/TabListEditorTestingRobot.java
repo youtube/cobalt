@@ -66,7 +66,7 @@ public class TabListEditorTestingRobot {
      * @return A view matcher that matches the item is selected.
      */
     public static Matcher<View> itemIsSelected() {
-        return new BoundedMatcher<View, TabGridView>(TabGridView.class) {
+        return new BoundedMatcher<>(TabGridView.class) {
             private TabGridView mSelectableTabGridView;
 
             @Override
@@ -99,7 +99,7 @@ public class TabListEditorTestingRobot {
      * @return A view matcher that matches a divider view.
      */
     public static Matcher<View> isDivider() {
-        return new TypeSafeMatcher<View>() {
+        return new TypeSafeMatcher<>() {
             @Override
             protected boolean matchesSafely(View view) {
                 return view.getId() == R.id.divider_view;

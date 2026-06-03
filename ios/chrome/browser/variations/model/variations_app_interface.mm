@@ -26,12 +26,10 @@
       ->GetSeedReaderWriterForTesting()
       ->ClearSeedInfo();
   prefService->ClearPref(variations::prefs::kVariationsCountry);
-  prefService->ClearPref(variations::prefs::kVariationsLastFetchTime);
   prefService->ClearPref(
       variations::prefs::kVariationsPermanentConsistencyCountry);
   prefService->ClearPref(
       variations::prefs::kVariationsPermanentOverriddenCountry);
-  prefService->ClearPref(variations::prefs::kVariationsSeedDate);
   prefService->ClearPref(variations::prefs::kVariationsSeedSignature);
 
   // Clear variations safe seed prefs.
@@ -40,8 +38,6 @@
       ->GetSeedStoreForTesting()
       ->GetSafeSeedReaderWriterForTesting()
       ->ClearSeedInfo();
-  prefService->ClearPref(variations::prefs::kVariationsSafeSeedDate);
-  prefService->ClearPref(variations::prefs::kVariationsSafeSeedFetchTime);
   prefService->ClearPref(variations::prefs::kVariationsSafeSeedLocale);
   prefService->ClearPref(
       variations::prefs::kVariationsSafeSeedPermanentConsistencyCountry);
@@ -80,7 +76,10 @@
           .compressed_seed_data = variations::kTestSeedData.GetCompressedData(),
           .base64_seed_data = variations::kTestSeedData.base64_compressed_data,
           .signature = variations::kTestSeedData.base64_signature,
-          .milestone = 92});
+          .milestone = 92,  // Milestone number is arbitrary.
+          .seed_date = base::Time::Now(),
+          .client_fetch_time = base::Time::Now(),
+      });
 }
 
 + (void)setCrashingRegularSeedAndSignature {
@@ -94,7 +93,10 @@
           .base64_seed_data =
               variations::kCrashingSeedData.base64_compressed_data,
           .signature = variations::kCrashingSeedData.base64_signature,
-          .milestone = 92});
+          .milestone = 92,  // Milestone number is arbitrary.
+          .seed_date = base::Time::Now(),
+          .client_fetch_time = base::Time::Now(),
+      });
 }
 
 + (int)crashStreak {

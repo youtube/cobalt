@@ -277,7 +277,10 @@ class PLATFORM_EXPORT GraphicsContext {
   // Set to true if context is for printing. Bitmaps won't be resampled when
   // printing to keep the best possible quality. When printing text will be
   // provided along with glyphs.
-  void SetPrinting(bool printing) { printing_ = printing; }
+  void SetPrinting(bool);
+  // Set to true if the content painted into this context is internally-
+  // generated browser content for page headers and footers.
+  void SetPrintingInternalHeadersAndFooters(bool);
 
   // ---------- End state management methods -----------------
 
@@ -287,9 +290,7 @@ class PLATFORM_EXPORT GraphicsContext {
   void DrawLine(const gfx::Point&,
                 const gfx::Point&,
                 const StyledStrokeData&,
-                const AutoDarkMode& auto_dark_mode,
-                bool is_text_line = false,
-                const cc::PaintFlags* flags = nullptr);
+                const AutoDarkMode& auto_dark_mode);
 
   void FillPath(const Path&, const AutoDarkMode& auto_dark_mode);
   void StrokePath(const Path&, const AutoDarkMode& auto_dark_mode);
@@ -489,10 +490,6 @@ class PLATFORM_EXPORT GraphicsContext {
   // Sets location of a URL destination (a.k.a. anchor) in the page.
   void SetURLDestinationLocation(const String& name, const gfx::Point&);
 
-  static void AdjustLineToPixelBoundaries(gfx::PointF& p1,
-                                          gfx::PointF& p2,
-                                          float stroke_width);
-
   void SetInDrawingRecorder(bool);
   bool InDrawingRecorder() const { return in_drawing_recorder_; }
 
@@ -502,6 +499,10 @@ class PLATFORM_EXPORT GraphicsContext {
   void SetDOMNodeId(DOMNodeId);
   DOMNodeId GetDOMNodeId() const;
   bool NeedsDOMNodeId() const { return printing_; }
+
+  bool PrintingInternalHeadersAndFooters() const {
+    return printing_internal_headers_and_footers_;
+  }
 
  private:
   const GraphicsContextState* ImmutableState() const { return paint_state_; }
@@ -572,6 +573,7 @@ class PLATFORM_EXPORT GraphicsContext {
   std::unique_ptr<DarkModeFilter> dark_mode_filter_;
 
   bool printing_ = false;
+  bool printing_internal_headers_and_footers_ = false;
   bool in_drawing_recorder_ = false;
 
   // The current node ID, which is used for marked content in a tagged PDF.

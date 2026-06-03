@@ -325,15 +325,15 @@ HanKerning::FontData::FontData(const SimpleFontData& font,
   const UChar kChars[] = {
       // Dot (full stop and comma) characters.
       // https://drafts.csswg.org/css-text-4/#fullwidth-dot-punctuation
-      kIdeographicCommaCharacter, kIdeographicFullStopCharacter,
-      kFullwidthComma, kFullwidthFullStop,
+      uchar::kIdeographicComma, uchar::kIdeographicFullStop,
+      uchar::kFullwidthComma, uchar::kFullwidthFullStop,
       // Colon characters.
       // https://drafts.csswg.org/css-text-4/#fullwidth-colon-punctuation
-      kFullwidthColon, kFullwidthSemicolon,
+      uchar::kFullwidthColon, uchar::kFullwidthSemicolon,
       // Quote characters. In a common convention, they are proportional (Latin)
       // in Japanese, but fullwidth in Chinese.
-      kLeftDoubleQuotationMarkCharacter, kLeftSingleQuotationMarkCharacter,
-      kRightDoubleQuotationMarkCharacter, kRightSingleQuotationMarkCharacter};
+      uchar::kLeftDoubleQuotationMark, uchar::kLeftSingleQuotationMark,
+      uchar::kRightDoubleQuotationMark, uchar::kRightSingleQuotationMark};
   constexpr unsigned kDotSize = 4;
   constexpr unsigned kColonIndex = 4;
   constexpr unsigned kSemicolonIndex = 5;
