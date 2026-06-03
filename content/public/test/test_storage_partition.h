@@ -251,7 +251,9 @@ class TestStoragePartition : public StoragePartition {
   void RemoveObserver(DataRemovalObserver* observer) override;
   int GetDataRemovalObserverCount();
 
+#if !BUILDFLAG(IS_COBALT)
   void ClearBluetoothAllowedDevicesMapForTesting() override;
+#endif
   void FlushNetworkInterfaceForTesting() override;
   void FlushCertVerifierInterfaceForTesting() override;
   void WaitForDeletionTasksForTesting() override;

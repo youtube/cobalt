@@ -13732,6 +13732,7 @@ void RenderFrameHostImpl::CreateSecurePaymentConfirmationService(
   }
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::CreateWebUsbService(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   if (!base::FeatureList::IsEnabled(features::kWebUsb)) {
@@ -13752,6 +13753,7 @@ void RenderFrameHostImpl::CreateWebUsbService(
                 BackForwardCacheDisable::DisabledReasonId::kWebUSB));
   WebUsbServiceImpl::Create(*this, std::move(receiver));
 }
+#endif
 
 void RenderFrameHostImpl::ResetPermissionsPolicy(
     const network::ParsedPermissionsPolicy& header_policy) {
@@ -14105,12 +14107,15 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
 }
 
 #if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));
 }
 #endif
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindSerialService(
     mojo::PendingReceiver<blink::mojom::SerialService> receiver) {
   if (!IsFeatureEnabled(network::mojom::PermissionsPolicyFeature::kSerial)) {
@@ -14138,12 +14143,15 @@ void RenderFrameHostImpl::BindSerialService(
 
   SerialService::GetOrCreateForCurrentDocument(this)->Bind(std::move(receiver));
 }
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));
 }
+#endif
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

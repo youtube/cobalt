@@ -2086,11 +2086,15 @@ class CONTENT_EXPORT RenderFrameHostImpl
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
 
 #if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   void GetSmartCardService(
@@ -2158,7 +2162,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const blink::StorageKey& storage_key);
 
 #if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
   void BindNFCReceiver(mojo::PendingReceiver<device::mojom::NFC> receiver);
+#endif
 #endif
 
   // Binds a `CacheStorage` object for the default bucket.
@@ -2208,9 +2214,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void BindTrustTokenQueryAnswerer(
       mojo::PendingReceiver<network::mojom::TrustTokenQueryAnswerer> receiver);
 
+#if !BUILDFLAG(IS_COBALT)
   // Creates connections to WebUSB interfaces bound to this frame.
   void CreateWebUsbService(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver);
+#endif
 
   void CreateWebSocketConnector(
       mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver);

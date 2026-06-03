@@ -1524,7 +1524,7 @@ ScopedServiceWorkerClient::CommitResponseAndRelease(
   return std::make_tuple(std::move(container_info), std::move(controller));
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 ServiceWorkerHidDelegateObserver*
 ServiceWorkerContextCore::hid_delegate_observer() {
   if (!hid_delegate_observer_) {
@@ -1552,5 +1552,5 @@ void ServiceWorkerContextCore::SetServiceWorkerUsbDelegateObserverForTesting(
     std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer) {
   usb_delegate_observer_ = std::move(usb_delegate_observer);
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 }  // namespace content
