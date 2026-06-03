@@ -15,6 +15,15 @@ to just be implemented by a single system call, such as the Starboard functions
 defined in [string.h](../reference/starboard/modules/string.md) and [memory.h](../reference/starboard/modules/memory.md)
 are not exhaustively tested.
 
+Starboard also implements many POSIX APIs that Cobalt 27 requires, some of which
+replace earlier Starboard APIs, such as `sendto` replacing `SbSocketSendTo`.
+These APIs are also tested by NPLB, except for the following functions known to
+be missing tests:
+
+  * `fstatat`
+  * `openat`
+  * `unlinkat`
+
 NPLB tests must work on all Starboard implementations, so they may make no
 assumptions about platform-specific details. Rather, they attempt to define
 a living contract for the APIs on all platforms.
