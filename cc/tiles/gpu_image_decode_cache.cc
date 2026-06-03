@@ -26,6 +26,9 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/strings/string_number_conversions.h"
+#endif
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/tick_clock.h"
@@ -2356,7 +2359,24 @@ bool GpuImageDecodeCache::ExceedsCacheLimits() const {
   if (aggressively_freeing_resources_) {
     items_limit = kSuspendedMaxItemsInCacheForGpu;
   } else {
+#if BUILDFLAG(IS_COBALT)
+    static const int normal_max_items = []() {
+      int limit = kNormalMaxItemsInCacheForGpu;
+      auto* command_line = base::CommandLine::ForCurrentProcess();
+      if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+        std::string value = command_line->GetSwitchValueASCII(
+            switches::kCCImageCacheLimitItems);
+        int parsed_value;
+        if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+          limit = parsed_value;
+        }
+      }
+      return limit;
+    }();
+    items_limit = normal_max_items;
+#else
     items_limit = kNormalMaxItemsInCacheForGpu;
+#endif
   }
 
   return persistent_cache_.size() > items_limit;

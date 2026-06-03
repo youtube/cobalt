@@ -12,17 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "third_party/blink/renderer/modules/ml/navigator_ml.h"  // nogncheck
-#include "third_party/blink/renderer/modules/xr/xr_system.h"  // nogncheck
 #include "third_party/blink/renderer/modules/xr/xr_frame_provider.h"  // nogncheck
 #include "third_party/blink/renderer/modules/xr/xr_session.h"  // nogncheck
+#include "third_party/blink/renderer/modules/xr/xr_system.h"  // nogncheck
 #include "third_party/blink/renderer/platform/bindings/wrapper_type_info.h"
 
 namespace blink {
 
+static void DummyInstallInterfaceTemplateFunc(
+    v8::Isolate* isolate,
+    const DOMWrapperWorld& world,
+    v8::Local<v8::Template> interface_template) {
+  // Do nothing
+}
+
 static const WrapperTypeInfo g_dummy_wrapper_type_info = {
     gin::kEmbedderBlink,
-    nullptr,
+    DummyInstallInterfaceTemplateFunc,
     nullptr,
     "Dummy",
     nullptr,

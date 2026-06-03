@@ -42,7 +42,6 @@
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -323,6 +322,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
       skip_video_frames_over_60_fps_(
           experimental_features.skip_video_frames_over_60_fps),
+      ignore_mediacodec_callbacks_during_flushing_(
+          experimental_features.ignore_mediacodec_callbacks_during_flushing),
       is_video_frame_tracker_enabled_(
           // OnFrameRenderedListener is available since API 23, but only
           // reliable for standard playback since API 34. Tunnel mode uses it on
@@ -808,7 +809,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, skip_video_frames_over_60_fps_);
+      use_dual_threads_, skip_video_frames_over_60_fps_,
+      ignore_mediacodec_callbacks_during_flushing_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

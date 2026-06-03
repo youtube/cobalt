@@ -39,20 +39,20 @@ namespace {
 // Returns a value between 0 and 1 that is used by SetThreadPriority() to scale
 // the desired thread priority between what sched_get_priority_min() and
 // sched_get_priority_max() return.
-float SbThreadPriorityToRelativeSchedPriority(SbThreadPriority priority) {
+float ThreadPriorityToRelativeSchedPriority(ThreadPriority priority) {
   switch (priority) {
-    case kSbThreadPriorityLowest:
+    case ThreadPriority::kLowest:
       return 0.1f;
-    case kSbThreadPriorityLow:
+    case ThreadPriority::kLow:
       return 0.3f;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
+    case ThreadPriority::kNoPriority:
+    case ThreadPriority::kNormal:
       return 0.5f;
-    case kSbThreadPriorityHigh:
+    case ThreadPriority::kHigh:
       return 0.7f;
-    case kSbThreadPriorityHighest:
+    case ThreadPriority::kHighest:
       return 0.9f;
-    case kSbThreadPriorityRealTime:
+    case ThreadPriority::kRealTime:
       return 0.99f;
   }
   SB_NOTREACHED();
@@ -61,16 +61,16 @@ float SbThreadPriorityToRelativeSchedPriority(SbThreadPriority priority) {
 
 // Wrapper for changing a thread's priority. On Linux kernel-based platforms
 // (including Android), this code relies on setpriority(2), which on Linux
-// deviates from the standard and changes per-thread attributes (rather tha
+// deviates from the standard and changes per-thread attributes (rather than
 // per-process).
 //
-// On tvOS, use pthread_setschedparam() by translating SbThreadPriority into an
+// On tvOS, use pthread_setschedparam() by translating ThreadPriority into an
 // integer between what sched_get_priority_min() and sched_get_priority_max()
 // return.
-bool SetThreadPriority(SbThreadPriority priority) {
+bool SetThreadPriority(ThreadPriority priority) {
 #if defined(__APPLE__)
   const float relative_priority =
-      SbThreadPriorityToRelativeSchedPriority(priority);
+      ThreadPriorityToRelativeSchedPriority(priority);
 
   int policy;
   struct sched_param param;
@@ -91,29 +91,30 @@ bool SetThreadPriority(SbThreadPriority priority) {
 #else
   // setpriority returns 0 on success and -1 on failure. The default nice value
   // is 0. See https://linux.die.net/man/2/setpriority
-  return (setpriority(PRIO_PROCESS, 0, SbPriorityToNice(priority)) == 0);
+  return (setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(priority)) ==
+          0);
 #endif  // defined(__APPLE__)
 }
 
 }  // namespace
 
-int SbPriorityToNice(SbThreadPriority priority) {
+int ThreadPriorityToNiceValue(ThreadPriority priority) {
   // Nice value settings are shared between Android and Linux.
   // They are selected from looking at:
   // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
   switch (priority) {
-    case kSbThreadPriorityLowest:
+    case ThreadPriority::kLowest:
       return 19;
-    case kSbThreadPriorityLow:
+    case ThreadPriority::kLow:
       return 10;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
+    case ThreadPriority::kNoPriority:
+    case ThreadPriority::kNormal:
       return 0;
-    case kSbThreadPriorityHigh:
+    case ThreadPriority::kHigh:
       return -8;
-    case kSbThreadPriorityHighest:
+    case ThreadPriority::kHighest:
       return -16;
-    case kSbThreadPriorityRealTime:
+    case ThreadPriority::kRealTime:
       return -19;
     default:
       SB_NOTREACHED();

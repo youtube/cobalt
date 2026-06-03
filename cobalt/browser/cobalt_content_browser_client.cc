@@ -313,9 +313,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->enable_referrers = true;
   network_context_params->accept_language = GetApplicationLocale();
 
-  // Always enable the HTTP cache.
-  network_context_params->http_cache_enabled = true;
-
   auto cookie_manager_params = network::mojom::CookieManagerParams::New();
   cookie_manager_params->block_third_party_cookies = true;
   network_context_params->cookie_manager_params =

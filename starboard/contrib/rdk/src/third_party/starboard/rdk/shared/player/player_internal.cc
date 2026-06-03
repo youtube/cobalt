@@ -41,11 +41,11 @@
 #include <limits>
 #include <condition_variable>
 #include <mutex>
+#include <unistd.h>
 
 #include "starboard/common/once.h"
 #include <sys/resource.h>
 #include "starboard/common/thread.h"
-#include "starboard/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/drm.h"
 #include "starboard/common/log.h"
@@ -547,7 +547,7 @@ void gst_cobalt_src_all_app_srcs_added(GstElement* element) {
   GST_DEBUG_OBJECT(src,
                    "===> All sources registered, completing state-change "
                    "(TID:%d)",
-                   SbThreadGetId());
+                   gettid());
   gst_element_no_more_pads(element);
   gst_cobalt_src_do_async_done(src);
 }
@@ -1583,7 +1583,7 @@ gboolean PlayerImpl::BusMessageCallback(GstBus* bus,
 }
 
 gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
-  GST_TRACE("%d", SbThreadGetId());
+  GST_TRACE("%d", gettid());
   GST_LOG_OBJECT(pipeline_, "Got GST message '%s' from '%s'", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
 
   switch (GST_MESSAGE_TYPE(message)) {
@@ -1772,9 +1772,9 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
 
 // static
 void* PlayerImpl::ThreadEntryPoint(void* context) {
-  setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityRealTime));
+  setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(ThreadPriority::kRealTime));
   SB_DCHECK(context);
-  GST_TRACE("%d", SbThreadGetId());
+  GST_TRACE("%d", gettid());
 
   PlayerImpl* self = reinterpret_cast<PlayerImpl*>(context);
   self->state_ = State::kInitial;
@@ -1797,7 +1797,7 @@ guint PlayerImpl::DispatchOnWorkerThread(Task* task) const {
   g_source_set_callback(src,
     [](gpointer userData) -> gboolean {
       auto* task = static_cast<Task*>(userData);
-      GST_TRACE("%d", SbThreadGetId());
+      GST_TRACE("%d", gettid());
       task->PrintInfo();
       task->Do();
       return G_SOURCE_REMOVE;
@@ -1990,7 +1990,7 @@ void PlayerImpl::MarkEOS(SbMediaType stream_type) {
     src = audio_appsrc_;
   }
 
-  GST_INFO_OBJECT(src, "===> %d", SbThreadGetId());
+  GST_INFO_OBJECT(src, "===> %d", gettid());
   std::lock_guard lock(mutex_);
   if (state_ == State::kPrerollAfterSeek)
     GST_DEBUG_OBJECT(src, "===> Mark EOS with State::kPrerollAfterSeek");
@@ -2357,7 +2357,7 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
 }
 
 void PlayerImpl::SetVolume(double volume) {
-  GST_DEBUG_OBJECT(pipeline_, "volume %lf, TID %d", volume, SbThreadGetId());
+  GST_DEBUG_OBJECT(pipeline_, "volume %lf, TID %d", volume, gettid());
   gst_stream_volume_set_volume(GST_STREAM_VOLUME(pipeline_),
                                GST_STREAM_VOLUME_FORMAT_LINEAR, volume);
 }
@@ -2436,7 +2436,7 @@ void PlayerImpl::Seek(int64_t seek_to_timestamp, int ticket) {
                   seek_to_timestamp,
                   GST_TIME_ARGS(seek_to_time_ns),
                   GST_TIME_ARGS(current_pos_ns),
-                  SbThreadGetId(),
+                  gettid(),
                   static_cast<int>(state_),
                   ticket);
   {
@@ -2501,7 +2501,7 @@ void PlayerImpl::Seek(int64_t seek_to_timestamp, int ticket) {
 
 bool PlayerImpl::SetRate(double rate) {
   GST_INFO_OBJECT(pipeline_, "===> rate %lf (rate_ %lf), TID: %d", rate, rate_,
-                   SbThreadGetId());
+                   gettid());
 
   GstState state;
   double old_rate;
