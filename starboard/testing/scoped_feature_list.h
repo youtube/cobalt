@@ -26,6 +26,12 @@ namespace starboard::features {
 // Helper class to override features in tests.
 // This follows the pattern of base::test::ScopedFeatureList in Chromium.
 //
+// Expected lifetime and ownership:
+// This class is designed to be stack-allocated (RAII). Its lifetime should
+// be scoped to the block or test where the overrides are needed. Upon
+// destruction, it automatically restores the original feature states.
+//
+// Threading model:
 // This class is NOT thread-safe. It modifies global state in FeatureList,
 // so it should only be used in single-threaded test contexts or when access
 // to FeatureList is otherwise synchronized. Multiple ScopedFeatureList
