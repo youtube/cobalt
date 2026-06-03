@@ -15,9 +15,11 @@
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/signin/model/constants.h"
+#import "ios/chrome/browser/signin/model/resized_avatar_cache.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
 #import "ios/chrome/browser/widget_kit/model/features.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
+#import "ios/chrome/common/ui/util/image_util.h"
 
 #if BUILDFLAG(ENABLE_WIDGET_KIT_EXTENSION)
 #import "ios/chrome/browser/widget_kit/model/model_swift.h"  // nogncheck
@@ -34,10 +36,24 @@ void ReloadAllTimelines() {
   }
 }
 
-// Save avatar info to disk.
-void StoreAvatarDataToDisk(NSURL* identity_file, NSData* png_data) {
+UIImage* ResizedAvatar(UIImage* image) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
+  // Resize the avatar image.
+  CGSize new_size = CGSizeMake(32.0, 32.0);
+  if (!CGSizeEqualToSize(image.size, new_size)) {
+    image = ResizeImage(image, new_size, ProjectionMode::kAspectFit);
+  }
+  return image;
+}
+
+// Save avatar info to disk.
+void StoreAvatarToDisk(NSURL* identity_file, UIImage* avatar) {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::WILL_BLOCK);
+  CHECK(avatar, base::NotFatalUntil::M141);
+  UIImage* resized_avatar = ResizedAvatar(avatar);
+  NSData* png_data = UIImagePNGRepresentation(resized_avatar);
   if (png_data) {
     [png_data writeToURL:identity_file atomically:YES];
   }
@@ -69,14 +85,21 @@ void RemoveAvatarDataFromDisk(NSDictionary* avatars) {
   }
 }
 
+// Remove a single avatar file from disk.
+void RemoveSingleAvatarFromDisk(NSURL* url) {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::WILL_BLOCK);
+  [NSFileManager.defaultManager removeItemAtURL:url error:nil];
+}
+
 // Save avatars info to disk.
-void UpdateAvatarData(NSDictionary* avatars) {
+void UpdateAvatars(NSDictionary* avatars) {
   for (NSString* gaia in avatars) {
     NSString* file_name = [NSString stringWithFormat:@"%@.png", gaia];
     NSURL* identity_file = [app_group::WidgetsAvatarFolder()
         URLByAppendingPathComponent:file_name];
-    NSData* avatar_data = avatars[gaia];
-    StoreAvatarDataToDisk(identity_file, avatar_data);
+    UIImage* avatar = avatars[gaia];
+    StoreAvatarToDisk(identity_file, avatar);
   }
   // Check if disk cleanup in WidgetsAvatarFolder folder is needed.
   RemoveAvatarDataFromDisk(avatars);
@@ -98,20 +121,33 @@ void SystemAccountUpdater::OnIdentityListChanged() {
 }
 
 void SystemAccountUpdater::OnIdentityUpdated(id<SystemIdentity> identity) {
-  UIImage* image =
+  UIImage* avatar =
       system_identity_manager_->GetCachedAvatarForIdentity(identity);
-  NSData* png_data = UIImagePNGRepresentation(image);
 
   NSString* file_name = [NSString stringWithFormat:@"%@.png", identity.gaiaID];
   NSURL* identity_file =
       [app_group::WidgetsAvatarFolder() URLByAppendingPathComponent:file_name];
 
-  // Update the identity image info on disk and update widgets.
+  if (!avatar) {
+    // No avatar available, remove any existing avatar file for this identity
+    // Note: If this task is skipped, the avatar file will remain on disk
+    // temporarily but will be cleaned up automatically during the next UpdateLoadedAccounts()
+    // call via RemoveAvatarDataFromDisk().
+    base::ThreadPool::PostTaskAndReply(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::BindOnce(&RemoveSingleAvatarFromDisk, identity_file),
+        base::BindOnce(&ReloadAllTimelines));
+    return;
+  }
+
+  // Update the identity avatar info on disk and update widgets.
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-      base::BindOnce(&StoreAvatarDataToDisk, identity_file, png_data),
+      base::BindOnce(&StoreAvatarToDisk, identity_file, avatar),
       base::BindOnce(&ReloadAllTimelines));
 }
 
@@ -124,17 +160,15 @@ SystemIdentityManager::IteratorResult SystemAccountUpdater::IdentitiesOnDevice(
     id<SystemIdentity> identity) {
   NSMutableDictionary* account = [[NSMutableDictionary alloc] init];
   [account setObject:identity.userEmail forKey:app_group::kEmail];
+  [account setObject:identity.userFullName ?: @"" forKey:app_group::kFullName];
   // Add the account to the dictionary of accounts.
   [accounts setObject:account forKey:identity.gaiaID];
 
-  UIImage* image =
+  UIImage* avatar =
       system_identity_manager_->GetCachedAvatarForIdentity(identity);
   // Add the avatar info to the dictionary of avatars.
-  if (image) {
-    NSData* png_data = UIImagePNGRepresentation(image);
-    if (png_data) {
-      [avatars setObject:png_data forKey:identity.gaiaID];
-    }
+  if (avatar) {
+    [avatars setObject:avatar forKey:identity.gaiaID];
   }
 
   return SystemIdentityManager::IteratorResult::kContinueIteration;
@@ -184,7 +218,7 @@ void SystemAccountUpdater::UpdateLoadedAccounts() {
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-      base::BindOnce(&UpdateAvatarData, avatars),
+      base::BindOnce(&UpdateAvatars, avatars),
       base::BindOnce(&ReloadAllTimelines));
 }
 

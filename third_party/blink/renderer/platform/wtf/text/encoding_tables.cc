@@ -42,7 +42,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_codec_icu.h"
 
-namespace WTF {
+namespace blink {
 
 // These are values from https://encoding.spec.whatwg.org/index-jis0208.txt that
 // are not in ICU.
@@ -156,7 +156,7 @@ const Jis0208EncodeIndex& EnsureJis0208EncodeIndexForDecode() {
     size_t array_index = 0;
 
     UErrorCode error = U_ZERO_ERROR;
-    ICUConverterWrapper icu_converter;
+    blink::IcuConverterWrapper icu_converter;
     icu_converter.converter = ucnv_open("EUC-JP", &error);
     DCHECK(U_SUCCESS(error));
 
@@ -173,7 +173,7 @@ const Jis0208EncodeIndex& EnsureJis0208EncodeIndexForDecode() {
         ucnv_toUnicode(icu_converter.converter, &output, output + 1, &input,
                        input + sizeof(icu_input), nullptr, true, &error);
         DCHECK(U_SUCCESS(error));
-        if (icu_output != kReplacementCharacter) {
+        if (icu_output != uchar::kReplacementCharacter) {
           uint16_t pointer = i * kRange + j;
           (*array)[array_index++] = {pointer, icu_output};
         }
@@ -214,7 +214,7 @@ const Jis0212EncodeIndex& EnsureJis0212EncodeIndexForDecode() {
     size_t array_index = 0;
 
     UErrorCode error = U_ZERO_ERROR;
-    ICUConverterWrapper icu_converter;
+    blink::IcuConverterWrapper icu_converter;
     icu_converter.converter = ucnv_open("EUC-JP", &error);
     DCHECK(U_SUCCESS(error));
 
@@ -232,7 +232,7 @@ const Jis0212EncodeIndex& EnsureJis0212EncodeIndexForDecode() {
         ucnv_toUnicode(icu_converter.converter, &output, output + 1, &input,
                        input + sizeof(icu_input), nullptr, true, &error);
         DCHECK(U_SUCCESS(error));
-        if (icu_output != kReplacementCharacter) {
+        if (icu_output != uchar::kReplacementCharacter) {
           uint16_t pointer = i * kRange + j;
           // ICU has some pointers above 7708 that are not in the encoding
           // standard.
@@ -256,7 +256,7 @@ const EucKrEncodeIndex& EnsureEucKrEncodeIndexForDecode() {
   std::call_once(flag, [] {
     array = new EucKrEncodeIndex;
     UErrorCode error = U_ZERO_ERROR;
-    ICUConverterWrapper icu_converter;
+    blink::IcuConverterWrapper icu_converter;
     icu_converter.converter = ucnv_open("windows-949", &error);
     DCHECK(U_SUCCESS(error));
     auto get_pair =
@@ -272,8 +272,9 @@ const EucKrEncodeIndex& EnsureEucKrEncodeIndexForDecode() {
       ucnv_toUnicode(icu_converter.converter, &output, output + 2, &input,
                      input + sizeof(icu_input), nullptr, true, &error);
       DCHECK(U_SUCCESS(error));
-      if (icu_output[0] == kReplacementCharacter)
+      if (icu_output[0] == uchar::kReplacementCharacter) {
         return std::nullopt;
+      }
       return {{pointer, icu_output[0]}};
     };
     size_t array_index = 0;
@@ -316,7 +317,7 @@ const Gb18030EncodeTable& EnsureGb18030EncodeTable() {
   std::call_once(flag, [] {
     array = new Gb18030EncodeTable;
     UErrorCode error = U_ZERO_ERROR;
-    ICUConverterWrapper icu_converter;
+    blink::IcuConverterWrapper icu_converter;
     icu_converter.converter = ucnv_open("gb18030", &error);
     DCHECK(U_SUCCESS(error));
     for (size_t pointer = 0; pointer < 23940; pointer++) {
@@ -330,7 +331,7 @@ const Gb18030EncodeTable& EnsureGb18030EncodeTable() {
       ucnv_toUnicode(icu_converter.converter, &output, output + 1, &input,
                      input + sizeof(icu_input), nullptr, true, &error);
       DCHECK(U_SUCCESS(error));
-      DCHECK_NE(icu_output, kReplacementCharacter);
+      DCHECK_NE(icu_output, uchar::kReplacementCharacter);
       (*array)[pointer] = icu_output;
     }
 
@@ -380,4 +381,4 @@ const Gb18030EncodeIndex& EnsureGb18030EncodeIndexForEncode() {
   return *table;
 }
 
-}  // namespace WTF
+}  // namespace blink

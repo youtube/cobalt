@@ -12,7 +12,7 @@ import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_as
 
 import type {TestPaymentsManager} from './autofill_fake_data.js';
 import {createCreditCardEntry} from './autofill_fake_data.js';
-import {createPaymentsSection, getLocalAndServerCreditCardListItems, getDefaultExpectations, getCardRowShadowRoot} from './payments_section_utils.js';
+import {createPaymentsSection, getLocalAndServerCreditCardListItems, getDefaultExpectations, getCardRowShadowRoot, verifyBooleanHistogramRecorded, verifyBooleanHistogramNotRecorded} from './payments_section_utils.js';
 import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
@@ -53,7 +53,35 @@ suite('PaymentsSection', function() {
     });
   });
 
+  test('ManagePaymentMethodsLink_RecordsMetrics', async function() {
+    const testMetricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
+
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], /*ibans=*/[], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+
+    const manageAnchor = section.$.manageLink.querySelector('a');
+    assertTrue(!!manageAnchor);
+
+    // To avoid opening a new tab in the test (which ends up breaking the other
+    // tests), make the anchor basically non-operable before clicking it.
+    manageAnchor.href = '#';
+    manageAnchor.target = '';
+
+    manageAnchor.click();
+    const recordedAction =
+        await testMetricsBrowserProxy.whenCalled('recordAction');
+
+    assertEquals(
+        'Autofill.PaymentMethodsSettingsPage.ManagePaymentMethodsLinkClicked',
+        recordedAction);
+  });
+
   test('verifyNoCreditCards', async function() {
+    const testMetricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
+
     const section = await createPaymentsSection(
         /*creditCards=*/[], /*ibans=*/[], /*payOverTimeIssuers=*/[],
         {credit_card_enabled: {value: true}});
@@ -75,9 +103,17 @@ suite('PaymentsSection', function() {
             '#addPaymentMethods');
     assertTrue(!!addPaymentMethodsButton);
     assertFalse(addPaymentMethodsButton.disabled);
+
+    await verifyBooleanHistogramRecorded(
+        testMetricsBrowserProxy,
+        'Autofill.PaymentMethodsSettingsPage.CardsViewedWithoutExistingCards',
+        true);
   });
 
   test('verifyCreditCardsDisabled', async function() {
+    const testMetricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
+
     loadTimeData.overrideValues({
       showIbansSettings: false,
     });
@@ -90,9 +126,18 @@ suite('PaymentsSection', function() {
         section.shadowRoot!.querySelector<CrButtonElement>('#addCreditCard');
     assertTrue(!!addCreditCardButton);
     assertTrue(addCreditCardButton.hidden);
+
+    // This metric should only be recorded when autofilling of credit cards is
+    // enabled.
+    await verifyBooleanHistogramNotRecorded(
+        testMetricsBrowserProxy,
+        'Autofill.PaymentMethodsSettingsPage.CardsViewedWithoutExistingCards');
   });
 
   test('verifyCreditCardCount', async function() {
+    const testMetricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
+
     const creditCards = [
       createCreditCardEntry(),
       createCreditCardEntry(),
@@ -123,6 +168,11 @@ suite('PaymentsSection', function() {
             '#addPaymentMethods');
     assertTrue(!!addPaymentMethodsButton);
     assertFalse(addPaymentMethodsButton.disabled);
+
+    await verifyBooleanHistogramRecorded(
+        testMetricsBrowserProxy,
+        'Autofill.PaymentMethodsSettingsPage.CardsViewedWithoutExistingCards',
+        false);
   });
 
   test('CanMakePaymentToggle_RecordsMetrics', async function() {

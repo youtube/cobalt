@@ -114,6 +114,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//ios/chrome/browser/google_one/coordinator/google_one_coordinator.mm:GoogleOneOutcome) -->
 
+<!-- LINT.IfChange(GuidedTourStep) -->
+
+<enum name="GuidedTourStep">
+  <int value="0" label="NTP"/>
+  <int value="1" label="Incognito"/>
+  <int value="2" label="Long Press"/>
+  <int value="3" label="Tab Group"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/shared/public/commands/guided_tour_commands.h:GuidedTourStep) -->
+
 <enum name="InactiveTabsThresholdSettingType">
   <int value="0" label="Unknown"/>
   <int value="1" label="Never Move"/>
@@ -251,6 +262,13 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Cancel"/>
   <int value="1" label="Swipe down"/>
   <int value="2" label="Open tabs"/>
+</enum>
+
+<enum name="IOSBWGEntryPoint">
+  <int value="0" label="Promo"/>
+  <int value="1" label="Overflow Menu"/>
+  <int value="2" label="AI Hub"/>
+  <int value="3" label="Omnibox Chip"/>
 </enum>
 
 <enum name="iOSCredentialIdentityStoreErrorForReporting">
@@ -919,6 +937,8 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="Made for iOS default browser promo"/>
   <int value="15" label="Stay Safe default browser promo"/>
   <int value="18" label="Welcome Back promo"/>
+  <int value="19" label="BWG promo"/>
+  <int value="20" label="Safari Import (Remind Me Later)"/>
 </enum>
 
 <enum name="IOSPromosManagerPromoType">
@@ -1694,6 +1714,16 @@ chromium-metrics-reviews@google.com.
   <int value="18" label="Package Tracking"/>
   <int value="19" label="Password Sharing"/>
   <int value="20" label="Customizable Overflow Menu"/>
+  <int value="21" label="Docking Bling"/>
+  <int value="22" label="Price Tracking"/>
+  <int value="23" label="Price History"/>
+  <int value="24" label="Other Buying Options"/>
+  <int value="25" label="Lens Search What You See"/>
+  <int value="26" label="Lens Translate"/>
+  <int value="27" label="Lens Question"/>
+  <int value="28" label="Passkeys"/>
+  <int value="29" label="Choose From Drive"/>
+  <int value="30" label="Save To Drive"/>
 </enum>
 
 <enum name="WindowActivityOrigin">

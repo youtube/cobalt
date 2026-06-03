@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_forbidden_scope.h"
 #include "third_party/blink/renderer/core/dom/events/scoped_event_queue.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
+#include "third_party/blink/renderer/core/dom/invalidate_node_list_caches_scope.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
 #include "third_party/blink/renderer/core/dom/name_node_list.h"
 #include "third_party/blink/renderer/core/dom/node.h"
@@ -53,7 +54,6 @@
 #include "third_party/blink/renderer/core/dom/static_node_list.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
 #include "third_party/blink/renderer/core/editing/serializers/serialization.h"
-#include "third_party/blink/renderer/core/events/mutation_event.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -88,9 +88,6 @@
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
-
-static void DispatchChildInsertionEvents(Node&);
-static void DispatchChildRemovalEvents(Node&);
 
 namespace {
 
@@ -160,8 +157,7 @@ inline bool CheckReferenceChildParent(const Node& parent,
 
 }  // namespace
 
-// This dispatches various events; DOM mutation events, blur events, IFRAME
-// unload events, etc.
+// This dispatches various events: blur events, IFRAME unload events, etc.
 // Returns true if DOM mutation should be proceeded.
 static inline bool CollectChildrenAndRemoveFromOldParent(
     Node& node,
@@ -298,9 +294,9 @@ bool ContainerNode::EnsurePreInsertionValidity(
     if (!ChildTypeAllowed(child->getNodeType())) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kHierarchyRequestError,
-          WTF::StrCat({"Nodes of type '", child->nodeName(),
-                       "' may not be inserted inside nodes of type '",
-                       nodeName(), "'."}));
+          StrCat({"Nodes of type '", child->nodeName(),
+                  "' may not be inserted inside nodes of type '", nodeName(),
+                  "'."}));
       return false;
     }
     return true;
@@ -328,8 +324,8 @@ bool ContainerNode::EnsurePreInsertionValidity(
 }
 
 // We need this extra structural check because prior DOM mutation operations
-// dispatched synchronous events, so their handlers may have modified DOM
-// trees.
+// dispatched synchronous events (e.g. `blur`), whose handlers may have modified
+// the DOM tree.
 bool ContainerNode::RecheckNodeInsertionStructuralPrereq(
     const NodeVector& new_children,
     const Node* next,
@@ -387,21 +383,16 @@ void ContainerNode::DidInsertNodeVector(
     const NodeVector& post_insertion_notification_targets) {
   Node* unchanged_previous =
       targets.size() > 0 ? targets[0]->previousSibling() : nullptr;
-  const Document& document = GetDocument();
   for (const auto& target_node : targets) {
     ChildrenChanged(ChildrenChange::ForInsertion(
         *target_node, unchanged_previous, next, ChildrenChangeSource::kAPI));
-    CheckSoftNavigationHeuristicsTracking(document, *target_node);
+    SoftNavigationHeuristics::InsertedNode(target_node,
+                                           /*container_node=*/this);
   }
   for (const auto& descendant : post_insertion_notification_targets) {
     if (descendant->isConnected())
       descendant->DidNotifySubtreeInsertionsToDocument();
   }
-  for (const auto& target_node : targets) {
-    if (target_node->parentNode() == this)
-      DispatchChildInsertionEvents(*target_node);
-  }
-  DispatchSubtreeModifiedEvent();
 }
 
 class ContainerNode::AdoptAndInsertBefore {
@@ -539,8 +530,7 @@ void ContainerNode::InsertBeforeCommon(Node& next_child, Node& new_child) {
   DCHECK(EventDispatchForbiddenScope::IsEventDispatchForbidden());
 #endif
   DCHECK(ScriptForbiddenScope::IsScriptForbidden());
-  // Use insertBefore if you need to handle reparenting (and want DOM mutation
-  // events).
+  // Use insertBefore if you need to handle reparenting.
   DCHECK(!new_child.parentNode());
   DCHECK(!new_child.HasNextSibling());
   DCHECK(!new_child.HasPreviousSibling());
@@ -820,26 +810,20 @@ void ContainerNode::WillRemoveChild(Node& child) {
   DCHECK_EQ(child.parentNode(), this);
   ChildListMutationScope(*this).WillRemoveChild(child);
   child.NotifyMutationObserversNodeWillDetach();
-  DispatchChildRemovalEvents(child);
+  probe::WillRemoveDOMNode(&child);
 
   // Only disconnect subframes in the non-state-preserving-atomic-move case,
   // i.e., the traditional case where we intend to *fully* remove a node from
   // the tree, instead of atomically re-inserting it.
   if (!GetDocument().StatePreservingAtomicMoveInProgress()) {
-    // TODO(crbug.com/40150299): Mutation events should be suppressed during a
-    // state-preserving atomic move. Once this is implemented, enable the
-    // following CHECK which asserts that during this kind of move, the child
-    // node could not have moved documents during `DispatchChildRemovalEvents()`
-    // above.
-    //
-    // CHECK_EQ(GetDocument(), child.GetDocument());
+    CHECK_EQ(GetDocument(), child.GetDocument());
     ChildFrameDisconnector(
         child, ChildFrameDisconnector::DisconnectReason::kDisconnectSelf)
         .Disconnect();
   }
 
   if (GetDocument() != child.GetDocument()) {
-    // |child| was moved to another document by the DOM mutation event handler.
+    // |child| was moved to another document by a synchronous event handler.
     return;
   }
 
@@ -848,7 +832,7 @@ void ContainerNode::WillRemoveChild(Node& child) {
   // state.
   ScriptForbiddenScope script_forbidden_scope;
   EventDispatchForbiddenScope assert_no_event_dispatch;
-  // e.g. mutation event listener can create a new range.
+  // e.g. `blur` event listener can create a new range.
   GetDocument().NodeWillBeRemoved(child);
 
   if (auto* child_element = DynamicTo<Element>(child)) {
@@ -867,7 +851,7 @@ void ContainerNode::WillRemoveChildren() {
     Node& child = *node;
     mutation.WillRemoveChild(child);
     child.NotifyMutationObserversNodeWillDetach();
-    DispatchChildRemovalEvents(child);
+    probe::WillRemoveDOMNode(&child);
   }
 
   // Only disconnect subframes in the non-state-preserving-atomic-move case,
@@ -969,13 +953,13 @@ Node* ContainerNode::RemoveChild(Node* old_child,
   // focus to a node that will be detached, leaving behind a detached focused
   // node. Fix it.
 
-  // Mutation events might have moved this child into a different parent.
+  // Synchronous events like `blur` might have moved this child into a
+  // different parent.
   if (child->parentNode() != this) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotFoundError,
-        "The node to be removed is no longer a "
-        "child of this node. Perhaps it was moved "
-        "in response to a mutation?");
+        "The node to be removed is no longer a child of this node. Perhaps it "
+        "was moved in response to a mutation?");
     return nullptr;
   }
 
@@ -1000,7 +984,6 @@ Node* ContainerNode::RemoveChild(Node* old_child,
     ChildrenChanged(ChildrenChange::ForRemoval(*child, prev, next,
                                                ChildrenChangeSource::kAPI));
   }
-  DispatchSubtreeModifiedEvent();
   return child;
 }
 
@@ -1071,7 +1054,7 @@ void ContainerNode::ParserRemoveChild(Node& old_child) {
 
 // This differs from other remove functions because it forcibly removes all the
 // children, regardless of read-only status or event exceptions, e.g.
-void ContainerNode::RemoveChildren(SubtreeModificationAction action) {
+void ContainerNode::RemoveChildren() {
   if (!first_child_)
     return;
 
@@ -1128,9 +1111,6 @@ void ContainerNode::RemoveChildren(SubtreeModificationAction action) {
         .removed_nodes = std::move(removed_nodes)};
     ChildrenChanged(change);
   }
-
-  if (action == kDispatchSubtreeModifiedEvent)
-    DispatchSubtreeModifiedEvent();
 }
 
 void ContainerNode::AppendChildren(const VectorOf<Node>& new_children,
@@ -1553,69 +1533,6 @@ StaticElementList* ContainerNode::QuerySelectorAll(
   return QuerySelectorAll(selectors, ASSERT_NO_EXCEPTION);
 }
 
-static void DispatchChildInsertionEvents(Node& child) {
-  Document& document = child.GetDocument();
-  if (child.IsInShadowTree() || document.ShouldSuppressMutationEvents()) {
-    return;
-  }
-
-#if DCHECK_IS_ON()
-  DCHECK(!EventDispatchForbiddenScope::IsEventDispatchForbidden());
-#endif
-
-  Node* c = &child;
-
-  if (c->parentNode() &&
-      document.HasListenerType(Document::kDOMNodeInsertedListener)) {
-    c->DispatchScopedEvent(
-        *MutationEvent::Create(event_type_names::kDOMNodeInserted,
-                               Event::Bubbles::kYes, c->parentNode()));
-  }
-
-  // dispatch the DOMNodeInsertedIntoDocument event to all descendants
-  if (c->isConnected() && document.HasListenerType(
-                              Document::kDOMNodeInsertedIntoDocumentListener)) {
-    for (; c; c = NodeTraversal::Next(*c, &child)) {
-      c->DispatchScopedEvent(*MutationEvent::Create(
-          event_type_names::kDOMNodeInsertedIntoDocument, Event::Bubbles::kNo));
-    }
-  }
-}
-
-static void DispatchChildRemovalEvents(Node& child) {
-  probe::WillRemoveDOMNode(&child);
-
-  Document& document = child.GetDocument();
-  if (child.IsInShadowTree() || document.ShouldSuppressMutationEvents()) {
-    return;
-  }
-
-#if DCHECK_IS_ON()
-  DCHECK(!EventDispatchForbiddenScope::IsEventDispatchForbidden());
-#endif
-
-  Node* c = &child;
-
-  // Dispatch pre-removal mutation events.
-  if (c->parentNode() &&
-      document.HasListenerType(Document::kDOMNodeRemovedListener)) {
-    NodeChildRemovalTracker scope(child);
-    c->DispatchScopedEvent(
-        *MutationEvent::Create(event_type_names::kDOMNodeRemoved,
-                               Event::Bubbles::kYes, c->parentNode()));
-  }
-
-  // Dispatch the DOMNodeRemovedFromDocument event to all descendants.
-  if (c->isConnected() &&
-      document.HasListenerType(Document::kDOMNodeRemovedFromDocumentListener)) {
-    NodeChildRemovalTracker scope(child);
-    for (; c; c = NodeTraversal::Next(*c, &child)) {
-      c->DispatchScopedEvent(*MutationEvent::Create(
-          event_type_names::kDOMNodeRemovedFromDocument, Event::Bubbles::kNo));
-    }
-  }
-}
-
 void ContainerNode::SetRestyleFlag(DynamicRestyleFlags mask) {
   DCHECK(IsElementNode() || IsShadowRoot());
   EnsureRareData().SetRestyleFlag(mask);
@@ -1801,7 +1718,7 @@ void ContainerNode::InvalidateNodeListCachesInAncestors(
   if (!GetDocument().ShouldInvalidateNodeListCaches(attr_name))
     return;
 
-  GetDocument().InvalidateNodeListCaches(attr_name);
+  InvalidateNodeListCachesScope::Invalidate(GetDocument(), attr_name);
 
   for (ContainerNode* node = this; node; node = node->parentNode()) {
     if (NodeListsNodeData* lists = node->NodeLists())
@@ -1952,31 +1869,6 @@ void ContainerNode::ReplaceChildren(const VectorOf<Node>& nodes,
   }
 
   AppendChildren(nodes, exception_state);
-}
-
-void ContainerNode::CheckSoftNavigationHeuristicsTracking(
-    const Document& document,
-    Node& inserted_node) {
-  if (!document.IsTrackingSoftNavigationHeuristics()) {
-    return;
-  }
-  if (!inserted_node.isConnected()) {
-    return;
-  }
-  LocalDOMWindow* window = document.domWindow();
-  if (!window) {
-    return;
-  }
-  if (SoftNavigationHeuristics* heuristics =
-          window->GetSoftNavigationHeuristics()) {
-    // When a child node, which is an HTML-element, is modified within a parent
-    // (added, moved, etc), mark that child as modified by soft navigation.
-    // Otherwise, if the child is not an HTML-element, mark the parent instead.
-    // TODO(crbug.com/1521100): This does not filter out updates from isolated
-    // worlds. Should it?
-    Node* updated_node = inserted_node.IsHTMLElement() ? &inserted_node : this;
-    heuristics->ModifiedDOM(updated_node);
-  }
 }
 
 String ContainerNode::getHTML(const GetHTMLOptions* options,

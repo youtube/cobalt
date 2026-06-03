@@ -5,6 +5,7 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_THREAD_CONTROLLER_H_
 #define BASE_TASK_SEQUENCE_MANAGER_THREAD_CONTROLLER_H_
 
+#include <array>
 #include <optional>
 #include <stack>
 #include <string>
@@ -28,7 +29,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 
@@ -375,12 +376,10 @@ class BASE_EXPORT ThreadController {
 
       // non-null when recording is enabled.
       raw_ptr<HistogramBase> histogram_ = nullptr;
-#if BUILDFLAG(ENABLE_BASE_TRACING)
       std::optional<perfetto::Track> perfetto_track_;
 
       // True if tracing was enabled during the last pass of RecordTimeInPhase.
       bool was_tracing_enabled_ = false;
-#endif
       const raw_ref<const RunLevelTracker> outer_;
     } time_keeper_{*this};
 

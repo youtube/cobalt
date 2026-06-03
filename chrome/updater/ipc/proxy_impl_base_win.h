@@ -16,7 +16,6 @@
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
@@ -42,10 +41,7 @@ class ProxyImplBase {
  public:
   // Releases `impl` on `task_runner_`.
   static void Destroy(scoped_refptr<Derived> impl) {
-    scoped_refptr<base::SequencedTaskRunner> task_runner = impl->task_runner_;
-    task_runner->PostTask(FROM_HERE,
-                          base::BindOnce([](scoped_refptr<Derived> /*impl*/) {},
-                                         std::move(impl)));
+    impl->task_runner_->ReleaseSoon(FROM_HERE, std::move(impl));
   }
 
  protected:

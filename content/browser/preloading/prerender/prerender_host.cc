@@ -14,6 +14,7 @@
 #include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/trace_event/named_trigger.h"
@@ -572,7 +573,7 @@ void PrerenderHost::ReadyToCommitNavigation(
   // ReadyToCommitNavigation is called when the headers are received.
   were_headers_received_ = true;
   for (auto& observer : observers_) {
-    observer.OnHeadersReceived();
+    observer.OnHeadersReceived(*navigation_handle);
   }
 }
 
@@ -1277,8 +1278,8 @@ void PrerenderHost::SetFailureReason(
     case PrerenderFinalStatus::kMemoryPressureAfterTriggered:
     case PrerenderFinalStatus::kPrerenderingDisabledByDevTools:
     case PrerenderFinalStatus::kActivatedWithAuxiliaryBrowsingContexts:
-    case PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded:
-    case PrerenderFinalStatus::kMaxNumOfRunningNonEagerPrerendersExceeded:
+    case PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded:
+    case PrerenderFinalStatus::kMaxNumOfRunningNonImmediatePrerendersExceeded:
     case PrerenderFinalStatus::kMaxNumOfRunningEmbedderPrerendersExceeded:
     case PrerenderFinalStatus::kPrerenderingUrlHasEffectiveUrl:
     case PrerenderFinalStatus::kRedirectedPrerenderingUrlHasEffectiveUrl:
@@ -1442,7 +1443,7 @@ base::TimeDelta PrerenderHost::WaitUntilHeadTimeout() {
   if (IsSpeculationRuleType(attributes_.trigger_type)) {
     CHECK(eagerness().has_value());
     switch (eagerness().value()) {
-      case blink::mojom::SpeculationEagerness::kEager:
+      case blink::mojom::SpeculationEagerness::kImmediate:
         timeout_in_milliseconds =
             features::kPrerender2NoVarySearchWaitForHeadersTimeoutEagerPrerender
                 .Get();
@@ -1643,8 +1644,11 @@ void PrerenderHost::AddAdditionalRequestHeaders(
   // https://github.com/WICG/nav-speculation/issues/133).
   headers.SetHeader(blink::kSecPurposeHeaderName,
                     blink::kSecPurposePrefetchPrerenderHeaderValue);
-  headers.SetHeader(blink::kPurposeHeaderName,
-                    blink::kSecPurposePrefetchHeaderValue);
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kRemovePurposeHeaderForPrefetch)) {
+    headers.SetHeader(blink::kPurposeHeaderName,
+                      blink::kSecPurposePrefetchHeaderValue);
+  }
 
   // Add the "Sec-Speculation-Tags" header to main frame initial prerender
   // navigation.

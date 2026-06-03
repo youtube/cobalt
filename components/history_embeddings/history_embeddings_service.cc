@@ -30,7 +30,7 @@
 #include "components/history_embeddings/history_embeddings_features.h"
 #include "components/history_embeddings/sql_database.h"
 #include "components/history_embeddings/vector_database.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
 #include "components/passage_embeddings/passage_embeddings_types.h"
@@ -311,8 +311,7 @@ void HistoryEmbeddingsService::ComputeAndStorePassageEmbeddings(
 }
 
 void HistoryEmbeddingsService::OnOsCryptAsyncReady(
-    os_crypt_async::Encryptor encryptor,
-    bool success) {
+    os_crypt_async::Encryptor encryptor) {
   storage_.AsyncCall(&Storage::SetEmbedderMetadata)
       .WithArgs(embedder_metadata_, std::move(encryptor));
 
@@ -593,7 +592,7 @@ void HistoryEmbeddingsService::EmbedderMetadataUpdated(
     return;
   }
   embedder_metadata_ = metadata;
-  os_crypt_async_subscription_ = os_crypt_async_->GetInstance(
+  os_crypt_async_->GetInstance(
       base::BindOnce(&HistoryEmbeddingsService::OnOsCryptAsyncReady,
                      weak_ptr_factory_.GetWeakPtr()));
 }

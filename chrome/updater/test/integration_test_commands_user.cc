@@ -15,6 +15,7 @@
 #include "base/values.h"
 #include "base/version.h"
 #include "build/build_config.h"
+#include "chrome/updater/external_constants.h"
 #include "chrome/updater/test/integration_test_commands.h"
 #include "chrome/updater/test/integration_tests_impl.h"
 #include "chrome/updater/test/server.h"
@@ -85,14 +86,17 @@ class IntegrationTestCommandsUser : public IntegrationTestCommands {
 
   void EnterTestMode(const GURL& update_url,
                      const GURL& crash_upload_url,
-                     const GURL& device_management_url,
                      const GURL& app_logo_url,
+                     const GURL& event_logging_url,
                      base::TimeDelta idle_timeout,
                      base::TimeDelta server_keep_alive_time,
-                     base::TimeDelta ceca_connection_timeout) const override {
+                     base::TimeDelta ceca_connection_timeout,
+                     std::optional<EventLoggingPermissionProvider>
+                         event_logging_permission_provider) const override {
     updater::test::EnterTestMode(
-        update_url, crash_upload_url, device_management_url, app_logo_url,
-        idle_timeout, server_keep_alive_time, ceca_connection_timeout);
+        update_url, crash_upload_url, app_logo_url, event_logging_url,
+        idle_timeout, server_keep_alive_time, ceca_connection_timeout,
+        std::move(event_logging_permission_provider));
   }
 
   void ExitTestMode() const override {
@@ -503,6 +507,23 @@ class IntegrationTestCommandsUser : public IntegrationTestCommands {
         updater_scope_, is_legacy_install, is_silent_install, language);
   }
 
+  void RunMockOfflineMetaInstall(const std::string& app_id,
+                                 const base::Version& version,
+                                 const std::string& tag,
+                                 const base::FilePath& installer_path,
+                                 const std::string& arguments,
+                                 bool is_silent_install,
+                                 const std::string& platform,
+                                 const std::string& installer_text,
+                                 const bool always_launch_cmd,
+                                 const int expected_exit_code,
+                                 bool expect_success) override {
+    updater::test::RunMockOfflineMetaInstall(
+        updater_scope_, app_id, version, tag, installer_path, arguments,
+        is_silent_install, platform, installer_text, always_launch_cmd,
+        expected_exit_code, expect_success);
+  }
+
   void DMPushEnrollmentToken(const std::string& enrollment_token) override {
     FAIL() << __func__ << ": requires system scope.";
   }
@@ -536,6 +557,16 @@ class IntegrationTestCommandsUser : public IntegrationTestCommands {
 
   void UninstallEnterpriseCompanionApp() override {
     updater::test::UninstallEnterpriseCompanionApp();
+  }
+
+  void SetAppAllowsUsageStats(const std::string& identifier,
+                              bool allowed) override {
+    updater::test::SetAppAllowsUsageStats(UpdaterScope::kUser, identifier,
+                                          allowed);
+  }
+
+  void ClearAppAllowsUsageStats(const std::string& identifier) override {
+    updater::test::ClearAppAllowsUsageStats(UpdaterScope::kUser, identifier);
   }
 
  private:

@@ -238,6 +238,14 @@ const char kValidInstrumentIconRequired[] =
 const char kInvalidIcon[] =
     "The \"instrument.icon\" either could not be downloaded or decoded.";
 
+const char kNonUtf8InstrumentDetailsString[] =
+    "The \"secure-payment-confirmation\" method requires the "
+    "\"instrument.details\" field to be UTF8.";
+
+const char kTooLongInstrumentDetailsString[] =
+    "The \"secure-payment-confirmation\" method requires the "
+    "\"instrument.details\" field to be at most 4096 characters long.";
+
 const char kRpIdRequired[] =
     "The \"secure-payment-confirmation\" method requires a valid domain in the "
     "\"rpId\" field.";
@@ -265,6 +273,23 @@ const char kIssuerNameRequired[] =
 const char kValidIssuerIconRequired[] =
     "The \"secure-payment-confirmation\" method requires a valid URL in the "
     "\"issuerInfo.icon\" field.";
+
+const char kNonNullPaymentEntityLogoRequired[] =
+    "The \"secure-payment-confirmation\" method requires that each entry in "
+    "\"paymentEntitiesLogos\" is non-null.";
+
+extern const char kValidLogoUrlRequired[] =
+    "The \"secure-payment-confirmation\" method requires that each entry in "
+    "\"paymentEntitiesLogos\" has a valid URL in the \"url\" field.";
+
+extern const char kValidLogoUrlSchemeRequired[] =
+    "The \"secure-payment-confirmation\" method requires that each entry in "
+    "\"paymentEntitiesLogos\" has a URL whose scheme is one of \"https\", "
+    "\"http\", or \"data\" in the \"url\" field.";
+
+extern const char kLogoLabelRequired[] =
+    "The \"secure-payment-confirmation\" method requires that each entry in "
+    "\"paymentEntitiesLogos\" has a non-empty \"label\" field.";
 
 }  // namespace errors
 }  // namespace payments

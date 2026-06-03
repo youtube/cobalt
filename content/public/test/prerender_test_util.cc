@@ -55,8 +55,8 @@ constexpr char kAddSpeculationRuleWithRulesetTagScript[] = R"({
 std::string ConvertEagernessToString(
     blink::mojom::SpeculationEagerness eagerness) {
   switch (eagerness) {
-    case blink::mojom::SpeculationEagerness::kEager:
-      return "eager";
+    case blink::mojom::SpeculationEagerness::kImmediate:
+      return "immediate";
     case blink::mojom::SpeculationEagerness::kModerate:
       return "moderate";
     case blink::mojom::SpeculationEagerness::kConservative:
@@ -300,7 +300,7 @@ class PrerenderHostObserverImpl : public PrerenderHost::Observer {
       std::move(waiting_for_activation_).Run();
   }
 
-  void OnHeadersReceived() override {
+  void OnHeadersReceived(NavigationHandle& navigation_handle) override {
     received_headers_ = true;
     if (waiting_for_headers_) {
       std::move(waiting_for_headers_).Run();
@@ -491,13 +491,11 @@ PrerenderTestHelper::~PrerenderTestHelper() = default;
 
 void PrerenderTestHelper::RegisterServerRequestMonitor(
     net::test_server::EmbeddedTestServer* http_server) {
-  EXPECT_FALSE(http_server->Started());
   http_server->RegisterRequestMonitor(base::BindRepeating(
       &PrerenderTestHelper::MonitorResourceRequest, base::Unretained(this)));
 }
 void PrerenderTestHelper::RegisterServerRequestMonitor(
     net::test_server::EmbeddedTestServer& test_server) {
-  EXPECT_FALSE(test_server.Started());
   test_server.RegisterRequestMonitor(base::BindRepeating(
       &PrerenderTestHelper::MonitorResourceRequest, base::Unretained(this)));
 }
@@ -512,6 +510,20 @@ FrameTreeNodeId PrerenderTestHelper::GetHostForUrl(WebContents& web_contents,
 
 FrameTreeNodeId PrerenderTestHelper::GetHostForUrl(const GURL& url) {
   return GetHostForUrl(*GetWebContents(), url);
+}
+
+// static
+FrameTreeNodeId PrerenderTestHelper::GetPrewarmSearchResultHost(
+    WebContents& web_contents,
+    const GURL& prewarm_url) {
+  auto* host = GetPrerenderHostRegistry(&web_contents)
+                   .FindPrewarmSearchResultHostForTesting(prewarm_url);
+  return host ? host->frame_tree_node_id() : FrameTreeNodeId();
+}
+
+FrameTreeNodeId PrerenderTestHelper::GetPrewarmSearchResultHost(
+    const GURL& url) {
+  return GetPrewarmSearchResultHost(*GetWebContents(), url);
 }
 
 bool PrerenderTestHelper::HasNewTabHandle(FrameTreeNodeId host_id) {

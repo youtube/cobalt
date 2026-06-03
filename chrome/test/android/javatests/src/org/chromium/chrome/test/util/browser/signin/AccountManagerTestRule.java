@@ -24,14 +24,13 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.R;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
-import org.chromium.components.signin.base.AccountCapabilities;
 import org.chromium.components.signin.base.AccountInfo;
-import org.chromium.components.signin.base.CoreAccountId;
 import org.chromium.components.signin.identitymanager.AccountInfoServiceProvider;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.test.util.FakeAccountInfoService;
 import org.chromium.components.signin.test.util.FakeAccountManagerFacade;
 import org.chromium.components.signin.test.util.TestAccounts;
+import org.chromium.google_apis.gaia.CoreAccountId;
 
 /**
  * This test rule mocks AccountManagerFacade.
@@ -176,10 +175,9 @@ public class AccountManagerTestRule implements TestRule {
         mFakeAccountManagerFacade.setAccountFetchFailed();
     }
 
-    /** See {@link FakeAccountManagerFacade#blockGetCoreAccountInfos(boolean)}. */
-    public FakeAccountManagerFacade.UpdateBlocker blockGetCoreAccountInfosUpdate(
-            boolean populateCache) {
-        return mFakeAccountManagerFacade.blockGetCoreAccountInfos(populateCache);
+    /** See {@link FakeAccountManagerFacade#blockGetAccounts(boolean)}. */
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
+        return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
     }
 
     /**
@@ -208,11 +206,7 @@ public class AccountManagerTestRule implements TestRule {
      * show to minors.
      */
     public void resolveMinorModeToRestricted(CoreAccountId accountId) {
-        // TODO(b/343384614): append instead of overriding
-        overrideCapabilities(accountId, TestAccounts.MINOR_MODE_REQUIRED);
-    }
-
-    private void overrideCapabilities(CoreAccountId accountId, AccountCapabilities capabilities) {
-        mFakeAccountManagerFacade.setAccountCapabilities(accountId, capabilities);
+        mFakeAccountManagerFacade.updateAccountCapabilities(
+                accountId, TestAccounts.MINOR_MODE_REQUIRED);
     }
 }

@@ -7,6 +7,7 @@
 <translation id="102763973188675173">Google Chrome ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰਕੇ ਕੰਟਰੋਲ ਕਰੋ। ਅੱਪਡੇਟ ਉਪਲਬਧ ਹੈ।</translation>
 <translation id="1028061813283459617">ਤੁਹਾਡੇ Google ਖਾਤੇ ਵਿੱਚ ਡਾਟੇ ਨੂੰ ਰੱਖਿਅਤ ਰੱਖਦੇ ਹੋਏ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ ਤੋਂ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟਾ ਮਿਟਾਉਣ ਲਈ, <ph name="BEGIN_LINK" />Chrome ਤੋਂ ਸਾਈਨ-ਆਊਟ ਕਰੋ<ph name="END_LINK" />।</translation>
 <translation id="1042270987544905725">Chrome ਦੀ ਸਾਈਨ-ਇਨ ਵਿੰਡੋ ਨੂੰ ਬੰਦ ਕਰਨ ਲਈ ਕਲਿੱਕ ਕਰੋ</translation>
+<translation id="1051793555070215510">ਇਸ 1 ਮਿੰਟ ਦੇ ਸਰਵੇਖਣ ਨੂੰ ਭਰ ਕੇ ਇਨਕੋਗਨਿਟੋ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰੋ।</translation>
 <translation id="1059838145689930908">ਇਸ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ <ph name="USER_EMAIL_ADDRESS" /> ਵਜੋਂ ਵਰਤਣ ਲਈ, Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ।</translation>
 <translation id="1065672644894730302">ਤੁਹਾਡੀਆਂ ਤਰਜੀਹਾਂ ਪੜ੍ਹੀਆਂ ਨਹੀਂ ਜਾ ਸਕਦੀਆਂ।
 
@@ -56,6 +57,7 @@
 <translation id="1682634494516646069">Google Chrome ਆਪਣੀ ਡਾਟਾ ਡਾਇਰੈਕਟਰੀ ਨੂੰ ਪੜ੍ਹ ਅਤੇ ਲਿਖ ਨਹੀਂ ਸਕਦਾ:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">ਜਦੋਂ ਤੁਸੀਂ ਪਤਾ ਬਾਰ ਜਾਂ ਖੋਜ ਬਾਕਸ ਵਿੱਚ ਟਾਈਪ ਕਰਦੇ ਹੋ, ਤਾਂ, Chrome ਤੁਹਾਡੇ ਵੱਲੋਂ ਟਾਈਪ ਕੀਤੇ ਗਏ ਸ਼ਬਦਾਂ ਨੂੰ ਸੁਝਾਅ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ ਤੁਹਾਡੀ ਸੰਸਥਾ ਦੇ ਖੋਜ, AI ਅਤੇ ਏਜੰਟ ਟੂਲਾਂ ਨੂੰ ਭੇਜਦਾ ਹੈ।</translation>
 <translation id="1698376642261615901">Google Chrome ਇੱਕ ਵੈੱਬ ਬ੍ਰਾਊਜ਼ਰ ਹੈ ਜੋ ਵੈੱਬ-ਪੰਨਿਆਂ ਅਤੇ ਐਪਲੀਕੇਸ਼ਨਾਂ ਨੂੰ ਬਹੁਤ ਤੇਜ਼ ਚਲਾਉਂਦਾ ਹੈ। ਇਹ ਤੇਜ਼, ਸਥਿਰ ਅਤੇ ਵਰਤੋਂ ਵਿੱਚ ਆਸਾਨ ਹੈ। Google Chrome ਵਿੱਚ ਪਹਿਲਾਂ ਤੋਂ ਮੌਜੂਦ ਮਲਵੇਅਰ ਅਤੇ ਫਿਸ਼ਿੰਗ ਸੁਰੱਖਿਆ ਨਾਲ ਵੱਧ ਸੁਰੱਖਿਅਤ ਤਰੀਕੇ ਨਾਲ ਵੈੱਬ ਬ੍ਰਾਊਜ਼ ਕਰੋ।</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome ਇੱਕ ਘੰਟੇ ਵਿੱਚ ਮੁੜ-ਲਾਂਚ ਹੋਵੇਗਾ}one{Chrome # ਘੰਟੇ ਵਿੱਚ ਮੁੜ-ਲਾਂਚ ਹੋਵੇਗਾ}other{Chrome # ਘੰਟਿਆਂ ਵਿੱਚ ਮੁੜ-ਲਾਂਚ ਹੋਵੇਗਾ}}</translation>
 <translation id="1722488837206509557">ਇਹ ਤੁਹਾਨੂੰ ਉਪਲਬਧ ਡੀਵਾਈਸਾਂ ਵਿੱਚੋਂ ਚੁਣਨ ਅਤੇ ਉਨ੍ਹਾਂ 'ਤੇ ਸਮੱਗਰੀ ਦਿਖਾਉਣ ਦੀ ਆਗਿਆ ਦੇਵੇਗਾ।</translation>
@@ -64,6 +66,7 @@
 <translation id="178701303897325119">ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਹੁਣ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। Chrome ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਇਸਦੀ ਬਜਾਏ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ।</translation>
 <translation id="1812689907177901597">ਇਸਨੂੰ ਬੰਦ ਕਰਕੇ, ਤੁਸੀਂ Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕੀਤੇ ਬਿਨਾਂ Gmail ਵਰਗੀਆਂ Google ਸਾਈਟਾਂ 'ਤੇ ਸਾਈਨ-ਇਨ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਹੌਲੀ ਕਰਨ ਵਾਲੇ ਟੈਬ ਨੂੰ ਰੋਕਣ ਦੀ ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ}one{Chrome ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਹੌਲੀ ਕਰਨ ਵਾਲੇ ਟੈਬ ਨੂੰ ਰੋਕਣ ਦੀ ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ}other{Chrome ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਹੌਲੀ ਕਰਨ ਵਾਲੇ ਟੈਬਾਂ ਨੂੰ ਰੋਕਣ ਦੀ ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ}}</translation>
+<translation id="1832046143430087831">ਇਸ ਨਾਲ Chrome ਦੇ V8 ਇੰਜਣ ਨਾਲ ਸਾਈਟਾਂ ਦੀ ਗਤੀ ਵਧ ਜਾਂਦੀ ਹੈ, ਪਰ Chrome 'ਤੇ ਹਮਲਿਆਂ ਤੋਂ ਸੁਰੱਖਿਆ ਘਟ ਜਾਂਦੀ ਹੈ। ਇਹ ਸੈਟਿੰਗ ਬੰਦ ਹੈ।</translation>
 <translation id="1838374766361614909">ਖੋਜ ਹਟਾਓ</translation>
 <translation id="1860536484129686729">Chrome ਨੂੰ ਇਸ ਸਾਈਟ ਵਾਸਤੇ ਤੁਹਾਡੇ ਕੈਮਰੇ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਲਈ ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ</translation>
 <translation id="1873233029667955273">Google Chrome ਤੁਹਾਡਾ ਪੂਰਵ-ਨਿਰਧਾਰਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਹੈ</translation>
@@ -222,6 +225,7 @@
 <translation id="3716540481907974026">ChromeOS Flex ਵਰਜਨ</translation>
 <translation id="3718181793972440140">ਇਸ ਨਾਲ ਇਸ ਡੀਵਾਈਸ ਤੋਂ 1 ਆਈਟਮ ਮਿਟਾ ਦਿੱਤੀ ਜਾਵੇਗੀ। ਬਾਅਦ ਵਿੱਚ ਆਪਣੇ ਡਾਟੇ ਨੂੰ ਮੁੜ-ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, Chrome 'ਤੇ <ph name="USER_EMAIL" /> ਵਜੋਂ ਸਾਈਨ ਇਨ ਕਰੋ।</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ। <ph name="BEGIN_LINK" />ਸਮਰਥਿਤ ਐਕਸਟੈਂਸ਼ਨਾਂ ਬਾਰੇ ਹੋਰ ਜਾਣੋ<ph name="END_LINK" />}one{Chrome ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ। <ph name="BEGIN_LINK" />ਸਮਰਥਿਤ ਐਕਸਟੈਂਸ਼ਨਾਂ ਬਾਰੇ ਹੋਰ ਜਾਣੋ<ph name="END_LINK" />}other{Chrome ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਹਟਾ ਦਿਓ। <ph name="BEGIN_LINK" />ਸਮਰਥਿਤ ਐਕਸਟੈਂਸ਼ਨਾਂ ਬਾਰੇ ਹੋਰ ਜਾਣੋ<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Chrome ਨੂੰ ਸਥਾਪਤ ਕਰਨ ਬਾਰੇ ਹੋਰ ਜਾਣੋ</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex ਸਾਈਨ-ਇਨ ਕਰਨ ਵੇਲੇ ਗੜਬੜ ਹੋਣ ਕਰਕੇ ਤੁਹਾਡਾ ਡਾਟਾ ਸਿੰਕ ਨਹੀਂ ਕਰ ਸਕਿਆ।</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -318,6 +322,7 @@
 <translation id="4970880042055371251">ChromeOS ਵਰਜਨ</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">“Google Password Manager” 'ਤੇ ਕਲਿੱਕ ਕਰੋ</translation>
+<translation id="504867494566807945">ਕਿਸੇ ਵੀ ਐਪ ਤੋਂ Chrome ਵਿੱਚ ਲਿੰਕ ਖੋਲ੍ਹੋ। ਨਾਲ ਹੀ, ਆਸਾਨ ਪਹੁੰਚ ਲਈ, ਇਹ ਤੁਹਾਡੇ ਟਾਸਕਬਾਰ ਨਾਲ ਪਿੰਨ ਹੋ ਜਾਂਦਾ ਹੈ।</translation>
 <translation id="5114340746415930644">ਆਪਣੇ ਖਾਤੇ, <ph name="USER_EMAIL" /> ਵਿੱਚ Chrome ਡਾਟੇ ਨੂੰ ਵਰਤਣ ਅਤੇ ਰੱਖਿਅਤ ਕਰਨ ਲਈ ਆਪਣਾ ਪਾਸਫਰੇਜ਼ ਦਾਖਲ ਕਰੋ</translation>
 <translation id="5120334927898581447">ਹੋਰ Google ਸੇਵਾਵਾਂ ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰਨ 'ਤੇ, Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="5126049312684316860">Chrome ਉਨ੍ਹਾਂ ਪੰਨਿਆਂ ਤੋਂ ਵੀ ਜ਼ਿਆਦਾ ਪੰਨਿਆਂ ਨੂੰ ਪ੍ਰੀਲੋਡ ਕਰ ਦਿੰਦਾ ਹੈ ਜਿਨ੍ਹਾਂ 'ਤੇ ਤੁਹਾਡੇ ਜਾਣ ਦੀ ਸੰਭਾਵਨਾ ਹੁੰਦੀ ਹੈ, ਤਾਂ ਜੋ ਤੁਹਾਡੇ ਜਾਣ 'ਤੇ ਉਹ ਹੋਰ ਤੇਜ਼ੀ ਨਾਲ ਲੋਡ ਹੋ ਸਕਣ</translation>
@@ -398,6 +403,7 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="6075300983329039771">ਤੁਹਾਡੀ ਸੰਸਥਾ, <ph name="MANAGER" /> ਲਈ ਤੁਹਾਨੂੰ Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰਨ ਦੀ ਲੋੜ ਹੈ</translation>
 <translation id="6113794647360055231">Chrome ਬਿਹਤਰ ਬਣ ਗਿਆ ਹੈ</translation>
 <translation id="6116252277240876590">ਇਸ ਭਾਸ਼ਾ ਦੀ ਵਰਤੋਂ Chrome ਵਿੱਚ ਮੀਨੂ, ਸੈਟਿੰਗਾਂ, ਅਲਰਟ ਅਤੇ ਹੋਰ ਲਿਖਤ ਦਿਖਾਉਣ ਲਈ ਕੀਤੀ ਜਾਂਦੀ ਹੈ</translation>
+<translation id="6127237283587442951">Chrome ਦੀ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਤੌਰ 'ਤੇ ਵਰਤੋਂ ਕਰੋ ਅਤੇ ਇਸਨੂੰ ਪਿੰਨ ਕਰੋ</translation>
 <translation id="6134085236017727171">ਆਪਣੇ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ, <ph name="BEGIN_LINK" />ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ<ph name="END_LINK" /> ਵਿੱਚ ਜਾ ਕੇ Chrome ਨੂੰ ਇਸ ਤੱਕ ਪਹੁੰਚ ਦਿਓ</translation>
 <translation id="6135456723633883042">ਇਨ੍ਹਾਂ ਟੈਬਾਂ ਵੱਲੋਂ ਵਾਧੂ ਸਰੋਤਾਂ ਦੀ ਵਰਤੋਂ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ। ਕਾਰਗੁਜ਼ਾਰੀ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ, Chrome ਨੂੰ ਉਨ੍ਹਾਂ ਟੈਬਾਂ ਨੂੰ ਅਕਿਰਿਆਸ਼ੀਲ ਕਰਨ ਦਿਓ।</translation>
 <translation id="6145313976051292476">Chrome ਵਿੱਚ PDF ਖੋਲ੍ਹੋ</translation>
@@ -447,12 +453,12 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="6718739135284199302">Chrome ਨੂੰ ਵਧੇਰੇ ਤੇਜ਼ ਬਣਾਓ</translation>
 <translation id="6735387454586646204">ChromeOS Flex ਸਿਸਟਮ</translation>
 <translation id="6750954913813541382">ਸ਼ਬਦ-ਜੋੜ ਗੜਬੜੀਆਂ ਠੀਕ ਕਰਨ ਲਈ, Chrome, ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਤੁਹਾਡੇ ਵੱਲੋਂ ਟਾਈਪ ਕੀਤੀ ਜਾਣ ਵਾਲੀ ਲਿਖਤ Google ਨੂੰ ਭੇਜਦਾ ਹੈ</translation>
+<translation id="6760235774835597023">ਇਸ ਨਾਲ Chrome ਦੇ V8 ਇੰਜਣ ਨਾਲ ਸਾਈਟਾਂ ਦੀ ਗਤੀ ਵਧ ਜਾਂਦੀ ਹੈ, ਪਰ Chrome 'ਤੇ ਹਮਲਿਆਂ ਤੋਂ ਸੁਰੱਖਿਆ ਘਟ ਜਾਂਦੀ ਹੈ। ਇਹ ਸੈਟਿੰਗ ਚਾਲੂ ਹੈ।</translation>
 <translation id="677276454032249905">ਕੀ ਫਿਰ ਵੀ Chrome ਤੋਂ ਬਾਹਰ ਜਾਣਾ ਹੈ?</translation>
 <translation id="6794858689789885890">Chrome ਨੂੰ ਬੰਦ ਕਰਨ ਵੇਲੇ ਆਪਣੇ ਡੀਵਾਈਸ ਤੋਂ ਸਾਈਟ ਡਾਟੇ ਨੂੰ ਹਮੇਸ਼ਾਂ ਮਿਟਾਓ</translation>
 <translation id="6831043979455480757">ਅਨੁਵਾਦ ਕਰੋ</translation>
 <translation id="683440813066116847">mDNS ਟਰੈਫ਼ਿਕ ਦੀ ਇਜਾਜ਼ਤ ਦੇਣ ਲਈ Google Chrome Canary ਲਈ ਇਨਬਾਊਂਡ ਨਿਯਮ।</translation>
 <translation id="684888714667046800">ਇੰਟਰਨੈੱਟ ਨਾਲ ਕਨੈਕਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ। ਜੇ ਤੁਸੀਂ ਫ਼ਾਇਰਵਾਲ ਦੀ ਵਰਤੋਂ ਕਰਦੇ ਹੋ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਇਹ ਪੱਕਾ ਕਰੋ ਕਿ <ph name="PRODUCT_EXE_NAME" /> ਪ੍ਰਵਾਨਿਤ ਸੂਚੀ ਸ਼ਾਮਲ ਹੈ।</translation>
-<translation id="6851981911629679515">Chrome ਦੇ JavaScript ਅਤੇ WebAssembly ਇੰਜਣ ਵਿੱਚ ਵਧੀਕ ਸੁਰੱਖਿਆ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="6877155553248388166">ਖੋਜ ਖੇਤਰ ਦਾ ਹੇਠਲਾ ਸੱਜਾ ਕੋਨਾ: ਸੱਜੇ ਤੋਂ <ph name="RIGHT" />%, ਹੇਠਾਂ ਤੋਂ <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Chrome ਨੂੰ ਅੱਪਡੇਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="6885412569789873916">Chrome ਬੀਟਾ ਐਪਾਂ</translation>
@@ -512,7 +518,6 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="7572537927358445944">ਬੰਦ ਹੈ • Chrome ਇਸ ਗੱਲ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰ ਸਕਦਾ ਕਿ ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਕਿੱਥੋਂ ਆਉਂਦੀ ਹੈ</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ਸਥਾਪਨਾਕਾਰ</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome ਵਿੱਚ ਸੁਆਗਤ ਹੈ</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> ਦੀ ਸ਼ਰਤ ਹੈ ਕਿ ਤੁਸੀਂ ਇਸ ਡੀਵਾਈਸ ਨੂੰ ਵਰਤਣ ਤੋਂ ਪਹਿਲਾਂ ਹੇਠਾਂ ਦਿੱਤੇ ਸੇਵਾ ਦੇ ਨਿਯਮ ਪੜ੍ਹ ਕੇ ਸਵੀਕਾਰ ਕਰੋ। ਇਹ ਨਿਯਮ Google ChromeOS ਦੇ ਨਿਯਮਾਂ ਦਾ ਵਿਸਤਾਰ ਨਹੀਂ ਕਰਦੇ, ਇਨ੍ਹਾਂ ਵਿੱਚ ਕੋਈ ਸੋਧ ਨਹੀਂ ਕਰਦੇ ਜਾਂ ਇਨ੍ਹਾਂ ਨੂੰ ਸੀਮਤ ਨਹੀਂ ਕਰਦੇ ਹਨ।</translation>
 <translation id="7629695634924605473">Chrome ਤੁਹਾਨੂੰ ਇਹ ਗੱਲ ਦੱਸਦਾ ਹੈ ਕਿ ਤੁਹਾਡੇ ਪਾਸਵਰਡਾਂ ਨਾਲ ਪਹਿਲਾਂ ਕਦੇ ਛੇੜਛਾੜ ਹੋਈ ਹੈ ਜਾਂ ਨਹੀਂ</translation>
 <translation id="7641148173327520642">ਤੁਹਾਡੇ ਸਿਸਟਮ ਪ੍ਰਸ਼ਾਸਕ ਨੇ <ph name="TARGET_URL_HOSTNAME" /> ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਵਾਸਤੇ <ph name="ALTERNATIVE_BROWSER_NAME" /> ਖੋਲ੍ਹਣ ਲਈ Google Chrome ਦਾ ਸੰਰੂਪਣ ਕੀਤਾ ਹੈ।</translation>
@@ -556,7 +561,6 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="8019103195866286235">ਇਸ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਇਸਦੇ ਵਿਕਾਸਕਾਰ ਵੱਲੋਂ ਅਣਪ੍ਰਕਾਸ਼ਿਤ ਕੀਤਾ ਗਿਆ ਸੀ ਅਤੇ ਇਹ ਅਸੁਰੱਖਿਅਤ ਹੋ ਸਕਦੀ ਹੈ। ਇਸਨੂੰ Chrome ਤੋਂ ਹਟਾਓ, ਤਾਂ ਜੋ ਇਹ ਹੁਣ ਤੁਹਾਡੀ ਨਿੱਜੀ ਜਾਣਕਾਰੀ ਸਮੇਤ ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੀਆਂ ਗਈਆਂ ਸਾਈਟਾਂ 'ਤੇ ਮੌਜੂਦ ਤੁਹਾਡੇ ਡਾਟੇ ਨੂੰ ਦੇਖ ਅਤੇ ਬਦਲ ਨਾ ਸਕੇ।</translation>
 <translation id="8040768861829554732">ਇੱਕ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਵਰਤਣ ਲਈ, ਤੁਹਾਨੂੰ Chrome ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰਨ ਦੀ ਲੋੜ ਹੈ</translation>
 <translation id="80471789339884597">ਸਥਾਪਨਾ ਕਰਨ ਲਈ ਧੰਨਵਾਦ। <ph name="BUNDLE_NAME" /> ਦੀ ਵਰਤੋਂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਤੁਹਾਡੇ ਵੱਲੋਂ ਆਪਣੇ ਸਾਰੇ ਬ੍ਰਾਊਜ਼ਰਾਂ ਨੂੰ ਮੁੜ-ਸ਼ੁਰੂ ਕਰਨਾ ਲਾਜ਼ਮੀ ਹੈ।</translation>
-<translation id="8064015041956107954">ਤੁਸੀਂ ਉੱਪਰ ਸੱਜੇ ਪਾਸੇ Chrome ਮੀਨੂ ਤੋਂ ਬੁੱਕਮਾਰਕ, ਪੜ੍ਹਨ ਸੰਬੰਧੀ ਮੋਡ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਖੋਲ੍ਹ ਸਕਦੇ ਹੋ</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8077579734294125741">ਹੋਰ Chrome ਪ੍ਰੋਫਾਈਲਾਂ</translation>
 <translation id="8086881907087796310">ਸਥਾਪਤ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ ਕਿਉਂਕਿ ਤੁਹਾਡਾ ਕੰਪਿਊਟਰ ਹਾਰਡਵੇਅਰ ਦੀਆਂ ਘੱਟੋ-ਘੱਟ ਲੋੜਾਂ ਨੂੰ ਪੂਰਾ ਨਹੀਂ ਕਰਦਾ ਹੈ।</translation>
@@ -568,7 +572,6 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="8177472873527554730">ਪੰਨੇ ਵਿੱਚ ਸਮੱਗਰੀ ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ</translation>
 <translation id="8221491193165283816">ਆਮ ਤੌਰ 'ਤੇ ਤੁਸੀਂ ਸੂਚਨਾਵਾਂ ਨੂੰ ਬਲਾਕ ਕਰਦੇ ਹੋ। ਇਹ ਸਾਈਟ ਤੁਹਾਨੂੰ ਸੂਚਿਤ ਕਰ ਸਕੇ, ਇਸ ਲਈ ਇੱਥੇ ਕਲਿੱਕ ਕਰੋ।</translation>
 <translation id="8255190535488645436">Google Chrome ਤੁਹਾਡਾ ਕੈਮਰਾ ਅਤੇ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਵਰਤ ਰਿਹਾ ਹੈ।</translation>
-<translation id="8257796129973882597">ਤੁਸੀਂ Chrome ਮੀਨੂ ਤੋਂ ਬੁੱਕਮਾਰਕ, ਪੜ੍ਹਨ ਸੰਬੰਧੀ ਮੋਡ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਖੋਲ੍ਹ ਸਕਦੇ ਹੋ</translation>
 <translation id="8267953129876836456">Chrome ਨੂੰ ਤੁਹਾਡੀ ਸਮੀਖਿਆ ਲਈ ਕੁਝ ਸੁਰੱਖਿਆ ਸਿਫ਼ਾਰਸ਼ਾਂ ਮਿਲੀਆਂ ਹਨ</translation>
 <translation id="8286862437124483331">Google Chrome ਪਾਸਵਰਡ ਦਿਖਾਉਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਿਹਾ ਹੈ। ਇਸਦੀ ਆਗਿਆ ਦੇਣ ਲਈ ਆਪਣਾ Windows ਪਾਸਵਰਡ ਟਾਈਪ ਕਰੋ।</translation>
 <translation id="829923460755755423">Google Password Manager ਦਾ ਸ਼ਾਰਟਕੱਟ ਸ਼ਾਮਲ ਕਰੋ</translation>
@@ -632,6 +635,7 @@ Google Chrome ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾ
 <translation id="9090566250983691233">ਜਾਣੋ ਕਿ Chrome ਕੁਝ ਫ਼ਾਈਲਾਂ ਨੂੰ ਬਲਾਕ ਕਿਉਂ ਕਰਦਾ ਹੈ</translation>
 <translation id="9106236359747881194">ਖੋਜਣ ਲਈ ਲਿਖਤ ਚੁਣੋ</translation>
 <translation id="911206726377975832">ਕੀ ਤੁਹਾਡਾ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟਾ ਵੀ ਮਿਟਾਉਣਾ ਹੈ?</translation>
+<translation id="9134482777260927479">ਹੋਮਵਰਕ ਮਦਦ</translation>
 <translation id="9138603949443464873">ਆਪਣੀਆਂ ਤਬਦੀਲੀਆਂ ਲਾਗੂ ਕਰਨ ਲਈ, Chrome ਨੂੰ ਮੁੜ-ਲਾਂਚ ਕਰੋ</translation>
 <translation id="9148058034647219655">ਬਾਹਰ ਜਾਓ</translation>
 <translation id="9195993889682885387">Chrome ਪਿਛਲੇ ਕੁਝ ਹਫ਼ਤਿਆਂ ਦੇ ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਿੰਗ ਇਤਿਹਾਸ ਦੇ ਆਧਾਰ 'ਤੇ ਤੁਹਾਡੀਆਂ ਦਿਲਚਸਪੀਆਂ ਦਾ ਅੰਦਾਜ਼ਾ ਲਗਾ ਸਕਦਾ ਹੈ। ਇਹ ਜਾਣਕਾਰੀ ਤੁਹਾਡੇ ਡੀਵਾਈਸ 'ਤੇ ਰਹਿੰਦੀ ਹੈ।</translation>

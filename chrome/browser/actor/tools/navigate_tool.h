@@ -14,34 +14,34 @@
 
 namespace content {
 class NavigationHandle;
+class WebContents;
 }  // namespace content
-
-namespace tabs {
-class TabInterface;
-}  // namespace tabs
 
 namespace actor {
 
-// Navigates a tab to the given URL.
+// Navigates a the primary main frame in a WebContents to the given URL.
 class NavigateTool : public Tool, content::WebContentsObserver {
  public:
-  NavigateTool(tabs::TabInterface& tab, const GURL& url);
+  NavigateTool(TaskId task_id,
+               AggregatedJournal& journal,
+               content::WebContents& web_contents,
+               const GURL& url);
   ~NavigateTool() override;
 
   // actor::Tool
   void Validate(ValidateCallback callback) override;
   void Invoke(InvokeCallback callback) override;
   std::string DebugString() const override;
+  std::string JournalEvent() const override;
+  std::unique_ptr<ObservationDelayController> GetObservationDelayer()
+      const override;
 
   // content::WebContentsObserver
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void OnFirstContentfulPaintInPrimaryMainFrame() override;
-  void DidStopLoading() override;
 
  private:
   void NavigationHandleCallback(content::NavigationHandle& handle);
-  void Timeout();
 
   GURL url_;
 
@@ -52,15 +52,6 @@ class NavigateTool : public Tool, content::WebContentsObserver {
   // after which this is set (asynchronously). Once set, this class observes the
   // WebContents until this handle completes and the above callback is invoked.
   std::optional<int64_t> pending_navigation_handle_id_;
-
-  // Set after the navigation is finished and we're waiting for the page to be
-  // ready sufficiently before marking the tool call finished.
-  struct PostNavigationState {
-    bool waiting_for_fcp = true;
-    bool waiting_for_load = true;
-    bool Done() const { return !waiting_for_fcp && !waiting_for_load; }
-  };
-  std::optional<PostNavigationState> post_navigation_state_;
 
   base::WeakPtrFactory<NavigateTool> weak_ptr_factory_{this};
 };

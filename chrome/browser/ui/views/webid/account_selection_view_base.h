@@ -11,7 +11,6 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/case_conversion.h"
-#include "chrome/browser/ui/monogram_utils.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
 #include "ui/events/event.h"
@@ -161,7 +160,8 @@ class AccountSelectionViewBase {
   AccountSelectionViewBase(
       FedCmAccountSelectionView* owner,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      const content::RelyingPartyData& rp_data);
+      const content::RelyingPartyData& rp_data,
+      float device_scale_factor);
   virtual ~AccountSelectionViewBase();
 
   // Updates the FedCM dialog to show the "account picker" sheet.
@@ -224,7 +224,7 @@ class AccountSelectionViewBase {
   // Returns a StyledLabel containing a disclosure label. The label links to
   // privacy policy and terms of service URLs, if available.
   std::unique_ptr<views::StyledLabel> CreateDisclosureLabel(
-      const content::IdentityProviderData& idp_data);
+      const IdentityRequestAccountPtr& account);
 
   // Gets the summary and description string of the error.
   std::pair<std::u16string, std::u16string> GetErrorDialogText(
@@ -247,6 +247,9 @@ class AccountSelectionViewBase {
 
   // Relying party data to customize the dialog.
   content::RelyingPartyData rp_data_;
+
+  // The device's scale factor.
+  float device_scale_factor_;
 
   // Used to ensure that callbacks are not run if the AccountSelectionViewBase
   // is destroyed.

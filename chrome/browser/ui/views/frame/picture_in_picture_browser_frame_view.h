@@ -14,6 +14,8 @@
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_widget_fade_animator.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window.h"
 #include "chrome/browser/ui/content_settings/content_setting_image_model_states.h"
 #include "chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.h"
 #include "chrome/browser/ui/views/frame/browser_frame.h"
@@ -32,7 +34,8 @@
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/widget/widget_observer.h"
 
-class BrowserFrameBoundsChangeAnimation;
+class PictureInPictureBoundsChangeAnimation;
+class PictureInPictureTucker;
 
 namespace views {
 class Label;
@@ -50,6 +53,7 @@ class PictureInPictureBrowserFrameView
       public IconLabelBubbleView::Delegate,
       public ContentSettingImageView::Delegate,
       public views::WidgetObserver,
+      public PictureInPictureWindow,
       public gfx::AnimationDelegate {
   METADATA_HEADER(PictureInPictureBrowserFrameView, BrowserNonClientFrameView)
 
@@ -67,8 +71,6 @@ class PictureInPictureBrowserFrameView
       const gfx::Size& tabstrip_minimum_size) const override;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const override;
-  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
-                               views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
   void OnBrowserViewInitViewsComplete() override;
   void UpdateThrobber(bool running) override {}
@@ -118,8 +120,12 @@ class PictureInPictureBrowserFrameView
   // views::WidgetObserver:
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
   void OnWidgetDestroying(views::Widget* widget) override;
+  void OnWidgetVisibilityChanged(views::Widget* eidget, bool visible) override;
   void OnWidgetBoundsChanged(views::Widget* widget,
                              const gfx::Rect& new_bounds) override;
+
+  // PictureInPictureWindow:
+  void SetForcedTucking(bool tuck) override;
 
   // gfx::AnimationDelegate:
   void AnimationEnded(const gfx::Animation* animation) override;
@@ -180,6 +186,7 @@ class PictureInPictureBrowserFrameView
   views::View* GetBackToTabButtonForTesting();
   views::View* GetCloseButtonForTesting();
   views::Label* GetWindowTitleForTesting();
+  PictureInPictureWidgetFadeAnimator* GetFadeAnimatorForTesting();
 
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
@@ -227,6 +234,8 @@ class PictureInPictureBrowserFrameView
  private:
   // Show `auto_pip_setting_overlay_` if we have it, and have a widget.
   void ShowOverlayIfNeeded();
+
+  void EnforceTucking();
 
   CloseReason close_reason_ = CloseReason::kOther;
 
@@ -378,7 +387,15 @@ class PictureInPictureBrowserFrameView
 
   // Animates programmatic changes to bounds (e.g. via `resizeTo()` or
   // `resizeBy()` calls).
-  std::unique_ptr<BrowserFrameBoundsChangeAnimation> bounds_change_animation_;
+  std::unique_ptr<PictureInPictureBoundsChangeAnimation>
+      bounds_change_animation_;
+
+  // Used to animate the Picture-in-Picture window creation.
+  std::unique_ptr<PictureInPictureWidgetFadeAnimator> fade_animator_;
+
+  // Used to tuck/untuck this widget into the side of the screen.
+  std::unique_ptr<PictureInPictureTucker> tucker_;
+  bool is_tucking_forced_ = false;
 
   base::WeakPtrFactory<PictureInPictureBrowserFrameView> weak_factory_{this};
 };

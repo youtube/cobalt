@@ -29,6 +29,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversion_utils.h"
 #include "base/task/single_thread_task_runner.h"
@@ -370,8 +371,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
     ExtensionDownloadsEventRouter::SetDetermineFilenameTimeoutSecondsForTesting(
         2);
     content::WebContents* tab = chrome::AddSelectedTabWithURL(
-        current_browser(),
-        extension_->GetResourceURL("empty.html"),
+        current_browser(), extension_->ResolveExtensionURL("empty.html"),
         ui::PAGE_TRANSITION_LINK);
     EventRouter::Get(current_browser()->profile())
         ->AddEventListener(downloads::OnDeterminingFilename::kEventName,
@@ -712,7 +712,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
       const GURL url = current_browser_ == incognito_browser_ &&
                                !IncognitoInfo::IsSplitMode(extension)
                            ? GURL(url::kAboutBlankURL)
-                           : extension->GetResourceURL("empty.html");
+                           : extension->ResolveExtensionURL("empty.html");
       // Watch and wait for the navigation to take place.
       auto observer = std::make_unique<content::TestNavigationObserver>(url);
       observer->WatchExistingWebContents();
@@ -751,7 +751,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
         {.allow_in_incognito = true, .allow_file_access = enable_file_access});
     CHECK(extension);
     content::WebContents* tab = chrome::AddSelectedTabWithURL(
-        current_browser(), extension->GetResourceURL("empty.html"),
+        current_browser(), extension->ResolveExtensionURL("empty.html"),
         ui::PAGE_TRANSITION_LINK);
     EXPECT_TRUE(content::WaitForLoadStop(tab));
     EventRouter::Get(current_browser()->profile())
@@ -4541,7 +4541,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   DownloadsAcceptDangerFunction::OnPromptCreatedForTesting(
       &callback);
 
-  const GURL url = extension()->GetResourceURL("accept_danger.html");
+  const GURL url = extension()->ResolveExtensionURL("accept_danger.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(current_browser(), url));
 
   observer->WaitForFinished();

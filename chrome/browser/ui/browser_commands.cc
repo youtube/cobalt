@@ -1258,7 +1258,9 @@ void DuplicateSplit(Browser* browser, split_tabs::SplitTabId split) {
   CHECK(browser->CanSupportWindowFeature(Browser::FEATURE_TABSTRIP));
 
   TabStripModel* model = browser->tab_strip_model();
-  gfx::Range split_indices_range = model->GetIndexRangeOfSplit(split);
+  split_tabs::SplitTabData* split_data = model->GetSplitData(split);
+  gfx::Range split_indices_range = split_data->GetIndexRange();
+
   std::vector<int> duplicated_tab_indices;
   for (size_t split_index = split_indices_range.GetMin();
        split_index < split_indices_range.GetMax(); split_index++) {
@@ -1601,7 +1603,7 @@ void BookmarkAllTabs(Browser* browser) {
   RecordBookmarkAllTabsWithTabsCount(browser->profile(),
                                      browser->tab_strip_model()->count());
 
-  chrome::ShowBookmarkAllTabsDialog(browser);
+  bookmarks::ShowBookmarkAllTabsDialog(browser);
 }
 
 bool CanBookmarkAllTabs(const Browser* browser) {
@@ -2022,7 +2024,8 @@ void FindPrevious(Browser* browser) {
 }
 
 void FindInPage(Browser* browser, bool find_next, bool forward_direction) {
-  browser->GetFindBarController()->Show(find_next, forward_direction);
+  browser->GetFeatures().GetFindBarController()->Show(find_next,
+                                                      forward_direction);
 }
 
 void ShowTabSearch(Browser* browser) {
@@ -2053,7 +2056,7 @@ bool CanCloseFind(Browser* browser) {
 }
 
 void CloseFind(Browser* browser) {
-  browser->GetFindBarController()->EndFindSession(
+  browser->GetFeatures().GetFindBarController()->EndFindSession(
       find_in_page::SelectionAction::kKeep, find_in_page::ResultAction::kKeep);
 }
 
@@ -2165,6 +2168,13 @@ void ToggleShowGoogleLensShortcut(Browser* browser) {
                                              !pref_enabled);
 }
 
+void ToggleShowSearchTools(Browser* browser) {
+  bool pref_enabled =
+      browser->profile()->GetPrefs()->GetBoolean(omnibox::kShowSearchTools);
+  browser->profile()->GetPrefs()->SetBoolean(omnibox::kShowSearchTools,
+                                             !pref_enabled);
+}
+
 void ShowAppMenu(Browser* browser) {
   // We record the user metric for this event in AppMenu::RunMenu.
   browser->window()->ShowAppMenu();
@@ -2255,7 +2265,8 @@ void SetAndroidOsForTabletSite(content::WebContents* current_tab) {
 
 void ToggleFullscreenMode(Browser* browser, bool user_initiated) {
   DCHECK(browser);
-  browser->exclusive_access_manager()
+  browser->GetFeatures()
+      .exclusive_access_manager()
       ->fullscreen_controller()
       ->ToggleBrowserFullscreenMode(user_initiated);
 }

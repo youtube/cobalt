@@ -65,16 +65,13 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   gfx::Rect GetBoundsForWebAppFrameToolbarInBrowserView() const override {
     return gfx::Rect();
   }
-  void LayoutWebAppWindowTitle(
-      const gfx::Rect& available_space,
-      views::Label& window_title_label) const override {}
   int GetTopInsetInBrowserView() const override { return 0; }
   bool IsToolbarVisible() const override { return toolbar_visible_; }
   bool IsBookmarkBarVisible() const override { return bookmark_bar_visible_; }
   bool IsContentsSeparatorEnabled() const override {
     return content_separator_enabled_;
   }
-  bool IsInSplitView() const override { return false; }
+  bool IsActiveTabSplit() const override { return false; }
   ExclusiveAccessBubbleViews* GetExclusiveAccessBubble() const override {
     return nullptr;
   }
@@ -244,6 +241,7 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         /*web_app_frame_toolbar=*/nullptr,
         /*web_app_window_title=*/nullptr, tab_strip_region_view, tab_strip_,
         toolbar_, infobar_container_, contents_container_,
+        /*multi_contents_view=*/nullptr,
         /*left_aligned_side_panel_separator=*/nullptr,
         /*unified_side_panel=*/nullptr,
         /*right_aligned_side_panel_separator=*/nullptr,
@@ -255,9 +253,29 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
   }
 
   void TearDown() override {
-    // Avoid dangling pointers.
+    // The layout owns the delegate, so we destroy the layout and null out both
+    // pointers to avoid dangling pointers.
+    delegate_ = nullptr;
     layout_ = nullptr;
     browser_view_->SetLayoutManager(nullptr);
+
+    // The other views are children of |browser_view_| and will be destroyed
+    // along with it after TearDown(). Null out the pointers to avoid them
+    // dangling.
+    top_container_ = nullptr;
+    tab_strip_ = nullptr;
+    webui_tab_strip_ = nullptr;
+    toolbar_ = nullptr;
+    separator_ = nullptr;
+    infobar_container_ = nullptr;
+    side_panel_rounded_corner_ = nullptr;
+    contents_container_ = nullptr;
+    contents_web_view_ = nullptr;
+    devtools_web_view_ = nullptr;
+    devtools_scrim_view_ = nullptr;
+    contents_scrim_view_ = nullptr;
+    lens_overlay_view_ = nullptr;
+    new_tab_footer_web_view_ = nullptr;
     ChromeViewsTestBase::TearDown();
   }
 
@@ -271,9 +289,8 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
   }
 
  private:
-  raw_ptr<BrowserViewLayout, DanglingUntriaged> layout_;
-  raw_ptr<MockBrowserViewLayoutDelegate, DanglingUntriaged>
-      delegate_;  // Owned by |layout_|.
+  raw_ptr<BrowserViewLayout> layout_;
+  raw_ptr<MockBrowserViewLayoutDelegate> delegate_;  // Owned by |layout_|.
   std::unique_ptr<views::View> browser_view_;
 
   // Views owned by |browser_view_|.

@@ -4,52 +4,85 @@
 
 #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 
+#include "base/check_deref.h"
+#include "base/functional/callback_forward.h"
+#include "base/i18n/rtl.h"
+#include "base/memory/raw_ref.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "content/public/common/drop_data.h"
 #include "ui/views/view_class_properties.h"
 
 MultiContentsViewDropTargetController::MultiContentsViewDropTargetController(
-    views::View& drop_target_view)
-    : drop_target_view_(drop_target_view) {
-  CHECK_NE(nullptr, drop_target_view.parent());
-}
+    MultiContentsDropTargetView& drop_target_view)
+    : drop_target_view_(drop_target_view),
+      drop_target_parent_view_(CHECK_DEREF(drop_target_view.parent())) {}
+
+MultiContentsViewDropTargetController::
+    ~MultiContentsViewDropTargetController() = default;
+
+MultiContentsViewDropTargetController::DropTargetShowTimer::DropTargetShowTimer(
+    MultiContentsDropTargetView::DropSide drop_side)
+    : drop_side(drop_side) {}
 
 void MultiContentsViewDropTargetController::OnWebContentsDragUpdate(
     const content::DropData& data,
-    const gfx::PointF& point) {
-  CHECK_LE(point.x(), drop_target_view_->parent()->width());
+    const gfx::PointF& point,
+    bool is_in_split_view) {
+  CHECK_LE(point.x(), drop_target_parent_view_->width());
 
-  // TODO(crbug.com/394369035): Settle on an appropriate value for this.
-  constexpr int kDropEntryPointWidth = 100;
+  if (!data.url.is_valid() || is_in_split_view) {
+    ResetDropTargetTimer();
+    return;
+  }
 
-  const bool should_show_drop_zone =
-      data.url.is_valid() &&
-      point.x() >= drop_target_view_->parent()->width() - kDropEntryPointWidth;
-
-  UpdateDropTargetTimer(should_show_drop_zone);
-}
-
-void MultiContentsViewDropTargetController::OnWebContentsDragExit() {
-  UpdateDropTargetTimer(/*should_run_timer=*/false);
-}
-
-void MultiContentsViewDropTargetController::UpdateDropTargetTimer(
-    bool should_run_timer) {
-  if (!should_run_timer) {
-    // The view itself isn't hidden immediately. If the view is already
-    // visible, then it has the responsibility of handling drags and hiding
-    // itself.
-    show_drop_target_timer_.Stop();
-  } else if (!drop_target_view_->GetVisible() &&
-             !show_drop_target_timer_.IsRunning()) {
-    // TODO(crbug.com/394369035): Settle on an appropriate value for this.
-    constexpr base::TimeDelta kDropTargetDelay = base::Seconds(1);
-    show_drop_target_timer_.Start(
-        FROM_HERE, kDropTargetDelay, this,
-        &MultiContentsViewDropTargetController::ShowDropTarget);
+  const int drop_entry_point_width =
+      drop_target_view_->GetPreferredSize().width();
+  const bool is_rtl = base::i18n::IsRTL();
+  if (point.x() >= drop_target_parent_view_->width() - drop_entry_point_width) {
+    StartOrUpdateDropTargetTimer(
+        is_rtl ? MultiContentsDropTargetView::DropSide::START
+               : MultiContentsDropTargetView::DropSide::END);
+  } else if (point.x() <= drop_entry_point_width) {
+    StartOrUpdateDropTargetTimer(
+        is_rtl ? MultiContentsDropTargetView::DropSide::END
+               : MultiContentsDropTargetView::DropSide::START);
+  } else {
+    ResetDropTargetTimer();
   }
 }
 
-void MultiContentsViewDropTargetController::ShowDropTarget() {
-  drop_target_view_->SetVisible(true);
+void MultiContentsViewDropTargetController::OnWebContentsDragExit() {
+  ResetDropTargetTimer();
+}
+
+void MultiContentsViewDropTargetController::StartOrUpdateDropTargetTimer(
+    MultiContentsDropTargetView::DropSide drop_side) {
+  if (drop_target_view_->GetVisible()) {
+    return;
+  }
+
+  if (show_drop_target_timer_.has_value()) {
+    CHECK(show_drop_target_timer_->timer.IsRunning());
+    show_drop_target_timer_->drop_side = drop_side;
+    return;
+  }
+
+  show_drop_target_timer_.emplace(drop_side);
+
+  show_drop_target_timer_->timer.Start(
+      FROM_HERE, features::kSideBySideShowDropTargetDelay.Get(), this,
+      &MultiContentsViewDropTargetController::ShowTimerDelayedDropTarget);
+}
+
+void MultiContentsViewDropTargetController::ResetDropTargetTimer() {
+  show_drop_target_timer_.reset();
+}
+
+void MultiContentsViewDropTargetController::ShowTimerDelayedDropTarget() {
+  CHECK(show_drop_target_timer_.has_value());
+  CHECK(!drop_target_view_->GetVisible());
+  drop_target_view_->Show(show_drop_target_timer_->drop_side);
+  show_drop_target_timer_.reset();
 }

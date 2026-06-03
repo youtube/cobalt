@@ -261,6 +261,24 @@ bool DiceWebSigninInterceptionBubbleView::GetAccepted() const {
   return accepted_;
 }
 
+void DiceWebSigninInterceptionBubbleView::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event_details) {
+  // The user is signed in to Chrome, the signin bubble is not needed anymore.
+  if (IsChromeSignin() &&
+      event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
+          signin::PrimaryAccountChangeEvent::Type::kSet) {
+    Dismiss(SigninInterceptionDismissReason::kUserNotEligible);
+  }
+}
+
+void DiceWebSigninInterceptionBubbleView::OnExtendedAccountInfoRemoved(
+    const AccountInfo& info) {
+  // The account has been removed from Chrome, the bubble is not needed anymore.
+  if (info.account_id == bubble_parameters_.intercepted_account.account_id) {
+    Dismiss(SigninInterceptionDismissReason::kUserNotEligible);
+  }
+}
+
 content::WebContents* DiceWebSigninInterceptionBubbleView::AddNewContents(
     content::WebContents* source,
     std::unique_ptr<content::WebContents> new_contents,
@@ -323,6 +341,9 @@ DiceWebSigninInterceptionBubbleView::DiceWebSigninInterceptionBubbleView(
   set_margins(gfx::Insets());
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetLayoutManager(std::make_unique<views::FillLayout>());
+
+  identity_manager_observation_.Observe(
+      IdentityManagerFactory::GetForProfile(profile_));
 }
 
 void DiceWebSigninInterceptionBubbleView::SetHeightAndShowWidget(int height) {
@@ -382,7 +403,7 @@ void DiceWebSigninInterceptionBubbleView::OnInterceptionResult(
 
   RecordInterceptionResult(bubble_parameters_, profile_, result);
 
-  ClearAvatarButtonEffects();
+  clear_avatar_button_effects_callback_.RunAndReset();
 
   std::move(callback_).Run(result);
   if (!accepted_) {
@@ -445,37 +466,27 @@ void DiceWebSigninInterceptionBubbleView::ApplyAvatarButtonEffects() {
   // resets the effects `ClearAvatarButtonEffects()`.
 
   AvatarToolbarButton* button = GetAvatarToolbarButton(*browser_);
-  // Avatar text behavior
-  // Adapt the identity pill, show the appropriate intercept text and
-  // highlight the button as long as the text is shown.
-  hide_avatar_text_callback_ = button->ShowExplicitText(
-      InterceptionTypeToIdentityPillText(bubble_parameters_.interception_type),
-      InteractionTypeToIdentityPillAccessibilityLabel(
-          bubble_parameters_.interception_type));
 
-  // Avatar Button action behavior
+  std::optional<base::RepeatingCallback<void(bool)>>
+      explicit_avatar_button_action;
   if (base::FeatureList::IsEnabled(
           switches::kInterceptBubblesDismissibleByAvatarButton)) {
-    reset_avatar_button_action_callback_ =
-        button->SetExplicitButtonAction(base::BindRepeating(
-            &DiceWebSigninInterceptionBubbleView::Dismiss,
-            weak_factory_.GetWeakPtr(),
-            /*reason=*/SigninInterceptionDismissReason::kIdentityPillPressed));
+    explicit_avatar_button_action = base::IgnoreArgs<bool>(base::BindRepeating(
+        &DiceWebSigninInterceptionBubbleView::Dismiss,
+        weak_factory_.GetWeakPtr(),
+        /*reason=*/SigninInterceptionDismissReason::kIdentityPillPressed));
   } else if (IsChromeSignin()) {
     button->SetButtonActionDisabled(true);
   }
-}
 
-void DiceWebSigninInterceptionBubbleView::ClearAvatarButtonEffects() {
-  // Main logic described in the apply function.
-  // Changes done in this method should also be reflected in the method that
-  // applies the effects `ApplyAvatarButtonEffects()`.
-
-  // Avatar text behavior
-  hide_avatar_text_callback_.RunAndReset();
-
-  // Avatar Button action behavior
-  reset_avatar_button_action_callback_.RunAndReset();
+  // Adapt the identity pill, show the appropriate intercept text,
+  // highlight the button as long as the text is shown and override the
+  // button action (if needed).
+  clear_avatar_button_effects_callback_ = button->SetExplicitButtonState(
+      InterceptionTypeToIdentityPillText(bubble_parameters_.interception_type),
+      InteractionTypeToIdentityPillAccessibilityLabel(
+          bubble_parameters_.interception_type),
+      std::move(explicit_avatar_button_action));
 }
 
 // DiceWebSigninInterceptorDelegate --------------------------------------------

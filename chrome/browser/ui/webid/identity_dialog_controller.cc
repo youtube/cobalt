@@ -12,7 +12,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/segmentation_platform/segmentation_platform_service_factory.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/favicon/core/favicon_driver.h"
 #include "components/segmentation_platform/public/constants.h"
@@ -108,11 +107,11 @@ bool IdentityDialogController::ShowAccountsDialog(
   if (rp_mode == blink::mojom::RpMode::kPassive &&
       base::FeatureList::IsEnabled(
           segmentation_platform::features::kSegmentationPlatformFedCmUser)) {
-    RequestUiVolumeRecommendation(
-        base::BindOnce(&IdentityDialogController::
-                           OnRequestUiVolumeRecommendationResultReceived,
-                       base::Unretained(this), rp_data, identity_provider_data,
-                       accounts, rp_mode, new_accounts));
+    RequestUiVolumeRecommendation(base::BindOnce(
+        &IdentityDialogController::
+            OnRequestUiVolumeRecommendationResultReceived,
+        weak_ptr_factory_.GetWeakPtr(), rp_data, identity_provider_data,
+        accounts, rp_mode, new_accounts));
     return true;
   }
 
@@ -210,6 +209,11 @@ void IdentityDialogController::OnAccountSelected(
     const GURL& idp_config_url,
     const std::string& account_id,
     const content::IdentityRequestAccount::LoginState& login_state) {
+  // Do nothing if |OnAccountSelected| is called after |OnDismiss|, which sets
+  // the callback to null.
+  if (!on_dismiss_) {
+    return;
+  }
   CHECK(on_account_selection_);
 
   CollectTrainingData(UserAction::kSuccess);

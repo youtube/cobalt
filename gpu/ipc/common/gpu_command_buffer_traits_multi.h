@@ -9,7 +9,7 @@
 #include "gpu/command_buffer/common/command_buffer.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/context_creation_attribs.h"
-#include "gpu/gpu_export.h"
+#include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "ipc/ipc_message_utils.h"
 #include "ipc/param_traits_macros.h"
 #include "ui/gfx/ipc/buffer_types/gfx_param_traits.h"
@@ -17,7 +17,7 @@
 #include "ui/gl/gpu_preference.h"
 
 #undef IPC_MESSAGE_EXPORT
-#define IPC_MESSAGE_EXPORT GPU_EXPORT
+#define IPC_MESSAGE_EXPORT GPU_IPC_COMMON_EXPORT
 
 IPC_ENUM_TRAITS_MAX_VALUE(gpu::error::Error, gpu::error::kErrorLast)
 IPC_ENUM_TRAITS_MAX_VALUE(gpu::error::ContextLostReason,
@@ -62,7 +62,6 @@ IPC_STRUCT_TRAITS_BEGIN(gpu::Capabilities)
   IPC_STRUCT_TRAITS_MEMBER(image_ycbcr_p010)
   IPC_STRUCT_TRAITS_MEMBER(render_buffer_format_bgra8888)
   IPC_STRUCT_TRAITS_MEMBER(msaa_is_slow)
-  IPC_STRUCT_TRAITS_MEMBER(disable_one_component_textures)
   IPC_STRUCT_TRAITS_MEMBER(gpu_rasterization)
   IPC_STRUCT_TRAITS_MEMBER(angle_rgbx_internal_format)
   IPC_STRUCT_TRAITS_MEMBER(avoid_stencil_buffers)

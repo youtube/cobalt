@@ -9,6 +9,8 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/notimplemented.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/browser_ui/scoped_glic_button_indicator.h"
@@ -19,6 +21,7 @@
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/host/glic.mojom-data-view.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
@@ -27,6 +30,7 @@
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_animator.h"
+#include "chrome/browser/glic/widget/glic_window_config.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -74,6 +78,7 @@ namespace {
 constexpr static int kAttachmentBuffer = 20;
 constexpr static int kInitialPositionBuffer = 4;
 constexpr static int kMaxWidgetSize = 16'384;
+constexpr static int kDraggableAreaHeight = 44;
 
 constexpr static base::TimeDelta kAnimationDuration = base::Milliseconds(300);
 
@@ -239,11 +244,6 @@ class GlicWindowControllerImpl::WindowEventObserver : public ui::EventObserver {
           glic_view_->IsPointWithinDraggableArea(mouse_location);
       initial_press_loc_ = mouse_location;
     }
-    if (event.type() == ui::EventType::kMouseReleased &&
-        event.AsMouseEvent()->IsRightMouseButton() &&
-        mouse_down_in_draggable_area_) {
-      glic_window_controller_->ShowTitleBarContextMenuAt(mouse_location);
-    }
     if (event.type() == ui::EventType::kMouseReleased ||
         event.type() == ui::EventType::kMouseExited) {
       mouse_down_in_draggable_area_ = false;
@@ -292,7 +292,11 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
       window_finder_(std::make_unique<WindowFinder>()),
       glic_service_(glic_service),
       enabling_(enabling) {
-  previous_position_ = GetPreviousPositionFromPrefs(profile_->GetPrefs());
+  if (window_config_.ShouldResetOnStart()) {
+    previous_position_.reset();
+  } else {
+    previous_position_ = GetPreviousPositionFromPrefs(profile_->GetPrefs());
+  }
   application_hotkey_manager_ = MakeApplicationHotkeyManager(GetWeakPtr());
   host_observation_.Observe(&glic_service_->host());
 }
@@ -388,6 +392,7 @@ void GlicWindowControllerImpl::OnWidgetUserResizeEnded() {
 
   if (GetGlicWidget()) {
     glic_size_ = GetGlicWidget()->GetSize();
+    SaveWidgetPosition(/*user_modified=*/true);
   }
 
   glic_window_animator_->ResetLastTargetSize();
@@ -419,7 +424,7 @@ void GlicWindowControllerImpl::Toggle(BrowserWindowInterface* bwi,
       fre_controller_->DismissFreIfOpenOnActiveTab(new_attached_browser);
       return;
     }
-    fre_controller_->ShowFreDialog(new_attached_browser);
+    fre_controller_->ShowFreDialog(new_attached_browser, source);
     return;
   }
 
@@ -589,6 +594,16 @@ void GlicWindowControllerImpl::Show(Browser* browser,
   // unset.
   CHECK(!attached_browser_);
   opening_source_ = source;
+  if (source == mojom::InvocationSource::kTopChromeButton &&
+      window_config_.ShouldResetOnOpen()) {
+    previous_position_.reset();
+    base::RecordAction(
+        base::UserMetricsAction("Glic.Widget.ResetPositionOnOpen"));
+  }
+  if (window_config_.ShouldResetOnNewSession()) {
+    previous_position_.reset();
+  }
+  window_config_.SetLastOpenTime();
   if (!glic_service_->GetAuthController().CheckAuthBeforeShowSync(
           base::BindOnce(&GlicWindowControllerImpl::ShowAfterSignIn,
                          weak_ptr_factory_.GetWeakPtr(),
@@ -625,7 +640,12 @@ void GlicWindowControllerImpl::Show(Browser* browser,
     // offline, loading).
     SetDraggingAreasAndWatchForMouseEvents();
   }
-  glic_service_->metrics()->OnGlicWindowShown();
+
+  std::optional<display::Display> display =
+      GetGlicWidget()->GetNearestDisplay();
+  gfx::Point glic_center_point =
+      GetGlicWidget()->GetWindowBoundsInScreen().CenterPoint();
+  glic_service_->metrics()->OnGlicWindowShown(display, glic_center_point);
 }
 
 void GlicWindowControllerImpl::SetupGlicWidget(Browser* browser) {
@@ -826,9 +846,11 @@ void GlicWindowControllerImpl::SetDraggingAreasAndWatchForMouseEvents() {
   window_event_observer_ =
       std::make_unique<WindowEventObserver>(this, GetGlicView());
 
-  // Set the draggable area to the top bar of the window, by default.
-  GetGlicView()->SetDraggableAreas(
-      {{0, 0, GetGlicView()->width(), GlicWidget::GetInitialSize().height()}});
+  if (!draggable_area_) {
+    // Set the draggable area to the top bar of the window.
+    GetGlicView()->SetDraggableAreas(
+        {{0, 0, GetGlicView()->width(), kDraggableAreaHeight}});
+  }
 }
 
 GlicView* GlicWindowControllerImpl::GetGlicView() {
@@ -1005,15 +1027,21 @@ void GlicWindowControllerImpl::Close() {
   }
 
   // Save the widge position on close so we can restore in the same position.
-  SaveWidgetPosition();
+  SaveWidgetPosition(/*user_modified=*/false);
+  window_config_.SetLastCloseTime();
 
   glic_window_animator_.reset();
-  glic_service_->metrics()->OnGlicWindowClose();
+  std::optional<display::Display> display =
+      GetGlicWidget()->GetNearestDisplay();
+  gfx::Point glic_center_point =
+      GetGlicWidget()->GetWindowBoundsInScreen().CenterPoint();
+  glic_service_->metrics()->OnGlicWindowClose(display, glic_center_point);
   base::UmaHistogramEnumeration("Glic.PanelWebUiState.FinishState2",
                                 host().GetPrimaryWebUiState());
 
   SetWindowState(State::kClosed);
   attached_browser_ = nullptr;
+  draggable_area_ = std::nullopt;
   window_event_observer_.reset();
   browser_close_subscription_.reset();
   glic_window_hotkey_manager_.reset();
@@ -1036,15 +1064,21 @@ void GlicWindowControllerImpl::Close() {
   }
 }
 
-void GlicWindowControllerImpl::SaveWidgetPosition() {
-  if (GetGlicWidget() && GetGlicWidget()->IsVisible()) {
-    previous_position_ =
-        GetGlicWidget()->GetClientAreaBoundsInScreen().origin();
-    profile_->GetPrefs()->SetInteger(prefs::kGlicPreviousPositionX,
-                                     previous_position_->x());
-    profile_->GetPrefs()->SetInteger(prefs::kGlicPreviousPositionY,
-                                     previous_position_->y());
+void GlicWindowControllerImpl::SaveWidgetPosition(bool user_modified) {
+  if (!GetGlicWidget() || !GetGlicWidget()->IsVisible()) {
+    return;
   }
+  if (window_config_.ShouldSetPostionOnDrag() && !user_modified &&
+      !previous_position_.has_value()) {
+    profile_->GetPrefs()->ClearPref(prefs::kGlicPreviousPositionX);
+    profile_->GetPrefs()->ClearPref(prefs::kGlicPreviousPositionY);
+    return;
+  }
+  previous_position_ = GetGlicWidget()->GetClientAreaBoundsInScreen().origin();
+  profile_->GetPrefs()->SetInteger(prefs::kGlicPreviousPositionX,
+                                   previous_position_->x());
+  profile_->GetPrefs()->SetInteger(prefs::kGlicPreviousPositionY,
+                                   previous_position_->y());
 }
 
 void GlicWindowControllerImpl::ShowTitleBarContextMenuAt(gfx::Point event_loc) {
@@ -1099,7 +1133,7 @@ void GlicWindowControllerImpl::HandleWindowDragWithOffset(
     glic_window_animator_->MaybeAnimateToTargetSize();
 
     AdjustPositionIfNeeded();
-    SaveWidgetPosition();
+    SaveWidgetPosition(/*user_modified=*/true);
 
     if (!AlwaysDetached()) {
       // set glic z-order back to normal after drag is done.
@@ -1323,7 +1357,9 @@ void GlicWindowControllerImpl::PreloadFre() {
 
 void GlicWindowControllerImpl::Reload() {
   if (GetFreWebContents()) {
-    GetFreWebContents()->ReloadFocusedFrame();
+    GetFreWebContents()->GetController().Reload(
+        content::ReloadType::BYPASSING_CACHE,
+        /*check_for_repost=*/false);
   }
   if (auto* webui_contents = host().webui_contents()) {
     webui_contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,

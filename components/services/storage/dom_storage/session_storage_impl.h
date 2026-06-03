@@ -43,9 +43,11 @@ class StorageKey;
 
 namespace storage {
 
+class StorageServiceImpl;
 // The Session Storage implementation. An instance of this class exists for each
-// storage partition using Session Storage, managing storage for all StorageKeys
-// and namespaces within the partition.
+// profile directory (within the user data directory) that is using Session
+// Storage. It manages storage for all StorageKeys and namespaces within that
+// partition.
 class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
                            public mojom::SessionStorageControl,
                            public SessionStorageDataMap::Listener,
@@ -65,12 +67,15 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
     kRestoreDiskState
   };
 
+  using DestructSessionStorageCallback =
+      base::OnceCallback<void(SessionStorageImpl*)>;
   SessionStorageImpl(
       const base::FilePath& partition_directory,
       scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
       scoped_refptr<base::SequencedTaskRunner> memory_dump_task_runner,
       BackingMode backing_option,
       std::string database_name,
+      DestructSessionStorageCallback destruct_callback,
       mojo::PendingReceiver<mojom::SessionStorageControl> receiver);
 
   ~SessionStorageImpl() override;
@@ -114,6 +119,8 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // base::trace_event::MemoryDumpProvider implementation:
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
+
+  const base::FilePath& GetStoragePath() const { return partition_directory_; }
 
   void PretendToConnectForTesting();
 
@@ -236,6 +243,12 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
 
   void LogDatabaseOpenResult(OpenResult result);
 
+  void OnReceiverDisconnected();
+
+  // Passed in by the StorageServiceImpl that owns this object. Used to signal
+  // that this SessionStorageImpl can be destructed when the Receiver is
+  // disconnected.
+  DestructSessionStorageCallback destruct_callback_;
   // Since the session storage object hierarchy references iterators owned by
   // the metadata, make sure it is destroyed last on destruction.
   SessionStorageMetadata metadata_;

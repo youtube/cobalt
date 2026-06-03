@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
@@ -24,24 +25,65 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+// TODO(ffred): refactor this stuff. Maybe it makes more sense to have an
+// accumulator here instead of a test impl.
 class TestTabStripClient : public tabs_api::mojom::TabsObserver {
  public:
   void OnTabsCreated(tabs_api::mojom::OnTabsCreatedEventPtr event) override {
-    for (auto& id : event->tabs) {
-      tabs.push_back(id);
+    for (auto& tab_created_container : event->tabs) {
+      auto& tab = tab_created_container->tab;
+      auto tab_id = tab->id;
+      tabs.push_back({tab_id, tab->url.spec()});
     }
   }
 
   void OnTabsClosed(tabs_api::mojom::OnTabsClosedEventPtr event) override {
     for (auto& id : event->tabs) {
-      if (auto found = std::find(tabs.begin(), tabs.end(), id);
-          found != tabs.end()) {
+      auto found = std::find_if(
+          tabs.begin(), tabs.end(),
+          [&](const std::pair<tabs_api::NodeId, std::string>& element) {
+            return element.first == id;
+          });
+
+      if (found != tabs.end()) {
         tabs.erase(found);
       }
     }
   }
 
-  std::vector<tabs_api::TabId> tabs;
+  void OnTabMoved(tabs_api::mojom::OnTabMovedEventPtr event) override {
+    move_events.push_back(std::move(event));
+  }
+
+  void OnTabDataChanged(
+      tabs_api::mojom::OnTabDataChangedEventPtr event) override {
+    auto& id = event->tab->id;
+    auto found = std::find_if(
+        tabs.begin(), tabs.end(),
+        [&](const std::pair<tabs_api::NodeId, std::string>& element) {
+          return element.first == id;
+        });
+
+    if (found != tabs.end()) {
+      *found = {id, event->tab->url.spec()};
+    }
+  }
+
+  void OnTabGroupCreated(
+      tabs_api::mojom::OnTabGroupCreatedEventPtr event) override {
+    // TODO(crbug.com/412955607): implement this.
+    group_events.push_back(std::move(event));
+  }
+
+  void OnTabGroupVisualsChanged(
+      tabs_api::mojom::OnTabGroupVisualsChangedEventPtr event) override {
+    // TODO(crbug.com/412955607): implement this.
+  }
+
+  std::vector<tabs_api::mojom::OnTabMovedEventPtr> move_events;
+  std::vector<tabs_api::mojom::OnTabGroupCreatedEventPtr> group_events;
+  // Tabs is a vector containing a tab id and a url in the form of a string.
+  std::vector<std::pair<tabs_api::NodeId, std::string>> tabs;
 };
 
 class TabStripServiceImplBrowserTest : public InProcessBrowserTest {
@@ -65,6 +107,30 @@ class TabStripServiceImplBrowserTest : public InProcessBrowserTest {
 
  protected:
   TabStripModel* GetTabStripModel() { return browser()->tab_strip_model(); }
+
+  struct Observation {
+    mojo::Remote<TabStripService> remote;
+    TestTabStripClient client;
+    mojo::AssociatedReceiver<tabs_api::mojom::TabsObserver> receiver{&client};
+  };
+
+  std::unique_ptr<Observation> SetUpObservation() {
+    auto observation = std::make_unique<Observation>();
+    tab_strip_service_impl_->Accept(
+        observation->remote.BindNewPipeAndPassReceiver());
+
+    base::RunLoop run_loop;
+    observation->remote->GetTabs(
+        base::BindLambdaForTesting([&](TabStripService::GetTabsResult result) {
+          ASSERT_TRUE(result.has_value());
+          // This is where the client sets up the binding!
+          observation->receiver.Bind(std::move(result.value()->stream));
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+
+    return observation;
+  }
 
   tabs_api::mojom::PositionPtr CreatePosition(int index) {
     auto position = tabs_api::mojom::Position::New();
@@ -145,7 +211,13 @@ IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, Observation) {
   auto created_tab = std::move(result.value());
 
   ASSERT_EQ(1ul, client.tabs.size());
-  ASSERT_EQ(created_tab->id, client.tabs.at(0));
+  ASSERT_EQ(created_tab->id, client.tabs.at(0).first);
+
+  // Navigate to a new url which will modify the tab state.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("https://www.google.com/")));
+  receiver.FlushForTesting();
+  ASSERT_EQ(client.tabs[0].second, "https://www.google.com/");
 
   TabStripService::CloseTabsResult close_result;
   base::RunLoop close_tab_loop;
@@ -187,8 +259,8 @@ IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, CloseTabs) {
 
   base::RunLoop close_loop;
   remote->CloseTabs(
-      {tabs_api::TabId(
-          tabs_api::TabId::Type::kContent,
+      {tabs_api::NodeId(
+          tabs_api::NodeId::Type::kContent,
           base::NumberToString(interface->GetHandle().raw_value()))},
       base::BindLambdaForTesting([&](TabStripService::CloseTabsResult result) {
         ASSERT_TRUE(result.has_value());
@@ -204,7 +276,7 @@ IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, ActivateTab) {
   mojo::Remote<TabStripService> remote;
   tab_strip_service_impl_->Accept(remote.BindNewPipeAndPassReceiver());
 
-  tabs_api::TabId created_id;
+  tabs_api::NodeId created_id;
   base::RunLoop create_loop;
   // Append a new tab to the end, which will also focus it.
   remote->CreateTabAt(nullptr, std::make_optional(GURL("http://dark.web")),
@@ -221,7 +293,7 @@ IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, ActivateTab) {
   ASSERT_NE(GetTabStripModel()->GetActiveTab()->GetHandle(), old_tab_handle);
 
   auto old_tab_id =
-      tabs_api::TabId(tabs_api::TabId::Type::kContent,
+      tabs_api::NodeId(tabs_api::NodeId::Type::kContent,
                       base::NumberToString(old_tab_handle.raw_value()));
   base::RunLoop activate_loop;
   remote->ActivateTab(
@@ -234,4 +306,53 @@ IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, ActivateTab) {
 
   // Old tab should now be re-activated.
   ASSERT_EQ(GetTabStripModel()->GetActiveTab()->GetHandle(), old_tab_handle);
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, MoveTab) {
+  mojo::Remote<TabStripService> remote;
+  tab_strip_service_impl_->Accept(remote.BindNewPipeAndPassReceiver());
+
+  auto observation = SetUpObservation();
+
+  // Append a new tab to the end, so we have two tabs to work with.
+  base::RunLoop create_loop;
+  remote->CreateTabAt(nullptr,
+                      std::make_optional(GURL("http://somwewhere.nowhere")),
+                      base::BindLambdaForTesting(
+                          [&](TabStripService::CreateTabAtResult result) {
+                            ASSERT_TRUE(result.has_value());
+                            create_loop.Quit();
+                          }));
+  create_loop.Run();
+
+  auto handle_to_move = GetTabStripModel()->GetTabAtIndex(0)->GetHandle();
+  auto to_move_id =
+      tabs_api::NodeId(tabs_api::NodeId::Type::kContent,
+                      base::NumberToString(handle_to_move.raw_value()));
+
+  size_t target_idx = 1;
+
+  auto position = tabs_api::mojom::Position::New();
+  position->index = target_idx;
+
+  base::RunLoop move_loop;
+  remote->MoveTab(
+      to_move_id, std::move(position),
+      base::BindLambdaForTesting([&](TabStripService::MoveTabResult result) {
+        ASSERT_TRUE(result.has_value());
+        move_loop.Quit();
+      }));
+  move_loop.Run();
+  observation->receiver.FlushForTesting();
+
+  // Tab should now have been moved to target idx.
+  ASSERT_EQ(GetTabStripModel()->GetTabAtIndex(target_idx)->GetHandle(),
+            handle_to_move);
+
+  ASSERT_EQ(1ul, observation->client.move_events.size());
+
+  auto event = observation->client.move_events.at(0).Clone();
+  ASSERT_EQ(to_move_id, event->id);
+  ASSERT_EQ(0u, event->from->index);
+  ASSERT_EQ(1u, event->to->index);
 }

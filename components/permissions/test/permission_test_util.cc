@@ -5,6 +5,8 @@
 #include "components/permissions/test/permission_test_util.h"
 
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/content_settings/core/common/content_settings_utils.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "components/permissions/contexts/window_management_permission_context.h"
 #include "components/permissions/permission_manager.h"
 #include "content/public/browser/browser_context.h"
@@ -13,15 +15,15 @@
 namespace permissions {
 namespace {
 
-class FakePermissionContext : public PermissionContextBase {
+class FakePermissionContext : public ContentSettingPermissionContextBase {
  public:
   FakePermissionContext(
       content::BrowserContext* browser_context,
       ContentSettingsType content_settings_type,
       network::mojom::PermissionsPolicyFeature permissions_policy_feature)
-      : PermissionContextBase(browser_context,
-                              content_settings_type,
-                              permissions_policy_feature) {}
+      : ContentSettingPermissionContextBase(browser_context,
+                                            content_settings_type,
+                                            permissions_policy_feature) {}
 };
 
 class FakePermissionContextAlwaysAllow : public FakePermissionContext {
@@ -35,7 +37,7 @@ class FakePermissionContextAlwaysAllow : public FakePermissionContext {
                               permissions_policy_feature) {}
 
   // PermissionContextBase:
-  ContentSetting GetPermissionStatusInternal(
+  ContentSetting GetContentSettingStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
       const GURL& embedding_origin) const override {

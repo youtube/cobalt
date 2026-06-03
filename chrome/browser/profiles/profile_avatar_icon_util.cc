@@ -24,7 +24,6 @@
 #include "base/path_service.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -401,7 +400,8 @@ constexpr SkColor kAvatarBubbleGaiaBackgroundColor =
     SkColorSetRGB(0xf5, 0xf5, 0xf5);
 constexpr SkColor kUserManagerBackgroundColor = SkColorSetRGB(0xee, 0xee, 0xee);
 
-constexpr char kDefaultUrlPrefix[] = "chrome://theme/IDR_PROFILE_AVATAR_";
+constexpr std::string_view kDefaultUrlPrefix =
+    "chrome://theme/IDR_PROFILE_AVATAR_";
 constexpr base::FilePath::CharType kGAIAPictureFileName[] =
     FILE_PATH_LITERAL("Google Profile Picture.png");
 constexpr base::FilePath::CharType kHighResAvatarFolderName[] =
@@ -431,15 +431,10 @@ constexpr size_t kPlaceholderAvatarIndex = 0;
 #endif
 
 ui::ImageModel GetGuestAvatar(int size) {
-  int color_id = ui::kColorMenuIcon;
-  const gfx::VectorIcon* vector_icon = &kUserAccountAvatarRefreshIcon;
-  if (base::FeatureList::IsEnabled(switches::kEnableImprovedGuestProfileMenu)) {
-    // Guest profiles generally use the default theme, no need to go through the
-    // `ThemeService`.
-    color_id = ui::kColorSysPrimary;
-    vector_icon = &kAccountBoxIcon;
-  }
-  return ui::ImageModel::FromVectorIcon(*vector_icon, color_id, size);
+  // Guest profiles generally use the default theme, no need to go through the
+  // `ThemeService`.
+  return ui::ImageModel::FromVectorIcon(kAccountBoxIcon, ui::kColorSysPrimary,
+                                        size);
 }
 
 gfx::Image GetSizedAvatarIcon(const gfx::Image& image,
@@ -489,11 +484,12 @@ ui::ImageModel GetSizedAvatarImageModel(const ui::ImageModel& image, int size) {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-gfx::ImageSkia GetAvatarWithDottedRing(const ui::ImageModel& image,
-                                       int size,
-                                       bool has_padding,
-                                       bool has_background,
-                                       ui::ColorProvider* color_provider) {
+gfx::ImageSkia GetAvatarWithDottedRing(
+    const ui::ImageModel& image,
+    int size,
+    bool has_padding,
+    bool has_background,
+    const ui::ColorProvider& color_provider) {
   DCHECK(!image.IsEmpty());
 
   const AvatarWithDottedRingParams& params =
@@ -508,7 +504,7 @@ gfx::ImageSkia GetAvatarWithDottedRing(const ui::ImageModel& image,
 
   // Shrink the avatar to fit inside the dotted ring.
   gfx::ImageSkia sized_avatar_image =
-      GetSizedAvatarImageModel(image, avatar_size).Rasterize(color_provider);
+      GetSizedAvatarImageModel(image, avatar_size).Rasterize(&color_provider);
   // Crop to a circle.
   sized_avatar_image = CircleImageSource::CropCircle(sized_avatar_image);
   // Add padding.
@@ -517,13 +513,13 @@ gfx::ImageSkia GetAvatarWithDottedRing(const ui::ImageModel& image,
   // Add background color.
   if (has_background) {
     padded_image = AddBackgroundToImage(
-        padded_image, color_provider->GetColor(ui::kColorBubbleBackground));
+        padded_image, color_provider.GetColor(ui::kColorBubbleBackground));
   }
   // Add dotted ring.
   return gfx::ImageSkia(
       std::make_unique<ImageWithDottedCircleSource>(
           padded_image, avatar_ring_radius, avatar_ring_stroke,
-          color_provider->GetColor(ui::kColorSysStateInactiveRing)),
+          color_provider.GetColor(ui::kColorSysStateInactiveRing)),
       gfx::Size(size, size));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -836,15 +832,13 @@ bool IsDefaultAvatarIconIndex(size_t index) {
   return index < kDefaultAvatarIconsCount;
 }
 
-bool IsDefaultAvatarIconUrl(const std::string& url, size_t* icon_index) {
+bool IsDefaultAvatarIconUrl(std::string_view url, size_t* icon_index) {
   DCHECK(icon_index);
   if (!base::StartsWith(url, kDefaultUrlPrefix, base::CompareCase::SENSITIVE))
     return false;
 
   int int_value = -1;
-  if (base::StringToInt(base::MakeStringPiece(
-                            url.begin() + strlen(kDefaultUrlPrefix), url.end()),
-                        &int_value)) {
+  if (base::StringToInt(url.substr(kDefaultUrlPrefix.size()), &int_value)) {
     if (int_value < 0 ||
         int_value >= static_cast<int>(kDefaultAvatarIconsCount))
       return false;

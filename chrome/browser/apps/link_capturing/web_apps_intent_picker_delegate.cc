@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "base/task/bind_post_task.h"
 #include "chrome/browser/apps/link_capturing/apps_intent_picker_delegate.h"
 #include "chrome/browser/apps/link_capturing/enable_link_capturing_infobar_delegate.h"
 #include "chrome/browser/apps/link_capturing/intent_picker_info.h"
@@ -40,6 +41,7 @@ namespace apps {
 namespace {
 
 void OnAppReparentedRunInNewContents(const std::string& launch_name,
+                                     base::OnceClosure callback,
                                      content::WebContents* web_contents) {
   if (!features::ShouldShowLinkCapturingUX()) {
     return;
@@ -55,6 +57,8 @@ void OnAppReparentedRunInNewContents(const std::string& launch_name,
                                                                 launch_name);
   provider->ui_manager().MaybeShowIPHPromoForAppsLaunchedViaLinkCapturing(
       /*browser=*/nullptr, profile, launch_name);
+
+  std::move(callback).Run();
 }
 
 }  // namespace
@@ -246,7 +250,8 @@ void WebAppsIntentPickerDelegate::PersistIntentPreferencesForApp(
 void WebAppsIntentPickerDelegate::LaunchApp(content::WebContents* web_contents,
                                             const GURL& url,
                                             const std::string& launch_name,
-                                            PickerEntryType entry_type) {
+                                            PickerEntryType entry_type,
+                                            base::OnceClosure callback) {
   CHECK(entry_type == apps::PickerEntryType::kWeb ||
         entry_type == apps::PickerEntryType::kMacOs);
   CHECK(ShouldShowIntentPickerWithApps());
@@ -256,10 +261,12 @@ void WebAppsIntentPickerDelegate::LaunchApp(content::WebContents* web_contents,
     // which will destroy this object.
     provider_->ui_manager().ReparentAppTabToWindow(
         web_contents, launch_name,
-        base::BindOnce(&OnAppReparentedRunInNewContents, launch_name));
+        base::BindOnce(
+            &OnAppReparentedRunInNewContents, launch_name,
+            base::BindPostTaskToCurrentDefault(std::move(callback))));
   } else if (entry_type == apps::PickerEntryType::kMacOs) {
 #if BUILDFLAG(IS_MAC)
-    LaunchMacApp(url, launch_name);
+    LaunchMacApp(url, launch_name, std::move(callback));
 #else
     NOTREACHED();
 #endif  // BUILDFLAG(IS_MAC)

@@ -447,6 +447,16 @@ public class WebsitePermissionsFetcher {
                         containsPatternWildcards(address)
                                 ? address
                                 : assumeNonNull(WebsiteAddress.create(address)).getOrigin();
+                // To avoid collapsing addresses with and without wildcards into the same row,
+                // convert the embedder to add the scheme or the wildcard to create a
+                // unique key (and thus row) per pattern.
+                if (mSiteSettingsDelegate.isDisplayWildcardInContentSettingsEnabled()
+                        && embedder != null) {
+                    embedder =
+                            containsPatternWildcards(embedder)
+                                    ? embedder
+                                    : assumeNonNull(WebsiteAddress.create(embedder)).getOrigin();
+                }
                 Website site = findOrCreateSite(origin, embedder, contentSetting);
                 if (isEmbeddedPermission) {
                     site.addEmbeddedPermission(exception);
@@ -545,7 +555,7 @@ public class WebsitePermissionsFetcher {
             public void runAsync(final TaskQueue queue) {
                 mWebsitePreferenceBridge.fetchLocalStorageInfo(
                         mBrowserContextHandle,
-                        new Callback<HashMap>() {
+                        new Callback<>() {
                             @Override
                             public void onResult(HashMap result) {
                                 for (Object o : result.entrySet()) {
@@ -599,7 +609,7 @@ public class WebsitePermissionsFetcher {
             public void runAsync(final TaskQueue queue) {
                 mWebsitePreferenceBridge.fetchStorageInfo(
                         mBrowserContextHandle,
-                        new Callback<ArrayList>() {
+                        new Callback<>() {
                             @Override
                             public void onResult(ArrayList result) {
                                 @SuppressWarnings("unchecked")
@@ -628,7 +638,7 @@ public class WebsitePermissionsFetcher {
             public void runAsync(final TaskQueue queue) {
                 mWebsitePreferenceBridge.fetchSharedDictionaryInfo(
                         mBrowserContextHandle,
-                        new Callback<ArrayList>() {
+                        new Callback<>() {
                             @Override
                             public void onResult(ArrayList result) {
                                 @SuppressWarnings("unchecked")
@@ -650,7 +660,7 @@ public class WebsitePermissionsFetcher {
             public void runAsync(final TaskQueue queue) {
                 mWebsitePreferenceBridge.fetchCookiesInfo(
                         mBrowserContextHandle,
-                        new Callback<Map<String, CookiesInfo>>() {
+                        new Callback<>() {
                             @Override
                             public void onResult(Map<String, CookiesInfo> result) {
                                 for (Map.Entry<String, CookiesInfo> entry : result.entrySet()) {

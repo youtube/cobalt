@@ -36,8 +36,6 @@ using data_sharing::GroupMember;
 using data_sharing::GroupToken;
 using data_sharing::MemberRole;
 using Flow = CollaborationController::Flow;
-using metrics::CollaborationServiceJoinEvent;
-using metrics::CollaborationServiceShareOrManageEvent;
 using Outcome = signin::AccountManagedStatusFinder::Outcome;
 using ParseUrlResult = data_sharing::ParseUrlResult;
 using ParseUrlStatus = data_sharing::ParseUrlStatus;
@@ -46,11 +44,16 @@ CollaborationServiceImpl::CollaborationServiceImpl(
     tab_groups::TabGroupSyncService* tab_group_sync_service,
     data_sharing::DataSharingService* data_sharing_service,
     signin::IdentityManager* identity_manager,
-    PrefService* profile_prefs)
+    PrefService* profile_prefs,
+    PrefService* local_prefs)
     : tab_group_sync_service_(tab_group_sync_service),
       data_sharing_service_(data_sharing_service),
       identity_manager_(identity_manager),
-      profile_prefs_(profile_prefs) {
+      profile_prefs_(profile_prefs),
+      local_prefs_(local_prefs) {
+#if BUILDFLAG(IS_IOS)
+  CHECK(local_prefs_);
+#endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Initialize ServiceStatus.
   current_status_.sync_status = SyncStatus::kNotSyncing;
@@ -106,12 +109,11 @@ void CollaborationServiceImpl::StartJoinFlow(
     token = parse_result.value();
   }
 
-  CancelAllFlows(base::BindOnce(
-      &CollaborationServiceImpl::StartJoinFlowInternal,
-      weak_ptr_factory_.GetWeakPtr(), std::move(delegate), token));
+  CancelAllFlows();
 
-  RecordJoinEvent(data_sharing_service_->GetLogger(),
-                  CollaborationServiceJoinEvent::kStarted);
+  join_controllers_.insert(
+      {token, CreateCollaborationController(Flow(FlowType::kJoin, token),
+                                            std::move(delegate))});
 }
 
 void CollaborationServiceImpl::StartShareOrManageFlow(
@@ -122,13 +124,12 @@ void CollaborationServiceImpl::StartShareOrManageFlow(
   metrics::RecordShareOrManageEntryPoint(data_sharing_service_->GetLogger(),
                                          entry);
 
-  CancelAllFlows(
-      base::BindOnce(&CollaborationServiceImpl::StartCollaborationFlowInternal,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(delegate),
-                     either_id, FlowType::kShareOrManage));
+  CancelAllFlows();
 
-  RecordShareOrManageEvent(data_sharing_service_->GetLogger(),
-                           CollaborationServiceShareOrManageEvent::kStarted);
+  collaboration_controllers_.insert(
+      {either_id,
+       CreateCollaborationController(Flow(FlowType::kShareOrManage, either_id),
+                                     std::move(delegate))});
 }
 
 void CollaborationServiceImpl::StartLeaveOrDeleteFlow(
@@ -139,31 +140,29 @@ void CollaborationServiceImpl::StartLeaveOrDeleteFlow(
   metrics::RecordLeaveOrDeleteEntryPoint(data_sharing_service_->GetLogger(),
                                          entry);
 
-  CancelAllFlows(
-      base::BindOnce(&CollaborationServiceImpl::StartCollaborationFlowInternal,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(delegate),
-                     either_id, FlowType::kLeaveOrDelete));
+  CancelAllFlows();
+
+  collaboration_controllers_.insert(
+      {either_id,
+       CreateCollaborationController(Flow(FlowType::kLeaveOrDelete, either_id),
+                                     std::move(delegate))});
 }
 
-void CollaborationServiceImpl::CancelAllFlows(
-    base::OnceCallback<void()> finish_callback) {
+void CollaborationServiceImpl::CancelAllFlows() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (join_controllers_.empty() && collaboration_controllers_.empty()) {
-    // Don't post task if we can already execute `finish_callback`.
-    std::move(finish_callback).Run();
-    return;
+  auto it_join = join_controllers_.begin();
+  while (it_join != join_controllers_.end()) {
+    it_join->second->Cancel();
+    cancelled_controllers_.insert(std::move(it_join->second));
+    it_join = join_controllers_.erase(it_join);
   }
 
-  for (const auto& [token, controller] : join_controllers_) {
-    controller->Cancel();
+  auto it = collaboration_controllers_.begin();
+  while (it != collaboration_controllers_.end()) {
+    it->second->Cancel();
+    cancelled_controllers_.insert(std::move(it->second));
+    it = collaboration_controllers_.erase(it);
   }
-  for (const auto& [id, controller] : collaboration_controllers_) {
-    controller->Cancel();
-  }
-
-  // Post task to execute `finish_callback` after all flows have been cancelled.
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, std::move(finish_callback));
 }
 
 void CollaborationServiceImpl::OnSyncServiceInitialized(
@@ -223,11 +222,11 @@ void CollaborationServiceImpl::OnPrimaryAccountChanged(
     case signin::PrimaryAccountChangeEvent::Type::kSet:
       // Cancel only if the previous account was not empty.
       if (!event_details.GetPreviousState().primary_account.IsEmpty()) {
-        CancelAllFlows(base::DoNothing());
+        CancelAllFlows();
       }
       break;
     case signin::PrimaryAccountChangeEvent::Type::kCleared:
-      CancelAllFlows(base::DoNothing());
+      CancelAllFlows();
       break;
   }
 }
@@ -307,22 +306,44 @@ CollaborationServiceImpl::GetJoinControllersForTesting() {
   return join_controllers_;
 }
 
-void CollaborationServiceImpl::FinishJoinFlow(
-    const data_sharing::GroupToken& token) {
+int CollaborationServiceImpl::GetDeletingControllersCountForTesting() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto it = join_controllers_.find(token);
-  if (it != join_controllers_.end()) {
-    join_controllers_.erase(it);
-  }
+  return cancelled_controllers_.size();
 }
 
-void CollaborationServiceImpl::FinishCollaborationFlow(
-    const tab_groups::EitherGroupID& group_id) {
+void CollaborationServiceImpl::FinishCollaborationFlow(const void* controller) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto it = collaboration_controllers_.find(group_id);
-  if (it != collaboration_controllers_.end()) {
-    collaboration_controllers_.erase(it);
+  // Check and delete from join controllers.
+  auto it_join = join_controllers_.begin();
+  while (it_join != join_controllers_.end()) {
+    if (it_join->second.get() == controller) {
+      join_controllers_.erase(it_join);
+      return;
+    }
+    ++it_join;
   }
+
+  // Check and delete from other flow controllers.
+  auto it = collaboration_controllers_.begin();
+  while (it != collaboration_controllers_.end()) {
+    if (it->second.get() == controller) {
+      collaboration_controllers_.erase(it);
+      return;
+    }
+    ++it;
+  }
+
+  // Check and delete from already deleting controllers.
+  auto it_deleting = cancelled_controllers_.begin();
+  while (it_deleting != cancelled_controllers_.end()) {
+    if (it_deleting->get() == controller) {
+      cancelled_controllers_.erase(it_deleting);
+      return;
+    }
+    ++it_deleting;
+  }
+
+  NOTREACHED() << "Controllers should always delete itself when it is safe.";
 }
 
 SyncStatus CollaborationServiceImpl::GetSyncStatus() {
@@ -387,15 +408,45 @@ SigninStatus CollaborationServiceImpl::GetSigninStatus() {
     status = SigninStatus::kSigninDisabled;
   }
 
+#if BUILDFLAG(IS_IOS)
+  BrowserSigninMode policy_mode = static_cast<BrowserSigninMode>(
+      local_prefs_->GetInteger(::prefs::kBrowserSigninPolicy));
+  if (policy_mode == BrowserSigninMode::kDisabled) {
+    status = SigninStatus::kSigninDisabled;
+  }
+#endif
+
   return status;
 }
 
 CollaborationStatus CollaborationServiceImpl::GetCollaborationStatus() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Check if device policy allow signin.
+#if BUILDFLAG(IS_IOS)
+  BrowserSigninMode policy_mode = static_cast<BrowserSigninMode>(
+      local_prefs_->GetInteger(::prefs::kBrowserSigninPolicy));
+  if (policy_mode == BrowserSigninMode::kDisabled) {
+    return CollaborationStatus::kDisabledForPolicy;
+  }
+#else
   if (!profile_prefs_->GetBoolean(::prefs::kSigninAllowed) &&
       profile_prefs_->IsManagedPreference(::prefs::kSigninAllowed)) {
     return CollaborationStatus::kDisabledForPolicy;
+  }
+#endif
+
+  // Versioning turn off shared tab groups data types when version out of date.
+  if (!base::FeatureList::IsEnabled(
+          data_sharing::features::kSharedDataTypesKillSwitch) &&
+      base::FeatureList::IsEnabled(
+          data_sharing::features::kDataSharingEnableUpdateChromeUI)) {
+    return CollaborationStatus::kVersionOutOfDateShowUpdateChromeUi;
+  }
+
+  // Versioning turn off shared tab groups data types when version out of date.
+  if (!base::FeatureList::IsEnabled(
+          data_sharing::features::kSharedDataTypesKillSwitch)) {
+    return CollaborationStatus::kVersionOutOfDate;
   }
 
   // Disable for automotive users.
@@ -498,35 +549,6 @@ void CollaborationServiceImpl::RefreshServiceStatus() {
   }
 }
 
-void CollaborationServiceImpl::StartJoinFlowInternal(
-    std::unique_ptr<CollaborationControllerDelegate> delegate,
-    const GroupToken& token) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  join_controllers_.insert(
-      {token,
-       std::make_unique<CollaborationController>(
-           Flow(FlowType::kJoin, token), this, data_sharing_service_.get(),
-           tab_group_sync_service_.get(), sync_service_.get(),
-           identity_manager_.get(), std::move(delegate),
-           base::BindOnce(&CollaborationServiceImpl::FinishJoinFlow,
-                          weak_ptr_factory_.GetWeakPtr(), token))});
-}
-
-void CollaborationServiceImpl::StartCollaborationFlowInternal(
-    std::unique_ptr<CollaborationControllerDelegate> delegate,
-    const tab_groups::EitherGroupID& either_id,
-    FlowType type) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  collaboration_controllers_.insert(
-      {either_id,
-       std::make_unique<CollaborationController>(
-           Flow(type, either_id), this, data_sharing_service_.get(),
-           tab_group_sync_service_.get(), sync_service_.get(),
-           identity_manager_.get(), std::move(delegate),
-           base::BindOnce(&CollaborationServiceImpl::FinishCollaborationFlow,
-                          weak_ptr_factory_.GetWeakPtr(), either_id))});
-}
-
 void CollaborationServiceImpl::OnCollaborationGroupRemoved(
     const data_sharing::GroupId& group_id,
     base::OnceCallback<void(bool)> callback,
@@ -542,6 +564,18 @@ void CollaborationServiceImpl::OnCollaborationGroupRemoved(
   }
 
   std::move(callback).Run(/*success=*/false);
+}
+
+std::unique_ptr<CollaborationController>
+CollaborationServiceImpl::CreateCollaborationController(
+    Flow flow,
+    std::unique_ptr<CollaborationControllerDelegate> delegate) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return std::make_unique<CollaborationController>(
+      flow, this, data_sharing_service_.get(), tab_group_sync_service_.get(),
+      sync_service_.get(), identity_manager_.get(), std::move(delegate),
+      base::BindOnce(&CollaborationServiceImpl::FinishCollaborationFlow,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 }  // namespace collaboration

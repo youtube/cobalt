@@ -37,7 +37,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/text_codec_ascii_fast_path.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-namespace WTF {
+namespace blink {
 
 static const UChar kTable[256] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,  // 00-07
@@ -96,18 +96,17 @@ void TextCodecLatin1::RegisterEncodingNames(EncodingNameRegistrar registrar) {
 }
 
 static std::unique_ptr<TextCodec> NewStreamingTextDecoderWindowsLatin1(
-    const TextEncoding&,
-    const void*) {
+    const TextEncoding&) {
   return std::make_unique<TextCodecLatin1>();
 }
 
 void TextCodecLatin1::RegisterCodecs(TextCodecRegistrar registrar) {
-  registrar("windows-1252", NewStreamingTextDecoderWindowsLatin1, nullptr);
+  registrar("windows-1252", NewStreamingTextDecoderWindowsLatin1);
 
   // ASCII and Latin-1 both decode as Windows Latin-1 although they retain
   // unique identities.
-  registrar("ISO-8859-1", NewStreamingTextDecoderWindowsLatin1, nullptr);
-  registrar("US-ASCII", NewStreamingTextDecoderWindowsLatin1, nullptr);
+  registrar("ISO-8859-1", NewStreamingTextDecoderWindowsLatin1);
+  registrar("US-ASCII", NewStreamingTextDecoderWindowsLatin1);
 }
 
 String TextCodecLatin1::Decode(base::span<const uint8_t> bytes,
@@ -133,10 +132,11 @@ String TextCodecLatin1::Decode(base::span<const uint8_t> bytes,
         while (source < aligned_end) {
           MachineWord chunk = *reinterpret_cast_ptr<const MachineWord*>(source);
 
-          if (!IsAllASCII<LChar>(chunk))
+          if (!IsAllAscii<LChar>(chunk)) {
             goto useLookupTable;
+          }
 
-          CopyASCIIMachineWord(destination, source);
+          CopyAsciiMachineWord(destination, source);
           source += sizeof(MachineWord);
           destination += sizeof(MachineWord);
         }
@@ -185,10 +185,11 @@ upConvertTo16Bit:
         while (source < aligned_end) {
           MachineWord chunk = *reinterpret_cast_ptr<const MachineWord*>(source);
 
-          if (!IsAllASCII<LChar>(chunk))
+          if (!IsAllAscii<LChar>(chunk)) {
             goto useLookupTable16;
+          }
 
-          CopyASCIIMachineWord(destination16, source);
+          CopyAsciiMachineWord(destination16, source);
           source += sizeof(MachineWord);
           destination16 += sizeof(MachineWord);
         }
@@ -213,7 +214,7 @@ template <typename CharType>
 static std::string EncodeComplexWindowsLatin1(
     base::span<const CharType> char_data,
     UnencodableHandling handling) {
-  DCHECK_NE(handling, kNoUnencodables);
+  DCHECK_NE(handling, UnencodableHandling::kNoUnencodables);
   const auto* characters = char_data.data();
   const wtf_size_t length = base::checked_cast<wtf_size_t>(char_data.size());
   wtf_size_t target_length = length;
@@ -288,4 +289,4 @@ std::string TextCodecLatin1::Encode(base::span<const LChar> characters,
   return EncodeCommon(characters, handling);
 }
 
-}  // namespace WTF
+}  // namespace blink

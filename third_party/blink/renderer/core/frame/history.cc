@@ -28,6 +28,7 @@
 #include <optional>
 
 #include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/scheduler/task_attribution_id.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
@@ -49,6 +50,7 @@
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_private_property.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_info.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
@@ -212,6 +214,7 @@ void History::forward(ScriptState* script_state,
 void History::go(ScriptState* script_state,
                  int delta,
                  ExceptionState& exception_state) {
+  base::TimeTicks actual_navigation_start = base::TimeTicks::Now();
   if (delta > 0) {
     MaybeRecordHistoryAdvanceMethodUkm(DomWindow());
   }
@@ -249,7 +252,8 @@ void History::go(ScriptState* script_state,
       }
     }
     DCHECK(frame->Client());
-    if (frame->Client()->NavigateBackForward(delta, soft_navigation_task_id)) {
+    if (frame->Client()->NavigateBackForward(delta, actual_navigation_start,
+                                             soft_navigation_task_id)) {
       if (Page* page = frame->GetPage())
         page->HistoryNavigationVirtualTimePauser().PauseVirtualTime();
     }
@@ -318,8 +322,11 @@ void History::replaceState(ScriptState* script_state,
 }
 
 KURL History::UrlForState(const String& url_string) {
-  if (url_string.IsNull())
+  if (url_string.IsNull() ||
+      (url_string.empty() &&
+       RuntimeEnabledFeatures::StandardHistoryStateEmptyUrlHandlingEnabled())) {
     return DomWindow()->Url();
+  }
   if (url_string.empty())
     return DomWindow()->BaseURL();
 
@@ -358,11 +365,11 @@ void History::StateObjectAdded(scoped_refptr<SerializedScriptValue> data,
     // We can safely expose the URL to JavaScript, as a) no redirection takes
     // place: JavaScript already had this URL, b) JavaScript can only access a
     // same-origin History object.
-    exception_state.ThrowSecurityError(WTF::StrCat(
-        {"A history state object with URL '", full_url.ElidedString(),
-         "' cannot be created in a document with origin '",
-         window->GetSecurityOrigin()->ToString(), "' and URL '",
-         window->Url().ElidedString(), "'."}));
+    exception_state.ThrowSecurityError(
+        StrCat({"A history state object with URL '", full_url.ElidedString(),
+                "' cannot be created in a document with origin '",
+                window->GetSecurityOrigin()->ToString(), "' and URL '",
+                window->Url().ElidedString(), "'."}));
     return;
   }
 

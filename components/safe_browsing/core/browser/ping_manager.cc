@@ -72,6 +72,8 @@ bool IsDownloadReport(
         DANGEROUS_DOWNLOAD_AUTO_DELETED:
     case safe_browsing::ClientSafeBrowsingReportRequest::
         DANGEROUS_DOWNLOAD_PROFILE_CLOSED:
+    case safe_browsing::ClientSafeBrowsingReportRequest::
+        DANGEROUS_DOWNLOAD_WARNING_ANDROID:
       return true;
     default:
       return false;
@@ -468,8 +470,7 @@ void PingManager::ReportThreatDetailsOnGotAccessToken(
   if (!access_token.empty()) {
     LogAuthenticatedCookieResets(
         *resource_request, SafeBrowsingAuthenticatedEndpoint::kThreatDetails);
-    SetAccessTokenAndClearCookieInResourceRequest(resource_request.get(),
-                                                  access_token);
+    SetAccessToken(resource_request.get(), access_token);
   }
   base::UmaHistogramBoolean(
       "SafeBrowsing.ClientSafeBrowsingReport.RequestHasToken",

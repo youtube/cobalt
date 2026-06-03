@@ -41,8 +41,10 @@ import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.NavigationHistory;
@@ -59,16 +61,18 @@ import java.util.concurrent.ExecutionException;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class NavigationPopupTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private static final int INVALID_NAVIGATION_INDEX = -1;
     private int mMinWidth;
     private int mMaxWidth;
     private int mMargin;
+    private WebPageStation mPage;
 
     @Before
     public void setUp() throws Exception {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         Resources resources = mActivityTestRule.getActivity().getResources();
         mMinWidth = resources.getDimensionPixelSize(R.dimen.navigation_popup_tablet_min_width);
         mMaxWidth = resources.getDimensionPixelSize(R.dimen.navigation_popup_tablet_max_width);
@@ -227,7 +231,7 @@ public class NavigationPopupTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("Navigation")
     public void testWidth_smallestWidth() throws ExecutionException {
         final TestNavigationController controller =
@@ -249,7 +253,7 @@ public class NavigationPopupTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("Navigation")
     public void testWidth_mediumWidth() throws ExecutionException {
         // The default controller has a moderately long title, so the width is between min & max.
@@ -261,7 +265,7 @@ public class NavigationPopupTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("Navigation")
     public void testWidth_maxWidth() throws ExecutionException {
         // Add an entry with a very long title, so the width is limited by the max.
@@ -283,7 +287,7 @@ public class NavigationPopupTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("Navigation")
     public void testWidth_limitedByScreenWidth() throws ExecutionException {
         final DisplayMetrics displayMetrics =

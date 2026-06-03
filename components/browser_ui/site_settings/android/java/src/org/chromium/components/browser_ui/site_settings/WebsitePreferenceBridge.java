@@ -85,12 +85,12 @@ public class WebsitePreferenceBridge {
 
     @CalledByNative
     private static Object createStorageInfoList() {
-        return new ArrayList<StorageInfo>();
+        return new ArrayList<>();
     }
 
     @CalledByNative
     private static Object createLocalStorageInfoMap() {
-        return new HashMap<String, LocalStorageInfo>();
+        return new HashMap<>();
     }
 
     @SuppressWarnings("unchecked")
@@ -103,7 +103,7 @@ public class WebsitePreferenceBridge {
 
     @CalledByNative
     private static Object createSharedDictionaryInfoList() {
-        return new ArrayList<SharedDictionaryInfo>();
+        return new ArrayList<>();
     }
 
     @SuppressWarnings("unchecked")
@@ -115,7 +115,7 @@ public class WebsitePreferenceBridge {
 
     @CalledByNative
     private static Object createCookiesInfoMap() {
-        return new HashMap<String, CookiesInfo>();
+        return new HashMap<>();
     }
 
     @CalledByNative
@@ -139,7 +139,7 @@ public class WebsitePreferenceBridge {
             return exceptions;
         }
 
-        List<ContentSettingException> managedExceptions = new ArrayList<ContentSettingException>();
+        List<ContentSettingException> managedExceptions = new ArrayList<>();
         for (ContentSettingException exception : exceptions) {
             if (exception.getSource() == ProviderType.POLICY_PROVIDER) {
                 managedExceptions.add(exception);
@@ -185,7 +185,7 @@ public class WebsitePreferenceBridge {
     public List<ChosenObjectInfo> getChosenObjectInfo(
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
-        ArrayList<ChosenObjectInfo> list = new ArrayList<ChosenObjectInfo>();
+        ArrayList<ChosenObjectInfo> list = new ArrayList<>();
         org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
                 .getChosenObjects(browserContextHandle, contentSettingsType, list);
         return list;

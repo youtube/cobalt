@@ -23,6 +23,7 @@
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_ioobject.h"
 #include "base/memory/ptr_util.h"
+#include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
@@ -206,7 +207,7 @@ bool BluetoothAdapterMac::IsPresent() const {
 
   base::mac::ScopedIOObject<io_iterator_t> iterator;
   IOReturn result = IOServiceGetMatchingServices(
-      kIOMasterPortDefault, IOServiceMatching("IOBluetoothHCIController"),
+      kIOMainPortDefault, IOServiceMatching("IOBluetoothHCIController"),
       iterator.InitializeInto());
   if (result != kIOReturnSuccess) {
     BLUETOOTH_LOG(ERROR) << "Failed to enumerate Bluetooth controller: "

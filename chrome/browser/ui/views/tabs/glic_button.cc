@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
+#include "base/notimplemented.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
@@ -74,6 +75,7 @@ GlicButton::GlicButton(TabStripController* tab_strip_controller,
   UpdateColors();
 
   SetVisible(true);
+  SetText(base::UTF8ToUTF16(std::string()));
 
   SetFocusBehavior(FocusBehavior::ALWAYS);
 
@@ -92,6 +94,7 @@ void GlicButton::SetIsShowingNudge(bool is_showing) {
     AnnounceNudgeShown();
   } else {
     SetCloseButtonFocusBehavior(FocusBehavior::NEVER);
+    SetText(base::UTF8ToUTF16(std::string()));
   }
   is_showing_nudge_ = is_showing;
   PreferredSizeChanged();

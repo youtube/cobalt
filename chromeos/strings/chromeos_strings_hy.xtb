@@ -477,6 +477,7 @@
 <translation id="3091839911843451378">Չհաջողվեց տպել – Տպիչի աշխատանքը դադարեցվել է</translation>
 <translation id="3102119246920354026">Հիշապահեստ</translation>
 <translation id="3103783611481501187">սյուրռեալիստական</translation>
+<translation id="3119672627216736407">Հասանելի է թարգմանություն</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">լողավազաններ</translation>
 <translation id="3122883569442693641">Այլ մանրամասներ</translation>
@@ -1137,6 +1138,7 @@
 <translation id="6058625436358447366">Ավարտելու համար մուտքագրեք ձեր հին և նոր գաղտնաբառերը</translation>
 <translation id="6061772781719867950">Անհաջող HTTP հարցումներ</translation>
 <translation id="6073292342939316679">պակասեցնել ստեղնաշարի հետնալույսի պայծառությունը</translation>
+<translation id="6074608334942655098">Այլևս չթարգմանել</translation>
 <translation id="6074752328838739425">Թաքցնել ամփոփումը</translation>
 <translation id="6075872808778243331">HTTP-ի հապաղում (Android)</translation>
 <translation id="6078323886959318429">Ավելացնել դյուրանցում</translation>
@@ -1434,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Հարցրեք փորձագետներին Chromebook-ի օգնության ֆորումում</translation>
-<translation id="7309823890857024809">մինիմալիստական նատյուրմորտ՝ սև ֆոնին ապակե ծաղկամանի մեջ դաշտային կակաչներով</translation>
 <translation id="7311368985037279727">ստեղնաշարի գույնը</translation>
 <translation id="7317831949569936035">Գրանցում ուսումնական հաստատության հաշվում</translation>
 <translation id="7319430975418800333">A3</translation>

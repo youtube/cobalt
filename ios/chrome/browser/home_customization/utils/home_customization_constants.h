@@ -111,4 +111,16 @@ enum class CustomizationLinkType : NSInteger {
   kLearnMore,
 };
 
+// Represents the background style used for home customization.
+enum class HomeCustomizationBackgroundStyle : NSInteger {
+  // No background (default appearance).
+  kDefault,
+
+  // Solid background color.
+  kColor,
+
+  // Background chosen from preset gallery.
+  kPreset,
+};
+
 #endif  // IOS_CHROME_BROWSER_HOME_CUSTOMIZATION_UTILS_HOME_CUSTOMIZATION_CONSTANTS_H_

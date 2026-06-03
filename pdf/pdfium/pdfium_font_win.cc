@@ -17,7 +17,9 @@
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "base/strings/cstring_view.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "pdf/pdfium/pdfium_engine.h"
 #include "pdf/pdfium/pdfium_font_helpers.h"
@@ -35,7 +37,7 @@ namespace chrome_pdf {
 namespace {
 
 constexpr auto kBase14Substs =
-    base::MakeFixedFlatMap<std::string_view, std::string_view>({
+    base::MakeFixedFlatMap<base::cstring_view, base::cstring_view>({
         // PDF Fonts
         {"Courier", "Courier New"},
         {"Courier-Bold", "Courier New Bold"},
@@ -52,10 +54,10 @@ constexpr auto kBase14Substs =
     });
 
 // kBase14Substs from cfx_folderfontinfo.
-std::string GetSubstFont(const std::string& face) {
+base::cstring_view GetSubstFont(const std::string& face) {
   auto iter = kBase14Substs.find(face);
   if (iter != kBase14Substs.end()) {
-    return std::string(iter->second);
+    return iter->second;
   }
   return face;
 }
@@ -174,7 +176,7 @@ class SkiaFontMapper {
                                  : SkFontStyle::Slant::kUpright_Slant);
 
     // Force name substitution for default PDF fonts.
-    std::string subst_face = GetSubstFont(face);
+    base::cstring_view subst_face = GetSubstFont(face);
 
     auto typeface = manager_->matchFamilyStyle(subst_face.c_str(), style);
     if (typeface) {
@@ -183,7 +185,7 @@ class SkiaFontMapper {
 
     // Try pdf->blink mappings, which does its own substitution.
     std::optional<blink::WebFontDescription> desc =
-        PdfFontToBlinkFontMapping(weight, italic, charset, pitch, face.c_str());
+        PdfFontToBlinkFontMapping(weight, italic, charset, pitch, face);
     if (desc) {
       typeface = manager_->matchFamilyStyle(desc->family.Utf8().c_str(), style);
       if (typeface) {
@@ -202,7 +204,7 @@ class SkiaFontMapper {
     return FinalFixups(subst_face, style, charset, pitch);
   }
 
-  sk_sp<SkTypeface> GetShiftJISPreference(const std::string& face,
+  sk_sp<SkTypeface> GetShiftJISPreference(base::cstring_view face,
                                           int weight,
                                           int pitch_family,
                                           SkFontStyle style) {
@@ -241,7 +243,7 @@ class SkiaFontMapper {
     return manager_->matchFamilyStyle("MS Gothic", style);
   }
 
-  sk_sp<SkTypeface> GetGBPreference(const std::string& face,
+  sk_sp<SkTypeface> GetGBPreference(base::cstring_view face,
                                     int weight,
                                     int pitch_family,
                                     SkFontStyle style) {
@@ -264,8 +266,7 @@ class SkiaFontMapper {
     return manager_->matchFamilyStyle("SimSun", style);
   }
 
-  sk_sp<SkTypeface> GetHangeulPreference(const std::string& face,
-                                         SkFontStyle style) {
+  sk_sp<SkTypeface> GetHangeulPreference(SkFontStyle style) {
     // Gulim is a supplemental font.
     auto typeface = manager_->matchFamilyStyle("Gulim", style);
     if (typeface) {
@@ -274,7 +275,7 @@ class SkiaFontMapper {
     return manager_->matchFamilyStyle("Malgun Gothic", style);
   }
 
-  sk_sp<SkTypeface> GetFallbackFace(const std::string& face,
+  sk_sp<SkTypeface> GetFallbackFace(base::cstring_view face,
                                     int charset,
                                     int weight,
                                     int pitch_family,
@@ -285,7 +286,7 @@ class SkiaFontMapper {
       case FXFONT_GB2312_CHARSET:
         return GetGBPreference(face, weight, pitch_family, style);
       case FXFONT_HANGEUL_CHARSET:
-        return GetHangeulPreference(face, style);
+        return GetHangeulPreference(style);
       case FXFONT_CHINESEBIG5_CHARSET:
         if (base::Contains(face, "MSung")) {
           // Monospace.
@@ -299,7 +300,7 @@ class SkiaFontMapper {
   }
 
   // Put any last-gasp hacks into this method.
-  sk_sp<SkTypeface> FinalFixups(const std::string& face,
+  sk_sp<SkTypeface> FinalFixups(base::cstring_view face,
                                 const SkFontStyle& style,
                                 int charset,
                                 int pitch_family) {

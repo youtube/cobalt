@@ -47,11 +47,11 @@ public final class DefaultBrowserInfo {
         synchronized (sDirCreationLock) {
             if (sDefaultBrowserFetcher == null) {
                 sDefaultBrowserFetcher =
-                        new BackgroundOnlyAsyncTask<ArrayList<String>>() {
+                        new BackgroundOnlyAsyncTask<>() {
                             @Override
                             protected ArrayList<String> doInBackground() {
                                 Context context = ContextUtils.getApplicationContext();
-                                ArrayList<String> menuTitles = new ArrayList<String>(2);
+                                ArrayList<String> menuTitles = new ArrayList<>(2);
                                 // Store the package label of current application.
                                 menuTitles.add(
                                         getTitleFromPackageLabel(

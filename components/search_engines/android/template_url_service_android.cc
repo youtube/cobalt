@@ -20,6 +20,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/google/core/common/google_util.h"
 #include "components/search_engines/android/template_url_android.h"
@@ -42,6 +43,10 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
 namespace {
+const char kAdditionalParam[] = "udm=50";
+// ANDROID_CHROME_NTP_FAKE_OMNIBOX_ENTRY_POINT = 43;
+const char kAdditionalAepFakeBoxParam[] = "aep=43";
+
 TemplateURLData CreatePlayAPITemplateURLData(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& obj,
@@ -317,6 +322,28 @@ TemplateUrlServiceAndroid::GetUrlForVoiceSearchQuery(
   }
 
   return url::GURLAndroid::EmptyGURL(env);
+}
+
+base::android::ScopedJavaLocalRef<jobject>
+TemplateUrlServiceAndroid::GetComposeplateUrl(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& obj) {
+  if (!IsDefaultSearchEngineGoogle()) {
+    return nullptr;
+  }
+
+  const TemplateURLRef& url_ref =
+      template_url_service_->GetDefaultSearchProvider()->url_ref();
+  TemplateURLRef::SearchTermsArgs search_term_args =
+      TemplateURLRef::SearchTermsArgs(std::u16string());
+
+  const std::vector<std::string> params = {kAdditionalParam,
+                                           kAdditionalAepFakeBoxParam};
+  search_term_args.additional_query_params = base::JoinString(params, "&");
+
+  GURL gurl = GURL(url_ref.ReplaceSearchTerms(
+      search_term_args, template_url_service_->search_terms_data()));
+  return url::GURLAndroid::FromNativeGURL(env, gurl);
 }
 
 base::android::ScopedJavaLocalRef<jobject>

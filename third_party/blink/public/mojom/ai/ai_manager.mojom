@@ -82,7 +82,8 @@ interface AIManagerCreateWriterClient {
   OnResult(pending_remote<blink.mojom.AIWriter> writer);
 
   // Called when the manager cannot create an AIWriter.
-  OnError(AIManagerCreateClientError error);
+  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
+  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
 };
 
 // The client interface that receives an AIRewriter from an AIManager.
@@ -92,7 +93,8 @@ interface AIManagerCreateRewriterClient {
   OnResult(pending_remote<blink.mojom.AIRewriter> rewriter);
 
   // Called when the manager cannot create an AIRewriter.
-  OnError(AIManagerCreateClientError error);
+  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
+  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
 };
 
 // The client interface that receives an AISummarizer from an AIManager.
@@ -102,7 +104,8 @@ interface AIManagerCreateSummarizerClient {
   OnResult(pending_remote<blink.mojom.AISummarizer> summarizer);
 
   // Called when the manager cannot create an AISummarizer.
-  OnError(AIManagerCreateClientError error);
+  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
+  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
 };
 
 // The client interface that receives an AIProofreader from an AIManager.
@@ -112,7 +115,8 @@ interface AIManagerCreateProofreaderClient {
   OnResult(pending_remote<blink.mojom.AIProofreader> proofreader);
 
   // Called when the manager cannot create an AIProofreader.
-  OnError(AIManagerCreateClientError error);
+  // `quota_error_info` may provide additional info for kInitialInputTooLarge.
+  OnError(AIManagerCreateClientError error, QuotaErrorInfo? quota_error_info);
 };
 
 // The manager that could create a new session for the model.
@@ -159,6 +163,13 @@ interface AIManager {
   // AIRewriterCreateOptions when the JS API `ai.rewriter.create()` is called.
   CreateRewriter(pending_remote<AIManagerCreateRewriterClient> client,
                  AIRewriterCreateOptions options);
+  // Returns proofreader model availability info from the underlying service.
+  CanCreateProofreader(AIProofreaderCreateOptions options) =>
+      (ModelAvailabilityCheckResult result);
+  // Creates a new proofreader, passing the result or error to the client.
+  // Creation will be aborted if the client is disconnected.
+  CreateProofreader(pending_remote<AIManagerCreateProofreaderClient> client,
+                    AIProofreaderCreateOptions options);
   // Registers the observer that will be notified when the on device model
   // download progress is updated.
   AddModelDownloadProgressObserver(

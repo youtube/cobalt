@@ -15,23 +15,14 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/crosapi/cert_provisioning_ash.h"
-#include "chrome/browser/ash/crosapi/chaps_service_ash.h"
-#include "chrome/browser/ash/crosapi/device_attributes_ash.h"
-#include "chrome/browser/ash/crosapi/device_oauth2_token_service_ash.h"
 #include "chrome/browser/ash/crosapi/document_scan_ash.h"
 #include "chrome/browser/ash/crosapi/file_system_access_cloud_identifier_provider_ash.h"
 #include "chrome/browser/ash/crosapi/file_system_provider_service_ash.h"
-#include "chrome/browser/ash/crosapi/fullscreen_controller_ash.h"
 #include "chrome/browser/ash/crosapi/keystore_service_ash.h"
-#include "chrome/browser/ash/crosapi/kiosk_session_service_ash.h"
 #include "chrome/browser/ash/crosapi/local_printer_ash.h"
 #include "chrome/browser/ash/crosapi/login_ash.h"
-#include "chrome/browser/ash/crosapi/login_state_ash.h"
 #include "chrome/browser/ash/crosapi/media_ui_ash.h"
-#include "chrome/browser/ash/crosapi/multi_capture_service_ash.h"
-#include "chrome/browser/ash/crosapi/networking_attributes_ash.h"
 #include "chrome/browser/ash/crosapi/parent_access_ash.h"
-#include "chrome/browser/ash/crosapi/structured_metrics_service_ash.h"
 #include "chrome/browser/ash/crosapi/vpn_service_ash.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
 #include "chrome/browser/ash/printing/print_preview/print_preview_webcontents_adapter_ash.h"
@@ -60,7 +51,6 @@
 #include "chromeos/crosapi/mojom/local_printer.mojom.h"
 #include "chromeos/crosapi/mojom/magic_boost.mojom.h"
 #include "chromeos/crosapi/mojom/mahi.mojom.h"
-#include "chromeos/crosapi/mojom/multi_capture_service.mojom.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "chromeos/services/chromebox_for_meetings/public/cpp/service_connection.h"
 #include "chromeos/services/chromebox_for_meetings/public/mojom/cfm_service_manager.mojom.h"
@@ -101,25 +91,16 @@ Profile* GetAshProfile() {
 
 CrosapiAsh::CrosapiAsh()
     : cert_provisioning_ash_(std::make_unique<CertProvisioningAsh>()),
-      chaps_service_ash_(std::make_unique<ChapsServiceAsh>()),
-      device_attributes_ash_(std::make_unique<DeviceAttributesAsh>()),
-      device_oauth2_token_service_ash_(
-          std::make_unique<DeviceOAuth2TokenServiceAsh>()),
       diagnostics_service_ash_(std::make_unique<ash::DiagnosticsServiceAsh>()),
       document_scan_ash_(std::make_unique<DocumentScanAsh>()),
       file_system_access_cloud_identifier_provider_ash_(
           std::make_unique<FileSystemAccessCloudIdentifierProviderAsh>()),
       file_system_provider_service_ash_(
           std::make_unique<FileSystemProviderServiceAsh>()),
-      fullscreen_controller_ash_(std::make_unique<FullscreenControllerAsh>()),
       keystore_service_ash_(std::make_unique<KeystoreServiceAsh>()),
-      kiosk_session_service_ash_(std::make_unique<KioskSessionServiceAsh>()),
       local_printer_ash_(std::make_unique<LocalPrinterAsh>()),
       login_ash_(std::make_unique<LoginAsh>()),
-      login_state_ash_(std::make_unique<LoginStateAsh>()),
       media_ui_ash_(std::make_unique<MediaUIAsh>()),
-      multi_capture_service_ash_(std::make_unique<MultiCaptureServiceAsh>()),
-      networking_attributes_ash_(std::make_unique<NetworkingAttributesAsh>()),
       parent_access_ash_(std::make_unique<ParentAccessAsh>()),
       telemetry_diagnostic_routine_service_ash_(
           std::make_unique<ash::TelemetryDiagnosticsRoutineServiceAsh>()),
@@ -130,8 +111,6 @@ CrosapiAsh::CrosapiAsh()
       probe_service_ash_(std::make_unique<ash::ProbeServiceAsh>()),
       print_preview_webcontents_adapter_ash_(
           std::make_unique<ash::printing::PrintPreviewWebcontentsAdapterAsh>()),
-      structured_metrics_service_ash_(
-          std::make_unique<StructuredMetricsServiceAsh>()),
       video_conference_manager_ash_(
           std::make_unique<ash::VideoConferenceManagerAsh>()),
       vpn_service_ash_(std::make_unique<VpnServiceAsh>()) {
@@ -177,24 +156,9 @@ void CrosapiAsh::BindCfmServiceContext(
       std::move(receiver));
 }
 
-void CrosapiAsh::BindChapsService(
-    mojo::PendingReceiver<mojom::ChapsService> receiver) {
-  chaps_service_ash_->BindReceiver(std::move(receiver));
-}
-
 void CrosapiAsh::BindCrosDisplayConfigController(
     mojo::PendingReceiver<mojom::CrosDisplayConfigController> receiver) {
   ash::BindCrosDisplayConfigController(std::move(receiver));
-}
-
-void CrosapiAsh::BindDeviceAttributes(
-    mojo::PendingReceiver<mojom::DeviceAttributes> receiver) {
-  device_attributes_ash_->BindReceiver(std::move(receiver));
-}
-
-void CrosapiAsh::BindDeviceOAuth2TokenService(
-    mojo::PendingReceiver<mojom::DeviceOAuth2TokenService> receiver) {
-  device_oauth2_token_service_ash_->BindReceiver(std::move(receiver));
 }
 
 void CrosapiAsh::BindDiagnosticsService(
@@ -214,11 +178,6 @@ void CrosapiAsh::BindFileSystemAccessCloudIdentifierProvider(
       std::move(receiver));
 }
 
-void CrosapiAsh::BindFullscreenController(
-    mojo::PendingReceiver<crosapi::mojom::FullscreenController> receiver) {
-  fullscreen_controller_ash_->BindReceiver(std::move(receiver));
-}
-
 void CrosapiAsh::BindHidManager(
     mojo::PendingReceiver<device::mojom::HidManager> receiver) {
   content::GetDeviceService().BindHidManager(std::move(receiver));
@@ -234,11 +193,6 @@ void CrosapiAsh::BindKeystoreService(
   keystore_service_ash_->BindReceiver(std::move(receiver));
 }
 
-void CrosapiAsh::BindKioskSessionService(
-    mojo::PendingReceiver<mojom::KioskSessionService> receiver) {
-  kiosk_session_service_ash_->BindReceiver(std::move(receiver));
-}
-
 void CrosapiAsh::BindLocalPrinter(
     mojo::PendingReceiver<crosapi::mojom::LocalPrinter> receiver) {
   local_printer_ash_->BindReceiver(std::move(receiver));
@@ -247,11 +201,6 @@ void CrosapiAsh::BindLocalPrinter(
 void CrosapiAsh::BindLogin(
     mojo::PendingReceiver<crosapi::mojom::Login> receiver) {
   login_ash_->BindReceiver(std::move(receiver));
-}
-
-void CrosapiAsh::BindLoginState(
-    mojo::PendingReceiver<crosapi::mojom::LoginState> receiver) {
-  login_state_ash_->BindReceiver(std::move(receiver));
 }
 
 void CrosapiAsh::BindMachineLearningService(
@@ -284,29 +233,14 @@ void CrosapiAsh::BindMediaSessionController(
       std::move(receiver));
 }
 
-void CrosapiAsh::BindMultiCaptureService(
-    mojo::PendingReceiver<mojom::MultiCaptureService> receiver) {
-  multi_capture_service_ash_->BindReceiver(std::move(receiver));
-}
-
 void CrosapiAsh::BindNetworkChange(
     mojo::PendingReceiver<crosapi::mojom::NetworkChange> receiver) {
   NOTREACHED();
 }
 
-void CrosapiAsh::BindNetworkingAttributes(
-    mojo::PendingReceiver<mojom::NetworkingAttributes> receiver) {
-  networking_attributes_ash_->BindReceiver(std::move(receiver));
-}
-
 void CrosapiAsh::BindParentAccess(
     mojo::PendingReceiver<mojom::ParentAccess> receiver) {
   parent_access_ash_->BindReceiver(std::move(receiver));
-}
-
-void CrosapiAsh::BindPrintPreviewCrosDelegate(
-    mojo::PendingReceiver<mojom::PrintPreviewCrosDelegate> receiver) {
-  print_preview_webcontents_adapter_ash_->BindReceiver(std::move(receiver));
 }
 
 void CrosapiAsh::BindReceiver(
@@ -337,11 +271,6 @@ void CrosapiAsh::BindSensorHalClient(
     mojo::PendingRemote<chromeos::sensors::mojom::SensorHalClient> remote) {
   chromeos::sensors::SensorHalDispatcher::GetInstance()->RegisterClient(
       std::move(remote));
-}
-
-void CrosapiAsh::BindStructuredMetricsService(
-    mojo::PendingReceiver<crosapi::mojom::StructuredMetricsService> receiver) {
-  structured_metrics_service_ash_->BindReceiver(std::move(receiver));
 }
 
 void CrosapiAsh::BindTelemetryDiagnosticRoutinesService(

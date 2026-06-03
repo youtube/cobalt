@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "third_party/blink/public/common/loader/network_utils.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_theme_engine.h"
 #include "third_party/blink/public/web/web_render_theme.h"
@@ -95,6 +96,8 @@ InspectorEmulationAgent::InspectorEmulationAgent(
       emulated_media_features_(&agent_state_, /*default_value=*/WTF::String()),
       emulated_vision_deficiency_(&agent_state_,
                                   /*default_value=*/WTF::String()),
+      os_text_scale_emulation_enabled_(&agent_state_, /*default_value=*/false),
+      emulated_os_text_scale_(&agent_state_, /*default_value=*/1),
       navigator_platform_override_(&agent_state_,
                                    /*default_value=*/WTF::String()),
       hardware_concurrency_override_(&agent_state_, /*default_value=*/0),
@@ -171,6 +174,9 @@ void InspectorEmulationAgent::Restore() {
   setEmulatedMedia(emulated_media_.Get(), std::move(features));
   if (!emulated_vision_deficiency_.Get().IsNull())
     setEmulatedVisionDeficiency(emulated_vision_deficiency_.Get());
+  if (os_text_scale_emulation_enabled_.Get()) {
+    setEmulatedOSTextScale(emulated_os_text_scale_.Get());
+  }
   auto status_or_rgba = protocol::DOM::RGBA::ReadFrom(
       default_background_color_override_rgba_.Get());
   if (status_or_rgba.ok())
@@ -242,6 +248,7 @@ protocol::Response InspectorEmulationAgent::disable() {
       std::make_unique<protocol::Array<protocol::Emulation::MediaFeature>>());
   if (!emulated_vision_deficiency_.Get().IsNull())
     setEmulatedVisionDeficiency(String("none"));
+  setEmulatedOSTextScale(std::nullopt);
   setCPUThrottlingRate(1);
   setFocusEmulationEnabled(false);
   if (emulate_auto_dark_mode_.Get()) {
@@ -321,9 +328,9 @@ protocol::Response InspectorEmulationAgent::setTouchEmulationEnabled(
     return response;
   int max_points = max_touch_points.value_or(1);
   if (max_points < 1 || max_points > WebTouchEvent::kTouchesLengthCap) {
-    String msg =
-        "Touch points must be between 1 and " +
-        String::Number(static_cast<uint16_t>(WebTouchEvent::kTouchesLengthCap));
+    String msg = StrCat({"Touch points must be between 1 and ",
+                         String::Number(static_cast<uint16_t>(
+                             WebTouchEvent::kTouchesLengthCap))});
     return protocol::Response::InvalidParams(msg.Utf8());
   }
   touch_event_emulation_enabled_.Set(enabled);
@@ -449,6 +456,27 @@ protocol::Response InspectorEmulationAgent::setEmulatedVisionDeficiency(
   return response;
 }
 
+protocol::Response InspectorEmulationAgent::setEmulatedOSTextScale(
+    std::optional<double> scale) {
+  protocol::Response response = AssertPage();
+  if (!response.IsSuccess()) {
+    return response;
+  }
+  if (scale.has_value()) {
+    os_text_scale_emulation_enabled_.Set(true);
+    emulated_os_text_scale_.Set(scale.value());
+    GetWebViewImpl()
+        ->GetDevToolsEmulator()
+        ->SetEmulatedAccessibilityFontScaleFactor(scale.value());
+  } else {
+    os_text_scale_emulation_enabled_.Set(false);
+    GetWebViewImpl()
+        ->GetDevToolsEmulator()
+        ->ResetEmulatedAccessibilityFontScaleFactor();
+  }
+  return response;
+}
+
 protocol::Response InspectorEmulationAgent::setCPUThrottlingRate(double rate) {
   protocol::Response response = AssertPage();
   if (!response.IsSuccess())
@@ -569,7 +597,7 @@ AtomicString InspectorEmulationAgent::OverrideAcceptImageHeader(
     // and is expected to be always ending with `image/*,*/*;q=xxx`, therefore,
     // to remove a type we replace `image/x,` with empty string. Only webp and
     // avif types can be disabled.
-    header.Replace(String(type + ","), "");
+    header.Replace(StrCat({type, ","}), "");
   }
   return AtomicString(header);
 }
@@ -749,6 +777,16 @@ protocol::Response InspectorEmulationAgent::setUserAgentOverride(
       return protocol::Response::InvalidParams(
           "Can't specify UserAgentMetadata but no UA string");
     }
+    if (ua_metadata_override->hasFormFactors()) {
+      for (const auto& form_factor :
+           *(ua_metadata_override->getFormFactors(nullptr))) {
+        if (!blink::UserAgentMetadata::IsValidFormFactor(form_factor.Ascii())) {
+          return protocol::Response::InvalidParams(
+              "Can't specify UserAgentMetadata with invalid form factors.");
+        }
+      }
+    }
+
     protocol::Emulation::UserAgentMetadata& ua_metadata = *ua_metadata_override;
     ua_metadata_override_.emplace();
     if (ua_metadata.hasBrands()) {
@@ -799,6 +837,14 @@ protocol::Response InspectorEmulationAgent::setUserAgentOverride(
       ua_metadata_override_->wow64 = ua_metadata.getWow64(false);
     } else {
       ua_metadata_override_->wow64 = default_ua_metadata.wow64;
+    }
+    if (ua_metadata.hasFormFactors()) {
+      for (const auto& form_factor : *ua_metadata.getFormFactors(nullptr)) {
+        ua_metadata_override_->form_factors.push_back(form_factor.Ascii());
+      }
+    } else {
+      ua_metadata_override_->form_factors =
+          std::move(default_ua_metadata.form_factors);
     }
 
   } else {
@@ -940,7 +986,7 @@ protocol::Response InspectorEmulationAgent::setDisabledImageTypes(
   for (protocol::Emulation::DisabledImageType type : *disabled_types) {
     if (DisabledImageTypeEnum::Avif == type ||
         DisabledImageTypeEnum::Webp == type) {
-      disabled_image_types_.Set(prefix + type, true);
+      disabled_image_types_.Set(StrCat({prefix, type}), true);
       continue;
     }
     disabled_image_types_.Clear();

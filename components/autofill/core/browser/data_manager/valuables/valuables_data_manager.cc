@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/metrics/histogram_macros.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/ui/autofill_image_fetcher_base.h"
 #include "components/autofill/core/browser/webdata/autofill_change.h"
@@ -32,8 +33,33 @@ ValuablesDataManager::ValuablesDataManager(
 
 ValuablesDataManager::~ValuablesDataManager() = default;
 
-base::span<const LoyaltyCard> ValuablesDataManager::GetLoyaltyCards() const {
+std::vector<LoyaltyCard> ValuablesDataManager::GetLoyaltyCards() const {
   return loyalty_cards_;
+}
+
+std::vector<LoyaltyCard> ValuablesDataManager::GetLoyaltyCardsToSuggest()
+    const {
+  // Compare function used when sorting loyalty cards by merchant name.
+  const auto CompareByMerchantName = [](const LoyaltyCard& a,
+                                        const LoyaltyCard& b) {
+    if (a.merchant_name() != b.merchant_name()) {
+      return a.merchant_name() < b.merchant_name();
+    }
+    return a.loyalty_card_number() < b.loyalty_card_number();
+  };
+  std::vector<LoyaltyCard> loyalty_cards = GetLoyaltyCards();
+  std::ranges::sort(loyalty_cards, CompareByMerchantName);
+  return loyalty_cards;
+}
+
+std::optional<LoyaltyCard> ValuablesDataManager::GetLoyaltyCardById(
+    const ValuableId& id) const {
+  auto it = std::ranges::find(
+      loyalty_cards_, id, [](const LoyaltyCard& card) { return card.id(); });
+  if (it != loyalty_cards_.end()) {
+    return *it;
+  }
+  return std::nullopt;
 }
 
 const gfx::Image* ValuablesDataManager::GetCachedValuableImageForUrl(
@@ -80,6 +106,10 @@ void ValuablesDataManager::OnLoyaltyCardsLoaded(
   // for caching loyalty card icons.
   ProcessLoyaltyCardIconUrlChanges();
   NotifyObservers();
+
+  // Log the overall counts.
+  UMA_HISTOGRAM_COUNTS_1000("Autofill.LoyaltyCard.StoredCardsCount",
+                            loyalty_cards_.size());
 }
 
 void ValuablesDataManager::ProcessLoyaltyCardIconUrlChanges() {

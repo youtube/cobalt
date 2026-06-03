@@ -87,16 +87,15 @@
     </settings-toggle-button>
   </cr-collapse>
   <template is="dom-if" if="[[enableLiveTranslate_]]">
-    <settings-live-translate prefs="{{prefs}}" languages="{{languages}}"
+    <settings-live-translate prefs="{{prefs}}" languages="[[languages]]"
         language-helper="[[languageHelper]]">
     </settings-live-translate>
   </template>
 </template>
 <template is="dom-if" if="[[showAddLanguagesDialog_]]" restamp>
-  <settings-add-languages-dialog
+  <settings-add-languages-dialog id="addLanguagesDialog"
       languages="[[filterAvailableLanguagePacks_(availableLanguagePacks_,
                    installedLanguagePacks_)]]"
-      language-helper="[[languageHelper]]" id="addLanguagesDialog"
       on-close="onAddLanguagesDialogClose_"
       on-languages-added="onLanguagesAdded_">
   </settings-add-languages-dialog>

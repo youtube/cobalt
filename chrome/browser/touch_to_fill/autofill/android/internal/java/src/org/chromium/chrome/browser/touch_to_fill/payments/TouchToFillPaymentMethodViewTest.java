@@ -11,6 +11,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -26,6 +27,9 @@ import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCred
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCreditCardSuggestion;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createLocalCreditCard;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createVirtualCreditCard;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties.ON_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties.TEXT_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CURRENT_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.APPLY_DEACTIVATED_STYLE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.FIRST_LINE_LABEL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CreditCardSuggestionProperties.ITEM_COLLECTION_INFO;
@@ -42,6 +46,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.IBAN_VALUE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.NON_TRANSFORMING_IBAN_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.ON_IBAN_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ALL_LOYALTY_CARDS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FILL_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.HEADER;
@@ -53,6 +58,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.NON_TRANSFORMING_LOYALTY_CARD_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.ON_LOYALTY_CARD_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.ALL_TERMS_LABEL_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.CARD_BENEFITS_TERMS_AVAILABLE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.VISIBLE;
@@ -63,6 +69,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.IdRes;
+import androidx.annotation.StringRes;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.MediumTest;
 
@@ -92,11 +100,14 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.common.TouchToFillResourceProvider;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.AllLoyaltyCardsItemProperties;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.HeaderProperties;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.LoyaltyCard;
+import org.chromium.components.autofill.PaymentsPayload;
 import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
@@ -329,6 +340,7 @@ public class TouchToFillPaymentMethodViewTest {
                     mTouchToFillPaymentMethodModel =
                             new PropertyModel.Builder(TouchToFillPaymentMethodProperties.ALL_KEYS)
                                     .with(VISIBLE, false)
+                                    .with(CURRENT_SCREEN, HOME_SCREEN)
                                     .with(SHEET_ITEMS, new ModelList())
                                     .with(DISMISS_HANDLER, mDismissCallback)
                                     .build();
@@ -340,6 +352,13 @@ public class TouchToFillPaymentMethodViewTest {
                             mTouchToFillPaymentMethodView,
                             TouchToFillPaymentMethodViewBinder::bindTouchToFillPaymentMethodView);
                 });
+    }
+
+    @Test
+    @MediumTest
+    public void testInitializesHomeScreen() {
+        assertNotNull(mTouchToFillPaymentMethodView.getSheetItemListView());
+        assertNotNull(mTouchToFillPaymentMethodView.getSheetItemListView().getAdapter());
     }
 
     @Test
@@ -363,10 +382,7 @@ public class TouchToFillPaymentMethodViewTest {
                         .findViewById(R.id.touch_to_fill_sheet_title);
         assertThat(
                 title.getText().toString(),
-                is(
-                        mActivityTestRule
-                                .getActivity()
-                                .getString(R.string.autofill_loyalty_card_bottom_sheet_title)));
+                is(getString(R.string.autofill_loyalty_card_bottom_sheet_title)));
     }
 
     @Test
@@ -546,15 +562,18 @@ public class TouchToFillPaymentMethodViewTest {
         Runnable actionCallback = mock(Runnable.class);
         runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel cardModel =
-                            createCardSuggestionModel(
-                                    NICKNAMED_VISA_SUGGESTION, mItemCollectionInfo, actionCallback);
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(CREDIT_CARD, cardModel));
+                            .add(
+                                    new ListItem(
+                                            CREDIT_CARD,
+                                            createCardSuggestionModel(
+                                                    NICKNAMED_VISA_SUGGESTION,
+                                                    mItemCollectionInfo,
+                                                    actionCallback)));
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(FILL_BUTTON, cardModel));
+                            .add(new ListItem(FILL_BUTTON, createFillButtonModel(actionCallback)));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -571,25 +590,23 @@ public class TouchToFillPaymentMethodViewTest {
         Runnable actionCallback = mock(Runnable.class);
         runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel cardModel =
-                            createCardSuggestionModel(
-                                    NICKNAMED_VISA_SUGGESTION, mItemCollectionInfo, actionCallback);
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(CREDIT_CARD, cardModel));
+                            .add(
+                                    new ListItem(
+                                            CREDIT_CARD,
+                                            createCardSuggestionModel(
+                                                    NICKNAMED_VISA_SUGGESTION,
+                                                    mItemCollectionInfo,
+                                                    actionCallback)));
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(FILL_BUTTON, cardModel));
+                            .add(new ListItem(FILL_BUTTON, createFillButtonModel(actionCallback)));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(
-                                                R.string.autofill_payment_method_continue_button)))
+        onView(withText(getString(R.string.autofill_payment_method_continue_button)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
         waitForEvent(actionCallback).run();
     }
@@ -600,17 +617,22 @@ public class TouchToFillPaymentMethodViewTest {
     public void testCreditCardSuggestionViewFiltersClicks() {
         runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel cardModel =
-                            createCardSuggestionModel(
-                                    NICKNAMED_VISA_SUGGESTION,
-                                    mItemCollectionInfo,
-                                    /* actionCallback= */ () -> fail());
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(CREDIT_CARD, cardModel));
+                            .add(
+                                    new ListItem(
+                                            CREDIT_CARD,
+                                            createCardSuggestionModel(
+                                                    NICKNAMED_VISA_SUGGESTION,
+                                                    mItemCollectionInfo,
+                                                    /* actionCallback= */ () -> fail())));
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(FILL_BUTTON, cardModel));
+                            .add(
+                                    new ListItem(
+                                            FILL_BUTTON,
+                                            createFillButtonModel(
+                                                    /* actionCallback= */ () -> fail())));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -620,19 +642,9 @@ public class TouchToFillPaymentMethodViewTest {
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
         onView(withText(NICKNAMED_VISA_SUGGESTION.getLabel()))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED));
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(
-                                                R.string.autofill_payment_method_continue_button)))
+        onView(withText(getString(R.string.autofill_payment_method_continue_button)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(
-                                                R.string.autofill_payment_method_continue_button)))
+        onView(withText(getString(R.string.autofill_payment_method_continue_button)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED));
     }
 
@@ -740,10 +752,7 @@ public class TouchToFillPaymentMethodViewTest {
         assertContentDescriptionEquals(secondLineLabel, /* position= */ 1, /* total= */ 1);
         TextView benefitsTermsLabel = getCreditCardBenefitsTermsLabel();
         String expectedBenefitsTermsLabel =
-                mActivityTestRule
-                        .getActivity()
-                        .getString(
-                                R.string.autofill_payment_method_bottom_sheet_benefits_terms_label);
+                getString(R.string.autofill_payment_method_bottom_sheet_benefits_terms_label);
         assertThat(benefitsTermsLabel.getText(), is(expectedBenefitsTermsLabel));
     }
 
@@ -806,10 +815,7 @@ public class TouchToFillPaymentMethodViewTest {
         assertContentDescriptionEquals(secondLineLabel, /* position= */ 1, /* total= */ 1);
         TextView benefitsTermsLabel = getCreditCardBenefitsTermsLabel();
         String expectedBenefitsTermsLabel =
-                mActivityTestRule
-                        .getActivity()
-                        .getString(
-                                R.string.autofill_payment_method_bottom_sheet_benefits_terms_label);
+                getString(R.string.autofill_payment_method_bottom_sheet_benefits_terms_label);
         assertThat(benefitsTermsLabel.getText(), is(expectedBenefitsTermsLabel));
     }
 
@@ -881,13 +887,12 @@ public class TouchToFillPaymentMethodViewTest {
         Runnable actionCallback = mock(Runnable.class);
         runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel ibanModel = createIbanModel(LOCAL_IBAN, actionCallback);
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(IBAN, ibanModel));
+                            .add(new ListItem(IBAN, createIbanModel(LOCAL_IBAN, actionCallback)));
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(FILL_BUTTON, ibanModel));
+                            .add(new ListItem(FILL_BUTTON, createFillButtonModel(actionCallback)));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -904,23 +909,17 @@ public class TouchToFillPaymentMethodViewTest {
         Runnable actionCallback = mock(Runnable.class);
         runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel ibanModel = createIbanModel(LOCAL_IBAN, actionCallback);
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(IBAN, ibanModel));
+                            .add(new ListItem(IBAN, createIbanModel(LOCAL_IBAN, actionCallback)));
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(FILL_BUTTON, ibanModel));
+                            .add(new ListItem(FILL_BUTTON, createFillButtonModel(actionCallback)));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(
-                                                R.string.autofill_payment_method_continue_button)))
+        onView(withText(getString(R.string.autofill_payment_method_continue_button)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
         waitForEvent(actionCallback).run();
     }
@@ -931,13 +930,21 @@ public class TouchToFillPaymentMethodViewTest {
     public void testIbanViewFiltersTouchEvents() {
         runOnUiThreadBlocking(
                 () -> {
-                    PropertyModel ibanModel = createIbanModel(LOCAL_IBAN, () -> fail());
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(IBAN, ibanModel));
+                            .add(
+                                    new ListItem(
+                                            IBAN,
+                                            createIbanModel(
+                                                    LOCAL_IBAN,
+                                                    /* actionCallback= */ () -> fail())));
                     mTouchToFillPaymentMethodModel
                             .get(SHEET_ITEMS)
-                            .add(new ListItem(FILL_BUTTON, ibanModel));
+                            .add(
+                                    new ListItem(
+                                            FILL_BUTTON,
+                                            createFillButtonModel(
+                                                    /* actionCallback= */ () -> fail())));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -947,19 +954,9 @@ public class TouchToFillPaymentMethodViewTest {
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
         onView(withText(LOCAL_IBAN.getLabel()))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED));
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(
-                                                R.string.autofill_payment_method_continue_button)))
+        onView(withText(getString(R.string.autofill_payment_method_continue_button)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(
-                                                R.string.autofill_payment_method_continue_button)))
+        onView(withText(getString(R.string.autofill_payment_method_continue_button)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED));
     }
 
@@ -1054,23 +1051,51 @@ public class TouchToFillPaymentMethodViewTest {
                             .add(
                                     new ListItem(
                                             FILL_BUTTON,
-                                            createLoyaltyCardModel(
-                                                    CVS_LOYALTY_CARD, actionCallback)));
+                                            createFillButtonModel(
+                                                    R.string.autofill_loyalty_card_autofill_button,
+                                                    actionCallback)));
                     mTouchToFillPaymentMethodModel.set(VISIBLE, true);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
-        onView(
-                        withText(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getString(R.string.autofill_loyalty_card_autofill_button)))
+        onView(withText(getString(R.string.autofill_loyalty_card_autofill_button)))
+                .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
+        waitForEvent(actionCallback).run();
+    }
+
+    @Test
+    @MediumTest
+    public void testAllLoyaltyCardsItem() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    mTouchToFillPaymentMethodModel
+                            .get(SHEET_ITEMS)
+                            .add(
+                                    new ListItem(
+                                            ALL_LOYALTY_CARDS,
+                                            createAllLoyaltyCardsItemModel(actionCallback)));
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        TextView allLoyaltyCardsItemTitle =
+                mTouchToFillPaymentMethodView
+                        .getContentView()
+                        .findViewById(R.id.all_loyalty_cards_item_title);
+        assertThat(
+                allLoyaltyCardsItemTitle.getText().toString(),
+                is(getString(R.string.autofill_bottom_sheet_all_your_loyalty_cards)));
+
+        onView(withText(getString(R.string.autofill_bottom_sheet_all_your_loyalty_cards)))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
         waitForEvent(actionCallback).run();
     }
 
     private RecyclerView getCreditCardSuggestions() {
-        return mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.sheet_item_list);
+        return mTouchToFillPaymentMethodView
+                .getContentView()
+                .findViewById(R.id.touch_to_fill_payment_method_home_screen);
     }
 
     private TextView getSuggestionMainTextAt(int index) {
@@ -1099,6 +1124,10 @@ public class TouchToFillPaymentMethodViewTest {
         return mBottomSheetController.getSheetState();
     }
 
+    private String getString(@IdRes int id) {
+        return mActivityTestRule.getActivity().getString(id);
+    }
+
     private static PropertyModel createHeaderModel() {
         return new PropertyModel.Builder(HeaderProperties.ALL_KEYS)
                 .with(IMAGE_DRAWABLE_ID, R.drawable.ic_globe_24dp)
@@ -1115,12 +1144,11 @@ public class TouchToFillPaymentMethodViewTest {
             AutofillSuggestion suggestion,
             FillableItemCollectionInfo collectionInfo,
             Runnable actionCallback) {
+        PaymentsPayload payload = (PaymentsPayload) suggestion.getPayload();
         PropertyModel.Builder creditCardSuggestionModelBuilder =
                 new PropertyModel.Builder(NON_TRANSFORMING_CREDIT_CARD_SUGGESTION_KEYS)
                         .with(MAIN_TEXT, suggestion.getLabel())
-                        .with(
-                                MAIN_TEXT_CONTENT_DESCRIPTION,
-                                suggestion.getLabelContentDescription())
+                        .with(MAIN_TEXT_CONTENT_DESCRIPTION, payload.getLabelContentDescription())
                         .with(MINOR_TEXT, suggestion.getSecondaryLabel())
                         .with(FIRST_LINE_LABEL, suggestion.getSublabel())
                         .with(SECOND_LINE_LABEL, suggestion.getSecondarySublabel())
@@ -1145,12 +1173,30 @@ public class TouchToFillPaymentMethodViewTest {
 
     private static PropertyModel createLoyaltyCardModel(
             LoyaltyCard loyaltyCard, Runnable runnable) {
-        PropertyModel.Builder loyaltyCardModelBuilder =
-                new PropertyModel.Builder(NON_TRANSFORMING_LOYALTY_CARD_KEYS)
-                        .with(LOYALTY_CARD_NUMBER, loyaltyCard.getLoyaltyCardNumber())
-                        .with(MERCHANT_NAME, loyaltyCard.getMerchantName())
-                        .with(ON_LOYALTY_CARD_CLICK_ACTION, runnable);
-        return loyaltyCardModelBuilder.build();
+        return new PropertyModel.Builder(NON_TRANSFORMING_LOYALTY_CARD_KEYS)
+                .with(LOYALTY_CARD_NUMBER, loyaltyCard.getLoyaltyCardNumber())
+                .with(MERCHANT_NAME, loyaltyCard.getMerchantName())
+                .with(ON_LOYALTY_CARD_CLICK_ACTION, runnable)
+                .build();
+    }
+
+    private static PropertyModel createAllLoyaltyCardsItemModel(Runnable runnable) {
+        return new PropertyModel.Builder(AllLoyaltyCardsItemProperties.ALL_KEYS)
+                .with(AllLoyaltyCardsItemProperties.ON_CLICK_ACTION, runnable)
+                .build();
+    }
+
+    private static PropertyModel createFillButtonModel(Runnable actionCallback) {
+        return createFillButtonModel(
+                R.string.autofill_payment_method_continue_button, actionCallback);
+    }
+
+    private static PropertyModel createFillButtonModel(
+            @StringRes int textId, Runnable actionCallback) {
+        return new PropertyModel.Builder(ButtonProperties.ALL_KEYS)
+                .with(TEXT_ID, textId)
+                .with(ON_CLICK_ACTION, actionCallback)
+                .build();
     }
 
     private static PropertyModel createTermsLabelModel(boolean cardBenefitsTermsAvailable) {

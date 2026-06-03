@@ -48,7 +48,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #endif
 
@@ -144,10 +144,10 @@ class ChromePermissionRequestManagerTest
     auto scoped_user_manager =
         std::make_unique<user_manager::ScopedUserManager>(
             std::move(fake_user_manager));
-    user_manager->AddWebKioskAppUser(account_id);
+    user_manager->AddKioskWebAppUser(account_id);
     user_manager->LoginUser(account_id);
 
-    auto kiosk_app_manager = std::make_unique<ash::WebKioskAppManager>();
+    auto kiosk_app_manager = std::make_unique<ash::KioskWebAppManager>();
     kiosk_app_manager->AddAppForTesting(account_id, app_url);
 
     NavigateAndCommit(url);

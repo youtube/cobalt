@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "components/optimization_guide/core/hints/hints_fetcher.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -14,6 +16,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -36,19 +39,18 @@
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_handle.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager.h"
-#include "components/optimization_guide/core/hints_component_info.h"
-#include "components/optimization_guide/core/hints_component_util.h"
-#include "components/optimization_guide/core/hints_fetcher.h"
+#include "components/optimization_guide/core/filters/hints_component_info.h"
+#include "components/optimization_guide/core/filters/hints_component_util.h"
+#include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
+#include "components/optimization_guide/core/filters/test_hints_component_creator.h"
+#include "components/optimization_guide/core/hints/fake_hints_fetcher.h"
+#include "components/optimization_guide/core/hints/optimization_guide_store.h"
+#include "components/optimization_guide/core/hints/top_host_provider.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
-#include "components/optimization_guide/core/optimization_guide_store.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
-#include "components/optimization_guide/core/optimization_guide_test_util.h"
-#include "components/optimization_guide/core/optimization_hints_component_update_listener.h"
-#include "components/optimization_guide/core/test_hints_component_creator.h"
-#include "components/optimization_guide/core/top_host_provider.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/site_engagement/content/site_engagement_service.h"
@@ -304,8 +306,9 @@ class HintsFetcherDisabledBrowserTest : public InProcessBrowserTest {
       // Acquire the |lock_| inside to avoid starving other consumers of the
       // lock.
       base::AutoLock lock(lock_);
-      if (count_hints_requests_received_ > 0)
+      if (count_hints_requests_received_ > 0) {
         return;
+      }
     }
 
     base::RunLoop run_loop;
@@ -400,8 +403,9 @@ class HintsFetcherDisabledBrowserTest : public InProcessBrowserTest {
               static_cast<size_t>(hints_request.hosts().size()));
 
     // Only verify the hints if there are hosts in the request.
-    if (!hints_request.hosts().empty())
+    if (!hints_request.hosts().empty()) {
       VerifyHintsMatchExpectedHostsAndUrls(hints_request);
+    }
 
     if (response_type_ ==
         optimization_guide::HintsFetcherRemoteResponseType::kSuccessful) {
@@ -446,8 +450,9 @@ class HintsFetcherDisabledBrowserTest : public InProcessBrowserTest {
   // hosts in not matched.
   void VerifyHintsMatchExpectedHostsAndUrls(
       const optimization_guide::proto::GetHintsRequest& hints_request) const {
-    if (!expect_hints_request_for_hosts_and_urls_)
+    if (!expect_hints_request_for_hosts_and_urls_) {
       return;
+    }
 
     base::flat_set<std::string> hosts_and_urls_requested;
     for (const auto& host : hints_request.hosts()) {
@@ -1806,4 +1811,213 @@ IN_PROC_BROWSER_TEST_F(PersonalizedHintsFetcherBrowserTest, UserSignedIn) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.HintsFetcher.GetHintsRequest.RequestStatus.Journeys",
       optimization_guide::FetcherRequestStatus::kSuccess, 1);
+}
+
+// TODO(crbug.com/425936619): Add checks for url, hint counts, context.
+class ProactivePersonalizationHintsFetcherBrowserTest
+    : public HintsFetcherBrowserTest {
+ public:
+  ProactivePersonalizationHintsFetcherBrowserTest() = default;
+
+  ProactivePersonalizationHintsFetcherBrowserTest(
+      const ProactivePersonalizationHintsFetcherBrowserTest&) = delete;
+  ProactivePersonalizationHintsFetcherBrowserTest& operator=(
+      const ProactivePersonalizationHintsFetcherBrowserTest&) = delete;
+
+  ~ProactivePersonalizationHintsFetcherBrowserTest() override = default;
+
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    HintsFetcherBrowserTest::SetUpBrowserContextKeyedServices(context);
+    IdentityTestEnvironmentProfileAdaptor::
+        SetIdentityTestEnvironmentFactoriesOnBrowserContext(context);
+  }
+
+  void SetUpOnMainThread() override {
+    HintsFetcherBrowserTest::SetUpOnMainThread();
+    identity_test_env_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
+            browser()->profile());
+  }
+
+  void PopulateEnabledFeatures(
+      std::vector<base::test::FeatureRefAndParams>* enabled_features) override {
+    base::FieldTrialParams personalized_fetching_params = GetFieldTrialParams();
+    enabled_features->emplace_back(
+        optimization_guide::features::
+            kOptimizationGuideProactivePersonalizedHintsFetching,
+        personalized_fetching_params);
+  }
+
+  virtual base::FieldTrialParams GetFieldTrialParams() {
+    return {
+        {"allowed_optimization_types", "NOSCRIPT"},
+    };
+  }
+
+  void EnableSignin() {
+    identity_test_env_adaptor_->identity_test_env()
+        ->MakePrimaryAccountAvailable("user@gmail.com",
+                                      signin::ConsentLevel::kSignin);
+    identity_test_env_adaptor_->identity_test_env()
+        ->SetAutomaticIssueOfAccessTokens(true);
+  }
+
+ private:
+  // Identity test support.
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_env_adaptor_;
+};
+
+// Verify access token is attached during navigation fetching if a
+// personalizable optimization type is requested.
+IN_PROC_BROWSER_TEST_F(ProactivePersonalizationHintsFetcherBrowserTest,
+                       OnNavigationFetchesWithAccessToken) {
+  SetNetworkConnectionOnline();
+  SetResponseType(
+      optimization_guide::HintsFetcherRemoteResponseType::kSuccessful);
+
+  ResetCountHintsRequestsReceived();
+  EnableSignin();
+  SetExpectedBearerAccessToken("Bearer access_token");
+
+  GURL full_url = GURL("https://foo.com/test/");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), full_url));
+
+  base::flat_set<std::string> expected_request;
+  expected_request.insert(full_url.host());
+  expected_request.insert(full_url.spec());
+  SetExpectedHintsRequestForHostsAndUrls(expected_request);
+  EXPECT_EQ(1u, count_hints_requests_received());
+}
+
+// Verify access token is attached during active tab fetching if a
+// personalizable optimization type is requested.
+IN_PROC_BROWSER_TEST_F(ProactivePersonalizationHintsFetcherBrowserTest,
+                       ActiveTabFetchesWithAccessToken) {
+  const base::HistogramTester* histogram_tester = GetHistogramTester();
+  EnableSignin();
+  SetExpectedBearerAccessToken("Bearer access_token");
+
+  SetUpComponentUpdateHints(https_url());
+
+  EXPECT_GE(optimization_guide::RetryForHistogramUntilCountReached(
+                histogram_tester,
+                "OptimizationGuide.HintsFetcher.GetHintsRequest.RequestStatus."
+                "BatchUpdateActiveTabs",
+                1),
+            1);
+}
+
+// Verify access token is attached during url fetching if a
+// personalizable optimization type is requested.
+// TODO(crbug.com/40919396): De-leakify and re-enable.
+#if BUILDFLAG(IS_LINUX) && defined(LEAK_SANITIZER)
+#define MAYBE_FetchingUrlFetchesWithAccessToken \
+  DISABLED_FetchingUrlFetchesWithAccessToken
+#else
+#define MAYBE_FetchingUrlFetchesWithAccessToken \
+  FetchingUrlFetchesWithAccessToken
+#endif
+IN_PROC_BROWSER_TEST_F(ProactivePersonalizationHintsFetcherBrowserTest,
+                       MAYBE_FetchingUrlFetchesWithAccessToken) {
+  const base::HistogramTester* histogram_tester = GetHistogramTester();
+
+  EnableSignin();
+  SetExpectedBearerAccessToken("Bearer access_token");
+
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), search_results_page_url()));
+
+  WaitUntilHintsFetcherRequestReceived();
+
+  EXPECT_GE(optimization_guide::RetryForHistogramUntilCountReached(
+                histogram_tester,
+                "OptimizationGuide.HintsFetcher.GetHintsRequest.RequestStatus."
+                "BatchUpdateGoogleSRP",
+                1),
+            1);
+}
+
+class ProactivePersonalizationNoAllowedTypesHintsFetcherBrowserTest
+    : public ProactivePersonalizationHintsFetcherBrowserTest {
+ public:
+  base::FieldTrialParams GetFieldTrialParams() override {
+    return {
+        {"allowed_optimization_types", "PERFORMANCE_HINTS"},
+    };
+  }
+};
+
+// Verify access token is not attached during navigation fetching if no
+// personalizable optimization type is requested.
+IN_PROC_BROWSER_TEST_F(
+    ProactivePersonalizationNoAllowedTypesHintsFetcherBrowserTest,
+    OnNavigationDoesNotFetchAccessToken) {
+  SetNetworkConnectionOnline();
+  SetResponseType(
+      optimization_guide::HintsFetcherRemoteResponseType::kSuccessful);
+
+  ResetCountHintsRequestsReceived();
+  EnableSignin();
+  SetExpectedBearerAccessToken(std::string());
+
+  GURL full_url = GURL("https://foo.com/test/");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), full_url));
+
+  base::flat_set<std::string> expected_request;
+  expected_request.insert(full_url.host());
+  expected_request.insert(full_url.spec());
+  SetExpectedHintsRequestForHostsAndUrls(expected_request);
+  EXPECT_EQ(1u, count_hints_requests_received());
+}
+
+// Verify access token is not attached during active tab fetching if no
+// personalizable optimization type is requested.
+IN_PROC_BROWSER_TEST_F(
+    ProactivePersonalizationNoAllowedTypesHintsFetcherBrowserTest,
+    ActiveTabDoesNotFetchWithAccessToken) {
+  const base::HistogramTester* histogram_tester = GetHistogramTester();
+  EnableSignin();
+  SetExpectedBearerAccessToken(std::string());
+
+  SetUpComponentUpdateHints(https_url());
+
+  EXPECT_GE(optimization_guide::RetryForHistogramUntilCountReached(
+                histogram_tester,
+                "OptimizationGuide.HintsFetcher.GetHintsRequest.RequestStatus."
+                "BatchUpdateActiveTabs",
+                1),
+            1);
+}
+
+// Verify access token is not attached during url fetching if no personalizable
+// optimization type is requested.
+// TODO(crbug.com/40919396): De-leakify and re-enable.
+#if BUILDFLAG(IS_LINUX) && defined(LEAK_SANITIZER)
+#define MAYBE_FetchingUrlDoesNotFetchWithAccessToken \
+  DISABLED_FetchingUrlDoesNotFetchWithAccessToken
+#else
+#define MAYBE_FetchingUrlDoesNotFetchWithAccessToken \
+  FetchingUrlDoesNotFetchWithAccessToken
+#endif
+IN_PROC_BROWSER_TEST_F(
+    ProactivePersonalizationNoAllowedTypesHintsFetcherBrowserTest,
+    MAYBE_FetchingUrlDoesNotFetchWithAccessToken) {
+  const base::HistogramTester* histogram_tester = GetHistogramTester();
+
+  EnableSignin();
+  SetExpectedBearerAccessToken(std::string());
+
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), search_results_page_url()));
+
+  WaitUntilHintsFetcherRequestReceived();
+
+  EXPECT_GE(optimization_guide::RetryForHistogramUntilCountReached(
+                histogram_tester,
+                "OptimizationGuide.HintsFetcher.GetHintsRequest.RequestStatus."
+                "BatchUpdateGoogleSRP",
+                1),
+            1);
 }

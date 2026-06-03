@@ -47,6 +47,7 @@ _CONFIG = [
             'absl::Int128Low64',
             'absl::MakeInt128',
             'absl::MakeUint128',
+            'absl::Overload',
             'absl::uint128',
             'absl::Uint128High64',
             'absl::Uint128Low64',
@@ -111,10 +112,10 @@ _CONFIG = [
             'base::Minutes',
             'base::Nanoseconds',
             'base::NotFatalUntil',
+            'base::NotNullTag',
             'base::optional_ref',
             'base::OptionalFromPtr',
             'base::OptionalToPtr',
-            'base::Overloaded',
             'base::PassKey',
             'base::PersistentHash',
             'base::PlatformThread',
@@ -492,6 +493,7 @@ _CONFIG = [
             'gfx::DecomposedTransform',
             'gfx::Insets',
             'gfx::InsetsF',
+            'gfx::LineF',
             'gfx::Outsets',
             'gfx::OutsetsF',
             'gfx::Point',
@@ -520,6 +522,7 @@ _CONFIG = [
             'gfx::MapRect',
             'gfx::MapRect',
             'gfx::MaximumCoveredRect',
+            'gfx::NormalizeVector2d',
             'gfx::PointAtOffsetFromOrigin',
             'gfx::PointFToSkPoint',
             'gfx::PointToSkIPoint',
@@ -734,6 +737,7 @@ _CONFIG = [
             'svg_path_parser::.+',
             'touch_action_util::.+',
             'trace_event::.+',
+            'uchar::.+',
             'unicode::.+',
             'v8_compile_hints::.+',
             'vector_math::.+',
@@ -935,7 +939,7 @@ _CONFIG = [
             'third_party/blink/renderer/bindings/core/v8/serialization/',
             'third_party/blink/renderer/core/typed_arrays/',
         ],
-        'allowed': ['base::BufferIterator'],
+        'allowed': ['base::BufferIterator', 'gin::kEmbedderBlink'],
     },
     {
         'paths': [
@@ -1047,6 +1051,13 @@ _CONFIG = [
             'viz::SharedImageFormat',
             'viz::SkColorTypeToSinglePlaneSharedImageFormat',
             'viz::ToClosestSkColorType',
+        ],
+    },
+    {
+        'paths':
+        ['third_party/blink/public/common/messaging/transferable_message.h'],
+        'allowed': [
+            'scheduler::TaskAttributionId',
         ],
     },
     {
@@ -1297,6 +1308,7 @@ _CONFIG = [
             'gfx::RectF',
             'gfx::Size',
             'gfx::SizeF',
+            'gfx::Vector2d',
             'gfx::Vector2dF',
 
             # The Blink public API is shared between non-Blink and Blink code
@@ -1611,6 +1623,28 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.cc',
+            'third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.h',
+        ],
+        # This class needs access to ui/gl classes for driver loading.
+        'allowed': [
+            'angle::InitializePlatform',
+            'angle::ResetPlatform',
+            'dawn::wire::client::GetProcs',
+            'gfx::ExtensionSet',
+            'gfx::MakeExtensionSet',
+            'gl::DriverEGL',
+            'gl::DriverGL',
+            'gl::GLVersionInfo',
+            'gl::GetDebugSeverityString',
+            'gl::GetDebugSourceString',
+            'gl::GetDebugTypeString',
+            'gpu::gles2::GLES2InterfaceStub',
+            'ui::LogEGLDebugMessage',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
         ],
         # This class needs access to a GPU driver bug workaround entry.
@@ -1704,6 +1738,15 @@ _CONFIG = [
             'fidl::InterfaceHandle',
         ],
         'inclass_allowed': ['base::SequencedTaskRunner::GetCurrentDefault']
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/nfc/nfc_parser_ios.mm',
+        ],
+        'allowed': [
+            'base::apple::NSDataToSpan',
+            'device::MapCoreNFCFormat',
+        ]
     },
     {
         'paths': [
@@ -1985,6 +2028,7 @@ _CONFIG = [
             'third_party/blink/renderer/modules/ai/',
         ],
         'allowed': [
+            'base::DoNothingWithBoundArgs',
             'base::MakeFixedFlatSet',
         ],
     },
@@ -2150,6 +2194,15 @@ _CONFIG = [
             'net::Error',
             'net::MutableNetworkTrafficAnnotationTag',
             'net::NetworkTrafficAnnotationTag',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/webtransport/',
+        ],
+        'allowed': [
+            'net::Error',
+            'net::IPEndPoint',
         ]
     },
     {

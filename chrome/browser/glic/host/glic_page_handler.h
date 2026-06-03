@@ -5,9 +5,11 @@
 #ifndef CHROME_BROWSER_GLIC_HOST_GLIC_PAGE_HANDLER_H_
 #define CHROME_BROWSER_GLIC_HOST_GLIC_PAGE_HANDLER_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -56,6 +58,8 @@ class GlicPageHandler : public glic::mojom::PageHandler {
   void WebviewCommitted(const GURL& origin) override;
 
   void ClosePanel() override;
+
+  void OpenProfilePickerAndClosePanel() override;
 
   void SignInAndClosePanel() override;
 

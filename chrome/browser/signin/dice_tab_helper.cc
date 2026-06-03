@@ -10,7 +10,11 @@
 #include "base/metrics/user_metrics.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_util.h"
+#include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
@@ -18,6 +22,8 @@
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
@@ -50,6 +56,34 @@ DiceTabHelper::GetEnableSyncCallbackForBrowser() {
     // finishes enabling sync).
     new TurnSyncOnHelper(profile, browser, access_point, promo_action,
                          account_info.account_id, abort_mode, is_sync_promo);
+  });
+}
+
+// static
+DiceTabHelper::EnableHistorySyncOptinCallback
+DiceTabHelper::GetHistorySyncOptinCallbackForBrowser() {
+  return base::BindRepeating([](Profile* profile,
+                                content::WebContents* web_contents,
+                                const CoreAccountInfo& account_info) {
+    CHECK(base::FeatureList::IsEnabled(switches::kEnableHistorySyncOptin));
+    CHECK(base::FeatureList::IsEnabled(
+        switches::kEnableHistorySyncOptinFromTabHelper));
+    CHECK(profile);
+
+    Browser* browser = web_contents ? chrome::FindBrowserWithTab(web_contents)
+                                    : chrome::FindBrowserWithProfile(profile);
+    if (!browser || !signin_util::ShouldShowHistorySyncOptinScreen(*profile)) {
+      return;
+    }
+
+    const signin::IdentityManager* identity_manager =
+        IdentityManagerFactory::GetForProfile(profile);
+    CHECK(identity_manager);
+    CHECK(identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+              .account_id == account_info.account_id);
+    browser->GetFeatures()
+        .signin_view_controller()
+        ->ShowModalHistorySyncOptInDialog();
   });
 }
 
@@ -92,6 +126,7 @@ void DiceTabHelper::InitializeSigninFlow(
     const GURL& redirect_url,
     bool record_signin_started_metrics,
     EnableSyncCallback enable_sync_callback,
+    EnableHistorySyncOptinCallback history_sync_optin_callback,
     OnSigninHeaderReceived on_signin_header_received_callback,
     ShowSigninErrorCallback show_signin_error_callback) {
   DCHECK(signin_url.is_valid());
@@ -104,6 +139,7 @@ void DiceTabHelper::InitializeSigninFlow(
   state_.signin_promo_action = promo_action;
   state_.signin_reason = reason;
   state_.enable_sync_callback = std::move(enable_sync_callback);
+  state_.history_sync_optin_callback = std::move(history_sync_optin_callback);
   state_.on_signin_header_received_callback =
       std::move(on_signin_header_received_callback);
   state_.show_signin_error_callback = std::move(show_signin_error_callback);

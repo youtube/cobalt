@@ -25,26 +25,29 @@
 
 namespace l10n_util {
 
-// Takes normalized locale as |locale|. Returns language part (before '-').
-COMPONENT_EXPORT(UI_BASE) std::string GetLanguage(std::string_view locale);
+// Takes normalized locale as `locale`. Returns language part (before '-').
+COMPONENT_EXPORT(UI_BASE) std::string_view GetLanguage(std::string_view locale);
 
-// Takes normalized locale as |locale|. Returns country part (after '-').
-COMPONENT_EXPORT(UI_BASE) std::string GetCountry(std::string_view locale);
+// Takes normalized locale as `locale`. Returns country part (after '-').
+COMPONENT_EXPORT(UI_BASE) std::string_view GetCountry(std::string_view locale);
 
-// This method translates a generic locale name to one of the locally defined
-// ones. This method returns true if it succeeds.
-// If |perform_io| is false, this will not perform any I/O but may return false
-// positives on Android and iOS. See the |kPlatformLocales| documentation in
-// l10n_util.cc for more information.
+enum class CheckLocaleMode {
+  // Checks that the localization data is present on disk. It is the default,
+  // but potentially costly.
+  kVerifyLocalizationDataExists,
+  // Checks that the locale is in the list of known locales. It may lead to
+  // false positives on platforms where localization is downloaded on-demand
+  // - i.e., Android and iOS. See the `kPlatformLocales` documentation in
+  // l10n_util.cc for more information.
+  kUseKnownLocalesList,
+};
+
+// Translates a generic locale name to one of the locally defined ones or
+// `std::nullopt` if the resolution is unsuccessful.
 COMPONENT_EXPORT(UI_BASE)
-bool CheckAndResolveLocale(const std::string& locale,
-                           std::string* resolved_locale,
-                           const bool perform_io);
-
-// Convenience wrapper for the above (with |perform_io| set to true).
-COMPONENT_EXPORT(UI_BASE)
-bool CheckAndResolveLocale(const std::string& locale,
-                           std::string* resolved_locale);
+std::optional<std::string> CheckAndResolveLocale(
+    std::string_view locale,
+    CheckLocaleMode mode = CheckLocaleMode::kVerifyLocalizationDataExists);
 
 // This method is responsible for determining the locale as defined below. In
 // nearly all cases you shouldn't call this, rather use GetApplicationLocale
@@ -100,14 +103,14 @@ std::u16string GetDisplayNameForLocale(std::string_view locale,
                                        bool is_for_ui,
                                        bool disallow_default = false);
 
-// Returns the display name of the |country_code| in |display_locale|.
+// Returns the display name of the `country_code` in `display_locale.
 COMPONENT_EXPORT(UI_BASE)
-std::u16string GetDisplayNameForCountry(const std::string& country_code,
-                                        const std::string& display_locale);
+std::u16string GetDisplayNameForCountry(std::string_view country_code,
+                                        std::string_view display_locale);
 
 // Converts all - into _, to be consistent with ICU and file system names.
 COMPONENT_EXPORT(UI_BASE)
-std::string NormalizeLocale(const std::string& locale);
+std::string NormalizeLocale(std::string_view locale);
 
 // Produce a vector of parent locales for given locale.
 // It includes the current locale in the result.
@@ -124,7 +127,7 @@ void GetParentLocales(const std::string& current_locale,
 // accepted, but 'z', 'German', 'en-$1', or 'abcd-1234' should not.
 // Case-insensitive. Based on BCP 47, see:
 //   http://unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers
-COMPONENT_EXPORT(UI_BASE) bool IsValidLocaleSyntax(const std::string& locale);
+COMPONENT_EXPORT(UI_BASE) bool IsValidLocaleSyntax(std::string_view locale);
 
 //
 // Mac Note: See l10n_util_mac.h for some NSString versions and other support.
@@ -263,7 +266,7 @@ const std::vector<std::string>& GetAvailableICULocales();
 // This is similar to CheckAndResolveLocale, except that it excludes some
 // languages from being shown.
 COMPONENT_EXPORT(UI_BASE)
-bool IsUserFacingUILocale(const std::string& locale);
+bool IsUserFacingUILocale(std::string_view locale);
 
 // Returns the subset of locales from GetAcceptLanguages which we should show
 // to the user as a supported UI locale.
@@ -280,18 +283,18 @@ void GetAcceptLanguagesForLocale(const std::string& display_locale,
 COMPONENT_EXPORT(UI_BASE)
 void GetAcceptLanguages(std::vector<std::string>* locale_codes);
 
-// Returns true if |locale| is in a predefined |AcceptLanguageList|.
+// Returns true if `locale` is in a predefined `kAcceptLanguageList`.
 COMPONENT_EXPORT(UI_BASE)
 bool IsPossibleAcceptLanguage(std::string_view locale);
 
-// Returns true if |locale| is in a predefined |AcceptLanguageList| and
-// a display name for the |locale| is available in the locale |display_locale|.
+// Returns true if `locale` is in a predefined `kAcceptLanguageList` and
+// a display name for the `locale` is available in the locale `display_locale`.
 COMPONENT_EXPORT(UI_BASE)
-bool IsAcceptLanguageDisplayable(const std::string& display_locale,
-                                 const std::string& locale);
+bool IsAcceptLanguageDisplayable(std::string_view display_locale,
+                                 std::string_view locale);
 
 // Filters the input vector of languages. Returns only those in the
-// |AcceptLanguageList|.
+// `kAcceptLanguageList`.
 COMPONENT_EXPORT(UI_BASE)
 std::vector<std::string> KeepAcceptedLanguages(
     base::span<const std::string> languages);
@@ -304,9 +307,8 @@ int GetLocalizedContentsWidthInPixels(int pixel_resource_id);
 COMPONENT_EXPORT(UI_BASE)
 std::vector<std::string_view> GetAcceptLanguageListForTesting();
 
-COMPONENT_EXPORT(UI_BASE) const char* const* GetPlatformLocalesForTesting();
-
-COMPONENT_EXPORT(UI_BASE) size_t GetPlatformLocalesSizeForTesting();
+COMPONENT_EXPORT(UI_BASE)
+base::span<const std::string_view> GetPlatformLocalesForTesting();
 
 }  // namespace l10n_util
 

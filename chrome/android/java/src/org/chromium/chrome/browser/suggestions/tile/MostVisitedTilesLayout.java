@@ -9,15 +9,18 @@ import android.content.res.Resources;
 import android.util.AttributeSet;
 import android.widget.HorizontalScrollView;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
 import org.chromium.components.browser_ui.widget.tile.TileView;
 import org.chromium.ui.base.DeviceFormFactor;
 
 /** The most visited tiles layout. */
+@NullMarked
 public class MostVisitedTilesLayout extends TilesLinearLayout {
 
     private final boolean mIsTablet;
@@ -48,16 +51,6 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
             tileView.setOnCreateContextMenuListener(null);
         }
         removeAllViews();
-    }
-
-    @Nullable
-    public SuggestionsTileView findTileViewForTesting(SiteSuggestion suggestion) {
-        int tileCount = getTileCount();
-        for (int i = 0; i < tileCount; i++) {
-            SuggestionsTileView tileView = (SuggestionsTileView) getTileAt(i);
-            if (suggestion.equals(tileView.getData())) return tileView;
-        }
-        return null;
     }
 
     public SiteSuggestion getTileViewData(TileView tileView) {
@@ -107,6 +100,7 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
     }
 
     @Override
+    @Initializer
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         if (mInitialTileCount == null) {
             mInitialTileCount = getTileCount();
@@ -140,13 +134,13 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
         HorizontalScrollView parent = (HorizontalScrollView) getParent();
         @Px float tileXPx = getTileAt(tileIdx).getX();
         @Px int scrollXPx = parent.getScrollX();
-        // If scroll position is too high so that the tile is out-of-view / truncated, scroll right
+        // If scroll position is too high so that the tile is out-of-view / truncated, scroll left
         // so that the tile appears on the left edge (RTL doesn't matter).
         @Px int scrollXHiPx = (int) tileXPx;
         if (scrollXPx > scrollXHiPx) {
             return scrollXHiPx;
         }
-        // If scroll position is too low so that the tile is out-of-view / truncated, scroll left
+        // If scroll position is too low so that the tile is out-of-view / truncated, scroll right
         // so that the tile appears on the right edge (RTL doesn't matter).
         @Px int scrollXLoPx = (int) (tileXPx + mTileViewWidthPx - parent.getWidth());
         if (scrollXPx < scrollXLoPx) {

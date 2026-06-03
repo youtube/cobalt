@@ -139,10 +139,6 @@ struct PhoneticsInfo {
   // For other type of results the URL will be empty.
   GURL phonetics_audio;
 
-  // Set to true if tts audio (`query_text` and `locale`) can be used.
-  // TODO(b/346794579): remove this field.
-  bool tts_audio_enabled = false;
-
   // Query text and locale which will be used for tts if enabled and
   // there is no phonetics audio available.
   std::string query_text;
@@ -177,8 +173,8 @@ struct IntentInfo {
   IntentInfo(const IntentInfo& other);
   IntentInfo(const std::string& intent_text,
              IntentType intent_type,
-             const std::string& device_language = std::string(),
-             const std::string& source_language = std::string());
+             std::string_view device_language = std::string_view(),
+             std::string_view source_language = std::string_view());
   ~IntentInfo();
 
   // The text extracted from the selected_text associated with the intent.

@@ -137,10 +137,11 @@ class TipsNotificationClientTest : public PlatformTest {
   // Returns a mock UNNotificationResponse for the given notification `type`.
   id MockRequestResponse(TipsNotificationType type,
                          bool for_reactivation = false) {
-    id mock_response = OCMClassMock([UNNotificationResponse class]);
-    OCMStub([mock_response notification])
+    EXPECT_OCMOCK_VERIFY((id)mock_notification_response_);
+    mock_notification_response_ = OCMClassMock([UNNotificationResponse class]);
+    OCMStub([mock_notification_response_ notification])
         .andReturn(MockNotification(type, for_reactivation));
-    return mock_response;
+    return mock_notification_response_;
   }
 
   // Returns a mock UNNotification for the given notification `type`.
@@ -217,6 +218,7 @@ class TipsNotificationClientTest : public PlatformTest {
   void ExpectNotificationRequest(TipsNotificationType type) {
     ExpectNotificationRequest(NotificationRequestArg(type));
   }
+
   void ExpectNotificationRequest(id request) {
     auto completionCaller = ^BOOL(void (^completion)(NSError* error)) {
       completion(nil);
@@ -225,6 +227,12 @@ class TipsNotificationClientTest : public PlatformTest {
     OCMExpect([mock_notification_center_
         addNotificationRequest:request
          withCompletionHandler:[OCMArg checkWithBlock:completionCaller]]);
+  }
+
+  // Rejects all notification requests sent to the mock notification center.
+  void RejectAllNotificationRequests() {
+    OCMReject([mock_notification_center_ addNotificationRequest:[OCMArg any]
+                                          withCompletionHandler:[OCMArg any]]);
   }
 
   // Ensures that Chrome is considered as default browser.
@@ -280,12 +288,14 @@ class TipsNotificationClientTest : public PlatformTest {
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   TestProfileManagerIOS profile_manager_;
   id mock_scene_state_;
+  UNNotificationResponse* mock_notification_response_;
   std::unique_ptr<TestBrowser> browser_;
   std::unique_ptr<TipsNotificationClient> client_;
   id mock_notification_center_;
   std::unique_ptr<ScopedBlockSwizzler> notification_center_swizzler_;
   raw_ptr<ProfileIOS> profile_;
   PrepareToPresentModalStub* prepare_to_present_modal_stub_;
+  UNNotificationResponse* mock_response_;
 };
 
 #pragma mark - Test cases
@@ -359,8 +369,8 @@ TEST_F(TipsNotificationClientTest, DefaultBrowserHandle) {
                                           DefaultBrowserSettingsPageSource::
                                               kTipsNotification]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kDefaultBrowser);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kDefaultBrowser);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -410,8 +420,8 @@ TEST_F(TipsNotificationClientTest, SigninHandle) {
   id mock_handler = MockHandler(@protocol(SigninPresenter));
   OCMExpect([mock_handler showSignin:[OCMArg any]]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kSignin);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kSignin);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -421,7 +431,7 @@ TEST_F(TipsNotificationClientTest, SigninHandle) {
   mock_handler = MockHandler(@protocol(SettingsCommands));
   OCMExpect([mock_handler showAccountsSettingsFromViewController:nil
                                             skipIfUINotAvailable:NO]);
-  client_->HandleNotificationInteraction(mock_response);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -516,8 +526,7 @@ TEST_F(TipsNotificationClientTest, ProvisionalDisallowedByPolicy) {
 
   WriteFirstRunSentinel();
   StubGetPendingRequests(nil);
-  OCMReject([mock_notification_center_ addNotificationRequest:[OCMArg any]
-                                        withCompletionHandler:[OCMArg any]]);
+  RejectAllNotificationRequests();
 
   base::RunLoop run_loop;
   client_->OnSceneActiveForegroundBrowserReady(run_loop.QuitClosure());
@@ -534,8 +543,8 @@ TEST_F(TipsNotificationClientTest, WhatsNewHandle) {
   id mock_handler = MockHandler(@protocol(WhatsNewCommands));
   OCMExpect([mock_handler showWhatsNew]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kWhatsNew);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kWhatsNew);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -568,9 +577,9 @@ TEST_F(TipsNotificationClientTest, SetUpListContinuationHandle) {
   id mock_handler = MockHandler(@protocol(ContentSuggestionsCommands));
   OCMExpect([mock_handler showSetUpListSeeMoreMenuExpanded:YES]);
 
-  id mock_response =
+  mock_response_ =
       MockRequestResponse(TipsNotificationType::kSetUpListContinuation);
-  client_->HandleNotificationInteraction(mock_response);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample(
@@ -605,8 +614,8 @@ TEST_F(TipsNotificationClientTest, DockingHandle) {
   id mock_handler = MockHandler(@protocol(DockingPromoCommands));
   OCMExpect([mock_handler showDockingPromo:YES]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kDocking);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kDocking);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -648,9 +657,8 @@ TEST_F(TipsNotificationClientTest, OmniboxPositionHandle) {
   id mock_handler = MockHandler(@protocol(BrowserCoordinatorCommands));
   OCMExpect([mock_handler showOmniboxPositionChoice]);
 
-  id mock_response =
-      MockRequestResponse(TipsNotificationType::kOmniboxPosition);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kOmniboxPosition);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -703,9 +711,9 @@ TEST_F(TipsNotificationClientTest, EnhancedSafeBrowsingHandle) {
   id mock_handler = MockHandler(@protocol(BrowserCoordinatorCommands));
   OCMExpect([mock_handler showEnhancedSafeBrowsingPromo]);
 
-  id mock_response =
+  mock_response_ =
       MockRequestResponse(TipsNotificationType::kEnhancedSafeBrowsing);
-  client_->HandleNotificationInteraction(mock_response);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample(
@@ -719,8 +727,8 @@ TEST_F(TipsNotificationClientTest, LensHandle) {
   id mock_handler = MockHandler(@protocol(BrowserCoordinatorCommands));
   OCMExpect([mock_handler showLensPromo]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kLens);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kLens);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
@@ -733,8 +741,8 @@ TEST_F(TipsNotificationClientTest, LensProactiveHandle) {
   id mock_handler = MockHandler(@protocol(BrowserCoordinatorCommands));
   OCMExpect([mock_handler showLensPromo]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kLens, true);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kLens, true);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample(
@@ -876,6 +884,7 @@ TEST_F(TipsNotificationClientTest, CPERequest) {
       TipsNotificationType::kDefaultBrowser,
       TipsNotificationType::kDocking,
       TipsNotificationType::kSignin,
+      TipsNotificationType::kLensOverlay,
   });
   PrefService* local_state = GetApplicationContext()->GetLocalState();
   local_state->SetTime(prefs::kIosCredentialProviderPromoDisplayTime,
@@ -885,11 +894,11 @@ TEST_F(TipsNotificationClientTest, CPERequest) {
 
   // A notification should not be requested yet because promo display time is
   // less than 30 days ago.
-  OCMReject([mock_notification_center_ addNotificationRequest:[OCMArg any]
-                                        withCompletionHandler:[OCMArg any]]);
+  RejectAllNotificationRequests();
   base::RunLoop run_loop;
   client_->OnSceneActiveForegroundBrowserReady(run_loop.QuitClosure());
   run_loop.Run();
+  EXPECT_OCMOCK_VERIFY(mock_notification_center_);
 
   // Simulate that the CPE promo was displayed more than 30 days ago.
   local_state->SetTime(prefs::kIosCredentialProviderPromoDisplayTime,
@@ -914,10 +923,68 @@ TEST_F(TipsNotificationClientTest, CPEHandle) {
       [mock_handler showCredentialProviderPromoWithTrigger:
                         CredentialProviderPromoTrigger::TipsNotification]);
 
-  id mock_response = MockRequestResponse(TipsNotificationType::kCPE);
-  client_->HandleNotificationInteraction(mock_response);
+  mock_response_ = MockRequestResponse(TipsNotificationType::kCPE);
+  client_->HandleNotificationInteraction(mock_response_);
 
   EXPECT_OCMOCK_VERIFY(mock_handler);
   histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
                                        TipsNotificationType::kCPE, 1);
+}
+
+// Tests that the client can register a LensOverlay Promo notification.
+TEST_F(TipsNotificationClientTest, LensOverlayRequest) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kIOSExpandedTips);
+  WriteFirstRunSentinel();
+  StubGetPendingRequests(nil);
+  SetSentNotifications({
+      TipsNotificationType::kEnhancedSafeBrowsing,
+      TipsNotificationType::kWhatsNew,
+      TipsNotificationType::kLens,
+      TipsNotificationType::kOmniboxPosition,
+      TipsNotificationType::kSetUpListContinuation,
+      TipsNotificationType::kDefaultBrowser,
+      TipsNotificationType::kDocking,
+      TipsNotificationType::kSignin,
+      TipsNotificationType::kCPE,
+  });
+  // Simulate that the LensOverlay was displayed less than 30 days ago.
+  PrefService* local_state = GetApplicationContext()->GetLocalState();
+  local_state->SetTime(prefs::kLensOverlayLastPresented,
+                       base::Time::Now() - base::Days(29));
+
+  // A notification should not be requested yet because LensOverlay was
+  // presented less than 30 days ago.
+  RejectAllNotificationRequests();
+  base::RunLoop run_loop;
+  client_->OnSceneActiveForegroundBrowserReady(run_loop.QuitClosure());
+  run_loop.Run();
+  EXPECT_OCMOCK_VERIFY(mock_notification_center_);
+
+  // Simulate that the LensOverlay was displayed more than 30 days ago.
+  local_state->SetTime(prefs::kLensOverlayLastPresented,
+                       base::Time::Now() - base::Days(31));
+  SetupMockNotificationCenter();
+  StubGetPendingRequests(nil);
+  ExpectNotificationRequest(TipsNotificationType::kLensOverlay);
+  base::RunLoop run_loop2;
+  client_->OnSceneActiveForegroundBrowserReady(run_loop2.QuitClosure());
+  run_loop2.Run();
+  EXPECT_OCMOCK_VERIFY(mock_notification_center_);
+  histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Sent",
+                                       TipsNotificationType::kLensOverlay, 1);
+}
+
+// Tests that the client handles a LensOverlay promo notification response.
+TEST_F(TipsNotificationClientTest, LensOverlayHandle) {
+  StubPrepareToPresentModal();
+  id mock_handler = MockHandler(@protocol(BrowserCoordinatorCommands));
+  OCMExpect([mock_handler showSearchWhatYouSeePromo]);
+
+  mock_response_ = MockRequestResponse(TipsNotificationType::kLensOverlay);
+  client_->HandleNotificationInteraction(mock_response_);
+
+  EXPECT_OCMOCK_VERIFY(mock_handler);
+  histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
+                                       TipsNotificationType::kLensOverlay, 1);
 }

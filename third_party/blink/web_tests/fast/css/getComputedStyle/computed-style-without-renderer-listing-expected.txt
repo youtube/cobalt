@@ -110,6 +110,7 @@ border-left-width: 0px
 border-right-color: rgb(0, 0, 0)
 border-right-style: none
 border-right-width: 0px
+border-shape: none
 border-spacing: 0px
 border-start-end-radius: 0px
 border-start-start-radius: 0px
@@ -141,7 +142,9 @@ color-rendering: auto
 column-count: auto
 column-gap: normal
 column-height: auto
+column-rule-break: spanning-item
 column-rule-color: rgb(0, 0, 0)
+column-rule-outset: 50%
 column-rule-style: none
 column-rule-width: 0px
 column-span: none
@@ -204,6 +207,7 @@ font-variant-ligatures: normal
 font-variant-numeric: normal
 font-variant-position: normal
 font-weight: 400
+gap-rule-paint-order: row-over-column
 grid-auto-columns: auto
 grid-auto-flow: row
 grid-auto-rows: auto
@@ -264,12 +268,8 @@ mask-position: 0% 0%
 mask-repeat: repeat
 mask-size: auto
 mask-type: luminance
-masonry-auto-tracks: auto
 masonry-direction: column
 masonry-fill: normal
-masonry-template-tracks: auto
-masonry-track-end: auto
-masonry-track-start: auto
 math-depth: 0
 math-shift: normal
 math-style: normal
@@ -334,6 +334,11 @@ resize: none
 right: auto
 rotate: none
 row-gap: normal
+row-rule-break: spanning-item
+row-rule-color: rgb(0, 0, 0)
+row-rule-outset: 50%
+row-rule-style: none
+row-rule-width: 3px
 ruby-align: space-around
 ruby-position: over
 rx: auto
@@ -345,7 +350,6 @@ scroll-margin-block-end: 0px
 scroll-margin-block-start: 0px
 scroll-margin-inline-end: 0px
 scroll-margin-inline-start: 0px
-scroll-marker-contain: none
 scroll-marker-group: none
 scroll-padding-block-end: auto
 scroll-padding-block-start: auto
@@ -355,6 +359,7 @@ scroll-start-block: auto
 scroll-start-inline: auto
 scroll-start-x: auto
 scroll-start-y: auto
+scroll-target-group: none
 scroll-timeline-axis: block
 scroll-timeline-name: none
 scrollbar-color: auto

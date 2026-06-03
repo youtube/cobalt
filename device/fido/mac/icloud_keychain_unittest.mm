@@ -20,10 +20,13 @@
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/notreached.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/authenticator_make_credential_response.h"
+#include "device/fido/ctap_make_credential_request.h"
+#include "device/fido/features.h"
 #include "device/fido/fido_authenticator.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_discovery_base.h"
@@ -189,6 +192,8 @@ class iCloudKeychainTest : public testing::Test, FidoDiscoveryBase::Observer {
   std::unique_ptr<FidoDiscoveryBase> discovery_;
   raw_ptr<FidoAuthenticator> authenticator_ = nullptr;
   base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      kWebAuthnLargeBlobForICloudKeychain};
 };
 
 TEST_F(iCloudKeychainTest, RequestAuthorization) {
@@ -501,6 +506,221 @@ TEST_F(iCloudKeychainTest, GetAssertion) {
       EXPECT_EQ(samples->GetCount(3), 1);
       EXPECT_EQ(samples->GetCount(4), 1);
       EXPECT_EQ(samples->GetCount(5), 0);
+    }
+  }
+}
+
+TEST_F(iCloudKeychainTest, LargeBlobSupportForICloudKeychain) {
+  if (@available(macOS 14.0, *)) {
+    struct LargeBlobTestCase {
+      LargeBlobSupport large_blob_support_request;
+      FakeSystemInterface::LargeBlobSupportState support_state;
+      std::optional<LargeBlobSupportType> expected_large_blob_type;
+      std::string description;
+    };
+
+    const std::vector<LargeBlobTestCase> test_cases = {
+        {
+            .large_blob_support_request = LargeBlobSupport::kNotRequested,
+            .support_state = FakeSystemInterface::LargeBlobSupportState::
+                kSupportedAndEnabled,
+            .expected_large_blob_type = std::nullopt,
+            .description = "LargeBlobSupport not requested",
+        },
+        {
+            .large_blob_support_request = LargeBlobSupport::kRequired,
+            .support_state = FakeSystemInterface::LargeBlobSupportState::
+                kSupportedAndEnabled,
+            .expected_large_blob_type = LargeBlobSupportType::kBespoke,
+            .description = "LargeBlobSupport required",
+        },
+        {
+            .large_blob_support_request = LargeBlobSupport::kPreferred,
+            .support_state = FakeSystemInterface::LargeBlobSupportState::
+                kSupportedAndEnabled,
+            .expected_large_blob_type = LargeBlobSupportType::kBespoke,
+            .description = "LargeBlobSupport preferred",
+        },
+        {
+            .large_blob_support_request = LargeBlobSupport::kPreferred,
+            .support_state = FakeSystemInterface::LargeBlobSupportState::
+                kSupportedButDisabled,
+            .expected_large_blob_type = std::nullopt,
+            .description = "LargeBlobSupport preferred but API does not "
+                           "support large blob",
+        },
+        {
+            .large_blob_support_request = LargeBlobSupport::kPreferred,
+            .support_state =
+                FakeSystemInterface::LargeBlobSupportState::kNotSupported,
+            .expected_large_blob_type = std::nullopt,
+            .description = "LargeBlobSupport preferred but macOS version does "
+                           "not support large blob",
+        },
+    };
+
+    for (const auto& test_case : test_cases) {
+      SCOPED_TRACE(test_case.description);
+      PublicKeyCredentialParams public_key_params(
+          {PublicKeyCredentialParams::CredentialInfo()});
+
+      CtapMakeCredentialRequest request("{}", {{1, 2, 3, 4}, "rp.id"},
+                                        {{4, 3, 2, 1}, "name", "displayName"},
+                                        public_key_params);
+
+      MakeCredentialOptions options;
+      options.large_blob_support = test_case.large_blob_support_request;
+
+      fake_->set_large_blob_support_state(test_case.support_state);
+      fake_->SetMakeCredentialResult(kAttestationObjectBytes, kCredentialID);
+
+      base::test::TestFuture<MakeCredentialStatus,
+                             std::optional<AuthenticatorMakeCredentialResponse>>
+          future;
+      authenticator_->MakeCredential(request, options, future.GetCallback());
+      ASSERT_TRUE(future.Wait());
+
+      auto [status, response_opt] = std::move(future).Take();
+      EXPECT_EQ(status, MakeCredentialStatus::kSuccess);
+      ASSERT_TRUE(response_opt.has_value());
+      EXPECT_EQ(response_opt->large_blob_type,
+                test_case.expected_large_blob_type);
+    }
+  }
+}
+
+TEST_F(iCloudKeychainTest, LargeBlobPreMacOS14) {
+  if (@available(macOS 14.0, *)) {
+    GTEST_SKIP() << "Large blob supported on macOS 14.0+";
+  }
+  if (@available(macOS 13.3, *)) {
+    const auto& options = authenticator_->Options();
+    EXPECT_EQ(options.large_blob_type, std::nullopt);
+
+    PublicKeyCredentialParams public_key_params(
+        {PublicKeyCredentialParams::CredentialInfo()});
+    CtapMakeCredentialRequest request("{}", {{1, 2, 3, 4}, "rp.id"},
+                                      {{4, 3, 2, 1}, "name", "displayName"},
+                                      public_key_params);
+
+    MakeCredentialOptions cred_options;
+    cred_options.large_blob_support = LargeBlobSupport::kPreferred;
+
+    fake_->set_large_blob_support_state(
+        FakeSystemInterface::LargeBlobSupportState::kSupportedAndEnabled);
+    fake_->SetMakeCredentialResult(kAttestationObjectBytes, kCredentialID);
+
+    base::test::TestFuture<MakeCredentialStatus,
+                           std::optional<AuthenticatorMakeCredentialResponse>>
+        future;
+    authenticator_->MakeCredential(request, cred_options, future.GetCallback());
+    ASSERT_TRUE(future.Wait());
+
+    auto [status, response_opt] = std::move(future).Take();
+    EXPECT_EQ(status, MakeCredentialStatus::kSuccess);
+    ASSERT_TRUE(response_opt.has_value());
+    EXPECT_EQ(response_opt->large_blob_type, std::nullopt);
+  }
+}
+
+TEST_F(iCloudKeychainTest, AuthenticatorOptionsLargeBlob) {
+  // large_blob_type should be supported when flag is enabled and macOS 14.0+.
+  if (@available(macOS 14.0, *)) {
+    const AuthenticatorSupportedOptions& options = authenticator_->Options();
+    EXPECT_EQ(options.large_blob_type, LargeBlobSupportType::kBespoke);
+
+    // macOS < 14.0 should never report large_blob_type even with the flag
+    // enabled.
+  } else if (@available(macOS 13.3, *)) {
+    const AuthenticatorSupportedOptions& options = authenticator_->Options();
+    EXPECT_EQ(options.large_blob_type, std::nullopt);
+  }
+}
+
+TEST_F(iCloudKeychainTest, LargeBlobRWForICloudKeychain) {
+  if (@available(macOS 14.0, *)) {
+    static const uint8_t kAuthenticatorData[] = {
+        0x26, 0xbd, 0x72, 0x78, 0xbe, 0x46, 0x37, 0x61, 0xf1, 0xfa,
+        0xa1, 0xb1, 0x0a, 0xb4, 0xc4, 0xf8, 0x26, 0x70, 0x26, 0x9c,
+        0x41, 0x0c, 0x72, 0x6a, 0x1f, 0xd6, 0xe0, 0x58, 0x55, 0xe1,
+        0x9b, 0x46, 0x01, 0x00, 0x00, 0x0f, 0xdd,
+    };
+    static const uint8_t kSignature[] = {1, 2, 3, 4};
+    static const uint8_t kUserID[] = {5, 6, 7, 8};
+
+    CtapGetAssertionRequest request("rp.id", "{}");
+    CtapGetAssertionOptions options;
+
+    auto run_get =
+        [&](GetAssertionStatus& status_out, std::optional<bool>& written_out,
+            std::optional<std::vector<uint8_t>>* read_blob_out = nullptr) {
+          base::test::TestFuture<GetAssertionStatus,
+                                 std::vector<AuthenticatorGetAssertionResponse>>
+              future;
+          authenticator_->GetAssertion(request, options, future.GetCallback());
+          ASSERT_TRUE(future.Wait());
+          auto [status, responses] = future.Take();
+          status_out = status;
+          if (!responses.empty()) {
+            if (status == GetAssertionStatus::kSuccess && !responses.empty()) {
+              written_out = responses[0].large_blob_written;
+              if (read_blob_out) {
+                *read_blob_out = responses[0].large_blob;
+              }
+            }
+          }
+        };
+    // Empty large blob write.
+    {
+      std::vector<uint8_t> small_blob = {0xA, 0xB, 0xC};
+      options.large_blob_write = small_blob;
+      fake_->SetGetAssertionResult(kAuthenticatorData, kSignature, kUserID,
+                                   kCredentialID);
+      fake_->set_large_blob_write_success(false);
+
+      GetAssertionStatus status;
+      std::optional<bool> written;
+      run_get(status, written);
+      EXPECT_EQ(status, GetAssertionStatus::kSuccess);
+      ASSERT_TRUE(written.has_value());
+      EXPECT_FALSE(*written);
+    }
+    // Attempted large blob write when large blob is not supported.
+    {
+      fake_->set_large_blob_support_state(
+          FakeSystemInterface::LargeBlobSupportState::kNotSupported);
+      std::vector<uint8_t> small_blob = {1, 2, 3};
+      options.large_blob_write = small_blob;
+      fake_->SetGetAssertionResult(kAuthenticatorData, kSignature, kUserID,
+                                   kCredentialID);
+      fake_->set_large_blob_write_success(false);
+
+      GetAssertionStatus status;
+      std::optional<bool> written;
+      run_get(status, written);
+      EXPECT_EQ(status, GetAssertionStatus::kSuccess);
+      ASSERT_TRUE(written.has_value());
+      EXPECT_FALSE(*written);
+    }
+    // Read a large blob.
+    {
+      options.large_blob_write.reset();
+      options.large_blob_read = true;
+      fake_->SetGetAssertionResult(kAuthenticatorData, kSignature, kUserID,
+                                   kCredentialID);
+      std::vector<uint8_t> kReadBlob = {0xDE, 0xAD, 0xBE, 0xEF};
+      fake_->set_large_blob_read_data(kReadBlob);
+      fake_->set_large_blob_write_success(false);
+
+      GetAssertionStatus status;
+      std::optional<bool> written;
+      std::optional<std::vector<uint8_t>> read_blob;
+      run_get(status, written, &read_blob);
+      EXPECT_EQ(status, GetAssertionStatus::kSuccess);
+      ASSERT_TRUE(written.has_value());
+      EXPECT_FALSE(*written);
+      ASSERT_TRUE(read_blob.has_value());
+      EXPECT_EQ(*read_blob, kReadBlob);
     }
   }
 }

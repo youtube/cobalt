@@ -458,6 +458,13 @@ scoped_refptr<const Extension> ComponentLoader::CreateExtension(
   // TODO(abarth): We should REQUIRE_MODERN_MANIFEST_VERSION once we've updated
   //               our component extensions to the new manifest version.
   int flags = Extension::REQUIRE_KEY;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // ChromeOS component extension (GoogleTTS) needs to use symlinks to share
+  // data during MV2 to MV3 migration.
+  flags |= Extension::FOLLOW_SYMLINKS_ANYWHERE;
+#endif
+
   return Extension::Create(info.root_directory,
                            mojom::ManifestLocation::kComponent, info.manifest,
                            flags, utf8_error);
@@ -707,7 +714,11 @@ void ComponentLoader::AddWithNameAndDescriptionFromDir(
 void ComponentLoader::AddChromeOsSpeechSynthesisExtensions() {
   if (!Exists(extension_misc::kGoogleSpeechSynthesisExtensionId)) {
     AddComponentFromDir(
-        base::FilePath(extension_misc::kGoogleSpeechSynthesisExtensionPath),
+        ::features::IsAccessibilityManifestV3EnabledForGoogleTts()
+            ? base::FilePath(
+                  extension_misc::kGoogleSpeechSynthesisManifestV3ExtensionPath)
+            : base::FilePath(
+                  extension_misc::kGoogleSpeechSynthesisExtensionPath),
         extension_misc::kGoogleSpeechSynthesisExtensionId,
         base::BindRepeating(
             &ComponentLoader::FinishLoadSpeechSynthesisExtension,

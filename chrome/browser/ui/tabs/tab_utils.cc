@@ -11,6 +11,7 @@
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -30,9 +31,13 @@
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #endif
 
-std::vector<tabs::TabAlert> GetTabAlertStatesForContents(
-    content::WebContents* contents) {
+std::vector<tabs::TabAlert> GetTabAlertStatesForTab(
+    const tabs::TabInterface* tab) {
   std::vector<tabs::TabAlert> states;
+  if (!tab) {
+    return states;
+  }
+  content::WebContents* contents = tab->GetContents();
   if (!contents) {
     return states;
   }
@@ -89,8 +94,12 @@ std::vector<tabs::TabAlert> GetTabAlertStatesForContents(
 #if BUILDFLAG(ENABLE_GLIC)
   glic::GlicKeyedService* glic_service = glic::GlicKeyedService::Get(
       Profile::FromBrowserContext(contents->GetBrowserContext()));
-  if (glic_service && glic_service->IsContextAccessIndicatorShown(contents)) {
-    states.push_back(tabs::TabAlert::GLIC_ACCESSING);
+  if (glic_service) {
+    if (glic_service->sharing_manager().IsTabPinned(tab->GetHandle())) {
+      states.push_back(tabs::TabAlert::GLIC_SHARING);
+    } else if (glic_service->IsContextAccessIndicatorShown(contents)) {
+      states.push_back(tabs::TabAlert::GLIC_ACCESSING);
+    }
   }
 #endif
 
@@ -172,6 +181,13 @@ std::u16string GetTabAlertStateText(const tabs::TabAlert alert_state) {
 #if BUILDFLAG(ENABLE_GLIC)
       return l10n_util::GetStringUTF16(
           IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_ACCESSING);
+#else
+      return u"";
+#endif
+    case tabs::TabAlert::GLIC_SHARING:
+#if BUILDFLAG(ENABLE_GLIC)
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_SHARING);
 #else
       return u"";
 #endif

@@ -233,7 +233,7 @@ const ComputedStyle* HighlightPseudoStyleWithOriginatingInheritance(
   }
 
   // If we request highlight style for LayoutText, query highlight style on the
-  // parent element instead, as that is the node for which the highligh pseudo
+  // parent element instead, as that is the node for which the highlight pseudo
   // matches. This should most likely have used FlatTreeTraversal, but since we
   // don't implement inheritance of highlight styles, it would probably break
   // cases where you style a shadow host with a highlight pseudo and expect
@@ -416,8 +416,7 @@ Color HighlightStyleUtils::HighlightBackgroundColor(
       // and we are using default colors, invert the background color. We do not
       // do this when the author has requested colors in a ::selection pseudo.
       if (current_layer_color && *current_layer_color == result) {
-        return Color(0xff - result.Red(), 0xff - result.Green(),
-                     0xff - result.Blue());
+        return result.MakeOpaque().InvertSRGB();
       }
     }
   }

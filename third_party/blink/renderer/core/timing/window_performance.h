@@ -141,12 +141,10 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   void QueueLongAnimationFrameTiming(
       AnimationFrameTimingInfo*,
       std::optional<DOMPaintTimingInfo> paint_timing_info = std::nullopt);
-  void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info,
-                           bool is_triggered_by_soft_navigation);
+  void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info);
 
   void AddFirstContentfulPaintTiming(
-      const DOMPaintTimingInfo& paint_timing_info,
-      bool is_triggered_by_soft_navigation);
+      const DOMPaintTimingInfo& paint_timing_info);
 
   // PerformanceMonitor::Client implementation.
   void ReportLongTask(base::TimeTicks start_time,
@@ -157,7 +155,8 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   void AddLayoutShiftEntry(LayoutShift*);
   void AddVisibilityStateEntry(bool is_visible, base::TimeTicks start_time);
   void AddSoftNavigationEntry(const AtomicString& name,
-                              base::TimeTicks start_time);
+                              base::TimeTicks start_time,
+                              const DOMPaintTimingInfo& paint_timing_info);
 
   // PageVisibilityObserver
   void PageVisibilityChanged() override;

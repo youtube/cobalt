@@ -7,6 +7,7 @@
 <translation id="102763973188675173">Прилагодите и контролишите Google Chrome. Доступно је ажурирање.</translation>
 <translation id="1028061813283459617">Да бисте избрисали податке прегледања само са овог уређаја, али не и са Google налога, <ph name="BEGIN_LINK" />одјавите се из Chrome-а<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">Кликните да бисте затворили дијалог за пријављивање у Chrome</translation>
+<translation id="1051793555070215510">Помозите нам да побољшамо режим без архивирања тако што ћете попунити ову једноминутну анкету.</translation>
 <translation id="1059838145689930908">Да бисте користили овај додатак као <ph name="USER_EMAIL_ADDRESS" />, пријавите се у Chrome.</translation>
 <translation id="1065672644894730302">Подешавања не могу да се прочитају.
 
@@ -56,6 +57,7 @@
 <translation id="1682634494516646069">Google Chrome не може да чита податке из свог директоријума са подацима нити да их у њих уписује:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">Када уносите текст у траку за адресу или у оквир за претрагу, Chrome шаље оно што уносите у алатке за претрагу, вештачку интелигенцију и агента организације да бисте добијали предлоге.</translation>
 <translation id="1698376642261615901">Google Chrome је веб прегледач који веб-странице и апликације покреће брзином светлости. Он је брз, стабилан и лак за коришћење. Још безбедније прегледајте Веб уз помоћ заштите од малвера и „пецања“ која је уграђена у Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Поново ћемо покренути Chrome за један сат}one{Поново ћемо покренути Chrome за # сат}few{Поново ћемо покренути Chrome за # сата}other{Поново ћемо покренути Chrome за # сати}}</translation>
 <translation id="1722488837206509557">То ће вам омогућити да бирате са доступних уређаја и да приказујете садржај на њима.</translation>
@@ -64,6 +66,7 @@
 <translation id="178701303897325119">Овај додатак више није подржан. Chrome препоручује да га уклоните.</translation>
 <translation id="1812689907177901597">Када то укључите, можете да се пријављујете на Google сајтове, као што је Gmail, али се не пријављујете у Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome препоручује да паузирате картицу која успорава прегледач}one{Chrome препоручује да паузирате картице које успоравају прегледач}few{Chrome препоручује да паузирате картице које успоравају прегледач}other{Chrome препоручује да паузирате картице које успоравају прегледач}}</translation>
+<translation id="1832046143430087831">Убрзава сајтове уз Chrome механизам V8, али чини Chrome мало мање отпорним на нападе. Ово подешавање је искључено.</translation>
 <translation id="1838374766361614909">Обришите претрагу</translation>
 <translation id="1860536484129686729">Chrome тражи дозволу да приступи камери за овај сајт</translation>
 <translation id="1873233029667955273">Google Chrome није подразумевани прегледач</translation>
@@ -222,6 +225,7 @@
 <translation id="3716540481907974026">Верзија Chrome OS Flex-а</translation>
 <translation id="3718181793972440140">Овим ћете избрисати 1 ставку са овог уређаја. Да бисте касније вратили податке, пријавите се у Chrome као <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome препоручује да га уклоните. <ph name="BEGIN_LINK" />Сазнајте више о подржаним додацима<ph name="END_LINK" />}one{Chrome препоручује да их уклоните. <ph name="BEGIN_LINK" />Сазнајте више о подржаним додацима<ph name="END_LINK" />}few{Chrome препоручује да их уклоните. <ph name="BEGIN_LINK" />Сазнајте више о подржаним додацима<ph name="END_LINK" />}other{Chrome препоручује да их уклоните. <ph name="BEGIN_LINK" />Сазнајте више о подржаним додацима<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Сазнајте више о инсталирању Chrome-а</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Chrome OS Flex није успео да синхронизује податке због грешке при пријављивању.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -268,6 +272,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome препоручује да паузирате картицу која успорава прегледач}one{Chrome препоручује да паузирате картице које успоравају прегледач}few{Chrome препоручује да паузирате картице које успоравају прегледач}other{Chrome препоручује да паузирате картице које успоравају прегледач}}</translation>
 <translation id="4328355335528187361">Програмерска верзија Google Chrome-а (mDNS-In)</translation>
 <translation id="4329315893554541805">Да бисте добили персонализацију и друге функције, уврстите Chromium у активности на вебу и у апликацијама и повезане Google услуге</translation>
+<translation id="4334241893986177674">Претражите овај снимак екрана</translation>
 <translation id="4334294535648607276">Преузимање је довршено.</translation>
 <translation id="4337324600316876133">Да бисте добијали будућа Google Chrome ажурирања, треба вам macOS 12 или новија верзија. Овај рачунар користи macOS 11.</translation>
 <translation id="4343195214584226067">Додатак <ph name="EXTENSION_NAME" /> је додат у Chrome</translation>
@@ -318,6 +323,7 @@
 <translation id="4970880042055371251">Верзија Chrome ОС-а</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Кликните на Google менаџер лозинки</translation>
+<translation id="504867494566807945">Отварајте линкове у Chrome-у из било које апликације. Ради лакшег приступа закачите га на траку задатака.</translation>
 <translation id="5114340746415930644">Унесите приступну фразу да бисте користили и сачували Chrome податке на налогу, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Пријавите се у Chrome када се пријавите у друге Google услуге</translation>
 <translation id="5126049312684316860">Chrome предучитава још више страница које ћете вероватно посетити, како би се брже учитавале када их посетите</translation>
@@ -398,6 +404,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="6075300983329039771">Ваша организација, <ph name="MANAGER" />, захтева да се пријавите у Chrome</translation>
 <translation id="6113794647360055231">Управо смо побољшали Chrome</translation>
 <translation id="6116252277240876590">Овај језик се користи за приказивање менија, подешавања, упозорења и другог текста у Chrome-у</translation>
+<translation id="6127237283587442951">Подразумевано користите Chrome и закачите га</translation>
 <translation id="6134085236017727171">Да бисте користили микрофон, одобрите Chrome-у приступ у <ph name="BEGIN_LINK" />подешавањима система<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Ове картице користе додатне ресурсе. Да бисте побољшали перформансе, дозволите Chrome-у да их учини неактивним.</translation>
 <translation id="6145313976051292476">Отварајте PDF-ове у Chrome-у</translation>
@@ -447,12 +454,12 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="6718739135284199302">Убрзајте Chrome</translation>
 <translation id="6735387454586646204">Chrome OS Flex систем</translation>
 <translation id="6750954913813541382">Да би исправио правописне грешке, Chrome Google-у шаље текст који уносите у прегледач</translation>
+<translation id="6760235774835597023">Убрзава сајтове уз Chrome механизам V8, али чини Chrome мало мање отпорним на нападе. Ово подешавање је укључено.</translation>
 <translation id="677276454032249905">Желите ли ипак да затворите Chrome?</translation>
 <translation id="6794858689789885890">Увек избришите податке о сајтовима са уређаја када затворите Chrome</translation>
 <translation id="6831043979455480757">Преведи</translation>
 <translation id="683440813066116847">Правило за долазни саобраћај за Google Chrome Canary да бисте омогућили mDNS саобраћај.</translation>
 <translation id="684888714667046800">Повезивање са интернетом није успело. Ако користите заштитни зид, проверите да ли се <ph name="PRODUCT_EXE_NAME" /> налази на листи дозвољених.</translation>
-<translation id="6851981911629679515">Укључите додатну заштиту у Chrome алатки за JavaScript и WebAssembly</translation>
 <translation id="6877155553248388166">доњи десни угао области претраге: удесно <ph name="RIGHT" />%, надоле <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Ажурирамо Chrome</translation>
 <translation id="6885412569789873916">Chrome апликације за бета канал</translation>
@@ -512,7 +519,6 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="7572537927358445944">Искључено • Chrome не може да провери одакле потиче овај додатак</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> програм за инсталацију</translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
-<translation id="7626032353295482388">Добро дошли у Chrome</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> захтева да прочитате и прихватите следеће Услове коришћења услуге пре коришћења овог уређаја. Ови услови не проширују, мењају нити ограничавају Услове за Google Chrome OС.</translation>
 <translation id="7629695634924605473">Chrome вас обавештава ако су лозинке угрожене</translation>
 <translation id="7641148173327520642">Администратор система је конфигурисао Google Chrome да отвара прегледач <ph name="ALTERNATIVE_BROWSER_NAME" /> да би приступао <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -556,7 +562,6 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="8019103195866286235">Програмер је објавио овај додатак и он можда није безбедан. Уклоните га из Chrome-а да више не би могао да види и мења податке на сајтовима које посећујете, укључујући личне податке.</translation>
 <translation id="8040768861829554732">Додатак жели да се пријавите у Chrome</translation>
 <translation id="80471789339884597">Хвала вам на инсталацији. Морате да рестартујете све прегледаче пре него што почнете да користите <ph name="BUNDLE_NAME" />.</translation>
-<translation id="8064015041956107954">Можете да отварате обележиваче, режим за читање и друго из Chrome менија у горњем десном углу</translation>
 <translation id="8064015586118426197">Chrome OS Flex</translation>
 <translation id="8077579734294125741">Други Chrome профили</translation>
 <translation id="8086881907087796310">Инсталирање није успело зато што рачунар не испуњава минималне захтеве за хардвер.</translation>
@@ -568,7 +573,6 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="8177472873527554730">Не можемо да пронађемо садржај на страници</translation>
 <translation id="8221491193165283816">Обично блокирате обавештења. Да бисте дозволили овом сајту да вас обавештава, кликните овде.</translation>
 <translation id="8255190535488645436">Google Chrome користи камеру и микрофон.</translation>
-<translation id="8257796129973882597">Можете да отварате обележиваче, режим за читање и друго из Chrome менија</translation>
 <translation id="8267953129876836456">Chrome је пронашао безбедносне препоруке које можете да прегледате</translation>
 <translation id="8286862437124483331">Google Chrome покушава да прикаже лозинке. Унесите лозинку за Windows да бисте то омогућили.</translation>
 <translation id="829923460755755423">Додајте пречицу у Google менаџер лозинки</translation>
@@ -632,6 +636,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="9090566250983691233">Сазнајте зашто Chrome блокира неке фајлове</translation>
 <translation id="9106236359747881194">Изаберите текст за претрагу</translation>
 <translation id="911206726377975832">Желите ли да избришете и податке прегледања?</translation>
+<translation id="9134482777260927479">Помоћ за домаће задатке</translation>
 <translation id="9138603949443464873">Да бисте применили промене, поново покрените Chrome</translation>
 <translation id="9148058034647219655">Изађи</translation>
 <translation id="9195993889682885387">Chrome може да процени интересовања на основу историје прегледања из последњих неколико недеља. Те информације остају на уређају.</translation>

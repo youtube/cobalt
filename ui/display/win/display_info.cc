@@ -8,8 +8,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/hash/hash.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "ui/display/win/display_config_helper.h"
@@ -30,6 +28,7 @@ std::wstring_view FixedArrayToStringView(
 }  // namespace
 
 DisplayInfo::DisplayInfo(
+    std::optional<HMONITOR> hmonitor,
     const MONITORINFOEX& monitor_info,
     float device_scale_factor,
     float sdr_white_level,
@@ -48,7 +47,8 @@ DisplayInfo::DisplayInfo(
       pixels_per_inch_(pixels_per_inch),
       output_technology_(output_technology),
       label_(label),
-      device_name_(FixedArrayToStringView(monitor_info.szDevice)) {}
+      device_name_(FixedArrayToStringView(monitor_info.szDevice)),
+      hmonitor_(hmonitor) {}
 
 DisplayInfo::DisplayInfo(
     int64_t id,
@@ -86,15 +86,6 @@ int64_t DisplayInfo::DisplayIdFromMonitorInfo(const MONITORINFOEX& monitor) {
   std::optional<DISPLAYCONFIG_PATH_INFO> config_path =
       GetDisplayConfigPathInfo(monitor);
   // Record if DISPLAYCONFIG_PATH_INFO is available or not.
-  // TODO(anandrv): Remove the non-subsampled metric when there is enough data
-  // from the subsampled metric.
-  base::UmaHistogramBoolean("Windows.LegacyDisplayIdAlgorithm",
-                            !config_path.has_value());
-  if (base::ShouldRecordSubsampledMetric(0.01)) {
-    base::UmaHistogramBoolean("Windows.LegacyDisplayIdAlgorithm2",
-                              !config_path.has_value());
-  }
-
   if (config_path.has_value()) {
     return static_cast<int64_t>(base::PersistentHash(base::StringPrintf(
         "%lu/%li/%u", config_path->targetInfo.adapterId.LowPart,

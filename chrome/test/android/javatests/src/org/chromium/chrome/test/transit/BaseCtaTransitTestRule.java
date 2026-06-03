@@ -49,7 +49,7 @@ class BaseCtaTransitTestRule {
         return mActivityTestRule.getWebContents();
     }
 
-    // TODO(crbug.com/406324209): Create WebPageStation#runJavaScript() and replace these calls.
+    // TODO(crbug.com/406324209): Use WebPageStation#runJsTo() to replace these calls.
     public String runJavaScriptCodeInCurrentTab(String code) throws TimeoutException {
         return mActivityTestRule.runJavaScriptCodeInCurrentTab(code);
     }
@@ -132,6 +132,11 @@ class BaseCtaTransitTestRule {
     // TODO(crbug.com/406324209): Support tracking pause/resume state in Public Transit.
     public void resumeMainActivityFromLauncher() throws Exception {
         mActivityTestRule.resumeMainActivityFromLauncher();
+    }
+
+    // TODO(crbug.com/406324209): Support finishing and restarting activity in Public Transit.
+    public void restartMainActivityFromLauncher() throws Exception {
+        mActivityTestRule.startMainActivityFromLauncher();
     }
 
     // TODO(crbug.com/406324209): ChromeTabbedActivityTestRule#startActivityCompletely() already

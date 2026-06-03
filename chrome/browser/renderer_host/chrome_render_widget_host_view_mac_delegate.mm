@@ -128,14 +128,6 @@
 
 // NSWindow events.
 
-- (void)beginGestureWithEvent:(NSEvent*)event {
-  [_historySwiper beginGestureWithEvent:event];
-}
-
-- (void)endGestureWithEvent:(NSEvent*)event {
-  [_historySwiper endGestureWithEvent:event];
-}
-
 // This is a low level API which provides touches associated with an event.
 // It is used in conjunction with gestures to determine finger placement
 // on the trackpad.
@@ -413,10 +405,10 @@
   }
 }
 
-- (AcceptMouseEventsOption)acceptsMouseEventsOption {
+- (AcceptMouseEvents)acceptsMouseEventsOption {
   content::WebContents* webContents = self.webContents;
   if (!webContents) {
-    return kAcceptMouseEventsInActiveWindow;
+    return AcceptMouseEvents::kWhenInActiveWindow;
   }
 
   // If this web contents is in a tab, and the tab wants to accept mouse events
@@ -428,7 +420,7 @@
               features->inactive_window_mouse_event_controller()) {
         if (inactive_event_controller
                 ->ShouldAcceptMouseEventsWhileWindowInactive()) {
-          return kAcceptMouseEventsInActiveApp;
+          return AcceptMouseEvents::kWhenInActiveApp;
         }
       }
     }
@@ -439,7 +431,7 @@
   // mimics the behavior of views UI.
   if (IsTopChromeWebUIURL(webContents->GetVisibleURL()) ||
       IsTopChromeUntrustedWebUIURL(webContents->GetVisibleURL())) {
-    return kAcceptMouseEventsInActiveApp;
+    return AcceptMouseEvents::kWhenInActiveApp;
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -450,11 +442,11 @@
   glic::GlicKeyedService* glic_service = glic::GlicKeyedService::Get(
       Profile::FromBrowserContext(webContents->GetBrowserContext()));
   if (glic_service && glic_service->IsActiveWebContents(webContents)) {
-    return kAcceptMouseEventsInActiveApp;
+    return AcceptMouseEvents::kWhenInActiveApp;
   }
 #endif
 
-  return kAcceptMouseEventsInActiveWindow;
+  return AcceptMouseEvents::kWhenInActiveWindow;
 }
 
 @end

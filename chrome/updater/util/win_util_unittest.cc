@@ -357,7 +357,7 @@ TEST(WinUtil, StopProcessesUnderPath) {
     EXPECT_FALSE(process.IsRunning()) << process.Pid();
   }
 
-  EXPECT_TRUE(base::DeletePathRecursively(exe_dir));
+  EXPECT_TRUE(WaitFor([&] { return base::DeletePathRecursively(exe_dir); }));
 }
 
 TEST(WinUtil, IsGuid) {
@@ -661,6 +661,13 @@ TEST(WinUtil, IsServicePresent_IsServiceEnabled) {
   EXPECT_TRUE(DeleteService(service_name));
   EXPECT_FALSE(IsServicePresent(service_name));
   EXPECT_FALSE(IsServiceEnabled(service_name));
+}
+
+TEST(WinUtil, IsServicePresent_IsServiceEnabled_NonAdmin) {
+  EXPECT_TRUE(IsServicePresent(L"Schedule"));
+  EXPECT_TRUE(IsServiceEnabled(L"Schedule"));
+  EXPECT_FALSE(IsServicePresent(L"ScheduleFooBar"));
+  EXPECT_FALSE(IsServiceEnabled(L"ScheduleFooBar"));
 }
 
 }  // namespace updater::test

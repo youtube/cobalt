@@ -30,7 +30,6 @@
 #include "gpu/command_buffer/client/context_support.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
 #include "media/base/cdm_context.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_aspect_ratio.h"
@@ -691,7 +690,16 @@ void FuchsiaVideoDecoder::OnStreamProcessorError() {
 }
 
 void FuchsiaVideoDecoder::CallNextDecodeCallback() {
-  DCHECK(!decode_callbacks_.empty());
+  if (decode_callbacks_.empty()) {
+    // Besides the potential possibilities of unexpected calling this function
+    // more times than expected, triggering this condition may also mean that we
+    // executed the callback too early and ignored some of the frames.
+    // The root cause is still being investigated, and will be fixed later.
+    // TODO(crbug.com/423634129): Remove this log once the root cause is fixed.
+    LOG(WARNING)
+        << "Called CallNextDecodeCallback more times than expected.";
+    return;
+  }
   auto cb = std::move(decode_callbacks_.front());
   decode_callbacks_.pop_front();
 

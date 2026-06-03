@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/not_fatal_until.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -302,7 +303,7 @@ void BookmarksMessageHandler::HandleGetCanUploadBookmarkToAccountStorage(
     const base::Value::List& args) {
   CHECK_EQ(2U, args.size());
   const base::Value& callback_id = args[0];
-  std::string id = args[1].GetString();
+  const std::string& id = args[1].GetString();
 
   AllowJavascript();
 
@@ -313,7 +314,7 @@ void BookmarksMessageHandler::HandleGetCanUploadBookmarkToAccountStorage(
 void BookmarksMessageHandler::HandleSingleUploadClicked(
     const base::Value::List& args) {
   CHECK_EQ(1U, args.size());
-  std::string id_string = args[0].GetString();
+  const std::string& id_string = args[0].GetString();
   int64_t id;
   base::StringToInt64(id_string, &id);
 
@@ -333,27 +334,11 @@ void BookmarksMessageHandler::HandleSingleUploadClicked(
   // point.
   CHECK(CanUploadBookmarkToAccountStorage(id_string));
 
-  const bookmarks::BookmarkNode* node =
-      bookmarks::GetBookmarkNodeByID(model, id);
-
-  // If the dialog is accepted, move it to the permanent account node
-  // corresponding to the permanent local node it is saved under.
-  const bookmarks::BookmarkPermanentNode* parent_node = nullptr;
-  if (node->HasAncestor(model->other_node())) {
-    parent_node = model->account_other_node();
-  } else if (node->HasAncestor(model->bookmark_bar_node())) {
-    parent_node = model->account_bookmark_bar_node();
-  } else if (node->HasAncestor(model->mobile_node())) {
-    parent_node = model->account_mobile_node();
-  }
-  CHECK(parent_node);
-
   // Show the dialog asking the user to confirm their choice to move the
   // bookmark.
-  ShowBookmarkAccountStorageMoveDialog(
-      chrome::FindLastActiveWithProfile(profile), node, parent_node,
-      parent_node->children().size(),
-      BookmarkAccountStorageMoveDialogType::kUpload);
+  ShowBookmarkAccountStorageUploadDialog(
+      chrome::FindLastActiveWithProfile(profile),
+      bookmarks::GetBookmarkNodeByID(model, id));
 }
 
 void BookmarksMessageHandler::UpdateCanEditBookmarks() {

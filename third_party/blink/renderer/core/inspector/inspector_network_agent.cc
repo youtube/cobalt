@@ -37,6 +37,7 @@
 #include "base/containers/span_or_size.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "net/base/ip_address.h"
@@ -775,7 +776,7 @@ String IPAddressToString(const net::IPAddress& address) {
     return unbracketed;
   }
 
-  return "[" + unbracketed + "]";
+  return StrCat({"[", unbracketed, "]"});
 }
 
 namespace ContentEncodingEnum = protocol::Network::ContentEncodingEnum;
@@ -1008,7 +1009,7 @@ BuildObjectForResourceRequest(const ResourceRequest& request,
           .setReferrerPolicy(GetReferrerPolicy(request.GetReferrerPolicy()))
           .build();
   if (url.HasFragmentIdentifier()) {
-    result->setUrlFragment("#" + url.FragmentIdentifier().ToString());
+    result->setUrlFragment(StrCat({"#", url.FragmentIdentifier().ToString()}));
   }
   if (!data_string.empty())
     result->setPostData(data_string);
@@ -1995,7 +1996,7 @@ void InspectorNetworkAgent::DidReceiveWebSocketHandshakeResponse(
     if (!add_result.is_new_entry) {
       // Protocol expects the "\n" separated format.
       add_result.stored_value->value = AtomicString(
-          WTF::StrCat({add_result.stored_value->value, "\n", header->value}));
+          StrCat({add_result.stored_value->value, "\n", header->value}));
     }
   }
 

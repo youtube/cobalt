@@ -8,7 +8,7 @@
 #include "base/feature_list.h"
 #include "build/build_config.h"
 #include "components/content_settings/core/common/content_settings.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "base/scoped_observation.h"
@@ -44,7 +44,7 @@ BASE_DECLARE_FEATURE(kPeriodicSyncPermissionForDefaultSearchEngine);
 // If there is a PWA installed, grant/deny permission based on whether the
 // one-shot Background Sync content setting is set to allow/block.
 class PeriodicBackgroundSyncPermissionContext
-    : public permissions::PermissionContextBase
+    : public permissions::ContentSettingPermissionContextBase
 #if !BUILDFLAG(IS_ANDROID)
     ,
       public web_app::WebAppInstallManagerObserver
@@ -70,11 +70,13 @@ class PeriodicBackgroundSyncPermissionContext
   virtual GURL GetDefaultSearchEngineUrl() const;
 
  private:
-  // PermissionContextBase implementation.
-  ContentSetting GetPermissionStatusInternal(
+  // ContentSettingPermissionContextBase implementation.
+  ContentSetting GetContentSettingStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
       const GURL& embedding_origin) const override;
+
+  // PermissionContextBase implementation.
   void DecidePermission(
       std::unique_ptr<permissions::PermissionRequestData> request_data,
       permissions::BrowserPermissionCallback callback) override;
@@ -82,8 +84,7 @@ class PeriodicBackgroundSyncPermissionContext
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision) override;
 
   // content_settings::Observer:

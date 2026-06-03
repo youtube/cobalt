@@ -6,7 +6,10 @@
 #define CHROME_BROWSER_EXTENSIONS_CHROME_EXTENSION_FUNCTION_DETAILS_H_
 
 #include "base/memory/raw_ptr.h"
+#include "extensions/buildflags/buildflags.h"
 #include "ui/gfx/native_widget_types.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class ExtensionFunction;
 
@@ -30,6 +33,9 @@ class ChromeExtensionFunctionDetails {
 
   ~ChromeExtensionFunctionDetails();
 
+  // TODO(crbug.com/423725749): Enable this function on Android once
+  // BrowserExtensionWindowController is ported.
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   // Gets the "current" WindowController, if any.
   //
   // Many extension APIs operate relative to the current window, which is the
@@ -51,6 +57,7 @@ class ChromeExtensionFunctionDetails {
   // returning "any" browser), and almost never the right thing to use. Instead,
   // use ExtensionFunction::GetSenderWebContents(). We should get rid of this.
   extensions::WindowController* GetCurrentWindowController() const;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   // Find a UI surface to display any UI (like a permission prompt) for the
   // extension calling this function. This will check, in order of preference,

@@ -19,7 +19,7 @@ import org.chromium.content_public.browser.WebContents;
 public interface InterceptNavigationDelegateClient {
     /* Returns the WebContents in the context of which this InterceptNavigationDelegateImpl instance
      * is operating. */
-    WebContents getWebContents();
+    @Nullable WebContents getWebContents();
 
     /* Creates an ExternalNavigationHandler instance that is configured for this client. */
     @Nullable ExternalNavigationHandler createExternalNavigationHandler();
@@ -32,7 +32,7 @@ public interface InterceptNavigationDelegateClient {
     boolean isIncognito();
 
     /* Returns the Activity associated with this client. */
-    Activity getActivity();
+    @Nullable Activity getActivity();
 
     /* Returns true if the tab associated with this client was launched from an external app. */
     boolean wasTabLaunchedFromExternalApp();
@@ -57,6 +57,9 @@ public interface InterceptNavigationDelegateClient {
 
     /* Returns true if the client hosting this tab is a Browser. */
     boolean isTabInBrowser();
+
+    /* Returns true if the tab is currently detached because of an executing reparenting task. */
+    boolean isTabDetached();
 
     /** Returns whether this Activity is currently in Android desktop windowing mode. */
     boolean isInDesktopWindowingMode();

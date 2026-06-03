@@ -656,8 +656,7 @@ public class PersonalDataManager implements Destroyable {
     }
 
     private final PrefService mPrefService;
-    private final List<PersonalDataManagerObserver> mDataObservers =
-            new ArrayList<PersonalDataManagerObserver>();
+    private final List<PersonalDataManagerObserver> mDataObservers = new ArrayList<>();
 
     private long mPersonalDataManagerAndroid;
 
@@ -735,32 +734,9 @@ public class PersonalDataManager implements Destroyable {
                 PersonalDataManagerJni.get().getProfileGUIDsToSuggest(mPersonalDataManagerAndroid));
     }
 
-    /**
-     * TODO(crbug.com/41256488): Reduce the number of Java to Native calls when getting profiles.
-     *
-     * <p>Gets the profiles to suggest when associating a billing address to a credit card. The
-     * profiles will have been processed to be more relevant to the user.
-     *
-     * @param includeOrganizationInLabel Whether the organization name should be included in the
-     *     label.
-     * @return The list of billing addresses to suggest to the user.
-     */
-    public ArrayList<AutofillProfile> getBillingAddressesToSuggest(
-            boolean includeOrganizationInLabel) {
-        ThreadUtils.assertOnUiThread();
-        return getProfilesWithLabels(
-                PersonalDataManagerJni.get()
-                        .getProfileLabelsToSuggest(
-                                mPersonalDataManagerAndroid,
-                                /* includeNameInLabel= */ true,
-                                includeOrganizationInLabel,
-                                /* includeCountryInLabel= */ false),
-                PersonalDataManagerJni.get().getProfileGUIDsToSuggest(mPersonalDataManagerAndroid));
-    }
-
     private ArrayList<AutofillProfile> getProfilesWithLabels(
             String[] profileLabels, String[] profileGUIDs) {
-        ArrayList<AutofillProfile> profiles = new ArrayList<AutofillProfile>(profileGUIDs.length);
+        ArrayList<AutofillProfile> profiles = new ArrayList<>(profileGUIDs.length);
         for (int i = 0; i < profileGUIDs.length; i++) {
             AutofillProfile profile =
                     new AutofillProfile(
@@ -828,7 +804,7 @@ public class PersonalDataManager implements Destroyable {
     }
 
     private ArrayList<CreditCard> getCreditCards(String[] creditCardGUIDs) {
-        ArrayList<CreditCard> cards = new ArrayList<CreditCard>(creditCardGUIDs.length);
+        ArrayList<CreditCard> cards = new ArrayList<>(creditCardGUIDs.length);
         for (int i = 0; i < creditCardGUIDs.length; i++) {
             cards.add(
                     PersonalDataManagerJni.get()
@@ -1042,24 +1018,6 @@ public class PersonalDataManager implements Destroyable {
      */
     public void setAutofillCreditCardEnabled(boolean enable) {
         mPrefService.setBoolean(Pref.AUTOFILL_CREDIT_CARD_ENABLED, enable);
-    }
-
-    /**
-     * @return Whether the Autofill feature for FIDO authentication is enabled.
-     */
-    public boolean isAutofillCreditCardFidoAuthEnabled() {
-        return mPrefService.getBoolean(Pref.AUTOFILL_CREDIT_CARD_FIDO_AUTH_ENABLED);
-    }
-
-    /**
-     * Enables or disables the Autofill feature for FIDO authentication. We are trying to align this
-     * pref with the server's source of truth, but any mismatches between this pref and the server
-     * should imply the user's intention to opt in/out.
-     *
-     * @param enable True to enable credit card FIDO authentication, false otherwise.
-     */
-    public void setAutofillCreditCardFidoAuthEnabled(boolean enable) {
-        mPrefService.setBoolean(Pref.AUTOFILL_CREDIT_CARD_FIDO_AUTH_ENABLED, enable);
     }
 
     /**

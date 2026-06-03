@@ -23,6 +23,7 @@ source_set("glic") {
     "glic_hotkey.h",
     "glic_keyed_service.h",
     "glic_keyed_service_factory.h",
+    "glic_metrics.h",
     "glic_pref_names.h",
     "glic_profile_manager.h",
     "glic_settings_util.h",
@@ -31,11 +32,10 @@ source_set("glic") {
     "glic_user_status_request.h",
     "host/auth_controller.h",
     "host/context/glic_focused_tab_manager.h",
-    "host/context/glic_page_context_eligibility_observer.h",
     "host/context/glic_page_context_fetcher.h",
+    "host/context/glic_sharing_manager.h",
     "host/context/glic_tab_data.h",
     "host/glic_actor_controller.h",
-    "host/glic_annotation_manager.cc",
     "host/glic_annotation_manager.h",
     "host/glic_cookie_synchronizer.h",
     "host/glic_page_handler.h",
@@ -92,9 +92,10 @@ source_set("impl") {
     "glic_keyed_service.cc",
     "glic_keyed_service_factory.cc",
     "glic_metrics.cc",
-    "glic_metrics.h",
     "glic_metrics_provider.cc",
     "glic_metrics_provider.h",
+    "glic_occlusion_notifier.cc",
+    "glic_occlusion_notifier.h",
     "glic_pref_names.cc",
     "glic_profile_manager.cc",
     "glic_settings_util.cc",
@@ -102,12 +103,16 @@ source_set("impl") {
     "glic_user_status_request.cc",
     "host/auth_controller.cc",
     "host/context/glic_focused_tab_manager.cc",
-    "host/context/glic_page_context_eligibility_observer.cc",
     "host/context/glic_page_context_fetcher.cc",
+    "host/context/glic_pinned_tab_manager.cc",
+    "host/context/glic_pinned_tab_manager.h",
     "host/context/glic_screenshot_capturer.cc",
     "host/context/glic_screenshot_capturer.h",
+    "host/context/glic_sharing_manager_impl.cc",
+    "host/context/glic_sharing_manager_impl.h",
     "host/context/glic_tab_data.cc",
     "host/glic_actor_controller.cc",
+    "host/glic_annotation_manager.cc",
     "host/glic_cookie_synchronizer.cc",
     "host/glic_page_handler.cc",
     "host/glic_synthetic_trial_manager.cc",
@@ -126,6 +131,8 @@ source_set("impl") {
     "widget/glic_widget.h",
     "widget/glic_window_animator.cc",
     "widget/glic_window_animator.h",
+    "widget/glic_window_config.cc",
+    "widget/glic_window_config.h",
     "widget/glic_window_controller_impl.cc",
     "widget/glic_window_controller_impl.h",
     "widget/glic_window_hotkey_delegate.cc",
@@ -147,7 +154,7 @@ source_set("impl") {
     "//chrome/browser/glic/media",
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/media/webrtc",
-    "//chrome/browser/optimization_guide",
+    "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/resources/glic:resources",
@@ -168,9 +175,6 @@ source_set("impl") {
     "//components/language/core/common",
     "//components/metrics",
     "//components/metrics_services_manager:metrics_services_manager",
-    "//components/optimization_guide/core",
-    "//components/optimization_guide/proto:optimization_guide_proto",
-    "//components/pdf/browser:browser",
     "//components/pdf/common:constants",
     "//components/pref_registry",
     "//components/prefs",
@@ -182,13 +186,23 @@ source_set("impl") {
     "//url",
   ]
 
+  if (enable_pdf) {
+    deps += [ "//components/pdf/browser:browser" ]
+  }
+
   if (is_mac) {
     deps += [ "//ui/accelerated_widget_mac" ]
+  }
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
   }
 }
 
 mojom("mojo_bindings") {
-  sources = [ "host/glic.mojom" ]
+  sources = [
+    "host/glic.mojom",
+    "host/glic_features.mojom",
+  ]
   webui_module_path = "/"
 
   public_deps = [
@@ -210,6 +224,7 @@ source_set("unit_tests") {
     "glic_enabling_unittest.cc",
     "glic_metrics_unittest.cc",
     "host/context/glic_screenshot_capturer_unittest.cc",
+    "host/context/glic_tab_data_unittest.cc",
     "host/glic_cookie_synchronizer_unittest.cc",
     "widget/local_hotkey_manager_unittest.cc",
   ]
@@ -243,10 +258,10 @@ source_set("browser_tests") {
   sources = [
     "glic_browsertest.cc",
     "glic_enabling_browsertest.cc",
+    "glic_net_log_browsertest.cc",
     "glic_policy_browsertest.cc",
     "glic_profile_manager_browsertest.cc",
     "glic_user_status_browsertest.cc",
-    "host/context/glic_page_context_eligibility_observer_browsertest.cc",
     "host/glic_api_browsertest.cc",
     "host/guest_util_browsertest.cc",
     "widget/application_hotkey_delegate_browsertest.cc",
@@ -262,7 +277,6 @@ source_set("browser_tests") {
     "//chrome/browser/extensions:extensions",
     "//chrome/browser/glic/fre:browser_tests",
     "//chrome/browser/glic/test_support",
-    "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/permissions:test_support",
     "//chrome/browser/policy:test_support",
     "//chrome/browser/prefs:prefs",
@@ -299,10 +313,12 @@ source_set("interactive_ui_tests") {
     ":impl",
     "//chrome/browser",
     "//chrome/browser:global_features",
+    "//chrome/browser/actor:actor",
     "//chrome/browser/actor:test_support",
     "//chrome/browser/background/glic",
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/contextual_cueing:test_support",
+    "//chrome/browser/devtools:test_support",
     "//chrome/browser/glic/browser_ui:interactive_ui_tests",
     "//chrome/browser/glic/fre",
     "//chrome/browser/glic/fre:interactive_ui_tests",
@@ -316,6 +332,9 @@ source_set("interactive_ui_tests") {
     "//content/test:test_support",
     "//ui/display:test_support",
   ]
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
+  }
   data_deps = [ "//chrome/test/data/webui/glic:generate_test_files" ]
 }
 

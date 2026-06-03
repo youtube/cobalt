@@ -30,6 +30,8 @@
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -3481,7 +3483,8 @@ TEST_F(URLLoaderTest, UploadChunkedDataPipeNotAllowHTTP1) {
       ResourceRequestBody::ReadOnlyOnce(false));
   set_request_body(std::move(resource_request_body));
 
-  EXPECT_EQ(net::ERR_H2_OR_QUIC_REQUIRED, Load(test_server()->GetURL("/echo")));
+  EXPECT_EQ(net::ERR_ALPN_NEGOTIATION_FAILED,
+            Load(test_server()->GetURL("/echo")));
 }
 
 // Tests a request body with ReadOnceStream.

@@ -12,6 +12,7 @@
 #include "base/files/file_util.h"
 #include "base/rand_util.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
@@ -145,6 +146,8 @@ class TestHandshakeClient final : public mojom::WebTransportHandshakeClient {
         &TestHandshakeClient::OnMojoConnectionError, base::Unretained(this)));
   }
   ~TestHandshakeClient() override = default;
+
+  void OnBeforeConnect(const net::IPEndPoint& server_address) override {}
 
   void OnConnectionEstablished(
       mojo::PendingRemote<mojom::WebTransport> transport,

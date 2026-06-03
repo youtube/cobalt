@@ -186,6 +186,9 @@ message IntelligentScanInfo {
     // The on device model is unavailable, which can be from a few reasons such
     // as device incapability or not enough space on disk.
     ON_DEVICE_MODEL_UNAVAILABLE = 3;
+    // The on device model could not create an output. This can only be matched
+    // if the previous three are not the case.
+    ON_DEVICE_MODEL_OUTPUT_MISSING = 4;
   }
   optional NoInfoReason no_info_reason = 3;
 }
@@ -1149,6 +1152,15 @@ message ClientDownloadRequest {
   // from the ClientDownloadResponse that requested the visual features.
   // This is only populated for Enhanced Protection users.
   repeated DownloadVisualFeatures download_visual_features = 98;
+
+  // An opaque string value populated by Chrome on Android only, to be used by
+  // the server for rate-limiting or throttling individual clients who may be
+  // sending requests too frequently. A given value of `rate_limiting_key` can
+  // be used to pseudonymously identify ClientDownloadRequests sent by a single
+  // Chrome Profile, within a period of time (TTL). The TTL for this value is
+  // 15 minutes in Chrome on Android, and it is not persistent across restarting
+  // Chrome, and will be different for different Chrome profiles on the device.
+  optional string rate_limiting_key = 99;
 }
 
 message ReferrerChainOptions {
@@ -1690,6 +1702,7 @@ message ClientSafeBrowsingReportRequest {
     URL_UNWANTED = 3;
     URL_CLIENT_SIDE_PHISHING = 4;
     URL_CLIENT_SIDE_MALWARE = 5 [deprecated = true];
+    // See also: DANGEROUS_DOWNLOAD_WARNING_ANDROID.
     DANGEROUS_DOWNLOAD_RECOVERY = 6;
     DANGEROUS_DOWNLOAD_WARNING = 7;
     DANGEROUS_DOWNLOAD_BY_API = 10;
@@ -1717,6 +1730,9 @@ message ClientSafeBrowsingReportRequest {
     // Triggered by a redirect to an external app, either through an
     // external protocol scheme (e.g. mailto://) or an Intent.
     EXTERNAL_APP_REDIRECT = 28;
+    // Analogous to DANGEROUS_DOWNLOAD_RECOVERY and DANGEROUS_DOWNLOAD_WARNING,
+    // but used only for download warnings in Chrome on Android.
+    DANGEROUS_DOWNLOAD_WARNING_ANDROID = 29;
   }
   // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:ClientSafeBrowsingReportType)
 

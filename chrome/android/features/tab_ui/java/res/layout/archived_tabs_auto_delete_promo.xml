@@ -49,7 +49,7 @@ found in the LICENSE file.
                 android:layout_height="@dimen/archived_tabs_auto_delete_bottom_sheet_icon_dimen"
                 android:layout_gravity="center"
                 android:importantForAccessibility="no"
-                app:tint="@color/default_icon_color_accent1_tint_list" />
+                app:tint="?attr/colorOnPrimaryContainer" />
 
         </FrameLayout>
 
@@ -74,8 +74,7 @@ found in the LICENSE file.
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.TextSmall.Secondary"
                 android:lineSpacingExtra="4dp"
-                android:gravity="center_horizontal|top"
-                android:text="@string/archived_tabs_auto_delete_promo_description"/>
+                android:gravity="center_horizontal|top"/>
         </ScrollView>
 
         <org.chromium.ui.widget.ButtonCompat

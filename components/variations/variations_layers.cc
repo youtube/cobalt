@@ -173,6 +173,9 @@ VariationsLayers::VariationsLayers(const VariationsSeed& seed,
   std::map<uint32_t, int> counts_by_id;
   for (const Layer& layer_proto : seed.layers()) {
     ++counts_by_id[layer_proto.id()];
+    if (layer_proto.entropy_mode() == Layer::LIMITED) {
+      seed_has_limited_layer_ = true;
+    }
     // Avoid multiple logs if one ID is used multiple times.
     if (counts_by_id[layer_proto.id()] == 2) {
       LogInvalidLayerReason(InvalidLayerReason::LayerIDNotUnique);
@@ -364,10 +367,7 @@ void VariationsLayers::ConstructLayer(const EntropyProviders& entropy_providers,
 
   // There must be a limited entropy provider when processing a limited layer. A
   // limited entropy provider does not exist for an ineligible platform (e.g.
-  // WebView), or if the client is not in the enabled group of the limited
-  // entropy synthetic trial.
-  // TODO(crbug.com/40948861): clean up the synthetic trial after it has
-  // completed.
+  // Android WebView).
   if (layer_proto.entropy_mode() == Layer::LIMITED &&
       !entropy_providers.has_limited_entropy()) {
     LogInvalidLayerReason(InvalidLayerReason::kLimitedLayerDropped);

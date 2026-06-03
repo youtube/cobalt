@@ -13,6 +13,7 @@
 #include "base/containers/adapters.h"
 #include "base/functional/callback.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_role_properties.h"
@@ -212,6 +213,14 @@ gfx::NativeViewAccessible AXVirtualView::GetNativeObject() const {
   return ax_platform_node_->GetNativeViewAccessible();
 }
 
+Widget* AXVirtualView::GetWidget() const {
+  View* owner_view = GetOwnerView();
+  if (owner_view) {
+    return owner_view->GetWidget();
+  }
+  return nullptr;
+}
+
 void AXVirtualView::NotifyEvent(ax::mojom::Event event_type,
                                 bool send_native_event) {
   // If `ready_to_notify_events_` is false, it means we are initializing
@@ -332,8 +341,8 @@ gfx::Rect AXVirtualView::GetBoundsRect(
       return bounds;
     case ui::AXCoordinateSystem::kScreenPhysicalPixels: {
       float scale_factor = 1.0;
-      if (owner_view && owner_view->GetWidget()) {
-        gfx::NativeView native_view = owner_view->GetWidget()->GetNativeView();
+      if (auto* widget = GetWidget()) {
+        gfx::NativeView native_view = widget->GetNativeView();
         if (native_view) {
           scale_factor = ui::GetScaleFactorForNativeView(native_view);
         }
@@ -649,7 +658,7 @@ void AXVirtualView::OnWidgetDestroyed(Widget* widget) {
 
 void AXVirtualView::OnWidgetUpdated(Widget* widget, Widget* old_widget) {
   CHECK(widget);
-  DCHECK_EQ(widget, GetOwnerView()->GetWidget());
+  DCHECK_EQ(widget, GetWidget());
   if (widget == old_widget) {
     return;
   }

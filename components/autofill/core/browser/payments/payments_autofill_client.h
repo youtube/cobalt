@@ -44,6 +44,7 @@ class CreditCardRiskBasedAuthenticator;
 class Iban;
 class IbanAccessManager;
 class IbanManager;
+class LoyaltyCard;
 class MerchantPromoCodeManager;
 struct OfferNotificationOptions;
 class OtpUnmaskDelegate;
@@ -485,6 +486,11 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // return a nullptr on iOS WebView.
   virtual CreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator();
 
+  // Returns true if Hagrid (risk based authentication) is supported on this
+  // platform. Override in subclasses, return true in supported platform,
+  // defaults to false.
+  virtual bool IsRiskBasedAuthEffectivelyAvailable() const;
+
   // Prompt the user to enable mandatory reauthentication for payment method
   // autofill. When enabled, the user will be asked to authenticate using
   // biometrics or device unlock before filling in payment method information.
@@ -555,7 +561,7 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // WebView, and should not be used on those platforms.
   virtual bool ShowTouchToFillLoyaltyCard(
       base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const LoyaltyCard> loyalty_cards_to_suggest);
+      std::vector<LoyaltyCard> loyalty_cards_to_suggest);
 
   // Hides the Touch To Fill surface for filling payment information if one is
   // currently shown. Should be called only if the feature is supported by the

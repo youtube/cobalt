@@ -657,7 +657,7 @@ void XMLHttpRequest::open(const AtomicString& method,
   state_ = kUnsent;
   error_ = false;
   upload_complete_ = false;
-  parent_task_ = nullptr;
+  task_state_ = nullptr;
 
   auto* window = DynamicTo<LocalDOMWindow>(GetExecutionContext());
   if (!async && window) {
@@ -830,7 +830,7 @@ void XMLHttpRequest::send(Document* document, ExceptionState& exception_state) {
     String body = CreateMarkup(document);
 
     http_body = EncodedFormData::Create(
-        UTF8Encoding().Encode(body, WTF::kNoUnencodables));
+        Utf8Encoding().Encode(body, UnencodableHandling::kNoUnencodables));
   }
 
   CreateRequest(std::move(http_body), exception_state);
@@ -844,7 +844,7 @@ void XMLHttpRequest::send(const String& body, ExceptionState& exception_state) {
 
   if (!body.IsNull() && AreMethodAndURLValidForSend()) {
     http_body = EncodedFormData::Create(
-        UTF8Encoding().Encode(body, WTF::kNoUnencodables));
+        Utf8Encoding().Encode(body, UnencodableHandling::kNoUnencodables));
     UpdateContentTypeAndCharset(AtomicString("text/plain;charset=UTF-8"),
                                 "UTF-8");
   }
@@ -895,7 +895,7 @@ void XMLHttpRequest::send(FormData* body, ExceptionState& exception_state) {
     // TODO (sof): override any author-provided charset= in the
     // content type value to UTF-8 ?
     if (!HasContentTypeRequestHeader()) {
-      AtomicString content_type = AtomicString(WTF::StrCat(
+      AtomicString content_type = AtomicString(StrCat(
           {"multipart/form-data; boundary=",
            FetchUtils::NormalizeHeaderValue(http_body->Boundary().data())}));
       SetRequestHeaderInternal(http_names::kContentType, content_type);
@@ -1013,7 +1013,7 @@ void XMLHttpRequest::CreateRequest(scoped_refptr<EncodedFormData> http_body,
     if (world_ && world_->IsMainWorld()) {
       if (auto* tracker = scheduler::TaskAttributionTracker::From(
               execution_context.GetIsolate())) {
-        parent_task_ = tracker->RunningTask();
+        task_state_ = tracker->CurrentTaskState();
       }
     }
     async_task_context_.Schedule(&execution_context, "XMLHttpRequest.send");
@@ -1344,7 +1344,7 @@ void XMLHttpRequest::HandleRequestError(DOMExceptionCode exception_code,
   DispatchProgressEvent(event_type_names::kLoadend, /*received_length=*/0,
                         /*expected_length=*/0);
 
-  parent_task_ = nullptr;
+  task_state_ = nullptr;
 }
 
 // https://xhr.spec.whatwg.org/#the-overridemimetype()-method
@@ -1421,7 +1421,7 @@ void XMLHttpRequest::SetRequestHeaderInternal(const AtomicString& name,
   HTTPHeaderMap::AddResult result = request_headers_.Add(name, value);
   if (!result.is_new_entry) {
     result.stored_value->value =
-        AtomicString(WTF::StrCat({result.stored_value->value, ", ", value}));
+        AtomicString(StrCat({result.stored_value->value, ", ", value}));
   }
 }
 
@@ -1578,7 +1578,7 @@ AtomicString XMLHttpRequest::GetResponseMIMEType() const {
 }
 
 // https://xhr.spec.whatwg.org/#final-charset
-WTF::TextEncoding XMLHttpRequest::FinalResponseCharset() const {
+TextEncoding XMLHttpRequest::FinalResponseCharset() const {
   // 1. Let label be null. [spec text]
   //
   // 2. If response MIME type's parameters["charset"] exists, then set label to
@@ -1601,9 +1601,9 @@ WTF::TextEncoding XMLHttpRequest::FinalResponseCharset() const {
   //
   // 7. Return encoding. [spec text]
   //
-  // We rely on WTF::TextEncoding() to return invalid TextEncoding for
+  // We rely on TextEncoding() to return invalid TextEncoding for
   // null, empty, or invalid/unsupported |label|.
-  return WTF::TextEncoding(label);
+  return TextEncoding(label);
 }
 
 void XMLHttpRequest::UpdateContentTypeAndCharset(
@@ -1789,7 +1789,7 @@ void XMLHttpRequest::EndLoading() {
       frame->GetPage()->GetChromeClient().AjaxSucceeded(frame);
   }
 
-  parent_task_ = nullptr;
+  task_state_ = nullptr;
 }
 
 void XMLHttpRequest::DidSendData(uint64_t bytes_sent,
@@ -1845,7 +1845,7 @@ std::unique_ptr<TextResourceDecoder> XMLHttpRequest::CreateDecoder() const {
         TextResourceDecoderOptions::CreateUTF8Decode()));
   }
 
-  WTF::TextEncoding final_response_charset = FinalResponseCharset();
+  TextEncoding final_response_charset = FinalResponseCharset();
   if (final_response_charset.IsValid()) {
     // If the final charset is given and valid, use the charset without
     // sniffing the content.
@@ -1867,12 +1867,12 @@ std::unique_ptr<TextResourceDecoder> XMLHttpRequest::CreateDecoder() const {
       [[fallthrough]];
     case V8XMLHttpRequestResponseType::Enum::kText:
       return std::make_unique<TextResourceDecoder>(TextResourceDecoderOptions(
-          TextResourceDecoderOptions::kPlainTextContent, UTF8Encoding()));
+          TextResourceDecoderOptions::kPlainTextContent, Utf8Encoding()));
 
     case V8XMLHttpRequestResponseType::Enum::kDocument:
       if (ResponseIsHTML()) {
         return std::make_unique<TextResourceDecoder>(TextResourceDecoderOptions(
-            TextResourceDecoderOptions::kHTMLContent, UTF8Encoding()));
+            TextResourceDecoderOptions::kHTMLContent, Utf8Encoding()));
       }
       return std::make_unique<TextResourceDecoder>(decoder_options_for_xml);
     case V8XMLHttpRequestResponseType::Enum::kJson:
@@ -2068,7 +2068,7 @@ void XMLHttpRequest::Trace(Visitor* visitor) const {
   visitor->Trace(world_);
   visitor->Trace(upload_);
   visitor->Trace(blob_loader_);
-  visitor->Trace(parent_task_);
+  visitor->Trace(task_state_);
   XMLHttpRequestEventTarget::Trace(visitor);
   ThreadableLoaderClient::Trace(visitor);
   DocumentParserClient::Trace(visitor);
@@ -2081,11 +2081,11 @@ bool XMLHttpRequest::HasRequestHeaderForTesting(AtomicString name) const {
 
 std::optional<scheduler::TaskAttributionTracker::TaskScope>
 XMLHttpRequest::MaybeCreateTaskAttributionScope() {
-  if (!parent_task_ || !GetExecutionContext() ||
+  if (!task_state_ || !GetExecutionContext() ||
       GetExecutionContext()->IsContextDestroyed()) {
     return std::nullopt;
   }
-  // `parent_task_` being non-null implies that task tracking is enabled and
+  // `task_state_` being non-null implies that task tracking is enabled and
   // this object is associated with the main world.
   auto* script_state = ToScriptStateForMainWorld(GetExecutionContext());
   CHECK(script_state);
@@ -2098,11 +2098,11 @@ XMLHttpRequest::MaybeCreateTaskAttributionScope() {
   //
   // TODO(crbug.com/1439971): Make this safe to do or move the logic into the
   // task attribution implementation.
-  if (tracker->RunningTask() == parent_task_.Get()) {
+  if (tracker->CurrentTaskState() == task_state_.Get()) {
     return std::nullopt;
   }
   return tracker->CreateTaskScope(
-      script_state, parent_task_,
+      script_state, task_state_,
       scheduler::TaskAttributionTracker::TaskScopeType::kXMLHttpRequest);
 }
 

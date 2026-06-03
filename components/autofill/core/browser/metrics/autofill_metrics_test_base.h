@@ -7,9 +7,11 @@
 
 #include "base/check_deref.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
@@ -21,6 +23,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/ui/test_autofill_external_delegate.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/sync/test/test_sync_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -220,6 +223,18 @@ class AutofillMetricsBaseTest {
         AutofillTriggerSource::kPopup);
   }
 
+  void FillLoyaltyCard(const FormData& form,
+                       const LoyaltyCard& card,
+                       size_t field_index = 0) {
+    autofill_manager().FillOrPreviewField(
+        mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
+        form, form.fields()[field_index],
+        base::UTF8ToUTF16(card.loyalty_card_number()),
+        SuggestionType::kLoyaltyCardEntry, LOYALTY_MEMBERSHIP_ID);
+    autofill_manager().LogAndRecordLoyaltyCardFill(
+        card, form.global_id(), form.fields()[field_index].global_id());
+  }
+
   void UndoAutofill(const FormData& form) {
     autofill_manager().UndoAutofill(mojom::ActionPersistence::kFill, form,
                                     form.fields().front());
@@ -251,8 +266,9 @@ class AutofillMetricsBaseTest {
         autofill_driver_->GetAutofillManager());
   }
 
-  AutofillExternalDelegate& external_delegate() {
-    return *test_api(autofill_manager()).external_delegate();
+  TestAutofillExternalDelegate& external_delegate() {
+    return static_cast<TestAutofillExternalDelegate&>(
+        *test_api(autofill_manager()).external_delegate());
   }
 
   MockCreditCardAccessManager& credit_card_access_manager() {
@@ -262,6 +278,10 @@ class AutofillMetricsBaseTest {
 
   TestPersonalDataManager& personal_data() {
     return autofill_client_->GetPersonalDataManager();
+  }
+
+  ValuablesDataManager& valuables_data_manager() {
+    return *autofill_client_->GetValuablesDataManager();
   }
 
   ukm::TestUkmRecorder& test_ukm_recorder() {
@@ -279,6 +299,7 @@ class AutofillMetricsBaseTest {
   std::unique_ptr<TestAutofillClient> autofill_client_;
   syncer::TestSyncService sync_service_;
   std::unique_ptr<TestAutofillDriver> autofill_driver_;
+  base::test::ScopedFeatureList scoped_features_;
 
  private:
   void CreateTestAutofillProfiles();

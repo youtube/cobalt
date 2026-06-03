@@ -261,8 +261,7 @@ class PaymentsSuggestionGeneratorTest : public testing::Test {
 
   void CleanUpIbanImageResources() {
     ui::ResourceBundle::CleanupSharedInstance();
-    ui::ResourceBundle::SwapSharedInstanceForTesting(
-        original_resource_bundle_.ExtractAsDangling());
+    resource_bundle_swapper_.reset();
   }
 
   bool VerifyCardArtImageExpectation(Suggestion& suggestion,
@@ -300,7 +299,8 @@ class PaymentsSuggestionGeneratorTest : public testing::Test {
 
  protected:
   testing::NiceMock<ui::MockResourceBundleDelegate> mock_resource_delegate_;
-  raw_ptr<ui::ResourceBundle> original_resource_bundle_;
+  std::unique_ptr<ui::ResourceBundle::SharedInstanceSwapperForTesting>
+      resource_bundle_swapper_;
   // Tracks whether SetUpIbanImageResources() has been called, so that the
   // created images can be cleaned up when the test has finished.
   bool did_set_up_image_resource_for_test_ = false;
@@ -341,11 +341,17 @@ class AutofillCreditCardBenefitsLabelTest
          {features::kAutofillEnableFlatRateCardBenefitsFromCurinos, true},
          {features::kAutofillEnableCardBenefitsIph, true},
          {features::kAutofillEnableNewFopDisplayDesktop, true},
+         {features::kAutofillEnableFlatRateCardBenefitsBlocklist, true},
          {features::kAutofillEnableCardBenefitsSourceSync,
           IsCreditCardBenefitsSourceSyncEnabled()}});
 
     std::u16string benefit_description;
     int64_t instrument_id;
+
+    ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
+                autofill_client()->GetAutofillOptimizationGuide()),
+            ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
+        .WillByDefault(testing::Return(false));
 
     if (std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
       CreditCardFlatRateBenefit benefit =
@@ -468,6 +474,29 @@ TEST_P(AutofillCreditCardBenefitsLabelTest, BenefitSuggestionLabel_Fpan) {
   }
 }
 
+// Checks that for FPAN suggestions that the benefit description is displayed
+// when optimization guide is null except category benefits.
+TEST_P(AutofillCreditCardBenefitsLabelTest,
+       BenefitSuggestionLabel_Fpan_NoOptimizationGuide) {
+  autofill_client()->ResetAutofillOptimizationGuide();
+  Suggestion suggestion = CreateCreditCardSuggestionForTest(
+      card(), *autofill_client(), CREDIT_CARD_NUMBER,
+      /*virtual_card_option=*/false,
+      /*card_linked_offer_available=*/false);
+  ASSERT_FALSE(autofill_client()->GetAutofillOptimizationGuide());
+  if (IsCreditCardBenefitsSourceSyncEnabled() &&
+      GetBenefitSource() == "curinos" &&
+      !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
+    EXPECT_TRUE(suggestion.labels.empty());
+  } else if (std::holds_alternative<CreditCardCategoryBenefit>(GetBenefit())) {
+    EXPECT_TRUE(suggestion.labels.empty());
+  } else {
+    EXPECT_THAT(suggestion.labels,
+                ElementsAre(std::vector<Suggestion::Text>{
+                    Suggestion::Text(expected_benefit_text())}));
+  }
+}
+
 // Checks that feature is set to display the credit card benefit IPH for
 // FPAN suggestions with benefits labels.
 TEST_P(AutofillCreditCardBenefitsLabelTest,
@@ -519,15 +548,25 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
        BenefitSuggestionFeatureForIph_IsNullWhenCardNotEligibleForBenefits) {
   ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
               autofill_client()->GetAutofillOptimizationGuide()),
-          ShouldBlockBenefitSuggestionLabelsForCardAndUrl)
+          ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
+  Suggestion suggestion = CreateCreditCardSuggestionForTest(
+      card(), *autofill_client(), CREDIT_CARD_NUMBER,
+      /*virtual_card_option=*/false,
+      /*card_linked_offer_available=*/false);
 
-  EXPECT_EQ(CreateCreditCardSuggestionForTest(
-                card(), *autofill_client(), CREDIT_CARD_NUMBER,
-                /*virtual_card_option=*/false,
-                /*card_linked_offer_available=*/false)
-                .iph_metadata.feature,
-            nullptr);
+  if (std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
+    EXPECT_EQ(suggestion.iph_metadata.feature, nullptr);
+  } else if (IsCreditCardBenefitsSourceSyncEnabled() &&
+             GetBenefitSource() == "curinos") {
+    // Currently, Curinos only supports flat rate benefit, so when benefit
+    // source is curinos, and the benefit is not a flat rate benefit, no
+    // benefit suggestion will be shown.
+    EXPECT_EQ(suggestion.iph_metadata.feature, nullptr);
+  } else {
+    EXPECT_EQ(suggestion.iph_metadata.feature,
+              &feature_engagement::kIPHAutofillCreditCardBenefitFeature);
+  }
 }
 
 // Checks that for virtual cards suggestion the benefit description is shown
@@ -637,15 +676,25 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
        BenefitSuggestionLabelNotDisplayed_BlockedUrl) {
   ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
               autofill_client()->GetAutofillOptimizationGuide()),
-          ShouldBlockBenefitSuggestionLabelsForCardAndUrl)
+          ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
   Suggestion suggestion = CreateCreditCardSuggestionForTest(
       card(), *autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/false,
       /*card_linked_offer_available=*/false);
 
-  // Benefit description is not returned.
-  EXPECT_TRUE(suggestion.labels.empty());
+  // Benefit description is not returned for flat rate benefits.
+  if (std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
+    EXPECT_TRUE(suggestion.labels.empty());
+  } else if ((IsCreditCardBenefitsSourceSyncEnabled() &&
+              GetBenefitSource() == "curinos")) {
+    // Currently, Curinos only supports flat rate benefit, so when benefit
+    // source is curinos, and the beneit is not a flat rate benefit, no
+    // benefit suggestion will be shown.
+    EXPECT_TRUE(suggestion.labels.empty());
+  } else {
+    EXPECT_FALSE(suggestion.labels.empty());
+  }
 }
 
 // Checks that for FPAN suggestions that the benefit description is displayed.
@@ -800,15 +849,24 @@ TEST_P(
 // are disabled for the given card and url.
 TEST_P(AutofillCreditCardBenefitsLabelTest,
        BenefitSuggestionLabelNotDisplayed_BlockedUrl_NewFopDisplayOff) {
+  if (!std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
+    GTEST_SKIP() << "This test should not run for non-flat-rate benefits.";
+  }
+
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(
       features::kAutofillEnableNewFopDisplayDesktop);
   ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
               autofill_client()->GetAutofillOptimizationGuide()),
-          ShouldBlockBenefitSuggestionLabelsForCardAndUrl)
+          ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
 
-  // Benefit description is not returned.
+  Suggestion suggestion = CreateCreditCardSuggestionForTest(
+      card(), *autofill_client(), CREDIT_CARD_NUMBER,
+      /*virtual_card_option=*/false,
+      /*card_linked_offer_available=*/false);
+
+  // Benefit description is not returned for card with only flat rate benefits.
   EXPECT_THAT(
       CreateCreditCardSuggestionForTest(card(), *autofill_client(),
                                         CREDIT_CARD_NUMBER,
@@ -954,16 +1012,20 @@ TEST_P(
 // are disabled for the given card and url.
 TEST_P(AutofillCreditCardBenefitsLabelTest,
        GetCreditCardSuggestionsForTouchToFill_BenefitsNotAdded_BlockedUrl) {
+  if (!std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
+    GTEST_SKIP() << "This test should not run for non-flat-rate benefits.";
+  }
+
   ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
               autofill_client()->GetAutofillOptimizationGuide()),
-          ShouldBlockBenefitSuggestionLabelsForCardAndUrl)
+          ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
   std::vector<CreditCard> cards = {card()};
 
   std::vector<Suggestion> suggestions = GetCreditCardSuggestionsForTouchToFill(
       cards, *autofill_client(), *credit_card_form_event_logger_);
 
-  // Benefit description is not returned.
+  // Benefit description is not returned for flat rate benefits.
   EXPECT_THAT(suggestions[0],
               EqualLabels({{card().GetInfo(CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
                                            app_locale())}}));
@@ -1756,7 +1818,14 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
 }
 
 TEST_F(PaymentsSuggestionGeneratorBnplTest,
-       MaybeUpdateSuggestionsWithBnpl_IphBubble) {
+       MaybeUpdateSuggestionsWithBnpl_IphBubble_KlarnaDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/
+      {features::kAutofillEnableBuyNowPayLaterForKlarna,
+       features::kAutofillEnableBuyNowPayLaterSyncingForKlarna});
+
   // Add a server card.
   payments_data().AddServerCreditCard(test::GetMaskedServerCardAmex());
   // Add BNPL issuers.
@@ -1780,6 +1849,42 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
 
   EXPECT_EQ(bnpl_suggestion.iph_metadata.feature,
             &feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature);
+}
+
+TEST_F(PaymentsSuggestionGeneratorBnplTest,
+       MaybeUpdateSuggestionsWithBnpl_IphBubble_KlarnaEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterForKlarna,
+                            features::
+                                kAutofillEnableBuyNowPayLaterSyncingForKlarna},
+      /*disabled_features=*/
+      {});
+
+  // Add a server card.
+  payments_data().AddServerCreditCard(test::GetMaskedServerCardAmex());
+  // Add BNPL issuers.
+  payments_data().AddBnplIssuer(test::GetTestLinkedBnplIssuer());
+  CreditCardSuggestionSummary summary;
+  std::vector<Suggestion> suggestions = GetCreditCardOrCvcFieldSuggestions(
+      *autofill_client(), FormFieldData(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*autofilled_last_four_digits_in_form_for_filtering=*/
+      {}, CREDIT_CARD_NUMBER,
+      /*should_show_scan_credit_card=*/false, summary);
+  BnplSuggestionUpdateResult update_suggestions_result =
+      MaybeUpdateSuggestionsWithBnpl(suggestions,
+                                     payments_data().GetBnplIssuers(),
+                                     /*extracted_amount_in_micros=*/50'000'000);
+
+  ASSERT_TRUE(update_suggestions_result.is_bnpl_suggestion_added);
+  Suggestion bnpl_suggestion = *std::ranges::find_if(
+      update_suggestions_result.suggestions,
+      [](const Suggestion& s) { return s.type == SuggestionType::kBnplEntry; });
+
+  EXPECT_EQ(
+      bnpl_suggestion.iph_metadata.feature,
+      &feature_engagement::kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature);
 }
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
@@ -2136,8 +2241,8 @@ class AutofillIbanSuggestionContentTest
   ~AutofillIbanSuggestionContentTest() override = default;
 
   void SetUpIbanImageResources() {
-    original_resource_bundle_ =
-        ui::ResourceBundle::SwapSharedInstanceForTesting(nullptr);
+    resource_bundle_swapper_ =
+        std::make_unique<ui::ResourceBundle::SharedInstanceSwapperForTesting>();
     ui::ResourceBundle::InitSharedInstanceWithLocale(
         "en-US", &mock_resource_delegate_,
         ui::ResourceBundle::DO_NOT_LOAD_COMMON_RESOURCES);

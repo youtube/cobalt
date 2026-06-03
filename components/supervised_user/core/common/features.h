@@ -60,14 +60,6 @@ BASE_DECLARE_FEATURE(kForceSafeSearchForUnauthenticatedSupervisedUsers);
 BASE_DECLARE_FEATURE(kEnableSupervisedUserVersionSignOutDialog);
 #endif
 
-// Fallback to sending un-credentialed filtering requests for supervised users
-// if they do not have a valid access token.
-BASE_DECLARE_FEATURE(kUncredentialedFilteringFallbackForSupervisedUsers);
-
-// Uses PrimaryAccountAccessTokenFetcher::Mode::kWaitUntilAvailable for
-// ClassifyUrl fetches.
-BASE_DECLARE_FEATURE(kWaitUntilAccessTokenAvailableForClassifyUrl);
-
 // Manages kSupervisedUserSafeSites exclusively within managed user pref store,
 // while keeping the default value neutral.
 BASE_DECLARE_FEATURE(kAlignSafeSitesValueWithBrowserDefault);
@@ -75,6 +67,19 @@ BASE_DECLARE_FEATURE(kAlignSafeSitesValueWithBrowserDefault);
 // Allows reading SafeSites setting without extra supervised user guard. Can be
 // enabled iff kAlignSafeSitesValueWithBrowserDefault is also enabled.
 BASE_DECLARE_FEATURE(kDecoupleSafeSitesFromMainSwitch);
+
+#if BUILDFLAG(IS_ANDROID)
+// Allows the URL classification mode without credentials, if the profile is not
+// managed by the family link System.
+BASE_DECLARE_FEATURE(kAllowNonFamilyLinkUrlFilterMode);
+
+// Propagates the device settings about content filters to the supervised user
+// content filters.
+BASE_DECLARE_FEATURE(kPropagateDeviceContentFiltersToSupervisedUser);
+
+// Enabled the supervised user interstitial without approvals section.
+BASE_DECLARE_FEATURE(kSupervisedUserInterstitialWithoutApprovals);
+#endif
 
 // Returns whether the V3 version of the URL filter interstitial is
 // enabled.

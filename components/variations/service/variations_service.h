@@ -18,7 +18,6 @@
 #include "base/time/time.h"
 #include "components/variations/client_filterable_state.h"
 #include "components/variations/entropy_provider.h"
-#include "components/variations/service/limited_entropy_synthetic_trial.h"
 #include "components/variations/service/safe_seed_manager.h"
 #include "components/variations/service/ui_string_overrider.h"
 #include "components/variations/service/variations_field_trial_creator.h"
@@ -51,7 +50,6 @@ class PrefRegistrySyncable;
 
 namespace variations {
 struct StudyGroupNames;
-class SyntheticTrialRegistry;
 class VariationsSeed;
 }  // namespace variations
 
@@ -196,8 +194,6 @@ class VariationsService
   // |ui_string_overrider| provides overrides for UI strings.
   // |network_connection_tracker_getter| allows the VariationsService to
   // observe network state changes.
-  // |synthetic_trial_registry| provides an interface to register synthetic
-  // trials. Must not be null.
   static std::unique_ptr<VariationsService> Create(
       std::unique_ptr<VariationsServiceClient> client,
       PrefService* local_state,
@@ -205,8 +201,7 @@ class VariationsService
       const char* disable_network_switch,
       const UIStringOverrider& ui_string_overrider,
       web_resource::ResourceRequestAllowedNotifier::
-          NetworkConnectionTrackerGetter network_connection_tracker_getter,
-      SyntheticTrialRegistry* synthetic_trial_registry);
+          NetworkConnectionTrackerGetter network_connection_tracker_getter);
 
   // Enables fetching the seed for testing, even for unofficial builds. This
   // should be used along with overriding |DoActualFetch| or using
@@ -265,6 +260,10 @@ class VariationsService
   // Returns the seed store. Exposed for testing.
   VariationsSeedStore* GetSeedStoreForTesting();
 
+  // Returns the fetch time of the latest seed. Returns base::Time() if there is
+  // no seed.
+  base::Time GetLatestSeedFetchTime();
+
  protected:
   // Gets the serial number of the most recent Finch seed. Virtual for testing.
   virtual const std::string& GetLatestSerialNumber();
@@ -300,8 +299,7 @@ class VariationsService
       std::unique_ptr<web_resource::ResourceRequestAllowedNotifier> notifier,
       PrefService* local_state,
       metrics::MetricsStateManager* state_manager,
-      const UIStringOverrider& ui_string_overrider,
-      SyntheticTrialRegistry* synthetic_trial_registry);
+      const UIStringOverrider& ui_string_overrider);
 
   // Sets the URL for querying the variations server. Used for testing.
   void set_variations_server_url(const GURL& url) {
@@ -326,11 +324,15 @@ class VariationsService
   // Exposes MaybeRetryOverHTTP for testing.
   bool CallMaybeRetryOverHTTPForTesting();
 
-  // Records a successful fetch:
-  //   (1) Resets failure streaks for Safe Mode.
-  //   (2) Records the time of this fetch as the most recent successful fetch.
-  // Protected so testing subclasses can call it.
-  void RecordSuccessfulFetch();
+  // Records that a new seed has been stored. Writes the currently active seed
+  // to the |seed_store| as a safe seed, if appropriate. Also, clears failure
+  // streaks.
+  void RecordSuccessfulFetchNewSeed();
+
+  // Like VariationsService::RecordSuccessfulFetchNewSeed(), but intended to be
+  // called for 304 responses from the variations server. Also, updates the seed
+  // date and client fetch time.
+  void RecordSuccessfulFetchSeedNotModified(base::Time response_date);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(VariationsServiceTest, Observer);
@@ -393,14 +395,9 @@ class VariationsService
   // The pref service used to store persist the variations seed.
   raw_ptr<PrefService> local_state_;
 
-  const raw_ptr<SyntheticTrialRegistry> synthetic_trial_registry_;
-
   // Used for instantiating entropy providers for variations seed simulation.
   // Weak pointer.
   raw_ptr<metrics::MetricsStateManager> state_manager_;
-
-  // Configurations related to the limited entropy synthetic trial.
-  LimitedEntropySyntheticTrial limited_entropy_synthetic_trial_;
 
   // Used to obtain policy-related preferences. Depending on the platform, will
   // either be Local State or Profile prefs.

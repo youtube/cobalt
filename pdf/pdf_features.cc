@@ -45,8 +45,6 @@ BASE_FEATURE(kPdfSaveOriginalFromMemory,
              "PdfSaveOriginalFromMemory",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPdfSearchify, "PdfSearchify", base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kPdfSearchifySave,
              "PdfSearchifySave",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -71,7 +69,7 @@ BASE_FEATURE(kPdfXfaSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
-BASE_FEATURE(kPdfInk2, "PdfInk2", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPdfInk2, "PdfInk2", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables text annotations.
 const base::FeatureParam<bool> kPdfInk2TextAnnotations{
@@ -80,7 +78,14 @@ const base::FeatureParam<bool> kPdfInk2TextAnnotations{
 // Enables text highlighting with the Ink highlighter brush.
 const base::FeatureParam<bool> kPdfInk2TextHighlighting{
     &kPdfInk2, "text-highlighting", false};
-#endif
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
+
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+// Saves the PDF file to Google Drive.
+BASE_FEATURE(kPdfSaveToDrive,
+             "PdfSaveToDrive",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
 void SetIsOopifPdfPolicyEnabled(bool is_oopif_pdf_policy_enabled) {
   g_is_oopif_pdf_policy_enabled = is_oopif_pdf_policy_enabled;
@@ -89,11 +94,6 @@ void SetIsOopifPdfPolicyEnabled(bool is_oopif_pdf_policy_enabled) {
 bool IsOopifPdfEnabled() {
   return g_is_oopif_pdf_policy_enabled &&
          base::FeatureList::IsEnabled(kPdfOopif);
-}
-
-bool IsPdfSearchifySaveEnabled() {
-  return base::FeatureList::IsEnabled(kPdfSearchify) &&
-         base::FeatureList::IsEnabled(kPdfSearchifySave);
 }
 
 }  // namespace chrome_pdf::features

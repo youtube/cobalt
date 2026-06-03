@@ -21,7 +21,7 @@ namespace {
 const V8PrivateProperty::SymbolKey kV8ProxyTargetToV8WrapperKey;
 
 const WrapperTypeInfo kWrapperTypeInfoBody{
-    gin::kEmbedderBlink,
+    {gin::kEmbedderBlink},
     /*install_interface_template_func=*/nullptr,
     /*install_context_dependent_props_func=*/nullptr,
     "ObservableArrayExoticObject",
@@ -55,9 +55,9 @@ v8::Local<v8::Object> ObservableArrayBase::GetProxyHandlerObject(
       v8_function_template->GetFunction(v8_context).ToLocalChecked();
   v8::Local<v8::Object> v8_object =
       v8_function->NewInstance(v8_context).ToLocalChecked();
-  CHECK(
-      v8_object->SetPrototype(v8_context, v8::Null(script_state->GetIsolate()))
-          .ToChecked());
+  CHECK(v8_object
+            ->SetPrototypeV2(v8_context, v8::Null(script_state->GetIsolate()))
+            .ToChecked());
   return v8_object;
 }
 

@@ -25,6 +25,24 @@ export const BaseDialogMixin = <T extends Constructor<CrLitElement>>(
 
     override firstUpdated() {
       this.handler_ = BaseDialogBrowserProxy.getInstance().handler;
+      this.observeElementVisibility();
+    }
+
+    private observeElementVisibility() {
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            this.handler_.eventOccurred(
+                this.notice_, PrivacySandboxNoticeEvent.kShown);
+            observer.disconnect();
+          }
+        }
+      }, {
+        root: null,
+        threshold: 0.05,
+        rootMargin: `0px`,
+      });
+      observer.observe(this);
     }
 
     onOptIn() {
@@ -32,8 +50,18 @@ export const BaseDialogMixin = <T extends Constructor<CrLitElement>>(
           this.notice_, PrivacySandboxNoticeEvent.kOptIn);
     }
 
+    onOptOut() {
+      this.handler_.eventOccurred(
+          this.notice_, PrivacySandboxNoticeEvent.kOptOut);
+    }
+
     onAck() {
       this.handler_.eventOccurred(this.notice_, PrivacySandboxNoticeEvent.kAck);
+    }
+
+    onSettings() {
+      this.handler_.eventOccurred(
+          this.notice_, PrivacySandboxNoticeEvent.kSettings);
     }
   }
   return BaseDialogMixin;
@@ -41,5 +69,7 @@ export const BaseDialogMixin = <T extends Constructor<CrLitElement>>(
 
 export interface BaseDialogMixinInterface {
   onOptIn(): void;
+  onOptOut(): void;
   onAck(): void;
+  onSettings(): void;
 }

@@ -22,6 +22,7 @@
 #include "base/sampling_heap_profiler/poisson_allocation_sampler.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -46,7 +47,6 @@
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/predictors/loading_predictor_config.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -322,14 +322,11 @@ void InProcessBrowserTest::RunScheduledLayouts() {
 
 void InProcessBrowserTest::Initialize() {
   g_current_test = this;
-  base::FilePath src_dir;
-  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
 
   // chrome::DIR_TEST_DATA isn't going to be setup until after we call
   // ContentMain. However that is after tests' constructors or SetUp methods,
   // which sometimes need it. So just override it.
-  CHECK(base::PathService::Override(chrome::DIR_TEST_DATA,
-                                    src_dir.Append(GetChromeTestDataDir())));
+  chrome_test_utils::OverrideChromeTestDataDir();
 
 #if BUILDFLAG(IS_MAC)
   bundle_swizzler_ = std::make_unique<ScopedBundleSwizzlerMac>();
@@ -515,11 +512,6 @@ void InProcessBrowserTest::SetUp() {
   // Auto-redirect to the NTP, which can happen if remote content is enabled on
   // What's New for tests that simulate first run, is unexpected by most tests.
   whats_new::DisableRemoteContentForTests();
-
-  // The Privacy Sandbox service may attempt to show a modal prompt to the
-  // profile on browser start, which is unexpected by mosts tests. Tests which
-  // expect this can allow the prompt as desired.
-  PrivacySandboxService::SetPromptDisabledForTests(true);
 
 #if !BUILDFLAG(IS_ANDROID)
   // The Search Engine Choice service may attempt to show a modal dialog to the

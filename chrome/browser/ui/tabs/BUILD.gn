@@ -33,6 +33,18 @@ source_set("tab_enums") {
   sources = [ "tab_enums.h" ]
 }
 
+# A common interface for operating on tabs for use by both desktop and android.
+# This is temporary until the tabstrip api is implemented on both platforms.
+source_set("tab_list_interface") {
+  sources = [ "tab_list_interface.h" ]
+
+  deps = [
+    "//components/tab_groups:tab_groups",
+    "//components/tabs:public",
+    "//url",
+  ]
+}
+
 if (!is_android) {
   source_set("tab_menu") {
     sources = [
@@ -69,14 +81,22 @@ if (!is_android) {
       "//components/commerce/core:feature_list",
       "//components/feed:feature_list",
     ]
+
+    if (enable_glic) {
+      deps += [ "//chrome/browser/glic" ]
+    }
   }
 
   source_set("tab_group") {
     sources = [
       "tab_group_deletion_dialog_controller.h",
+      "tab_group_desktop.h",
+      "tab_group_features.h",
       "tab_group_model.h",
       "tab_group_theme.h",
     ]
+
+    deps = [ "//ui/views" ]
 
     public_deps = [
       ":tab_strip_model_observer",
@@ -92,6 +112,8 @@ if (!is_android) {
 
     sources = [
       "tab_group_deletion_dialog_controller.cc",
+      "tab_group_desktop.cc",
+      "tab_group_features.cc",
       "tab_group_model.cc",
       "tab_group_theme.cc",
     ]
@@ -106,7 +128,9 @@ if (!is_android) {
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_element_identifiers",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/color:color_headers",
+      "//chrome/browser/ui/tabs:tab_strip",
 
       # TODO(370883612): depends on //chrome/browser/ui/tabs instead.
       "//components/saved_tab_groups/internal:tab_group_sync_bridge",
@@ -121,6 +145,8 @@ if (!is_android) {
       "existing_tab_group_sub_menu_model.h",
       "existing_window_sub_menu_model.h",
       "recent_tabs_sub_menu_model.h",
+      "split_tab_menu_model.h",
+      "split_tab_swap_menu_model.h",
       "tab_model.h",
     ]
 
@@ -155,6 +181,8 @@ if (!is_android) {
       "existing_comparison_table_sub_menu_model.cc",
       "existing_tab_group_sub_menu_model.cc",
       "existing_window_sub_menu_model.cc",
+      "split_tab_menu_model.cc",
+      "split_tab_swap_menu_model.cc",
       "tab_model.cc",
     ]
 
@@ -240,6 +268,10 @@ if (!is_android) {
       "//components/web_modal",
       "//components/webapps/common",
     ]
+
+    if (enable_glic) {
+      deps += [ "//chrome/browser/glic" ]
+    }
   }
 
   source_set("tabs") {
@@ -250,7 +282,8 @@ if (!is_android) {
       "pinned_tab_codec.h",
       "pinned_tab_service.h",
       "pinned_tab_service_factory.h",
-      "split_tab_menu_model.h",
+      "split_tab_scrim_controller.h",
+      "split_tab_scrim_delegate.h",
       "split_tab_util.h",
       "tab_renderer_data.h",
       "tab_style.h",
@@ -271,8 +304,8 @@ if (!is_android) {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/color:color_headers",
+      "//chrome/browser/ui/omnibox:omnibox",
       "//chrome/browser/ui/startup:startup_tab",
-      "//chrome/browser/ui/tabs/alert:tab_alert",
       "//components/collaboration/public:public",
       "//components/keyed_service/core",
       "//components/tabs:public",
@@ -301,7 +334,8 @@ if (!is_android) {
       "pinned_tab_service.cc",
       "pinned_tab_service_factory.cc",
       "recent_tabs_sub_menu_model.cc",
-      "split_tab_menu_model.cc",
+      "split_tab_scrim_controller.cc",
+      "split_tab_scrim_delegate.cc",
       "split_tab_util.cc",
       "tab_dialog_manager.cc",
       "tab_features.cc",
@@ -341,6 +375,9 @@ if (!is_android) {
       "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/lens",
+      "//chrome/browser/ui/tabs/alert:tab_alert",
+      "//chrome/browser/ui/toolbar",
+      "//chrome/browser/ui/toolbar/pinned_toolbar",
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/side_panel",
@@ -459,6 +496,7 @@ if (!is_android) {
       "recent_tabs_builder_test_helper.cc",
       "recent_tabs_builder_test_helper.h",
       "recent_tabs_sub_menu_model_browsertest.cc",
+      "tab_dialog_manager_browsertest.cc",
       "tab_menu_model_browsertest.cc",
       "tab_strip_model_browsertest.cc",
     ]
@@ -506,6 +544,13 @@ if (!is_android) {
       "//ui/base:types",
       "//url",
     ]
+
+    if (enable_glic) {
+      deps += [
+        "//chrome/browser/glic",
+        "//chrome/browser/glic/test_support",
+      ]
+    }
   }
 
   source_set("unit_tests") {
@@ -538,6 +583,7 @@ if (!is_android) {
       ":tab_model",
       ":tabs",
       ":test_support",
+      "tab_strip_api:unit_tests",
       "//base/test:test_support",
       "//chrome/app:command_ids",
       "//chrome/app:generated_resources",
@@ -552,8 +598,6 @@ if (!is_android) {
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/startup:startup_tab",
       "//chrome/browser/ui/tab_contents",
-      "//chrome/browser/ui/tabs/tab_strip_api:tab_strip_api",
-      "//chrome/browser/ui/tabs/tab_strip_api:unit_tests",
       "//chrome/common:non_code_constants",
       "//chrome/test:test_support",
       "//components/commerce/core:account_checker_test_support",

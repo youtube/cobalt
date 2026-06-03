@@ -31,6 +31,7 @@
 #include "third_party/blink/renderer/core/clipboard/clipboard_utilities.h"
 
 #include "base/strings/escape.h"
+#include "base/strings/string_view_util.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
@@ -55,7 +56,7 @@ String EscapeForHTML(const String& str) {
 }  // namespace
 
 void ReplaceNBSPWithSpace(String& str) {
-  str.Replace(kNoBreakSpaceCharacter, kSpaceCharacter);
+  str.Replace(uchar::kNoBreakSpace, uchar::kSpace);
 }
 
 String ConvertURIListToURL(const String& uri_list) {

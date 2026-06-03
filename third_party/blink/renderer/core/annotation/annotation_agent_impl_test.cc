@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_scrollintoviewoptions.h"
 #include "third_party/blink/renderer/core/annotation/annotation_agent_container_impl.h"
 #include "third_party/blink/renderer/core/annotation/annotation_test_utils.h"
+#include "third_party/blink/renderer/core/annotation/node_annotation_selector.h"
 #include "third_party/blink/renderer/core/annotation/text_annotation_selector.h"
 #include "third_party/blink/renderer/core/css/font_face.h"
 #include "third_party/blink/renderer/core/css/font_face_set_document.h"
@@ -143,6 +144,16 @@ class AnnotationAgentImplTest : public SimTest {
         AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
     return container->CreateUnboundAgent(type, *selector);
   }
+
+  AnnotationAgentImpl* CreateNodeAgent(
+      DOMNodeId dom_node_id,
+      mojom::blink::AnnotationType type = mojom::blink::AnnotationType::kGlic) {
+    auto* selector = MakeGarbageCollected<NodeAnnotationSelector>(dom_node_id);
+    auto* container =
+        AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
+    return container->CreateUnboundAgent(type, *selector);
+  }
+
   // Performs a check that the given node is fully visible in the visual
   // viewport - that is, it's entire bounding rect is contained in the visual
   // viewport. Returns whether the check passed so it can be used as an ASSERT
@@ -329,7 +340,7 @@ TEST_F(AnnotationAgentImplTest, RemoveDisconnectsBindings) {
   ASSERT_TRUE(host.agent_.is_connected());
   ASSERT_FALSE(host.did_disconnect_);
 
-  agent->Remove();
+  container->RemoveAgent(*agent);
   host.FlushForTesting();
 
   EXPECT_FALSE(host.agent_.is_connected());
@@ -357,7 +368,7 @@ TEST_F(AnnotationAgentImplTest, RemoveClearsState) {
   Compositor().BeginFrame();
   ASSERT_TRUE(agent->IsAttached());
 
-  agent->Remove();
+  container->RemoveAgent(*agent);
 
   EXPECT_TRUE(IsRemoved(agent));
   EXPECT_FALSE(agent->IsAttached());
@@ -446,12 +457,13 @@ TEST_F(AnnotationAgentImplTest, RemovedAgentRemovesMarkers) {
   ASSERT_EQ(NumMarkersInRange(*range_foo), 1ul);
   ASSERT_EQ(NumMarkersInRange(*range_bar), 1ul);
 
-  agent_foo->Remove();
+  AnnotationAgentContainerImpl* container = agent_foo->OwningContainer();
+  container->RemoveAgent(*agent_foo);
 
   ASSERT_EQ(NumMarkersInRange(*range_foo), 0ul);
   ASSERT_EQ(NumMarkersInRange(*range_bar), 1ul);
 
-  agent_bar->Remove();
+  container->RemoveAgent(*agent_bar);
 
   ASSERT_EQ(NumMarkersInRange(*range_foo), 0ul);
   ASSERT_EQ(NumMarkersInRange(*range_bar), 0ul);
@@ -1189,6 +1201,41 @@ TEST_F(AnnotationAgentImplTest, ActivatesContentVisibilityAuto) {
   RangeInFlatTree* range = CreateRangeToExpectedText(node, 0, 6, "foobar");
   EXPECT_FALSE(DisplayLockUtilities::NeedsActivationForFindInPage(
       range->ToEphemeralRange()));
+}
+
+TEST_F(AnnotationAgentImplTest, NodeContentsBeginsWithLineBreak) {
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      p {
+        position: absolute;
+        width: 200px;
+        height: 20px;
+        left: 0;
+        top: 20000px;
+      }
+    </style>
+    <body>
+      <div id="section">
+        <div>Step</div>
+        1
+      </div>
+    </body>
+  )HTML");
+
+  auto* element_foo =
+      GetDocument().body()->getElementById(AtomicString("section"));
+  ASSERT_NE(element_foo, nullptr);
+  auto* agent = CreateNodeAgent(element_foo->GetDomNodeId());
+  // Produce a compositor frame. This should process the DOM mutations and
+  // finish attaching the agent.
+  Compositor().BeginFrame();
+  EXPECT_TRUE(agent->IsAttached());
+  agent->ScrollIntoView(/*applies_focus=*/false);
+  Compositor().BeginFrame();
+  EXPECT_TRUE(ExpectInViewport(*element_foo));
 }
 
 // kTextFinder type annotations must not cause side-effects. Ensure they do not
@@ -1933,7 +1980,7 @@ TEST_F(AnnotationAgentImplTest, GlicHighlight_StopOnAgentRemoval) {
 
   EXPECT_EQ(GetAllMarkers().size(), 1u);
 
-  agent->Remove();
+  agent->OwningContainer()->RemoveAgent(*agent);
 
   Compositor().BeginFrame();
 
@@ -2023,12 +2070,16 @@ TEST_F(AnnotationAgentImplTest, GlicHighlight_MultipleAgentRemoval) {
 
   EXPECT_EQ(GetAllMarkers().size(), 2u);
 
-  user_note_agent->Remove();
+  AnnotationAgentContainerImpl* container =
+      AnnotationAgentContainerImpl::FromIfExists(GetDocument());
+  ASSERT_TRUE(container);
+
+  container->RemoveAgent(*user_note_agent);
   const auto& markers = GetAllMarkers();
   ASSERT_EQ(markers.size(), 1u);
   EXPECT_EQ(markers[0]->GetType(), DocumentMarker::MarkerType::kGlic);
 
-  glic_agent->Remove();
+  container->RemoveAgent(*glic_agent);
   EXPECT_TRUE(GetAllMarkers().empty());
 }
 
@@ -2071,7 +2122,7 @@ TEST_F(AnnotationAgentImplTest, GlicHighlight_ResetStateOnNewTextNodes) {
 
   // Simulate that glic highlights a different text. Currently only one text
   // (agent) is highlighted at a time.
-  agent1->Remove();
+  agent1->OwningContainer()->RemoveAgent(*agent1);
   EXPECT_TRUE(GetAllMarkers().empty());
 
   // Add a second agent while the highlight from the first one is still

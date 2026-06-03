@@ -4,7 +4,9 @@
 
 #include "chrome/browser/ash/input_method/editor_system_actuator.h"
 
+#include "base/strings/string_util.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
+#include "chrome/browser/ash/accessibility/chromevox_test_utils.h"
 #include "chrome/browser/ash/accessibility/speech_monitor.h"
 #include "chrome/browser/ash/input_method/editor_geolocation_mock_provider.h"
 #include "chrome/browser/ash/input_method/editor_geolocation_provider.h"
@@ -31,45 +33,24 @@ class EditorSystemActuatorAccessibilityTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    ash::AccessibilityManager::Get()->EnableSpokenFeedback(true);
-    // Ignore the intro.
-    sm_.ExpectSpeechPattern("ChromeVox*");
-    // Disable earcons which can be annoying in tests.
-    sm_.Call([this]() {
-      ImportJSModuleForChromeVox("ChromeVox",
-                                 "/chromevox/mv2/background/chromevox.js");
-      DisableEarcons();
-    });
+    chromevox_test_utils_ = std::make_unique<ash::ChromeVoxTestUtils>();
+    chromevox_test_utils_->EnableChromeVox();
   }
 
   void TearDownOnMainThread() override {
+    chromevox_test_utils_.reset();
     ash::AccessibilityManager::Get()->EnableSpokenFeedback(false);
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
+  ChromeVoxTestUtils* chromevox_test_utils() {
+    return chromevox_test_utils_.get();
+  }
+
+  test::SpeechMonitor* sm() { return chromevox_test_utils()->sm(); }
+
  protected:
-  ash::test::SpeechMonitor sm_;
-
- private:
-  void ImportJSModuleForChromeVox(std::string_view name,
-                                  std::string_view path) {
-    extensions::browsertest_util::ExecuteScriptInBackgroundPageDeprecated(
-        ash::AccessibilityManager::Get()->profile(),
-        extension_misc::kChromeVoxExtensionId,
-        base::ReplaceStringPlaceholders(
-            R"(import('$1').then(mod => {
-            globalThis.$2 = mod.$2;
-            window.domAutomationController.send('done');
-          }))",
-            {std::string(path), std::string(name)}, nullptr));
-  }
-
-  void DisableEarcons() {
-    extensions::browsertest_util::ExecuteScriptInBackgroundPageNoWait(
-        ash::AccessibilityManager::Get()->profile(),
-        extension_misc::kChromeVoxExtensionId,
-        "ChromeVox.earcons.playEarcon = function() {};");
-  }
+  std::unique_ptr<ash::ChromeVoxTestUtils> chromevox_test_utils_;
 };
 
 IN_PROC_BROWSER_TEST_F(EditorSystemActuatorAccessibilityTest,
@@ -83,10 +64,10 @@ IN_PROC_BROWSER_TEST_F(EditorSystemActuatorAccessibilityTest,
           .InitWithNewEndpointAndPassReceiver(),
       &editor_mediator);
 
-  sm_.Call([&]() { system_actuator.SubmitFeedback("dummy feedback"); });
-  sm_.ExpectSpeechPattern(
+  sm()->Call([&]() { system_actuator.SubmitFeedback("dummy feedback"); });
+  sm()->ExpectSpeechPattern(
       l10n_util::GetStringUTF8(IDS_EDITOR_ANNOUNCEMENT_TEXT_FOR_FEEDBACK));
-  sm_.Replay();
+  sm()->Replay();
 }
 
 IN_PROC_BROWSER_TEST_F(EditorSystemActuatorAccessibilityTest,
@@ -100,10 +81,10 @@ IN_PROC_BROWSER_TEST_F(EditorSystemActuatorAccessibilityTest,
           .InitWithNewEndpointAndPassReceiver(),
       &editor_mediator);
 
-  sm_.Call([&]() { system_actuator.InsertText("dummy text"); });
-  sm_.ExpectSpeechPattern(
+  sm()->Call([&]() { system_actuator.InsertText("dummy text"); });
+  sm()->ExpectSpeechPattern(
       l10n_util::GetStringUTF8(IDS_EDITOR_ANNOUNCEMENT_TEXT_FOR_INSERTION));
-  sm_.Replay();
+  sm()->Replay();
 }
 
 }  // namespace

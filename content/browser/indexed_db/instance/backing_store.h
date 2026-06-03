@@ -99,11 +99,6 @@ class BackingStore {
     virtual Status CommitPhaseTwo() = 0;
     virtual void Rollback() = 0;
 
-    // Called after the transaction is aborted or completed.
-    // TODO(crbug.com/40253999): can this be removed in favor of deleting the
-    // object?
-    virtual void Reset() = 0;
-
     // Changes the database version to |version|.
     [[nodiscard]] virtual Status SetDatabaseVersion(int64_t version) = 0;
     [[nodiscard]] virtual Status CreateObjectStore(
@@ -133,9 +128,10 @@ class BackingStore {
         int64_t object_store_id,
         int64_t index_id,
         const std::u16string& new_name) = 0;
-    [[nodiscard]] virtual Status GetRecord(int64_t object_store_id,
-                                           const blink::IndexedDBKey& key,
-                                           IndexedDBValue* record) = 0;
+    // When not found, the returned value is empty.
+    [[nodiscard]] virtual StatusOr<IndexedDBValue> GetRecord(
+        int64_t object_store_id,
+        const blink::IndexedDBKey& key) = 0;
     // When successful, returns the identifier for the newly stored record.
     [[nodiscard]] virtual StatusOr<RecordIdentifier> PutRecord(
         int64_t object_store_id,
@@ -146,10 +142,13 @@ class BackingStore {
         const blink::IndexedDBKeyRange&) = 0;
     [[nodiscard]] virtual StatusOr<int64_t> GetKeyGeneratorCurrentNumber(
         int64_t object_store_id) = 0;
+    // Sets the key generator current number for `object_store_id` to
+    // max(`new_number`, current number). `was_generated` is a hint that can be
+    // used by implementations to skip reading the current number.
     [[nodiscard]] virtual Status MaybeUpdateKeyGeneratorCurrentNumber(
         int64_t object_store_id,
-        int64_t new_state,
-        bool check_current) = 0;
+        int64_t new_number,
+        bool was_generated) = 0;
     // Returns the `RecordIdentifier` for the record if the primary key exists
     // in the given object store. Returns `Status` on error. Returns nullopt if
     // no record exists with the given key.
@@ -161,17 +160,20 @@ class BackingStore {
         int64_t index_id,
         const blink::IndexedDBKey& key,
         const RecordIdentifier& record) = 0;
-    [[nodiscard]] virtual Status GetPrimaryKeyViaIndex(
+    // Returns the primary key of the first record (sorted by primary key) in
+    // the index with key value `key`, if found. Returns a "none" key
+    // (!IsValid()) if not found. Returns a `Status` on database error.
+    [[nodiscard]] virtual StatusOr<blink::IndexedDBKey>
+    GetFirstPrimaryKeyForIndexKey(int64_t object_store_id,
+                                  int64_t index_id,
+                                  const blink::IndexedDBKey& key) = 0;
+    [[nodiscard]] virtual StatusOr<uint32_t> GetObjectStoreKeyCount(
+        int64_t object_store_id,
+        blink::IndexedDBKeyRange key_range) = 0;
+    [[nodiscard]] virtual StatusOr<uint32_t> GetIndexKeyCount(
         int64_t object_store_id,
         int64_t index_id,
-        const blink::IndexedDBKey& key,
-        std::unique_ptr<blink::IndexedDBKey>* primary_key) = 0;
-    [[nodiscard]] virtual Status KeyExistsInIndex(
-        int64_t object_store_id,
-        int64_t index_id,
-        const blink::IndexedDBKey& key,
-        std::unique_ptr<blink::IndexedDBKey>* found_primary_key,
-        bool* exists) = 0;
+        blink::IndexedDBKeyRange key_range) = 0;
     virtual StatusOr<std::unique_ptr<Cursor>> OpenObjectStoreKeyCursor(
         int64_t object_store_id,
         const blink::IndexedDBKeyRange& key_range,
@@ -190,13 +192,12 @@ class BackingStore {
         int64_t index_id,
         const blink::IndexedDBKeyRange& key_range,
         blink::mojom::IDBCursorDirection) = 0;
+    virtual blink::mojom::IDBValuePtr BuildMojoValue(IndexedDBValue value) = 0;
   };
 
   // Another interface to be implemented by a backend implementation.
   class Cursor {
    public:
-    enum IteratorState { READY = 0, SEEK };
-
     virtual ~Cursor() = default;
 
     virtual const blink::IndexedDBKey& GetKey() const = 0;
@@ -204,15 +205,16 @@ class BackingStore {
     virtual blink::IndexedDBKey TakeKey() && = 0;
     virtual IndexedDBValue& GetValue() = 0;
 
-    virtual bool Continue(const blink::IndexedDBKey& key,
-                          const blink::IndexedDBKey& primary_key,
-                          IteratorState state,
-                          Status*) = 0;
-    virtual bool Advance(uint32_t count, Status*) = 0;
+    // Advances the cursor to a new row and loads the row data. If the input
+    // keys are valid, advances the cursor to the row for `key` or `key` and
+    // `primary_key`. Returns true on success, or false if no eligible row was
+    // found. Returns an error if there was a DB error.
+    virtual StatusOr<bool> Continue() = 0;
+    virtual StatusOr<bool> Continue(const blink::IndexedDBKey& key,
+                                    const blink::IndexedDBKey& primary_key) = 0;
+    virtual StatusOr<bool> Advance(uint32_t count) = 0;
     // Clone may return a nullptr if cloning fails for any reason.
     virtual std::unique_ptr<Cursor> Clone() const = 0;
-
-    bool Continue(Status* s) { return Continue({}, {}, SEEK, s); }
   };
 
   virtual ~BackingStore() = default;

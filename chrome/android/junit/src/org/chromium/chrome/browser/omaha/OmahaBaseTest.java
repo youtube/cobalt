@@ -61,8 +61,8 @@ public class OmahaBaseTest {
     }
 
     private static class MockOmahaDelegate extends OmahaDelegate {
-        private final List<Integer> mPostResults = new ArrayList<Integer>();
-        private final List<Boolean> mGenerateAndPostRequestResults = new ArrayList<Boolean>();
+        private final List<Integer> mPostResults = new ArrayList<>();
+        private final List<Boolean> mGenerateAndPostRequestResults = new ArrayList<>();
 
         private final boolean mIsOnTablet;
         private final boolean mIsInForeground;
@@ -342,7 +342,6 @@ public class OmahaBaseTest {
     @Test
     @Feature({"Omaha"})
     public void testPipelineFreshInstallUpdatedAvailable_crbug_1095755() {
-        final long now = mDelegate.getScheduler().getCurrentTime();
         final String updateVersion = "10.0.0.0";
 
         // Trigger Omaha.

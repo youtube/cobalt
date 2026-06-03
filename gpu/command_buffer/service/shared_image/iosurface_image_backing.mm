@@ -972,12 +972,16 @@ void IOSurfaceImageBacking::DawnRepresentation::EndAccess() {
   if (end_access_desc.fenceCount > 0) {
     // For write access, we would need to WaitForCommandsToBeScheduled
     // before the image is used by CoreAnimation or WebGL later.
-    // However, we defer the wait on this device until CoreAnimation
-    // or WebGL actually needs to access the image. This could avoid repeated
-    // and unnecessary waits.
+    // However, when it's not thread safe (DrDC is disabled), we defer the wait
+    // on this device until CoreAnimation or WebGL actually needs to access the
+    // image. This could avoid repeated and unnecessary waits.
     // TODO(b/328411251): Investigate whether this is needed if the access
     // is readonly.
-    iosurface_backing->AddWGPUDeviceWithPendingCommands(device_);
+    if (iosurface_backing->is_thread_safe()) {
+      dawn::native::metal::WaitForCommandsToBeScheduled(device_.Get());
+    } else {
+      iosurface_backing->AddWGPUDeviceWithPendingCommands(device_);
+    }
   }
 
   texture_ = nullptr;
@@ -1662,15 +1666,20 @@ bool IOSurfaceImageBacking::IsPurgeable() const {
 
 void IOSurfaceImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {
   AutoLock auto_lock(this);
-  if (in_fence) {
-    // TODO(dcastagna): Don't wait for the fence if the SharedImage is going
-    // to be scanned out as an HW overlay. Currently we don't know that at
-    // this point and we always bind the image, therefore we need to wait for
-    // the fence.
-    std::unique_ptr<gl::GLFence> egl_fence =
-        gl::GLFence::CreateFromGpuFence(*in_fence.get());
-    egl_fence->ServerWait();
+#if BUILDFLAG(IS_IOS)
+  {
+    // On iOS, we can't use IOKit to access IOSurfaces in the renderer process,
+    // so we share the memory segment backing the IOSurface as shared memory
+    // which is then mapped in the renderer process. We need to signal that the
+    // IOSurface was updated on the CPU so we do an IOSurfaceLock+Unlock here in
+    // case there are other consumers of the IOSurface that rely on its internal
+    // seed value to detect updates - the lock+unlock updates the seed value.
+    // TODO(crbug.com/40254930): Assert that we have CPU_WRITE_ONLY usage so
+    // that we never have the client's CPU-written data overwritten due to a
+    // shadow copy from the GPU - we can also use kIOSurfaceLockAvoidSync then.
+    ScopedIOSurfaceLock io_surface_lock(io_surface_.get(), /*options=*/0);
   }
+#endif
   for (auto iter : egl_state_map_) {
     iter.second->set_bind_pending();
   }
@@ -1879,7 +1888,14 @@ void IOSurfaceImageBacking::IOSurfaceBackingEGLStateEndAccess(
   // glFlush on OpenGL. Defer the call until CoreAnimation, Dawn, or another
   // ANGLE EGLDisplay needs to access to avoid unnecessary overhead. This also
   // ensures that the Metal shared event enqueued above is eventually flushed.
-  AddEGLDisplayWithPendingCommands(display);
+  if (is_thread_safe()) {
+    // With DrDC and Graphite enabled, don't call
+    // AddEGLDisplayWithPendingCommands to avoid the GL context flush on
+    // the Viz thread.
+    eglWaitUntilWorkScheduledANGLE(display->GetDisplay());
+  } else {
+    AddEGLDisplayWithPendingCommands(display);
+  }
 
   // When SwANGLE is used as the GL implementation, it holds an internal
   // texture. We have to call ReleaseTexImage here to trigger a copy from that

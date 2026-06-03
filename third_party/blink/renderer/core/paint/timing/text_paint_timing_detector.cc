@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_callback_manager.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_context.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/traced_value.h"
@@ -23,6 +24,7 @@ namespace blink {
 
 void TextRecord::Trace(Visitor* visitor) const {
   visitor->Trace(node_);
+  visitor->Trace(soft_navigation_context_);
 }
 
 TextPaintTimingDetector::TextPaintTimingDetector(
@@ -36,6 +38,7 @@ TextPaintTimingDetector::TextPaintTimingDetector(
 void LargestTextPaintManager::PopulateTraceValue(
     TracedValue& value,
     const TextRecord& first_text_paint) {
+  value.SetString("nodeName", first_text_paint.node_->DebugName());
   value.SetInteger("DOMNodeId",
                    static_cast<int>(first_text_paint.node_->GetDomNodeId()));
   value.SetInteger("size", static_cast<int>(first_text_paint.recorded_size));
@@ -111,26 +114,52 @@ void TextPaintTimingDetector::LayoutObjectWillBeDestroyed(
 }
 
 bool TextPaintTimingDetector::ShouldWalkObject(
-    const LayoutBoxModelObject& object) const {
-  // TODO(crbug.com/933479): Use LayoutObject::GeneratingNode() to include
-  // anonymous objects' rect.
-  Node* node = object.GetNode();
+    const LayoutBoxModelObject& aggregator) {
+  Node* node = aggregator.GetNode();
   if (!node)
     return false;
-  // If we have finished recording Largest Text Paint and the element is a
-  // shadow element or has no elementtiming attribute, then we should not record
-  // its text.
-  if (!IsRecordingLargestTextPaint() &&
-      !TextElementTiming::NeededForTiming(*node)) {
-    return false;
+
+  // Do not walk the object if it has already been recorded, unless it has
+  // specifically been marked for "re-walking".
+  if (recorded_set_.Contains(&aggregator)) {
+    // TODO(crbug.com/40220033): rewalkable_set_ should be empty most of the
+    // time, until we ship the feature for custom fonts.
+    // HashSet::Contains() appears to hash key even when container is empty.
+    return !rewalkable_set_.empty() && rewalkable_set_.Contains(&aggregator);
   }
 
-  if (rewalkable_set_.Contains(&object))
+  // Check if we know for certain that we need to measure this node, first.
+  if (IsRecordingLargestTextPaint() ||
+      TextElementTiming::NeededForTiming(*node)) {
     return true;
+  }
 
-  // This metric defines the size of a text block by its first size, so we
-  // should not walk the object if it has been recorded.
-  return !recorded_set_.Contains(&object);
+  // If we haven't seen this node before, an we aren't recording LCP nor is this
+  // node needed for element timing, the only remaining reason to measure text
+  // timing is for soft navs paints.  We leave this check for last, just because
+  // it might be more expensive.
+  // TODO(crbug.com/423670827): If we cache this value during pre-paint, then we
+  // might not need to worry about it.
+  if (LocalDOMWindow* window = frame_view_->GetFrame().DomWindow()) {
+    if (SoftNavigationHeuristics* heuristics =
+            window->GetSoftNavigationHeuristics();
+        heuristics && heuristics->MaybeGetSoftNavigationContextForTiming(
+                          aggregator.GetNode())) {
+      return true;
+    }
+  }
+
+  // If we've decided not to visit this node for any reason, then let's add it
+  // to the set of recorded nodes, even without measuring its paint, so we never
+  // bother to check it again.
+  // TODO(crbug.com/423670827): Part of the motivation for doing this is so we
+  // don't try to look up context more than once per node.  But then this
+  // content becomes un-recorded for any future observers, and that isn't always
+  // correct (i.e. late application of elementtiming or an Interaction which
+  // toggles content within the node, i.e. adding textContent for the first time
+  // to a previously empty node.)
+  recorded_set_.insert(&aggregator);
+  return false;
 }
 
 void TextPaintTimingDetector::RecordAggregatedText(
@@ -178,16 +207,22 @@ void TextPaintTimingDetector::RecordAggregatedText(
     }
   }
 
-  LocalFrame& frame = frame_view_->GetFrame();
-  if (LocalDOMWindow* window = frame.DomWindow()) {
+  SoftNavigationContext* context = nullptr;
+  if (LocalDOMWindow* window = frame_view_->GetFrame().DomWindow()) {
     if (SoftNavigationHeuristics* heuristics =
             window->GetSoftNavigationHeuristics()) {
-      heuristics->RecordPaint(&frame, mapped_visual_rect, aggregator.GetNode());
+      context = heuristics->MaybeGetSoftNavigationContextForTiming(
+          aggregator.GetNode());
     }
   }
+
   recorded_set_.insert(&aggregator);
-  MaybeRecordTextRecord(aggregator, aggregated_size, property_tree_state,
-                        aggregated_visual_rect, mapped_visual_rect);
+  TextRecord* record = MaybeRecordTextRecord(
+      aggregator, aggregated_size, property_tree_state, aggregated_visual_rect,
+      mapped_visual_rect, context);
+  if (context && record) {
+    context->AddPaintedArea(record);
+  }
   if (std::optional<PaintTimingVisualizer>& visualizer =
           frame_view_->GetPaintTimingDetector().Visualizer()) {
     visualizer->DumpTextDebuggingRect(aggregator, mapped_visual_rect);
@@ -196,12 +231,6 @@ void TextPaintTimingDetector::RecordAggregatedText(
 
 void TextPaintTimingDetector::StopRecordingLargestTextPaint() {
   recording_largest_text_paint_ = false;
-}
-
-void TextPaintTimingDetector::RestartRecordingLargestTextPaint() {
-  recording_largest_text_paint_ = true;
-  texts_queued_for_paint_time_.clear();
-  ltp_manager_->Clear();
 }
 
 void TextPaintTimingDetector::ReportLargestIgnoredText() {
@@ -253,7 +282,8 @@ void LargestTextPaintManager::MaybeUpdateLargestIgnoredText(
     // queued for paint, we'll set the appropriate |frame_index_|.
     largest_ignored_text_ = MakeGarbageCollected<TextRecord>(
         *object.GetNode(), size, gfx::RectF(), frame_visual_rect,
-        root_visual_rect, 0u, false /* is_needed_for_timing */);
+        root_visual_rect, 0u, /*is_needed_for_timing=*/false,
+        /*soft_navigation_context=*/nullptr);
   }
 }
 
@@ -276,6 +306,7 @@ void TextPaintTimingDetector::AssignPaintTimeToQueuedRecords(
     }
   }
 
+  bool is_needed_for_lcp = IsRecordingLargestTextPaint();
   bool can_report_timing =
       text_element_timing_ ? text_element_timing_->CanReportElements() : false;
   HeapVector<Member<const LayoutObject>> keys_to_be_removed;
@@ -289,9 +320,7 @@ void TextPaintTimingDetector::AssignPaintTimeToQueuedRecords(
       text_element_timing_->OnTextObjectPainted(*record, paint_timing_info);
     }
 
-    if (ltp_manager_ && (record->recorded_size > 0u) &&
-        !(record->node_ &&
-          ltp_manager_->IsUnrelatedSoftNavigationPaint(*(record->node_)))) {
+    if (is_needed_for_lcp && ltp_manager_ && (record->recorded_size > 0u)) {
       ltp_manager_->MaybeUpdateLargestText(record);
     }
     keys_to_be_removed.push_back(key);
@@ -299,36 +328,42 @@ void TextPaintTimingDetector::AssignPaintTimeToQueuedRecords(
   texts_queued_for_paint_time_.RemoveAll(keys_to_be_removed);
 }
 
-void TextPaintTimingDetector::MaybeRecordTextRecord(
+TextRecord* TextPaintTimingDetector::MaybeRecordTextRecord(
     const LayoutObject& object,
     const uint64_t& visual_size,
     const PropertyTreeStateOrAlias& property_tree_state,
     const gfx::Rect& frame_visual_rect,
-    const gfx::RectF& root_visual_rect) {
+    const gfx::RectF& root_visual_rect,
+    SoftNavigationContext* context) {
   Node* node = object.GetNode();
   DCHECK(node);
 
-  bool is_needed_for_timing = TextElementTiming::NeededForTiming(*node);
-  // If the node is not required by LCP and not required by ElementTiming, we
-  // can bail out early.
-  if ((visual_size == 0u || !IsRecordingLargestTextPaint()) &&
-      !is_needed_for_timing) {
-    return;
+  bool is_needed_for_lcp = IsRecordingLargestTextPaint() && visual_size > 0u;
+  bool is_needed_for_element_timing = TextElementTiming::NeededForTiming(*node);
+  bool is_needed_for_soft_navs = context != nullptr;
+
+  // If the node is not required by LCP and not required by ElementTiming,
+  // we can bail out early.
+  if (!is_needed_for_lcp && !is_needed_for_element_timing &&
+      !is_needed_for_soft_navs) {
+    return nullptr;
   }
+
   TextRecord* record;
   if (visual_size == 0u) {
     record = MakeGarbageCollected<TextRecord>(
-        *node, 0, gfx::RectF(), gfx::Rect(), gfx::RectF(), frame_index_,
-        is_needed_for_timing);
+        *node, visual_size, gfx::RectF(), gfx::Rect(), gfx::RectF(),
+        frame_index_, is_needed_for_element_timing, context);
   } else {
     record = MakeGarbageCollected<TextRecord>(
-        *object.GetNode(), visual_size,
+        *node, visual_size,
         TextElementTiming::ComputeIntersectionRect(
             object, frame_visual_rect, property_tree_state, frame_view_),
         frame_visual_rect, root_visual_rect, frame_index_,
-        is_needed_for_timing);
+        is_needed_for_element_timing, context);
   }
   QueueToMeasurePaintTime(object, record);
+  return record;
 }
 
 }  // namespace blink

@@ -14,10 +14,10 @@ import androidx.core.view.WindowInsetsCompat;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.ui.InsetObserver;
-import org.chromium.ui.InsetObserver.WindowInsetsAnimationListener;
-import org.chromium.ui.InsetObserver.WindowInsetsConsumer;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.insets.InsetObserver.WindowInsetsAnimationListener;
+import org.chromium.ui.insets.InsetObserver.WindowInsetsConsumer;
 
 import java.util.List;
 
@@ -76,6 +76,7 @@ public class DeferredIMEWindowInsetApplicationCallback
         // Allow for a null inset observer here if the attach was a no-op.
         if (mInsetObserver != null) {
             mInsetObserver.removeInsetsConsumer(this);
+            mInsetObserver.setKeyboardInOverlayMode(false);
             mInsetObserver.removeWindowInsetsAnimationListener(this);
         }
         mAnimationInProgress = false;
@@ -125,6 +126,21 @@ public class DeferredIMEWindowInsetApplicationCallback
             Insets systemBarInsets =
                     windowInsetsCompat.getInsets(WindowInsetsCompat.Type.systemBars());
             newKeyboardHeight = imeInsets.bottom - systemBarInsets.bottom;
+
+            // Since the ime insets are greater than 0, the keyboard is showing, but its height is
+            // being suppressed in that this class deliberately wants to avoid application resizing.
+            // This informs the InsetObserver to treat the keyboard as if it is in "overlay mode",
+            // to signal to other observers to treat the keyboard as an overlay and consistently
+            // avoid any resizing.
+            if (mInsetObserver != null) {
+                mInsetObserver.setKeyboardInOverlayMode(true);
+            }
+        } else {
+            // The ime insets are not greater than 0, and thus the keyboard shouldn't be considered
+            // in overlay mode.
+            if (mInsetObserver != null) {
+                mInsetObserver.setKeyboardInOverlayMode(false);
+            }
         }
         // Keyboard going away or the change is not animated; apply immediately.
         if (newKeyboardHeight < mKeyboardHeight || !mAnimationInProgress) {
@@ -144,7 +160,15 @@ public class DeferredIMEWindowInsetApplicationCallback
                 new WindowInsetsCompat.Builder(windowInsetsCompat)
                         .setInsets(WindowInsetsCompat.Type.ime(), Insets.NONE);
         if (imeInsets.bottom > 0) {
-            builder.setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.NONE);
+            Insets navigationInsets =
+                    windowInsetsCompat.getInsets(WindowInsetsCompat.Type.navigationBars());
+            builder.setInsets(
+                    WindowInsetsCompat.Type.navigationBars(),
+                    Insets.of(
+                            navigationInsets.left,
+                            navigationInsets.top,
+                            navigationInsets.right,
+                            /* bottom= */ 0));
         }
         return builder.build();
     }

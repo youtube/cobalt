@@ -13,10 +13,11 @@
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
-#include "base/functional/overloaded.h"
 #include "base/hash/hash.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/zip.h"
@@ -31,6 +32,7 @@
 #include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/filling/payments/field_filling_payments_util.h"
+#include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
@@ -50,6 +52,7 @@
 #include "components/autofill/core/common/logging/log_macros.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace autofill {
 
@@ -58,39 +61,6 @@ namespace {
 // Time to wait after a dynamic form change before triggering a refill.
 // This is used for sites that change multiple things consecutively.
 constexpr base::TimeDelta kWaitTimeForDynamicForms = base::Milliseconds(200);
-
-bool FillingProductSupportsRefills(FillingProduct filling_product) {
-  switch (filling_product) {
-    case FillingProduct::kAddress:
-    case FillingProduct::kCreditCard:
-      return true;
-    case FillingProduct::kAutocomplete:
-    case FillingProduct::kAutofillAi:
-    case FillingProduct::kCompose:
-    case FillingProduct::kIban:
-    case FillingProduct::kLoyaltyCard:
-    case FillingProduct::kMerchantPromoCode:
-    case FillingProduct::kPlusAddresses:
-    case FillingProduct::kIdentityCredential:
-      return false;
-    case FillingProduct::kPassword:
-    case FillingProduct::kNone:
-      NOTREACHED();
-  }
-}
-
-FillingProduct GetFillingProductFromFillingPayload(
-    const FillingPayload& filling_payload) {
-  return std::visit(
-      base::Overloaded{
-          [](const AutofillProfile*) { return FillingProduct::kAddress; },
-          [](const CreditCard*) { return FillingProduct::kCreditCard; },
-          [](const EntityInstance*) { return FillingProduct::kAutofillAi; },
-          [](const VerifiedProfile*) {
-            return FillingProduct::kIdentityCredential;
-          }},
-      filling_payload);
-}
 
 // Given `filling_product`, returns the types supported for filling by this
 // FillingProduct, or std::nullopt if `filling_product` is independent of field
@@ -119,7 +89,7 @@ std::optional<FieldTypeSet> GetFieldTypesToFillFromFillingProduct(
       static constexpr auto kAutofillAiFieldTypes = []() {
         DenseSet<FieldType> result;
         for (AttributeType type : DenseSet<AttributeType>::all()) {
-          result.insert(type.field_type());
+          result.insert_all(type.field_subtypes());
         }
         return result;
       }();
@@ -145,6 +115,7 @@ std::optional<FieldTypeSet> GetFieldTypesToFillFromFillingProduct(
       return FieldTypeSet{EMAIL_ADDRESS, NAME_FIRST, NAME_FULL};
     case FillingProduct::kAutocomplete:
     case FillingProduct::kCompose:
+    case FillingProduct::kDataList:
       return std::nullopt;
     case FillingProduct::kNone:
       NOTREACHED();
@@ -224,6 +195,7 @@ bool ShouldRecordFillingHistory(FillingProduct filling_product) {
     case FillingProduct::kAddress:
     case FillingProduct::kAutofillAi:
     case FillingProduct::kCreditCard:
+    case FillingProduct::kLoyaltyCard:
     case FillingProduct::kPlusAddresses:
       return true;
     case FillingProduct::kNone:
@@ -232,8 +204,8 @@ bool ShouldRecordFillingHistory(FillingProduct filling_product) {
     case FillingProduct::kAutocomplete:
     case FillingProduct::kPassword:
     case FillingProduct::kCompose:
-    case FillingProduct::kLoyaltyCard:
     case FillingProduct::kIdentityCredential:
+    case FillingProduct::kDataList:
       return false;
   }
   NOTREACHED();
@@ -290,6 +262,135 @@ std::optional<std::u16string> GetRefillValueForExpirationDate(
 }
 
 }  // namespace
+
+// Like FillingPayload, but may carry additional data needed for filling.
+struct FormFiller::AugmentedFillingPayload {
+  using EntityPayload = std::pair<const EntityInstance*,
+                                  std::vector<AutofillFieldWithAttributeType>>;
+  using Variant = std::variant<const AutofillProfile*,
+                               const CreditCard*,
+                               EntityPayload,
+                               const VerifiedProfile*>;
+
+  AugmentedFillingPayload(const FillingPayload& filling_payload,
+                          FormStructure& form_structure,
+                          AutofillField& trigger_field)
+      : variant(std::visit(
+            absl::Overload{
+                [](const AutofillProfile* autofill_profile) -> Variant {
+                  return autofill_profile;
+                },
+                [](const CreditCard* credit_card) -> Variant {
+                  return credit_card;
+                },
+                [&](const EntityInstance* entity) -> Variant {
+                  return std::pair(
+                      entity, DetermineAttributeTypes(form_structure.fields(),
+                                                      trigger_field.section(),
+                                                      entity->type()));
+                },
+                [](const VerifiedProfile* verified_profile) -> Variant {
+                  return verified_profile;
+                }},
+            filling_payload)) {}
+
+  FillingProduct filling_product() const {
+    return std::visit(
+        absl::Overload{
+            [](const AutofillProfile*) { return FillingProduct::kAddress; },
+            [](const CreditCard*) { return FillingProduct::kCreditCard; },
+            [](const EntityPayload&) { return FillingProduct::kAutofillAi; },
+            [](const VerifiedProfile*) {
+              return FillingProduct::kIdentityCredential;
+            }},
+        variant);
+  }
+
+  bool supports_refills() const {
+    switch (filling_product()) {
+      case FillingProduct::kAddress:
+      case FillingProduct::kCreditCard:
+        return true;
+      case FillingProduct::kAutocomplete:
+      case FillingProduct::kAutofillAi:
+      case FillingProduct::kCompose:
+      case FillingProduct::kIban:
+      case FillingProduct::kLoyaltyCard:
+      case FillingProduct::kMerchantPromoCode:
+      case FillingProduct::kPlusAddresses:
+      case FillingProduct::kIdentityCredential:
+        return false;
+      case FillingProduct::kPassword:
+      case FillingProduct::kDataList:
+      case FillingProduct::kNone:
+        NOTREACHED();
+    }
+  }
+
+  Variant variant;
+};
+
+// Keeps track of the filling context for a form, used to make refill
+// attempts.
+struct FormFiller::RefillContext {
+  // |filling_payload| contains the data used to perform the initial filling
+  // operation.
+  RefillContext(const AutofillField& field,
+                const AugmentedFillingPayload& filling_payload)
+      : filled_field_id(field.global_id()),
+        filled_field_signature(field.GetFieldSignature()),
+        filled_origin(field.origin()),
+        original_fill_time(base::TimeTicks::Now()) {
+    profile_or_credit_card = std::visit(
+        absl::Overload{
+            // Autofill with AI doesn't support refills.
+            [](const AugmentedFillingPayload::EntityPayload&)
+                -> std::variant<CreditCard, AutofillProfile> {
+              // Beware that `EntityPayload::second` holds raw_refs to
+              // AutofillFields. These references must no be stored in a
+              // RefillContext because they would dangle.
+              NOTREACHED();
+            },
+            // Verified Profiles doesn't support refills.
+            [](const VerifiedProfile*)
+                -> std::variant<CreditCard, AutofillProfile> { NOTREACHED(); },
+            [](const auto* x) {
+              return std::variant<CreditCard, AutofillProfile>(*x);
+            }},
+        filling_payload.variant);
+  }
+
+  ~RefillContext() = default;
+
+  // Whether a refill attempt was made.
+  bool attempted_refill = false;
+  // The profile or credit card that was used for the initial fill. This is
+  // slightly different from `filling_payload` that is used by the filling
+  // function: This contains actual objects because this needs to survive
+  // potential storage mutation, and this only contains payloads that support
+  // refills.
+  std::variant<CreditCard, AutofillProfile> profile_or_credit_card;
+  // Possible identifiers of the field that was focused when the form was
+  // initially filled. A refill shall be triggered from the same field.
+  const FieldGlobalId filled_field_id;
+  const FieldSignature filled_field_signature;
+  // The security origin from which the field was filled.
+  url::Origin filled_origin;
+  // The time at which the initial fill occurred.
+  // TODO(crbug.com/41490871): Remove in favor of
+  // FormStructure::last_filling_timestamp_.
+  const base::TimeTicks original_fill_time;
+  // The timer used to trigger a refill.
+  base::OneShotTimer on_refill_timer;
+  // The field type groups that were initially filled.
+  DenseSet<FieldTypeGroup> type_groups_originally_filled;
+  // If populated, this map determines which values will be filled into a
+  // field (it does not matter whether the field already contains a value).
+  std::map<FieldGlobalId, std::u16string> forced_fill_values;
+  // The form filled in the first attempt for filling. Used to check whether
+  // a refill should be attempted upon parsing an updated FormData.
+  std::optional<FormData> filled_form;
+};
 
 DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
     const FormFieldData& field,
@@ -391,28 +492,6 @@ DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
 
   return skip_reasons;
 }
-
-FormFiller::RefillContext::RefillContext(const AutofillField& field,
-                                         const FillingPayload& filling_payload)
-    : filled_field_id(field.global_id()),
-      filled_field_signature(field.GetFieldSignature()),
-      filled_origin(field.origin()),
-      original_fill_time(base::TimeTicks::Now()) {
-  profile_or_credit_card = std::visit(
-      base::Overloaded{
-          // Autofill with AI doesn't support refills.
-          [](const EntityInstance*)
-              -> std::variant<CreditCard, AutofillProfile> { NOTREACHED(); },
-          // Verified Profiles doesn't support refills.
-          [](const VerifiedProfile*)
-              -> std::variant<CreditCard, AutofillProfile> { NOTREACHED(); },
-          [](const auto* x) {
-            return std::variant<CreditCard, AutofillProfile>(*x);
-          }},
-      filling_payload);
-}
-
-FormFiller::RefillContext::~RefillContext() = default;
 
 FormFiller::FormFiller(BrowserAutofillManager& manager) : manager_(manager) {}
 
@@ -610,14 +689,17 @@ void FormFiller::FillOrPreviewForm(
     AutofillField& autofill_trigger_field,
     AutofillTriggerSource trigger_source,
     std::optional<RefillTriggerReason> refill_trigger_reason) {
-  FillingProduct filling_product =
-      GetFillingProductFromFillingPayload(filling_payload);
+  const AugmentedFillingPayload augmented_filling_payload =
+      AugmentedFillingPayload(filling_payload, form_structure,
+                              autofill_trigger_field);
 
   LogBuffer buffer(IsLoggingActive(log_manager()));
   LOG_AF(buffer) << "action_persistence: "
                  << ActionPersistenceToString(action_persistence) << Br{};
   LOG_AF(buffer) << "filling product: "
-                 << FillingProductToString(filling_product) << Br{};
+                 << FillingProductToString(
+                        augmented_filling_payload.filling_product())
+                 << Br{};
   LOG_AF(buffer) << "is refill: " << refill_trigger_reason.has_value() << Br{};
   LOG_AF(buffer) << form_structure << Br{};
   LOG_AF(buffer) << Tag{"table"};
@@ -645,15 +727,15 @@ void FormFiller::FillOrPreviewForm(
   if (action_persistence == mojom::ActionPersistence::kFill &&
       !refill_trigger_reason) {
     form_structure.set_last_filling_timestamp(base::TimeTicks::Now());
-    if (FillingProductSupportsRefills(filling_product)) {
+    if (augmented_filling_payload.supports_refills()) {
       SetRefillContext(form_structure.global_id(),
-                       std::make_unique<RefillContext>(autofill_trigger_field,
-                                                       filling_payload));
+                       std::make_unique<RefillContext>(
+                           autofill_trigger_field, augmented_filling_payload));
     }
   }
 
   RefillContext* refill_context = GetRefillContext(form_structure.global_id());
-  bool could_attempt_refill = FillingProductSupportsRefills(filling_product) &&
+  bool could_attempt_refill = augmented_filling_payload.supports_refills() &&
                               refill_context != nullptr &&
                               !refill_context->attempted_refill &&
                               !refill_trigger_reason;
@@ -674,7 +756,8 @@ void FormFiller::FillOrPreviewForm(
           result_fields, form_structure, autofill_trigger_field,
           refill_context ? refill_context->type_groups_originally_filled
                          : std::optional<DenseSet<FieldTypeGroup>>(),
-          filling_product, refill_trigger_reason.has_value());
+          augmented_filling_payload.filling_product(),
+          refill_trigger_reason.has_value());
 
   // This loop sets the values to fill in the `result_fields`. The
   // `result_fields` are sent to the renderer, whereas the very similar
@@ -717,13 +800,14 @@ void FormFiller::FillOrPreviewForm(
         AllowPaymentSwapping(autofill_trigger_field, autofill_field,
                              refill_trigger_reason.has_value());
 
-    // Fill the data from `filling_payload` into `result_form`, which will be
-    // sent to the renderer.
-    // When `allow_suggestion_swapping` is true, the fields can also be emptied.
-    // In that scenario, the `field->is_autofilled()` becomes false.
-    const bool is_newly_autofilled_or_emptied = FillField(
-        autofill_field, filling_payload, forced_fill_values, result_fields[i],
-        action_persistence, allow_suggestion_swapping, &failure_to_fill);
+    // Fill the data from `augmented_filling_payload` into `result_form`, which
+    // will be sent to the renderer. When `allow_suggestion_swapping` is true,
+    // the fields can also be emptied. In that scenario, the
+    // `field->is_autofilled()` becomes false.
+    const bool is_newly_autofilled_or_emptied =
+        FillField(autofill_field, augmented_filling_payload, forced_fill_values,
+                  result_fields[i], action_persistence,
+                  allow_suggestion_swapping, &failure_to_fill);
     const bool autofilled_value_did_not_change =
         form.fields()[i].is_autofilled() && result_fields[i].is_autofilled() &&
         form.fields()[i].value() == result_fields[i].value();
@@ -807,10 +891,11 @@ void FormFiller::FillOrPreviewForm(
 
   // Save filling history to support undoing it later if needed.
   if (action_persistence == mojom::ActionPersistence::kFill &&
-      ShouldRecordFillingHistory(filling_product)) {
+      ShouldRecordFillingHistory(augmented_filling_payload.filling_product())) {
     form_autofill_history_.AddFormFillingEntry(
         safe_filled_fields.old_values, safe_filled_fields.cached,
-        filling_product, refill_trigger_reason.has_value());
+        augmented_filling_payload.filling_product(),
+        refill_trigger_reason.has_value());
   }
 
   LOG_AF(buffer) << CTag{"table"};
@@ -973,7 +1058,7 @@ FormFiller::RefillContext* FormFiller::GetRefillContext(FormGlobalId form_id) {
 
 FormFiller::FieldFillingData FormFiller::GetFieldFillingData(
     const AutofillField& autofill_field,
-    const FillingPayload& filling_payload,
+    const AugmentedFillingPayload& filling_payload,
     const std::map<FieldGlobalId, std::u16string>& forced_fill_values,
     const FormFieldData& field_data,
     mojom::ActionPersistence action_persistence,
@@ -984,7 +1069,7 @@ FormFiller::FieldFillingData FormFiller::GetFieldFillingData(
             /*value_is_an_override=*/true};
   }
   const auto& [value_to_fill, filling_type] = std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](const AutofillProfile* profile)
               -> std::pair<std::u16string, std::optional<FieldType>> {
             return GetFillingValueAndTypeForProfile(
@@ -1000,12 +1085,14 @@ FormFiller::FieldFillingData FormFiller::GetFieldFillingData(
                     action_persistence, autofill_field, failure_to_fill),
                 autofill_field.Type().GetStorableType()};
           },
-          [&](const EntityInstance* entity)
+          [&](const AugmentedFillingPayload::EntityPayload&
+                  entity_and_fields_and_types)
               -> std::pair<std::u16string, std::optional<FieldType>> {
             // TODO(crbug.com/397620383): Which type should we return here?
             return {GetFillValueForEntity(
-                        CHECK_DEREF(entity), autofill_field, action_persistence,
-                        manager_->client().GetAppLocale(),
+                        CHECK_DEREF(entity_and_fields_and_types.first),
+                        entity_and_fields_and_types.second, autofill_field,
+                        action_persistence, manager_->client().GetAppLocale(),
                         manager_->client().GetAddressNormalizer()),
                     std::nullopt};
           },
@@ -1015,13 +1102,13 @@ FormFiller::FieldFillingData FormFiller::GetFieldFillingData(
             std::u16string value = it == profile->end() ? u"" : it->second;
             return {value, autofill_field.Type().GetStorableType()};
           }},
-      filling_payload);
+      filling_payload.variant);
   return {value_to_fill, filling_type, /*value_is_an_override=*/false};
 }
 
 bool FormFiller::FillField(
     AutofillField& autofill_field,
-    const FillingPayload& filling_payload,
+    const AugmentedFillingPayload& filling_payload,
     const std::map<FieldGlobalId, std::u16string>& forced_fill_values,
     FormFieldData& field_data,
     mojom::ActionPersistence action_persistence,
@@ -1055,12 +1142,10 @@ bool FormFiller::FillField(
     // Mark the cached field as autofilled, so that we can detect when a
     // user edits an autofilled field (for metrics).
     autofill_field.set_is_autofilled(true);
-    FillingProduct filling_product =
-        GetFillingProductFromFillingPayload(filling_payload);
-    autofill_field.set_filling_product(filling_product);
-    if (filling_product == FillingProduct::kAddress) {
+    autofill_field.set_filling_product(filling_payload.filling_product());
+    if (filling_payload.filling_product() == FillingProduct::kAddress) {
       autofill_field.set_autofill_source_profile_guid(
-          std::get<const AutofillProfile*>(filling_payload)->guid());
+          std::get<const AutofillProfile*>(filling_payload.variant)->guid());
     }
     autofill_field.set_autofilled_type(filling_content.field_type);
   }

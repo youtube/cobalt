@@ -19,7 +19,6 @@
 #include "base/win/windows_version.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -266,13 +265,6 @@ bool BrowserDesktopWindowTreeHostWin::UsesNativeSystemMenu() const {
   return true;
 }
 
-void BrowserDesktopWindowTreeHostWin::ClientDestroyedWidget() {
-  system_menu_.reset();
-  browser_window_property_manager_.reset();
-  browser_frame_ = nullptr;
-  browser_view_ = nullptr;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserDesktopWindowTreeHostWin, views::DesktopWindowTreeHostWin overrides:
 
@@ -309,16 +301,6 @@ void BrowserDesktopWindowTreeHostWin::HandleWindowMinimizedOrRestored(
   if (browser_view_) {
     browser_view_->UpdateLoadingAnimations(restored);
   }
-}
-
-void BrowserDesktopWindowTreeHostWin::HandleRequestClose() {
-  if (browser_shutdown::HasShutdownStarted()) {
-    return;
-  }
-  // Ignore unload handlers.
-  browser_shutdown::OnShutdownStarting(
-      browser_shutdown::ShutdownType::kSilentExit);
-  chrome::CloseAllBrowsersAndQuit();
 }
 
 std::string BrowserDesktopWindowTreeHostWin::GetWorkspace() const {
@@ -460,6 +442,10 @@ bool BrowserDesktopWindowTreeHostWin::PreHandleMSG(UINT message,
 void BrowserDesktopWindowTreeHostWin::PostHandleMSG(UINT message,
                                                     WPARAM w_param,
                                                     LPARAM l_param) {
+  if (!GetWidget()) {
+    return;
+  }
+
   switch (message) {
     case WM_SETFOCUS: {
       UpdateWorkspace();
@@ -552,6 +538,15 @@ bool BrowserDesktopWindowTreeHostWin::ShouldWindowContentsBeTransparent()
   CHECK(browser_view_);
   return !ShouldBrowserCustomDrawTitlebar(browser_view_) &&
          views::DesktopWindowTreeHostWin::ShouldWindowContentsBeTransparent();
+}
+
+void BrowserDesktopWindowTreeHostWin::ClientDestroyedWidget() {
+  profile_observation_.Reset();
+  system_menu_.reset();
+  browser_window_property_manager_.reset();
+  browser_frame_ = nullptr;
+  browser_view_ = nullptr;
+  DesktopWindowTreeHostWin::ClientDestroyedWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

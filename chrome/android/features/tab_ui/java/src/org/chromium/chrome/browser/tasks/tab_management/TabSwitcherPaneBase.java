@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.chrome.browser.hub.HubAnimationConstants.HUB_LAYOUT_FADE_DURATION_MS;
 import static org.chromium.chrome.browser.hub.HubAnimationConstants.HUB_LAYOUT_SHRINK_EXPAND_DURATION_MS;
+import static org.chromium.chrome.browser.hub.HubAnimationConstants.HUB_LAYOUT_TAB_LIST_FADE_DURATION_MS;
 import static org.chromium.chrome.browser.tasks.tab_management.TabSwitcherConstants.DESTROY_COORDINATOR_DELAY_MS;
 import static org.chromium.chrome.browser.tasks.tab_management.TabSwitcherConstants.HARD_CLEANUP_DELAY_MS;
 import static org.chromium.chrome.browser.tasks.tab_management.TabSwitcherConstants.SOFT_CLEANUP_DELAY_MS;
@@ -16,6 +17,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -24,6 +26,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
@@ -52,6 +56,7 @@ import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.hub.PaneHubController;
 import org.chromium.chrome.browser.hub.ShrinkExpandAnimationData;
 import org.chromium.chrome.browser.hub.ShrinkExpandHubLayoutAnimationFactory;
+import org.chromium.chrome.browser.hub.TabListHubLayoutAnimationFactory;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabSwitcher;
@@ -64,9 +69,9 @@ import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController.MenuOrKeyboardActionHandler;
 import org.chromium.components.feature_engagement.Tracker;
-import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.DeviceFormFactor;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleConsumer;
 
@@ -92,6 +97,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
     private final ObservableSupplierImpl<Boolean> mIsVisibleSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mIsAnimatingSupplier =
+            new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<View> mOverlayViewSupplier =
             new ObservableSupplierImpl<>();
     private final Callback<Boolean> mVisibilityObserver = this::onVisibilityChanged;
     private final Handler mHandler = new Handler();
@@ -142,16 +149,14 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
                 @Override
                 public void beforeStart() {
                     mIsAnimatingSupplier.set(true);
-                    if (OmniboxFeatures.sAndroidHubSearch.isEnabled()
-                            && mPaneHubController != null) {
+                    if (mPaneHubController != null) {
                         mPaneHubController.setSearchBoxBackgroundProperties(/* shouldShow= */ true);
                     }
                 }
 
                 @Override
                 public void afterEnd() {
-                    if (OmniboxFeatures.sAndroidHubSearch.isEnabled()
-                            && mPaneHubController != null) {
+                    if (mPaneHubController != null) {
                         mPaneHubController.setSearchBoxBackgroundProperties(
                                 /* shouldShow= */ false);
                     }
@@ -163,6 +168,7 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
     private boolean mNativeInitialized;
     private @Nullable PaneHubController mPaneHubController;
     private @Nullable Long mWaitForTabStateInitializedStartTimeMs;
+    private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * @param context The activity context.
@@ -173,6 +179,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
      * @param edgeToEdgeSupplier Supplier to the {@link EdgeToEdgeController} instance.
      * @param compositorViewHolderSupplier Supplier to the {@link CompositorViewHolder} instance.
      * @param tabGroupCreationUiDelegate Orchestrates the tab group creation UI flow.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     TabSwitcherPaneBase(
             @NonNull Context context,
@@ -182,7 +190,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
             @NonNull UserEducationHelper userEducationHelper,
             @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @NonNull ObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
-            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate) {
+            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mFactory = factory;
         mIsIncognito = isIncognito;
 
@@ -195,6 +204,7 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
         mEdgeToEdgeSupplier = edgeToEdgeSupplier;
         mCompositorViewHolderSupplier = compositorViewHolderSupplier;
         mUiFlow = tabGroupCreationUiDelegate;
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
     @Override
@@ -277,6 +287,11 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
     }
 
     @Override
+    public ObservableSupplier<View> getHubOverlayViewSupplier() {
+        return mOverlayViewSupplier;
+    }
+
+    @Override
     public @Nullable HubLayoutAnimationListener getHubLayoutAnimationListener() {
         return mAnimationListener;
     }
@@ -284,11 +299,25 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
     @Override
     public @NonNull HubLayoutAnimatorProvider createShowHubLayoutAnimatorProvider(
             @NonNull HubContainerView hubContainerView) {
-        assert !DeviceFormFactor.isNonMultiDisplayContextOnTablet(hubContainerView.getContext());
+        Context context = hubContainerView.getContext();
+        final boolean isFullSpaceModeOnAndroidXr =
+                mXrSpaceModeObservableSupplier != null && mXrSpaceModeObservableSupplier.get();
+
+        assert !DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
+                || isFullSpaceModeOnAndroidXr;
+
         @Nullable Tab tab = getCurrentTab();
-        if (getTabListMode() == TabListMode.LIST || tab == null || SysUtils.isLowEndDevice()) {
+        if (tab == null || SysUtils.isLowEndDevice()) {
             return FadeHubLayoutAnimationFactory.createFadeInAnimatorProvider(
                     hubContainerView, HUB_LAYOUT_FADE_DURATION_MS, mOnToolbarAlphaChange);
+        } else if (isFullSpaceModeOnAndroidXr && getTabListMode() == TabListMode.GRID) {
+            SyncOneshotSupplier<List<View>> animationDataSupplier =
+                    requestTabListAnimationData(hubContainerView);
+            return TabListHubLayoutAnimationFactory.createFadeInTabListAnimatorProvider(
+                    hubContainerView,
+                    animationDataSupplier,
+                    HUB_LAYOUT_TAB_LIST_FADE_DURATION_MS,
+                    mOnToolbarAlphaChange);
         }
 
         @ColorInt int backgroundColor = getAnimationBackgroundColor();
@@ -307,7 +336,7 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
             @NonNull HubContainerView hubContainerView) {
         assert !DeviceFormFactor.isNonMultiDisplayContextOnTablet(hubContainerView.getContext());
         Tab tab = getCurrentTab();
-        if (getTabListMode() == TabListMode.LIST || tab == null || SysUtils.isLowEndDevice()) {
+        if (tab == null || SysUtils.isLowEndDevice()) {
             return FadeHubLayoutAnimationFactory.createFadeOutAnimatorProvider(
                     hubContainerView, HUB_LAYOUT_FADE_DURATION_MS, mOnToolbarAlphaChange);
         }
@@ -331,6 +360,31 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
             return ContextCompat.getColor(
                     mRootView.getContext(), R.color.home_surface_background_color);
         }
+    }
+
+    private SyncOneshotSupplier<List<View>> requestTabListAnimationData(
+            @NonNull HubContainerView hubContainerView) {
+        assert getTabListMode() == TabListMode.GRID;
+        SyncOneshotSupplierImpl<List<View>> animationDataSupplier = new SyncOneshotSupplierImpl<>();
+        hubContainerView.runOnNextLayout(
+                () -> {
+                    final RecyclerView tab_list_recycler_view =
+                            hubContainerView.findViewById(R.id.tab_list_recycler_view);
+                    if (tab_list_recycler_view == null) return;
+
+                    GridLayoutManager lm =
+                            (GridLayoutManager) tab_list_recycler_view.getLayoutManager();
+                    int first = lm.findFirstVisibleItemPosition();
+                    int last = lm.findLastVisibleItemPosition();
+
+                    List<View> views = new ArrayList<>();
+                    for (int index = first; index <= last; index++) {
+                        View view = lm.findViewByPosition(index);
+                        if (view != null) views.add(view);
+                    }
+                    if (!views.isEmpty()) animationDataSupplier.set(views);
+                });
+        return animationDataSupplier;
     }
 
     private SyncOneshotSupplier<ShrinkExpandAnimationData> requestAnimationData(
@@ -598,7 +652,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
                         mHairlineVisibilitySupplier::set,
                         mIsIncognito,
                         getOnTabGroupCreationRunnable(),
-                        mEdgeToEdgeSupplier);
+                        mEdgeToEdgeSupplier,
+                        mOverlayViewSupplier::set);
         mTabSwitcherPaneCoordinatorSupplier.set(coordinator);
         mTabSwitcherCustomViewManager.setDelegate(
                 coordinator.getTabSwitcherCustomViewManagerDelegate());

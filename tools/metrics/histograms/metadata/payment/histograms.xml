@@ -35,7 +35,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PaymentRequest.CanMakePayment.CallAllowedByPref"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>smcgruer@chromium.org</owner>
   <owner>chrome-payments-team@google.com</owner>
   <summary>
@@ -61,7 +61,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PaymentRequest.Events2" units="bitfield value"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>rouslan@chromium.org</owner>
   <owner>web-payments-team@google.com</owner>
   <summary>
@@ -183,7 +183,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PaymentRequest.PaymentDetailsUpdateService.ChangePaymentMethod"
-    enum="Boolean" expires_after="2025-09-03">
+    enum="Boolean" expires_after="2025-11-23">
   <owner>rouslan@chromium.org</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -204,7 +204,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PaymentRequest.PaymentDetailsUpdateService.ChangeShippingAddress"
-    enum="Boolean" expires_after="2025-09-03">
+    enum="Boolean" expires_after="2025-11-23">
   <owner>rouslan@chromium.org</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -224,7 +224,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PaymentRequest.PaymentDetailsUpdateService.ChangeShippingOption"
-    enum="Boolean" expires_after="2025-09-03">
+    enum="Boolean" expires_after="2025-11-23">
   <owner>rouslan@chromium.org</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -253,8 +253,49 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="PaymentRequest.SecurePaymentConfirmation.BrowserBoundKeyInclusion"
+    enum="SecurePaymentConfirmationBrowserBoundKeyInclusionResult"
+    expires_after="2025-12-04">
+  <owner>slobodan@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <summary>
+    Whether and how browser bound key will be included in a secure payment
+    confirmation response once the authenticator succeeds. Recorded before the
+    browser bound public key is provided to the authenticator. I.e., recorded
+    after the user has clicked [Verify], but before the user has scanned their
+    biometric.
+  </summary>
+</histogram>
+
+<histogram
+    name="PaymentRequest.SecurePaymentConfirmation.BrowserBoundKeyStoreCreate"
+    enum="SecurePaymentConfirmationBrowserBoundKeyDeviceResult"
+    expires_after="2025-12-04">
+  <owner>slobodan@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <summary>
+    Whether the creation of a browser bound key succeeded or failed and whether
+    hardware storage of key pairs is available on the device. Recorded after a
+    browser bound key creation is attempted.
+  </summary>
+</histogram>
+
+<histogram
+    name="PaymentRequest.SecurePaymentConfirmation.BrowserBoundKeyStoreRetrieve"
+    enum="SecurePaymentConfirmationBrowserBoundKeyDeviceResult"
+    expires_after="2025-12-04">
+  <owner>slobodan@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <summary>
+    Whether the retrieval of a browser bound key succeeded or failed and whether
+    hardware storage of key pairs is available on the device. Recorded after a
+    browser bound key retrieval is attempted.
+  </summary>
+</histogram>
+
 <histogram name="PaymentRequest.Show.TryShowOutcome"
-    enum="PaymentRequestTryShowOutcome" expires_after="2025-09-28">
+    enum="PaymentRequestTryShowOutcome" expires_after="2025-11-30">
   <owner>smcgruer@chromium.org</owner>
   <owner>chrome-payments-team@google.com</owner>
   <summary>

@@ -80,15 +80,6 @@
       chrome_status_feature: 5735596811091968,
     },
     {
-      name: "CharsetAutoDetectionISO2022JP",
-      message: "Auto-detection of ISO-2022-JP character set is deprecated and it will be disabled in the near future. Please specify character set in the Content Type header or by using a meta tag (https://developer.mozilla.org/en-US/docs/Glossary/Character_encoding).",
-      translation_note: "Warning displayed to developers that they did not specify character encoding for HTML document, and that auto-detection of specific character set (i.e. ISO-2022-JP) used by the webiste won't be supported in the near futre.",
-      web_features: [
-        "kCharsetAutoDetectionISO2022JP",
-      ],
-      chrome_status_feature: 6576566521561088,
-    },
-    {
       name: "ChromeLoadTimesConnectionInfo",
       message: "`chrome.loadTimes()` is deprecated, instead use standardized API: Navigation Timing 2.",
       translation_note: "This warning occurs when the website attempts to invoke the deprecated `chrome.loadTimes().connectionInfo` API.",
@@ -199,21 +190,6 @@
       milestone: 119,
     },
     {
-      name: "DOMMutationEvents",
-      message: "DOM Mutation Events, including `DOMSubtreeModified`, `DOMNodeInserted`, `DOMNodeRemoved`, `DOMNodeRemovedFromDocument`, `DOMNodeInsertedIntoDocument`, and `DOMCharacterDataModified` are deprecated (https://w3c.github.io/uievents/#legacy-event-types) and will be removed. Please use `MutationObserver` instead.",
-      translation_note: "Warning displayed to developers when non-standard Mutation Events are used. These are deprecated and will be removed.",
-      web_features: [
-        "kDOMCharacterDataModifiedEvent",
-        "kDOMNodeInsertedEvent",
-        "kDOMNodeInsertedIntoDocumentEvent",
-        "kDOMNodeRemovedEvent",
-        "kDOMNodeRemovedFromDocumentEvent",
-        "kDOMSubtreeModifiedEvent",
-      ],
-      chrome_status_feature: 5083947249172480,
-      milestone: 127,
-    },
-    {
       name: "EventPath",
       message: "`Event.path` is deprecated and will be removed. Please use `Event.composedPath()` instead.",
       translation_note: "Warning displayed to developers when the non-standard `Event.path` API is used to notify them that this API is deprecated.",
@@ -292,9 +268,9 @@
       message: "The website requested a subresource from a network that it could only access because of its users' privileged network position. These requests expose non-public devices and servers to the internet, increasing the risk of a cross-site request forgery (CSRF) attack, and/or information leakage. To mitigate these risks, Chrome deprecates requests to non-public subresources when initiated from non-secure contexts, and will start blocking them.",
       translation_note: "This warning occurs when an insecure context (e.g., HTTP) requests a private resource (not on open internet). This is done to mitigate the potential for CSRF and other attacks.",
       web_features: [
-        "kAddressSpacePrivateNonSecureContextEmbeddedLocal",
-        "kAddressSpacePublicNonSecureContextEmbeddedLocal",
-        "kAddressSpacePublicNonSecureContextEmbeddedPrivate",
+        "kAddressSpaceLocalNonSecureContextEmbeddedLoopbackV2",
+        "kAddressSpacePublicNonSecureContextEmbeddedLocalV2",
+        "kAddressSpacePublicNonSecureContextEmbeddedLoopbackV2",
       ],
       chrome_status_feature: 5436853517811712,
       milestone: 92,

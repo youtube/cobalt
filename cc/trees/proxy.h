@@ -132,9 +132,17 @@ class CC_EXPORT Proxy {
                                            bool raster,
                                            base::OnceClosure callback) = 0;
 
-  // Returns a percentage of dropped frames of the last second.
+  // Returns the average throughput as measured by the FrameSorter.
   // Only implemenented for single threaded proxy.
-  virtual double GetPercentDroppedFrames() const = 0;
+  virtual double GetAverageThroughput() const = 0;
+
+  // Returns true if we have requested to have rendering paused.
+  virtual bool IsRenderingPaused() const = 0;
+
+  // If rendering is paused, then this can be called to notify that we have a
+  // pending local surface id change which will take effect when resume frame
+  // production.
+  virtual void NotifyNewLocalSurfaceIdExpectedWhilePaused() = 0;
 };
 
 }  // namespace cc

@@ -76,6 +76,10 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("blink.animations"),
     perfetto::Category("blink.bindings"),
     perfetto::Category("blink.console"),
+    perfetto::Category("blink.debug.invalidation_tracking")
+        .SetDescription(
+            "Debugging events for style invalidation, related to "
+            "devtools.timeline.InvalidationTracking").SetTags("debug"),
     perfetto::Category("blink.net"),
     perfetto::Category("blink.resource"),
     perfetto::Category("blink.user_timing"),
@@ -106,6 +110,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
       "Controls details emitted by TaskAnnotator::EmitTaskTimingDetails"),
     perfetto::Category("content"),
     perfetto::Category("content_capture"),
+    perfetto::Category("cronet"),
     perfetto::Category("interactions"),
     perfetto::Category("delegated_ink_trails"),
     perfetto::Category("device"),

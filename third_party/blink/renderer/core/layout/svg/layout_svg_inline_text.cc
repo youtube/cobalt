@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/inline/fragment_item.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_text.h"
 #include "third_party/blink/renderer/core/layout/svg/svg_layout_support.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -201,8 +202,8 @@ const Font* LayoutSVGInlineText::ComputeNewScaledFontForStyle(
   FontDescription font_description = unscaled_font_description;
   font_description.SetComputedSize(scaled_font_size);
   const float zoom = style.EffectiveZoom();
-  font_description.SetLetterSpacing(font_description.LetterSpacing() *
-                                    scaling_factor / zoom);
+  font_description.SetLetterSpacing(
+      Length::Fixed(font_description.LetterSpacing() * scaling_factor / zoom));
   font_description.SetWordSpacing(font_description.WordSpacing() *
                                   scaling_factor / zoom);
 

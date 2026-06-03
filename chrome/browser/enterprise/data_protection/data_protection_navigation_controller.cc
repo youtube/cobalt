@@ -5,6 +5,7 @@
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
 
 #include "base/feature_list.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_features.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.h"
 #include "chrome/browser/enterprise/watermark/settings.h"
 #include "chrome/browser/profiles/profile.h"
@@ -93,13 +94,18 @@ void DataProtectionNavigationController::DidStartNavigation(
     return;
   }
 
-  enterprise_data_protection::DataProtectionNavigationObserver::
-      CreateForNavigationIfNeeded(
-          browser->profile(), navigation_handle,
+  auto navigation_observer = enterprise_data_protection::
+      DataProtectionNavigationObserver::CreateForNavigationIfNeeded(
+          this, browser->profile(), navigation_handle,
           base::BindOnce(&DataProtectionNavigationController::
                              ApplyDataProtectionSettingsOrDelayIfEmpty,
                          weak_ptr_factory_.GetWeakPtr(),
                          web_contents()->GetWeakPtr()));
+
+  if (navigation_observer) {
+    navigation_observers_.emplace(navigation_handle->GetNavigationId(),
+                                  std::move(navigation_observer));
+  }
 }
 
 void DataProtectionNavigationController::
@@ -138,10 +144,13 @@ void DataProtectionNavigationController::
   // Regardless of whether watermark text is empty, attach it as web contents
   // user data so that other browser process code can draw watermarks outside
   // of the context of a navigation (ex. when printing).
+  Profile* profile =
+      Profile::FromBrowserContext(expected_web_contents->GetBrowserContext());
   enterprise_watermark::WatermarkBlock block =
       enterprise_watermark::DrawWatermarkToPaintRecord(
-          settings.watermark_text, enterprise_watermark::GetFillColor(),
-          enterprise_watermark::GetOutlineColor());
+          settings.watermark_text,
+          enterprise_watermark::GetFillColor(profile->GetPrefs()),
+          enterprise_watermark::GetOutlineColor(profile->GetPrefs()));
   enterprise_watermark::WatermarkTextContainer::CreateForWebContents(
       expected_web_contents.get());
   enterprise_watermark::WatermarkTextContainer::FromWebContents(
@@ -245,6 +254,13 @@ void DataProtectionNavigationController::
     clear_screenshot_protection_on_page_load_ = false;
   }
 #endif
+}
+
+void DataProtectionNavigationController::Cleanup(int64_t navigation_id) {
+  // Not all navigation IDs passed to this cleanup will have been added to the
+  // map, DataProtectionNavigationObserver tracks all navigations that happen
+  // during its lifetime.
+  navigation_observers_.erase(navigation_id);
 }
 
 // Called when the associated tab will enter the background.

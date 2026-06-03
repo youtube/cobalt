@@ -268,11 +268,12 @@ CGFloat HeaderBottomPadding(UITraitCollection* trait_collection) {
 }
 
 void ConfigureSearchHintLabel(UILabel* search_hint_label,
-                              UIView* search_tab_target) {
+                              UIView* search_tab_target,
+                              NSString* placeholder_text) {
   [search_hint_label setTranslatesAutoresizingMaskIntoConstraints:NO];
   [search_tab_target addSubview:search_hint_label];
 
-  [search_hint_label setText:l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT)];
+  [search_hint_label setText:placeholder_text];
   if (base::i18n::IsRTL()) {
     [search_hint_label setTextAlignment:NSTextAlignmentRight];
   }
@@ -335,6 +336,29 @@ void ConfigureLensButtonAppearance(UIButton* lens_button,
     // Show the "New" badge and colored symbol.
     SetUpButtonWithNewFeatureBadge(lens_button);
   }
+}
+
+void ConfigureInlineMIAButton(UIButton* mia_button, BOOL use_color_icon) {
+  [mia_button setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+  UIButtonConfiguration* buttonConfig =
+      [UIButtonConfiguration plainButtonConfiguration];
+  buttonConfig.contentInsets = NSDirectionalEdgeInsetsMake(0, 0, 0, 0);
+  mia_button.configuration = buttonConfig;
+
+  UIImage* magnifier_icon = CustomSymbolWithPointSize(
+      kMagnifyingglassSparkSymbol, kSymbolContentSuggestionsPointSize);
+  use_color_icon = magnifier_icon == nil;
+  magnifier_icon = use_color_icon ? MakeSymbolMulticolor(magnifier_icon)
+                                  : MakeSymbolMonochrome(magnifier_icon);
+  [mia_button setImage:magnifier_icon forState:UIControlStateNormal];
+  mia_button.tintColor = FakeboxIconColor();
+  // TODO(crbug.com/425339867): Handle button accessibility
+
+  mia_button.pointerInteractionEnabled = YES;
+  // Make the pointer shape fit the location bar's semi-circle end shape.
+  mia_button.pointerStyleProvider =
+      CreateLiftEffectCirclePointerStyleProvider();
 }
 
 void ConfigureLensButtonWithNewBadgeAlpha(UIButton* lens_button,

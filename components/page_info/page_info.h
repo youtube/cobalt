@@ -179,7 +179,7 @@ class PageInfo : private content_settings::CookieControlsObserver,
 
   // Called when the protections button in the privacy and site data subpage
   // gets clicked.
-  void OnTrackingProtectionButtonPressed(bool pause_protections);
+  void OnTrackingProtectionButtonPressed();
 
   // Checks whether this permission is currently the factory default, as set by
   // Chrome. Specifically, that the following three conditions are true:
@@ -437,6 +437,9 @@ class PageInfo : private content_settings::CookieControlsObserver,
 
   // For secure connection |certificate_| is set to the server certificate.
   scoped_refptr<net::X509Certificate> certificate_;
+
+  // The 2-QWAC certificate for a website, if it has one.
+  scoped_refptr<net::X509Certificate> two_qwac_;
 
   // Status of the connection to the website.
   SiteConnectionStatus site_connection_status_;

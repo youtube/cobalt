@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
@@ -135,6 +136,7 @@ import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarBehavior;
+import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarActionModeCallback;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
 import org.chromium.chrome.browser.ui.activity_recreation.ActivityRecreationController;
@@ -150,6 +152,7 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils.EdgeToEdgeDebuggingInfo;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils.MissingNavbarInsetsReason;
+import org.chromium.chrome.browser.ui.extensions.ExtensionService;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
@@ -172,6 +175,7 @@ import org.chromium.components.browser_ui.util.ComposedBrowserControlsVisibility
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.messages.DismissReason;
@@ -237,6 +241,8 @@ public class RootUiCoordinator
 
     protected @Nullable FindToolbarManager mFindToolbarManager;
     private @Nullable FindToolbarObserver mFindToolbarObserver;
+
+    private @Nullable ExtensionService mExtensionService;
 
     private OverlayPanelManager mOverlayPanelManager;
     private OverlayPanelManager.OverlayPanelManagerObserver mOverlayPanelManagerObserver;
@@ -310,7 +316,11 @@ public class RootUiCoordinator
     protected StatusBarColorController mStatusBarColorController;
     protected final Supplier<SnackbarManager> mSnackbarManagerSupplier;
     protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
-    private final EdgeToEdgeDebuggingInfo mEdgeToEdgeDebuggingInfo = new EdgeToEdgeDebuggingInfo();
+    private final EdgeToEdgeDebuggingInfo mEdgeToEdgeDebuggingInfo =
+            new EdgeToEdgeDebuggingInfo(
+                    (info) ->
+                            ChromePureJavaExceptionReporter.reportJavaExceptionFromMsg(
+                                    info, /* isWarning= */ true));
     protected Destroyable mEdgeToEdgeBottomChin;
     protected final @ActivityType int mActivityType;
     protected final Supplier<Boolean> mIsInOverviewModeSupplier;
@@ -323,6 +333,7 @@ public class RootUiCoordinator
     private final boolean mIsIncognitoReauthPendingOnRestore;
     protected final ExpandedSheetHelper mExpandedBottomSheetHelper;
     protected final BottomControlsStacker mBottomControlsStacker;
+    protected final TopControlsStacker mTopControlsStacker;
     @NonNull protected final ObservableSupplier<Integer> mOverviewColorSupplier;
     @Nullable private ContextualSearchObserver mReadAloudContextualSearchObserver;
     @Nullable private PageZoomCoordinator mPageZoomCoordinator;
@@ -338,6 +349,7 @@ public class RootUiCoordinator
     private final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     private AutomotiveBackButtonToolbarCoordinator mAutomotiveBackButtonToolbarCoordinator;
     protected AdaptiveToolbarUiCoordinator mAdaptiveToolbarUiCoordinator;
+    private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * Create a new {@link RootUiCoordinator} for the given activity.
@@ -381,6 +393,8 @@ public class RootUiCoordinator
      * @param savedInstanceState The saved bundle for the last recorded state.
      * @param overviewColorSupplier Notifies when the overview color changes.
      * @param edgeToEdgeManager Manages core edge-to-edge state and logic.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     public RootUiCoordinator(
             @NonNull AppCompatActivity activity,
@@ -421,7 +435,8 @@ public class RootUiCoordinator
             @Nullable BackPressManager backPressManager,
             @Nullable Bundle savedInstanceState,
             @NonNull ObservableSupplier<Integer> overviewColorSupplier,
-            @NonNull EdgeToEdgeManager edgeToEdgeManager) {
+            @NonNull EdgeToEdgeManager edgeToEdgeManager,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mCallbackController = new CallbackController();
         mActivity = activity;
         mWindowAndroid = windowAndroid;
@@ -475,12 +490,8 @@ public class RootUiCoordinator
                 mActivityLifecycleDispatcher,
                 mActivityTabProvider,
                 mTabObscuringHandlerSupplier.get());
-        // While Autofill is supported on Android O, meaningful Autofill interactions in Chrome
-        // require the compatibility mode introduced in Android P.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            new AutofillSessionLifetimeController(
-                    activity, mActivityLifecycleDispatcher, mActivityTabProvider);
-        }
+        new AutofillSessionLifetimeController(
+                activity, mActivityLifecycleDispatcher, mActivityTabProvider);
         mProfileSupplier = profileSupplier;
         mBookmarkModelSupplier = bookmarkModelSupplier;
         mTabBookmarkerSupplier = tabBookmarkerSupplier;
@@ -552,6 +563,8 @@ public class RootUiCoordinator
         mEdgeToEdgeManager = edgeToEdgeManager;
         mBottomControlsStacker =
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
+        mTopControlsStacker = new TopControlsStacker();
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
     // TODO(pnoland, crbug.com/865801): remove this in favor of wiring it directly.
@@ -629,6 +642,11 @@ public class RootUiCoordinator
             }
             mToolbarManager.destroy();
             mToolbarManager = null;
+        }
+
+        if (mExtensionService != null) {
+            mExtensionService.destroy();
+            mExtensionService = null;
         }
 
         if (mAdaptiveToolbarUiCoordinator != null) {
@@ -742,6 +760,7 @@ public class RootUiCoordinator
             mAutomotiveBackButtonToolbarCoordinator = null;
         }
         mBottomControlsStacker.destroy();
+        mTopControlsStacker.destroy();
         mActivity = null;
     }
 
@@ -770,6 +789,7 @@ public class RootUiCoordinator
     public void onInflationComplete() {
         mScrimManager = buildScrimWidget();
         mScrimManagerSupplier.set(mScrimManager);
+        mExtensionService = ExtensionService.maybeCreate(mProfileSupplier);
         initFindToolbarManager();
         initializeToolbar();
     }
@@ -850,7 +870,7 @@ public class RootUiCoordinator
     }
 
     public void onResumeWithNative() {
-        dumpEdgeToEdgeDebuggingInfo("onResumeWithNative");
+        addToEdgeToEdgeDebuggingInfo("onResumeWithNative");
     }
 
     protected boolean showWebSearchInActionMode() {
@@ -1323,6 +1343,11 @@ public class RootUiCoordinator
         return true;
     }
 
+    /** Returns the {@link MenuButtonCoordinator.VisibilityDelegate}. */
+    protected @Nullable MenuButtonCoordinator.VisibilityDelegate getMenuButtonVisibilityDelegate() {
+        return null;
+    }
+
     // WindowFocusChangedObserver implementation
 
     @Override
@@ -1485,6 +1510,7 @@ public class RootUiCoordinator
                             mActivityTabProvider,
                             mScrimManager,
                             mActionModeControllerCallback,
+                            mExtensionService,
                             mFindToolbarManager,
                             mProfileSupplier,
                             mBookmarkModelSupplier,
@@ -1513,7 +1539,10 @@ public class RootUiCoordinator
                             mReadAloudControllerSupplier,
                             getDesktopWindowStateManager(),
                             getMultiInstanceManager(),
-                            mTabBookmarkerSupplier);
+                            mTabBookmarkerSupplier,
+                            getMenuButtonVisibilityDelegate(),
+                            mTopControlsStacker,
+                            mXrSpaceModeObservableSupplier);
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }
@@ -1540,7 +1569,8 @@ public class RootUiCoordinator
      */
     protected ScrimManager buildScrimWidget() {
         ViewGroup coordinator = mActivity.findViewById(R.id.coordinator);
-        ScrimManager scrimManager = new ScrimManager(mActivity, coordinator);
+        ScrimManager scrimManager =
+                new ScrimManager(mActivity, coordinator, ScrimClient.ROOT_UI_COORDINATOR);
         scrimManager
                 .getStatusBarColorSupplier()
                 .addObserver(RootUiCoordinator.this::onScrimColorChanged);
@@ -1781,7 +1811,12 @@ public class RootUiCoordinator
                         sheetInitializedCallback,
                         mActivity.getWindow(),
                         mWindowAndroid.getKeyboardDelegate(),
-                        () -> mActivity.findViewById(R.id.sheet_container),
+                        () -> {
+                            if (mActivity != null) {
+                                return mActivity.findViewById(R.id.sheet_container);
+                            }
+                            return null;
+                        },
                         () -> {
                             return mEdgeToEdgeControllerSupplier.get() == null
                                     ? 0
@@ -1829,7 +1864,7 @@ public class RootUiCoordinator
         UmaSessionStats.registerSyntheticFieldTrial(
                 "EdgeToEdgeChinEligibility", eligible ? "Eligible" : "Not Eligible");
 
-        if (supportsEdgeToEdge() && EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()) {
+        if (supportsEdgeToEdge()) {
             assert eligible
                     : "The edge-to-edge controller is being initialized, though it should not be"
                             + " eligible!";
@@ -1841,7 +1876,8 @@ public class RootUiCoordinator
                             mEdgeToEdgeManager,
                             mBrowserControlsManager,
                             mLayoutManagerSupplier,
-                            mFullscreenManager);
+                            mFullscreenManager,
+                            mEdgeToEdgeDebuggingInfo);
             mEdgeToEdgeControllerSupplier.set(mEdgeToEdgeController);
             mEdgeToEdgeBottomChin = createEdgeToEdgeBottomChin();
 
@@ -1885,24 +1921,20 @@ public class RootUiCoordinator
         mEdgeToEdgeDebuggingInfo.setMissingNavBarInsetsReason(reason);
     }
 
-    private void dumpEdgeToEdgeDebuggingInfo(String callSite) {
+    private void addToEdgeToEdgeDebuggingInfo(String callSite) {
         if (!ChromeFeatureList.sEdgeToEdgeDebugging.isEnabled()
                 || mEdgeToEdgeDebuggingInfo.isUsed()) {
             return;
         }
 
         boolean hasEdgeToEdgeController = mEdgeToEdgeControllerSupplier.get() != null;
-        boolean isSupportedConfiguration =
-                EdgeToEdgeControllerFactory.isSupportedConfiguration(mActivity);
-        mEdgeToEdgeDebuggingInfo.buildDebugReport(
-                mActivity.getWindow(),
-                mWindowAndroid,
+        boolean isSupportedConfiguration = EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(mActivity);
+        mEdgeToEdgeDebuggingInfo.addToDebugReport(
+                callSite,
                 hasEdgeToEdgeController,
                 isSupportedConfiguration,
-                callSite,
-                (info) ->
-                        ChromePureJavaExceptionReporter.reportJavaExceptionFromMsg(
-                                info, /* isWarning= */ true));
+                mActivity != null ? mActivity.getWindow() : null,
+                mWindowAndroid);
     }
 
     /** Create a bottom chin for Edge-to-Edge. */
@@ -1968,6 +2000,14 @@ public class RootUiCoordinator
     /** @return The {@link SnackbarManager} for the {@link BottomSheetController}. */
     public SnackbarManager getBottomSheetSnackbarManager() {
         return mBottomSheetSnackbarManager;
+    }
+
+    /**
+     * @return The {@link ExtensionService} that handles extensions. null if extensions are not
+     *     supported on this build.
+     */
+    public @Nullable ExtensionService getExtensionService() {
+        return mExtensionService;
     }
 
     /**

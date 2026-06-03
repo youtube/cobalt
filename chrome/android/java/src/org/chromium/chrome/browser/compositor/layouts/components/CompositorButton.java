@@ -9,10 +9,10 @@ import android.graphics.RectF;
 import android.util.FloatProperty;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView;
-import org.chromium.chrome.browser.compositor.overlays.strip.TooltipManager;
 import org.chromium.ui.util.MotionEventUtils;
 
 import java.lang.annotation.Retention;
@@ -21,13 +21,14 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * {@link CompositorButton} keeps track of state for buttons that are rendered in the compositor.
  */
+@NullMarked
 public class CompositorButton extends StripLayoutView {
     /**
      * A property that can be used with a {@link
      * org.chromium.chrome.browser.layouts.animation.CompositorAnimator}.
      */
     public static final FloatProperty<CompositorButton> OPACITY =
-            new FloatProperty<CompositorButton>("opacity") {
+            new FloatProperty<>("opacity") {
                 @Override
                 public void setValue(CompositorButton object, float value) {
                     object.setOpacity(value);
@@ -47,6 +48,10 @@ public class CompositorButton extends StripLayoutView {
         int TAB_CLOSE = 2;
     }
 
+    public interface TooltipHandler {
+        void setTooltipText(String text);
+    }
+
     protected int mResource;
     protected int mBackgroundResource;
 
@@ -60,7 +65,7 @@ public class CompositorButton extends StripLayoutView {
     private boolean mIsHovered;
     private String mAccessibilityDescriptionIncognito = "";
 
-    @Nullable private TooltipManager mTooltipManager;
+    private final @Nullable TooltipHandler mTooltipHandler;
 
     // @StripLayoutView the button was embedded in. Null if it's not a child view.
     @Nullable private final StripLayoutView mParentView;
@@ -83,6 +88,7 @@ public class CompositorButton extends StripLayoutView {
             StripLayoutView parentView,
             float width,
             float height,
+            @Nullable TooltipHandler tooltipHandler,
             StripLayoutViewOnClickHandler clickHandler,
             StripLayoutViewOnKeyboardFocusHandler keyboardFocusHandler,
             float clickSlopDp) {
@@ -93,6 +99,7 @@ public class CompositorButton extends StripLayoutView {
         mOpacity = 1.f;
         mIsPressed = false;
         mParentView = parentView;
+        mTooltipHandler = tooltipHandler;
         setVisible(true);
 
         mClickSlop = clickSlopDp;
@@ -208,7 +215,11 @@ public class CompositorButton extends StripLayoutView {
      * this is accounted for in this method.
      */
     @Override
-    public void setTouchTargetInsets(Float left, Float top, Float right, Float bottom) {
+    public void setTouchTargetInsets(
+            @Nullable Float left,
+            @Nullable Float top,
+            @Nullable Float right,
+            @Nullable Float bottom) {
         float leftInset = -mClickSlop + (left != null ? left : 0);
         float topInset = -mClickSlop + (top != null ? top : 0);
         float rightInset = -mClickSlop + (right != null ? right : 0);
@@ -282,13 +293,13 @@ public class CompositorButton extends StripLayoutView {
     }
 
     /**
-     * Set whether button is hovered on and notify the tooltip manager if the hover state changed.
+     * Set whether button is hovered on and notify the tooltip handler if the hover state changed.
      *
      * @param isHovered Whether the button is hovered on.
      */
     public void setHovered(boolean isHovered) {
-        if (mTooltipManager != null && mIsHovered != isHovered) {
-            mTooltipManager.setHovered(this, isHovered);
+        if (mTooltipHandler != null && mIsHovered != isHovered) {
+            mTooltipHandler.setTooltipText(isHovered ? getAccessibilityDescription() : "");
         }
         mIsHovered = isHovered;
     }
@@ -329,14 +340,5 @@ public class CompositorButton extends StripLayoutView {
      */
     public boolean getShouldApplyHoverBackground() {
         return isHovered() || isPressedFromMouse();
-    }
-
-    /**
-     * @param tooltipManager The {@link
-     *     org.chromium.chrome.browser.compositor.overlays.strip.TooltipManager} responsible for the
-     *     tooltip associated with this button.
-     */
-    public void setTooltipManager(TooltipManager tooltipManager) {
-        mTooltipManager = tooltipManager;
     }
 }

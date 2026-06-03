@@ -6,13 +6,16 @@
 
 #include "base/containers/to_vector.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/crowdsourcing/determine_possible_field_types.h"
 #include "components/autofill/core/browser/crowdsourcing/randomized_encoder.h"
+#include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
@@ -214,8 +217,7 @@ bool VotesUploader::MaybeStartVoteUploadProcess(
   std::vector<LoyaltyCard> loyalty_cards;
   if (ValuablesDataManager* valuables_data_manager =
           client_->GetValuablesDataManager()) {
-    loyalty_cards = base::ToVector(valuables_data_manager->GetLoyaltyCards(),
-                                   [](LoyaltyCard card) { return card; });
+    loyalty_cards = valuables_data_manager->GetLoyaltyCards();
   }
 
   if (profiles.empty() && credit_cards.empty() && entities.empty() &&
@@ -257,10 +259,14 @@ bool VotesUploader::MaybeStartVoteUploadProcess(
              std::optional<RandomizedEncoder> randomized_encoder,
              FormStructure::FormAssociations form_associations,
              std::set<FieldGlobalId> fields_that_match_state) {
+            std::map<FieldGlobalId, DatesAndFormats>
+                dates_and_formats_by_field =
+                    ExtractDatesInFields(form->fields());
+
             DeterminePossibleFieldTypesForUpload(
                 profiles, credit_cards, entities, loyalty_cards,
                 fields_that_match_state, last_unlocked_credit_card_cvc,
-                app_locale, *form);
+                dates_and_formats_by_field, app_locale, *form);
 
             EncodeUploadRequestOptions options;
             options.encoder = std::move(randomized_encoder);
@@ -269,10 +275,10 @@ bool VotesUploader::MaybeStartVoteUploadProcess(
             options.available_field_types = DetermineAvailableFieldTypes(
                 profiles, credit_cards, entities, loyalty_cards,
                 last_unlocked_credit_card_cvc, app_locale);
-            for (auto& [field_id, format_strings] :
-                 DeterminePossibleFormatStringsForUpload(form->fields())) {
+            for (auto& [field_id, dates_and_formats] :
+                 std::move(dates_and_formats_by_field)) {
               options.fields[field_id].format_strings =
-                  std::move(format_strings);
+                  std::move(dates_and_formats).formats;
             }
 
             std::vector<AutofillUploadContents> upload_contents =

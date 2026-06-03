@@ -20,7 +20,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.Icon;
 import android.graphics.drawable.VectorDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.util.AttributeSet;
 import android.widget.ImageView;
 
@@ -31,6 +30,7 @@ import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.tab_groups.TabGroupColorId;
 
 /**
  * A specialized {@link ImageView} that clips a thumbnail to a card shape with varied corner radii.
@@ -43,9 +43,6 @@ import org.chromium.build.annotations.Nullable;
  */
 @NullMarked
 public class TabThumbnailView extends ImageView {
-    private static final boolean SUPPORTS_ANTI_ALIAS_CLIP =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
-
     /** Placeholder drawable constants. */
     private static final float SIZE_PERCENTAGE = 0.42f;
 
@@ -170,11 +167,6 @@ public class TabThumbnailView extends ImageView {
         canvas.clipPath(mPath);
         super.onDraw(canvas);
         canvas.restore();
-        // clipPath did not anti-alias or have a method to do so until Android P. For earlier
-        // versions draw a very thin stroke of the background color to anti-alias the edges.
-        if (!SUPPORTS_ANTI_ALIAS_CLIP) {
-            canvas.drawPath(mPath, mPaint);
-        }
     }
 
     private void updateImage() {
@@ -223,18 +215,19 @@ public class TabThumbnailView extends ImageView {
 
     /**
      * Set the thumbnail placeholder based on whether it is used for an incognito / selected tab.
+     *
      * @param isIncognito Whether the thumbnail is on an incognito tab.
      * @param isSelected Whether the thumbnail is on a selected tab.
      */
-    public void updateThumbnailPlaceholder(boolean isIncognito, boolean isSelected) {
+    public void updateThumbnailPlaceholder(
+            boolean isIncognito, boolean isSelected, @Nullable @TabGroupColorId Integer colorId) {
         // Step 1: Background color.
         mBackgroundDrawable.setColor(
-                TabUiThemeUtils.getMiniThumbnailPlaceholderColor(
-                        getContext(), isIncognito, isSelected));
-        final int oldColor = mPaint.getColor();
+                TabCardThemeUtil.getMiniThumbnailPlaceholderColor(
+                        getContext(), isIncognito, isSelected, colorId));
         final int newColor =
-                TabUiThemeUtils.getCardViewBackgroundColor(
-                        getContext(), isIncognito, isSelected);
+                TabCardThemeUtil.getCardViewBackgroundColor(
+                        getContext(), isIncognito, isSelected, colorId);
         mPaint.setColor(newColor);
 
         // Step 2: Placeholder icon.
@@ -243,11 +236,6 @@ public class TabThumbnailView extends ImageView {
         mIconColor = newColor;
         if (mIconDrawable != null) {
             setColorFilter(mIconColor, PorterDuff.Mode.SRC_IN);
-        }
-
-        // Step 3: Invalidate for versions earlier than Android P.
-        if (!SUPPORTS_ANTI_ALIAS_CLIP && !isPlaceholder() && oldColor != newColor) {
-            invalidate();
         }
     }
 

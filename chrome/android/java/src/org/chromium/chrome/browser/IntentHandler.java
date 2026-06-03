@@ -49,6 +49,7 @@ import org.chromium.chrome.browser.externalnav.IntentWithRequestMetadataHandler.
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.gsa.GSAUtils;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
+import org.chromium.chrome.browser.pdf.PdfUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.renderer_host.ChromeNavigationUiData;
@@ -177,6 +178,10 @@ public class IntentHandler {
     /** Extra specifying to show regular overview mode. */
     public static final String EXTRA_OPEN_REGULAR_OVERVIEW_MODE =
             "org.chromium.chrome.browser.open_regular_overview_mode";
+
+    /** Extra specifying to exit xr overview mode. */
+    public static final String EXTRA_EXIT_XR_OVERVIEW_MODE =
+            "org.chromium.chrome.browser.exit_xr_overview_mode";
 
     /**
      * For multi-window, passes the id of the window. On Android S, this is synonymous with
@@ -372,6 +377,7 @@ public class IntentHandler {
         IncognitoCctCallerId.READER_MODE,
         IncognitoCctCallerId.READ_LATER,
         IncognitoCctCallerId.EPHEMERAL_TAB,
+        IncognitoCctCallerId.DOWNLOAD_HOME,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface IncognitoCctCallerId {
@@ -389,8 +395,14 @@ public class IntentHandler {
         // An ephemeral custom tab without incognito branding.
         int EPHEMERAL_TAB = 5;
 
+        // Chrome feature.
+        // The Download Home UI may launch a CCT to display a help page for a download.
+        // If the file was downloaded in an Incognito profile, the CCT for the help page should
+        // likewise be an Incognito tab.
+        int DOWNLOAD_HOME = 6;
+
         // Update {@link IncognitoCctCallerId} in enums.xml when adding new items.
-        int NUM_ENTRIES = 6;
+        int NUM_ENTRIES = 7;
     }
 
     /** Intent extra to open an incognito tab. */
@@ -714,7 +726,7 @@ public class IntentHandler {
                     IntentUtils.safeGetStringExtra(
                             intent, RecognizerResultsIntent.EXTRA_VOICE_SEARCH_RESULT_STRINGS);
             if (testResult != null) {
-                results = new ArrayList<String>();
+                results = new ArrayList<>();
                 results.add(testResult);
             }
         }
@@ -1015,7 +1027,9 @@ public class IntentHandler {
                 String lowerCaseUrl = url.toLowerCase(Locale.US);
                 if (ContentUrlConstants.ABOUT_BLANK_DISPLAY_URL.equals(lowerCaseUrl)
                         || ContentUrlConstants.ABOUT_BLANK_URL.equals(lowerCaseUrl)
-                        || UrlConstants.CHROME_DINO_URL.equals(lowerCaseUrl)) {
+                        || UrlConstants.CHROME_DINO_URL.equals(lowerCaseUrl)
+                        || lowerCaseUrl.startsWith(UrlConstants.CHROME_EXTENSIONS_URL)
+                        || lowerCaseUrl.startsWith(UrlConstants.PDF_URL)) {
                     return false;
                 }
 
@@ -1156,6 +1170,12 @@ public class IntentHandler {
         String url = extractUrlFromIntent(intent);
         if (isGoogleChromeScheme(url)) {
             url = ExternalNavigationHandler.getUrlFromSelfSchemeUrl(GOOGLECHROME_SCHEME, url);
+        }
+        // To display a PDF in Chrome, the content URI must be encoded.
+        String encodedPdfUrl =
+                PdfUtils.getEncodedContentUri(url, ContextUtils.getApplicationContext());
+        if (!TextUtils.isEmpty(encodedPdfUrl)) {
+            url = encodedPdfUrl;
         }
         return url;
     }
@@ -1338,7 +1358,7 @@ public class IntentHandler {
     public static void setPendingReferrer(Intent intent, GURL url) {
         intent.putExtra(Intent.EXTRA_REFERRER, Uri.parse(url.getSpec()));
         intent.putExtra(IntentHandler.EXTRA_REFERRER_ID, ++sReferrerId);
-        sPendingReferrer = new Pair<Integer, String>(sReferrerId, url.getSpec());
+        sPendingReferrer = new Pair<>(sReferrerId, url.getSpec());
     }
 
     /** Clears any pending referrer data. */

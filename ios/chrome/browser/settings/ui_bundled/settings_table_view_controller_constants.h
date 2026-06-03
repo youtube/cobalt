@@ -40,6 +40,7 @@ typedef NS_ENUM(NSInteger, SettingsItemType) {
   SettingsItemTypeLanguageSettings,
   SettingsItemTypeContentSettings,
   SettingsItemTypeDownloadsSettings,
+  SettingsItemTypeSafariDataImport,
   SettingsItemTypeBandwidth,
   SettingsItemTypeAboutChrome,
   SettingsItemTypeMemoryDebugging,
@@ -115,6 +116,9 @@ extern NSString* const kSettingsContentSettingsCellId;
 // The accessibility identifier of the Downloads Settings cell.
 extern NSString* const kSettingsDownloadsSettingsCellId;
 
+// The accessibility identifier of the Safari import Settings cell.
+extern NSString* const kSettingsSafariDataImportSettingsCellId;
+
 // The accessibility identifier of the Bandwidth cell.
 extern NSString* const kSettingsBandwidthCellId;
 
@@ -141,6 +145,9 @@ extern NSString* const kSettingsShowLinkPreviewCellId;
 
 // The accessibility identifier of the Detect Addresses cell.
 extern NSString* const kSettingsDetectAddressesCellId;
+
+// The accessibility identifier of the Mini map native cell.
+extern NSString* const kSettingsMimiMapNativeCellId;
 
 // The accessibility identifier of the Default Apps cell.
 extern NSString* const kSettingsDefaultAppsCellId;

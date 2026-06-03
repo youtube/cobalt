@@ -93,6 +93,17 @@ std::unique_ptr<ResultHelper> DoVerifyOnWorkerThread(
   return verify_result;
 }
 
+scoped_refptr<X509Certificate> DoVerify2QwacBindingOnWorkerThread(
+    const scoped_refptr<CertVerifyProc>& verify_proc,
+    const std::string& binding,
+    const std::string& hostname,
+    const scoped_refptr<X509Certificate>& tls_cert,
+    const NetLogWithSource& net_log) {
+  TRACE_EVENT0(NetTracingCategory(), "DoVerify2QwacBindingOnWorkerThread");
+  return verify_proc->Verify2QwacBinding(binding, hostname,
+                                         tls_cert->cert_span(), net_log);
+}
+
 }  // namespace
 
 // Helper to allow callers to cancel pending CertVerifier::Verify requests.
@@ -119,6 +130,8 @@ class MultiThreadedCertVerifier::InternalRequest
   // method, so that PostTask will still run it even if the weakptr is no
   // longer valid.
   static void OnJobComplete(base::WeakPtr<InternalRequest> self,
+                            const std::string hostname,
+                            base::TimeTicks start_time,
                             std::unique_ptr<ResultHelper> verify_result);
 
   CompletionOnceCallback callback_;
@@ -159,6 +172,7 @@ void MultiThreadedCertVerifier::InternalRequest::Start(
   if (params.flags() & CertVerifier::VERIFY_SXG_CT_REQUIREMENTS) {
     flags |= CertVerifyProc::VERIFY_SXG_CT_REQUIREMENTS;
   }
+  base::TimeTicks start_time = base::TimeTicks::Now();
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
@@ -166,15 +180,33 @@ void MultiThreadedCertVerifier::InternalRequest::Start(
                      params.hostname(), params.ocsp_response(),
                      params.sct_list(), flags, net_log),
       base::BindOnce(&MultiThreadedCertVerifier::InternalRequest::OnJobComplete,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr(), params.hostname(),
+                     start_time));
 }
 
 // static
 void MultiThreadedCertVerifier::InternalRequest::OnJobComplete(
     base::WeakPtr<InternalRequest> self,
+    const std::string hostname,
+    base::TimeTicks start_time,
     std::unique_ptr<ResultHelper> verify_result) {
   // Always log the EndEvent, even if the Request has been destroyed.
   verify_result->net_log.EndEvent(NetLogEventType::CERT_VERIFIER_TASK);
+
+  base::TimeDelta verify_time = base::TimeTicks::Now() - start_time;
+  UMA_HISTOGRAM_CUSTOM_TIMES("Net.MultiThreadedCertVerifier.RequestDuration",
+                             verify_time, base::Milliseconds(1),
+                             base::Minutes(10), 100);
+  if (IsGoogleHost(hostname)) {
+    if (IsGoogleHostWithAlpnH3(hostname)) {
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          "Net.MultiThreadedCertVerifier.RequestDuration.GoogleWithAlpnH3",
+          verify_time, base::Milliseconds(1), base::Minutes(10), 100);
+    }
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.MultiThreadedCertVerifier.RequestDuration.Google", verify_time,
+        base::Milliseconds(1), base::Minutes(10), 100);
+  }
 
   // Check |self| weakptr and don't continue if the Request was destroyed.
   if (!self)
@@ -239,6 +271,24 @@ int MultiThreadedCertVerifier::Verify(const RequestParams& params,
   request_list_.Append(request.get());
   *out_req = std::move(request);
   return ERR_IO_PENDING;
+}
+
+void MultiThreadedCertVerifier::Verify2QwacBinding(
+    const std::string& binding,
+    const std::string& hostname,
+    const scoped_refptr<X509Certificate>& tls_cert,
+    base::OnceCallback<void(const scoped_refptr<X509Certificate>&)> callback,
+    const NetLogWithSource& net_log) {
+  CHECK(!callback.is_null());
+
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::BindOnce(&DoVerify2QwacBindingOnWorkerThread, verify_proc_, binding,
+                     hostname, tls_cert, net_log),
+      std::move(callback));
 }
 
 void MultiThreadedCertVerifier::UpdateVerifyProcData(

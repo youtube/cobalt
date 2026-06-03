@@ -406,7 +406,8 @@ void CanvasHibernationHandler::Hibernate() {
 
   hibernation_scheduled_ = false;
 
-  CanvasResourceProvider* provider = resource_host_->ResourceProvider();
+  CanvasResourceProvider* provider =
+      resource_host_->GetResourceProviderForCanvas2D();
   if (!provider) {
     ReportHibernationEvent(
         HibernationEvent::kHibernationAbortedBecauseNoSurface);
@@ -436,7 +437,7 @@ void CanvasHibernationHandler::Hibernate() {
   // No HibernationEvent reported on success. This is on purppose to avoid
   // non-complementary stats. Each HibernationScheduled event is paired with
   // exactly one failure or exit event.
-  resource_host_->FlushRecording(FlushReason::kHibernating);
+  provider->FlushCanvas(FlushReason::kHibernating);
   scoped_refptr<StaticBitmapImage> snapshot =
       provider->Snapshot(FlushReason::kHibernating);
   if (!snapshot) {
@@ -453,8 +454,8 @@ void CanvasHibernationHandler::Hibernate() {
   }
   SaveForHibernation(std::move(sw_image), provider->ReleaseRecorder());
 
-  resource_host_->ReplaceResourceProvider(nullptr);
-  resource_host_->ClearLayerTexture();
+  resource_host_->ReplaceResourceProviderForCanvas2D(nullptr);
+  resource_host_->ClearCanvas2DLayerTexture();
 
   // shouldBeDirectComposited() may have changed.
   resource_host_->SetNeedsCompositingUpdate();
@@ -478,7 +479,7 @@ void CanvasHibernationHandler::InitiateHibernationIfNecessary() {
     return;
   }
 
-  resource_host_->ClearLayerTexture();
+  resource_host_->ClearCanvas2DLayerTexture();
   ReportHibernationEvent(HibernationEvent::kHibernationScheduled);
   hibernation_scheduled_ = true;
   ThreadScheduler::Current()->PostIdleTask(

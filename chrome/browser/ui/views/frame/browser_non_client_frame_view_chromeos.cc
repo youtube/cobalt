@@ -4,22 +4,29 @@
 
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view_chromeos.h"
 
-#include <algorithm>
+#include <memory>
+#include <optional>
 
+#include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
+#include "ash/wm/wm_highlight_border_overlay_delegate.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/metrics/user_metrics.h"
 #include "build/build_config.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/session/session_util.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
@@ -125,6 +132,44 @@ bool UsePackagedAppHeaderStyle(const Browser* browser) {
 }
 
 }  // namespace
+
+class BrowserNonClientFrameViewChromeOS::ProfileChangeObserver
+    : public ProfileAttributesStorage::Observer {
+ public:
+  explicit ProfileChangeObserver(BrowserNonClientFrameViewChromeOS& frame)
+      : frame_(frame) {
+    if (g_browser_process->profile_manager()) {
+      profile_observation_.Observe(
+          &g_browser_process->profile_manager()->GetProfileAttributesStorage());
+    } else {
+      CHECK_IS_TEST();
+    }
+  }
+
+  ~ProfileChangeObserver() override = default;
+
+  // ProfileAttributesStorage::Observer:
+  void OnProfileAdded(const base::FilePath& profile_path) override {
+    frame_->UpdateProfileIcons();
+  }
+  void OnProfileWasRemoved(const base::FilePath& profile_path,
+                           const std::u16string& profile_name) override {
+    frame_->UpdateProfileIcons();
+  }
+  void OnProfileAvatarChanged(const base::FilePath& profile_path) override {
+    frame_->UpdateProfileIcons();
+  }
+  void OnProfileHighResAvatarLoaded(
+      const base::FilePath& profile_path) override {
+    frame_->UpdateProfileIcons();
+  }
+
+ private:
+  raw_ref<BrowserNonClientFrameViewChromeOS> frame_;
+  base::ScopedObservation<ProfileAttributesStorage,
+                          ProfileAttributesStorage::Observer>
+      profile_observation_{this};
+};
 
 BrowserNonClientFrameViewChromeOS::BrowserNonClientFrameViewChromeOS(
     BrowserFrame* frame,
@@ -235,13 +280,6 @@ gfx::Rect BrowserNonClientFrameViewChromeOS::GetBoundsForWebAppFrameToolbar(
   return gfx::Rect(x, 0, std::max(0, available_width), painted_height);
 }
 
-void BrowserNonClientFrameViewChromeOS::LayoutWebAppWindowTitle(
-    const gfx::Rect& available_space,
-    views::Label& window_title_label) const {
-  // No window titles on Chrome OS, so just hide the window title.
-  window_title_label.SetVisible(false);
-}
-
 int BrowserNonClientFrameViewChromeOS::GetTopInset(bool restored) const {
   // TODO(estade): why do callsites in this class hardcode false for |restored|?
 
@@ -303,7 +341,7 @@ SkColor BrowserNonClientFrameViewChromeOS::GetCaptionColor(
   const SkColor active_caption_color =
       views::FrameCaptionButton::GetButtonColor(frame_color);
 
-  if (ShouldPaintAsActive(active_state)) {
+  if (ShouldPaintAsActiveForState(active_state)) {
     return active_caption_color;
   }
 
@@ -518,13 +556,13 @@ gfx::Size BrowserNonClientFrameViewChromeOS::GetMinimumSize() const {
     min_height = min_height + caption_button_container_->size().height();
   }
 
-  const int window_corner_radius = frame()->GetNativeWindow()->GetProperty(
-      aura::client::kWindowCornerRadiusKey);
-  if (chromeos::features::IsRoundedWindowsEnabled() &&
-      window_corner_radius > 0) {
-    // Include bottom rounded corners region. See b/294588040.
-    min_height = min_height + window_corner_radius;
-  }
+  // Include bottom rounded corners region. See b:294588040.
+  aura::Window* window = GetWidget()->GetNativeWindow();
+  const gfx::RoundedCornersF window_radii =
+      ash::WindowState::Get(window)->GetWindowRoundedCorners();
+  CHECK_EQ(window_radii.lower_left(), window_radii.lower_right());
+
+  min_height = min_height + window_radii.lower_left();
 
   return gfx::Size(min_width, min_height);
 }
@@ -640,7 +678,7 @@ void BrowserNonClientFrameViewChromeOS::OnTabletModeToggled(bool enabled) {
   ImmersiveModeController* immersive_mode_controller =
       browser_view()->immersive_mode_controller();
   ExclusiveAccessManager* exclusive_access_manager =
-      browser_view()->browser()->exclusive_access_manager();
+      browser_view()->browser()->GetFeatures().exclusive_access_manager();
 
   const bool was_immersive = immersive_mode_controller->IsEnabled();
   const bool was_fullscreen =
@@ -704,10 +742,10 @@ void BrowserNonClientFrameViewChromeOS::OnWindowPropertyChanged(
     aura::Window* window,
     const void* key,
     intptr_t old) {
-  // ChromeOS has rounded windows for certain window states. If these
-  // states changes, we need to update the rounded corners accordingly. See
-  // `chromeos::GetWindowCornerRadius()` for more details.
-  if (chromeos::CanPropertyEffectWindowRadius(key)) {
+  // ChromeOS has rounded windows for certain window states. If these states
+  // changes, we need to update the rounded corners of the frame associate with
+  // the `window`accordingly.
+  if (key == chromeos::kWindowHasRoundedCornersKey) {
     UpdateWindowRoundedCorners();
   }
 
@@ -838,12 +876,6 @@ void BrowserNonClientFrameViewChromeOS::PaintAsActiveChanged() {
   }
 }
 
-void BrowserNonClientFrameViewChromeOS::OnProfileAvatarChanged(
-    const base::FilePath& profile_path) {
-  BrowserNonClientFrameView::OnProfileAvatarChanged(profile_path);
-  UpdateProfileIcons();
-}
-
 void BrowserNonClientFrameViewChromeOS::AddedToWidget() {
   if (highlight_border_overlay_ ||
       !GetWidget()->GetNativeWindow()->GetProperty(
@@ -851,8 +883,8 @@ void BrowserNonClientFrameViewChromeOS::AddedToWidget() {
     return;
   }
 
-  highlight_border_overlay_ =
-      std::make_unique<HighlightBorderOverlay>(GetWidget());
+  highlight_border_overlay_ = std::make_unique<HighlightBorderOverlay>(
+      GetWidget(), std::make_unique<ash::WmHighlightBorderOverlayDelegate>());
 }
 
 bool BrowserNonClientFrameViewChromeOS::GetShowCaptionButtons() const {
@@ -1033,12 +1065,19 @@ void BrowserNonClientFrameViewChromeOS::UpdateWindowRoundedCorners() {
   DCHECK(GetWidget());
 
   aura::Window* window = GetWidget()->GetNativeWindow();
+  auto* window_state = ash::WindowState::Get(window);
 
-  const gfx::RoundedCornersF window_radii = chromeos::GetWindowRadii(window);
-  window->SetProperty(aura::client::kWindowCornerRadiusKey,
-                      window_radii.upper_left());
+  // For certain windows, we do not window state associated with them. (See
+  // `ash::WindowState::Get()` for details)
+  if (!window_state) {
+    return;
+  }
+
+  const gfx::RoundedCornersF window_radii =
+      window_state->GetWindowRoundedCorners();
 
   if (frame_header_) {
+    CHECK_EQ(window_radii.upper_left(), window_radii.upper_right());
     frame_header_->SetHeaderCornerRadius(window_radii.upper_left());
   }
 

@@ -32,7 +32,9 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
@@ -1354,6 +1356,17 @@ WebInputEventResult EventHandler::UpdateDragAndDrop(
   // mouseover/out dispatch)
   Node* new_target = mev.InnerElement();
 
+  // The drag target could be something inside a UA shadow root, in which case
+  // it should be retargeted to the shadow host.
+  if (RuntimeEnabledFeatures::RetargetDragEventsEnabled()) {
+    ShadowRoot* containing_root =
+        new_target ? new_target->ContainingShadowRoot() : nullptr;
+    while (containing_root && containing_root->IsUserAgent()) {
+      new_target = &containing_root->host();
+      containing_root = new_target->ContainingShadowRoot();
+    }
+  }
+
   if (AutoscrollController* controller =
           scroll_manager_->GetAutoscrollController()) {
     controller->UpdateDragAndDrop(new_target, event.PositionInRootFrame(),
@@ -2434,7 +2447,7 @@ bool EventHandler::HandleTextInputEvent(const String& text,
 
   EventTarget* target;
   if (underlying_event)
-    target = underlying_event->target();
+    target = underlying_event->RawTarget();
   else
     target = EventTargetNodeForDocument(frame_->GetDocument());
   if (!target)

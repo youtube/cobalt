@@ -347,6 +347,9 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual const display::ScreenInfos& GetScreenInfos(
       LocalFrame& frame) const = 0;
 
+  virtual const display::ScreenInfo& GetOriginalScreenInfo(
+      LocalFrame& frame) const = 0;
+
   virtual void SetCursor(const ui::Cursor&, LocalFrame* local_root) = 0;
   virtual void SetCursorOverridden(bool) = 0;
 
@@ -477,6 +480,8 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual PagePopup* OpenPagePopup(PagePopupClient*) = 0;
   virtual void ClosePagePopup(PagePopup*) = 0;
   virtual DOMWindow* PagePopupWindowForTesting() const = 0;
+
+  virtual void SetUseExternalPopupMenusForTesting(bool) {}
 
   virtual void SetBrowserControlsState(float top_height,
                                        float bottom_height,

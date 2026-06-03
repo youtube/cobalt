@@ -34,9 +34,6 @@
 #include "chrome/browser/ash/arc/locked_fullscreen/arc_locked_fullscreen_manager.h"
 #include "chrome/browser/ash/arc/session/arc_service_launcher.h"
 #include "chrome/browser/ash/assistant/assistant_util.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/fullscreen_controller_ash.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/multidevice_setup/multidevice_setup_service_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -75,6 +72,7 @@
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/webui/ash/diagnostics_dialog/diagnostics_dialog.h"
 #include "chrome/browser/ui/webui/tab_strip/tab_strip_ui_layout.h"
 #include "chrome/browser/ui/webui/tab_strip/tab_strip_ui_util.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -388,6 +386,15 @@ void ChromeShellDelegate::SetUpEnvironmentForLockedFullscreen(
       ash::assistant::AssistantAllowedState::ALLOWED) {
     ash::AssistantState::Get()->NotifyLockedFullScreenStateChanged(locked);
   }
+
+  // If a window is entering locked fullscreen, then we should close any
+  // diagnostics dialog that may be open, since it would show on top of the
+  // fullscreen window. There is no need to close it when leaving locked
+  // fullscreen, since it is OK for the dialog to be open after exiting locked
+  // fullscreen in case the dialog was somehow opened during locked fullscreen.
+  if (locked) {
+    ash::DiagnosticsDialog::MaybeCloseExistingDialog();
+  }
 }
 
 bool ChromeShellDelegate::IsUiDevToolsStarted() const {
@@ -530,14 +537,6 @@ void ChromeShellDelegate::ForceSkipWarningUserOnClose(
 
 std::string ChromeShellDelegate::GetVersionString() {
   return std::string(version_info::GetVersionNumber());
-}
-
-void ChromeShellDelegate::ShouldExitFullscreenBeforeLock(
-    ChromeShellDelegate::ShouldExitFullscreenCallback callback) {
-  crosapi::CrosapiManager::Get()
-      ->crosapi_ash()
-      ->fullscreen_controller_ash()
-      ->ShouldExitFullscreenBeforeLock(std::move(callback));
 }
 
 void ChromeShellDelegate::OpenMultitaskingSettings() {

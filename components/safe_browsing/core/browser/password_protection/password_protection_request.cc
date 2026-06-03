@@ -334,7 +334,9 @@ void PasswordProtectionRequest::SendRequestWithToken(
             "phishing."
           trigger:
             "When a user focuses on a password field on a page that they "
-            "haven't visited before and that isn't popular or known to be safe."
+            "haven't visited before and that isn't popular or known to be "
+            "safe, or when a user re-uses their password on a site that isn't "
+            "popular or known to be safe."
           data:
             "URL and referrer of the current page, password form action, and "
             "iframe structure."
@@ -362,8 +364,7 @@ void PasswordProtectionRequest::SendRequestWithToken(
     LogAuthenticatedCookieResets(
         *resource_request,
         SafeBrowsingAuthenticatedEndpoint::kPasswordProtection);
-    SetAccessTokenAndClearCookieInResourceRequest(resource_request.get(),
-                                                  access_token);
+    SetAccessToken(resource_request.get(), access_token);
   }
   resource_request->url =
       PasswordProtectionServiceBase::GetPasswordProtectionRequestUrl();

@@ -10,11 +10,15 @@
 namespace data_sharing::features {
 namespace {
 const char kDataSharingDefaultUrl[] = "https://www.google.com/chrome/tabshare/";
-const char kLearnMoreSharedTabGroupPageDefaultUrl[] = "https://support.google.com/chrome/?p=chrome_collaboration";
-const char kLearnAboutBlockedAccountsDefaultUrl[] = "https://support.google.com/accounts/answer/6388749";
-const char kActivityLogsDefaultUrl[] = "https://myactivity.google.com/product/chrome_shared_tab_group_activity?utm_source=chrome_collab";
+const char kLearnMoreSharedTabGroupPageDefaultUrl[] =
+    "https://support.google.com/chrome/?p=chrome_collaboration";
+const char kLearnAboutBlockedAccountsDefaultUrl[] =
+    "https://support.google.com/accounts/answer/6388749";
+const char kActivityLogsDefaultUrl[] =
+    "https://myactivity.google.com/product/"
+    "chrome_shared_tab_group_activity?utm_source=chrome_collab";
 
-}
+}  // namespace
 
 BASE_FEATURE(kCollaborationAutomotive,
              "CollaborationAutomotive",
@@ -32,16 +36,39 @@ BASE_FEATURE(kDataSharingJoinOnly,
              "DataSharingJoinOnly",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsDataSharingFunctionalityEnabled() {
-  return base::FeatureList::IsEnabled(
-             data_sharing::features::kDataSharingFeature) ||
-         base::FeatureList::IsEnabled(
-             data_sharing::features::kDataSharingJoinOnly);
-}
-
 BASE_FEATURE(kDataSharingNonProductionEnvironment,
              "DataSharingNonProductionEnvironment",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSharedDataTypesKillSwitch,
+             "kSharedDataTypesKillSwitch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDataSharingEnableUpdateChromeUI,
+             "DataSharingEnableUpdateChromeUI",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDataSharingFunctionalityEnabled() {
+  // Check if any of the primary data sharing features are enabled i.e. user is allowed to
+  // create/join.
+  const bool is_primary_data_sharing_enabled =
+      base::FeatureList::IsEnabled(data_sharing::features::kDataSharingFeature) ||
+      base::FeatureList::IsEnabled(data_sharing::features::kDataSharingJoinOnly);
+
+  const bool is_kill_switch_enabled =
+      base::FeatureList::IsEnabled(data_sharing::features::kSharedDataTypesKillSwitch);
+
+  // If the kill switch is disabled, then 'kDataSharingEnableUpdateChromeUI'
+  // must also be enabled for data sharing functionality to be enabled.
+  if (!is_kill_switch_enabled) {
+    return is_primary_data_sharing_enabled &&
+           base::FeatureList::IsEnabled(data_sharing::features::kDataSharingEnableUpdateChromeUI);
+  }
+
+  // If the kill switch is enabled, then data sharing functionality
+  // depends solely on whether a primary feature is enabled.
+  return is_primary_data_sharing_enabled;
+}
 
 constexpr base::FeatureParam<std::string> kDataSharingURL(
     &kDataSharingFeature,

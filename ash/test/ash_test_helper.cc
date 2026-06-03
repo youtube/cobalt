@@ -42,6 +42,7 @@
 #include "ash/wm/desks/templates/saved_desk_test_helper.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "base/notimplemented.h"
 #include "base/run_loop.h"
 #include "base/system/sys_info.h"
 #include "base/system/system_monitor.h"
@@ -123,9 +124,7 @@ class AshTestHelper::PowerPolicyControllerInitializer {
 
 AshTestHelper::AshTestHelper(ui::ContextFactory* context_factory)
     : AuraTestHelper(context_factory),
-      system_monitor_(std::make_unique<base::SystemMonitor>()),
-      scoped_fake_federated_service_connection_for_test_(
-          &fake_federated_service_connection_) {
+      system_monitor_(std::make_unique<base::SystemMonitor>()) {
   views::ViewsTestHelperAura::SetFallbackTestViewsDelegateFactory(
       &MakeTestViewsDelegate);
 

@@ -32,7 +32,9 @@ enum class CategoryResolvedKeyMetricBucket {
   kAccountChrome = 2,
   kAccountNonChrome = 3,
   kMixed = 4,
-  kMaxValue = kMixed
+  kAccountHome = 5,
+  kAccountWork = 6,
+  kMaxValue = kAccountWork
 };
 
 class AddressFormEventLogger : public FormEventLoggerBase {
@@ -43,6 +45,12 @@ class AddressFormEventLogger : public FormEventLoggerBase {
 
   void UpdateProfileAvailabilityForReadiness(
       const std::vector<const AutofillProfile*>& profiles);
+
+  void OnDidShowSuggestions(const FormStructure& form,
+                            const AutofillField& field,
+                            base::TimeTicks form_parsed_timestamp,
+                            bool off_the_record,
+                            base::span<const Suggestion> suggestions) override;
 
   void OnDidFillFormFillingSuggestion(
       const AutofillProfile& profile,
@@ -76,6 +84,8 @@ class AddressFormEventLogger : public FormEventLoggerBase {
       FieldType field_type_used_to_build_suggestion,
       const std::string profile_used_guid);
   void LogAutofillAddressOnTypingCorrectnessMetrics(const FormStructure& form);
+
+  void OnDestroyed() override;
 
  protected:
   void RecordPollSuggestions() override;
@@ -124,6 +134,9 @@ class AddressFormEventLogger : public FormEventLoggerBase {
   std::map<FieldGlobalId, std::u16string> autofill_on_typing_value_used_;
 
   size_t record_type_count_ = 0;
+  bool home_profile_suggestion_present_ = false;
+  bool work_profile_suggestion_present_ = false;
+
 };
 
 }  // namespace autofill::autofill_metrics

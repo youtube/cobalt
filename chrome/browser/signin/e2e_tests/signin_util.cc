@@ -14,7 +14,6 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/signin/login_ui_test_utils.h"
-#include "chrome/browser/ui/webui/signin/signin_email_confirmation_dialog.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/signin/core/browser/account_reconcilor.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
@@ -127,6 +126,23 @@ void SignInFunctions::TurnOffSync() {
           kSettingsScriptWrapperFormat,
           "settings.SyncBrowserProxyImpl.getInstance().signOut(false)")));
   observer.WaitForAccountChanges(0, PrimarySyncAccountWait::kWaitForCleared);
+}
+
+void SignInFunctions::StartSignInFromSettings() {
+  GURL settings_url("chrome://settings");
+  Browser* browser = browser_.Run();
+  ASSERT_TRUE(add_tab_function_.Run(0, settings_url,
+                                    ui::PageTransition::PAGE_TRANSITION_TYPED));
+  ui_test_utils::TabAddedWaiter signin_tab_waiter(browser);
+  auto* settings_tab = browser->tab_strip_model()->GetActiveWebContents();
+  EXPECT_TRUE(content::ExecJs(
+      settings_tab,
+      base::StringPrintf(
+          kSettingsScriptWrapperFormat,
+          "settings.SyncBrowserProxyImpl.getInstance().startSignIn();")));
+  signin_tab_waiter.Wait();
+  login_ui_test_utils::WaitForSigninPageToLoad(
+      browser->tab_strip_model()->GetActiveWebContents());
 }
 
 }  // namespace signin::test

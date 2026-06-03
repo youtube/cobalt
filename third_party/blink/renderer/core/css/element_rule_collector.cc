@@ -196,10 +196,9 @@ CORE_EXPORT const CSSStyleSheet* FindStyleSheet(
       result =
           SlowFindStyleSheet(tree_scope_containing_rule, style_engine, rule);
     }
-    TRACE_EVENT_INSTANT2(
-        TRACE_DISABLED_BY_DEFAULT("devtools.timeline.invalidationTracking"),
-        "UseStyleRuleMapForSelectorStats", TRACE_EVENT_SCOPE_THREAD, "Sheet",
-        ToHexString(result), "CacheHit", contents != nullptr);
+    TRACE_EVENT_INSTANT("blink.debug.invalidation_tracking",
+                        "UseStyleRuleMapForSelectorStats", "Sheet",
+                        ToHexString(result), "CacheHit", contents != nullptr);
     return result;
   }
 
@@ -504,12 +503,18 @@ bool SlowMatchWithNoResultFlags(
     SelectorChecker::SelectorCheckingContext& context,
     const CSSSelector& selector,
     const RuleData& rule_data,
+    EInsideLink inside_link,
     bool suppress_visited,
     unsigned expected_proximity = std::numeric_limits<unsigned>::max()) {
   SelectorChecker::MatchResult result;
   context.selector = &selector;
-  context.match_visited = !suppress_visited && rule_data.LinkMatchType() ==
-                                                   CSSSelector::kMatchVisited;
+  if (RuntimeEnabledFeatures::CSSDoNotHideVisitedColorEnabled()) {
+    // Match :visited only when we're actually inside a :visited link.
+    context.match_visited = inside_link == EInsideLink::kInsideVisitedLink;
+  } else {
+    context.match_visited = !suppress_visited && rule_data.LinkMatchType() ==
+                                                     CSSSelector::kMatchVisited;
+  }
   bool match = checker.Match(context, result);
   DCHECK_EQ(0, result.flags);
   DCHECK_EQ(kPseudoIdNone, result.dynamic_pseudo);
@@ -551,22 +556,31 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
         static_cast<wtf_size_t>(rules.size()));
   }
 
+  const Element::TinyBloomFilter element_filter =
+      context.element->AttributeOrClassBloomFilter();
+  const bool is_pseudo_element =
+      context.pseudo_element || context.pseudo_id != kPseudoIdNone;
+
   for (const RuleData& rule_data : rules) {
     if (perf_trace_enabled) {
       selector_statistics_collector.EndCollectionForCurrentRule();
       selector_statistics_collector.BeginCollectionForRule(&rule_data);
     }
-    if (can_use_fast_reject_ &&
-        selector_filter_.FastRejectSelector(
-            rule_data.DescendantSelectorIdentifierHashes(
-                rule_set->BloomHashBacking()))) {
+    if (rule_data.RejectElement(element_filter) ||
+        (can_use_fast_reject_ &&
+         selector_filter_.FastRejectSelector(
+             rule_data.DescendantSelectorIdentifierHashes(
+                 rule_set->BloomHashBacking())))) {
       fast_rejected++;
       if (perf_trace_enabled) {
         selector_statistics_collector.SetWasFastRejected();
       }
       continue;
     }
-
+    const auto& selector = rule_data.Selector();
+    if (is_pseudo_element && !selector.MatchesPseudoElement()) {
+      continue;
+    }
     if (reject_starting_styles && rule_data.IsStartingStyle()) {
       continue;
     }
@@ -574,39 +588,39 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
     context.style_scope = scope_seeker.Seek(rule_data.GetPosition());
 
     // We cannot use easy selector matching for VTT elements.
+    //
     // It is also not prepared to deal with the featurelessness
     // of the host (see comment in SelectorChecker::CheckOne()).
-    // We also cannot use easy selector matching for real pseudo elements,
-    // as we need to match them against an array of ancestors.
+    //
+    // Finally, easy selector matching does not check @scope;
+    // it doesn't necessarily need to be deep in SelectorChecker
+    // (so we could have pulled it out into common code),
+    // but currently, it is.
     bool can_use_easy_selector_matching =
-        !context.pseudo_element && context.vtt_originating_element == nullptr &&
+        context.vtt_originating_element == nullptr &&
         !(context.scope &&
           context.scope->OwnerShadowHost() == context.element) &&
         !context.style_scope;
 
-    const auto& selector = rule_data.Selector();
     SelectorChecker::MatchResult result;
     if (can_use_easy_selector_matching &&
         rule_data.IsEntirelyCoveredByBucketing()) {
-      // Just by seeing this rule, we know that its selector
-      // matched, and that we don't get any flags or a match
-      // against a pseudo-element. So we can skip the entire test.
-      if (pseudo_style_request_.pseudo_id != kPseudoIdNone) {
-        continue;
-      }
 #if DCHECK_IS_ON()
+      DCHECK(!selector.MatchesPseudoElement())
+          << "This path doesn't check dynamic pseudo or similar.";
       DCHECK(SlowMatchWithNoResultFlags(checker, context, selector, rule_data,
-                                        suppress_visited_, result.proximity));
+                                        inside_link_, suppress_visited_,
+                                        result.proximity));
 #endif
     } else if (can_use_easy_selector_matching && rule_data.SelectorIsEasy()) {
-      if (pseudo_style_request_.pseudo_id != kPseudoIdNone) {
-        continue;
-      }
       bool easy_match = EasySelectorChecker::Match(&selector, context.element);
 #if DCHECK_IS_ON()
-      DCHECK_EQ(easy_match, SlowMatchWithNoResultFlags(
-                                checker, context, selector, rule_data,
-                                suppress_visited_, result.proximity))
+      DCHECK(!selector.MatchesPseudoElement())
+          << "This path doesn't check dynamic pseudo or similar.";
+      DCHECK_EQ(easy_match,
+                SlowMatchWithNoResultFlags(checker, context, selector,
+                                           rule_data, inside_link_,
+                                           suppress_visited_, result.proximity))
           << "Mismatch for selector " << selector.SelectorText()
           << " on element " << context.element;
 #endif
@@ -615,27 +629,47 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
       }
     } else {
       context.selector = &selector;
-      context.match_visited =
-          !suppress_visited_ &&
-          rule_data.LinkMatchType() == CSSSelector::kMatchVisited;
+      if (RuntimeEnabledFeatures::CSSDoNotHideVisitedColorEnabled()) {
+        // Match :visited only when we're actually inside a :visited link.
+        context.match_visited = inside_link_ == EInsideLink::kInsideVisitedLink;
+      } else {
+        context.match_visited =
+            !suppress_visited_ &&
+            rule_data.LinkMatchType() == CSSSelector::kMatchVisited;
+      }
+
       bool match = checker.Match(context, result);
       result_.AddFlags(result.flags);
       if (!match) {
         continue;
       }
-      // If matching was for pseudo element with ancestors vector,
-      // check that we really reached the end of it.
-      // E.g. for div::column::scroll-marker, matching for column pseudo,
-      // vector would be just [column], index would be 1 (meaning matching
-      // found pseudo style ::scroll-marker), and for rule div::column, index
-      // would be 0 (meaning matching found actual style).
-      // Anything else would mean no match.
+
+      // If matching was for a pseudo-element with a vector of ancestors,
+      // check that we really reached the end of it. E.g., when matching
+      // the selector div::column::scroll-marker against a ::column
+      // pseudo-element, the vector would be just {::column}, and the
+      // index would be 1 (meaning that the matcher found the ::column,
+      // but also went further and found the pseudo-element selector
+      // ::scroll-marker; this is fine, as we'd get dynamic_pseudo).
+      //
+      // Likewise, for the selector div::column, the index would be 0
+      // (meaning that the entire selector matched, and nothing more),
+      // which is also a match.
+      //
+      // But for the opposite, namely the selector div::column against
+      // the pseudo-element ::column::scroll-marker (with the vector
+      // {::column, ::scroll-marker}), we'd get index 0, which isn't
+      // a match.
       if (context.pseudo_element &&
           (result.pseudo_ancestor_index == kNotFound ||
            result.pseudo_ancestor_index <
                context.pseudo_element_ancestors.size() - 1)) {
         continue;
       }
+
+      // If the selector matched with some dynamic pseudo-element (i.e., “this
+      // would match if we matched against ::foo”, but we're actually matching
+      // against a _different_ pseudo-element (e.g. ::bar), it's not a match.
       if (pseudo_style_request_.pseudo_id != kPseudoIdNone &&
           pseudo_style_request_.pseudo_id != result.dynamic_pseudo) {
         continue;
@@ -647,12 +681,12 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
     const ContainerQuery* container_query =
         container_query_seeker.Seek(rule_data.GetPosition());
     if (container_query) {
-      // If we are matching pseudo elements like a ::before rule when computing
+      // If we are matching pseudo-elements like a ::before rule when computing
       // the styles of the originating element, we don't know whether the
       // container will be the originating element or not. There is not enough
       // information to evaluate the container query for the existence of the
-      // pseudo element, so skip the evaluation and have false positives for
-      // HasPseudoElementStyles() instead to make sure we create such pseudo
+      // pseudo-element, so skip the evaluation and have false positives for
+      // HasPseudoElementStyles() instead to make sure we create such pseudo-
       // elements when they depend on the originating element.
       if (pseudo_style_request_.pseudo_id != kPseudoIdNone ||
           result.dynamic_pseudo == kPseudoIdNone) {
@@ -666,10 +700,10 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
           continue;
         }
       } else {
-        // We are skipping container query matching for pseudo element selectors
-        // when not actually matching style for the pseudo element itself. Still
+        // We are skipping container query matching for pseudo-element selectors
+        // when not actually matching style for the pseudo-element itself. Still
         // we need to keep track of size/style query dependencies since query
-        // changes may cause pseudo elements to start being generated.
+        // changes may cause pseudo-elements to start being generated.
         for (const ContainerQuery* current = container_query; current;
              current = current->Parent()) {
           ContainerQueryEvaluator::SetDependencyFlags(*current, result_);
@@ -927,6 +961,22 @@ DISABLE_CFI_PERF bool ElementRuleCollector::CollectMatchingRulesInternal(
     }
   }
 
+  if (element.HasLocalName(html_names::kInputTag.LocalName())) {
+    if (const AtomicString& input_type =
+            element.getAttribute(html_names::kTypeAttr);
+        !input_type.IsNull()) {
+      for (const auto bundle : match_request.RuleSetsWithInputRules()) {
+        if (CollectMatchingRulesForList<stop_at_first_match>(
+                bundle.rule_set->InputRules(input_type.LowerASCII()),
+                match_request, bundle.rule_set, bundle.style_sheet_index,
+                checker, context.context) &&
+            stop_at_first_match) {
+          return true;
+        }
+      }
+    }
+  }
+
   if (element.IsLink()) {
     for (const auto bundle : match_request.RuleSetsWithLinkPseudoClassRules()) {
       if (CollectMatchingRulesForList<stop_at_first_match>(
@@ -977,6 +1027,18 @@ DISABLE_CFI_PERF bool ElementRuleCollector::CollectMatchingRulesInternal(
             stop_at_first_match) {
           return true;
         }
+      }
+    }
+  }
+
+  if (context.context.pseudo_id >= kPseudoIdScrollbarThumb &&
+      context.context.pseudo_id <= kPseudoIdScrollbarCorner) {
+    for (const auto bundle : match_request.AllRuleSets()) {
+      if (CollectMatchingRulesForList<stop_at_first_match>(
+              bundle.rule_set->ScrollbarRules(), match_request, bundle.rule_set,
+              bundle.style_sheet_index, checker, context.context) &&
+          stop_at_first_match) {
+        return true;
       }
     }
   }
@@ -1150,9 +1212,11 @@ void ElementRuleCollector::AppendCSSOMWrapperForRule(
   // rules may appear to match from ElementRuleCollector's output. This behavior
   // is not correct for Inspector purposes, hence we explicitly filter out
   // rules that don't match the current link state here.
-  if (!(matched_rule.LinkMatchType() &
-        LinkMatchTypeFromInsideLink(inside_link_))) {
-    return;
+  if (!RuntimeEnabledFeatures::CSSDoNotHideVisitedColorEnabled()) {
+    if (!(matched_rule.LinkMatchType() &
+          LinkMatchTypeFromInsideLink(inside_link_))) {
+      return;
+    }
   }
 
   CSSRule* css_rule = nullptr;

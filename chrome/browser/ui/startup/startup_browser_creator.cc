@@ -609,11 +609,11 @@ std::optional<ash::KioskAppId> GetAppId(const base::CommandLine& command_line,
   }
 
   switch (user->GetType()) {
-    case user_manager::UserType::kKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
       return ash::KioskAppId::ForChromeApp(
           command_line.GetSwitchValueASCII(::switches::kAppId),
           user->GetAccountId());
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskWebApp:
       return ash::KioskAppId::ForWebApp(user->GetAccountId());
     case user_manager::UserType::kKioskIWA:
       return ash::KioskAppId::ForIsolatedWebApp(user->GetAccountId());
@@ -950,10 +950,6 @@ void StartupBrowserCreator::RegisterLocalStatePrefs(
 
 // static
 void StartupBrowserCreator::RegisterProfilePrefs(PrefRegistrySimple* registry) {
-  // Default to true so that existing users are not shown the Welcome page.
-  // ProfileManager handles setting this to false for new profiles upon
-  // creation.
-  registry->RegisterBooleanPref(prefs::kHasSeenWelcomePage, true);
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // This will be set for newly created profiles, and is used to indicate which
   // users went through onboarding with the current experiment group.

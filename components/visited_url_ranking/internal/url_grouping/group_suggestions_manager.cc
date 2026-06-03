@@ -16,6 +16,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/segmentation_platform/public/input_context.h"
 #include "components/segmentation_platform/public/types/processed_value.h"
+#include "components/visited_url_ranking/internal/url_grouping/group_suggestions_tracker.h"
 #include "components/visited_url_ranking/public/fetch_options.h"
 #include "components/visited_url_ranking/public/url_grouping/group_suggestions.h"
 #include "components/visited_url_ranking/public/url_grouping/group_suggestions_delegate.h"
@@ -62,7 +63,7 @@ void RecordSuggestionUKM(
     const GroupSuggestion& shown_suggestion,
     const std::vector<scoped_refptr<segmentation_platform::InputContext>>&
         inputs,
-    const GroupSuggestionsDelegate::UserResponseMetadata& user_response) {
+    const UserResponseMetadata& user_response) {
   const char* tab_id_input =
       GetNameForInput(URLVisitAggregateRankingModelInputSignals::kTabId);
   const char* is_tab_selected_input = GetNameForInput(
@@ -236,6 +237,9 @@ GroupSuggestionsManager::~GroupSuggestionsManager() = default;
 
 void GroupSuggestionsManager::MaybeTriggerSuggestions(
     const GroupSuggestionsService::Scope& scope) {
+  // Invalidate any existing cache as new events might change suggestions.
+  suggestion_tracker_->InvalidateCache();
+
   // Skip computation if it ran recently to avoid overhead.
   if (!last_computation_time_.is_null() &&
       base::Time::Now() - last_computation_time_ <
@@ -314,6 +318,14 @@ void GroupSuggestionsManager::OnFinishComputeSuggestions(
       suggestions->suggestions[0].tab_ids.size());
 
   RecordTabIndexMetrics(suggestions->suggestions[0], result.inputs);
+
+  // Cache the suggestions before sending to delegates, in case the delegate
+  // requests the cache.
+  if (!suggestions->suggestions.empty()) {
+    suggestion_tracker_->CacheSuggestions(suggestions->DeepCopy(),
+                                          result.inputs);
+  }
+
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&GroupSuggestionsManager::ShowSuggestion,
                                 weak_ptr_factory_.GetWeakPtr(), scope,
@@ -322,11 +334,11 @@ void GroupSuggestionsManager::OnFinishComputeSuggestions(
 
 void GroupSuggestionsManager::ShowSuggestion(
     const GroupSuggestionsService::Scope& scope,
-    std::optional<GroupSuggestions> suggestions,
+    GroupSuggestions suggestions,
     const std::vector<scoped_refptr<segmentation_platform::InputContext>>&
         inputs) {
-  VLOG(1) << "Showing suggestion to group tabs "
-          << suggestions->suggestions.size();
+  VLOG(1) << "GroupSuggestionsManager::ShowSuggestion. Suggestion count: "
+          << suggestions.suggestions.size();
 
   for (auto it : registered_delegates_) {
     if (it.second.scope != scope) {
@@ -336,11 +348,13 @@ void GroupSuggestionsManager::ShowSuggestion(
     auto result_callback =
         base::BindOnce(&GroupSuggestionsManager::OnSuggestionResult,
                        weak_ptr_factory_.GetWeakPtr(),
-                       suggestions->suggestions.front().DeepCopy(), inputs);
+                       suggestions.suggestions.front().DeepCopy(), inputs);
 
-    delegate->ShowSuggestion(std::move(*suggestions),
-                             std::move(result_callback));
+    // Pass by const ref to delegate as it doesn't take ownership of
+    // GroupSuggestions.
+    delegate->ShowSuggestion(suggestions, std::move(result_callback));
   }
+
   if (!suggestion_computed_callback_.is_null()) {
     suggestion_computed_callback_.Run();
   }
@@ -350,18 +364,40 @@ void GroupSuggestionsManager::OnSuggestionResult(
     const GroupSuggestion& shown_suggestion,
     const std::vector<scoped_refptr<segmentation_platform::InputContext>>&
         inputs,
-    GroupSuggestionsDelegate::UserResponseMetadata user_response) {
+    UserResponseMetadata user_response) {
   RecordSuggestionUKM(shown_suggestion, inputs, user_response);
-  if (user_response.user_response ==
-          GroupSuggestionsDelegate::UserResponse::kNotShown ||
-      user_response.user_response ==
-          GroupSuggestionsDelegate::UserResponse::kUnknown) {
+  if (user_response.user_response == UserResponse::kNotShown ||
+      user_response.user_response == UserResponse::kUnknown) {
     return;
   }
   // TODO(ssid): Track all suggestions instead of assuming UI shows the first.
   DCHECK_EQ(user_response.suggestion_id, shown_suggestion.suggestion_id);
-  suggestion_tracker_->AddSuggestion(shown_suggestion, inputs,
-                                     user_response.user_response);
+  suggestion_tracker_->AddShownSuggestion(shown_suggestion, inputs,
+                                          user_response.user_response);
+}
+
+std::optional<CachedSuggestions> GroupSuggestionsManager::GetCachedSuggestions(
+    const GroupSuggestionsService::Scope& scope) {
+  // TODO(ssid): Use `scope` here to fetch the correct cached suggestions.
+  std::optional<CachedSuggestionsAndInputs> cached_data =
+      suggestion_tracker_->GetCachedSuggestions();
+
+  if (!cached_data || cached_data->first.suggestions.empty()) {
+    return std::nullopt;
+  }
+
+  CachedSuggestions result;
+  result.suggestions = std::move(cached_data->first);
+  auto inputs = cached_data->second;
+  result.response_callback =
+      base::BindOnce(&GroupSuggestionsManager::OnSuggestionResult,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     result.suggestions.suggestions.front().DeepCopy(), inputs);
+  return std::move(result);
+}
+
+void GroupSuggestionsManager::InvalidateCache() {
+  suggestion_tracker_->InvalidateCache();
 }
 
 }  // namespace visited_url_ranking

@@ -54,7 +54,7 @@
 #include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/win/d3d_shared_fence.h"
 #include "ui/gl/buildflags.h"
 #include "ui/gl/direct_composition_support.h"
@@ -828,12 +828,20 @@ TEST_F(D3DImageBackingFactoryTest, Dawn_ConcurrentReads) {
   }
 
   // Find a Dawn D3D12 adapter
+#ifdef WGPU_BREAKING_CHANGE_INSTANCE_FEATURES_LIMITS
+  static constexpr auto kTimedWaitAny = wgpu::InstanceFeatureName::TimedWaitAny;
+  wgpu::InstanceDescriptor instance_desc = {
+      .requiredFeatureCount = 1,
+      .requiredFeatures = &kTimedWaitAny,
+  };
+#else
   wgpu::InstanceDescriptor instance_desc = {
       .capabilities =
           {
               .timedWaitAnyEnable = true,
           },
   };
+#endif
   dawn::native::Instance instance(&instance_desc);
   wgpu::RequestAdapterOptions adapter_options;
   adapter_options.backendType = wgpu::BackendType::D3D12;
@@ -1569,9 +1577,8 @@ D3DImageBackingFactoryTest::CreateVideoImage(const gfx::Size& size,
     shared_image_backing = D3DImageBacking::Create(
         mailbox, viz::MultiPlaneFormat::kNV12, size, gfx::ColorSpace(),
         kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, usage, "TestLabel",
-        d3d11_texture, /*dcomp_texture=*/nullptr,
-        std::move(dxgi_shared_handle_state), context_state_->GetGLFormatCaps(),
-        GL_TEXTURE_EXTERNAL_OES,
+        d3d11_texture, std::move(dxgi_shared_handle_state),
+        context_state_->GetGLFormatCaps(), GL_TEXTURE_EXTERNAL_OES,
         /*array_slice=*/0, /*plane_index=*/0u);
     // Need to clear the backing created with shared handle.
     shared_image_backing->SetCleared();
@@ -2312,12 +2319,20 @@ class D3DImageBackingFactoryBufferTest : public D3DImageBackingFactoryTestBase {
 // Verifies that creating a shared image backed by a D3D12 buffer works and can
 // be imported into Dawn.
 TEST_F(D3DImageBackingFactoryBufferTest, CreateSharedImageImportToDawn) {
+#ifdef WGPU_BREAKING_CHANGE_INSTANCE_FEATURES_LIMITS
+  static constexpr auto kTimedWaitAny = wgpu::InstanceFeatureName::TimedWaitAny;
+  wgpu::InstanceDescriptor instance_desc = {
+      .requiredFeatureCount = 1,
+      .requiredFeatures = &kTimedWaitAny,
+  };
+#else
   wgpu::InstanceDescriptor instance_desc = {
       .capabilities =
           {
               .timedWaitAnyEnable = true,
           },
   };
+#endif
   dawn::native::Instance instance(&instance_desc);
   wgpu::RequestAdapterOptions adapter_options;
   adapter_options.backendType = wgpu::BackendType::D3D12;

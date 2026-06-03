@@ -35,6 +35,8 @@ namespace leveldb_proto {
 class ProtoDatabaseProvider;
 }
 
+class PrefService;
+
 namespace feature_engagement {
 
 class Configuration;
@@ -160,6 +162,8 @@ class Tracker : public KeyedService, public base::SupportsUserData {
   // will be provided.
   static std::unique_ptr<Tracker> Create(
       const base::FilePath& storage_dir,
+      const base::FilePath& device_storage_dir,
+      PrefService* pref_service,
       const scoped_refptr<base::SequencedTaskRunner>& background_task_runner,
       leveldb_proto::ProtoDatabaseProvider* db_provider,
       std::unique_ptr<TrackerEventExporter> event_exporter,
@@ -306,7 +310,7 @@ class Tracker : public KeyedService, public base::SupportsUserData {
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Updates the config of a specific feature after initialization. The new
-  // config will replace the existing cofig.
+  // config will replace the existing config.
   // Calling this method requires the Tracker to already have been initialized.
   // See IsInitialized() and AddOnInitializedCallback(...) for how to ensure
   // the call to this is delayed.
@@ -318,9 +322,12 @@ class Tracker : public KeyedService, public base::SupportsUserData {
   virtual const Configuration* GetConfigurationForTesting() const = 0;
 
   // Set a testing clock for the tracker. It's recommended to use a
-  // SimpleTestClock, so we can advacne the clock in test.
+  // SimpleTestClock, so we can advance the clock in test.
   virtual void SetClockForTesting(const base::Clock& clock,
                                   base::Time initial_now) = 0;
+
+  // Returns whether any features are disabled/enabled for testing.
+  virtual bool IsInFeatureTestMode() const = 0;
 
   // Returns the default set of configuration providers.
   static ConfigurationProviderList GetDefaultConfigurationProviders();

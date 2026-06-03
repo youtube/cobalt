@@ -9,15 +9,19 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.ApplicationTestUtils;
@@ -27,16 +31,23 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroid;
+import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroidJni;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.Journeys;
+import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
-import org.chromium.net.test.EmbeddedTestServer;
-import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.url.GURL;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /** Tests for {@link TabModelImpl}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -46,48 +57,36 @@ import org.chromium.url.GURL;
 })
 @Batch(Batch.PER_CLASS)
 public class TabModelImplTest {
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
-    @ClassRule public static EmbeddedTestServerRule sTestServerRule = new EmbeddedTestServerRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mBlankCtaTabInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
-    private ChromeTabbedActivity mActivity;
-    private EmbeddedTestServer mTestServer;
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock
+    private MediaCaptureDevicesDispatcherAndroid.Natives mMediaCaptureDevicesDispatcherAndroidJni;
+
     private String mTestUrl;
+    private WebPageStation mPage;
+    private TabModelJniBridge mTabModelJni;
 
     @Before
     public void setUp() {
-        sActivityTestRule.waitForActivityNativeInitializationComplete();
-        mTestServer = sTestServerRule.getServer();
-        mTestUrl = mTestServer.getURL("/chrome/test/data/android/ok.txt");
-
-        mActivity = sActivityTestRule.getActivity();
-        final Tab tab = mActivity.getActivityTab();
-        ChromeTabUtils.waitForInteractable(tab);
-    }
-
-    private void createTabs(int tabsCount, boolean isIncognito, String url) {
-        for (int i = 0; i < tabsCount; i++) {
-            ChromeTabUtils.fullyLoadUrlInNewTab(
-                    InstrumentationRegistry.getInstrumentation(), mActivity, url, isIncognito);
-        }
+        mTestUrl = mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/ok.txt");
+        mPage = mActivityTestRule.startOnBlankPage();
+        mTabModelJni =
+                (TabModelJniBridge)
+                        mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
     }
 
     @Test
     @SmallTest
     public void validIndexAfterRestored_FromColdStart() {
-        TabModel normalTabModel =
-                sActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+        TabModel normalTabModel = mPage.getTabModelSelector().getModel(false);
         assertEquals(1, normalTabModel.getCount());
         assertNotEquals(TabModel.INVALID_TAB_INDEX, normalTabModel.index());
 
-        TabModel incognitoTabModel =
-                sActivityTestRule.getActivity().getTabModelSelector().getModel(true);
+        TabModel incognitoTabModel = mPage.getTabModelSelector().getModel(true);
         assertEquals(0, incognitoTabModel.getCount());
         assertEquals(TabModel.INVALID_TAB_INDEX, incognitoTabModel.index());
     }
@@ -95,22 +94,22 @@ public class TabModelImplTest {
     @Test
     @SmallTest
     @DisabledTest(message = "https://crbug.com/410945407")
-    public void validIndexAfterRestored_FromColdStart_WithIncognitoTabs() throws Exception {
-        createTabs(1, true, mTestUrl);
+    public void validIndexAfterRestored_FromColdStart_WithIncognitoTabs() {
+        mPage = Journeys.createIncognitoTabsWithWebPages(mPage, List.of(mTestUrl));
 
-        ApplicationTestUtils.finishActivity(sActivityTestRule.getActivity());
+        ApplicationTestUtils.finishActivity(mPage.getActivity());
 
-        sActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.getActivityTestRule().startMainActivityOnBlankPage();
 
         TabModel normalTabModel =
-                sActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+                mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
         // Tab count is 2, because startMainActivityOnBlankPage() is called twice.
         assertEquals(2, normalTabModel.getCount());
         assertNotEquals(TabModel.INVALID_TAB_INDEX, normalTabModel.index());
 
         // No incognito tabs are restored from a cold start.
         TabModel incognitoTabModel =
-                sActivityTestRule.getActivity().getTabModelSelector().getModel(true);
+                mActivityTestRule.getActivity().getTabModelSelector().getModel(true);
         assertEquals(0, incognitoTabModel.getCount());
         assertEquals(TabModel.INVALID_TAB_INDEX, incognitoTabModel.index());
     }
@@ -119,8 +118,8 @@ public class TabModelImplTest {
     @SmallTest
     @DisabledTest(message = "https://crbug.com/1448777")
     public void validIndexAfterRestored_FromPreviousActivity() {
-        sActivityTestRule.recreateActivity();
-        ChromeTabbedActivity newActivity = sActivityTestRule.getActivity();
+        mActivityTestRule.recreateActivity();
+        ChromeTabbedActivity newActivity = mActivityTestRule.getActivity();
         CriteriaHelper.pollUiThread(newActivity.getTabModelSelector()::isTabStateInitialized);
 
         TabModel normalTabModel = newActivity.getTabModelSelector().getModel(false);
@@ -135,10 +134,10 @@ public class TabModelImplTest {
     @Test
     @SmallTest
     public void validIndexAfterRestored_FromPreviousActivity_WithIncognitoTabs() {
-        createTabs(1, true, mTestUrl);
+        mPage = Journeys.createIncognitoTabsWithWebPages(mPage, List.of(mTestUrl));
 
-        sActivityTestRule.recreateActivity();
-        ChromeTabbedActivity newActivity = sActivityTestRule.getActivity();
+        mActivityTestRule.recreateActivity();
+        ChromeTabbedActivity newActivity = mActivityTestRule.getActivity();
         CriteriaHelper.pollUiThread(newActivity.getTabModelSelector()::isTabStateInitialized);
 
         TabModel normalTabModel = newActivity.getTabModelSelector().getModel(false);
@@ -153,12 +152,12 @@ public class TabModelImplTest {
     @Test
     @SmallTest
     public void testTabRemover_RemoveTab() {
-        createTabs(1, false, mTestUrl);
+        mPage = Journeys.createRegularTabsWithWebPages(mPage, List.of(mTestUrl));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     TabModel tabModel =
-                            sActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+                            mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
                     assertEquals(2, tabModel.getCount());
 
                     Tab tab1 = tabModel.getTabAt(1);
@@ -182,12 +181,12 @@ public class TabModelImplTest {
     @Test
     @SmallTest
     public void testTabRemover_CloseTabs() {
-        createTabs(1, false, mTestUrl);
+        mPage = Journeys.createRegularTabsWithWebPages(mPage, List.of(mTestUrl));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     TabModel tabModel =
-                            sActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+                            mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
                     assertEquals(2, tabModel.getCount());
 
                     Tab tab1 = tabModel.getTabAt(1);
@@ -208,21 +207,293 @@ public class TabModelImplTest {
     public void testOpenTabProgrammatically() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    TabModelImpl tabModel =
-                            (TabModelImpl)
-                                    sActivityTestRule
-                                            .getActivity()
-                                            .getTabModelSelector()
-                                            .getModel(false);
-                    assertEquals(1, tabModel.getCount());
+                    assertEquals(1, mTabModelJni.getCount());
 
                     GURL url = new GURL("https://www.chromium.org");
-                    tabModel.openTabProgrammatically(url, 0);
-                    assertEquals(2, tabModel.getCount());
+                    mTabModelJni.openTabProgrammatically(url, 0);
+                    assertEquals(2, mTabModelJni.getCount());
 
-                    Tab tab1 = tabModel.getTabAt(1);
-                    assertNotNull(tab1);
-                    assertEquals(url, tab1.getUrl());
+                    Tab tab = mTabModelJni.getTabAt(0);
+                    assertNotNull(tab);
+                    assertEquals(url, tab.getUrl());
                 });
+    }
+
+    @Test
+    @SmallTest
+    public void testMoveTabToIndex() {
+        // Programmatically set up the tab state (PT is flaky)
+        createTabs(2);
+        // 0:Tab0 | 1:Tab1 | 2:Tab2
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    int oldIndex = 1;
+                    int newIndex = 2;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // 0:Tab0 | 1:Tab2 | 2:Tab1
+
+                    oldIndex = 2;
+                    newIndex = 0;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // 0:Tab1 || 1:Tab0 | 2:Tab2
+                });
+
+        // Group tabs and add another tab.
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    List<Tab> group0 = Arrays.asList(mTabModelJni.getAllTabs());
+                    filter.mergeListOfTabsToGroup(group0, group0.get(0), false);
+                });
+        createTab();
+        // Group0: 0:Tab1, 1:Tab0, 2:Tab2 | 3:Tab3
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(4, mTabModelJni.getCount());
+                    int oldIndex = 3; // Single tab
+                    int newIndex = 2; // Index for one of the tabs in the first tab group
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ false);
+
+                    newIndex = 1;
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ false);
+
+                    newIndex = 0;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // 0:Tab3 | Group0: 1:Tab1, 2:Tab0, 3:Tab2
+                });
+
+        // Add a group with 2 tabs.
+        createTabGroup(2, filter);
+        // 0:Tab3 | Group0: 1:Tab1, 2:Tab0, 3:Tab2 | Group1: 4:Tab4, 5:Tab5
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(6, mTabModelJni.getCount());
+                    int oldIndex = 0; // Single tab
+                    int newIndex = 1; // First tab group index
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ false);
+
+                    newIndex = 2; // Second tab group index
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ false);
+
+                    newIndex = 3; // Last tab group index
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // Group0: 0:Tab1, 1:Tab0, 2:Tab2 | 3:Tab3 | Group1: 4:Tab4, 5:Tab5
+
+                    oldIndex = 3; // Single tab
+                    newIndex = 4; // Index for one of the tabs in the second tab group
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ false);
+
+                    newIndex = 5; // Index for one of the tabs in the second tab group
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // Group0: 0:Tab1, 1:Tab0, 2:Tab2 | Group1: 3:Tab4, 4:Tab5 | 5:Tab3
+
+                    oldIndex = 5;
+                    newIndex = 4;
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ false);
+
+                    newIndex = 3;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // Group0: 0:Tab1, 1:Tab0, 2:Tab2 | 3:Tab3 | Group1: 4:Tab4, 5:Tab5
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testMoveTabToIndex_InsideTabGroup() {
+        // Programmatically set up the tab state (PT is flaky)
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(3, filter);
+        createTab();
+        // 0:Tab0 | Group0: 1:Tab1, 2:Tab2, 3:Tab3 | 4:Tab4
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(5, mTabModelJni.getCount());
+
+                    int oldIndex = 2;
+                    int newIndex = 3;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ true);
+                    // 0:Tab0 | Group0: 1:Tab1, 2:Tab3, 3:Tab2 | 4:Tab4
+
+                    oldIndex = 3;
+                    newIndex = 1;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ true);
+                    // 0:Tab0 | Group0: 1:Tab2, 2:Tab1, 3:Tab3 | 4:Tab4
+
+                    oldIndex = 2;
+                    newIndex = 0; // Outside tab group
+                    int expectedIndex = 1; // First index of the tab group
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, expectedIndex, /* movingInsideGroup= */ true);
+                    // 0:Tab0 | Group0: 1:Tab1, 2:Tab2 , 3:Tab3 | 4:Tab4
+
+                    oldIndex = 3;
+                    newIndex = 4; // Outside tab group
+                    expectedIndex = 3; // Last index of the tab group
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, expectedIndex, /* movingInsideGroup= */ true);
+                    // 0:Tab0 | Group0: 1:Tab1, 2:Tab2 , 3:Tab3 | 4:Tab4
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testMoveTabToIndex_TabGroupOf1() {
+        // Programmatically set up the tab state (PT is flaky)
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(1, filter);
+        createTabGroup(1, filter);
+        createTab();
+
+        // 0:Tab0 | Group0: 1:Tab1 | Group1: 2:Tab2 | 3:Tab3
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(4, mTabModelJni.getCount());
+
+                    int oldIndex = 1;
+                    int newIndex = 0;
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ true);
+
+                    newIndex = 2;
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ true);
+
+                    oldIndex = 2;
+                    newIndex = 1;
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ true);
+
+                    newIndex = 3;
+                    // No-op
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, oldIndex, /* movingInsideGroup= */ true);
+
+                    oldIndex = 0;
+                    newIndex = 1;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // Group0: 0:Tab1 | 1:Tab0 | Group1: 2:Tab2 | 3:Tab3
+
+                    oldIndex = 3;
+                    newIndex = 2;
+                    assertMoveTabToIndex(
+                            oldIndex, newIndex, newIndex, /* movingInsideGroup= */ false);
+                    // Group0: 0:Tab1 | 1:Tab0 | 2:Tab3 | Group1: 3:Tab2
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testGetAllTabs() {
+        RegularNewTabPageStation secondTab = mPage.openNewTabFast();
+        secondTab.openNewTabFast();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab[] tabs = mTabModelJni.getAllTabs();
+                    assertEquals(3, tabs.length);
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testIterator() {
+        RegularNewTabPageStation secondTab = mPage.openNewTabFast();
+        secondTab.openNewTabFast();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab[] tabs = mTabModelJni.getAllTabs();
+                    assertEquals(3, tabs.length);
+
+                    int i = 0;
+                    for (Tab tab : mTabModelJni) {
+                        assertEquals(tabs[i], tab);
+                        i++;
+                    }
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testFreezeTabOnCloseIfCapturingForMedia() {
+        MediaCaptureDevicesDispatcherAndroidJni.setInstanceForTesting(
+                mMediaCaptureDevicesDispatcherAndroidJni);
+        when(mMediaCaptureDevicesDispatcherAndroidJni.isCapturingAudio(any())).thenReturn(true);
+
+        mPage = Journeys.createRegularTabsWithWebPages(mPage, List.of(mTestUrl));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabModel tabModel =
+                            mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+                    assertEquals(2, tabModel.getCount());
+                    Tab tab = tabModel.getTabAt(1);
+                    assertFalse(tab.isFrozen());
+                    tabModel.getTabRemover()
+                            .closeTabs(
+                                    TabClosureParams.closeTab(tab).build(),
+                                    /* allowDialog= */ false);
+
+                    // Tab should be frozen as a result.
+                    assertTrue(tab.isFrozen());
+                });
+    }
+
+    private void assertMoveTabToIndex(
+            int oldIndex, int newIndex, int expectedIndex, boolean movingInsideGroup) {
+        Tab oldIndexTab = mTabModelJni.getTabAt(oldIndex);
+        assert movingInsideGroup || oldIndexTab.getTabGroupId() == null
+                : "This is not a single tab movement";
+        mTabModelJni.moveTabToIndex(oldIndex, newIndex);
+        assertEquals(oldIndexTab, mTabModelJni.getTabAt(expectedIndex));
+    }
+
+    private void createTabGroup(int numberOfTabs, TabGroupModelFilter filter) {
+        List<Tab> tabs = new ArrayList<>();
+        for (int i = 0; i < numberOfTabs; i++) tabs.add(createTab());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> filter.mergeListOfTabsToGroup(tabs, tabs.get(0), false));
+    }
+
+    private Tab createTab() {
+        return ChromeTabUtils.fullyLoadUrlInNewTab(
+                InstrumentationRegistry.getInstrumentation(),
+                mActivityTestRule.getActivity(),
+                "about:blank",
+                /* incognito= */ false);
+    }
+
+    private void createTabs(int n) {
+        for (int i = 0; i < n; i++) createTab();
     }
 }

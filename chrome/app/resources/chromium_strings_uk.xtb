@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">Перезапустити, щоб оновити &amp;Chromium OS</translation>
 <translation id="1040916596585577953">Chromium радить перевірити це розширення</translation>
 <translation id="1042552502243217427">Коли сайт надсилає запит на приватне попереднє завантаження посилань на його сторінці, Chromium використовує сервери Google. Завдяки цьому вашу особу не можна визначити через попередньо завантажений сайт. Однак Google отримує інформацію про сайти, які попередньо завантажуються.</translation>
+<translation id="1051793555070215510">Пройдіть опитування, щоб допомогти нам покращити анонімний режим. Це займе 1 хвилину.</translation>
 <translation id="1065672644894730302">Не вдається розпізнати налаштування. Деякі функції можуть бути не доступні, а зміни в налаштуваннях не зберігатимуться.</translation>
 <translation id="1083934481477628225">Хтось із батьків вимкнув "Дозволи для сайтів, додатків і розширень" для Chromium</translation>
 <translation id="1104942323762546749">Chromium хоче експортувати ваші паролі. Щоб дозволити, введіть свій пароль Windows.</translation>
@@ -85,7 +86,6 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="2126108037660393668">Завантажений файл не пройшов перевірку.</translation>
 <translation id="2137162749895930932">Закрити екран перекладу</translation>
 <translation id="215352261310130060">Веб-переглядач Chromium заблокував завантаження, оскільки цей сайт використовує ненадійне з’єднання й файл може бути підробленим</translation>
-<translation id="2157600032285353789">У меню Chromium можна відкривати закладки, переходити в режим читання тощо</translation>
 <translation id="2174178932569897599">Налаштувати Chromium</translation>
 <translation id="2174917724755363426">Встановлення не завершено. Скасувати його?</translation>
 <translation id="2185166961232948079">Chromium – Вхід у мережу– <ph name="PAGE_TITLE" /></translation>
@@ -220,11 +220,13 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="3954172517175569325">Ваші паролі, способи оплати й адреси, збережені в обліковому записі Google, буде вилучено із цього пристрою. Щоб знову використовувати їх у Chromium, увійдіть в обліковий запис.</translation>
 <translation id="395904275706073188">Захищені сторінки не можна зчитувати. Спробуйте на іншій сторінці.</translation>
 <translation id="3962647064319009959">Дізнайтесь, як Chromium дбає про вашу безпеку</translation>
+<translation id="3971865010372729242">Коли ви вводите запит в адресному рядку або полі пошуку, Chromium надсилає його в агрегатор пошуку вашої організації, а також штучному інтелекту й агентам на основі ШІ, які вона використовує, щоб надавати вам підказки.</translation>
 <translation id="3975724895399328945">Про &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Про Chromium OS</translation>
 <translation id="4019629340646866719">Chromium OS і <ph name="BEGIN_LINK_LINUX_OSS" />середовище для розробки Linux<ph name="END_LINK_LINUX_OSS" /> працюють завдяки додатковому <ph name="BEGIN_LINK_CROS_OSS" />програмному забезпеченню з відкритим кодом<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="4022972681110646219">Перекласти вміст екрана</translation>
 <translation id="4023601594785368013">Мова оригіналу: <ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">Відкривайте посилання з будь-якого додатка у вебпереглядачі Chromium і закріпіть його на панелі завдань для зручності.</translation>
 <translation id="4036079820698952681">Допоможіть покращити Chromium, надсилаючи звіти про <ph name="BEGIN_LINK" />поточні налаштування<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">В останній версії покращено безпеку та додано нові функції.</translation>
 <translation id="4055805654398742145">М&amp;енеджер паролів</translation>
@@ -326,6 +328,7 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="5524890928877629608">лівий верхній кут області пошуку: <ph name="LEFT" />% ліворуч, <ph name="TOP" />% згори</translation>
 <translation id="5527463683072221100">Відкривати файли PDF у Chromium</translation>
 <translation id="5579324208890605088">Помилка: запустіть програму встановлення як звичайний користувач, а не з правами адміністратора.</translation>
+<translation id="5580770360767802657">Використовуйте вебпереглядач Chromium за умовчанням і закріпіть його</translation>
 <translation id="5596627076506792578">Інші опції</translation>
 <translation id="5605834417512968703">Виберіть об’єкт на зображенні, за яким хочете виконати пошук, або натисніть клавішу Escape, щоб вийти</translation>
 <translation id="5618818588972826921">Виберіть текст чи зображення, за яким хочете виконати пошук, або натисніть клавішу Escape, щоб вийти</translation>
@@ -340,6 +343,7 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="5775198138441669627">Якщо ви забули парольну фразу або хочете змінити це налаштування, <ph name="SETTINGS_LINK" /> дані Chromium у своєму обліковому записі</translation>
 <translation id="5800158606660203929">Керуйте налаштуваннями Chromium. Зробіть Chromium вебпереглядачем за умовчанням.</translation>
 <translation id="5809516625706423866">Не вдалося підключитися до Інтернету. Помилка "HTTP 401 не авторизовано". Перевірте конфігурацію свого проксі-сервера.</translation>
+<translation id="5817952762723416573">Прискорює роботу сайтів за допомогою системи V8 для Chromium, проте робить вебпереглядач трохи менш стійким до атак. Це налаштування вимкнено.</translation>
 <translation id="5821520528363214608">Щоб зберігати й використовувати дані Chromium в обліковому записі Google, оновіть Chromium</translation>
 <translation id="5824893331272123205">Не вдалося завантажити цю панель. Повторіть спробу.</translation>
 <translation id="5862307444128926510">Вітаємо в Chromium</translation>
@@ -356,7 +360,6 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="5987687638152509985">Щоб почати синхронізацію, оновіть Chromium</translation>
 <translation id="5988505247484123880">Зазвичай сайти, які ви відвідуєте, запам’ятовують, що вас цікавить, щоб персоналізувати для вас оголошення. Також сайти можуть зберігати в Chromium інформацію про ваші інтереси.</translation>
 <translation id="6003112304606738118">Завантаження… Залишилося: <ph name="HOURS" /> год.</translation>
-<translation id="6019451407441383358">У меню Chromium угорі праворуч можна відкривати закладки, переходити в режим читання тощо</translation>
 <translation id="6040143037577758943">Закрити</translation>
 <translation id="6058380562449900225">Щоб захистити ваші дані, дозвольте Chromium скасовувати дозволи для сайтів, які ви останнім часом не відвідували. Сповіщення все одно надходитимуть.</translation>
 <translation id="6063093106622310249">&amp;Відкрити в Chromium</translation>
@@ -430,6 +433,7 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="6729124504294600478">Щоб користуватися персоналізацією і іншими можливостями, включіть Chromium в історію додатків і вебпошуку й зв’язані сервіси Google</translation>
 <translation id="6734291798041940871">Chromium уже встановлено для всіх користувачів на вашому комп’ютері.</translation>
 <translation id="674245979920622322">Останнім часом ви не відвідували цей сайт. Вебпереглядач Chromium скасував такі дозволи: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і ще <ph name="COUNT" />.</translation>
+<translation id="6751374565094704799">Прискорює роботу сайтів за допомогою системи V8 для Chromium, проте робить вебпереглядач трохи менш стійким до атак. Це налаштування ввімкнено.</translation>
 <translation id="67706546131546258">Chromium радить просканувати цей файл, оскільки він може бути небезпечним.</translation>
 <translation id="6779406956731413166">Chromium OS працює завдяки додатковому <ph name="BEGIN_LINK_CROS_OSS" />програмному забезпеченню з відкритим кодом<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6831043979455480757">Перекласти</translation>
@@ -526,7 +530,6 @@ Chromium не може відновити ваші налаштування.</tr
 <translation id="8118331347066725040">Залиште відгук про пошук через Об’єктив</translation>
 <translation id="8133124826068723441">Chromium OS не вдалося синхронізувати ваші дані, оскільки синхронізація для вашого домену недоступна.</translation>
 <translation id="813913629614996137">Ініціалізація...</translation>
-<translation id="8166782796394721554">Увімкніть додатковий захист у системі JavaScript і WebAssembly для Chromium</translation>
 <translation id="81770708095080097">Цей файл небезпечний, тому Chromium заблокував його.</translation>
 <translation id="8177472873527554730">Не вдалося знайти контент на сторінці</translation>
 <translation id="8200109504272824693">Щоб використовувати й зберігати дані Chromium в обліковому записі <ph name="USER_EMAIL" />, введіть парольну фразу</translation>
@@ -598,6 +601,7 @@ Chromium не може відновити ваші налаштування.</tr
 <translation id="9106612006984859720">Щоб отримувати майбутні оновлення Chromium, потрібна операційна система Windows 10 або новішої версії. На цьому комп’ютері встановлено Windows 8.1.</translation>
 <translation id="91086099826398415">Відкрити посилання в новій &amp;вкладці Chromium</translation>
 <translation id="911206726377975832">Також видалити дані веб-перегляду?</translation>
+<translation id="9134482777260927479">Допомога з домашнім завданням</translation>
 <translation id="9148058034647219655">Вийти</translation>
 <translation id="9158494823179993217">Ваш системний адміністратор налаштував Chromium відкривати сторінку <ph name="TARGET_URL_HOSTNAME" /> в альтернативному веб-переглядачі.</translation>
 <translation id="9185526690718004400">Перезапустити, щоб оновити &amp;Chromium</translation>

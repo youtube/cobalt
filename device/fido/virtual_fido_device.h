@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <map>
 #include <memory>
 #include <optional>
@@ -28,10 +29,6 @@
 #include "device/fido/public_key_credential_rp_entity.h"
 #include "device/fido/public_key_credential_user_entity.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
-
-namespace crypto {
-class ECPrivateKey;
-}
 
 namespace device {
 
@@ -403,10 +400,6 @@ class COMPONENT_EXPORT(DEVICE_FIDO) VirtualFidoDevice : public FidoDevice {
   static std::vector<uint8_t> GetAttestationKey();
 
   scoped_refptr<State> NewReferenceToState() const { return state_; }
-
-  static bool Sign(crypto::ECPrivateKey* private_key,
-                   base::span<const uint8_t> sign_buffer,
-                   std::vector<uint8_t>* signature);
 
   // Constructs certificate encoded in X.509 format to be used for packed
   // attestation statement and FIDO-U2F attestation statement.

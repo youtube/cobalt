@@ -24,7 +24,7 @@
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/unguessable_token.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_id.h"
@@ -159,7 +159,7 @@ void Connection::DisallowInactiveClient(
   mojo::Remote<storage::mojom::IndexedDBClientKeepActive>
       client_keep_active_remote;
   client_state_checker_->DisallowInactiveClient(
-      reason, client_keep_active_remote.BindNewPipeAndPassReceiver(),
+      id_, reason, client_keep_active_remote.BindNewPipeAndPassReceiver(),
       std::move(callback));
   client_keep_active_remotes_[base::to_underlying(reason)].Add(
       std::move(client_keep_active_remote));
@@ -226,7 +226,7 @@ void Connection::AbortTransactionAndTearDownOnError(
                transaction->id());
   Status status = transaction->Abort(error);
   if (!status.ok()) {
-    bucket_context_handle_->OnDatabaseError(status, {});
+    bucket_context_handle_->OnDatabaseError(database_.get(), status, {});
   }
 }
 
@@ -429,81 +429,6 @@ void Connection::GetAll(int64_t transaction_id,
   transaction->ScheduleTask(database_->CreateGetAllOperation(
       object_store_id, index_id, std::move(key_range), result_type, max_count,
       direction, std::move(callback), transaction));
-}
-
-void Connection::SetIndexKeys(int64_t transaction_id,
-                              int64_t object_store_id,
-                              IndexedDBKey primary_key,
-                              std::vector<IndexedDBIndexKeys> index_keys) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!IsConnected()) {
-    return;
-  }
-
-  Transaction* transaction = GetTransaction(transaction_id);
-  if (!transaction) {
-    return;
-  }
-
-  if (!primary_key.IsValid()) {
-    mojo::ReportBadMessage("SetIndexKeys used with invalid key.");
-    return;
-  }
-
-  if (transaction->mode() != blink::mojom::IDBTransactionMode::VersionChange) {
-    mojo::ReportBadMessage(
-        "SetIndexKeys must be called from a version change transaction.");
-    return;
-  }
-
-  if (!transaction->IsAcceptingRequests()) {
-    // TODO(crbug.com/40791538): If the transaction was already committed
-    // (or is in the process of being committed) we should kill the renderer.
-    // This branch however also includes cases where the browser process aborted
-    // the transaction, as currently we don't distinguish that state from the
-    // transaction having been committed. So for now simply ignore the request.
-    return;
-  }
-
-  transaction->ScheduleTask(
-      blink::mojom::IDBTaskType::Preemptive,
-      BindWeakOperation(&Database::SetIndexKeysOperation, database_,
-                        object_store_id, std::move(primary_key),
-                        std::move(index_keys)));
-}
-
-void Connection::SetIndexesReady(int64_t transaction_id,
-                                 int64_t object_store_id,
-                                 const std::vector<int64_t>& index_ids) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!IsConnected()) {
-    return;
-  }
-
-  Transaction* transaction = GetTransaction(transaction_id);
-  if (!transaction) {
-    return;
-  }
-
-  if (transaction->mode() != blink::mojom::IDBTransactionMode::VersionChange) {
-    mojo::ReportBadMessage(
-        "SetIndexesReady must be called from a version change transaction.");
-    return;
-  }
-
-  if (!transaction->IsAcceptingRequests()) {
-    // TODO(crbug.com/40791538): If the transaction was already committed
-    // (or is in the process of being committed) we should kill the renderer.
-    // This branch however also includes cases where the browser process aborted
-    // the transaction, as currently we don't distinguish that state from the
-    // transaction having been committed. So for now simply ignore the request.
-    return;
-  }
-
-  transaction->ScheduleTask(
-      blink::mojom::IDBTaskType::Preemptive,
-      BindWeakOperation(&Database::SetIndexesReadyOperation, database_,
-                        index_ids.size()));
 }
 
 void Connection::OpenCursor(
@@ -902,7 +827,7 @@ std::unique_ptr<DatabaseCallbacks> Connection::AbortTransactionsAndClose(
   bucket_context_handle_->quota_manager()->NotifyBucketAccessed(
       bucket_context_handle_->bucket_locator(), base::Time::Now());
   if (!status.ok()) {
-    bucket_context_handle_->OnDatabaseError(status, {});
+    bucket_context_handle_->OnDatabaseError(database_.get(), status, {});
   }
   bucket_context_handle_.Release();
   return callbacks;

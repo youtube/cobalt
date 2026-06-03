@@ -17,7 +17,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "chrome/browser/content_extraction/inner_text.h"
-#include "chrome/browser/glic/host/context/glic_page_context_eligibility_observer.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/media/glic_media_integration.h"
@@ -27,6 +26,7 @@
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "components/pdf/common/constants.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -129,20 +129,14 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
   ~GlicPageContextFetcher() override = default;
 
   void FetchStart(
-      FocusedTabData focused_tab_data,
+      tabs::TabInterface* tab,
       const mojom::GetTabContextOptions& options,
+      bool include_actionable_data,
       glic::mojom::WebClientHandler::GetContextFromFocusedTabCallback
           callback) {
-    base::expected<content::WebContents*, std::string_view> focus =
-        focused_tab_data.GetFocus();
-    if (!focus.has_value()) {
-      std::move(callback).Run(
-          mojom::GetContextResult::NewErrorReason(std::string(focus.error())));
-      return;
-    }
     options_ = options;
 
-    content::WebContents* aweb_contents = focus.value();
+    content::WebContents* aweb_contents = tab->GetContents();
     DCHECK(aweb_contents->GetPrimaryMainFrame());
     CHECK_EQ(web_contents(),
              nullptr);  // Ensure Fetch is called only once per instance.
@@ -194,18 +188,20 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
 
     if (options.include_annotated_page_content) {
       blink::mojom::AIPageContentOptionsPtr ai_page_content_options;
-      ai_page_content_options =
-          optimization_guide::DefaultAIPageContentOptions();
-      ai_page_content_options->include_geometry = false;
-      ai_page_content_options->on_critical_path = true;
-      ai_page_content_options->include_hidden_searchable_content = true;
-      ai_page_content_options->max_meta_elements = options.max_meta_tags;
+
       // TODO(crbug.com/409564704): Move actor page content extraction to the
       // actor coordinator.
-      if (base::FeatureList::IsEnabled(features::kGlicActor)) {
-        ai_page_content_options->include_geometry = true;
-        ai_page_content_options->enable_experimental_actionable_data = true;
+      if (include_actionable_data) {
+        ai_page_content_options =
+            optimization_guide::ActionableAIPageContentOptions();
+      } else {
+        ai_page_content_options =
+            optimization_guide::DefaultAIPageContentOptions();
       }
+
+      ai_page_content_options->on_critical_path = true;
+      ai_page_content_options->max_meta_elements = options.max_meta_tags;
+
       optimization_guide::GetAIPageContent(
           web_contents(), std::move(ai_page_content_options),
           base::BindOnce(&GlicPageContextFetcher::ReceivedAnnotatedPageContent,
@@ -213,13 +209,6 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
     } else {
       annotated_page_content_done_ = true;
     }
-
-    // Will only fetch context eligibility if we can observe it.
-    context_eligibility_check_done_ =
-        !(GlicPageContextEligibilityObserver::MaybeGetEligibilityForWebContents(
-            web_contents(),
-            base::BindOnce(&GlicPageContextFetcher::ReceivedContextEligibility,
-                           GetWeakPtr())));
 
     // Note: initialization_done_ guards against processing
     // `RunCallbackIfComplete()` until we reach this point.
@@ -310,26 +299,15 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
     RunCallbackIfComplete();
   }
 
-  void ReceivedContextEligibility(bool is_eligible) {
-    context_eligible_ = is_eligible;
-    context_eligibility_check_done_ = true;
-    base::UmaHistogramTimes("Glic.PageContextFetcher.GetContextEligibility",
-                            base::TimeTicks::Now() - start_time_);
-    base::UmaHistogramBoolean("Glic.PageContextFetcher.PageContextEligible",
-                              *context_eligible_);
-    RunCallbackIfComplete();
-  }
-
   void RunCallbackIfComplete() {
     if (!initialization_done_) {
       return;
     }
 
     // Continue only if the primary page changed or work is complete.
-    bool work_complete =
-        (screenshot_done_ && inner_text_done_ && annotated_page_content_done_ &&
-         pdf_done_ && context_eligibility_check_done_) ||
-        primary_page_changed_;
+    bool work_complete = (screenshot_done_ && inner_text_done_ &&
+                          annotated_page_content_done_ && pdf_done_) ||
+                         primary_page_changed_;
     if (!work_complete) {
       return;
     }
@@ -345,13 +323,6 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
 
     if (!web_contents() || !web_contents()->GetPrimaryMainFrame()) {
       result = mojom::GetContextResult::NewErrorReason("web contents changed");
-      std::move(callback_).Run(std::move(result));
-      return;
-    }
-
-    if (!context_eligible_.value_or(true)) {
-      result =
-          mojom::GetContextResult::NewErrorReason("page context ineligible");
       std::move(callback_).Run(std::move(result));
       return;
     }
@@ -439,7 +410,6 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
   bool inner_text_done_ = false;
   bool pdf_done_ = false;
   bool annotated_page_content_done_ = false;
-  bool context_eligibility_check_done_ = false;
   // Whether the primary page has changed since context fetching began.
   bool primary_page_changed_ = false;
   url::Origin pdf_origin_;
@@ -451,7 +421,6 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
   std::optional<pdf::mojom::PdfListener_GetPdfBytesStatus> pdf_status_;
   std::optional<optimization_guide::AIPageContentResult>
       annotated_page_content_result_;
-  std::optional<bool> context_eligible_;
   base::TimeTicks start_time_;
 
   base::WeakPtrFactory<GlicPageContextFetcher> weak_ptr_factory_{this};
@@ -460,14 +429,16 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
 }  // namespace
 
 void FetchPageContext(
-    FocusedTabData focused_tab_data,
+    tabs::TabInterface* tab,
     const mojom::GetTabContextOptions& options,
+    bool include_actionable_data,
     glic::mojom::WebClientHandler::GetContextFromFocusedTabCallback callback) {
+  CHECK(tab);
   CHECK(callback);
   auto self = std::make_unique<GlicPageContextFetcher>();
   auto* raw_self = self.get();
   raw_self->FetchStart(
-      focused_tab_data, options,
+      tab, options, include_actionable_data,
       base::BindOnce(
           // Bind `fetcher` to the callback to keep it in scope until it
           // returns.

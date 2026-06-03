@@ -39,10 +39,23 @@ const char kSeedFilesGroup[] = "SeedFiles_V7";
 struct StoredSeed {
   enum class StorageFormat { kCompressed, kCompressedAndBase64Encoded };
 
+  // The storage format of the seed. Seed-file-based seeds are compressed while
+  // local-state-based seeds are compressed and base64 encoded.
   StorageFormat storage_format;
+  // The seed data.
   std::string_view data;
+  // base64-encoded signature of the seed.
   std::string_view signature;
+  // The milestone with which the seed was fetched
   int milestone = 0;
+  // Date used for study date checks. Is a server-provided timestamp.
+  // On some platforms, on the first run, it's set to a client-provided
+  // timestamp until the server-provided timestamp is fetched. (See
+  // ChromeFeatureListCreator::SetupInitialPrefs())
+  base::Time seed_date;
+  // The time at which the seed was fetched. This is always a client-side
+  // timestamp.
+  base::Time client_fetch_time;
 };
 
 // Groups the data from a seed and other seed-related info that is validated
@@ -53,12 +66,16 @@ struct ValidatedSeedInfo {
   std::string_view base64_seed_data;
   std::string_view signature;
   int milestone = 0;
+  base::Time seed_date;
+  base::Time client_fetch_time;
 };
 
 struct SeedFieldsPrefs {
   const char* seed;
   const char* signature;
   const char* milestone;
+  const char* seed_date;
+  const char* client_fetch_time;
 };
 
 COMPONENT_EXPORT(VARIATIONS)
@@ -104,9 +121,8 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   // seed-related info.
   void StoreValidatedSeedInfo(ValidatedSeedInfo seed_info);
 
-  // Clears seed data and other seed-related info by overwriting it with an
-  // empty string.
-  // The following fields are cleared: seed data and signature.
+  // Clears seed data and other seed-related info. The following fields are
+  // cleared: seed data, signature, milestone, and seed date.
   void ClearSeedInfo();
 
   // Returns stored seed data.
@@ -114,6 +130,12 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
 
   // Overrides the timer used for scheduling writes with `timer_override`.
   void SetTimerForTesting(base::OneShotTimer* timer_override);
+
+  // Updates the server-provided seed date that is used for study date checks.
+  void SetSeedDate(base::Time server_date_fetched);
+
+  // Updates the time of the last fetch of the seed.
+  void SetFetchTime(base::Time client_fetch_time);
 
   // Returns true if a write is scheduled but has not yet completed.
   bool HasPendingWrite() const;
@@ -127,6 +149,8 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
     std::string data;
     std::string signature;
     int milestone = 0;
+    base::Time seed_date;
+    base::Time client_fetch_time;
   };
 
   // Returns the serialized data to be written to disk. This is done
@@ -134,9 +158,8 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   base::ImportantFileWriter::BackgroundDataProducerCallback
   GetSerializedDataProducerForBackgroundSequence() override;
 
-  // Schedules `seed_info` to be written using `seed_writer_`. Fields with
-  // zero/empty values will be ignored. If you want to clear the seed file, use
-  // ScheduleSeedFileClear() instead.
+  // Schedules `seed_info` to be written using `seed_writer_`. If you want to
+  // clear the seed file, use ScheduleSeedFileClear() instead.
   void ScheduleSeedFileWrite(ValidatedSeedInfo seed_info);
 
   // Schedules `seed_info` to be cleared using `seed_writer_`.

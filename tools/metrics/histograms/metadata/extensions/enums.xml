@@ -2822,6 +2822,7 @@ Called by update_extension_histograms.py.-->
   <int value="1937" label="BOOKMARKMANAGERPRIVATE_OPENINNEWTABGROUP"/>
   <int value="1938" label="CONTROLLEDFRAMEINTERNAL_CONTEXTMENUSUPDATE"/>
   <int value="1939" label="BOOKMARKMANAGERPRIVATE_ISACTIVETABINSPLIT"/>
+  <int value="1940" label="ENTERPRISE_LOGIN_EXITCURRENTMANAGEDGUESTSESSION"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3209,6 +3210,7 @@ Called by update_extension_permission.py.-->
   <int value="260" label="kExperimentalAiData"/>
   <int value="261" label="kOmniboxDirectInput"/>
   <int value="262" label="kExperimentalActor"/>
+  <int value="263" label="kEnterpriseLogin"/>
 </enum>
 
 <enum name="ExtensionPolicyReinstallReason">
@@ -3355,6 +3357,15 @@ Called by update_extension_permission.py.-->
   <int value="0" label="Offstore"/>
   <int value="1" label="Chrome Web Store"/>
 </enum>
+
+<!-- LINT.IfChange(LoadExtensionFlag) -->
+
+<enum name="LoadExtensionFlag">
+  <int value="0" label="LoadExtension"/>
+  <int value="1" label="DisableExtensionsExcept"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/extensions/extension_service.h:LoadExtensionFlag) -->
 
 <enum name="LoadRulesetResult">
   <int value="0" label="Load succeeded"/>
@@ -3697,6 +3708,18 @@ Called by update_extension_permission.py.-->
   <int value="1" label="Allowlisted"/>
   <int value="2" label="Not allowlisted"/>
 </enum>
+
+<!-- LINT.IfChange(WebStoreLinkClicked) -->
+
+<enum name="WebStoreLinkClicked">
+  <int value="0" label="'Discover Extensions' link"/>
+  <int value="1" label="'Find Coupons' link"/>
+  <int value="2" label="'Write Better' link"/>
+  <int value="3" label="'Boost Productivity' link"/>
+  <int value="4" label="'Enhance with AI' link"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo.mojom:WebStoreLinkClicked) -->
 
 </enums>
 

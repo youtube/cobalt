@@ -21,6 +21,7 @@
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/browsertest_util.h"
@@ -47,6 +48,7 @@
 #include "extensions/browser/process_manager.h"
 #include "extensions/common/api/runtime.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
@@ -609,16 +611,131 @@ IN_PROC_BROWSER_TEST_F(MessagingApiTest, MessageChannelName) {
   ResultCatcher result_catcher;
 
   ui_test_utils::NavigateToURLWithDisposition(
-      browser(), extension->GetResourceURL("connectee.html"),
+      browser(), extension->ResolveExtensionURL("connectee.html"),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
   ui_test_utils::NavigateToURLWithDisposition(
-      browser(), extension->GetResourceURL("connector.html"),
+      browser(), extension->ResolveExtensionURL("connector.html"),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
 
   ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
 }
+
+class OnMessagePromiseReturnMessagingApiTest : public MessagingApiTest {
+ public:
+  OnMessagePromiseReturnMessagingApiTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        extensions_features::kRuntimeOnMessagePromiseReturnSupport);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Runs multiple test scenarios for runtime.OnMessage() listeners returning
+// various synchronous and asynchronous (promise or 'return true' callback)
+// values.
+IN_PROC_BROWSER_TEST_F(OnMessagePromiseReturnMessagingApiTest,
+                       OnMessageReturnBehavior) {
+  ASSERT_TRUE(LoadExtension(
+      shared_test_data_dir().AppendASCII("messaging/on_message_promise")));
+
+  // Open example.com where content script is injected and runtime.sendMessage()
+  // is called.
+  ResultCatcher result_catcher;
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/extensions/test_file.html")));
+
+  // Confirm content script response callback function is called with the
+  // expected value.
+  {
+    SCOPED_TRACE(
+        "waiting for content script message sender response callback to "
+        "receive response from background message listener");
+    EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+  }
+}
+
+// Helps in testing that
+// extensions_features::kRuntimeOnMessagePromiseReturnSupport doesn't regress
+// asynchronous listener behavior when multiple listeners can return for a
+// single message.
+class OnMessageMultiListenerMessagingApiTest
+    : public MessagingApiTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  OnMessageMultiListenerMessagingApiTest() {
+    if (GetParam()) {
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/{extensions_features::
+                                    kRuntimeOnMessagePromiseReturnSupport},
+          /*disabled_features=*/{});
+    } else {
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/{}, /*disabled_features=*/{
+              extensions_features::kRuntimeOnMessagePromiseReturnSupport});
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that, when a synchronous onMessage listener is registered first (it's
+// return value is examined first) and an asynchronous listener is registered
+// second, it doesn't prevent the asynchronous listeners sendResponse() call
+// from getting to the message sender. Regression test for crbug.com/424560420.
+IN_PROC_BROWSER_TEST_P(OnMessageMultiListenerMessagingApiTest,
+                       OnMessageSyncListenerReturnsFirst) {
+  ASSERT_TRUE(LoadExtension(shared_test_data_dir().AppendASCII(
+      "messaging/on_message_multi_listener/sync_listener_called_first")));
+
+  // Open example.com where content script is injected and runtime.sendMessage()
+  // is called.
+  ResultCatcher result_catcher;
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/extensions/test_file.html")));
+
+  // Confirm content script response callback function is called with the
+  // expected value.
+  {
+    SCOPED_TRACE(
+        "waiting for content script message sender response callback to "
+        "receive response from background message listener");
+    EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+  }
+}
+
+// Tests that, when a asynchronous onMessage listener is registered first (it's
+// return value is examined first) and a synchronous listener is registered
+// second, it doesn't prevent the asynchronous listeners sendResponse() call
+// from getting to the message sender. Regression test for crbug.com/424560420.
+IN_PROC_BROWSER_TEST_P(OnMessageMultiListenerMessagingApiTest,
+                       OnMessageAsyncListenerReturnsFirst) {
+  ASSERT_TRUE(LoadExtension(shared_test_data_dir().AppendASCII(
+      "messaging/on_message_multi_listener/async_listener_called_first")));
+
+  // Open example.com where content script is injected and runtime.sendMessage()
+  // is called.
+  ResultCatcher result_catcher;
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/extensions/test_file.html")));
+
+  // Confirm content script response callback function is called with the
+  // expected value.
+  {
+    SCOPED_TRACE(
+        "waiting for content script message sender response callback to "
+        "receive response from background message listener");
+    EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         OnMessageMultiListenerMessagingApiTest,
+                         // extensions_features::kUserScriptUserExtensionToggle
+                         testing::Bool());
 
 class ServiceWorkerMessagingApiTest : public MessagingApiTest {
  protected:

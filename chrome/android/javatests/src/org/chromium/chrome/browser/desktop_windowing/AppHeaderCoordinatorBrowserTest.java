@@ -74,17 +74,17 @@ import org.chromium.components.browser_ui.bottomsheet.TestBottomSheetContent;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.JavaScriptUtils;
-import org.chromium.ui.CaptionBarInsetsRectProvider;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewUtils;
+import org.chromium.ui.insets.CaptionBarInsetsRectProvider;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.test.util.DeviceRestriction;
 
 import java.util.concurrent.TimeoutException;
 
 /** Browser test for {@link AppHeaderCoordinator} */
 @RequiresApi(Build.VERSION_CODES.R)
-@Restriction({DeviceFormFactor.TABLET, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+@Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
 @CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 @Features.DisableFeatures(ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE)
 @Batch(Batch.PER_CLASS)
@@ -608,7 +608,8 @@ public class AppHeaderCoordinatorBrowserTest {
                             new AppHeaderState(
                                     mWindowRect, mWidestUnoccludedRect, isInDesktopWindow);
                     ((AppHeaderCoordinator) appHeaderStateProvider)
-                            .setStateForTesting(isInDesktopWindow, appHeaderState);
+                            .setStateForTesting(
+                                    isInDesktopWindow, appHeaderState, /* isFocused= */ true);
                     AppHeaderUtils.setAppInDesktopWindowForTesting(isInDesktopWindow);
                 });
     }

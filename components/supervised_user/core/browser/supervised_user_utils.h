@@ -22,6 +22,7 @@
 class GURL;
 
 namespace supervised_user {
+class SupervisedUserURLFilter;
 
 // Reason for applying the website filtering parental control.
 enum class FilteringBehaviorReason {
@@ -48,6 +49,9 @@ enum class FilteringBehavior : int {
   kBlock = 2,
   kInvalid = 3,
 };
+
+// Declaration for gtest: defining in prod code is not required.
+void PrintTo(FilteringBehavior behavior, std::ostream* os);
 
 // Whether the migration of existing extensions to parent-approved needs to be
 // executed, when the feature

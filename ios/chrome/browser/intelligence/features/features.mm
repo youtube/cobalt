@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/intelligence/features/features.h"
 
+#import "base/check.h"
 #import "base/metrics/field_trial_params.h"
 
 BASE_FEATURE(kEnhancedCalendar,
@@ -18,32 +19,44 @@ BASE_FEATURE(kPageActionMenu,
              "PageActionMenu",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const char kPageActionMenuDirectEntryPointParam[] =
+    "PageActionMenuDirectEntryPoint";
+
 bool IsPageActionMenuEnabled() {
   return base::FeatureList::IsEnabled(kPageActionMenu);
 }
 
-const char kGLICPromoConsentParams[] = "GLICPromoConsentVariations";
-
-GLICPromoConsentVariations GLICPromoConsentVariationsParam() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(
-      kGLICPromoConsent, kGLICPromoConsentParams, 0);
-  if (!IsPageActionMenuEnabled()) {
-    return GLICPromoConsentVariations::kDisabled;
-  }
-  if (param == 1) {
-    return GLICPromoConsentVariations::kSinglePage;
-  }
-  if (param == 2) {
-    return GLICPromoConsentVariations::kDoublePage;
-  }
-  if (param == 3) {
-    return GLICPromoConsentVariations::kSkipConsent;
-  }
-  return GLICPromoConsentVariations::kDisabled;
+bool IsDirectBWGEntryPoint() {
+  CHECK(IsPageActionMenuEnabled());
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kPageActionMenu, kPageActionMenuDirectEntryPointParam, false);
 }
 
-BASE_FEATURE(kGLICPromoConsent,
-             "GLICPromoConsent",
+const char kBWGPromoConsentParams[] = "BWGPromoConsentVariations";
+
+BWGPromoConsentVariations BWGPromoConsentVariationsParam() {
+  int param = base::GetFieldTrialParamByFeatureAsInt(kBWGPromoConsent,
+                                                     kBWGPromoConsentParams, 0);
+  if (!IsPageActionMenuEnabled()) {
+    return BWGPromoConsentVariations::kDisabled;
+  }
+  if (param == 1) {
+    return BWGPromoConsentVariations::kSinglePage;
+  }
+  if (param == 2) {
+    return BWGPromoConsentVariations::kDoublePage;
+  }
+  if (param == 3) {
+    return BWGPromoConsentVariations::kSkipConsent;
+  }
+  if (param == 4) {
+    return BWGPromoConsentVariations::kForceConsent;
+  }
+  return BWGPromoConsentVariations::kDisabled;
+}
+
+BASE_FEATURE(kBWGPromoConsent,
+             "BWGPromoConsent",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kExplainGeminiEditMenuParams[] = "PositionForExplainGeminiEditMenu";

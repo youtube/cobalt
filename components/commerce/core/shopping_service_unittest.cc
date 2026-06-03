@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/optimization_guide/core/optimization_guide_proto_util.h"
+#include "components/commerce/core/shopping_service.h"
 
 #include <array>
 #include <string>
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/values.h"
 #include "components/bookmarks/browser/bookmark_model.h"
@@ -18,16 +19,17 @@
 #include "components/commerce/core/commerce_utils.h"
 #include "components/commerce/core/feature_utils.h"
 #include "components/commerce/core/mock_account_checker.h"
+#include "components/commerce/core/mock_discount_infos_storage.h"
 #include "components/commerce/core/pref_names.h"
 #include "components/commerce/core/proto/shopping_page_types.pb.h"
-#include "components/commerce/core/shopping_service.h"
 #include "components/commerce/core/shopping_service_test_base.h"
 #include "components/commerce/core/test_utils.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/url_row.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
-#include "components/optimization_guide/core/optimization_guide_decision.h"
-#include "components/optimization_guide/core/optimization_metadata.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decision.h"
+#include "components/optimization_guide/core/hints/optimization_metadata.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/power_bookmarks/core/power_bookmark_utils.h"
 #include "components/power_bookmarks/core/proto/power_bookmark_meta.pb.h"
@@ -2034,6 +2036,32 @@ TEST_P(ShoppingServiceTest, TestIsShoppingPage) {
   run_loop[2].Run();
 }
 
+TEST_P(ShoppingServiceTest, TestDiscountInfoResponse_ForMerchant) {
+  test_features_.InitWithFeatures({kDiscountAutofill}, {});
+
+  EXPECT_CALL(*discount_infos_storage_, LoadDiscountsWithPrefix).Times(1);
+
+  ON_CALL(*discount_infos_storage_, LoadDiscountsWithPrefix)
+      .WillByDefault([](const GURL& url, DiscountInfoCallback callback) {
+        commerce::DiscountInfo info;
+        info.id = 111;
+        info.value_in_text = "10% off";
+        info.type = commerce::DiscountType::kFreeListingWithCode;
+        info.expiry_time_sec = 1000000;
+        info.is_merchant_wide = false;
+        std::move(callback).Run(url, {info});
+      });
+  base::RunLoop run_loop;
+  shopping_service_->GetAvailableDiscountInfoForUrl(
+      GURL(kDiscountsUrl1),
+      base::BindOnce([](const GURL& url,
+                        const std::vector<DiscountInfo> discounts) {
+        ASSERT_EQ(1, (int)discounts.size());
+        ASSERT_TRUE(discounts[0].expiry_time_sec.has_value());
+      }).Then(run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
 TEST_P(ShoppingServiceTest, TestDiscountInfoResponse) {
   test_features_.InitWithFeatures({kEnableDiscountInfoApi}, {});
 
@@ -2058,6 +2086,8 @@ TEST_P(ShoppingServiceTest, TestDiscountInfoResponse) {
                           OptimizationType::SHOPPING_DISCOUNTS,
                           OptimizationGuideDecision::kTrue,
                           opt_guide_->BuildDiscountsResponse(infos));
+
+  EXPECT_CALL(*discount_infos_storage_, SaveDiscounts).Times(1);
 
   base::RunLoop run_loop;
   shopping_service_->GetDiscountInfoForUrl(
@@ -2112,6 +2142,8 @@ TEST_P(ShoppingServiceTest,
                           OptimizationGuideDecision::kTrue,
                           opt_guide_->BuildDiscountsResponse(infos));
 
+  EXPECT_CALL(*discount_infos_storage_, SaveDiscounts).Times(1);
+
   base::RunLoop run_loop;
   shopping_service_->GetDiscountInfoForUrl(
       GURL(kDiscountsUrl1),
@@ -2154,6 +2186,8 @@ TEST_P(ShoppingServiceTest, TestDiscountInfoResponse_InfoWithoutId) {
                           OptimizationGuideDecision::kTrue,
                           opt_guide_->BuildDiscountsResponse(infos));
 
+  EXPECT_CALL(*discount_infos_storage_, SaveDiscounts).Times(1);
+
   base::RunLoop run_loop;
   shopping_service_->GetDiscountInfoForUrl(
       GURL(kDiscountsUrl1), base::BindOnce(
@@ -2191,6 +2225,8 @@ TEST_P(ShoppingServiceTest, TestDiscountInfoResponse_InfoWithoutTerms) {
                           OptimizationType::SHOPPING_DISCOUNTS,
                           OptimizationGuideDecision::kTrue,
                           opt_guide_->BuildDiscountsResponse(infos));
+
+  EXPECT_CALL(*discount_infos_storage_, SaveDiscounts).Times(1);
 
   base::RunLoop run_loop;
   shopping_service_->GetDiscountInfoForUrl(

@@ -6,6 +6,7 @@ package org.chromium.components.external_intents;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.app.Activity;
 import android.util.Pair;
 
 import androidx.annotation.IntDef;
@@ -320,7 +321,8 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
 
         if (!shouldIgnore
                 && result.getResultType()
-                        == OverrideUrlLoadingResultType.OVERRIDE_WITH_REPARENT_TO_BROWSER) {
+                        == OverrideUrlLoadingResultType.OVERRIDE_WITH_REPARENT_TO_BROWSER
+                && !mClient.isTabDetached()) {
             // Reparenting task must be executed after runResultCallback has been called.
             mClient.startReparentingTask();
         }
@@ -440,7 +442,7 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
         // may have been closed.
         boolean onInitialNavigationChain = isTabOnInitialNavigationChain();
         boolean isWebContentsVisible =
-                mClient.getWebContents().getVisibility() == Visibility.VISIBLE;
+                assumeNonNull(mClient.getWebContents()).getVisibility() == Visibility.VISIBLE;
         ExternalNavigationParams params =
                 new ExternalNavigationParams.Builder(
                                 escapedUrl,
@@ -515,7 +517,8 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
             ExternalNavigationParams params, boolean isExternalProtocol) {
         try (TraceEvent e = TraceEvent.scoped("shouldOverrideUrlLoading")) {
             OverrideUrlLoadingResult result = null;
-            if (shouldReparentTab(mClient.getWebContents())) {
+            WebContents webContents = assumeNonNull(mClient.getWebContents());
+            if (shouldReparentTab(webContents)) {
                 // Catches all cases where a navigation that starts in a PWA should cause a Tab
                 // reparenting towards the Chrome browser.
                 // TODO(crbug.com/416562397): eventually consider in-scope PWAs in the reparenting
@@ -560,8 +563,7 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
             } else if (MDOC_SCHEME.equals(params.getUrl().getScheme())) {
                 scheme = InterceptScheme.MDOC_SCHEME;
                 ContentWebFeatureUsageUtils.logWebFeatureForCurrentPage(
-                        mClient.getWebContents(),
-                        WebFeature.IDENTITY_DIGITAL_CREDENTIALS_DEEP_LINK);
+                        webContents, WebFeature.IDENTITY_DIGITAL_CREDENTIALS_DEEP_LINK);
                 // Record spread of `result` in order to get an idea of by how much the
                 // IDENTITY_DIGITAL_CREDENTIALS_DEEP_LINK use counter is over counting as a user may
                 // cancel the OverrideUrlLoadingResultType.OVERRIDE_WITH_ASYNC_ACTION dialog.
@@ -572,8 +574,7 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
             } else if (params.getUrl().getScheme().endsWith(OPENID4VP_SCHEME_SUFFIX)) {
                 scheme = InterceptScheme.OPENID4VP_SCHEME;
                 ContentWebFeatureUsageUtils.logWebFeatureForCurrentPage(
-                        mClient.getWebContents(),
-                        WebFeature.IDENTITY_DIGITAL_CREDENTIALS_DEEP_LINK);
+                        webContents, WebFeature.IDENTITY_DIGITAL_CREDENTIALS_DEEP_LINK);
                 // Record spread of `result` in order to get an idea of by how much the
                 // IDENTITY_DIGITAL_CREDENTIALS_DEEP_LINK use counter is over counting as a user may
                 // cancel the OverrideUrlLoadingResultType.OVERRIDE_WITH_ASYNC_ACTION dialog.
@@ -590,6 +591,14 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
 
     @Override
     public void onResourceRequestWithGesture() {
+        // Browser-initiated navigations race against renderer-initiated resource requests.
+        // It should be fine to just drop the resource request as it is from the previous page.
+        // In rare cases this could theoretically arrive after a browser-initiated navigation
+        // completes and allow an external navigation that shouldn't have been allowed but this
+        // isn't exploitable so should be fine and not worth all of the complexity required to
+        // properly fix it.
+        if (mPendingShouldIgnore != null) return;
+
         // LINK is the default transition type, and is generally used for everything coming from a
         // renderer that isn't a form submission (or subframe).
         @PageTransition int transition = PageTransition.LINK;
@@ -605,6 +614,7 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
      */
     public void maybeUpdateNavigationHistory() {
         WebContents webContents = mClient.getWebContents();
+        assumeNonNull(webContents);
         NavigationController navigationController = webContents.getNavigationController();
         if (mClearAllForwardHistoryRequired && webContents != null) {
             navigationController.pruneForwardEntries();
@@ -658,9 +668,10 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
     }
 
     private boolean isBrowserAuxiliaryNavigation() {
+        WebContents webContents = assumeNonNull(mClient.getWebContents());
         return mClient.isTabInBrowser()
-                && mClient.getWebContents().hasOpener()
-                && mClient.getWebContents().getOriginalWindowOpenDisposition()
+                && webContents.hasOpener()
+                && webContents.getOriginalWindowOpenDisposition()
                         == WindowOpenDisposition.NEW_FOREGROUND_TAB;
     }
 
@@ -732,14 +743,15 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
                             // background and acted as an intermediate link redirector between two
                             // apps (crbug.com/487938).
                             if (mClient.wasTabLaunchedFromExternalApp()) {
+                                Activity activity = assumeNonNull(mClient.getActivity());
                                 if (mClient.getOrCreateRedirectHandler()
                                         .wasTaskStartedByExternalIntent()) {
                                     // If Chrome was only launched to perform a redirect, don't keep
                                     // its task in history.
-                                    mClient.getActivity().finishAndRemoveTask();
+                                    activity.finishAndRemoveTask();
                                 } else {
                                     // Takes Chrome out of the back stack.
-                                    mClient.getActivity().moveTaskToBack(false);
+                                    activity.moveTaskToBack(false);
                                 }
                             }
                             // Closing tab must happen after we potentially call
@@ -771,7 +783,7 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
                         // index which was saved before this navigation, and remove the empty
                         // entries from the navigation history.
                         mClearAllForwardHistoryRequired = true;
-                        mClient.getWebContents()
+                        assumeNonNull(mClient.getWebContents())
                                 .getNavigationController()
                                 .goToNavigationIndex(lastCommittedEntryIndexBeforeNavigation);
                     }
@@ -819,7 +831,7 @@ public class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate
                 assumeNonNull(mExternalNavHandler).canExternalAppHandleUrl(url)
                         ? R.string.blocked_navigation_warning
                         : R.string.unreachable_navigation_warning;
-        mClient.getWebContents()
+        assumeNonNull(mClient.getWebContents())
                 .addMessageToDevToolsConsole(
                         ConsoleMessageLevel.WARNING,
                         ContextUtils.getApplicationContext().getString(resId, url.getSpec()));

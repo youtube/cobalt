@@ -14,6 +14,13 @@ BASE_FEATURE(kAutofillDisableDefaultSaveCardFixFlowDetection,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// When enabled, cardholder and address names considered during the credit card
+// upload flow will be cleared out if they contain characters considered invalid
+// by Google Payments, such as numbers or various punctuation marks.
+BASE_FEATURE(kAutofillDropNamesWithInvalidCharactersForCardUpload,
+             "AutofillDropNamesWithInvalidCharactersForCardUpload",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, card category benefits offered by BMO will be shown in Autofill
 // suggestions on the allowlisted merchant websites.
 BASE_FEATURE(kAutofillEnableAllowlistForBmoCardCategoryBenefits,
@@ -34,11 +41,11 @@ BASE_FEATURE(kAutofillEnableAmountExtractionDesktop,
              "AutofillEnableAmountExtractionDesktop",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables logging of the result of checkout amount extraction on desktop.
+// Enables testing of the result of checkout amount extraction on desktop.
 // This flag will allow amount extraction to run on any website when a CC
 // form is clicked. This flag should never be enabled.
-BASE_FEATURE(kAutofillEnableAmountExtractionDesktopLogging,
-             "AutofillEnableAmountExtractionDesktopLogging",
+BASE_FEATURE(kAutofillEnableAmountExtractionTesting,
+             "AutofillEnableAmountExtractionTesting",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, buy now pay later (BNPL) in Autofill will be offered.
@@ -46,10 +53,22 @@ BASE_FEATURE(kAutofillEnableBuyNowPayLater,
              "AutofillEnableBuyNowPayLater",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, buy now pay later (BNPL) for Klarna in Autofill will be
+// offered.
+BASE_FEATURE(kAutofillEnableBuyNowPayLaterForKlarna,
+             "AutofillEnableBuyNowPayLaterForKlarna",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, buy now pay later (BNPL) data will be synced to Chrome clients.
 BASE_FEATURE(kAutofillEnableBuyNowPayLaterSyncing,
              "AutofillEnableBuyNowPayLaterSyncing",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, buy now pay later (BNPL) data for Klarna will be synced to
+// Chrome clients.
+BASE_FEATURE(kAutofillEnableBuyNowPayLaterSyncingForKlarna,
+             "AutofillEnableBuyNowPayLaterSyncingForKlarna",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, card benefits offered by American Express will be shown in
 // Payments Autofill UI.
@@ -123,11 +142,17 @@ BASE_FEATURE(kAutofillEnableCvcStorageAndFillingStandaloneFormEnhancement,
              "AutofillEnableCvcStorageAndFillingStandaloneFormEnhancement",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, in-product help UI will be shown the first time a card added
+// outside of Chrome appears in Autofill card suggestions."
+BASE_FEATURE(kAutofillEnableDownstreamCardAwarenessIph,
+             "AutofillEnableDownstreamCardAwarenessIph",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, card flat rate benefit will not be shown on merchants in the
 // blocklist.
 BASE_FEATURE(kAutofillEnableFlatRateCardBenefitsBlocklist,
              "AutofillEnableFlatRateCardBenefitsBlocklist",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, flat rate card benefits sourced from Curinos will be shown in
 // Payments Autofill UI.
@@ -239,6 +264,14 @@ BASE_FEATURE(kAutofillLocalSaveCardBottomSheet,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// When enabled, if credit card upload save encounters a card with the same four
+// digits as an existing server card but a different expiration date, it
+// requires that CVC was found in the flow before offering to save/update the
+// card.
+BASE_FEATURE(kAutofillRequireCvcForPossibleCardUpdate,
+             "AutofillRequireCvcForPossibleCardUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, Chrome will try to fetch payment account image resources again
 // upon failure. The number of attempts is a controllable parameter. This is a
 // kill-switch.
@@ -324,6 +357,12 @@ BASE_FEATURE(kAutofillSyncEwalletAccounts,
              "AutofillSyncEwalletAccounts",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// If enabled, the Autofill strike system will not block features. Intended for
+// debugging/testing use only and should never be launched to users.
+BASE_FEATURE(kDisableAutofillStrikeSystem,
+             "DisableAutofillStrikeSystem",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool ShouldShowImprovedUserConsentForCreditCardSave() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX)

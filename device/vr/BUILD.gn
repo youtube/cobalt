@@ -381,15 +381,13 @@ if (enable_openxr) {
     shared_library("openxr_mock") {
       testonly = true
 
-      # Not everything seems to respect `output_dir`. It appears that while on
-      # windows the last name appropriately gets renamed as needed, it does not
-      # on android, so this actually ends up written to `libmock_vr_clients`,
-      # and due to Android's expectations we have to name the runtime
-      # accordingly as well.
+      # Not everything seems to respect `output_dir`, so we can't actually use
+      # it on both platforms. Furthermore, on Android if there are directories
+      # in the output_name path, then symbolization on the bots is broken.
       if (is_win) {
         output_name = "mock_vr_clients/bin/openxr/openxrruntime"
       } else if (is_android) {
-        output_name = "mock_vr_clients/bin/openxr/libopenxrruntime"
+        output_name = "libmockopenxrruntime"
       }
 
       defines = [ "XR_EXTENSION_PROTOTYPES" ]
@@ -409,6 +407,16 @@ if (enable_openxr) {
         "openxr/test/openxr_test_helper.h",
       ]
 
+      deps = [
+        ":vr_test_hook",
+        "//base",
+        "//components/version_info",
+        "//device/gamepad/public/cpp:shared_with_blink",
+        "//device/vr/public/mojom:test_mojom",
+        "//device/vr/public/mojom:vr_service",
+        "//third_party/openxr:openxr_headers",
+      ]
+
       if (is_win) {
         sources += [ "openxr/test/openxr.def" ]
         libs = [
@@ -422,17 +430,15 @@ if (enable_openxr) {
                     rebase_path("//device/vr/openxr/test/openxr.lst",
                                 root_build_dir) ]
         inputs = [ "//device/vr/openxr/test/openxr.lst" ]
+        sources += [
+          "openxr/test/xr_test_gl.cc",
+          "openxr/test/xr_test_gl.h",
+        ]
+        libs = [
+          "EGL",
+          "GLESv2",
+        ]
       }
-
-      deps = [
-        ":vr_test_hook",
-        "//base",
-        "//components/version_info",
-        "//device/gamepad/public/cpp:shared_with_blink",
-        "//device/vr/public/mojom:test_mojom",
-        "//device/vr/public/mojom:vr_service",
-        "//third_party/openxr:openxr_headers",
-      ]
 
       public_deps = [ ":openxr_data" ]
 
@@ -446,8 +452,7 @@ if (enable_openxr) {
         testonly = true
 
         shared_libraries = [ ":openxr_mock" ]
-        library_always_compress =
-            [ "libmock_vr_clients/bin/openxr/libopenxrruntime.so" ]
+        library_always_compress = [ "libmockopenxrruntime.so" ]
 
         apk_name = "OpenXrTestSupport"
         android_manifest = "openxr/test/AndroidManifest.xml"

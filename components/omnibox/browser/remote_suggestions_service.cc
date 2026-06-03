@@ -54,9 +54,6 @@ std::string RequestTypeToString(RemoteRequestType request_type) {
   }
 }
 
-const char kResponseTimeHistogramName[] =
-    "Omnibox.SuggestRequestsSent.ResponseTime2.RequestState";
-
 std::string ResponseCodeToSuccessString(int response_code) {
   return response_code == 200 ? "Successful" : "Failed";
 }
@@ -247,45 +244,6 @@ void RemoteSuggestionsService::SetTimeRequestSent(
     RemoteRequestType request_type,
     base::TimeTicks time) {
   time_request_sent_[request_type] = time;
-}
-
-void RemoteSuggestionsService::LogResponseTime(RemoteRequestType request_type,
-                                               bool interrupted) {
-  // Get time `request_type` was sent.
-  const auto time = time_request_sent_.find(request_type);
-  std::optional<base::TimeTicks> start_time =
-      time == time_request_sent_.end()
-          ? std::nullopt
-          : std::optional<base::TimeTicks>(time->second);
-
-  // `start_time` must be set for `request_type`
-  CHECK(start_time != std::nullopt);
-
-  const base::TimeDelta elapsed_time =
-      base::TimeTicks::Now() - start_time.value();
-  const std::string kEnterpriseRequestTypeString = RequestTypeToString(
-      RemoteRequestType::kEnterpriseSearchAggregatorSuggest);
-  if (interrupted) {
-    base::UmaHistogramTimes(
-        base::StringPrintf("%s.%s.Interrupted", kResponseTimeHistogramName,
-                           kEnterpriseRequestTypeString),
-        elapsed_time);
-  } else {
-    base::UmaHistogramTimes(
-        base::StringPrintf("%s.%s.Completed", kResponseTimeHistogramName,
-                           kEnterpriseRequestTypeString),
-        elapsed_time);
-  }
-  base::UmaHistogramTimes(
-      base::StringPrintf("%s.%s", kResponseTimeHistogramName,
-                         kEnterpriseRequestTypeString),
-      elapsed_time);
-  // Since the `EnterpriseSearchAggregator` makes more than one request, don't
-  // override `request_time_sent_[request_type]`. This is handled in the
-  // provider.
-  if (request_type != RemoteRequestType::kEnterpriseSearchAggregatorSuggest) {
-    SetTimeRequestSent(request_type, base::TimeTicks());
-  }
 }
 
 // static
@@ -524,9 +482,10 @@ void RemoteSuggestionsService::
         const std::u16string& query,
         const GURL& suggest_url,
         metrics::OmniboxEventProto::PageClassification page_classification,
+        std::vector<int> callback_indexes,
+        std::vector<std::vector<int>> suggestion_types,
         IndexedStartCallback start_callback,
-        IndexedCompletionCallback completion_callback,
-        std::vector<std::vector<int>> suggestion_types) {
+        IndexedCompletionCallback completion_callback) {
   if (!enterprise_search_aggregator_suggestions_service_) {
     return;
   }
@@ -536,7 +495,7 @@ void RemoteSuggestionsService::
 
   enterprise_search_aggregator_suggestions_service_
       ->CreateEnterpriseSearchAggregatorSuggestionsRequest(
-          query, suggest_url,
+          query, suggest_url, callback_indexes, suggestion_types,
           base::BindRepeating(&RemoteSuggestionsService::OnRequestCreated,
                               weak_ptr_factory_.GetWeakPtr(), request_id),
           base::BindRepeating(
@@ -551,8 +510,7 @@ void RemoteSuggestionsService::
               /*request_type=*/
               RemoteRequestType::kEnterpriseSearchAggregatorSuggest,
               metrics::OmniboxEventProto::INVALID_SPEC, base::TimeTicks::Now(),
-              std::move(completion_callback)),
-          suggestion_types);
+              std::move(completion_callback)));
 }
 
 void RemoteSuggestionsService::

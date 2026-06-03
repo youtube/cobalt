@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ALPHA;
+import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ANIMATION_STATUS;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
 
 import android.util.Size;
@@ -18,6 +19,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.Shopping
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionListener;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
+import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableBooleanPropertyKey;
@@ -74,6 +76,9 @@ public class TabProperties {
     public static final WritableObjectPropertyKey<TabActionListener> TAB_LONG_CLICK_LISTENER =
             new WritableObjectPropertyKey<>();
 
+    public static final WritableBooleanPropertyKey IS_HIGHLIGHTED =
+            new WritableBooleanPropertyKey();
+
     public static final WritableObjectPropertyKey<TabActionButtonData> TAB_ACTION_BUTTON_DATA =
             new WritableObjectPropertyKey<>();
 
@@ -98,8 +103,6 @@ public class TabProperties {
     public static final WritableObjectPropertyKey<String> TITLE = new WritableObjectPropertyKey<>();
 
     public static final WritableBooleanPropertyKey IS_SELECTED = new WritableBooleanPropertyKey();
-
-    public static final WritableIntPropertyKey CARD_ANIMATION_STATUS = new WritableIntPropertyKey();
 
     public static final WritableObjectPropertyKey<SelectionDelegate<TabListEditorItemSelectionId>>
             TAB_SELECTION_DELEGATE = new WritableObjectPropertyKey<>();
@@ -139,6 +142,9 @@ public class TabProperties {
     public static final WritableObjectPropertyKey<TabGroupColorViewProvider>
             TAB_GROUP_COLOR_VIEW_PROVIDER = new WritableObjectPropertyKey<>();
 
+    public static final PropertyModel.WritableObjectPropertyKey<@TabGroupColorId Integer>
+            TAB_GROUP_CARD_COLOR = new PropertyModel.WritableObjectPropertyKey<>();
+
     // TODO(crbug.com/365973166): Move this to `TabStripProperties` when it is created.
     public static final WritableBooleanPropertyKey HAS_NOTIFICATION_BUBBLE =
             new WritableBooleanPropertyKey();
@@ -176,6 +182,7 @@ public class TabProperties {
                 ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER,
                 QUICK_DELETE_ANIMATION_STATUS,
                 TAB_GROUP_COLOR_VIEW_PROVIDER,
+                TAB_GROUP_CARD_COLOR,
                 VISIBILITY,
                 USE_SHRINK_CLOSE_ANIMATION,
             };
@@ -191,6 +198,7 @@ public class TabProperties {
                         SHOULD_SHOW_PRICE_DROP_TOOLTIP,
                         HAS_NOTIFICATION_BUBBLE,
                         TAB_CARD_LABEL_DATA,
+                        IS_HIGHLIGHTED
                     },
                     COMMON_KEYS_TAB_AND_GROUP_GRID);
 

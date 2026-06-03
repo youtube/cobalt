@@ -63,6 +63,7 @@
 #include "chrome/updater/util/util.h"
 #include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/installer/exit_code.h"
+#include "chrome/updater/win/installer_api.h"
 #include "chrome/updater/win/manifest_util.h"
 #include "chrome/updater/win/protocol_parser_xml.h"
 #include "chrome/updater/win/ui/l10n_util.h"
@@ -525,6 +526,15 @@ void AppInstallControllerImpl::InstallApp(
   if (tag_args) {
     request.brand_code = tag_args->brand_code;
     request.install_id = tag_args->installation_id;
+
+    if (!tag_args->referral_id.empty()) {
+      // For backwards compatibility, record the referral id in ClientState,
+      // since some applications read it from there.
+      SetRegistryKey(UpdaterScopeToHKeyRoot(GetUpdaterScope()),
+                     GetAppClientStateKey(base::UTF8ToWide(app_id_)),
+                     kRegValueReferralId,
+                     base::UTF8ToWide(tag_args->referral_id));
+    }
   }
 
   base::ThreadPool::PostTaskAndReply(
@@ -641,7 +651,10 @@ void AppInstallControllerImpl::DoInstallAppOffline(
 
   RegistrationRequest request;
   request.app_id = app_id_;
-  request.version = base::Version(kNullVersion);
+  const base::Version installed_version =
+      LookupVersion(GetUpdaterScope(), app_id_, {}, {}, {});
+  request.version = installed_version.IsValid() ? installed_version
+                                                : base::Version(kNullVersion);
 
   std::optional<tagging::AppArgs> app_args = GetAppArgs(app_id_);
   if (app_args) {
@@ -651,6 +664,15 @@ void AppInstallControllerImpl::DoInstallAppOffline(
   if (tag_args) {
     request.brand_code = tag_args->brand_code;
     request.install_id = tag_args->installation_id;
+
+    if (!tag_args->referral_id.empty()) {
+      // For backwards compatibility, record the referral id in ClientState,
+      // since some applications read it from there.
+      SetRegistryKey(UpdaterScopeToHKeyRoot(GetUpdaterScope()),
+                     GetAppClientStateKey(base::UTF8ToWide(app_id_)),
+                     kRegValueReferralId,
+                     base::UTF8ToWide(tag_args->referral_id));
+    }
   }
 
   VLOG(1) << __func__ << ": " << installer_path << ": " << install_args << ": "

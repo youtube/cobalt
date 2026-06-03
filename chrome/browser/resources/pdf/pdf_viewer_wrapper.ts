@@ -61,7 +61,7 @@ export {ViewerToolbarDropdownElement} from './elements/viewer_toolbar_dropdown.j
 // </if>
 export {GestureDetector, PinchEventDetail} from './gesture_detector.js';
 // <if expr="enable_pdf_ink2">
-export {DEFAULT_TEXTBOX_HEIGHT, DEFAULT_TEXTBOX_WIDTH, Ink2Manager, TextBoxInit} from './ink2_manager.js';
+export {DEFAULT_TEXTBOX_WIDTH, Ink2Manager, MIN_TEXTBOX_SIZE_PX, TextBoxInit} from './ink2_manager.js';
 // </if>
 export {PdfPluginElement} from './internal_plugin.js';
 export {record, recordFitTo, resetForTesting, UserAction} from './metrics.js';
@@ -69,7 +69,10 @@ export {NavigatorDelegate, PdfNavigator, WindowOpenDisposition} from './navigato
 export {OpenPdfParamsParser, ViewMode} from './open_pdf_params_parser.js';
 export {getFilenameFromURL, PdfViewerElement} from './pdf_viewer.js';
 export {PdfViewerBaseElement} from './pdf_viewer_base.js';
-export {hexToColor, shouldIgnoreKeyEvents} from './pdf_viewer_utils.js';
+// <if expr="enable_pdf_ink2">
+export {hexToColor} from './pdf_viewer_utils.js';
+// </if>
+export {shouldIgnoreKeyEvents} from './pdf_viewer_utils.js';
 export {SwipeDetector, SwipeDirection} from './swipe_detector.js';
 export {DocumentDimensions, LayoutOptions, PAGE_SHADOW, Viewport} from './viewport.js';
 export {ZoomManager} from './zoom_manager.js';

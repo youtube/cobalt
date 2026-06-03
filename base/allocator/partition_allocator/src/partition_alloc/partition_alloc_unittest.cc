@@ -23,7 +23,6 @@
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/dangling_raw_ptr_checks.h"
 #include "partition_alloc/in_slot_metadata.h"
-#include "partition_alloc/lightweight_quarantine.h"
 #include "partition_alloc/memory_reclaimer.h"
 #include "partition_alloc/page_allocator_constants.h"
 #include "partition_alloc/partition_address_space.h"
@@ -48,6 +47,7 @@
 #include "partition_alloc/partition_root.h"
 #include "partition_alloc/partition_stats.h"
 #include "partition_alloc/reservation_offset_table.h"
+#include "partition_alloc/scheduler_loop_quarantine_support.h"
 #include "partition_alloc/tagging.h"
 #include "partition_alloc/thread_isolation/thread_isolation.h"
 #include "partition_alloc/use_death_tests.h"
@@ -387,22 +387,14 @@ class PartitionAllocTest
     opts.eventually_zero_freed_memory = PartitionOptions::kEnabled;
     opts.fewer_memory_regions = PartitionOptions::kDisabled;
     opts.scheduler_loop_quarantine_global_config = {
-        .quarantine_config =
-            {
-                .lock_required = true,
-                .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
-                .leak_on_destruction = true,
-            },
+        .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
+        .leak_on_destruction = true,
         .enable_quarantine = true,
         .enable_zapping = true,
     };
     opts.scheduler_loop_quarantine_thread_local_config = {
-        .quarantine_config =
-            {
-                .lock_required = false,
-                .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
-                .leak_on_destruction = false,
-            },
+        .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
+        .leak_on_destruction = false,
         .enable_quarantine = true,
         .enable_zapping = true,
     };
@@ -804,27 +796,26 @@ bool IsDirectMapAllocatedByRoot(uintptr_t address, PartitionRoot* root) {
 #endif  // PA_BUILDFLAG(IS_APPLE)
 
 bool IsManagedByNormalBucketsForTesting(uintptr_t address,
-                                        [[maybe_unused]] PartitionRoot* root) {
-  return IsManagedByNormalBuckets(address)
+                                        PartitionRoot* root) {
+  return root->GetReservationOffsetTable().IsManagedByNormalBuckets(address)
 #if PA_BUILDFLAG(IS_APPLE)
          && IsNormalBucketsAllocatedByRoot(address, root)
 #endif  // PA_BUILDFLAG(IS_APPLE)
       ;
 }
 
-bool IsManagedByDirectMapForTesting(uintptr_t address,
-                                    [[maybe_unused]] PartitionRoot* root) {
-  return IsManagedByDirectMap(address)
+bool IsManagedByDirectMapForTesting(uintptr_t address, PartitionRoot* root) {
+  return root->GetReservationOffsetTable().IsManagedByDirectMap(address)
 #if PA_BUILDFLAG(IS_APPLE)
          && IsDirectMapAllocatedByRoot(address, root)
 #endif  // PA_BUILDFLAG(IS_APPLE)
       ;
 }
 
-bool IsManagedByNormalBucketsOrDirectMapForTesting(
-    uintptr_t address,
-    [[maybe_unused]] PartitionRoot* root) {
-  return IsManagedByNormalBucketsOrDirectMap(address)
+bool IsManagedByNormalBucketsOrDirectMapForTesting(uintptr_t address,
+                                                   PartitionRoot* root) {
+  return root->GetReservationOffsetTable().IsManagedByNormalBucketsOrDirectMap(
+             address)
 #if PA_BUILDFLAG(IS_APPLE)
          && (IsManagedByNormalBucketsForTesting(address, root) ||
              IsManagedByDirectMapForTesting(address, root))
@@ -3817,26 +3808,22 @@ TEST_P(PartitionAllocTest, ZeroFill) {
 }
 
 TEST_P(PartitionAllocTest, SchedulerLoopQuarantine) {
-  SchedulerLoopQuarantineBranch& branch =
-      allocator.root()->GetSchedulerLoopQuarantineBranchForTesting();
+  internal::ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(
+      allocator.root());
 
   for (size_t size : kTestSizes) {
     SCOPED_TRACE(size);
 
-    ASSERT_GT(branch.GetConfigurationForTesting()
-                  .quarantine_config.branch_capacity_in_bytes,
-              size);
+    ASSERT_GT(branch.GetCapacityInBytes(), size);
 
     void* object = allocator.root()->Alloc(size);
     allocator.root()->Free<FreeFlags::kSchedulerLoopQuarantine>(object);
 
     if (size <= BucketIndexLookup::kMaxBucketSize) {
-      ASSERT_TRUE(
-          branch.GetInternalBranchForTesting().IsQuarantinedForTesting(object));
+      ASSERT_TRUE(branch.IsQuarantined(object));
     } else {
       // Direct-mapped allocations should not be quarantined.
-      ASSERT_FALSE(
-          branch.GetInternalBranchForTesting().IsQuarantinedForTesting(object));
+      ASSERT_FALSE(branch.IsQuarantined(object));
     }
   }
 
@@ -3846,7 +3833,7 @@ TEST_P(PartitionAllocTest, SchedulerLoopQuarantine) {
         allocator.root(), 250);
   }
 
-  branch.GetInternalBranchForTesting().Purge();
+  branch.Purge();
 }
 
 // Ensures `Free<kSchedulerLoopQuarantine>` works as `Free<kNone>` if disabled.
@@ -3895,10 +3882,9 @@ TEST_P(PartitionAllocTest, ZapOnFree) {
   EXPECT_EQ(kFreedByte, *(static_cast<unsigned char*>(ptr) + size - 1));
 
   // Make sure the quarantine is empty before the root is reset.
-  allocator.root()
-      ->GetSchedulerLoopQuarantineBranchForTesting()
-      .GetInternalBranchForTesting()
-      .Purge();
+  internal::ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(
+      allocator.root());
+  branch.Purge();
 }
 
 #if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_ANDROID) || \
@@ -4266,46 +4252,17 @@ TEST_P(PartitionAllocTest, GetUsableSizeNull) {
 }
 
 TEST_P(PartitionAllocTest, GetUsableSize) {
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-  allocator.root()->EnableMac11MallocSizeHackForTesting();
-#endif
   size_t delta = 31;
   for (size_t size = 1; size <= kMinDirectMappedDownsize; size += delta) {
     void* ptr = allocator.root()->Alloc(size);
     EXPECT_TRUE(ptr);
     size_t usable_size = PartitionRoot::GetUsableSize(ptr);
-    size_t usable_size_with_hack =
-        PartitionRoot::GetUsableSizeWithMac11MallocSizeHack(ptr);
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-    if (size != internal::kMac11MallocSizeHackRequestedSize)
-#endif
-      EXPECT_EQ(usable_size_with_hack, usable_size);
     EXPECT_LE(size, usable_size);
     memset(ptr, 0xDE, usable_size);
     // Should not crash when free the ptr.
     allocator.root()->Free(ptr);
   }
 }
-
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-TEST_P(PartitionAllocTest, GetUsableSizeWithMac11MallocSizeHack) {
-  if (internal::base::mac::MacOSMajorVersion() != 11) {
-    GTEST_SKIP() << "Skipping because the test is for Mac11.";
-  }
-
-  allocator.root()->EnableMac11MallocSizeHackForTesting();
-  size_t size = internal::kMac11MallocSizeHackRequestedSize;
-  void* ptr = allocator.root()->Alloc(size);
-  size_t usable_size = PartitionRoot::GetUsableSize(ptr);
-  size_t usable_size_with_hack =
-      PartitionRoot::GetUsableSizeWithMac11MallocSizeHack(ptr);
-  EXPECT_EQ(usable_size,
-            allocator.root()->settings.mac11_malloc_size_hack_usable_size_);
-  EXPECT_EQ(usable_size_with_hack, size);
-
-  allocator.root()->Free(ptr);
-}
-#endif  // PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
 
 TEST_P(PartitionAllocTest, Bookkeeping) {
   auto& root = *allocator.root();
@@ -4611,7 +4568,9 @@ TEST_P(PartitionAllocTest, RefCountBasic) {
   // quarantine.
   in_slot_metadata = TagPtr(in_slot_metadata);
   EXPECT_TRUE(in_slot_metadata->ReleaseFromUnprotectedPtr());
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr1));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr1));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
   uint64_t* ptr3 =
       static_cast<uint64_t*>(allocator.root()->Alloc(alloc_size, type_name));
   PA_EXPECT_PTR_EQ(ptr1, ptr3);
@@ -4657,7 +4616,11 @@ void PartitionAllocTest::RunRefCountReallocSubtest(size_t orig_size,
     EXPECT_TRUE(in_slot_metadata2->IsAliveWithNoKnownRefs());
 
     EXPECT_TRUE(in_slot_metadata1->ReleaseFromUnprotectedPtr());
-    PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr1));
+
+    auto slot_info =
+        partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+            reinterpret_cast<uintptr_t>(ptr1));
+    PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
   }
 
   allocator.root()->Free(ptr2);
@@ -4840,7 +4803,9 @@ TEST_P(UnretainedDanglingRawPtrTest, UnretainedDanglingPtrShouldReport) {
   EXPECT_EQ(g_unretained_dangling_raw_ptr_detected_count, 1);
   EXPECT_TRUE(in_slot_metadata->ReleaseFromUnprotectedPtr());
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 #if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
@@ -4914,7 +4879,9 @@ TEST_P(PartitionAllocTest, DanglingPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Allocate memory, and reference it from 3
@@ -4960,7 +4927,9 @@ TEST_P(PartitionAllocTest, DanglingDanglingPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // When 'free' is called, it remain one raw_ptr<> and one
@@ -4997,7 +4966,9 @@ TEST_P(PartitionAllocTest, DanglingMixedReleaseRawPtrFirst) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // When 'free' is called, it remain one raw_ptr<> and one
@@ -5036,7 +5007,9 @@ TEST_P(PartitionAllocTest, DanglingMixedReleaseDanglingPtrFirst) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // When 'free' is called, it remains one
@@ -5078,7 +5051,9 @@ TEST_P(PartitionAllocTest, DanglingPtrUsedToAcquireNewRawPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Same as 'DanglingPtrUsedToAcquireNewRawPtr', but release the
@@ -5119,7 +5094,9 @@ TEST_P(PartitionAllocTest, DanglingPtrUsedToAcquireNewRawPtrVariant) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Acquire a raw_ptr<T>, and release it before freeing memory. In the
@@ -5157,19 +5134,21 @@ TEST_P(PartitionAllocTest, RawPtrReleasedBeforeFree) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Similar to `PartitionAllocTest.DanglingPtr`, but using
 // `PartitionRoot::Free<FreeFlags::kSchedulerLoopQuarantine>`.
 // 1. `PartitionRoot::Free<kSchedulerLoopQuarantine>`
-//   - The allocation is owned by Scheduler-Loop Quarantine.
-// 2. `InSlotMetadata::Release`
-//   - The allocation is still owned by Scheduler-Loop Quarantine.
+//   - The allocation is owned by BRP Quarantine as there are two dangling
+//   pointers.
+// 2. `InSlotMetadata::Release` x 2
+//   - The allocation is moved to Scheduler-Loop Quarantine.
 // 3. The allocation gets purged from Scheduler-Loop Quarantine.
 //   - Actual free happens here.
-TEST_P(PartitionAllocTest,
-       DanglingPtrReleaseBeforeSchedulerLoopQuarantineExit) {
+TEST_P(PartitionAllocTest, DanglingPtrReleaseToSchedulerLoopQuarantine) {
   if (!UseBRPPool()) {
     return;
   }
@@ -5194,74 +5173,20 @@ TEST_P(PartitionAllocTest,
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  // Free it. This creates two dangling pointer.
-  allocator.root()->Free<FreeFlags::kSchedulerLoopQuarantine>(ptr);
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
-
-  // The dangling raw_ptr stop referencing it.
-  EXPECT_FALSE(ref_count->Release());
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
-
-  // The dangling raw_ptr stop referencing it again.
-  // Allocation should not be reclaimed because it is still held by the
-  // allocator, in the quarantine.
-  EXPECT_FALSE(ref_count->Release());
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
-
-  SchedulerLoopQuarantineBranch& branch =
-      allocator.root()->GetSchedulerLoopQuarantineBranchForTesting();
-  branch.GetInternalBranchForTesting().Purge();
-}
-
-// Similar to `PartitionAllocTest.DanglingPtr`, but using
-// `PartitionRoot::Free<FreeFlags::kSchedulerLoopQuarantine>`.
-// 1. `PartitionRoot::Free<kSchedulerLoopQuarantine>`
-//   - The allocation is owned by Scheduler-Loop Quarantine.
-// 2. The allocation gets purged from Scheduler-Loop Quarantine.
-//   - The allocation is now moved to BRP-quarantine.
-// 3. `InSlotMetadata::Release`
-//   - Actual free happens here.
-TEST_P(PartitionAllocTest, DanglingPtrReleaseAfterSchedulerLoopQuarantineExit) {
-  if (!UseBRPPool()) {
-    return;
-  }
-
-  CountDanglingRawPtr dangling_checks;
-
-  // Allocate memory, and reference it from 3 raw_ptr.
-  uint64_t* ptr = static_cast<uint64_t*>(
-      allocator.root()->Alloc(64 - ExtraAllocSize(allocator), type_name));
-  auto* ref_count =
-      allocator.root()->InSlotMetadataPointerFromObjectForTesting(ptr);
-
-  ref_count->Acquire();
-  ref_count->Acquire();
-  ref_count->Acquire();
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
-
-  // The first raw_ptr stops referencing it, before the memory has been
-  // released.
-  EXPECT_FALSE(ref_count->Release());
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
+  internal::ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(
+      allocator.root());
 
   // Free it. This creates two dangling pointer.
   allocator.root()->Free<FreeFlags::kSchedulerLoopQuarantine>(ptr);
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
+  EXPECT_FALSE(branch.IsQuarantined(ptr));
 
   // The dangling raw_ptr stop referencing it.
   EXPECT_FALSE(ref_count->Release());
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
-
-  SchedulerLoopQuarantineBranch& branch =
-      allocator.root()->GetSchedulerLoopQuarantineBranchForTesting();
-  branch.GetInternalBranchForTesting().Purge();
+  EXPECT_FALSE(branch.IsQuarantined(ptr));
 
   // The dangling raw_ptr stop referencing it again.
   // Allocation should not be reclaimed because it is still held by the
@@ -5270,7 +5195,12 @@ TEST_P(PartitionAllocTest, DanglingPtrReleaseAfterSchedulerLoopQuarantineExit) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
+
+  EXPECT_TRUE(branch.IsQuarantined(ptr));
+  branch.Purge();
 }
 
 #if PA_USE_DEATH_TESTS()
@@ -5315,11 +5245,19 @@ TEST_P(PartitionAllocDeathTest, ReleaseUnderflowDanglingPtr) {
 #endif  // PA_BUILDFLAG(ENABLE_DANGLING_RAW_PTR_CHECKS)
 
 TEST_P(PartitionAllocTest, ReservationOffset) {
+  static constexpr uint16_t kOffsetTagNotAllocated =
+      std::numeric_limits<uint16_t>::max();
+  static constexpr uint16_t kOffsetTagNormalBuckets =
+      std::numeric_limits<uint16_t>::max() - 1;
+
+  ReservationOffsetTable table = allocator.root()->GetReservationOffsetTable();
+
   // For normal buckets, offset should be kOffsetTagNormalBuckets.
   void* ptr = allocator.root()->Alloc(kTestAllocSize, type_name);
   EXPECT_TRUE(ptr);
   uintptr_t address = UntagPtr(ptr);
-  EXPECT_EQ(kOffsetTagNormalBuckets, *ReservationOffsetPointer(address));
+  EXPECT_EQ(kOffsetTagNormalBuckets,
+            *table.GetOffsetPointerForTesting(address));
   allocator.root()->Free(ptr);
 
   // For direct-map,
@@ -5328,36 +5266,44 @@ TEST_P(PartitionAllocTest, ReservationOffset) {
   ptr = allocator.root()->Alloc(large_size, type_name);
   EXPECT_TRUE(ptr);
   address = UntagPtr(ptr);
-  EXPECT_EQ(0U, *ReservationOffsetPointer(address));
-  EXPECT_EQ(1U, *ReservationOffsetPointer(address + kSuperPageSize));
-  EXPECT_EQ(2U, *ReservationOffsetPointer(address + kSuperPageSize * 2));
-  EXPECT_EQ(3U, *ReservationOffsetPointer(address + kSuperPageSize * 3));
-  EXPECT_EQ(4U, *ReservationOffsetPointer(address + kSuperPageSize * 4));
-  EXPECT_EQ(5U, *ReservationOffsetPointer(address + kSuperPageSize * 5));
+  EXPECT_EQ(0U, *table.GetOffsetPointerForTesting(address));
+  EXPECT_EQ(1U, *table.GetOffsetPointerForTesting(address + kSuperPageSize));
+  EXPECT_EQ(2U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 2));
+  EXPECT_EQ(3U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 3));
+  EXPECT_EQ(4U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 4));
+  EXPECT_EQ(5U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 5));
 
   // In-place realloc doesn't affect the offsets.
   void* new_ptr = allocator.root()->Realloc(ptr, large_size * .8, type_name);
   EXPECT_EQ(new_ptr, ptr);
-  EXPECT_EQ(0U, *ReservationOffsetPointer(address));
-  EXPECT_EQ(1U, *ReservationOffsetPointer(address + kSuperPageSize));
-  EXPECT_EQ(2U, *ReservationOffsetPointer(address + kSuperPageSize * 2));
-  EXPECT_EQ(3U, *ReservationOffsetPointer(address + kSuperPageSize * 3));
-  EXPECT_EQ(4U, *ReservationOffsetPointer(address + kSuperPageSize * 4));
-  EXPECT_EQ(5U, *ReservationOffsetPointer(address + kSuperPageSize * 5));
+  EXPECT_EQ(0U, *table.GetOffsetPointerForTesting(address));
+  EXPECT_EQ(1U, *table.GetOffsetPointerForTesting(address + kSuperPageSize));
+  EXPECT_EQ(2U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 2));
+  EXPECT_EQ(3U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 3));
+  EXPECT_EQ(4U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 4));
+  EXPECT_EQ(5U,
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 5));
 
   allocator.root()->Free(ptr);
   // After free, the offsets must be kOffsetTagNotAllocated.
-  EXPECT_EQ(kOffsetTagNotAllocated, *ReservationOffsetPointer(address));
+  EXPECT_EQ(kOffsetTagNotAllocated, *table.GetOffsetPointerForTesting(address));
   EXPECT_EQ(kOffsetTagNotAllocated,
-            *ReservationOffsetPointer(address + kSuperPageSize));
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize));
   EXPECT_EQ(kOffsetTagNotAllocated,
-            *ReservationOffsetPointer(address + kSuperPageSize * 2));
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 2));
   EXPECT_EQ(kOffsetTagNotAllocated,
-            *ReservationOffsetPointer(address + kSuperPageSize * 3));
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 3));
   EXPECT_EQ(kOffsetTagNotAllocated,
-            *ReservationOffsetPointer(address + kSuperPageSize * 4));
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 4));
   EXPECT_EQ(kOffsetTagNotAllocated,
-            *ReservationOffsetPointer(address + kSuperPageSize * 5));
+            *table.GetOffsetPointerForTesting(address + kSuperPageSize * 5));
 }
 
 TEST_P(PartitionAllocTest, GetReservationStart) {
@@ -5369,13 +5315,16 @@ TEST_P(PartitionAllocTest, GetReservationStart) {
   uintptr_t reservation_start = slot_start - PartitionPageSize();
   EXPECT_EQ(0U, reservation_start & DirectMapAllocationGranularityOffsetMask());
 
+  ReservationOffsetTable table = allocator.root()->GetReservationOffsetTable();
+
   uintptr_t address = UntagPtr(ptr);
   for (uintptr_t a = address; a < address + large_size; ++a) {
-    uintptr_t address2 = GetDirectMapReservationStart(a) + PartitionPageSize();
+    uintptr_t address2 =
+        table.GetDirectMapReservationStart(a) + PartitionPageSize();
     EXPECT_EQ(slot_start, address2);
   }
 
-  EXPECT_EQ(reservation_start, GetDirectMapReservationStart(slot_start));
+  EXPECT_EQ(reservation_start, table.GetDirectMapReservationStart(slot_start));
 
   allocator.root()->Free(ptr);
 }
@@ -5386,11 +5335,12 @@ TEST_P(PartitionAllocTest, DISABLED_CheckReservationType) {
 #else
 TEST_P(PartitionAllocTest, CheckReservationType) {
 #endif  // PA_BUILDFLAG(IS_FUCHSIA)
+  ReservationOffsetTable table = allocator.root()->GetReservationOffsetTable();
   void* ptr = allocator.root()->Alloc(kTestAllocSize, type_name);
   EXPECT_TRUE(ptr);
   uintptr_t address = UntagPtr(ptr);
   uintptr_t address_to_check = address;
-  EXPECT_FALSE(IsReservationStart(address_to_check));
+  EXPECT_FALSE(table.IsReservationStart(address_to_check));
   EXPECT_TRUE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_FALSE(
@@ -5398,7 +5348,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
   EXPECT_TRUE(IsManagedByNormalBucketsOrDirectMapForTesting(address_to_check,
                                                             allocator.root()));
   address_to_check = address + kTestAllocSize - 1;
-  EXPECT_FALSE(IsReservationStart(address_to_check));
+  EXPECT_FALSE(table.IsReservationStart(address_to_check));
   EXPECT_TRUE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_FALSE(
@@ -5407,7 +5357,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
                                                             allocator.root()));
   address_to_check =
       partition_alloc::internal::base::bits::AlignDown(address, kSuperPageSize);
-  EXPECT_TRUE(IsReservationStart(address_to_check));
+  EXPECT_TRUE(table.IsReservationStart(address_to_check));
   EXPECT_TRUE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_FALSE(
@@ -5418,7 +5368,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
   // Freeing keeps a normal-bucket super page in memory.
   address_to_check =
       partition_alloc::internal::base::bits::AlignDown(address, kSuperPageSize);
-  EXPECT_TRUE(IsReservationStart(address_to_check));
+  EXPECT_TRUE(table.IsReservationStart(address_to_check));
   EXPECT_TRUE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_FALSE(
@@ -5432,7 +5382,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
   EXPECT_TRUE(ptr);
   address = UntagPtr(ptr);
   address_to_check = address;
-  EXPECT_FALSE(IsReservationStart(address_to_check));
+  EXPECT_FALSE(table.IsReservationStart(address_to_check));
   EXPECT_FALSE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_TRUE(
@@ -5441,7 +5391,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
                                                             allocator.root()));
   address_to_check =
       partition_alloc::internal::base::bits::AlignUp(address, kSuperPageSize);
-  EXPECT_FALSE(IsReservationStart(address_to_check));
+  EXPECT_FALSE(table.IsReservationStart(address_to_check));
   EXPECT_FALSE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_TRUE(
@@ -5449,7 +5399,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
   EXPECT_TRUE(IsManagedByNormalBucketsOrDirectMapForTesting(address_to_check,
                                                             allocator.root()));
   address_to_check = address + large_size - 1;
-  EXPECT_FALSE(IsReservationStart(address_to_check));
+  EXPECT_FALSE(table.IsReservationStart(address_to_check));
   EXPECT_FALSE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_TRUE(
@@ -5458,7 +5408,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
                                                             allocator.root()));
   address_to_check =
       partition_alloc::internal::base::bits::AlignDown(address, kSuperPageSize);
-  EXPECT_TRUE(IsReservationStart(address_to_check));
+  EXPECT_TRUE(table.IsReservationStart(address_to_check));
   EXPECT_FALSE(
       IsManagedByNormalBucketsForTesting(address_to_check, allocator.root()));
   EXPECT_TRUE(
@@ -5474,7 +5424,7 @@ TEST_P(PartitionAllocTest, CheckReservationType) {
 #if PA_BUILDFLAG(DCHECKS_ARE_ON) && \
     (!defined(OFFICIAL_BUILD) || PA_BUILDFLAG(IS_DEBUG))
   // Expect to DCHECK on unallocated region.
-  EXPECT_DEATH_IF_SUPPORTED(IsReservationStart(address_to_check), "");
+  EXPECT_DEATH_IF_SUPPORTED(table.IsReservationStart(address_to_check), "");
 #endif  //  PA_BUILDFLAG(DCHECKS_ARE_ON) && (!defined(OFFICIAL_BUILD) ||
         //  PA_BUILDFLAG(IS_DEBUG))
 
@@ -6072,7 +6022,7 @@ TEST_P(PartitionAllocTest, SmallSlotSpanWaste) {
 TEST_P(PartitionAllocTest, SortActiveSlotSpans) {
   auto run_test = [this](size_t count) {
     PartitionBucket bucket;
-    bucket.Init(16, /*use_small_single_slot_spans=*/false);
+    bucket.Init(16);
     bucket.active_slot_spans_head = nullptr;
 
 #if PA_CONFIG(ENABLE_SHADOW_METADATA)

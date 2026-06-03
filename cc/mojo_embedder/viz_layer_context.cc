@@ -22,14 +22,17 @@
 #include "cc/animation/animation_timeline.h"
 #include "cc/animation/keyframe_effect.h"
 #include "cc/animation/keyframe_model.h"
+#include "cc/layers/heads_up_display_layer_impl.h"
 #include "cc/layers/layer_impl.h"
 #include "cc/layers/mirror_layer_impl.h"
+#include "cc/layers/nine_patch_layer_impl.h"
 #include "cc/layers/nine_patch_thumb_scrollbar_layer_impl.h"
 #include "cc/layers/painted_scrollbar_layer_impl.h"
 #include "cc/layers/picture_layer_impl.h"
 #include "cc/layers/solid_color_scrollbar_layer_impl.h"
 #include "cc/layers/surface_layer_impl.h"
 #include "cc/layers/texture_layer_impl.h"
+#include "cc/layers/ui_resource_layer_impl.h"
 #include "cc/layers/view_transition_content_layer_impl.h"
 #include "cc/tiles/picture_layer_tiling.h"
 #include "cc/trees/layer_tree_impl.h"
@@ -220,8 +223,7 @@ void ComputePropertyTreeNodeUpdate(
   wire->clip_id = new_node.clip_id;
   wire->element_id = new_node.element_id;
   wire->opacity = new_node.opacity;
-  wire->has_render_surface =
-      new_node.render_surface_reason != RenderSurfaceReason::kNone;
+  wire->render_surface_reason = new_node.render_surface_reason;
   wire->surface_contents_scale = new_node.surface_contents_scale;
   wire->subtree_capture_id = new_node.subtree_capture_id;
   wire->subtree_size = new_node.subtree_size;
@@ -399,6 +401,8 @@ viz::mojom::TransformTreeUpdatePtr ComputeTransformTreePropertiesUpdate(
           new_tree.device_transform_scale_factor() &&
       old_tree.nodes_affected_by_outer_viewport_bounds_delta() ==
           new_tree.nodes_affected_by_outer_viewport_bounds_delta() &&
+      old_tree.nodes_affected_by_safe_area_bottom() ==
+          new_tree.nodes_affected_by_safe_area_bottom() &&
       old_tree.sticky_position_data() == new_tree.sticky_position_data() &&
       old_tree.anchor_position_scroll_data() ==
           new_tree.anchor_position_scroll_data()) {
@@ -412,6 +416,8 @@ viz::mojom::TransformTreeUpdatePtr ComputeTransformTreePropertiesUpdate(
       new_tree.device_transform_scale_factor();
   wire->nodes_affected_by_outer_viewport_bounds_delta =
       new_tree.nodes_affected_by_outer_viewport_bounds_delta();
+  wire->nodes_affected_by_safe_area_bottom =
+      new_tree.nodes_affected_by_safe_area_bottom();
   wire->sticky_position_data =
       SerializeStickyPositionData(new_tree.sticky_position_data());
   wire->anchor_position_scroll_data =
@@ -423,12 +429,16 @@ viz::mojom::ScrollTreeUpdatePtr ComputeScrollTreePropertiesUpdate(
     const ScrollTree& old_tree,
     const ScrollTree& new_tree) {
   if (old_tree.synced_scroll_offset_map() ==
-      new_tree.synced_scroll_offset_map()) {
+          new_tree.synced_scroll_offset_map() &&
+      old_tree.scrolling_contents_cull_rects() ==
+          new_tree.scrolling_contents_cull_rects()) {
     return nullptr;
   }
 
   auto wire = viz::mojom::ScrollTreeUpdate::New();
   wire->synced_scroll_offsets = new_tree.synced_scroll_offset_map();
+  wire->scrolling_contents_cull_rects =
+      new_tree.scrolling_contents_cull_rects();
 
   return wire;
 }
@@ -607,6 +617,38 @@ void SerializePictureLayerTileUpdates(
   }
 }
 
+// Serializes HUD-specific data into a TextureLayerExtra mojom object.
+// HUD layers are treated as Texture layers by Viz.
+void SerializeHudLayerExtra(HeadsUpDisplayLayerImpl& layer,
+                            viz::mojom::TextureLayerExtraPtr& extra,
+                            viz::ClientResourceProvider& resource_provider,
+                            viz::RasterContextProvider& context_provider) {
+  // HUD layers are typically drawn onto a transparent background and then
+  // composited. They don't have a specific background color to blend with.
+  extra->blend_background_color = false;
+  // HUD content (text, graphs) often has alpha.
+  extra->force_texture_to_opaque = false;
+
+  viz::ResourceId resource_id = viz::kInvalidResourceId;
+  gfx::Size resource_size_in_pixels;
+  gfx::SizeF resource_uv_size;
+  layer.GetContentsResourceId(&resource_id, &resource_size_in_pixels,
+                              &resource_uv_size);
+
+  if (resource_id != viz::kInvalidResourceId) {
+    std::vector<viz::ResourceId> ids = {resource_id};
+    std::vector<viz::TransferableResource> resources;
+    resource_provider.PrepareSendToParent(ids, &resources, &context_provider);
+    CHECK_EQ(resources.size(), 1u);
+    extra->transferable_resource = resources[0];
+    extra->uv_top_left = gfx::PointF();
+    extra->uv_bottom_right =
+        gfx::PointF(resource_uv_size.width(), resource_uv_size.height());
+  } else {
+    extra->transferable_resource = viz::TransferableResource();
+  }
+}
+
 void SerializeMirrorLayerExtra(MirrorLayerImpl& layer,
                                viz::mojom::MirrorLayerExtraPtr& extra) {
   extra->mirrored_layer_id = layer.mirrored_layer_id();
@@ -708,12 +750,32 @@ void SerializeSolidColorScrollbarLayerExtra(
   extra->color = layer.color();
 }
 
+void SerializeUIResourceLayerExtra(UIResourceLayerImpl& layer,
+                                   viz::mojom::UIResourceLayerExtraPtr& extra) {
+  extra->ui_resource_id = layer.ui_resource_id();
+  extra->image_bounds = layer.image_bounds();
+  extra->uv_top_left = layer.uv_top_left();
+  extra->uv_bottom_right = layer.uv_bottom_right();
+}
+
 void SerializeViewTransitionContentLayerExtra(
     ViewTransitionContentLayerImpl& layer,
     viz::mojom::ViewTransitionContentLayerExtraPtr& extra) {
   extra->resource_id = layer.resource_id();
   extra->is_live_content_layer = layer.is_live_content_layer();
   extra->max_extents_rect = layer.max_extents_rect();
+}
+
+void SerializeNinePatchLayerExtra(NinePatchLayerImpl& layer,
+                                  viz::mojom::NinePatchLayerExtraPtr& extra) {
+  extra->image_aperture = layer.quad_generator().image_aperture();
+  extra->border = layer.quad_generator().border();
+  extra->layer_occlusion = layer.quad_generator().output_occlusion();
+  extra->fill_center = layer.quad_generator().fill_center();
+  extra->ui_resource_id = layer.ui_resource_id();
+  extra->image_bounds = layer.image_bounds();
+  extra->uv_top_left = layer.uv_top_left();
+  extra->uv_bottom_right = layer.uv_bottom_right();
 }
 
 void SerializeSurfaceLayerExtra(SurfaceLayerImpl& layer,
@@ -768,8 +830,18 @@ void SerializeLayer(LayerImpl& layer,
     rare_properties->capture_bounds = CHECK_DEREF(layer.capture_bounds());
     wire.rare_properties = std::move(rare_properties);
   }
-  wire.may_contain_video = layer.may_contain_video();
   switch (layer.GetLayerType()) {
+    case mojom::LayerType::kHeadsUpDisplay: {
+      // For Viz, this should look like a Texture layer.
+      wire.type = mojom::LayerType::kTexture;
+      auto texture_layer_extra = viz::mojom::TextureLayerExtra::New();
+      SerializeHudLayerExtra(static_cast<HeadsUpDisplayLayerImpl&>(layer),
+                             texture_layer_extra, resource_provider,
+                             context_provider);
+      wire.layer_extra = viz::mojom::LayerExtra::NewTextureLayerExtra(
+          std::move(texture_layer_extra));
+      break;
+    }
     case mojom::LayerType::kMirror: {
       auto mirror_layer_extra = viz::mojom::MirrorLayerExtra::New();
       SerializeMirrorLayerExtra(static_cast<MirrorLayerImpl&>(layer),
@@ -787,6 +859,14 @@ void SerializeLayer(LayerImpl& layer,
       wire.layer_extra =
           viz::mojom::LayerExtra::NewNinePatchThumbScrollbarLayerExtra(
               std::move(nine_patch_thumb_scrollbar_layer_extra));
+      break;
+    }
+    case mojom::LayerType::kNinePatch: {
+      auto nine_patch_layer_extra = viz::mojom::NinePatchLayerExtra::New();
+      SerializeNinePatchLayerExtra(static_cast<NinePatchLayerImpl&>(layer),
+                                   nine_patch_layer_extra);
+      wire.layer_extra = viz::mojom::LayerExtra::NewNinePatchLayerExtra(
+          std::move(nine_patch_layer_extra));
       break;
     }
     case mojom::LayerType::kPaintedScrollbar: {
@@ -810,6 +890,11 @@ void SerializeLayer(LayerImpl& layer,
               std::move(solid_color_scrollbar_layer_extra));
       break;
     }
+    case mojom::LayerType::kSolidColor: {
+      // This is intentionally empty, as there are no extra properties
+      // to serialize for SolidColorLayerImpls.
+      break;
+    }
     case mojom::LayerType::kSurface: {
       auto surface_layer_extra = viz::mojom::SurfaceLayerExtra::New();
       SerializeSurfaceLayerExtra(static_cast<SurfaceLayerImpl&>(layer),
@@ -819,12 +904,21 @@ void SerializeLayer(LayerImpl& layer,
       break;
     }
     case mojom::LayerType::kPicture: {
-      PictureLayerImpl& picture_layer = static_cast<PictureLayerImpl&>(layer);
-      wire.is_backdrop_filter_mask = picture_layer.is_backdrop_filter_mask();
-
+      // kPicture layers become kTileDisplay layers in Viz.
+      wire.type = mojom::LayerType::kTileDisplay;
+      auto& picture_layer = static_cast<PictureLayerImpl&>(layer);
+      auto tile_display_extra = viz::mojom::TileDisplayLayerExtra::New();
       if (picture_layer.GetRasterSource()->IsSolidColor()) {
-        wire.solid_color = picture_layer.GetRasterSource()->GetSolidColor();
+        tile_display_extra->solid_color =
+            picture_layer.GetRasterSource()->GetSolidColor();
       }
+      tile_display_extra->is_backdrop_filter_mask =
+          picture_layer.is_backdrop_filter_mask();
+      tile_display_extra->is_directly_composited_image =
+          picture_layer.IsDirectlyCompositedImage();
+      tile_display_extra->nearest_neighbor = picture_layer.nearest_neighbor();
+      wire.layer_extra = viz::mojom::LayerExtra::NewTileDisplayLayerExtra(
+          std::move(tile_display_extra));
       SerializePictureLayerTileUpdates(picture_layer, resource_provider,
                                        context_provider, update.tilings);
       break;
@@ -836,6 +930,14 @@ void SerializeLayer(LayerImpl& layer,
                                  context_provider);
       wire.layer_extra = viz::mojom::LayerExtra::NewTextureLayerExtra(
           std::move(texture_layer_extra));
+      break;
+    }
+    case mojom::LayerType::kUIResource: {
+      auto ui_resource_layer_extra = viz::mojom::UIResourceLayerExtra::New();
+      SerializeUIResourceLayerExtra(static_cast<UIResourceLayerImpl&>(layer),
+                                    ui_resource_layer_extra);
+      wire.layer_extra = viz::mojom::LayerExtra::NewUiResourceLayerExtra(
+          std::move(ui_resource_layer_extra));
       break;
     }
     case mojom::LayerType::kViewTransitionContent: {
@@ -1140,7 +1242,8 @@ void VizLayerContext::UpdateDisplayTreeFrom(
     LayerTreeImpl& tree,
     viz::ClientResourceProvider& resource_provider,
     viz::RasterContextProvider& context_provider,
-    const gfx::Rect& viewport_damage_rect) {
+    const gfx::Rect& viewport_damage_rect,
+    const viz::LocalSurfaceId& target_local_surface_id) {
   auto& property_trees = *tree.property_trees();
   auto update = viz::mojom::LayerTreeUpdate::New();
   update->begin_frame_args = tree.CurrentBeginFrameArgs();
@@ -1159,12 +1262,20 @@ void VizLayerContext::UpdateDisplayTreeFrom(
   if (tree.local_surface_id_from_parent().is_valid()) {
     update->local_surface_id_from_parent = tree.local_surface_id_from_parent();
   }
+  update->new_local_surface_id_request =
+      tree.TakeNewLocalSurfaceIdRequestForVizProcess();
+  if (target_local_surface_id.is_valid()) {
+    update->target_local_surface_id = target_local_surface_id;
+  }
   update->background_color = tree.background_color();
 
   const ViewportPropertyIds& property_ids = tree.viewport_property_ids();
+  update->elastic_overscroll = tree.elastic_overscroll()->Current(true);
   update->overscroll_elasticity_transform =
       property_ids.overscroll_elasticity_transform;
   update->page_scale_transform = property_ids.page_scale_transform;
+  update->display_transform_hint = tree.display_transform_hint();
+  update->max_safe_area_inset_bottom = tree.max_safe_area_inset_bottom();
   update->inner_scroll = property_ids.inner_scroll;
   update->outer_clip = property_ids.outer_clip;
   update->outer_scroll = property_ids.outer_scroll;

@@ -15,6 +15,7 @@
 #include "base/allocator/dispatcher/tls.h"
 #include "base/check.h"
 #include "base/compiler_specific.h"
+#include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
 #include "build/build_config.h"
@@ -22,6 +23,10 @@
 namespace base {
 
 namespace {
+
+BASE_FEATURE(kHeapProfilerMultiKeyHashSet,
+             "HeapProfilerMultiKeyHashSet",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 using ::base::allocator::dispatcher::ReentryGuard;
 
@@ -101,12 +106,12 @@ PoissonAllocationSamplerStats::PoissonAllocationSamplerStats(
     size_t address_cache_misses,
     size_t address_cache_max_size,
     float address_cache_max_load_factor,
-    std::vector<size_t> address_cache_bucket_lengths)
+    AddressCacheBucketStats address_cache_bucket_stats)
     : address_cache_hits(address_cache_hits),
       address_cache_misses(address_cache_misses),
       address_cache_max_size(address_cache_max_size),
       address_cache_max_load_factor(address_cache_max_load_factor),
-      address_cache_bucket_lengths(std::move(address_cache_bucket_lengths)) {}
+      address_cache_bucket_stats(std::move(address_cache_bucket_stats)) {}
 
 PoissonAllocationSamplerStats::~PoissonAllocationSamplerStats() = default;
 
@@ -209,7 +214,8 @@ constinit std::atomic<PoissonAllocationSampler::ProfilingStateFlagMask>
 
 PoissonAllocationSampler::PoissonAllocationSampler() {
   Init();
-  auto* sampled_addresses = new LockFreeAddressHashSet(64, mutex_);
+  auto* sampled_addresses = new LockFreeAddressHashSet(
+      64, mutex_, base::FeatureList::IsEnabled(kHeapProfilerMultiKeyHashSet));
   g_sampled_addresses_set.store(sampled_addresses, std::memory_order_release);
 }
 
@@ -248,7 +254,7 @@ PoissonAllocationSamplerStats PoissonAllocationSampler::GetAndResetStats() {
       address_cache_misses_.exchange(0, std::memory_order_relaxed),
       std::exchange(address_cache_max_size_, 0),
       std::exchange(address_cache_max_load_factor_, 0.0),
-      sampled_addresses_set().GetBucketLengths());
+      sampled_addresses_set().GetBucketStats());
 }
 
 // static
@@ -403,7 +409,8 @@ void PoissonAllocationSampler::BalanceAddressesHashSet() {
     return;
   }
   auto new_set = std::make_unique<LockFreeAddressHashSet>(
-      current_set.buckets_count() * 2, mutex_);
+      current_set.buckets_count() * 2, mutex_,
+      base::FeatureList::IsEnabled(kHeapProfilerMultiKeyHashSet));
   new_set->Copy(current_set);
   // Atomically switch all the new readers to the new set.
   g_sampled_addresses_set.store(new_set.release(), std::memory_order_release);

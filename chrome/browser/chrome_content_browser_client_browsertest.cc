@@ -16,6 +16,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
@@ -45,6 +46,7 @@
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/data_controls/core/browser/test_utils.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/guest_view/browser/guest_view_manager.h"
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
@@ -86,6 +88,7 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom.h"
+#include "ui/base/clipboard/clipboard_monitor.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/color_provider_key.h"
@@ -501,13 +504,6 @@ class PrefersColorSchemeTest
       : theme_client_(&test_theme_),
         color_provider_source_(GetIsDarkColorProviderColorMode()) {
     test_theme_.SetDarkMode(GetIsDarkNativeTheme());
-#if BUILDFLAG(ENABLE_GLIC)
-    feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlic, features::kTabstripComboButton,
-                              features::kGlicRollout},
-        /*disabled_features=*/{features::kGlicWarming,
-                               features::kGlicFreWarming});
-#endif
   }
   ~PrefersColorSchemeTest() override {
     CHECK_EQ(&theme_client_, SetBrowserClientForTesting(original_client_));
@@ -554,8 +550,6 @@ class PrefersColorSchemeTest
     command_line->AppendSwitchASCII(
         ::switches::kGlicGuestURL,
         embedded_test_server()->GetURL("/glic/test_client/index.html").spec());
-    glic_test_environment_ =
-        std::make_unique<glic::GlicTestEnvironment>(browser()->profile());
 #endif
 
     guest_view_manager_ =
@@ -570,9 +564,6 @@ class PrefersColorSchemeTest
   }
 
   void TearDownOnMainThread() override {
-#if BUILDFLAG(ENABLE_GLIC)
-    glic_test_environment_.reset();
-#endif
     guest_view_manager_ = nullptr;
     InProcessBrowserTest::TearDownOnMainThread();
   }
@@ -640,11 +631,10 @@ class PrefersColorSchemeTest
     ui::ColorProviderKey key_;
   };
 
-  base::test::ScopedFeatureList feature_list_;
   ChromeContentBrowserClientWithWebTheme theme_client_;
   MockColorProviderSource color_provider_source_;
 #if BUILDFLAG(ENABLE_GLIC)
-  std::unique_ptr<glic::GlicTestEnvironment> glic_test_environment_;
+  glic::GlicTestEnvironment glic_test_environment_;
 #endif
   guest_view::TestGuestViewManagerFactory guest_view_manager_factory_;
   raw_ptr<guest_view::TestGuestViewManager> guest_view_manager_ = nullptr;
@@ -1846,6 +1836,65 @@ IN_PROC_BROWSER_TEST_F(IsClipboardPasteAllowedTest, DISABLED_SomeFilesBlocked) {
             EXPECT_EQ(clipboard_paste_data->file_paths[0], paths[0]);
           }));
 }
+
+// Verifies that the available clipboard types are correctly reported when
+// clipboard data is replaced by a Data Controls policy.
+IN_PROC_BROWSER_TEST_F(IsClipboardPasteAllowedTest,
+                       GetClipboardTypesIfPolicyApplied) {
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetWebContentsAt(0);
+
+  // Set policy that blocks copying to the OS clipboard for a specific source.
+  data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
+      "name": "test rule",
+      "sources": {
+        "urls": ["https://google.com"]
+      },
+      "destinations": {
+        "os_clipboard": true
+      },
+      "restrictions": [
+        {"class": "CLIPBOARD", "level": "BLOCK"}
+      ]
+    })"});
+
+  content::ClipboardPasteData clipboard_paste_data;
+  clipboard_paste_data.text = u"foo";
+  clipboard_paste_data.custom_data[u"custom/data"] = u"custom data";
+
+  base::test::TestFuture<const ui::ClipboardFormatType&,
+                         const content::ClipboardPasteData&,
+                         std::optional<std::u16string>>
+      future;
+
+  // Initiates a copy request and verify that replacement is written as per the
+  // policy.
+  client()->IsClipboardCopyAllowedByPolicy(
+      /*source=*/content::ClipboardEndpoint(
+          ui::DataTransferEndpoint(GURL("https://google.com")),
+          base::BindLambdaForTesting(
+              [&contents]() { return contents->GetBrowserContext(); }),
+          *contents->GetPrimaryMainFrame()),
+      /*metadata=*/{.size = 1234}, clipboard_paste_data,
+      future.GetCallback());
+  auto replacement = future.Get<std::optional<std::u16string>>();
+  EXPECT_TRUE(replacement.has_value());
+
+  // Triggers the clipboard observer started by `IsClipboardCopyAllowedByPolicy`
+  // so that it's aware of the new seqno.
+  ui::ClipboardMonitor::GetInstance()->NotifyClipboardDataChanged();
+
+  // Verifies that the last replaced clipboard types are retrieved correctly.
+  auto types = client()->GetClipboardTypesIfPolicyApplied(
+      ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+          ui::ClipboardBuffer::kCopyPaste));
+
+  ASSERT_TRUE(types.has_value());
+  ASSERT_EQ(types->size(), 2u);
+  EXPECT_EQ((*types)[0], u"text/plain");
+  EXPECT_EQ((*types)[1], u"custom/data");
+}
+
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
 class AutomaticBeaconCredentialsBrowserTest : public InProcessBrowserTest,
@@ -2115,186 +2164,6 @@ IN_PROC_BROWSER_TEST_F(TopChromeChromeContentBrowserClientTest,
                                                            random_url));
 }
 
-class ThirdPartyStoragePartitioningOriginTrialTest
-    : public InProcessBrowserTest,
-      public ::testing::WithParamInterface<bool> {
- public:
-  ThirdPartyStoragePartitioningOriginTrialTest()
-      : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-    // The 3PCD tracking protection feature must be disabled so that we can
-    // disable third-party cookies by changing the prefs::kCookieControlsMode
-    // pref.
-    feature_.InitAndDisableFeature(
-        content_settings::features::kTrackingProtection3pcd);
-  }
-
-  // The URL that will be used to load third-party scripts.
-  static constexpr char kThirdPartyScriptUrl[] = "https://127.0.0.1:44445";
-  // A cross-site URL used for Origin Trials.
-  static constexpr char kCrossSiteOriginTrialUrl[] = "https://a.com";
-
-  bool BlockThirdPartyCookies() const { return GetParam(); }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitchASCII(
-        "origin-trial-public-key",
-        "dRCs+TocuKkocNKa0AtZ4awrt9XKH2SQCI6o4FY6BNA=");
-  }
-
-  void SetUpOnMainThread() override {
-    // Set up the framework that allows us to intercept and inspect any Origin
-    // Trial header requests.
-    url_loader_interceptor_ =
-        std::make_unique<content::URLLoaderInterceptor>(base::BindRepeating(
-            &ThirdPartyStoragePartitioningOriginTrialTest::InterceptURLRequest,
-            base::Unretained(this)));
-    ASSERT_TRUE(https_server()->Start());
-  }
-
-  void TearDownOnMainThread() override {
-    url_loader_interceptor_.reset();
-    InProcessBrowserTest::TearDownOnMainThread();
-  }
-
- protected:
-  void SetOriginTrialToken(const std::string& token) {
-    origin_trial_token_ = token;
-  }
-
-  GURL cross_site_script_meta_tag_origin_trial_url() const {
-    return GURL(base::StrCat({kCrossSiteOriginTrialUrl, "/meta_script.html"}));
-  }
-
-  GURL meta_tag_injecting_javascript_url() const {
-    return GURL(base::StrCat({kThirdPartyScriptUrl, "/meta.js"}));
-  }
-
-  GURL empty_frame_meta_origin_trial_url() const {
-    return GURL(base::StrCat({kThirdPartyScriptUrl, "/empty.html"}));
-  }
-
-  net::EmbeddedTestServer* https_server() { return &https_server_; }
-
- private:
-  bool RespondForEmptyUrl(
-      content::URLLoaderInterceptor::RequestParams* params) {
-    std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/html\n";
-    std::string body = "<html>This page has no title.</html>";
-    content::URLLoaderInterceptor::WriteResponse(headers, body,
-                                                 params->client.get());
-    return true;
-  }
-
-  bool RespondForScriptMetaTagOriginTrialUrl(
-      content::URLLoaderInterceptor::RequestParams* params) {
-    // Construct the origin trial response.
-    std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/html\n";
-    std::string body = base::StrCat(
-        {"<html><head><script src=\"",
-         meta_tag_injecting_javascript_url().spec(),
-         "\"></script></head><body>This page has no title.</body></html>"});
-    content::URLLoaderInterceptor::WriteResponse(headers, body,
-                                                 params->client.get());
-    return true;
-  }
-
-  bool RespondForMetaTagInjectingScriptUrl(
-      content::URLLoaderInterceptor::RequestParams* params) {
-    CHECK(!origin_trial_token_.empty());
-    // Construct the origin trial response.
-    std::string headers =
-        "HTTP/1.1 200 OK\nContent-Type: application/javascript\n";
-    std::string body =
-        base::StrCat({"const otMeta = document.createElement('meta'); "
-                      "otMeta.httpEquiv = 'origin-trial'; "
-                      "otMeta.content = '",
-                      origin_trial_token_,
-                      "'; "
-                      "document.head.append(otMeta); ",
-                      "const iframe = document.createElement('iframe'); ",
-                      "document.head.appendChild(iframe); "});
-    content::URLLoaderInterceptor::WriteResponse(headers, body,
-                                                 params->client.get());
-    return true;
-  }
-
-  // Create the framework to intercept origin trial requests.
-  bool InterceptURLRequest(
-      content::URLLoaderInterceptor::RequestParams* params) {
-    if (params->url_request.url ==
-        cross_site_script_meta_tag_origin_trial_url()) {
-      return RespondForScriptMetaTagOriginTrialUrl(params);
-    }
-    if (params->url_request.url == meta_tag_injecting_javascript_url()) {
-      return RespondForMetaTagInjectingScriptUrl(params);
-    }
-    if (params->url_request.url == empty_frame_meta_origin_trial_url()) {
-      return RespondForEmptyUrl(params);
-    }
-    return false;
-  }
-
-  base::test::ScopedFeatureList feature_;
-  net::EmbeddedTestServer https_server_;
-  std::string origin_trial_token_;
-  std::unique_ptr<content::URLLoaderInterceptor> url_loader_interceptor_;
-};
-
-// Test that the 3PSP deprecation trial only enables third-party storage when
-// the user has explicitly opted into third-party cooking blocking (instead of
-// enabling first-party storage). This test is derived from
-// RenderFrameHostImplWithTokensBrowserTest.ReusedChildFrameNavigatedFromDeprecationTrialIsPartitioned.
-IN_PROC_BROWSER_TEST_P(ThirdPartyStoragePartitioningOriginTrialTest,
-                       ThirdPartyCookieSettingOverridesDeprecationTrial) {
-  // Generated with:
-  // tools/origin_trials/generate_token.py https://127.0.0.1:44445
-  // DisableThirdPartyStoragePartitioning3 --expire-timestamp=2000000000
-  // --is-third-party
-  const char kValidThirdPartyToken[] =
-      "A7BpVOcOsvw3FiZnc4wIJ9pfGSrhUqMyV8GmGkZrm6emdOW5hBe9YN8XKoFa+"
-      "YQkVUxdNR22quD3oCJvuIX2cAoAAACFeyJvcmlnaW4iOiAiaHR0cHM6Ly8xMjcuMC4wLjE6N"
-      "DQ0NDUiLCAiZmVhdHVyZSI6ICJEaXNhYmxlVGhpcmRQYXJ0eVN0b3JhZ2VQYXJ0aXRpb25pb"
-      "mczIiwgImV4cGlyeSI6IDIwMDAwMDAwMDAsICJpc1RoaXJkUGFydHkiOiB0cnVlfQ==";
-
-  SetOriginTrialToken(kValidThirdPartyToken);
-
-  browser()->profile()->GetPrefs()->SetInteger(
-      prefs::kCookieControlsMode,
-      BlockThirdPartyCookies()
-          ? static_cast<int>(
-                content_settings::CookieControlsMode::kBlockThirdParty)
-          : static_cast<int>(content_settings::CookieControlsMode::kOff));
-
-  // Navigate to "a.test" and load a script from a third-party. In that script,
-  // the deprecation trial token above is added via <meta> tag. Then, the script
-  // adds an iframe.
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), cross_site_script_meta_tag_origin_trial_url()));
-  content::WebContents* contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_NE(contents, nullptr);
-
-  content::RenderFrameHost* child_frame =
-      ChildFrameAt(contents->GetPrimaryMainFrame(), 0);
-  ASSERT_TRUE(child_frame);
-  // Navigate the currently empty iframe to a URL that is same-site with the
-  // third-party script.
-  EXPECT_TRUE(NavigateToURLFromRenderer(child_frame,
-                                        empty_frame_meta_origin_trial_url()));
-  // Execute a dummy roundtrip to ensure the <meta> tag trial token has time to
-  // parse and be applied to the iframe.
-  EXPECT_TRUE(content::ExecJs(contents, ";"));
-
-  // Re-obtain the iframe after confirming the navigation is complete.
-  child_frame = ChildFrameAt(contents->GetPrimaryMainFrame(), 0);
-
-  if (BlockThirdPartyCookies()) {
-    EXPECT_TRUE(child_frame->GetStorageKey().IsThirdPartyContext());
-  } else {
-    EXPECT_TRUE(child_frame->GetStorageKey().IsFirstPartyContext());
-  }
-}
-
 class BundledCodeCacheChromeContentBrowserClientTest
     : public InProcessBrowserTest,
       public testing::WithParamInterface<bool> {
@@ -2340,10 +2209,6 @@ IN_PROC_BROWSER_TEST_P(BundledCodeCacheChromeContentBrowserClientTest,
   navigate_and_expect_policy_result(non_top_chrome_url1, false);
   navigate_and_expect_policy_result(non_top_chrome_url1, false);
 }
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         ThirdPartyStoragePartitioningOriginTrialTest,
-                         ::testing::Bool());
 
 INSTANTIATE_TEST_SUITE_P(
     ,

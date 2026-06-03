@@ -27,6 +27,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/numerics/byte_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "skia/buildflags.h"
@@ -222,8 +223,7 @@ TEST_F(ResourceBundleTest, DelegateGetPathForResourcePack) {
 }
 
 TEST_F(ResourceBundleTest, DelegateGetPathForLocalePack) {
-  ResourceBundle* orig_instance =
-      ResourceBundle::SwapSharedInstanceForTesting(nullptr);
+  ResourceBundle::SharedInstanceSwapperForTesting resource_bundle_swapper;
   ResourceBundle::InitSharedInstance(&delegate_);
 
   std::string locale = "en-US";
@@ -233,7 +233,8 @@ TEST_F(ResourceBundleTest, DelegateGetPathForLocalePack) {
       .WillRepeatedly(Return(base::FilePath()))
       .RetiresOnSaturation();
 
-  EXPECT_FALSE(ResourceBundle::LocaleDataPakExists(locale));
+  EXPECT_FALSE(ResourceBundle::LocaleDataPakExists(
+      locale, ResourceBundle::Gender::kDefault));
   EXPECT_EQ("", ResourceBundle::GetSharedInstance().LoadLocaleResources(
                     locale, /*crash_on_failure=*/false));
 
@@ -241,12 +242,12 @@ TEST_F(ResourceBundleTest, DelegateGetPathForLocalePack) {
   EXPECT_CALL(delegate_, GetPathForLocalePack(_, _))
       .WillRepeatedly(ReturnArg<0>());
 
-  EXPECT_TRUE(ResourceBundle::LocaleDataPakExists(locale));
+  EXPECT_TRUE(ResourceBundle::LocaleDataPakExists(
+      locale, ResourceBundle::Gender::kDefault));
   EXPECT_EQ(locale, ResourceBundle::GetSharedInstance().LoadLocaleResources(
                         locale, /*crash_on_failure=*/false));
 
   ResourceBundle::CleanupSharedInstance();
-  ResourceBundle::SwapSharedInstanceForTesting(orig_instance);
 }
 
 TEST_F(ResourceBundleTest, DelegateGetImageNamed) {
@@ -427,8 +428,10 @@ TEST_F(ResourceBundleTest, DelegateGetLocalizedStringWithOverride) {
 
 TEST_F(ResourceBundleTest, LocaleDataPakExists) {
   // Check that ResourceBundle::LocaleDataPakExists returns the correct results.
-  EXPECT_TRUE(ResourceBundle::LocaleDataPakExists("en-US"));
-  EXPECT_FALSE(ResourceBundle::LocaleDataPakExists("not_a_real_locale"));
+  EXPECT_TRUE(ResourceBundle::LocaleDataPakExists(
+      "en-US", ResourceBundle::Gender::kDefault));
+  EXPECT_FALSE(ResourceBundle::LocaleDataPakExists(
+      "not_a_real_locale", ResourceBundle::Gender::kDefault));
 }
 
 class ResourceBundleImageTest : public ResourceBundleTest {

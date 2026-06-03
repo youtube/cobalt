@@ -8,6 +8,7 @@ import {BrowserProxy} from './browser_proxy.js';
 import {getCss} from './model_status.css.js';
 import {getHtml} from './model_status.html.js';
 import type {PageData} from './on_device_internals_page.mojom-webui.js';
+import {PerformanceClass} from './on_device_model.mojom-webui.js';
 
 export class OnDeviceInternalsModelStatusElement extends CrLitElement {
   constructor() {
@@ -43,6 +44,12 @@ export class OnDeviceInternalsModelStatusElement extends CrLitElement {
     suppModels: [],
     modelCrashCount: 0,
     maxModelCrashCount: 0,
+    featureAdaptations: [],
+    performanceInfo: {
+      performanceClass: PerformanceClass.kError,
+      vramMb: 0n,
+    },
+    minVramMb: 0n,
   };
 
   protected accessor mayRestartBrowser_: boolean = false;
@@ -52,6 +59,13 @@ export class OnDeviceInternalsModelStatusElement extends CrLitElement {
     await this.proxy_.handler.resetModelCrashCount();
     await this.getPageData_();
     this.mayRestartBrowser_ = true;
+  }
+
+  protected async onFeatureUsageSetterClick_(
+      feature: number, isRecentlyUsed: boolean) {
+    await this.proxy_.handler.setFeatureRecentlyUsedState(
+        feature, isRecentlyUsed);
+    this.getPageData_();
   }
 
   private async getPageData_() {

@@ -76,7 +76,8 @@ class PLATFORM_EXPORT UTF16RagelIterator {
   UTF16RagelIterator operator-(int v) { return *this + -v; }
 
   int operator-(const UTF16RagelIterator& other) {
-    DCHECK_EQ(buffer_, other.buffer_);
+    DCHECK_EQ(buffer_.data(), other.buffer_.data());
+    DCHECK_EQ(buffer_.size(), other.buffer_.size());
     return cursor_ - other.cursor_;
   }
 
@@ -149,7 +150,7 @@ class PLATFORM_EXPORT UTF16RagelIterator {
   // this code to encounter an unmatched lead surrogate as the last character in
   // the buffer. (Potential issue with InputMethodController, or the tests?).
   UChar32 PeekCodepoint() {
-    UChar32 output = kReplacementCharacter;
+    UChar32 output = uchar::kReplacementCharacter;
     unsigned temp_cursor = cursor_;
     U16_FWD_1(buffer_, temp_cursor, buffer_.size());
     if (temp_cursor < buffer_.size()) {

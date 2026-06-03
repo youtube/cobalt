@@ -605,11 +605,19 @@ class LayerTreeHostTestHiddenSurfaceNotAllocatedForSubtreeCopyRequest
     did_swap_ = true;
   }
 
-  void AfterTest() override { EXPECT_TRUE(did_swap_); }
+  void AfterTest() override {
+    EXPECT_TRUE(did_swap_);
+
+    // Clear frame_sink_ to prevent dangling pointer access during destruction.
+    // LayerTreeHost owns the TestLayerTreeFrameSink and releases it immediately
+    // after this method is called.
+    frame_sink_ = nullptr;
+    LayerTreeHostCopyRequestTest::AfterTest();
+  }
 
   viz::AggregatedRenderPassId parent_render_pass_id;
   viz::AggregatedRenderPassId copy_layer_render_pass_id;
-  raw_ptr<TestLayerTreeFrameSink, DanglingUntriaged> frame_sink_ = nullptr;
+  raw_ptr<TestLayerTreeFrameSink> frame_sink_ = nullptr;
   bool did_swap_ = false;
   FakeContentLayerClient client_;
   scoped_refptr<FakePictureLayer> root_;
@@ -893,7 +901,7 @@ class LayerTreeHostCopyRequestTestDeleteSharedImage
     EXPECT_EQ(result->format(), viz::CopyOutputResult::Format::RGBA);
     EXPECT_EQ(result->destination(),
               viz::CopyOutputResult::Destination::kNativeTextures);
-    EXPECT_NE(result->GetTextureResult(), nullptr);
+    EXPECT_NE(result->GetSharedImage().get(), nullptr);
 
     // Save the result for later.
     EXPECT_FALSE(result_);
@@ -1125,7 +1133,7 @@ class LayerTreeHostCopyRequestTestCreatesSharedImage
     EXPECT_EQ(result->format(), viz::CopyOutputResult::Format::RGBA);
     EXPECT_EQ(result->destination(),
               viz::CopyOutputResult::Destination::kNativeTextures);
-    ASSERT_NE(nullptr, result->GetTextureResult());
+    ASSERT_NE(result->GetSharedImage().get(), nullptr);
     release_ = result->TakeTextureOwnership();
     EXPECT_EQ(1u, release_.size());
   }

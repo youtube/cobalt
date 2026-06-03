@@ -71,7 +71,7 @@ SiteInstanceId::Generator g_site_instance_id_generator;
 // unnecessarily creating a process.
 BASE_FEATURE(kTraceSiteInstanceGetProcessCreation,
              "TraceSiteInstanceGetProcessCreation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to crash if GetProcess is called on a SiteInstance without a process.
 const base::FeatureParam<bool> kCrashOnGetProcessCreation{
@@ -488,7 +488,13 @@ RenderProcessHost* SiteInstanceImpl::GetOrCreateProcess(
   return site_instance_group_->process();
 }
 
-RenderProcessHost* SiteInstanceImpl::GetOrCreateProcess() {
+RenderProcessHost* SiteInstanceImpl::GetOrCreateProcess(
+    base::PassKey<SiteInstanceProcessCreationClient>) {
+  return GetOrCreateProcess(
+      ProcessAllocationContext{ProcessAllocationSource::kEmbedder});
+}
+
+RenderProcessHost* SiteInstanceImpl::GetOrCreateProcessForTesting() {
   CHECK_IS_TEST();
   return GetOrCreateProcess(
       ProcessAllocationContext{ProcessAllocationSource::kTest});

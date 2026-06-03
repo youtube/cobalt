@@ -14,7 +14,6 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_toolbar_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/disabled_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_container_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_coordinator_audience.h"
@@ -102,11 +101,9 @@
 #pragma mark - Superclass overrides
 
 - (LegacyGridTransitionLayout*)transitionLayout {
-  if (IsTabGroupInGridEnabled()) {
-    if (self.tabGroupCoordinator) {
-      return [self.tabGroupCoordinator.viewController
-                  .gridViewController transitionLayout];
-    }
+  if (self.tabGroupCoordinator) {
+    return [self.tabGroupCoordinator.viewController
+                .gridViewController transitionLayout];
   }
   return [self.gridViewController transitionLayout];
 }
@@ -170,12 +167,15 @@
   if (incognitoBrowser) {
     _browser = incognitoBrowser->AsWeakPtr();
     _tabContextMenuHelper.profile = incognitoBrowser->GetProfile();
-    [incognitoBrowser->GetCommandDispatcher()
-        startDispatchingToTarget:self
-                     forProtocol:@protocol(TabGroupsCommands)];
+
+    CommandDispatcher* dispatcher = incognitoBrowser->GetCommandDispatcher();
+    [dispatcher startDispatchingToTarget:self
+                             forProtocol:@protocol(TabGroupsCommands)];
     _mediator.tabGroupsHandler = self;
-    _mediator.tabGridHandler = HandlerForProtocol(
-        incognitoBrowser->GetCommandDispatcher(), TabGridCommands);
+    _mediator.tabGridHandler = HandlerForProtocol(dispatcher, TabGridCommands);
+
+    _gridViewController.tabGridHandler =
+        HandlerForProtocol(dispatcher, TabGridCommands);
   } else {
     _tabContextMenuHelper.profile = nullptr;
   }

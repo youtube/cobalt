@@ -25,28 +25,6 @@ CanvasResourceHost::CanvasResourceHost(gfx::Size size) : size_(size) {}
 
 CanvasResourceHost::~CanvasResourceHost() = default;
 
-std::unique_ptr<CanvasResourceProvider>
-CanvasResourceHost::ReplaceResourceProvider(
-    std::unique_ptr<CanvasResourceProvider> new_resource_provider) {
-  std::unique_ptr<CanvasResourceProvider> old_resource_provider =
-      std::move(resource_provider_);
-  resource_provider_ = std::move(new_resource_provider);
-  UpdateMemoryUsage();
-  if (resource_provider_) {
-    resource_provider_->AlwaysEnableRasterTimersForTesting(
-        always_enable_raster_timers_for_testing_);
-  }
-  if (old_resource_provider) {
-    old_resource_provider->SetCanvasResourceHost(nullptr);
-  }
-  return old_resource_provider;
-}
-
-void CanvasResourceHost::DiscardResourceProvider() {
-  resource_provider_ = nullptr;
-  UpdateMemoryUsage();
-}
-
 void CanvasResourceHost::SetPreferred2DRasterMode(RasterModeHint hint) {
   // TODO(junov): move code that switches between CPU and GPU rasterization
   // to here.
@@ -55,39 +33,6 @@ void CanvasResourceHost::SetPreferred2DRasterMode(RasterModeHint hint) {
 
 bool CanvasResourceHost::ShouldTryToUseGpuRaster() const {
   return preferred_2d_raster_mode_ == RasterModeHint::kPreferGPU && CanUseGPU();
-}
-
-bool CanvasResourceHost::IsComposited() const {
-  if (IsHibernating()) {
-    return false;
-  }
-
-  if (!resource_provider_) [[unlikely]] {
-    return false;
-  }
-
-  return resource_provider_->SupportsDirectCompositing() &&
-         !LowLatencyEnabled();
-}
-
-RasterMode CanvasResourceHost::GetRasterMode() const {
-  if (IsHibernating()) {
-    return RasterMode::kCPU;
-  }
-  if (resource_provider_) {
-    return resource_provider_->IsAccelerated() ? RasterMode::kGPU
-                                               : RasterMode::kCPU;
-  }
-
-  // Whether or not to accelerate is not yet resolved, the canvas cannot be
-  // accelerated if the gpu context is lost.
-  return ShouldTryToUseGpuRaster() ? RasterMode::kGPU : RasterMode::kCPU;
-}
-
-void CanvasResourceHost::FlushRecording(FlushReason reason) {
-  if (resource_provider_) {
-    resource_provider_->FlushCanvas(reason);
-  }
 }
 
 }  // namespace blink

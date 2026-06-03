@@ -22,6 +22,7 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/k_anonymity_service_delegate.h"
 #include "content/public/browser/prefetch_handle.h"
+#include "content/public/browser/prefetch_priority.h"
 #include "content/public/browser/prefetch_request_status_listener.h"
 #include "content/public/browser/zoom_level_delegate.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -202,19 +203,25 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
 
   // Starts a prefetch network request for the given `url`.
   // `embedder_histogram_suffix` is used for generating internal histogram names
-  // recorded per trigger. `ttl` (Time-To-Live) specifies how long
+  // recorded per trigger. `priority` is an optimization hint of how quickly
+  // this prefetch should be available. `ttl` (Time-To-Live) specifies how long
   // prefetched data remains valid in the cache. After this period, the data is
-  // reset. Returns `PrefetchHandle` to control prefetch resources. This can be
-  // null when it can't add `PrefetchContainer` to `PrefetchService`.
+  // reset. `should_disable_block_until_head_timeout` specifies whether we
+  // should have a timeout when this prefetch blocks the navigation until its
+  // head is determined. Returns `PrefetchHandle` to control prefetch resources.
+  // This can be null when it can't add `PrefetchContainer` to
+  // `PrefetchService`.
   std::unique_ptr<content::PrefetchHandle> StartBrowserPrefetchRequest(
       const GURL& url,
       const std::string& embedder_histogram_suffix,
       bool javascript_enabled,
       std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+      std::optional<PrefetchPriority> priority,
       const net::HttpRequestHeaders& additional_headers,
       std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
-      base::TimeDelta ttl_in_sec,
-      bool should_append_variations_header);
+      base::TimeDelta ttl,
+      bool should_append_variations_header,
+      bool should_disable_block_until_head_timeout);
 
   // Updates the "Accept Language" header that the prefetch service delegate
   // will use.

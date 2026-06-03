@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContextUtils;
@@ -56,12 +57,18 @@ class AudioManagerAndroid {
     // media::ChannelLayoutToChannelCount().
     private static final Map<Integer, Integer> LAYOUT_MASK_TO_CHANNEL_COUNT =
             ImmutableMap.of(
-                    ChannelLayout.LAYOUT_MONO, 1, // CHANNEL_LAYOUT_MONO
-                    ChannelLayout.LAYOUT_STEREO, 2, // CHANNEL_LAYOUT_STEREO
-                    ChannelLayout.LAYOUT_5_1, 6, // CHANNEL_LAYOUT_5_1
-                    ChannelLayout.LAYOUT_7_1, 8, // CHANNEL_LAYOUT_7_1
-                    ChannelLayout.LAYOUT_6_1, 7, // CHANNEL_LAYOUT_6_1
-                    ChannelLayout.LAYOUT_5_1_4_DOWNMIX, 6 // CHANNEL_LAYOUT_5_1_4 (downmixed to 5.1)
+                    ChannelLayout.LAYOUT_MONO,
+                    1, // CHANNEL_LAYOUT_MONO
+                    ChannelLayout.LAYOUT_STEREO,
+                    2, // CHANNEL_LAYOUT_STEREO
+                    ChannelLayout.LAYOUT_5_1,
+                    6, // CHANNEL_LAYOUT_5_1
+                    ChannelLayout.LAYOUT_7_1,
+                    8, // CHANNEL_LAYOUT_7_1
+                    ChannelLayout.LAYOUT_6_1,
+                    7, // CHANNEL_LAYOUT_6_1
+                    ChannelLayout.LAYOUT_5_1_4_DOWNMIX,
+                    6 // CHANNEL_LAYOUT_5_1_4 (downmixed to 5.1)
                     );
 
     /** Simple container for device information. */
@@ -82,7 +89,7 @@ class AudioManagerAndroid {
         }
 
         @CalledByNative("AudioDevice")
-        private @Nullable String name() {
+        private @JniType("std::optional<std::string>") @Nullable String name() {
             return mName;
         }
 
@@ -170,8 +177,8 @@ class AudioManagerAndroid {
     }
 
     /**
-     * Unregister all previously registered intent receivers and restore
-     * the stored state (stored in {@link #init()}).
+     * Unregister all previously registered intent receivers and restore the stored state (stored in
+     * {@link #init()}).
      */
     @CalledByNative
     private void close() {
@@ -187,9 +194,9 @@ class AudioManagerAndroid {
     }
 
     /**
-     * Sets audio mode as COMMUNICATION if input parameter is true.
-     * Restores audio mode to NORMAL if input parameter is false.
-     * Required permission: android.Manifest.permission.MODIFY_AUDIO_SETTINGS.
+     * Sets audio mode as COMMUNICATION if input parameter is true. Restores audio mode to NORMAL if
+     * input parameter is false. Required permission:
+     * android.Manifest.permission.MODIFY_AUDIO_SETTINGS.
      */
     @CalledByNative
     private void setCommunicationAudioModeOn(boolean on) {
@@ -237,8 +244,8 @@ class AudioManagerAndroid {
     }
 
     /**
-     * Sets audio mode to MODE_IN_COMMUNICATION if input parameter is true.
-     * Restores audio mode to MODE_NORMAL if input parameter is false.
+     * Sets audio mode to MODE_IN_COMMUNICATION if input parameter is true. Restores audio mode to
+     * MODE_NORMAL if input parameter is false.
      */
     private void setCommunicationAudioModeOnInternal(boolean on) {
         if (DEBUG) logd("setCommunicationAudioModeOn(" + on + ")");
@@ -316,13 +323,6 @@ class AudioManagerAndroid {
                 case AudioDeviceInfo.TYPE_TELEPHONY:
                     // Unusable device types.
                     continue;
-                case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
-                case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
-                    // TODO(crbug.com/405955144): Bluetooth Classic output streams do not work
-                    // correctly, as they do not react to SCO state changes.
-                    if (!inputs) {
-                        continue;
-                    }
             }
 
             int id = deviceInfo.getId();
@@ -594,37 +594,23 @@ class AudioManagerAndroid {
         mSettingsObserverThread = null;
     }
 
-    /** Return the AudioDeviceInfo array as reported by the Android OS. */
-    private static AudioDeviceInfo[] getAudioDeviceInfo() {
+    /**
+     * Returns a bitmask of audio encoding formats supported by all connected HDMI output devices.
+     */
+    @CalledByNative
+    private static @JniType("media::AudioParameters::Format") @AudioEncodingFormat int
+            getHdmiOutputEncodingFormats() {
         AudioManager audioManager =
                 (AudioManager)
                         ContextUtils.getApplicationContext()
                                 .getSystemService(Context.AUDIO_SERVICE);
-        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-    }
 
-    /** Returns whether an audio sink device is connected. */
-    @CalledByNative
-    private static boolean isAudioSinkConnected() {
-        for (AudioDeviceInfo deviceInfo : getAudioDeviceInfo()) {
-            if (deviceInfo.isSink()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Returns a bit mask of Audio Formats (C++ AudioParameters::Format enum) supported by all of
-     * the sink devices.
-     */
-    @CalledByNative
-    private static int getAudioEncodingFormatsSupported() {
-        int intersection_mask = 0; // intersection of multiple device encoding arrays
+        int intersectionMask = 0; // intersection of multiple device encoding arrays
         boolean first = true;
-        for (AudioDeviceInfo deviceInfo : getAudioDeviceInfo()) {
+        for (AudioDeviceInfo deviceInfo :
+                audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
             int[] encodings = deviceInfo.getEncodings();
-            if (deviceInfo.isSink() && deviceInfo.getType() == AudioDeviceInfo.TYPE_HDMI) {
+            if (deviceInfo.getType() == AudioDeviceInfo.TYPE_HDMI) {
                 int mask = 0; // bit mask for a single device
 
                 // Map AudioFormat values to C++ media/base/audio_parameters.h Format enum
@@ -654,19 +640,19 @@ class AudioManagerAndroid {
                 // Require all devices to support a format
                 if (first) {
                     first = false;
-                    intersection_mask = mask;
+                    intersectionMask = mask;
                 } else {
-                    intersection_mask &= mask;
+                    intersectionMask &= mask;
                 }
             }
         }
-        return intersection_mask;
+        return intersectionMask;
     }
 
     /**
      * Retrieves the maximum supported channel layout for automotive audio.
      *
-     * This method identifies the channel layout with the highest number of channels among all
+     * <p>This method identifies the channel layout with the highest number of channels among all
      * available audio devices of type {@link AudioDeviceInfo#TYPE_BUS}. It's designed specifically
      * for automotive systems (when {@code mIsAutomotive} is true); otherwise, it returns {@link
      * ChannelLayout#LAYOUT_UNSUPPORTED}.

@@ -56,7 +56,9 @@ class FocusManagerEventHandler;
 class TooltipManagerAura;
 class WindowReorderer;
 
-// DesktopNativeWidgetAura handles top-level widgets on Windows and Linux.
+// DesktopNativeWidgetAura is a NativeWidgetPrivate implementation that owns
+// a platform-specific window (x11::Window, HWND, etc). A widget that uses a
+// DesktopNativeWidgetAura is called a desktop widget.
 class VIEWS_EXPORT DesktopNativeWidgetAura
     : public internal::NativeWidgetPrivate,
       public aura::WindowDelegate,
@@ -134,6 +136,7 @@ class VIEWS_EXPORT DesktopNativeWidgetAura
   const ui::Layer* GetLayer() const override;
   void ReorderNativeViews() override;
   void ViewRemoved(View* view) override;
+  void ClientDestroyedWidget() override;
   void SetNativeWindowProperty(const char* name, void* value) override;
   void* GetNativeWindowProperty(const char* name) const override;
   TooltipManager* GetTooltipManager() const override;
@@ -148,7 +151,8 @@ class VIEWS_EXPORT DesktopNativeWidgetAura
   void SetWindowIcons(const gfx::ImageSkia& window_icon,
                       const gfx::ImageSkia& app_icon) override;
   void InitModalType(ui::mojom::ModalType modal_type) override;
-  void OnWidgetThemeChanged(ui::ColorProviderKey::ColorMode color_mode) override;
+  void OnWidgetThemeChanged(ui::ColorProviderKey::ColorMode color_mode,
+                            std::optional<SkColor> background_color) override;
   gfx::Rect GetWindowBoundsInScreen() const override;
   gfx::Rect GetClientAreaBoundsInScreen() const override;
   gfx::Rect GetRestoredBounds() const override;
@@ -219,6 +223,7 @@ class VIEWS_EXPORT DesktopNativeWidgetAura
   void OnNativeViewHierarchyChanged() override;
   bool SetAllowScreenshots(bool allow) override;
   bool AreScreenshotsAllowed() override;
+  bool IsDesktopNativeWidget() const override;
   std::string GetName() const override;
 
   // aura::WindowDelegate:

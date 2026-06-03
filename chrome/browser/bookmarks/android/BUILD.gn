@@ -87,7 +87,6 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarItemsLayoutManager.java",
     "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarItemsProvider.java",
     "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarProperties.java",
-    "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarSettingProvider.java",
     "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarUtils.java",
     "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarViewBinder.java",
     "java/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarVisibilityProvider.java",
@@ -205,7 +204,6 @@ robolectric_library("junit") {
     "junit/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarCoordinatorTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarItemsLayoutManagerTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarItemsProviderTest.java",
-    "junit/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarSettingProviderTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarUtilsTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/bar/BookmarkBarVisibilityProviderTest.java",
   ]
@@ -224,6 +222,7 @@ android_library("javatests") {
     "//chrome/browser/bookmarks/android/junit/src/org/chromium/chrome/browser/bookmarks/FakeBookmarkModel.java",
     "//chrome/browser/bookmarks/android/junit/src/org/chromium/chrome/browser/bookmarks/SharedBookmarkModelMocks.java",
     "javatests/src/org/chromium/chrome/browser/bookmarks/AccountBookmarkTest.java",
+    "javatests/src/org/chromium/chrome/browser/bookmarks/BookmarkBatchUploadCardRenderTest.java",
     "javatests/src/org/chromium/chrome/browser/bookmarks/BookmarkBridgeTest.java",
     "javatests/src/org/chromium/chrome/browser/bookmarks/BookmarkFolderPickerRenderTest.java",
     "javatests/src/org/chromium/chrome/browser/bookmarks/BookmarkOpenerTest.java",

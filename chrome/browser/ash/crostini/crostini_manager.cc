@@ -58,6 +58,7 @@
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/crostini/throttle/crostini_throttle_factory.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/guest_os/guest_id.h"
 #include "chrome/browser/ash/guest_os/guest_os_pref_names.h"
@@ -1332,24 +1333,13 @@ CrostiniManager::CrostiniManager(Profile* profile)
   // prefs. Note: This means changes only take effect after a restart,
   // which is fine, since e.g. force-quitting a running VM because policy
   // changed isn't something we're going to do.
-  for (const auto& container :
-       guest_os::GetContainers(profile_, kCrostiniDefaultVmType)) {
-    // For a short while in M106 Bruschetta was getting added to prefs without
-    // a VM type, which meant it defaulted to Termina. If we've got it in
-    // prefs remove it instead of registering it. This'll break anyone who
-    // really has a vm named "bru" which is unfortunate, but we can't tell the
-    // difference between a correct and incorrect pref, so hopefully no one's
-    // done so.
-    // TODO(b/241043433): This code can be removed after M118.
-    if (container.vm_name == bruschetta::kBruschettaVmName) {
-      guest_os::RemoveContainerFromPrefs(profile, container);
-      continue;
-    }
-
-    if (crostini::CrostiniFeatures::Get()->IsEnabled(profile_)) {
-      RegisterContainer(container);
-    } else {
-      RegisterContainerTerminal(container);
+  for (const auto& vm_type : {kCrostiniDefaultVmType, kBaguetteDefaultVmType}) {
+    for (const auto& container : guest_os::GetContainers(profile_, vm_type)) {
+      if (crostini::CrostiniFeatures::Get()->IsEnabled(profile_)) {
+        RegisterContainer(container);
+      } else {
+        RegisterContainerTerminal(container);
+      }
     }
   }
   // TODO(crbug.com/377377749): only instantiate baguette_installer_ if we care

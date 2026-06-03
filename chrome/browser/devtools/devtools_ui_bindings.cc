@@ -25,6 +25,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -773,6 +774,7 @@ DevToolsUIBindings::DevToolsUIBindings(content::WebContents* web_contents)
       ->AddObserver(this);
 #endif
   can_access_aida_ = IsAnyAidaPoweredFeatureEnabled();
+  MaybeStartLogging();
 }
 
 DevToolsUIBindings::~DevToolsUIBindings() {
@@ -1858,6 +1860,14 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
                       std::move(devtools_animation_styles_in_styles_tab_dict));
   }
 
+  if (net::features::kIpPrivacyEnableIppInDevTools.Get()) {
+    base::Value::Dict devtools_ip_protection_dict;
+    devtools_ip_protection_dict.Set(
+        "enabled", net::features::kIpPrivacyEnableIppInDevTools.Get());
+    response_dict.Set("devToolsIpProtectionInDevTools",
+                      std::move(devtools_ip_protection_dict));
+  }
+
   base::Value::Dict css_value_tracing_dict;
   css_value_tracing_dict.Set(
       "enabled",
@@ -2046,9 +2056,6 @@ base::TimeDelta DevToolsUIBindings::GetTimeSinceSessionStart() {
 }
 
 void DevToolsUIBindings::RecordImpression(const ImpressionEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   for (const auto& ve : event.impressions) {
     metrics::structured::StructuredMetricsClient::Record(
         metrics::structured::events::v2::dev_tools::Impression()
@@ -2065,9 +2072,6 @@ void DevToolsUIBindings::RecordImpression(const ImpressionEvent& event) {
 }
 
 void DevToolsUIBindings::RecordResize(const ResizeEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Resize()
           .SetVeId(event.veid)
@@ -2078,9 +2082,6 @@ void DevToolsUIBindings::RecordResize(const ResizeEvent& event) {
 }
 
 void DevToolsUIBindings::RecordClick(const ClickEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Click()
           .SetVeId(event.veid)
@@ -2092,9 +2093,6 @@ void DevToolsUIBindings::RecordClick(const ClickEvent& event) {
 }
 
 void DevToolsUIBindings::RecordHover(const HoverEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Hover()
           .SetVeId(event.veid)
@@ -2105,9 +2103,6 @@ void DevToolsUIBindings::RecordHover(const HoverEvent& event) {
 }
 
 void DevToolsUIBindings::RecordDrag(const DragEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Drag()
           .SetVeId(event.veid)
@@ -2118,9 +2113,6 @@ void DevToolsUIBindings::RecordDrag(const DragEvent& event) {
 }
 
 void DevToolsUIBindings::RecordChange(const ChangeEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Change()
           .SetVeId(event.veid)
@@ -2130,9 +2122,6 @@ void DevToolsUIBindings::RecordChange(const ChangeEvent& event) {
 }
 
 void DevToolsUIBindings::RecordKeyDown(const KeyDownEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::KeyDown()
           .SetVeId(event.veid)
@@ -2142,9 +2131,6 @@ void DevToolsUIBindings::RecordKeyDown(const KeyDownEvent& event) {
 }
 
 void DevToolsUIBindings::RecordSettingAccess(const SettingAccessEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::SettingAccess()
           .SetName(event.name)
@@ -2155,9 +2141,6 @@ void DevToolsUIBindings::RecordSettingAccess(const SettingAccessEvent& event) {
 }
 
 void DevToolsUIBindings::RecordFunctionCall(const FunctionCallEvent& event) {
-  if (!MaybeStartLogging()) {
-    return;
-  }
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::FunctionCall()
           .SetName(event.name)

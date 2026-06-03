@@ -76,7 +76,6 @@ class FakePictureLayerImpl : public PictureLayerImpl {
   using PictureLayerImpl::raster_contents_scale_key;
 
   PictureLayerTiling* HighResTiling() const;
-  PictureLayerTiling* LowResTiling() const;
   size_t num_tilings() const { return tilings_->num_tilings(); }
 
   size_t GetNumberOfTilesWithResources() const;
@@ -130,8 +129,8 @@ class FakePictureLayerImpl : public PictureLayerImpl {
   void ReleaseResources() override;
   void ReleaseTileResources() override;
 
-  bool only_used_low_res_last_append_quads() const {
-    return only_used_low_res_last_append_quads_;
+  bool produced_tile_last_append_quads() const {
+    return produced_tile_last_append_quads_;
   }
 
   scoped_refptr<const DiscardableImageMap> discardable_image_map() const {

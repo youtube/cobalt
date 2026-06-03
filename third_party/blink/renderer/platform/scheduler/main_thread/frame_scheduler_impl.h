@@ -150,12 +150,11 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
   void OnStartedUsingNonStickyFeature(
       SchedulingPolicy::Feature feature,
       const SchedulingPolicy& policy,
-      std::unique_ptr<SourceLocation> source_location,
+      SourceLocation* source_location,
       SchedulingAffectingFeatureHandle* handle) override;
-  void OnStartedUsingStickyFeature(
-      SchedulingPolicy::Feature feature,
-      const SchedulingPolicy& policy,
-      std::unique_ptr<SourceLocation> source_location) override;
+  void OnStartedUsingStickyFeature(SchedulingPolicy::Feature feature,
+                                   const SchedulingPolicy& policy,
+                                   SourceLocation* source_location) override;
   void OnStoppedUsingNonStickyFeature(
       SchedulingAffectingFeatureHandle* handle) override;
 
@@ -391,8 +390,6 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
       back_forward_cache_disabling_feature_tracker_;
 
   TaskPriority default_loading_task_priority_ = TaskPriority::kNormalPriority;
-
-  TaskPriority low_priority_async_script_task_priority_;
 
   // These are the states of the Page.
   // They should be accessed via GetPageScheduler()->SetPageState().

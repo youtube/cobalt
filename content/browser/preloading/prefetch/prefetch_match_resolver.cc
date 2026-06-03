@@ -19,6 +19,7 @@
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/public/browser/navigation_handle_user_data.h"
+#include "services/network/public/cpp/url_loader_completion_status.h"
 
 namespace content {
 
@@ -221,7 +222,9 @@ void PrefetchMatchResolver::StartWaitFor(
   // https://chromium-review.googlesource.com/c/chromium/src/+/5668924 and
   // write tests.
   base::TimeDelta timeout = PrefetchBlockUntilHeadTimeout(
-      prefetch_container.GetPrefetchType(), is_nav_prerender_);
+      prefetch_container.GetPrefetchType(),
+      prefetch_container.ShouldDisableBlockUntilHeadTimeout(),
+      is_nav_prerender_);
   if (timeout.is_positive()) {
     candidate_data->timeout_timer = std::make_unique<base::OneShotTimer>();
     candidate_data->timeout_timer->Start(
@@ -243,8 +246,8 @@ void PrefetchMatchResolver::UnregisterCandidate(
   CHECK(candidate_data->prefetch_container);
   PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
-  prefetch_container.OnUnregisterCandidate(navigated_key_.url(), is_served,
-                                           GetBlockedDuration());
+  prefetch_container.OnUnregisterCandidate(
+      navigated_key_.url(), is_served, is_nav_prerender_, GetBlockedDuration());
   prefetch_container.RemoveObserver(this);
   candidates_.erase(prefetch_key);
 }
@@ -335,6 +338,10 @@ void PrefetchMatchResolver::OnDeterminedHead(
   // Got matching and servable.
   UnblockForMatch(prefetch_container.key());
 }
+
+void PrefetchMatchResolver::OnPrefetchCompletedOrFailed(
+    const network::URLLoaderCompletionStatus& completion_status,
+    const std::optional<int>& response_code) {}
 
 void PrefetchMatchResolver::OnTimeout(PrefetchContainer::Key prefetch_key) {
   // `timeout_timer` is alive, which implies `candidate` is alive.

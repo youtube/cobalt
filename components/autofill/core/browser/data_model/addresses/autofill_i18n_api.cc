@@ -205,7 +205,6 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case ONE_TIME_CODE:
     case SINGLE_USERNAME_FORGOT_PASSWORD:
     case SINGLE_USERNAME_WITH_INTERMEDIATE_VALUES:
-    case IMPROVED_PREDICTION:
     case PASSPORT_NAME_TAG:
     case PASSPORT_NUMBER:
     case PASSPORT_ISSUING_COUNTRY:
@@ -421,18 +420,8 @@ bool IsCustomHierarchyAvailableForCountry(AddressCountryCode country_code) {
     return false;
   }
 
-  if (country_code == AddressCountryCode("FR") &&
-      !base::FeatureList::IsEnabled(features::kAutofillUseFRAddressModel)) {
-    return false;
-  }
-
   if (country_code == AddressCountryCode("IN") &&
       !base::FeatureList::IsEnabled(features::kAutofillUseINAddressModel)) {
-    return false;
-  }
-
-  if (country_code == AddressCountryCode("NL") &&
-      !base::FeatureList::IsEnabled(features::kAutofillUseNLAddressModel)) {
     return false;
   }
 
