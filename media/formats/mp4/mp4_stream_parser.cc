@@ -1176,6 +1176,10 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // Either both buffers should be empty or only one should be filled.
   CHECK(frame_buf.empty() || heap_frame_buf.empty());
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const size_t original_scratch_capacity = scratch_frame_buf_.capacity();
+#endif
+
   const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
 
@@ -1211,6 +1215,10 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     } else {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+      // NOTE: Do NOT use std::move(frame_buf) here for Starboard.
+      // `frame_buf` aliases `scratch_frame_buf_` and we must preserve its
+      // capacity for reuse. Since the data is copied, std::move is unnecessary
+      // and would destroy the reused capacity.
       stream_buf = StreamParserBuffer::CopyFrom(
           base::span<const uint8_t>{&frame_buf[0], frame_buf.size()},
           is_keyframe, buffer_type, runs_->track_id());
@@ -1221,6 +1229,11 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  CHECK_GE(scratch_frame_buf_.capacity(), original_scratch_capacity)
+      << "scratch_frame_buf_ capacity was reduced, indicating the vector was likely std::moved.";
+#endif
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));
