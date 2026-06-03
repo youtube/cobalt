@@ -12,12 +12,13 @@
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
 #include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace gpu {
 
 SharedMemoryImageBackingFactory::SharedMemoryImageBackingFactory()
-    : SharedImageBackingFactory(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY) {}
+    : SharedImageBackingFactory(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
+                                SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE) {}
 
 SharedMemoryImageBackingFactory::~SharedMemoryImageBackingFactory() = default;
 
@@ -82,7 +83,9 @@ bool SharedMemoryImageBackingFactory::IsSupported(
     return false;
   }
 
-  if (usage != SharedImageUsageSet(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY)) {
+  if (usage != SharedImageUsageSet(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY) &&
+      usage != SharedImageUsageSet(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
+                                   SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE)) {
     return false;
   }
 

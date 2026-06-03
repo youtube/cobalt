@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 
+#include "base/check.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/notreached.h"
@@ -55,50 +56,6 @@ static constexpr char kUpdatesParam[] = "updates";
 static constexpr char kVarianceParam[] = "variance";
 static constexpr char kWeightParam[] = "weight";
 static constexpr char kZeroPointParam[] = "zeroPoint";
-
-// Calculate the output size for conv2d based on WebNN spec:
-// https://www.w3.org/TR/webnn/#api-mlgraphbuilder-conv2d
-// Return the calculated output size if no error.
-base::expected<double, std::string> CalculateConv2dOutputSize(
-    const uint32_t input_size,
-    const uint32_t filter_size,
-    const uint32_t beginning_padding,
-    const uint32_t ending_padding,
-    const uint32_t stride,
-    const uint32_t dilation,
-    std::string_view label) {
-  // Calculate the dilated filter sizes.
-  auto checked_effective_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  if (!checked_effective_filter_size.IsValid()) {
-    return base::unexpected(
-        ErrorWithLabel(label, "The effective filter size is too large."));
-  }
-
-  // Calculate the output size in double precision floating point number that
-  // ensures all dimension values of type uint32_t can be exactly represented.
-  // https://en.wikipedia.org/wiki/Double-precision_floating-point_format#Precision_limitations_on_integer_values
-  // The max value of checked_output_size should be 3 * UINT_MAX + 1,
-  // which is smaller than the max safe integer value for double type.
-  auto checked_output_size =
-      (base::MakeCheckedNum<double>(input_size) -
-       checked_effective_filter_size + beginning_padding + ending_padding) /
-          stride +
-      1;
-
-  if (checked_output_size.ValueOrDie() <= 0) {
-    return base::unexpected(ErrorWithLabel(
-        label, "The input size is too small to fill the window."));
-  }
-
-  // Check if the value is valid for rounding to uint32_t type.
-  if (!checked_output_size.IsValid<uint32_t>()) {
-    return base::unexpected(
-        ErrorWithLabel(label, "The output size is too large."));
-  }
-
-  return checked_output_size.ValueOrDie();
-}
 
 // Validate and calculate the output spatial dimensions of conv2d given
 // input sizes, filter sizes, padding, strides and dilations.
@@ -353,6 +310,47 @@ ValidateNormalizationOperandIsCompatibleWithInput(
 }
 
 }  // namespace
+
+base::expected<double, std::string> CalculateConv2dOutputSize(
+    uint32_t input_size,
+    uint32_t filter_size,
+    uint32_t beginning_padding,
+    uint32_t ending_padding,
+    uint32_t stride,
+    uint32_t dilation,
+    std::string_view label) {
+  // Calculate the dilated filter sizes.
+  auto checked_effective_filter_size =
+      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
+  if (!checked_effective_filter_size.IsValid()) {
+    return base::unexpected(
+        ErrorWithLabel(label, "The effective filter size is too large."));
+  }
+
+  // Calculate the output size in double precision floating point number that
+  // ensures all dimension values of type uint32_t can be exactly represented.
+  // https://en.wikipedia.org/wiki/Double-precision_floating-point_format#Precision_limitations_on_integer_values
+  // The max value of checked_output_size should be 3 * UINT_MAX + 1,
+  // which is smaller than the max safe integer value for double type.
+  auto checked_output_size =
+      (base::MakeCheckedNum<double>(input_size) -
+       checked_effective_filter_size + beginning_padding + ending_padding) /
+          stride +
+      1;
+
+  if (checked_output_size.ValueOrDie() <= 0) {
+    return base::unexpected(ErrorWithLabel(
+        label, "The input size is too small to fill the window."));
+  }
+
+  // Check if the value is valid for rounding to uint32_t type.
+  if (!checked_output_size.IsValid<uint32_t>()) {
+    return base::unexpected(
+        ErrorWithLabel(label, "The output size is too large."));
+  }
+
+  return checked_output_size.ValueOrDie();
+}
 
 BatchNormalizationAttributes::BatchNormalizationAttributes() = default;
 BatchNormalizationAttributes::~BatchNormalizationAttributes() = default;
@@ -1084,7 +1082,7 @@ base::expected<OperandDescriptor, std::string> ValidateExpandAndInferOutput(
     return base::unexpected(ErrorWithLabel(
         label, "The input shape is not broadcastable to the new shape."));
   }
-  CHECK_EQ(new_shape, base::span<const uint32_t>(*output_shape));
+  CHECK(new_shape == *output_shape);
 
   return OperandDescriptor::Create(context_properties, input.data_type(),
                                    *output_shape, label);
@@ -2111,6 +2109,7 @@ base::expected<OperandDescriptor, std::string> ValidatePadAndInferOutput(
     const OperandDescriptor& input,
     base::span<const uint32_t> beginning_padding,
     base::span<const uint32_t> ending_padding,
+    PaddingMode mode,
     std::string_view label) {
   if (!context_properties.data_type_limits.pad_input.Supports(input)) {
     return base::unexpected(ErrorWithLabel(
@@ -2130,6 +2129,33 @@ base::expected<OperandDescriptor, std::string> ValidatePadAndInferOutput(
         ErrorWithLabel(label,
                        "The length of endingPadding must be "
                        "equal to the rank of the input tensor."));
+  }
+
+  // Validate padding size restrictions for reflection mode.
+  switch (mode) {
+    case PaddingMode::kConstant:
+    case PaddingMode::kEdge: {
+      // Do nothing.
+      break;
+    }
+    case PaddingMode::kReflection: {
+      for (size_t i = 0; i < input.Rank(); ++i) {
+        if (beginning_padding[i] >= input.shape()[i]) {
+          return base::unexpected(ErrorWithLabel(
+              label,
+              base::StringPrintf("The beginningPadding size (%u) must be less "
+                                 "than input size (%u) of dimension (%zu).",
+                                 beginning_padding[i], input.shape()[i], i)));
+        }
+        if (ending_padding[i] >= input.shape()[i]) {
+          return base::unexpected(ErrorWithLabel(
+              label,
+              base::StringPrintf("The endingPadding size (%u) must be less "
+                                 "than input size (%u) of dimension (%zu).",
+                                 ending_padding[i], input.shape()[i], i)));
+        }
+      }
+    }
   }
 
   // Infer the output.

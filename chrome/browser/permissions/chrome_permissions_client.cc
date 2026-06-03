@@ -81,9 +81,7 @@
 #include "chrome/browser/android/search_permissions/search_permissions_service.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/permissions/permission_blocked_message_delegate_android.h"
-#include "chrome/browser/permissions/permission_infobar_delegate_android.h"
 #include "chrome/browser/permissions/permission_update_message_controller_android.h"
-#include "components/infobars/content/content_infobar_manager.h"
 #include "components/permissions/permission_request_manager.h"
 #else
 #include "chrome/browser/ui/browser.h"
@@ -95,8 +93,8 @@
 #include "ash/constants/ash_features.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_data.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_manager.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_data.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_data.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -142,9 +140,9 @@ std::optional<url::Origin> GetCurrentKioskOrigin() {
   if (IsWebKiosk()) {
     const AccountId& account_id =
         user_manager::UserManager::Get()->GetPrimaryUser()->GetAccountId();
-    DCHECK(ash::WebKioskAppManager::IsInitialized());
-    const ash::WebKioskAppData* app_data =
-        ash::WebKioskAppManager::Get()->GetAppByAccountId(account_id);
+    DCHECK(ash::KioskWebAppManager::IsInitialized());
+    const ash::KioskWebAppData* app_data =
+        ash::KioskWebAppManager::Get()->GetAppByAccountId(account_id);
     DCHECK(app_data);
     return url::Origin::Create(app_data->install_url());
   }
@@ -629,24 +627,6 @@ bool ChromePermissionsClient::IsDseOrigin(
   SearchPermissionsService* search_helper =
       SearchPermissionsService::Factory::GetForBrowserContext(browser_context);
   return search_helper && search_helper->IsDseOrigin(origin);
-}
-
-infobars::InfoBarManager* ChromePermissionsClient::GetInfoBarManager(
-    content::WebContents* web_contents) {
-  return infobars::ContentInfoBarManager::FromWebContents(web_contents);
-}
-
-infobars::InfoBar* ChromePermissionsClient::MaybeCreateInfoBar(
-    content::WebContents* web_contents,
-    ContentSettingsType type,
-    base::WeakPtr<permissions::PermissionPromptAndroid> prompt) {
-  infobars::ContentInfoBarManager* infobar_manager =
-      infobars::ContentInfoBarManager::FromWebContents(web_contents);
-  if (infobar_manager && ShouldUseQuietUI(web_contents, type)) {
-    return PermissionInfoBarDelegate::Create(std::move(prompt),
-                                             infobar_manager);
-  }
-  return nullptr;
 }
 
 std::unique_ptr<ChromePermissionsClient::PermissionMessageDelegate>

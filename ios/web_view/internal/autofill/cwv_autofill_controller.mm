@@ -9,7 +9,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/functional/callback.h"
-#import "base/notreached.h"
+#import "base/notimplemented.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/values.h"
 #import "components/autofill/core/browser/form_structure.h"
@@ -781,6 +781,10 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 
 - (void)showCredentialProviderPromo:(CredentialProviderPromoTrigger)trigger {
   // No op
+}
+
+- (void)showSignedInWithSavedCredentialMessage {
+  [self didLoginWithExistingPassword];
 }
 
 - (void)didLoginWithExistingPassword {

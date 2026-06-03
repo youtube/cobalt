@@ -98,7 +98,7 @@ public class BookmarkPersonalizedSigninPromoTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/372858049
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/372858049
     public void shouldHideBookmarksSigninPromoIfBookmarksIsManagedByPolicy() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(true);
@@ -109,6 +109,7 @@ public class BookmarkPersonalizedSigninPromoTest {
     @Test
     @MediumTest
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/362215887")
+    @DisableIf.Device(DeviceFormFactor.TABLET_OR_DESKTOP) // crbug.com/419932169
     public void shouldShowBookmarksSigninPromoIfBookmarksIsNotManagedByPolicy() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(false);
@@ -118,7 +119,7 @@ public class BookmarkPersonalizedSigninPromoTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/372858049
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/372858049
     public void shouldHideBookmarksSigninPromoIfDataTypesSyncing() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(false);
@@ -131,6 +132,7 @@ public class BookmarkPersonalizedSigninPromoTest {
     @Test
     @MediumTest
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/362215887")
+    @DisableIf.Device(DeviceFormFactor.TABLET_OR_DESKTOP) // crbug.com/419932169
     public void shouldShowBookmarksSigninPromoIfBookmarkNotSyncing() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(false);
@@ -142,6 +144,7 @@ public class BookmarkPersonalizedSigninPromoTest {
     @Test
     @MediumTest
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/362215887")
+    @DisableIf.Device(DeviceFormFactor.TABLET_OR_DESKTOP) // crbug.com/419932169
     public void shouldShowBookmarksSigninPromoIfReadingListNotSyncing() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(false);

@@ -23,6 +23,7 @@ web_component_files = [
   "multidevice_setup/button_bar.js",
   "multidevice_setup/multidevice_setup.js",
   "multidevice_setup/password_page.js",
+  "multidevice_setup/pausable_lottie.js",
   "multidevice_setup/setup_succeeded_page.js",
   "multidevice_setup/start_setup_page.js",
   "multidevice_setup/ui_page.js",
@@ -242,6 +243,7 @@ html_to_wrapper("html_wrapper_files") {
   in_folder = preprocessed_dir
   out_folder = preprocessed_dir
   in_files = html_files + icons_html_files
+  template = "polymer"
   use_js = true
 
   if (is_chrome_branded) {
@@ -443,6 +445,8 @@ generate_definitions_js_files = [
   "multidevice_setup/multidevice_setup_browser_proxy.js",
   "multidevice_setup/multidevice_setup_delegate.js",
   "multidevice_setup/multidevice_setup_shared.css.js",
+  "multidevice_setup/pausable_lottie.html.js",
+  "multidevice_setup/pausable_lottie.js",
   "multidevice_setup/setup_succeeded_page.html.js",
   "multidevice_setup/setup_succeeded_page.js",
   "multidevice_setup/start_setup_page.html.js",

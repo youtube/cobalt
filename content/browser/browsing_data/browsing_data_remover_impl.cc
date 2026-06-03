@@ -442,9 +442,6 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_INDEXEDDB;
   }
-  if (remove_mask & DATA_TYPE_WEB_SQL) {
-    storage_partition_remove_mask |= StoragePartition::REMOVE_DATA_MASK_WEBSQL;
-  }
   if (remove_mask & DATA_TYPE_SERVICE_WORKERS) {
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_SERVICE_WORKERS;
@@ -508,6 +505,11 @@ void BrowsingDataRemoverImpl::RemoveImpl(
   if (remove_mask & DATA_TYPE_DEVICE_BOUND_SESSIONS) {
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS;
+  }
+
+  if ((remove_mask & DATA_TYPE_COOKIES) || (remove_mask & DATA_TYPE_CACHE)) {
+    storage_partition_remove_mask |=
+        StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY;
   }
 
   if (storage_partition_remove_mask) {

@@ -60,17 +60,15 @@ namespace {
 
 void WaitForHistogram(const std::string& histogram_name) {
   // Continue if histogram was already recorded.
-  if (base::StatisticsRecorder::FindHistogram(histogram_name))
+  if (base::StatisticsRecorder::FindHistogram(histogram_name)) {
     return;
+  }
 
   // Else, wait until the histogram is recorded.
   base::RunLoop run_loop;
   auto histogram_observer =
       std::make_unique<base::StatisticsRecorder::ScopedHistogramSampleObserver>(
-          histogram_name,
-          base::BindLambdaForTesting(
-              [&](std::string_view histogram_name, uint64_t name_hash,
-                  base::HistogramBase::Sample32 sample) { run_loop.Quit(); }));
+          histogram_name, run_loop.QuitClosure());
   run_loop.Run();
 }
 
@@ -78,18 +76,9 @@ os_crypt_async::Encryptor GetInstanceSync(
     os_crypt_async::OSCryptAsync& factory,
     os_crypt_async::Encryptor::Option option =
         os_crypt_async::Encryptor::Option::kNone) {
-  base::RunLoop run_loop;
-  std::optional<os_crypt_async::Encryptor> encryptor;
-  auto sub = factory.GetInstance(
-      base::BindLambdaForTesting(
-          [&](os_crypt_async::Encryptor instance, bool result) {
-            EXPECT_TRUE(result);
-            encryptor.emplace(std::move(instance));
-            run_loop.Quit();
-          }),
-      option);
-  run_loop.Run();
-  return std::move(*encryptor);
+  base::test::TestFuture<os_crypt_async::Encryptor> future;
+  factory.GetInstance(future.GetCallback(), option);
+  return future.Take();
 }
 
 }  // namespace
@@ -610,6 +599,10 @@ IN_PROC_BROWSER_TEST_P(AppBoundEncryptionWinReencryptTest, KeyProviderTest) {
       // Re-encryption should always change the encrypted value, because the
       // underlying encryption schemes use random IVs, nonces or salts.
       EXPECT_NE(prefs.GetString(kPrefName), encrypted_key);
+      // Verify the encrypted key pref (base64, with the header "APPB") is long
+      // enough to be a valid encrypted key, and not just empty or truncated. A
+      // truncated key will be 'QVBQQg==' which is base64 for 'APPB'.
+      EXPECT_GT(prefs.GetString(kPrefName).length(), 10u);
     } else {
       EXPECT_EQ(prefs.GetString(kPrefName), encrypted_key);
     }

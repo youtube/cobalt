@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.compositor.layouts;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.tab.Tab;
@@ -12,6 +13,7 @@ import org.chromium.chrome.browser.tab.Tab;
  * {@link LayoutRenderHost} is the minimal interface the layouts need to know about its host to
  * update.
  */
+@NullMarked
 public interface LayoutUpdateHost {
     /**
      * Requests a next update to refresh the transforms and changing properties. The update occurs
@@ -46,19 +48,13 @@ public interface LayoutUpdateHost {
     void doneShowing();
 
     /**
-     * @param layout The {@link Layout} being evaluated.
-     * @return Whether the given {@link Layout} is being displayed.
-     */
-    boolean isActiveLayout(Layout layout);
-
-    /**
      * Initializes {@link org.chromium.chrome.browser.compositor.layouts.components.LayoutTab} with
-     * data accessible only from the {@link LayoutUpdateHost} such as data extracted out of a
-     * {@link Tab}.
+     * data accessible only from the {@link LayoutUpdateHost} such as data extracted out of a {@link
+     * Tab}.
      *
-     * @param tabId The id of the
-     *              {@link org.chromium.chrome.browser.compositor.layouts.components.LayoutTab}
-     *              to be initialized from a {@link Tab}.
+     * @param tabId The id of the {@link
+     *     org.chromium.chrome.browser.compositor.layouts.components.LayoutTab} to be initialized
+     *     from a {@link Tab}.
      */
     void initLayoutTabFromHost(final int tabId);
 

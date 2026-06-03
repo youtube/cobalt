@@ -4,9 +4,10 @@
 
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 
+#include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
@@ -18,16 +19,8 @@ DEFINE_ELEMENT_IDENTIFIER_VALUE(kNtpFooterId);
 
 namespace new_tab_footer {
 
-NewTabFooterWebView::NewTabFooterWebView(BrowserWindowInterface* browser_window)
-    : views::WebView(browser_window->GetProfile()) {
-  contents_wrapper_ = std::make_unique<WebUIContentsWrapperT<NewTabFooterUI>>(
-      GURL(chrome::kChromeUINewTabFooterURL), browser_window->GetProfile(),
-      IDS_NEW_TAB_FOOTER_NAME,
-      /*esc_closes_ui=*/false);
-  contents_wrapper_->SetHost(weak_factory_.GetWeakPtr());
-  SetWebContents(contents_wrapper_->web_contents());
-  webui::SetBrowserWindowInterface(contents_wrapper_->web_contents(),
-                                   browser_window);
+NewTabFooterWebView::NewTabFooterWebView(BrowserWindowInterface* browser)
+    : views::WebView(browser->GetProfile()), browser_(browser) {
   SetProperty(views::kElementIdentifierKey, kNtpFooterId);
 }
 
@@ -40,14 +33,61 @@ NewTabFooterWebView::~NewTabFooterWebView() {
   contents_wrapper_ = nullptr;
 }
 
+void NewTabFooterWebView::ShowUI(base::TimeTicks load_start, GURL url) {
+  ShowUI();
+  contents_wrapper_->GetWebUIController()->AttachedTabStateUpdated(url);
+  base::UmaHistogramMediumTimes("NewTabPage.Footer.ShownTime",
+                                base::TimeTicks::Now() - load_start);
+}
+
 void NewTabFooterWebView::ShowUI() {
+  if (!contents_wrapper_) {
+    contents_wrapper_ = std::make_unique<WebUIContentsWrapperT<NewTabFooterUI>>(
+        GURL(chrome::kChromeUINewTabFooterURL), browser_->GetProfile(),
+        IDS_NEW_TAB_FOOTER_NAME,
+        /*esc_closes_ui=*/false);
+    contents_wrapper_->SetHost(weak_factory_.GetWeakPtr());
+    SetWebContents(contents_wrapper_->web_contents());
+    webui::SetBrowserWindowInterface(contents_wrapper_->web_contents(),
+                                     browser_);
+  }
+
   SetVisible(true);
   contents_wrapper_->web_contents()->WasShown();
 }
 
 void NewTabFooterWebView::CloseUI() {
   SetVisible(false);
-  contents_wrapper_->web_contents()->WasHidden();
+  if (contents_wrapper_) {
+    contents_wrapper_->web_contents()->WasHidden();
+  }
+}
+
+void NewTabFooterWebView::ShowCustomContextMenu(
+    gfx::Point point,
+    std::unique_ptr<ui::MenuModel> menu_model) {
+  ConvertPointToScreen(this, &point);
+  context_menu_model_ = std::move(menu_model);
+  context_menu_runner_ = std::make_unique<views::MenuRunner>(
+      context_menu_model_.get(),
+      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+  context_menu_runner_->RunMenuAt(
+      GetWidget(), nullptr, gfx::Rect(point, gfx::Size()),
+      views::MenuAnchorPosition::kTopLeft, ui::mojom::MenuSourceType::kMouse,
+      contents_wrapper_->web_contents()->GetContentNativeView());
+}
+
+void NewTabFooterWebView::HideCustomContextMenu() {
+  if (context_menu_runner_) {
+    context_menu_runner_->Cancel();
+  }
+}
+
+bool NewTabFooterWebView::HandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+  return unhandled_keyboard_event_handler_.HandleKeyboardEvent(
+      event, GetFocusManager());
 }
 
 BEGIN_METADATA(NewTabFooterWebView)

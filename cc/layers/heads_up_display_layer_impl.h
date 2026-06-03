@@ -29,7 +29,6 @@ class ClientResourceProvider;
 }
 
 namespace cc {
-class DroppedFrameCounter;
 class LayerTreeFrameSink;
 class PaintCanvas;
 class PaintFlags;
@@ -82,6 +81,10 @@ class CC_EXPORT HeadsUpDisplayLayerImpl : public LayerImpl {
   // This evicts hud quad appended during render pass preparation.
   void EvictHudQuad(const viz::CompositorRenderPassList& list);
 
+  void GetContentsResourceId(viz::ResourceId* resource_id,
+                             gfx::Size* resource_size,
+                             gfx::SizeF* resource_uv_size) const override;
+
   // LayerImpl overrides.
   void PushPropertiesTo(LayerImpl* layer) override;
 
@@ -119,11 +122,9 @@ class CC_EXPORT HeadsUpDisplayLayerImpl : public LayerImpl {
                          PaintFlags* flags,
                          const SkRect& bounds) const;
 
-  SkRect DrawFrameThroughputDisplay(
-      PaintCanvas* canvas,
-      const DroppedFrameCounter* dropped_frame_counter,
-      int right,
-      int top) const;
+  SkRect DrawFrameThroughputDisplay(PaintCanvas* canvas,
+                                    int right,
+                                    int top) const;
   SkRect DrawMemoryDisplay(PaintCanvas* canvas,
                            int top,
                            int right,

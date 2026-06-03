@@ -10,6 +10,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/buildflag.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -24,7 +25,6 @@
 #include "ui/views/accessibility/atomic_view_ax_tree_manager.h"
 #include "ui/views/accessibility/ax_update_notifier.h"
 #include "ui/views/accessibility/ax_virtual_view.h"
-#include "ui/views/accessibility/widget_ax_tree_id_map.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/root_view.h"
@@ -1476,6 +1476,13 @@ ui::AXPlatformNodeId ViewAccessibility::GetUniqueId() const {
 AtomicViewAXTreeManager*
 ViewAccessibility::GetAtomicViewAXTreeManagerForTesting() const {
   return nullptr;
+}
+
+Widget* ViewAccessibility::GetWidget() const {
+  if (!view_) {
+    return nullptr;
+  }
+  return view_->GetWidget();
 }
 
 gfx::NativeViewAccessible ViewAccessibility::GetFocusedDescendant() {

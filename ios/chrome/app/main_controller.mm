@@ -24,6 +24,7 @@
 #import "base/task/bind_post_task.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/timer/timer.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/component_updater/component_updater_service.h"
 #import "components/component_updater/installer_policies/autofill_states_component_installer.h"
 #import "components/component_updater/installer_policies/on_device_head_suggest_component_installer.h"
@@ -82,6 +83,7 @@
 #import "ios/chrome/browser/crash_report/model/crash_loop_detection_util.h"
 #import "ios/chrome/browser/crash_report/model/crash_report_helper.h"
 #import "ios/chrome/browser/credential_provider/model/credential_provider_buildflags.h"
+#import "ios/chrome/browser/default_browser/model/features.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/device_orientation/ui_bundled/scoped_force_portrait_orientation.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_app_agent.h"
@@ -224,13 +226,17 @@ NSString* const kDefaultBrowserStatusCheck = @"DefaultBrowserStatusCheck";
 // Constant for enabling widgets for multi-profile.
 NSString* const kWidgetsForMultiprofileKey = @"WidgetsForMultiprofileKey";
 
+// Constant for enabling share extension for multi-profile.
+NSString* const kShareExtensionForMultiprofileKey =
+    @"ShareExtensionForMultiprofileKey";
+
 // Adapted from chrome/browser/ui/browser_init.cc.
 void RegisterComponentsForUpdate() {
   component_updater::ComponentUpdateService* cus =
       GetApplicationContext()->GetComponentUpdateService();
   DCHECK(cus);
   RegisterOnDeviceHeadSuggestComponent(
-      cus, GetApplicationContext()->GetApplicationLocale());
+      cus, GetApplicationContext()->GetApplicationLocaleStorage()->Get());
   RegisterSafetyTipsComponent(cus);
   RegisterAutofillStatesComponent(cus,
                                   GetApplicationContext()->GetLocalState());
@@ -1405,6 +1411,10 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   [capabilities setObject:supportsShowDefaultBrowserPromo
                    forKey:app_group::kChromeShowDefaultBrowserPromoCapability];
 
+  [capabilities
+      setObject:@(IsShareDefaultBrowserStatusEnabled())
+         forKey:app_group::kChromeSupportShareDefaultBrowserStatusCapability];
+
   if (base::FeatureList::IsEnabled(kYoutubeIncognito) &&
       base::FeatureList::IsEnabled(kChromeStartupParametersAsync)) {
     [capabilities
@@ -1442,6 +1452,10 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
     },
     kWidgetsForMultiprofileKey : @{
       kFieldTrialValueKey : @(IsWidgetsForMultiprofileEnabled()),
+      kFieldTrialVersionKey : @1,
+    },
+    kShareExtensionForMultiprofileKey : @{
+      kFieldTrialValueKey : @(IsShareExtensionForMultiprofileEnabled()),
       kFieldTrialVersionKey : @1,
     },
   };

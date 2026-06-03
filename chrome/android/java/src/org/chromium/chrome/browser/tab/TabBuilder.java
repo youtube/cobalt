@@ -54,10 +54,11 @@ public class TabBuilder {
 
     /**
      * Sets the tab from which the new one is opened.
+     *
      * @param parent The parent Tab.
      * @return {@link TabBuilder} creating the Tab.
      */
-    public TabBuilder setParent(Tab parent) {
+    public TabBuilder setParent(@Nullable Tab parent) {
         mParent = parent;
         return this;
     }
@@ -115,10 +116,11 @@ public class TabBuilder {
 
     /**
      * Sets a {@link TabDelegateFactory} object.
+     *
      * @param delegateFactory The factory delegated to create various Tab-related objects.
      * @return {@link TabBuilder} creating the Tab.
      */
-    public TabBuilder setDelegateFactory(TabDelegateFactory delegateFactory) {
+    public TabBuilder setDelegateFactory(@Nullable TabDelegateFactory delegateFactory) {
         mDelegateFactory = delegateFactory;
         return this;
     }
@@ -188,6 +190,7 @@ public class TabBuilder {
 
         // Initializes Tab. Its user data objects are also initialized through the event
         // |onInitialized| of TabObserver they register.
+        assert mDelegateFactory != null;
         tab.initialize(
                 parent,
                 mCreationType,

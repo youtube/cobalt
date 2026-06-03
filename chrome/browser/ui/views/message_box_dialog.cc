@@ -341,15 +341,29 @@ const views::Widget* MessageBoxDialog::GetWidget() const {
 
 namespace chrome {
 
-MessageBoxResult ShowWarningMessageBox(gfx::NativeWindow parent,
-                                       const std::u16string& title,
-                                       const std::u16string& message) {
-  return MessageBoxDialog::Show(
+void ShowWarningMessageBoxAsync(
+    gfx::NativeWindow parent,
+    const std::u16string& title,
+    const std::u16string& message,
+    base::OnceCallback<void(MessageBoxResult)> callback) {
+  MessageBoxDialog::Show(
       parent, title, message, chrome::MESSAGE_BOX_TYPE_WARNING,
-      std::u16string(), std::u16string(), std::u16string());
+      /*yes_text=*/std::u16string(),
+      /*no_text=*/std::u16string(),
+      /*checkbox_text=*/std::u16string(), std::move(callback));
 }
 
-void ShowWarningMessageBoxWithCheckbox(
+MessageBoxResult ShowWarningMessageBoxSync(gfx::NativeWindow parent,
+                                           const std::u16string& title,
+                                           const std::u16string& message) {
+  return MessageBoxDialog::Show(parent, title, message,
+                                chrome::MESSAGE_BOX_TYPE_WARNING,
+                                /*yes_text=*/std::u16string(),
+                                /*no_text=*/std::u16string(),
+                                /*checkbox_text=*/std::u16string());
+}
+
+void ShowWarningMessageBoxWithCheckboxAsync(
     gfx::NativeWindow parent,
     const std::u16string& title,
     const std::u16string& message,
@@ -375,7 +389,7 @@ MessageBoxResult ShowQuestionMessageBoxSync(gfx::NativeWindow parent,
       std::u16string(), std::u16string(), std::u16string());
 }
 
-void ShowQuestionMessageBox(
+void ShowQuestionMessageBoxAsync(
     gfx::NativeWindow parent,
     const std::u16string& title,
     const std::u16string& message,
@@ -386,11 +400,12 @@ void ShowQuestionMessageBox(
                          std::move(callback));
 }
 
-MessageBoxResult ShowMessageBoxWithButtonText(gfx::NativeWindow parent,
-                                              const std::u16string& title,
-                                              const std::u16string& message,
-                                              const std::u16string& yes_text,
-                                              const std::u16string& no_text) {
+MessageBoxResult ShowMessageBoxWithButtonTextSync(
+    gfx::NativeWindow parent,
+    const std::u16string& title,
+    const std::u16string& message,
+    const std::u16string& yes_text,
+    const std::u16string& no_text) {
   return MessageBoxDialog::Show(parent, title, message,
                                 chrome::MESSAGE_BOX_TYPE_QUESTION, yes_text,
                                 no_text, std::u16string());

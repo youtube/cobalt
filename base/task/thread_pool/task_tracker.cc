@@ -31,7 +31,8 @@
 #include "base/threading/sequence_local_storage_map.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
+#include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "base/values.h"
 #include "build/build_config.h"
 
@@ -39,10 +40,8 @@ namespace base::internal {
 
 namespace {
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 using perfetto::protos::pbzero::ChromeThreadPoolTask;
 using perfetto::protos::pbzero::ChromeTrackEvent;
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 constexpr const char* kExecutionModeString[] = {"parallel", "sequenced",
                                                 "single thread", "job"};
@@ -59,7 +58,6 @@ bool HasLogBestEffortTasksSwitch() {
              switches::kLogBestEffortTasks);
 }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 ChromeThreadPoolTask::Priority TaskPriorityToProto(TaskPriority priority) {
   switch (priority) {
     case TaskPriority::BEST_EFFORT:
@@ -96,7 +94,6 @@ ChromeThreadPoolTask::ShutdownBehavior ShutdownBehaviorToProto(
       return ChromeThreadPoolTask::SHUTDOWN_BEHAVIOR_BLOCK_SHUTDOWN;
   }
 }
-#endif  //  BUILDFLAG(ENABLE_BASE_TRACING)
 
 // If this is greater than 0 on a given thread, it will ignore the DCHECK which
 // prevents posting BLOCK_SHUTDOWN tasks after shutdown. There are cases where
@@ -636,7 +633,6 @@ void TaskTracker::EmitThreadPoolTraceEventMetadata(perfetto::EventContext& ctx,
                                                    const TaskTraits& traits,
                                                    TaskSource* task_source,
                                                    const SequenceToken& token) {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   if (TRACE_EVENT_CATEGORY_ENABLED("scheduler.flow")) {
     if (token.IsValid()) {
       ctx.event()->add_flow_ids(reinterpret_cast<uint64_t>(this) ^
@@ -657,7 +653,6 @@ void TaskTracker::EmitThreadPoolTraceEventMetadata(perfetto::EventContext& ctx,
       task->set_sequence_token(token.ToInternalValue());
     }
   }
-#endif  //  BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 NOINLINE void TaskTracker::RunContinueOnShutdown(Task& task,

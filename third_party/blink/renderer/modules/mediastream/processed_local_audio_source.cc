@@ -96,12 +96,11 @@ ProcessedLocalAudioSource::ProcessedLocalAudioSource(
     const blink::MediaStreamDevice& device,
     bool disable_local_echo,
     const MediaStreamAudioProcessingLayout& processing_layout,
-    ConstraintsOnceCallback started_callback,
+    ConstraintsRepeatingCallback started_callback,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
     : blink::MediaStreamAudioSource(std::move(task_runner),
                                     true /* is_local_source */,
                                     disable_local_echo),
-      use_remote_apm_(media::IsChromeWideEchoCancellationEnabled()),
       consumer_frame_(&frame),
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
       dependency_factory_(
@@ -111,13 +110,12 @@ ProcessedLocalAudioSource::ProcessedLocalAudioSource(
       started_callback_(std::move(started_callback)),
       allow_invalid_render_frame_id_for_testing_(false) {
   DCHECK(frame.DomWindow());
-  CHECK_EQ(device.type, mojom::blink::MediaStreamType::DEVICE_AUDIO_CAPTURE);
-
   SetDevice(device);
   SendLogMessage(StringPrintf(
       "%s({audio_processing_properties=[%s]}, {APM=%s})[session_id=%s]",
       __func__, processing_layout.properties().ToString(),
-      use_remote_apm_ ? "remote" : "local", device.session_id().ToString()));
+      processing_layout_.run_apm_in_audio_service() ? "remote" : "local",
+      device.session_id().ToString()));
 }
 
 ProcessedLocalAudioSource::~ProcessedLocalAudioSource() {
@@ -215,7 +213,7 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
 
   media::AudioSourceParameters source_config(device().session_id());
 
-  if (use_remote_apm_) {
+  if (processing_layout_.run_apm_in_audio_service()) {
     // Since audio processing will be applied in the audio service, we request
     // audio here in the audio processing output format to avoid forced
     // resampling.
@@ -341,8 +339,7 @@ void ProcessedLocalAudioSource::SetVolume(double volume) {
 
 void ProcessedLocalAudioSource::OnCaptureStarted() {
   SendLogMessageWithSessionId(base::StringPrintf("OnCaptureStarted()"));
-  std::move(started_callback_)
-      .Run(this, mojom::blink::MediaStreamRequestResult::OK, "");
+  started_callback_.Run(this, mojom::blink::MediaStreamRequestResult::OK, "");
 }
 
 void ProcessedLocalAudioSource::Capture(
@@ -402,6 +399,22 @@ void ProcessedLocalAudioSource::OnCaptureProcessorCreated(
   DCHECK_NE(!!media_stream_audio_processor_, !!audio_processor_proxy_);
   if (audio_processor_proxy_)
     audio_processor_proxy_->SetControls(controls);
+}
+
+void ProcessedLocalAudioSource::ChangeSourceImpl(
+    const MediaStreamDevice& new_device) {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
+  // Source changes are not supported for microphone audio capture.
+  CHECK_NE(new_device.type,
+           mojom::blink::MediaStreamType::DEVICE_AUDIO_CAPTURE);
+  CHECK_NE(device().type, mojom::blink::MediaStreamType::DEVICE_AUDIO_CAPTURE);
+
+  WebRtcLogMessage("ProcessedLocalAudioSource::ChangeSourceImpl(new_device = " +
+                   new_device.id + ")");
+  EnsureSourceIsStopped();
+  SetDevice(new_device);
+  EnsureSourceIsStarted();
 }
 
 void ProcessedLocalAudioSource::SetOutputDeviceForAec(

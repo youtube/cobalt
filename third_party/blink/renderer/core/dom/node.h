@@ -400,9 +400,6 @@ class CORE_EXPORT Node : public EventTarget {
   DISABLE_CFI_PERF bool IsViewTransitionPseudoElement() const {
     return IsTransitionPseudoElement(GetPseudoId());
   }
-  DISABLE_CFI_PERF bool IsViewTransitionGroupPseudoElement() const {
-    return GetPseudoId() == kPseudoIdViewTransitionGroup;
-  }
   virtual PseudoId GetPseudoId() const { return kPseudoIdNone; }
   virtual PseudoId GetPseudoIdForStyling() const { return kPseudoIdNone; }
   virtual const AtomicString& GetPseudoArgument() const { return g_null_atom; }
@@ -432,7 +429,7 @@ class CORE_EXPORT Node : public EventTarget {
   virtual bool IsMediaRemotingInterstitial() const { return false; }
   virtual bool IsPictureInPictureInterstitial() const { return false; }
 
-  // Either ::scroll-marker or ::scroll-*-button pseudo element.
+  // Either ::scroll-marker or ::scroll-*-button pseudo-element.
   bool IsScrollControlPseudoElement() const {
     return IsScrollMarkerPseudoElement() || IsScrollButtonPseudoElement();
   }
@@ -589,7 +586,7 @@ class CORE_EXPORT Node : public EventTarget {
   // Propagates a dirty bit breadcrumb for this element up the ancestor chain.
   void MarkAncestorsWithChildNeedsStyleRecalc();
 
-  // Traverses subtree (include pseudo elements and shadow trees) and
+  // Traverses subtree (include pseudo-elements and shadow trees) and
   // invalidates nodes whose styles depend on font metrics (e.g., 'ex' unit).
   void MarkSubtreeNeedsStyleRecalcForFontUpdates();
 
@@ -848,8 +845,7 @@ class CORE_EXPORT Node : public EventTarget {
   // document. This is called during document parsing, and also when a node is
   // added through the DOM methods insertBefore(), appendChild() or
   // replaceChild(). The call happens _after_ the node has been added to the
-  // tree.  This is similar to the DOMNodeInsertedIntoDocument DOM event, but
-  // does not require the overhead of event dispatching.
+  // tree.
   //
   // Blink notifies this callback regardless if the subtree of the node is a
   // document tree or a floating subtree.  Implementation can determine the type
@@ -951,7 +947,6 @@ class CORE_EXPORT Node : public EventTarget {
 
   virtual void HandleLocalEvents(Event&);
 
-  void DispatchSubtreeModifiedEvent();
   DispatchEventResult DispatchDOMActivateEvent(int detail,
                                                Event& underlying_event);
 
@@ -1089,11 +1084,6 @@ class CORE_EXPORT Node : public EventTarget {
 
   void Trace(Visitor*) const override;
 
-  bool IsModifiedBySoftNavigation() const {
-    return GetFlag(kModifiedBySoftNavigation);
-  }
-  void SetIsModifiedBySoftNavigation() { SetFlag(kModifiedBySoftNavigation); }
-
   bool HasNodePart() const { return GetFlag(kHasNodePart); }
   void SetHasNodePart() { SetFlag(kHasNodePart); }
   void ClearHasNodePart() { ClearFlag(kHasNodePart); }
@@ -1156,16 +1146,12 @@ class CORE_EXPORT Node : public EventTarget {
     kSelfOrAncestorHasDirAutoAttribute = 1u << 27,
     kCachedDirectionalityIsRtl = 1u << 28,
 
-    // Indicates that the node was added in a task descendant of a potential
-    // soft navigation.
-    kModifiedBySoftNavigation = 1u << 29,
-
     // Bits indicating this Node is a NodePart or a ChildNodePart endpoint.
-    kHasNodePart = 1u << 30,
+    kHasNodePart = 1u << 29,
 
     // Indicate the node is in a hierarchy that needs to be considered for
     // ContainerTiming events.
-    kSelfOrAncestorHasContainerTiming = 1u << 31,
+    kSelfOrAncestorHasContainerTiming = 1u << 30,
 
     kDefaultNodeFlags = kIsFinishedParsingChildrenFlag,
 

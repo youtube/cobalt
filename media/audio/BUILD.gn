@@ -233,6 +233,8 @@ source_set("audio") {
       "win/audio_low_latency_output_win.h",
       "win/audio_manager_win.cc",
       "win/audio_manager_win.h",
+      "win/audio_session_creation_observer_win.cc",
+      "win/audio_session_creation_observer_win.h",
       "win/audio_session_event_listener_win.cc",
       "win/audio_session_event_listener_win.h",
       "win/avrt_wrapper_win.cc",
@@ -257,6 +259,8 @@ source_set("audio") {
 
   if (is_android) {
     sources += [
+      "android/aaudio_bluetooth_output.cc",
+      "android/aaudio_bluetooth_output.h",
       "android/aaudio_input.cc",
       "android/aaudio_input.h",
       "android/aaudio_output.cc",
@@ -508,6 +512,7 @@ source_set("unit_tests") {
       "android/audio_android_unittest.cc",
       "android/audio_device_id_unittest.cc",
       "android/audio_device_type_unittest.cc",
+      "android/audio_device_unittest.cc",
     ]
     deps += [
       "//media/gpu:gpu",

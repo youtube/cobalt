@@ -410,6 +410,14 @@ gn_args.config(
         "clang",
     ],
 )
+
+gn_args.config(
+    name = "no_treat_warnings_as_errors",
+    args = {
+        "treat_warnings_as_errors": False,
+    },
+)
+
 gn_args.config(
     name = "codesearch_builder",
     args = {
@@ -851,6 +859,11 @@ gn_args.config(
     name = "ios_simulator",
     args = {"target_environment": "simulator"},
     configs = ["ios"],
+)
+
+gn_args.config(
+    name = "tvos_platform",
+    args = {"target_platform": "tvos"},
 )
 
 gn_args.config(

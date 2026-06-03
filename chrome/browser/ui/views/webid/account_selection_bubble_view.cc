@@ -15,7 +15,6 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/image_fetcher/image_decoder_impl.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/monogram_utils.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
@@ -27,6 +26,7 @@
 #include "components/image_fetcher/core/image_fetcher_impl.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/common/content_features.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "skia/ext/image_operations.h"
@@ -177,7 +177,13 @@ AccountSelectionBubbleView::AccountSelectionBubbleView(
           views::BubbleBorder::Arrow::TOP_RIGHT,
           views::BubbleBorder::DIALOG_SHADOW,
           /*autosize=*/true),
-      AccountSelectionViewBase(owner, std::move(url_loader_factory), rp_data),
+      AccountSelectionViewBase(owner,
+                               std::move(url_loader_factory),
+                               rp_data,
+                               owner->web_contents()
+                                   ->GetPrimaryMainFrame()
+                                   ->GetRenderWidgetHost()
+                                   ->GetDeviceScaleFactor()),
       rp_context_(rp_context) {
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   set_fixed_width(kBubbleWidth);
@@ -506,8 +512,10 @@ std::unique_ptr<views::View> AccountSelectionBubbleView::CreateHeaderView() {
 
   auto* titles_container =
       header->AddChildView(std::make_unique<views::View>());
-  titles_container->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical));
+  titles_container
+      ->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical))
+      ->set_main_axis_alignment(views::BoxLayout::MainAxisAlignment::kCenter);
   views::FlexSpecification flex_spec(views::LayoutOrientation::kHorizontal,
                                      views::MinimumFlexSizeRule::kScaleToZero,
                                      views::MaximumFlexSizeRule::kUnbounded);
@@ -569,15 +577,13 @@ AccountSelectionBubbleView::CreateSingleAccountChooser(
   views::MdTextButton* button_ptr = button.get();
   row->AddChildView(std::move(button));
 
-  // Do not add disclosure text if this is a sign in or if we were requested
-  // to skip it.
-  if (account->login_state == Account::LoginState::kSignIn ||
-      idp_data.disclosure_fields.empty()) {
+  // Do not add disclosure text if fields is empty.
+  if (account->fields.empty()) {
     return std::make_pair(std::move(row), button_ptr);
   }
 
   // Add disclosure text.
-  row->AddChildView(CreateDisclosureLabel(idp_data));
+  row->AddChildView(CreateDisclosureLabel(account));
   return std::make_pair(std::move(row), button_ptr);
 }
 

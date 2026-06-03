@@ -43,6 +43,13 @@ source_set("screen_ai") {
     "//ui/accessibility:accessibility",
   ]
 
+  if (is_linux) {
+    deps += [
+      "//base/allocator/partition_allocator:buildflags",
+      "//base/allocator/partition_allocator/src/partition_alloc:allocator_shim",
+    ]
+  }
+
   if (!use_fake_screen_ai) {
     deps += [ "//components/crash/core/common:crash_key" ]
   }
@@ -75,6 +82,7 @@ if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps = [
       "//base",
       "//components/component_updater",
+      "//components/crash/core/common:crash_key",
       "//sandbox/linux:sandbox_services",
       "//services/screen_ai/buildflags",
       "//services/screen_ai/public/cpp:utilities",
@@ -118,19 +126,4 @@ source_set("unit_tests") {
   ]
 
   data_deps = [ ":test_support_data" ]
-}
-
-source_set("test_support") {
-  testonly = true
-
-  sources = [
-    "public/test/fake_screen_ai_annotator.cc",
-    "public/test/fake_screen_ai_annotator.h",
-  ]
-
-  deps = [
-    "//base/test:test_support",
-    "//services/screen_ai/public/mojom",
-    "//ui/accessibility:test_support",
-  ]
 }

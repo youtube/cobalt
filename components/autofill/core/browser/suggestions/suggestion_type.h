@@ -64,6 +64,11 @@ enum class SuggestionType {
 
   // Password related suggestion. Fills a password credential.
   kPasswordEntry = 21,
+  // Password related suggestion. Fills a backup password credential.
+  kBackupPasswordEntry = 70,
+  // Password related suggestion. Opens a new suggestion bubble with a single
+  // kBackupPasswordEntry.
+  kTroubleSigningInEntry = 71,
   // Password related suggestion. Opens management UI for passwords and/or
   // passkeys.
   kAllSavedPasswordsEntry = 22,
@@ -92,6 +97,8 @@ enum class SuggestionType {
   // Password sub-popup suggestion. Triggers the password details view from the
   // manual fallback entry.
   kViewPasswordDetails = 32,
+  // Footer suggestion. Non-interactable, free-form, multiline text.
+  kFreeformFooter = 72,
 
   // Payment suggestions.
   // kShowAccountCards = 24, // DEPRECATED
@@ -120,8 +127,11 @@ enum class SuggestionType {
   // Loyalty card suggestions.
   kLoyaltyCardEntry = 67,
 
+  // All loyalty card suggestions.
+  kAllLoyaltyCardsEntry = 73,
+
   // Home & Work suggestions.
-  kHomeAndWorkAddressEntry = 69,
+  // kHomeAndWorkAddressEntry = 69, // DEPRECATED
 
   // Webauthn suggestions.
   kWebauthnCredential = 43,
@@ -158,8 +168,8 @@ enum class SuggestionType {
   // state. On click the user will be directed to sign in.
   kPendingStateSignin = 65,
 
-  // Next ID: 70
-  kMaxValue = kHomeAndWorkAddressEntry
+  // Next ID: 74
+  kMaxValue = kAllLoyaltyCardsEntry
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

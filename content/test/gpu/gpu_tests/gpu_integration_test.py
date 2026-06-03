@@ -294,6 +294,13 @@ class GpuIntegrationTest(
         # RenderDocument is not the culprit or it is and the root cause of
         # flakiness is fixed.
         '--disable-features=RenderDocument',
+        # In-Product Help (IPH) is a constantly-updating collection of prompts
+        # designed to help users understand the browser better. Because
+        # different experiences are rolled out all the time and some can happen
+        # at or near startup, disable IPH to prevent any interference with test
+        # results. (Note that this argument takes a list of IPH that will be
+        # allowed; specifying none disables all IPH.)
+        '--propagate-iph-for-testing',
     ]
     if cls._SuiteSupportsParallelTests():
       # When running tests in parallel, windows can be treated as occluded if a
@@ -1196,6 +1203,7 @@ class GpuIntegrationTest(
 
     tags = super(GpuIntegrationTest, cls).GetPlatformTags(browser)
     AddMemoryTags(tags)
+    AddArchitectureTags(tags)
     system_info = browser.GetSystemInfo()
     if system_info:
       gpu_tags = []
@@ -1343,7 +1351,6 @@ class GpuIntegrationTest(
         # device name is clearer.
         'arm-mali-g52-mc2',  # android-sm-a137f
         'arm-mali-t860',  # chromeos-board-kevin
-        'qualcomm-adreno-(tm)-418',  # android-nexus-5x
         'qualcomm-adreno-(tm)-540',  # android-pixel-2
         'qualcomm-adreno-(tm)-610',  # android-sm-a236b
         'qualcomm-adreno-(tm)-640',  # android-pixel-4
@@ -1383,6 +1390,13 @@ class GpuIntegrationTest(
         'android-12',  # Android S
         'android-13',  # Android T
         'android-a',  # Android 14+ releases in 2024
+        # Produced by Chrome when running on the DirectX software renderer.
+        'amd64',
+        # These are automatically added by Telemetry in mac_platform_backend's
+        # GetTypExpectationsTags(), but GPU produces non-OS-specific
+        # architecture tags.
+        'mac-arm64',
+        'mac-x86_64',
     ]
 
   @classmethod
@@ -1411,6 +1425,29 @@ def AddMemoryTags(tags: list[str]) -> None:
     tags.append('memory_ge_16gb')
   else:
     tags.append('memory_lt_16gb')
+
+
+def AddArchitectureTags(tags: list[str]) -> None:
+  """Adds typ tags related to CPU architecture.
+
+  Args:
+    tags: A list of existing tags. Will be modified in place.
+  """
+  # We only add architecture tags for non-remote platforms.
+  if not any(t in tags for t in ('linux', 'mac', 'win')):
+    return
+  # We manually list out architectures instead of relying on platform.machine()
+  # since that can give incorrect information on arm platforms running x86
+  # Python via emulation. It also is not consistent across platforms, e.g. it
+  # can return both x86_64 and AMD64.
+  arch = None
+  if host_information.IsArmCpu():
+    arch = 'arm64'
+  elif host_information.Isx86Cpu():
+    arch = 'x86_64'
+  else:
+    raise RuntimeError('Unsupported architecture')
+  tags.append(f'arch-{arch}')
 
 
 def _PreemptArguments(browser_options: bo.BrowserOptions,

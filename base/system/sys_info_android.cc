@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <sys/system_properties.h>
 
-#include "base/android/sys_utils.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -125,6 +124,12 @@ std::string SysInfo::GetAndroidHardwareEGL() {
   char os_hardware_egl_str[PROP_VALUE_MAX];
   __system_property_get("ro.hardware.egl", os_hardware_egl_str);
   return std::string(os_hardware_egl_str);
+}
+
+std::string SysInfo::GetAndroidHardwareClass() {
+  char os_hardware_id_str[PROP_VALUE_MAX];
+  __system_property_get("ro.boot.product.hardware.id", os_hardware_id_str);
+  return std::string(os_hardware_id_str);
 }
 
 // static

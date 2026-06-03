@@ -36,6 +36,9 @@ _KNOWN_GOOGLE_PROJECTS = (
     'rbe-webrtc-untrusted',
 )
 
+_GOOGLE_CROS_STAR = os.path.join(THIS_DIR, "backend_config",
+                                 "google_cros_chroot.star")
+
 def ReadConfig():
   entries = {}
   if not os.path.isfile(SISO_ENV):
@@ -78,14 +81,23 @@ def main():
       f.write("%s=%s\n" % (SISO_PROJECT_CFG, project))
     if rbe_instance:
       f.write("SISO_REAPI_INSTANCE=%s\n" % rbe_instance)
+<<<<<<< HEAD
   if project in _KNOWN_COBALT_PROJECTS:
     if os.path.exists(_BACKEND_STAR):
       os.remove(_BACKEND_STAR)
     shutil.copy2(_COBALT_STAR, _BACKEND_STAR)
+=======
+
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
   if project in _KNOWN_GOOGLE_PROJECTS:
     if os.path.exists(_BACKEND_STAR):
       os.remove(_BACKEND_STAR)
     shutil.copy2(_GOOGLE_STAR, _BACKEND_STAR)
+  elif project.startswith('chromeos-') and project.endswith('-bot'):
+    if os.path.exists(_BACKEND_STAR):
+      os.remove(_BACKEND_STAR)
+    shutil.copy2(_GOOGLE_CROS_STAR, _BACKEND_STAR)
+
   if not os.path.exists(_BACKEND_STAR):
     print('Need to provide {} for your backend {}'.format(
         _BACKEND_STAR, args.rbe_instance),

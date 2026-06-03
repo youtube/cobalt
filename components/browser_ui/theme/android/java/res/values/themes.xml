@@ -17,9 +17,9 @@ found in the LICENSE file.
         <item name="colorPrimaryInverse">@color/baseline_primary_80</item>
         <item name="colorOnPrimary">@color/baseline_primary_100</item>
         <item name="colorPrimaryContainer">@color/baseline_primary_90</item>
-        <item name="colorOnPrimaryContainer">@color/baseline_primary_10</item>
+        <item name="colorOnPrimaryContainer">@color/baseline_primary_30</item>
         <item name="colorSecondaryContainer">@color/baseline_secondary_90</item>
-        <item name="colorOnSecondaryContainer">@color/baseline_secondary_10</item>
+        <item name="colorOnSecondaryContainer">@color/baseline_secondary_30</item>
         <item name="colorAccent">@macro/default_control_color_active</item>
         <item name="android:colorBackground">@color/baseline_neutral_100</item>
         <item name="colorOnBackground">@color/baseline_neutral_10</item>
@@ -35,6 +35,7 @@ found in the LICENSE file.
         <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_30</item>
         <item name="colorOnSurfaceInverse">@color/baseline_neutral_95</item>
         <item name="colorOutline">@color/baseline_neutral_variant_50</item>
+        <item name="colorOutlineVariant">@color/baseline_neutral_variant_80</item>
         <item name="colorError">@color/baseline_error_40</item>
 
         <!-- Text colors-->
@@ -137,9 +138,9 @@ found in the LICENSE file.
         <item name="colorPrimaryInverse">@color/baseline_primary_80</item>
         <item name="colorOnPrimary">@color/baseline_primary_100</item>
         <item name="colorPrimaryContainer">@color/baseline_primary_90</item>
-        <item name="colorOnPrimaryContainer">@color/baseline_primary_10</item>
+        <item name="colorOnPrimaryContainer">@color/baseline_primary_30</item>
         <item name="colorSecondaryContainer">@color/baseline_secondary_90</item>
-        <item name="colorOnSecondaryContainer">@color/baseline_secondary_10</item>
+        <item name="colorOnSecondaryContainer">@color/baseline_secondary_30</item>
         <item name="colorAccent">@macro/default_control_color_active</item>
         <item name="android:colorBackground">@color/baseline_neutral_100</item>
         <item name="colorOnBackground">@color/baseline_neutral_10</item>
@@ -155,6 +156,7 @@ found in the LICENSE file.
         <item name="colorSurfaceBright">@color/gm3_baseline_surface_bright_light</item>
         <item name="colorSurfaceDim">@color/gm3_baseline_surface_dim_light</item>
         <item name="colorOutline">@color/baseline_neutral_variant_50</item>
+        <item name="colorOutlineVariant">@color/baseline_neutral_variant_80</item>
         <item name="colorError">@color/baseline_error_40</item>
 
         <!-- Text colors-->
@@ -216,9 +218,9 @@ found in the LICENSE file.
         <item name="colorPrimaryInverse">@color/baseline_primary_80</item>
         <item name="colorOnPrimary">@color/baseline_primary_100</item>
         <item name="colorPrimaryContainer">@color/baseline_primary_90</item>
-        <item name="colorOnPrimaryContainer">@color/baseline_primary_10</item>
+        <item name="colorOnPrimaryContainer">@color/baseline_primary_30</item>
         <item name="colorSecondaryContainer">@color/baseline_secondary_90</item>
-        <item name="colorOnSecondaryContainer">@color/baseline_secondary_10</item>
+        <item name="colorOnSecondaryContainer">@color/baseline_secondary_30</item>
         <item name="colorAccent">@macro/default_control_color_active</item>
         <item name="android:colorBackground">@color/baseline_neutral_100</item>
         <item name="colorOnBackground">@color/baseline_neutral_10</item>
@@ -234,6 +236,7 @@ found in the LICENSE file.
         <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_30</item>
         <item name="colorOnSurfaceInverse">@color/baseline_neutral_95</item>
         <item name="colorOutline">@color/baseline_neutral_variant_50</item>
+        <item name="colorOutlineVariant">@color/baseline_neutral_variant_80</item>
         <item name="colorError">@color/baseline_error_40</item>
 
         <!-- Text colors-->

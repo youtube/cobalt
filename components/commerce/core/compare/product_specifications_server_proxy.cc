@@ -8,10 +8,12 @@
 #include <string>
 
 #include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/commerce/core/commerce_constants.h"
+#include "components/commerce/core/commerce_utils.h"
 #include "components/commerce/core/compare/compare_utils.h"
 #include "components/commerce/core/feature_utils.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
@@ -242,9 +244,8 @@ void ProductSpecificationsServerProxy::GetProductSpecificationsForClusterIds(
     specs_url = kEndpointUrl;
   }
 
-  auto fetcher =
-      CreateEndpointFetcher(GURL(specs_url), kPostHttpMethod,
-                            GetJsonStringForProductClusterIds(cluster_ids));
+  auto fetcher = CreateEndpointFetcher(
+      GURL(specs_url), GetJsonStringForProductClusterIds(cluster_ids));
 
   auto* const fetcher_ptr = fetcher.get();
   fetcher_ptr->Fetch(base::BindOnce(
@@ -297,13 +298,20 @@ void ProductSpecificationsServerProxy::HandleSpecificationsResponse(
 std::unique_ptr<EndpointFetcher>
 ProductSpecificationsServerProxy::CreateEndpointFetcher(
     const GURL& url,
-    const std::string& http_method,
     const std::string& post_data) {
+  EndpointFetcher::RequestParams::Builder request_params(
+      endpoint_fetcher::HttpMethod::kPost, kShoppingListTrafficAnnotation);
+  request_params.SetUrl(url)
+      .SetContentType(kContentType)
+      .SetAuthType(endpoint_fetcher::OAUTH)
+      .SetOauthScopes(std::vector<std::string>{kOAuthScope})
+      .SetConsentLevel(signin::ConsentLevel::kSync)
+      .SetTimeout(base::Milliseconds(kTimeoutMs))
+      .SetOauthConsumerName(kOAuthName)
+      .SetPostData(post_data);
+  MaybeUseAlternateShoppingServer(request_params);
   return std::make_unique<EndpointFetcher>(
-      url_loader_factory_, kOAuthName, url, http_method, kContentType,
-      std::vector<std::string>{kOAuthScope}, base::Milliseconds(kTimeoutMs),
-      post_data, kShoppingListTrafficAnnotation, identity_manager_,
-      signin::ConsentLevel::kSync);
+      url_loader_factory_, identity_manager_, request_params.Build());
 }
 
 std::optional<ProductSpecifications>

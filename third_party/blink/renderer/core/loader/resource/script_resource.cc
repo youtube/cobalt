@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_consumer.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_producer.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/loader/modulescript/module_script_creation_params.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/web_memory_allocator_dump.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/web_process_memory_dump.h"
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
@@ -61,6 +62,7 @@
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -121,7 +123,7 @@ ScriptResource* ScriptResource::Fetch(
 ScriptResource* ScriptResource::CreateForTest(
     v8::Isolate* isolate,
     const KURL& url,
-    const WTF::TextEncoding& encoding,
+    const TextEncoding& encoding,
     mojom::blink::ScriptType script_type) {
   ResourceRequest request(url);
   request.SetCredentialsMode(network::mojom::CredentialsMode::kOmit);
@@ -204,15 +206,17 @@ void ScriptResource::Trace(Visitor* visitor) const {
   TextResource::Trace(visitor);
 }
 
+// TODO(https://crbug.com/42204365): Investigate if we need special support for
+// Wasm resources.
 void ScriptResource::OnMemoryDump(WebMemoryDumpLevelOfDetail level_of_detail,
                                   WebProcessMemoryDump* memory_dump) const {
   Resource::OnMemoryDump(level_of_detail, memory_dump);
   {
-    const String name = GetMemoryDumpName() + "/decoded_script";
+    const String name = StrCat({GetMemoryDumpName(), "/decoded_script"});
     source_text_.OnMemoryDump(memory_dump, name);
   }
   if (cached_metadata_handler_) {
-    const String name = GetMemoryDumpName() + "/code_cache";
+    const String name = StrCat({GetMemoryDumpName(), "/code_cache"});
     cached_metadata_handler_->OnMemoryDump(memory_dump, name);
   }
 }
@@ -231,6 +235,27 @@ const ParkableString& ScriptResource::SourceText() {
   return source_text_;
 }
 
+std::variant<ParkableString, base::HeapArray<uint8_t>>
+ScriptResource::GetSourceTextOrWasmSource(ResolvedModuleType module_type) {
+  if (module_type == ResolvedModuleType::kWasm) {
+    return GetWasmSource();
+  }
+  return SourceText();
+}
+
+base::HeapArray<uint8_t> ScriptResource::GetWasmSource() {
+  // Data is not cleared for Wasm resources.
+  // TODO(https://crbug.com/425682456): Currently this assumption doesn't hold.
+  CHECK(IsLoaded());
+  CHECK(base::FeatureList::IsEnabled(
+      blink::features::kJavaScriptSourcePhaseImports));
+  CHECK(MIMETypeRegistry::IsWasmMIMEType(GetResponse().HttpContentType()));
+  CHECK(Data());
+  auto data_array = base::HeapArray<uint8_t>::Uninit(Data()->size());
+  CHECK(Data()->GetBytes(data_array));
+  return data_array;
+}
+
 String ScriptResource::TextForInspector() const {
   // If the resource buffer exists, we can safely return the decoded text.
   if (ResourceBuffer()) {
@@ -247,6 +272,9 @@ String ScriptResource::TextForInspector() const {
   // ... or we either haven't started loading and haven't received data yet, or
   // we finished loading with an error/cancellation, and thus don't have data.
   // In both cases, we can treat the resource as empty.
+  //
+  // Also Wasm resources are not decoded, so we return an empty string.
+  // TODO(https://crbug.com/42204365): Investigate if we need inspector support.
   return "";
 }
 
@@ -506,7 +534,7 @@ void ScriptResource::SetEncoding(const String& chs) {
   TextResource::SetEncoding(chs);
   if (stream_text_decoder_) {
     stream_text_decoder_->SetEncoding(
-        WTF::TextEncoding(chs), TextResourceDecoder::kEncodingFromHTTPHeader);
+        TextEncoding(chs), TextResourceDecoder::kEncodingFromHTTPHeader);
   }
 }
 

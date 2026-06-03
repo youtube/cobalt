@@ -11,6 +11,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/omnibox/browser/omnibox_field_trial.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
@@ -45,11 +46,13 @@ using base::UserMetricsAction;
 // edit menu option to do a Lens search.
 @property(nonatomic, assign) BOOL lensImageEnabled;
 
-/// The short name of the search provider.
-@property(nonatomic, assign) std::u16string searchProviderName;
+/// The placeholder text used in normal mode.
+@property(nonatomic, copy) NSString* searchOrTypeURLPlaceholderText;
+/// The placeholder text used in search-only mode.
+@property(nonatomic, copy) NSString* searchOnlyPlaceholderText;
 
-// YES if we are already forwarding an OnDidChange() message to the edit view.
-// Needed to prevent infinite recursion.
+// YES if we are already forwarding an textDidChangeWithUserEvent message to the
+// omnibox text controller. Needed to prevent infinite recursion.
 // TODO(crbug.com/40103694): There must be a better way.
 @property(nonatomic, assign) BOOL forwardingOnDidChange;
 
@@ -126,7 +129,7 @@ using base::UserMetricsAction;
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  self.textField.placeholder = [self placeholderText];
+  self.textField.placeholder = [self currentPlaceholderText];
 
   [_clearButton addTarget:self
                    action:@selector(clearButtonPressed)
@@ -226,7 +229,7 @@ using base::UserMetricsAction;
 
 - (void)cleanupOmniboxAfterScribble {
   [self.mutator cleanupAfterScribble];
-  self.textField.placeholder = [self placeholderText];
+  self.textField.placeholder = [self currentPlaceholderText];
 }
 
 #pragma mark - OmniboxTextFieldDelegate
@@ -449,7 +452,7 @@ using base::UserMetricsAction;
   [self.view setThumbnailImage:image];
   // Cancel any pending image removal if a new selection is made.
   self.view.thumbnailButton.selected = NO;
-  self.textField.placeholder = [self placeholderText];
+  self.textField.placeholder = [self currentPlaceholderText];
   [self updateReturnKeyAvailability];
 }
 
@@ -458,6 +461,23 @@ using base::UserMetricsAction;
       !!self.view.thumbnailImage ||
       [self.popupKeyboardDelegate
           canPerformKeyboardAction:OmniboxKeyboardAction::kReturnKey];
+}
+
+- (void)setPlaceholderText:(NSString*)placeholderText {
+  if (_searchOrTypeURLPlaceholderText == placeholderText) {
+    return;
+  }
+  _searchOrTypeURLPlaceholderText = [placeholderText copy];
+
+  self.textField.placeholder = [self currentPlaceholderText];
+}
+
+- (void)setSearchOnlyPlaceholderText:(NSString*)placeholderText {
+  if (_searchOnlyPlaceholderText == placeholderText) {
+    return;
+  }
+  _searchOnlyPlaceholderText = [placeholderText copy];
+  self.textField.placeholder = [self currentPlaceholderText];
 }
 
 #pragma mark - EditViewAnimatee
@@ -659,18 +679,17 @@ using base::UserMetricsAction;
 }
 
 /// Returns the placeholder text for the current state.
-- (NSString*)placeholderText {
+- (NSString*)currentPlaceholderText {
   if (!base::FeatureList::IsEnabled(kEnableLensOverlay)) {
-    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
+    return self.searchOrTypeURLPlaceholderText;
   }
 
   if (self.view.thumbnailImage) {
     return l10n_util::GetNSString(IDS_IOS_OMNIBOX_PLACEHOLDER_IMAGE_SEARCH);
   } else if (self.searchOnlyUI) {
-    return l10n_util::GetNSStringF(IDS_IOS_OMNIBOX_PLACEHOLDER_SEARCH_ONLY,
-                                   self.searchProviderName);
+    return self.searchOnlyPlaceholderText;
   } else {
-    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
+    return self.searchOrTypeURLPlaceholderText;
   }
 }
 

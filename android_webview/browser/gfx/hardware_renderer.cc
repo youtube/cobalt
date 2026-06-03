@@ -27,7 +27,6 @@
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
@@ -53,6 +52,7 @@
 #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
@@ -193,10 +193,6 @@ class HardwareRenderer::OnViz : public viz::DisplayClient {
   void DisplayAddChildWindowToBrowser(
       gpu::SurfaceHandle child_window) override {}
   void SetWideColorEnabled(bool enabled) override {}
-  void SetPreferredFrameInterval(base::TimeDelta interval) override {}
-  base::TimeDelta GetPreferredFrameIntervalForFrameSinkId(
-      const viz::FrameSinkId& id,
-      viz::mojom::CompositorFrameSinkType* type) override;
 
  private:
   viz::FrameSinkManagerImpl* GetFrameSinkManager();
@@ -268,7 +264,7 @@ HardwareRenderer::OnViz::OnViz(
            viz::FrameIntervalDecider::Result result,
            viz::FrameIntervalMatcherType matcher_type) {
           self->preferred_frame_interval_ = std::visit(
-              base::Overloaded(
+              absl::Overload(
                   [](viz::FrameIntervalDecider::FrameIntervalClass
                          frame_interval_class) {
                     // Zero currently is interpreted by WebView as no
@@ -530,15 +526,6 @@ void HardwareRenderer::OnViz::DisplayWillDrawAndSwap(
     viz::AggregatedRenderPassList* render_passes) {
   DCHECK_CALLED_ON_VALID_THREAD(viz_thread_checker_);
   hit_test_aggregator_->Aggregate(child_surface_id_);
-}
-
-base::TimeDelta
-HardwareRenderer::OnViz::GetPreferredFrameIntervalForFrameSinkId(
-    const viz::FrameSinkId& id,
-    viz::mojom::CompositorFrameSinkType* type) {
-  DCHECK_CALLED_ON_VALID_THREAD(viz_thread_checker_);
-  return GetFrameSinkManager()->GetPreferredFrameIntervalForFrameSinkId(id,
-                                                                        type);
 }
 
 // static

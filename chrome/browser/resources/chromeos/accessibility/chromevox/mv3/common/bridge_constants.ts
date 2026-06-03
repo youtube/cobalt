@@ -21,6 +21,14 @@ export enum BridgeContext {
 }
 
 export const BridgeConstants = {
+  BackgroundKeyboardHandler: {
+    TARGET: 'BackgroundKeyboardHandler',
+    Action: {
+      ON_KEY_DOWN: 'onKeyDown',
+      ON_KEY_UP: 'onKeyUp',
+    },
+  },
+
   Braille: {
     TARGET: 'Braille',
     Action: {
@@ -29,6 +37,13 @@ export const BridgeConstants = {
       PAN_RIGHT: 'panRight',
       SET_BYPASS: 'setBypass',
       WRITE: 'write',
+    },
+  },
+
+  BrailleBackground: {
+    TARGET: 'BrailleBackground',
+    Action: {
+      BRAILLE_ROUTE: 'brailleRoute',
     },
   },
 
@@ -97,13 +112,33 @@ export const BridgeConstants = {
   LearnMode: {
     TARGET: 'LearnMode',
     Action: {
+      ON_KEY_DOWN: 'onKeyDown',
+      ON_KEY_UP: 'onKeyUp',
+      ON_KEY_PRESS: 'onKeyPress',
+    },
+  },
+
+  LearnModeTest: {
+    TARGET: 'LearnModeTest',
+    Action: {
       CLEAR_TOUCH_EXPLORE_OUTPUT_TIME: 'clearTouchExploreOutputTime',
       ON_ACCESSIBILITY_GESTURE: 'onAccessibilityGesture',
       ON_BRAILLE_KEY_EVENT: 'onBrailleKeyEvent',
-      ON_KEY_DOWN: 'onKeyDown',
-      ON_KEY_UP: 'onKeyUp',
       READY: 'ready',
     },
+  },
+
+  LibLouis: {
+    TARGET: 'LibLouis',
+    Action: {
+      MESSAGE: 'message',
+      ERROR: 'error',
+    },
+  },
+
+  LocaleOutputHelper: {
+    TARGET: 'LocaleOutputHelper',
+    Action: {ON_VOICES_CHANGED: 'onVoicesChanged'},
   },
 
   LogStore: {
@@ -117,8 +152,23 @@ export const BridgeConstants = {
   Panel: {
     TARGET: 'Panel',
     Action: {
+      IS_PANEL_INITIALIZED: 'IsPanelInitialized',
+      EXEC_COMMAND: 'execCommand',
       ADD_MENU_ITEM: 'addMenuItem',
       ON_CURRENT_RANGE_CHANGED: 'onCurrentRangeChanged',
+    },
+  },
+
+  PanelTest: {
+    TARGET: 'PanelTest',
+    Action: {
+      BRAILLE_PAN_RIGHT: 'braille_pan_right',
+      BRAILLE_PAN_LEFT: 'braille_pan_left',
+      DISABLE_ERROR_MSG: 'disable_error_msg',
+      FIRE_MOCK_EVENT: 'fire_mock_event',
+      FIRE_MOCK_QUERY: 'fire_mock_query',
+      GET_ACTIVE_MENU_DATA: 'get_active_menu_data',
+      GET_ACTIVE_SEARCH_MENU_DATA: 'get_active_search_menu_data'
     },
   },
 
@@ -141,6 +191,11 @@ export const BridgeConstants = {
       SET_RANGE_TO_I_SEARCH_NODE: 'setRangeToISearchNode',
       WAIT_FOR_PANEL_COLLAPSE: 'waitForPanelCollapse',
     },
+  },
+
+  PrimaryTts: {
+    TARGET: 'PrimaryTts',
+    Action: {ON_VOICES_CHANGED: 'onVoicesChanged'},
   },
 
   TtsBackground: {

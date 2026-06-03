@@ -68,7 +68,7 @@ BASE_DECLARE_FEATURE(kDocumentProviderNoSyncRequirement);
 BASE_DECLARE_FEATURE(kDomainSuggestions);
 
 // Suggestions UI - these affect the UI or function of the suggestions popup.
-BASE_DECLARE_FEATURE(kSuppressClipboardSuggestionAfterFirstUsed);
+BASE_DECLARE_FEATURE(kShowPopupOnMouseReleased);
 BASE_DECLARE_FEATURE(kMostVisitedTilesHorizontalRenderGroup);
 BASE_DECLARE_FEATURE(kRichAutocompletion);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopup);
@@ -104,7 +104,6 @@ BASE_DECLARE_FEATURE(kOmniboxAnswerActions);
 
 // Adds support for categorical suggestion type.
 BASE_DECLARE_FEATURE(kCategoricalSuggestions);
-BASE_DECLARE_FEATURE(kMergeSubtypes);
 
 // Allows for touch down events to send a signal to |SearchPrefetchService| to
 // start prefetching the suggestion. The feature only applies to search
@@ -123,6 +122,7 @@ BASE_DECLARE_FEATURE(kOmniboxAsyncViewInflation);
 BASE_DECLARE_FEATURE(kUseFusedLocationProvider);
 
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdate);
+BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV2);
 
 // Omnibox suggestions tuning
 BASE_DECLARE_FEATURE(kNumNtpZpsRecentSearches);
@@ -138,7 +138,6 @@ BASE_DECLARE_FEATURE(kDiagnostics);
 BASE_DECLARE_FEATURE(kRetainOmniboxOnFocus);
 BASE_DECLARE_FEATURE(kJumpStartOmnibox);
 BASE_DECLARE_FEATURE(kSuppressIntermediateACUpdatesOnLowEndDevices);
-BASE_DECLARE_FEATURE(kAndroidHubSearch);
 // Delay focusTab to prioritize navigation (https://crbug.com/374852568).
 BASE_DECLARE_FEATURE(kPostDelayedTaskFocusTab);
 BASE_DECLARE_FEATURE(kAndroidHubSearchTabGroups);
@@ -150,11 +149,14 @@ BASE_DECLARE_FEATURE(kOmniboxShortcutsAndroid);
 // Enterprise search aggregators features.
 BASE_DECLARE_FEATURE(kEnableSearchAggregatorPolicy);
 
-// Ipad ZPS matches limit increase.
-BASE_DECLARE_FEATURE(kIpadZeroSuggestMatches);
-
 // Site search allow user override feature.
 BASE_DECLARE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy);
+
+// Preconnect/prerender behavior for suggestions
+BASE_DECLARE_FEATURE(kPreconnectNonSearchOmniboxSuggestions);
+
+// Only restore focus when invisible.
+BASE_DECLARE_FEATURE(kOmniboxRestoreInvisibleFocusOnly);
 
 }  // namespace omnibox
 

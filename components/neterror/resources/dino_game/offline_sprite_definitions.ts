@@ -40,7 +40,7 @@ export class CollisionBox {
  * minSpeed: Minimum speed which the obstacle can make an appearance.
  */
 export interface ObstacleType {
-  type: string;
+  type: keyof SpritePositions;
   width: number;
   height: number;
   yPos: number|number[];
@@ -56,7 +56,7 @@ export interface ObstacleType {
   frameRate?: number;
 }
 
-interface SpritePositions {
+export interface SpritePositions {
   backgroundEl: SpritePosition;
   cactusLarge: SpritePosition;
   cactusSmall: SpritePosition;

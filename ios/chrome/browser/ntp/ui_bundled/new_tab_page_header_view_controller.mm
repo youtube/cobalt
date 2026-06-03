@@ -12,6 +12,7 @@
 #import "base/metrics/histogram_macros.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/base/signin_switches.h"
 #import "components/strings/grit/components_strings.h"
@@ -19,7 +20,6 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_collection_utils.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_delegate.h"
-#import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/shared/metrics/new_tab_page_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/logo_vendor.h"
@@ -30,12 +30,12 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_controller_delegate.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_utils.h"
+#import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
-#import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
-#import "ios/chrome/browser/shared/public/commands/lens_commands.h"
-#import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
+#import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/elements/new_feature_badge_view.h"
@@ -48,6 +48,7 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/public/fakebox_focuser.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_utils.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/ui/tab_group_indicator_view.h"
+#import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/material_timing.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -109,6 +110,9 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 // Whether or not the user is signed in.
 @property(nonatomic, assign) BOOL isSignedIn;
 
+// Name of the default search engine. Used for the omnibox placeholder text.
+@property(nonatomic, copy) NSString* defaultSearchEngineName;
+
 @end
 
 @implementation NewTabPageHeaderViewController {
@@ -154,6 +158,10 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
 - (UIView*)toolBarView {
   return self.headerView.toolBarView;
+}
+
+- (UIView*)fakeOmniboxView {
+  return self.headerView.omnibox;
 }
 
 #if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
@@ -247,9 +255,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
                     safeAreaInsets:(UIEdgeInsets)safeAreaInsets
             animateScrollAnimation:(BOOL)animateScrollAnimation {
   if (self.isShowing) {
-    if (IsTabGroupInGridEnabled()) {
-      [self.headerView updateTabGroupIndicatorAvailabilityWithOffset:offset];
-    }
+    [self.headerView updateTabGroupIndicatorAvailabilityWithOffset:offset];
     CGFloat progress =
         self.logoIsShowing || !IsRegularXRegularSizeClass(self)
             ? [self.headerView searchFieldProgressForOffset:offset]
@@ -310,6 +316,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
         initWithUseNewBadgeForLensButton:_useNewBadgeForLensButton];
     self.headerView.isGoogleDefaultSearchEngine =
         self.isGoogleDefaultSearchEngine;
+    self.headerView.placeholderText = self.placeholderText;
     self.headerView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.headerView];
     AddSameConstraints(self.headerView, self.view);
@@ -437,8 +444,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
       (fakeOmniboxHeight - kFakeLocationBarHeightMargin) / 2;
   self.accessibilityButton.clipsToBounds = YES;
   self.accessibilityButton.isAccessibilityElement = YES;
-  self.accessibilityButton.accessibilityLabel =
-      l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
+  self.accessibilityButton.accessibilityLabel = self.placeholderText;
   [self.fakeOmnibox addSubview:self.accessibilityButton];
   self.accessibilityButton.translatesAutoresizingMaskIntoConstraints = NO;
   AddSameConstraints(self.fakeOmnibox, self.accessibilityButton);
@@ -465,6 +471,11 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
     [self.layoutGuideCenter referenceView:self.headerView.lensButton
                                 underName:kFakeboxLensIconGuide];
   }
+
+  [self.headerView.miaButton addTarget:self
+                                action:@selector(openMIA)
+                      forControlEvents:UIControlEventTouchUpInside];
+
   [self updateVoiceSearchDisplay];
 }
 
@@ -618,27 +629,18 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   button.clipsToBounds = YES;
 }
 
+- (void)openMIA {
+  [self.NTPShortcutsHandler openMIA];
+}
+
 - (void)openLens {
-  [self.NTPMetricsRecorder recordLensTapped];
-  TriggerHapticFeedbackForSelectionChange();
-  OpenLensInputSelectionCommand* command = [[OpenLensInputSelectionCommand
-      alloc]
-          initWithEntryPoint:LensEntrypoint::NewTabPage
-           presentationStyle:LensInputSelectionPresentationStyle::SlideFromRight
-      presentationCompletion:nil];
-  [self.customizationDelegate dismissCustomizationMenu];
-  [self.lensHandler openLensInputSelection:command];
+  [self.NTPShortcutsHandler openLensViewFinder];
 }
 
 - (void)loadVoiceSearch:(id)sender {
   DCHECK(self.voiceSearchIsEnabled);
-  [self.NTPMetricsRecorder recordVoiceSearchTapped];
-  TriggerHapticFeedbackForSelectionChange();
   UIView* voiceSearchButton = base::apple::ObjCCastStrict<UIView>(sender);
-  [self.layoutGuideCenter referenceView:voiceSearchButton
-                              underName:kVoiceSearchButtonGuide];
-  [self.customizationDelegate dismissCustomizationMenu];
-  [self.applicationHandler startVoiceSearch];
+  [self.NTPShortcutsHandler loadVoiceSearchFromView:voiceSearchButton];
 }
 
 - (void)preloadVoiceSearch:(id)sender {
@@ -646,7 +648,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   [sender removeTarget:self
                 action:@selector(preloadVoiceSearch:)
       forControlEvents:UIControlEventTouchDown];
-  [self.browserCoordinatorHandler preloadVoiceSearch];
+  [self.NTPShortcutsHandler preloadVoiceSearch];
 }
 
 - (void)fakeTapViewTapped {
@@ -858,11 +860,25 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   [self updateVoiceSearchDisplay];
 }
 
+- (void)setDefaultSearchEngineName:(NSString*)defaultSearchEngineName {
+  if (_defaultSearchEngineName == defaultSearchEngineName) {
+    return;
+  }
+  _defaultSearchEngineName = defaultSearchEngineName;
+  self.headerView.placeholderText = self.placeholderText;
+}
+
+- (void)setDefaultSearchEngineImage:(UIImage*)image {
+  CHECK(base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate));
+  [self.headerView setDefaultSearchEngineLogo:image];
+}
+
 - (void)updateADPBadgeWithErrorFound:(BOOL)hasAccountError
                                 name:(NSString*)name
                                email:(NSString*)email {
   CHECK(
-      base::FeatureList::IsEnabled(switches::kEnableErrorBadgeOnIdentityDisc));
+      base::FeatureList::IsEnabled(switches::kEnableErrorBadgeOnIdentityDisc) ||
+      base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError));
 
   if (hasAccountError == _hasAccountError) {
     return;
@@ -1060,6 +1076,16 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
     [self.headerView
         updateButtonsForUserInterfaceStyle:self.traitCollection
                                                .userInterfaceStyle];
+  }
+}
+
+// Returns the omnibox placeholder text.
+- (NSString*)placeholderText {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    return l10n_util::GetNSStringF(IDS_OMNIBOX_EMPTY_HINT_WITH_DSE_NAME,
+                                   self.defaultSearchEngineName.cr_UTF16String);
+  } else {
+    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
   }
 }
 

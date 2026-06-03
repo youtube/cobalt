@@ -677,6 +677,8 @@ TEST_F(CookieSettingsTest, CookiesControlsDefault) {
           /*cookie_partition_key=*/std::nullopt));
 }
 
+// The feature AlwaysBlock3pcsIncognito is not applicable to iOS.
+#if !BUILDFLAG(IS_IOS)
 TEST_F(CookieSettingsTest, CookiesControlsDisabled) {
   prefs_.SetInteger(prefs::kCookieControlsMode,
                     static_cast<int>(CookieControlsMode::kOff));
@@ -684,11 +686,14 @@ TEST_F(CookieSettingsTest, CookiesControlsDisabled) {
       kBlockedSite, kFirstPartySiteForCookies,
       /*top_frame_origin=*/std::nullopt, net::CookieSettingOverrides(),
       /*cookie_partition_key=*/std::nullopt));
-  EXPECT_TRUE(cookie_settings_incognito_->IsFullCookieAccessAllowed(
-      kBlockedSite, kFirstPartySiteForCookies,
-      /*top_frame_origin=*/std::nullopt, net::CookieSettingOverrides(),
-      /*cookie_partition_key=*/std::nullopt));
+  EXPECT_NE(
+      cookie_settings_incognito_->IsFullCookieAccessAllowed(
+          kBlockedSite, kFirstPartySiteForCookies,
+          /*top_frame_origin=*/std::nullopt, net::CookieSettingOverrides(),
+          /*cookie_partition_key=*/std::nullopt),
+      base::FeatureList::IsEnabled(privacy_sandbox::kAlwaysBlock3pcsIncognito));
 }
+#endif
 
 TEST_F(CookieSettingsTest, CookiesControlsEnabledForIncognito) {
   prefs_.SetInteger(prefs::kCookieControlsMode,

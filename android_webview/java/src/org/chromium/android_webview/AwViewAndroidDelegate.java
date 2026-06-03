@@ -4,14 +4,21 @@
 
 package org.chromium.android_webview;
 
+import android.graphics.Point;
+import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
 
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.android_webview.common.Lifetime;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
+import org.chromium.ui.dragdrop.DragStateTracker;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,6 +35,9 @@ public class AwViewAndroidDelegate extends ViewAndroidDelegate {
 
     private final AwContentsClient mContentsClient;
     private final AwScrollOffsetManager mScrollManager;
+    private final WebContents mWebContents;
+
+    private int mBottomInset;
 
     /** Represents the position of an anchor view. */
     @VisibleForTesting
@@ -54,10 +64,20 @@ public class AwViewAndroidDelegate extends ViewAndroidDelegate {
     public AwViewAndroidDelegate(
             ViewGroup containerView,
             AwContentsClient contentsClient,
-            AwScrollOffsetManager scrollManager) {
+            AwScrollOffsetManager scrollManager,
+            WebContents webContents) {
         super(containerView);
         mContentsClient = contentsClient;
         mScrollManager = scrollManager;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            mContainerView.setOnApplyWindowInsetsListener(this::onApplyWindowInsets);
+        }
+        mWebContents = webContents;
+    }
+
+    @Override
+    public @Nullable DragStateTracker getDragStateTracker() {
+        return getDragStateTrackerInternal();
     }
 
     @Override
@@ -135,5 +155,34 @@ public class AwViewAndroidDelegate extends ViewAndroidDelegate {
     @Override
     public void onBackgroundColorChanged(int color) {
         mContentsClient.onBackgroundColorChanged(color);
+    }
+
+    /**
+     * @return The Visual Viewport bottom inset in pixels.
+     */
+    @Override
+    @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+    public int getViewportInsetBottom() {
+        return mBottomInset;
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+        View containerView = getContainerView();
+        if (containerView.getDisplay() == null) {
+            // View is not attached yet, do nothing and pass insets through.
+            return insets;
+        }
+        int[] pos = new int[2];
+        containerView.getLocationOnScreen(pos);
+        int imeSize = insets.getInsets(WindowInsets.Type.ime()).bottom;
+        Point screenSize = new Point();
+        containerView.getDisplay().getRealSize(screenSize);
+        // Calculate the intersect between the WebView bounds and the IME and clamp it to >= 0.
+        mBottomInset = Math.max(0, (pos[1] + containerView.getHeight()) - (screenSize.y - imeSize));
+        if (mWebContents != null && mWebContents.getRenderWidgetHostView() != null) {
+            mWebContents.getRenderWidgetHostView().onViewportInsetBottomChanged();
+        }
+        return insets;
     }
 }

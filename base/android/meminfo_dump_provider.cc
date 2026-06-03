@@ -8,25 +8,26 @@
 
 #include "base/android/jni_android.h"
 #include "base/logging.h"
-#include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
-
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/memory_jni/MemoryInfoBridge_jni.h"
+<<<<<<< HEAD
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+=======
+#include "base/time/time.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/memory_dump_manager.h"
+#include "base/trace_event/trace_event.h"
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 
 namespace base::android {
 
 MeminfoDumpProvider::MeminfoDumpProvider() {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, kDumpProviderName, nullptr);
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 // static
@@ -38,7 +39,6 @@ MeminfoDumpProvider& MeminfoDumpProvider::Initialize() {
 bool MeminfoDumpProvider::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
     base::trace_event::ProcessMemoryDump* pmd) {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   // This is best-effort, and will be wrong if there are other callers of
   // ActivityManager#getProcessMemoryInfo(), either in this process or from
   // another process which is allowed to do so (typically, adb).
@@ -112,9 +112,6 @@ bool MeminfoDumpProvider::OnMemoryDump(
 #endif
 
   return true;
-#else   // BUILDFLAG(ENABLE_BASE_TRACING)
-  return false;
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 }  // namespace base::android

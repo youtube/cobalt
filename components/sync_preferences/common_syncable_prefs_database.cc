@@ -123,7 +123,7 @@ enum {
   kSyncableTabGroups = 73,
   kAutoPinNewTabGroups = 74,
   kShowGoogleLensShortcut = 75,
-  kSharingVapidKey = 76,
+  // kSharingVapidKey = 76, (deprecated)
   kFirstPlusAddressCreationTime = 77,
   kLastPlusAddressFillingTime = 78,
   kSafeBrowsingEnhanced = 79,
@@ -133,6 +133,8 @@ enum {
   kAutomaticPasskeyUpgrades = 83,
   kSyncablePriorityPrefForTesting = 84,               // For tests.
   kSyncableAlwaysSyncingPriorityPrefForTesting = 85,  // For tests.
+  kFacilitatedPaymentsPixAccountLinking = 86,
+  kShowSearchTools = 87,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -193,7 +195,8 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           PrefSensitivity::kNone, MergeBehavior::kNone}},
         {metrics::kSyncDemographicsPrefName,
          {syncable_prefs_ids::kSyncDemographicsPrefName,
-          syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
+          syncer::PRIORITY_PREFERENCES,
+          PrefSensitivity::kExemptFromUserControlWhileSignedIn,
           MergeBehavior::kNone}},
         {ntp_tiles::prefs::kCustomLinksInitialized,
          {syncable_prefs_ids::kCustomLinksInitialized, syncer::PREFERENCES,
@@ -290,7 +293,8 @@ constexpr auto kCommonSyncablePrefsAllowlist =
 #if !BUILDFLAG(IS_CHROMEOS)
         {variations::kDogfoodGroupsSyncPrefName,
          {syncable_prefs_ids::kDogfoodGroupsSyncPrefName,
-          syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
+          syncer::PRIORITY_PREFERENCES,
+          PrefSensitivity::kExemptFromUserControlWhileSignedIn,
           MergeBehavior::kNone}},
 #endif
         {kSyncablePrefForTesting,
@@ -318,9 +322,6 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {autofill::prefs::kAutofillPaymentCardBenefits,
          {syncable_prefs_ids::kAutofillPaymentCardBenefits, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
-        {prefs::kSharingVapidKey,
-         {syncable_prefs_ids::kSharingVapidKey, syncer::PREFERENCES,
-          PrefSensitivity::kNone, MergeBehavior::kNone}},
         {plus_addresses::prefs::kFirstPlusAddressCreationTime,
          {syncable_prefs_ids::kFirstPlusAddressCreationTime,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
@@ -337,6 +338,9 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {autofill::prefs::kFacilitatedPaymentsEwallet,
          {syncable_prefs_ids::kFacilitatedPaymentsEwallet, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kFacilitatedPaymentsPixAccountLinking,
+         {syncable_prefs_ids::kFacilitatedPaymentsPixAccountLinking,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
 #endif  // BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -357,6 +361,9 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           syncer::PRIORITY_PREFERENCES,
           PrefSensitivity::kExemptFromUserControlWhileSignedIn,
           MergeBehavior::kNone}},
+        {omnibox::kShowSearchTools,
+         {syncable_prefs_ids::kShowSearchTools, syncer::PREFERENCES,
+          PrefSensitivity::kNone, MergeBehavior::kNone}},
     });
 
 }  // namespace

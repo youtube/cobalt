@@ -49,7 +49,7 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
-import org.chromium.chrome.browser.tab_ui.TabUiThemeUtils;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
@@ -72,9 +72,10 @@ import org.chromium.chrome.browser.tinker_tank.TinkerTankDelegate;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
+import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager.AppHeaderObserver;
@@ -407,7 +408,7 @@ public class TabGridDialogMediator
                     }
 
                     @Override
-                    public void tabPendingClosure(Tab tab) {
+                    public void tabPendingClosure(Tab tab, @TabClosingSource int closingSource) {
                         if (!isVisible()) return;
 
                         // TODO(b/338447134): This shouldn't show a snackbar if the tab isn't in
@@ -605,25 +606,16 @@ public class TabGridDialogMediator
         }
 
         mBottomSheetObserver =
-                new BottomSheetObserver() {
+                new EmptyBottomSheetObserver() {
                     @Override
-                    public void onSheetOpened(int reason) {
+                    public void onSheetOpened(@SheetState int reason) {
                         mModel.set(TabGridDialogProperties.SUPPRESS_ACCESSIBILITY, true);
                     }
 
                     @Override
-                    public void onSheetClosed(int reason) {
+                    public void onSheetClosed(@SheetState int reason) {
                         mModel.set(TabGridDialogProperties.SUPPRESS_ACCESSIBILITY, false);
                     }
-
-                    @Override
-                    public void onSheetOffsetChanged(float heightFraction, float offsetPx) {}
-
-                    @Override
-                    public void onSheetStateChanged(int newState, int reason) {}
-
-                    @Override
-                    public void onSheetContentChanged(@Nullable BottomSheetContent newContent) {}
                 };
         mBottomSheetController.addObserver(mBottomSheetObserver);
     }
@@ -700,7 +692,6 @@ public class TabGridDialogMediator
         mDialogController.postHiding();
         // Purge the bitmap reference in the animation.
         mModel.set(TabGridDialogProperties.ANIMATION_SOURCE_VIEW, null);
-        mModel.set(TabGridDialogProperties.BINDING_TOKEN, null);
     }
 
     /**
@@ -730,10 +721,6 @@ public class TabGridDialogMediator
             mModel.set(TabGridDialogProperties.SCRIMVIEW_CLICK_RUNNABLE, mScrimClickRunnable);
             updateDialogScrollPosition();
             mDialogController.prepareDialog();
-
-            // Do this after the dialog is updated so most attributes are not set with stale values
-            // when the binding token is set.
-            mModel.set(TabGridDialogProperties.BINDING_TOKEN, hashCode());
 
             mModel.set(TabGridDialogProperties.IS_DIALOG_VISIBLE, true);
 
@@ -898,13 +885,6 @@ public class TabGridDialogMediator
                 TabGridDialogProperties.DIALOG_UNGROUP_BAR_HOVERED_TEXT_COLOR,
                 ungroupBarHoveredTextColor);
         mModel.set(TabGridDialogProperties.IS_INCOGNITO, isIncognito);
-        if (TabUiFeatureUtilities.shouldUseListMode()) {
-            int animationBackgroundColor =
-                    TabUiThemeUtils.getCardViewBackgroundColor(
-                            mActivity, isIncognito, /* isSelected= */ false);
-            mModel.set(
-                    TabGridDialogProperties.ANIMATION_BACKGROUND_COLOR, animationBackgroundColor);
-        }
     }
 
     private int getIdForTab(@Nullable Tab tab) {
@@ -1092,6 +1072,7 @@ public class TabGridDialogMediator
             TabUiUtils.closeTabGroup(
                     mCurrentTabGroupModelFilterSupplier.get(),
                     tabId,
+                    TabClosingSource.UNKNOWN,
                     allowUndo,
                     hideTabGroups,
                     /* didCloseCallback= */ null);
@@ -1204,13 +1185,6 @@ public class TabGridDialogMediator
             mModel.set(TabGridDialogProperties.SHOW_SHARE_BUTTON, shouldShowShareButton());
             mModel.set(TabGridDialogProperties.SHOW_IMAGE_TILES, false);
             mModel.set(TabGridDialogProperties.SHOW_SEND_FEEDBACK, false);
-        } else if (groupSharedState == GroupSharedState.COLLABORATION_ONLY) {
-            mModel.set(
-                    TabGridDialogProperties.SHARE_BUTTON_STRING_RES,
-                    R.string.tab_grid_manage_button_text);
-            mModel.set(TabGridDialogProperties.SHOW_SHARE_BUTTON, shouldShowShareButton());
-            mModel.set(TabGridDialogProperties.SHOW_IMAGE_TILES, false);
-            mModel.set(TabGridDialogProperties.SHOW_SEND_FEEDBACK, shouldShowSendFeedback());
         } else {
             mModel.set(TabGridDialogProperties.SHOW_SHARE_BUTTON, false);
             mModel.set(TabGridDialogProperties.SHOW_IMAGE_TILES, true);
@@ -1346,7 +1320,9 @@ public class TabGridDialogMediator
             @Nullable TabGridContextMenuCoordinator tabGridContextMenuCoordinator) {
         if (tabGridContextMenuCoordinator != null && cardView != null) {
             tabGridContextMenuCoordinator.showMenu(
-                    new ViewRectProvider(cardView, TabGridViewRectUpdater::new), tabId);
+                    new ViewRectProvider(cardView, TabGridViewRectUpdater::new),
+                    tabId,
+                    /* focusable= */ true);
             return tabGridContextMenuCoordinator::dismiss;
         }
         return null;

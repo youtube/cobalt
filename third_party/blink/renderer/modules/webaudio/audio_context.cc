@@ -54,6 +54,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 #if DEBUG_AUDIONODE_REFERENCES
@@ -76,7 +77,7 @@ unsigned hardware_context_count = 0;
 
 // A context ID that is incremented for each context that is created.
 // This initializes the internal id for the context.
-unsigned context_id = 0;
+uint32_t context_id = 0;
 
 // When the client does not have enough permission, the outputLatency property
 // is quantized by 8ms to reduce the precision for privacy concerns.
@@ -398,6 +399,11 @@ AudioContext::AudioContext(LocalDOMWindow& window,
 
   // Initializes `v8_sink_id_` with the given `sink_descriptor_`.
   UpdateV8SinkId();
+
+  EnsureAudioContextManagerService();
+  if (audio_context_manager_.is_bound()) {
+    audio_context_manager_->AudioContextCreated(context_id_);
+  }
 }
 
 void AudioContext::Uninitialize() {
@@ -416,6 +422,18 @@ AudioContext::~AudioContext() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
 
   RecordAudioContextOperation(AudioContextOperation::kDelete);
+
+  // If the context is destroyed while still audible, account for the
+  // remaining audible time until destruction.
+  if (!audible_start_timestamp_.is_null()) {
+    total_audible_duration_ +=
+        base::TimeTicks::Now() - audible_start_timestamp_;
+  }
+  UMA_HISTOGRAM_EXACT_LINEAR("WebAudio.AudioContext.AudibleTime",
+                             total_audible_duration_.InSeconds(),
+                             /*exclusive_max=*/8);
+  UMA_HISTOGRAM_BOOLEAN("WebAudio.AudioContext.DestroyedWithoutClose",
+                        !is_closed_);
 
   // TODO(crbug.com/945379) Disable this DCHECK for now.  It's not terrible if
   // the autoplay metrics aren't recorded in some odd situations.  haraken@ said
@@ -619,6 +637,11 @@ ScriptPromise<IDLUndefined> AudioContext::closeContext(
 }
 
 void AudioContext::DidClose() {
+  EnsureAudioContextManagerService();
+  if (audio_context_manager_.is_bound()) {
+    audio_context_manager_->AudioContextClosed(context_id_);
+  }
+
   SetContextState(V8AudioContextState::Enum::kClosed);
 
   if (close_resolver_) {
@@ -633,6 +656,7 @@ void AudioContext::DidClose() {
         "going away"));
   }
   set_sink_id_resolvers_.clear();
+  is_closed_ = true;
 }
 
 bool AudioContext::IsContextCleared() const {
@@ -978,6 +1002,9 @@ bool AudioContext::HandlePreRenderTasks(
 }
 
 void AudioContext::NotifyAudibleAudioStarted() {
+  DCHECK(audible_start_timestamp_.is_null());
+  audible_start_timestamp_ = base::TimeTicks::Now();
+
   EnsureAudioContextManagerService();
   if (audio_context_manager_.is_bound()) {
     audio_context_manager_->AudioContextAudiblePlaybackStarted(context_id_);
@@ -1066,6 +1093,10 @@ AudioIOPosition AudioContext::OutputPosition() const {
 }
 
 void AudioContext::NotifyAudibleAudioStopped() {
+  DCHECK(!audible_start_timestamp_.is_null());
+  total_audible_duration_ += base::TimeTicks::Now() - audible_start_timestamp_;
+  audible_start_timestamp_ = base::TimeTicks();
+
   EnsureAudioContextManagerService();
   if (audio_context_manager_.is_bound()) {
     audio_context_manager_->AudioContextAudiblePlaybackStopped(context_id_);
@@ -1294,13 +1325,14 @@ void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
                      "=> sink was not explicitly specified, falling back to "
                      "default sink.");
       DispatchEvent(*Event::Create(event_type_names::kError));
-      GetExecutionContext()->AddConsoleMessage(
-          MakeGarbageCollected<ConsoleMessage>(
-              mojom::ConsoleMessageSource::kOther,
-              mojom::ConsoleMessageLevel::kInfo,
-              "[AudioContext] Fallback to the default device due to an invalid"
-              " audio device change. (" +
-                  String(sink_descriptor_.SinkId().Utf8()) + ")"));
+      GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
+                                               ConsoleMessage>(
+          mojom::ConsoleMessageSource::kOther,
+          mojom::ConsoleMessageLevel::kInfo,
+          StrCat(
+              {"[AudioContext] Fallback to the default device due to an invalid"
+               " audio device change. (",
+               String(sink_descriptor_.SinkId().Utf8()), ")"})));
       sink_descriptor_ = WebAudioSinkDescriptor(
           g_empty_string,
           To<LocalDOMWindow>(GetExecutionContext())->GetLocalFrameToken());

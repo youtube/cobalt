@@ -71,11 +71,10 @@ bool IsSupportedLocaleForFeature(
     return true;
   }
 
-  // Otherwise, the locale or the
-  // primary language subtag must match an element of the allowlist.
-  std::string locale_language = l10n_util::GetLanguage(locale);
+  // Otherwise, the locale or the primary language subtag must match an element
+  // of the allowlist.
   return base::Contains(supported_locales, locale) ||
-         base::Contains(supported_locales, locale_language);
+         base::Contains(supported_locales, l10n_util::GetLanguage(locale));
 }
 
 bool IsSupportedCountryForFeature(const std::string& country_code,
@@ -113,18 +112,11 @@ bool IsSupportedCountryForFeature(const std::string& country_code,
 const base::FeatureParam<base::TimeDelta> kAnnotatedPageContentCaptureDelay{
     &kAnnotatedPageContentExtraction, "capture_delay", base::Seconds(5)};
 
-const base::FeatureParam<bool> kAnnotatedPageContentIncludeGeometry{
-    &kAnnotatedPageContentExtraction, "include_geometry", false};
-
 const base::FeatureParam<bool> kAnnotatedPageContentStudyIncludeInnerText{
     &kAnnotatedPageContentExtraction, "include_inner_text", false};
 
 const base::FeatureParam<bool> kAnnotatedPageContentOnCriticalPath{
     &kAnnotatedPageContentExtraction, "on_critical_path", false};
-
-const base::FeatureParam<bool> kIncludeHiddenButSearchableContent{
-    &kAnnotatedPageContentExtraction, "include_hidden_but_searchable_content",
-    false};
 
 }  // namespace
 
@@ -290,16 +282,8 @@ base::TimeDelta GetAnnotatedPageContentCaptureDelay() {
   return kAnnotatedPageContentCaptureDelay.Get();
 }
 
-bool ShouldAnnotatedPageContentIncludeGeometry() {
-  return kAnnotatedPageContentIncludeGeometry.Get();
-}
-
 bool ShouldAnnotatedPageContentStudyIncludeInnerText() {
   return kAnnotatedPageContentStudyIncludeInnerText.Get();
-}
-
-bool ShouldIncludeHiddenButSearchableContent() {
-  return kIncludeHiddenButSearchableContent.Get();
 }
 
 }  // namespace page_content_annotations::features

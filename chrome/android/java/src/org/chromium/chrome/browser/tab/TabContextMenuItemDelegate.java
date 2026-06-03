@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tab;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -13,7 +15,6 @@ import android.provider.Browser;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
 
-import androidx.annotation.Nullable;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.ContextUtils;
@@ -21,6 +22,8 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.DefaultBrowserInfo;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpenerImpl;
@@ -28,6 +31,7 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.download.ChromeDownloadDelegate;
+import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
@@ -60,6 +64,7 @@ import org.chromium.url.GURL;
 /**
  * A default {@link ContextMenuItemDelegate} that supports the context menu functionality in Tab.
  */
+@NullMarked
 public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
     private final Activity mActivity;
     private final TabImpl mTab;
@@ -97,7 +102,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
 
     @Override
     public WebContents getWebContents() {
-        return mTab.getWebContents();
+        return assumeNonNull(mTab.getWebContents());
     }
 
     @Override
@@ -136,6 +141,10 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
                 || !ChromeDownloadDelegate.from(mTab).shouldInterceptContextMenuDownload(url);
     }
 
+    public void startDownloadPage(Context context) {
+        DownloadUtils.downloadOfflinePage(context, mTab, false);
+    }
+
     /** Initiates the printing process of the current page. */
     public void startPrint() {
         PrintingController printingController = PrintingControllerImpl.getInstance();
@@ -161,7 +170,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
     public boolean supportsCall() {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setData(Uri.parse("tel:"));
-        return mTab.getWindowAndroid().canResolveActivity(intent);
+        return mTab.getWindowAndroidChecked().canResolveActivity(intent);
     }
 
     @Override
@@ -176,7 +185,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
     public boolean supportsSendEmailMessage() {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setData(Uri.parse("mailto:test@example.com"));
-        return mTab.getWindowAndroid().canResolveActivity(intent);
+        return mTab.getWindowAndroidChecked().canResolveActivity(intent);
     }
 
     @Override
@@ -191,7 +200,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
     public boolean supportsSendTextMessage() {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setData(Uri.parse("sms:"));
-        return mTab.getWindowAndroid().canResolveActivity(intent);
+        return mTab.getWindowAndroidChecked().canResolveActivity(intent);
     }
 
     @Override
@@ -205,7 +214,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
     public boolean supportsAddToContacts() {
         Intent intent = new Intent(Intent.ACTION_INSERT);
         intent.setType(ContactsContract.Contacts.CONTENT_TYPE);
-        return mTab.getWindowAndroid().canResolveActivity(intent);
+        return mTab.getWindowAndroidChecked().canResolveActivity(intent);
     }
 
     @Override
@@ -270,7 +279,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
         Activity activity = TabUtils.getActivity(mTab);
         chromeAsyncTabLauncher.launchTabInOtherWindow(
                 loadUrlParams,
-                activity,
+                assumeNonNull(activity),
                 mTab.getParentId(),
                 MultiWindowUtils.getAdjacentWindowActivity(activity));
     }
@@ -407,7 +416,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
                             .notifyEvent(EventConstants.READ_LATER_CONTEXT_MENU_TAPPED);
 
                     // Add to offline pages.
-                    RequestCoordinatorBridge.getForProfile(profile)
+                    assumeNonNull(RequestCoordinatorBridge.getForProfile(profile))
                             .savePageLater(
                                     url.getSpec(),
                                     OfflinePageBridge.BOOKMARK_NAMESPACE,

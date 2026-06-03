@@ -34,6 +34,7 @@
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/content_settings/core/common/cookie_controls_state.h"
 #include "components/content_settings/core/common/features.h"
+#include "components/page_info/core/page_info_action.h"
 #include "components/page_info/page_info_delegate.h"
 #include "components/page_info/page_info_ui.h"
 #include "components/permissions/constants.h"
@@ -153,10 +154,7 @@ ContentSettingsType kPermissionType[] = {
 #if BUILDFLAG(IS_CHROMEOS)
     ContentSettingsType::WEB_PRINTING,
 #endif  // BUILDFLAG(IS_CHROMEOS)
-#if !BUILDFLAG(IS_ANDROID)
-    // TODO(crbug.com/400455013): Enable on Android.
     ContentSettingsType::LOCAL_NETWORK_ACCESS,
-#endif  // BUIDLFLAG(IS_ANDROID)
 };
 
 // The list of setting types which request permission for a pair of requesting
@@ -380,7 +378,8 @@ void PageInfo::OnStatusChanged(CookieControlsState controls_state,
 }
 
 void PageInfo::OnThirdPartyToggleClicked(bool block_third_party_cookies) {
-  DCHECK(controls_state_ != CookieControlsState::kHidden);
+  DCHECK(controls_state_ == CookieControlsState::kAllowed3pc ||
+         controls_state_ == CookieControlsState::kBlocked3pc);
   RecordPageInfoAction(block_third_party_cookies
                            ? page_info::PAGE_INFO_COOKIES_BLOCKED_FOR_SITE
                            : page_info::PAGE_INFO_COOKIES_ALLOWED_FOR_SITE);
@@ -388,10 +387,16 @@ void PageInfo::OnThirdPartyToggleClicked(bool block_third_party_cookies) {
   show_info_bar_ = true;
 }
 
-void PageInfo::OnTrackingProtectionButtonPressed(bool pause_protections) {
-  DCHECK(controls_state_ != CookieControlsState::kHidden);
-  // TODO(crbug.com/388294499): Add metrics for toggling tracking protections.
-  controller_->OnTrackingProtectionsChangedForSite(pause_protections);
+void PageInfo::OnTrackingProtectionButtonPressed() {
+  DCHECK(controls_state_ == CookieControlsState::kPausedTp ||
+         controls_state_ == CookieControlsState::kActiveTp);
+  // Check current controls state to record metrics before updates are made via
+  // `OnTrackingProtectionsChangedForSite`.
+  RecordPageInfoAction(
+      controls_state_ == CookieControlsState::kActiveTp
+          ? page_info::PAGE_INFO_PRIVACY_PAGE_TRACKING_PROTECTIONS_PAUSED
+          : page_info::PAGE_INFO_PRIVACY_PAGE_TRACKING_PROTECTIONS_REENABLED);
+  controller_->OnTrackingProtectionsChangedForSite();
   show_info_bar_ = true;
 }
 
@@ -600,6 +605,18 @@ void PageInfo::RecordPageInfoAction(page_info::PageInfoAction action) {
     case page_info::PAGE_INFO_SYNC_SETTINGS_OPENED:
       base::RecordAction(base::UserMetricsAction(
           "PageInfo.CookiesSubpage.SyncSettingsLinkClicked"));
+      break;
+    case page_info::PAGE_INFO_PRIVACY_PAGE_INCOGNITO_SETTINGS_OPENED:
+      base::RecordAction(base::UserMetricsAction(
+          "PageInfo.PrivacySubpage.IncognitoSettingsOpened"));
+      break;
+    case page_info::PAGE_INFO_PRIVACY_PAGE_TRACKING_PROTECTIONS_REENABLED:
+      base::RecordAction(base::UserMetricsAction(
+          "PageInfo.PrivacySubpage.TrackingProtectionsReenabled"));
+      break;
+    case page_info::PAGE_INFO_PRIVACY_PAGE_TRACKING_PROTECTIONS_PAUSED:
+      base::RecordAction(base::UserMetricsAction(
+          "PageInfo.PrivacySubpage.TrackingProtectionsPaused"));
       break;
   }
 }
@@ -818,7 +835,8 @@ void PageInfo::OpenIncognitoSettingsView() {
 #if BUILDFLAG(IS_ANDROID)
   NOTREACHED();
 #else
-  // TODO(crbug.com/388294499): Add metrics for recording settings clicks.
+  RecordPageInfoAction(
+      page_info::PAGE_INFO_PRIVACY_PAGE_INCOGNITO_SETTINGS_OPENED);
   delegate_->ShowIncognitoSettings();
 #endif
 }
@@ -997,6 +1015,7 @@ void PageInfo::ComputeUIInputs(const GURL& url) {
 
   // Identity section.
   certificate_ = visible_security_state.certificate;
+  two_qwac_ = visible_security_state.two_qwac;
 
   if (certificate_ &&
       (!net::IsCertStatusError(visible_security_state.cert_status))) {
@@ -1576,6 +1595,7 @@ void PageInfo::PresentSiteIdentity() {
 #endif
 
   info.certificate = certificate_;
+  info.two_qwac = two_qwac_;
   info.show_ssl_decision_revoke_button = show_ssl_decision_revoke_button_;
   info.show_change_password_buttons = show_change_password_buttons_;
   ui_->SetIdentityInfo(info);

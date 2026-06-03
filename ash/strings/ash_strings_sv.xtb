@@ -761,6 +761,7 @@ Annars aktiveras den inbyggda styrplattan igen om <ph name="TIMEOUT_SECONDS" />.
 <translation id="3552189655002856821">wifi är inaktiverat</translation>
 <translation id="3554215588514239132">Visa eller dölj panelen för utvecklarverktyg</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> har fästs</translation>
+<translation id="3554928024630051016">Om du vill lägga till ytterligare USB-enheter kan du testa att ta bort en och sedan ansluta en ny</translation>
 <translation id="3558768885091059911">Vill du aktivera åtkomst till kameran och mikrofonen?</translation>
 <translation id="3560174576767922131">Spela in video</translation>
 <translation id="3563775809269155755">Aktivera surfzon</translation>
@@ -868,6 +869,7 @@ Anslut enheten till en strömkälla.</translation>
 <translation id="3861651314799684201">Tryck på retur för att spela in hela skärmen</translation>
 <translation id="3870197372373144624">Testa att stänga av enheten.</translation>
 <translation id="3879748587602334249">Nedladdningshanterare</translation>
+<translation id="3884007280698606545">USB-gränsen har nåtts</translation>
 <translation id="3886872229787704059">Öppnades i dag</translation>
 <translation id="3891340733213178823">Tryck på Ctrl+Skift+Q två gånger om du vill logga ut.</translation>
 <translation id="3892148308691398805">Kopiera text</translation>
@@ -1012,6 +1014,7 @@ Vissa funktioner är begränsade för att förlänga batteritiden.</translation>
 <translation id="4305817255990598646">Byt</translation>
 <translation id="4307713728991152670">Ställ in visning av de senaste bilderna, mediefilerna och apparna på telefonen</translation>
 <translation id="4312840429157639164">Kameran har fästs i det övre högra hörnet. Konflikt med systemyta.</translation>
+<translation id="4312935606722154789">Gruppera eller ta bort gruppering av två fönster sida vid sida</translation>
 <translation id="4316910396681052118">ALLA APPAR</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Dölj alla förslag i webbläsaren Chrome</translation>
@@ -1451,7 +1454,6 @@ Inga enheter är anslutna.</translation>
 <translation id="5691772641933328258">Fingeravtrycket känns inte igen</translation>
 <translation id="5693255400847650006">Mikrofonen används</translation>
 <translation id="5699366815052349604">Tilldela det aktiva fönstret till alla skrivbord</translation>
-<translation id="5701785125601597013">Med Phone Hub kan du skicka eller svara snabbt på meddelanden på telefonen</translation>
 <translation id="570390244361237317">Alla appar, navigera med piltangenterna för att komma åt alla appar</translation>
 <translation id="5705197514573687092">Visa fokusinställningar. Timern har ställts in på <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Enheten har stöd för högre datahastighet än vad kabeln har. Enhetens prestanda kan försämras.</translation>
@@ -1581,7 +1583,6 @@ Inga enheter är anslutna.</translation>
 <translation id="6095425951508823973">Lägg till anslutning med <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Redigerades under den senaste månaden</translation>
 <translation id="6103838137565245112">system</translation>
-<translation id="610395411842312282">Gruppera två fönster sida vid sida</translation>
 <translation id="6108952804512516814">Skapa med AI</translation>
 <translation id="6114505516289286752">Filerna för taligenkänning på <ph name="LANGUAGE" /> har laddats ned</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>

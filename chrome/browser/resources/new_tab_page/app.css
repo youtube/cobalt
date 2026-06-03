@@ -109,9 +109,17 @@ cr-most-visited {
   z-index: 1;
 }
 
+:host([show-composebox_]) #content {
+  z-index: unset;
+}
+
 #logo {
   margin-bottom: 38px;
   z-index: 1;  /* Needed so it layers on top of OneGoogleBar. */
+}
+
+:host([show-composebox_]) #logo {
+  z-index: 2;
 }
 
 #searchboxContainer {
@@ -226,6 +234,19 @@ ntp-middle-slot-promo:not([hidden]) ~ #modules {
   font-size: .75rem;
 }
 
+#customizeButtons {
+  bottom: 16px;
+  position: fixed;
+}
+
+:host-context([dir='ltr']) #customizeButtons {
+  right: 16px;
+}
+
+:host-context([dir='rtl']) #customizeButtons {
+  left: 16px;
+}
+
 #contentBottomSpacer {
   flex-shrink: 0;
   height: 32px;
@@ -236,12 +257,26 @@ svg {
   position: fixed;
 }
 
+ntp-composebox {
+  --ntp-composebox-width: var(--ntp-search-box-width);
+  --ntp-composebox-background-color:
+      var(--color-new-tab-page-composebox-background);
+}
+
+ntp-composebox,
 ntp-lens-upload-dialog {
   left: 0;
   position: absolute;
   right: 0;
   top: 0;
   z-index: 101;
+}
+
+#composeboxScrim {
+  background: var(--color-new-tab-page-background);
+  inset: 0;
+  position: absolute;
+  z-index: 1;
 }
 
 #webstoreToast {

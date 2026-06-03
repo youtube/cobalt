@@ -256,7 +256,10 @@ source_set("connections_implementation") {
     "//third_party/ukey2",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    "//build/config/compiler:unnecessary_virtual_specifier_warning",
+    "//build/config/compiler:no_chromium_code",
+  ]
 }
 
 source_set("connections_test_util") {
@@ -1327,6 +1330,7 @@ proto_library("connections_metadata_proto") {
   proto_in_dir = "src"
   sources = [ "${proto_in_dir}/internal/proto/metadata.proto" ]
   proto_out_dir = "third_party/nearby"
+  deps = [ ":connections_credential_proto" ]
 }
 
 # src/connections/implementation/proto

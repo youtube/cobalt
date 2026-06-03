@@ -264,6 +264,7 @@ class RenderFrameHost;
 class RenderProcessHost;
 class ResponsivenessCalculatorDelegate;
 class SerialDelegate;
+class ServiceWorkerContext;
 class SiteInstance;
 class SpeculationHostDelegate;
 class SpeechRecognitionManagerDelegate;
@@ -722,6 +723,11 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Allows the embedder to programmatically provide some origins that should be
   // opted into --isolate-origins mode of Site Isolation.
   virtual std::vector<url::Origin> GetOriginsRequiringDedicatedProcess();
+
+  // Allows the embedder to programmatically take action before the site is
+  // computed. |url| should be the full URL that is being navigated to.
+  virtual void WillComputeSiteForNavigation(BrowserContext* browser_context,
+                                            const GURL& url) {}
 
   // Allows the embedder to programmatically control whether the
   // --site-per-process mode of Site Isolation should be used.  Note that
@@ -1236,6 +1242,14 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool IsPrefetchWithServiceWorkerAllowed(
       content::BrowserContext* browser_context);
 
+  // Returns whether the synthetic response with service worker is allowed for
+  // the profile in a given context and URL. Not all URLs are actually invoke
+  // synthetic response. The opt-in from the server is required to invoke the
+  // feature.
+  virtual bool IsServiceWorkerSyntheticResponseAllowed(
+      content::BrowserContext* browser_context,
+      const GURL& url);
+
   // Temporarily allow `accessing_site` to access cookies when embedded on
   // `top_frame_site` when third-party cookies are otherwise blocked. After
   // `ttl` has passed, the access will be revoked. If `ignore_schemes` is true,
@@ -1273,6 +1287,12 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool AreThirdPartyCookiesGenerallyAllowed(
       content::BrowserContext* browser_context,
       content::WebContents* web_contents);
+
+  // Prewarms the ServiceWorker registration of the DefaultSearchEngine (DSE) by
+  // prefetching it from the database.
+  virtual void PrewarmServiceWorkerRegistrationForDSE(
+      BrowserContext* browser_context,
+      ServiceWorkerContext& service_worker_context);
 
   // Allows the embedder to implement policy for whether an SCT auditing report
   // should be sent.
@@ -1574,7 +1594,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       const GURL& site_url);
 
   // Creates a new TracingDelegate. The caller owns the returned value.
-  // It's valid to return nullptr.
   virtual std::unique_ptr<TracingDelegate> CreateTracingDelegate();
 
   // Whether system-wide performance trace collection using the external system
@@ -3024,16 +3043,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual std::unique_ptr<ResponsivenessCalculatorDelegate>
   CreateResponsivenessCalculatorDelegate();
 
-  // Checks if the given BrowserContext can receive cookie changes when it is in
-  // BFCache.
-  virtual bool CanBackForwardCachedPageReceiveCookieChanges(
-      content::BrowserContext& browser_context,
-      const GURL& url,
-      const net::SiteForCookies& site_for_cookies,
-      const url::Origin& top_frame_origin,
-      const net::CookieSettingOverrides overrides,
-      base::optional_ref<const net::CookiePartitionKey> cookie_partition_key);
-
   // Callback will be called with either an error
   // (!=`FileSystemAccessStatus::kOk`) or a list of cloud file handles as
   // result.
@@ -3314,6 +3323,14 @@ class CONTENT_EXPORT ContentBrowserClient {
       std::optional<ukm::SourceId> ukm_source_id,
       KeepAliveRequestTracker::IsContextDetachedCallback
           is_context_detached_callback);
+
+  // Allows embedder to override the clipboard types if a policy has inspected
+  // or modified the clipboard content. This is called by the browser process
+  // when a renderer needs to read available formats. Returns `std::nullopt` if
+  // there is no override for the current clipboard state.
+  virtual std::optional<std::vector<std::u16string>>
+  GetClipboardTypesIfPolicyApplied(
+      const ui::ClipboardSequenceNumberToken& seqno);
 };
 
 }  // namespace content

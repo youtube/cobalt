@@ -16,6 +16,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -1310,6 +1311,10 @@ PasswordsPrivateDelegateImpl::CreatePasswordUiEntryFromCredentialUiEntry(
   if (change_password_url.has_value()) {
     entry.change_password_url = change_password_url->spec();
   }
+  entry.backup_password =
+      credential.backup_password.has_value()
+          ? std::optional(base::UTF16ToUTF8(credential.backup_password.value()))
+          : std::nullopt;
   entry.id = credential_id_generator_.GenerateId(std::move(credential));
   return entry;
 }

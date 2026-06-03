@@ -223,7 +223,7 @@ public class WebContentsImpl
     public void setDelegates(
             String productVersion,
             ViewAndroidDelegate viewDelegate,
-            InternalAccessDelegate accessDelegate,
+            @Nullable InternalAccessDelegate accessDelegate,
             @Nullable WindowAndroid windowAndroid,
             InternalsHolder internalsHolder) {
         assert internalsHolder != null;
@@ -885,19 +885,22 @@ public class WebContentsImpl
                     new EventForwarder.StylusWritingDelegate() {
                         @Override
                         public boolean handleTouchEvent(MotionEvent motionEvent) {
+                            ViewAndroidDelegate viewAndroidDelegate = getViewAndroidDelegate();
                             return mStylusWritingHandler != null
+                                    && viewAndroidDelegate != null
+                                    && viewAndroidDelegate.getContainerView() != null
                                     && mStylusWritingHandler.handleTouchEvent(
-                                            motionEvent,
-                                            assumeNonNull(getViewAndroidDelegate())
-                                                    .getContainerView());
+                                            motionEvent, viewAndroidDelegate.getContainerView());
                         }
 
                         @Override
                         public void handleHoverEvent(MotionEvent motionEvent) {
-                            if (mStylusWritingHandler != null) {
+                            ViewAndroidDelegate viewAndroidDelegate = getViewAndroidDelegate();
+                            if (mStylusWritingHandler != null
+                                    && viewAndroidDelegate != null
+                                    && viewAndroidDelegate.getContainerView() != null) {
                                 mStylusWritingHandler.handleHoverEvent(
-                                        motionEvent,
-                                        assumeNonNull(getViewAndroidDelegate()).getContainerView());
+                                        motionEvent, viewAndroidDelegate.getContainerView());
                             }
                         }
                     });

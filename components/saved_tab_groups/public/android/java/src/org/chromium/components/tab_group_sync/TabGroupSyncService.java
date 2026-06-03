@@ -140,8 +140,12 @@ public interface TabGroupSyncService {
      *
      * @param tabGroupId The local group ID of the corresponding tab group.
      * @param collaborationId Collaboration ID with which the group is associated.
+     * @param callback Callback to be called when group is converted to shared tab group.
      */
-    void makeTabGroupShared(LocalTabGroupId tabGroupId, String collaborationId);
+    void makeTabGroupShared(
+            LocalTabGroupId tabGroupId,
+            String collaborationId,
+            @Nullable Callback<Boolean> tabGroupSharingCallback);
 
     /**
      * Starts the process of converting a shared tab group to saved tab group.
@@ -324,4 +328,10 @@ public interface TabGroupSyncService {
      * @param collaborationId Collaboration ID with which the collaboration group is associated.
      */
     void setCollaborationAvailableInFinderForTesting(String collaborationId);
+
+    /**
+     * @return The {@link VersioningMessageController} which is responsible for business logic
+     *     related to shared tab groups versioning related messages.
+     */
+    VersioningMessageController getVersioningMessageController();
 }

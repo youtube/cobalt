@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">Herbegin om &amp;Chromium-bedryfstelsel op te dateer</translation>
 <translation id="1040916596585577953">Chromium beveel aan dat jy hierdie uitbreiding nagaan</translation>
 <translation id="1042552502243217427">Chromium gebruik Google-bedieners wanneer ’n werf vra om skakels op hul bladsy vooraf te laai. Dit versteek jou identiteit vir die werf wat vooraf gelaai is, maar Google vind uit watter werwe vooraf gelaai word.</translation>
+<translation id="1051793555070215510">Voltooi hierdie 1-minuutopname om ons te help om Incognito te verbeter.</translation>
 <translation id="1065672644894730302">Jou voorkeure kan nie gelees word nie.
 
 Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure sal nie gestoor word nie.</translation>
@@ -87,7 +88,6 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="2126108037660393668">Die afgelaaide lêer kon nie geverifieer word nie.</translation>
 <translation id="2137162749895930932">Maak vertaalskerm toe</translation>
 <translation id="215352261310130060">Chromium het hierdie aflaai geblokkeer omdat die werf nie ’n veilige verbinding gebruik nie en daar moontlik met die lêer gepeuter is</translation>
-<translation id="2157600032285353789">Jy kan van die Chromium-kieslys af boekmerke, leesmodus en meer oopmaak</translation>
 <translation id="2174178932569897599">Pasmaak Chromium</translation>
 <translation id="2174917724755363426">Installering is nie afgehandel nie. Is jy seker jy wil kanselleer?</translation>
 <translation id="2185166961232948079">Chromium – Netwerkaanmelding – <ph name="PAGE_TITLE" /></translation>
@@ -222,11 +222,13 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="3954172517175569325">Jou wagwoorde, betaalmetodes en adresse wat jy in jou Google-rekening gestoor het, sal van hierdie toestel verwyder word. Meld weer aan as jy hulle weer in Chromium wil gebruik.</translation>
 <translation id="395904275706073188">Beskermde bladsye kan nie gelees word nie. Probeer ’n ander bladsy.</translation>
 <translation id="3962647064319009959">Vind uit hoe Chromium jou veilig hou</translation>
+<translation id="3971865010372729242">Wanneer jy in die adresbalk of soekkassie tik, stuur Chromium dit wat jy tik na jou organisasie se soek-, KI- en agentnutsgoed om voorstelle te kry.</translation>
 <translation id="3975724895399328945">Meer oor &amp;Google Chrome-toetsweergawe</translation>
 <translation id="3997429360543082038">Meer oor Chromium-bedryfstelsel</translation>
 <translation id="4019629340646866719">Chromium-bedryfstelsel word moontlik gemaak deur bykomende <ph name="BEGIN_LINK_CROS_OSS" />oopbronsagteware<ph name="END_LINK_CROS_OSS" />, soos die geval ook is met <ph name="BEGIN_LINK_LINUX_OSS" />Linux-ontwikkelingomgewing<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Vertaal skerm</translation>
 <translation id="4023601594785368013">Oorspronklike taal: <ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">Maak skakels in Chromium vanaf enige app oop. Dit word ook vir maklike toegang in jou taakbalk vasgespeld.</translation>
 <translation id="4036079820698952681">Help om Chromium te verbeter deur die <ph name="BEGIN_LINK" />huidige instellings<ph name="END_LINK" /> aan te gee</translation>
 <translation id="4050175100176540509">Belangrike sekuriteitverbeterings en nuwe kenmerke is in die jongste weergawe beskikbaar.</translation>
 <translation id="4055805654398742145">W&amp;agwoordbestuurder</translation>
@@ -328,6 +330,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="5524890928877629608">boonste linkerhoek van soekgebied: links <ph name="LEFT" />%, bo <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Maak PDF's in Chromium oop</translation>
 <translation id="5579324208890605088">Aanskakelingfout: laat loop die installeerder as ’n gereelde gebruiker, nie as administrateur nie.</translation>
+<translation id="5580770360767802657">Gebruik Chromium by verstek en speld dit vas</translation>
 <translation id="5596627076506792578">Meer opsies</translation>
 <translation id="5605834417512968703">Kies enigiets om met Prentsoektog te soek of druk Escape om uit Prentsoektog te gaan</translation>
 <translation id="5618818588972826921">Kies enige teks of prent om met Prentsoektog te soek of druk Escape om die Prentsoektog te verlaat</translation>
@@ -342,6 +345,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="5775198138441669627"><ph name="SETTINGS_LINK" /> die Chromium-data in jou rekening indien jy jou wagfrase vergeet het of hierdie instelling wil verander</translation>
 <translation id="5800158606660203929">Pasmaak en beheer Chromium. Stel Chromium as jou verstek.</translation>
 <translation id="5809516625706423866">Kon nie aan die internet koppel nie. HTTP 401 ongemagtig. Gaan asseblief jou proxy-opstelling na.</translation>
+<translation id="5817952762723416573">Maak werwe vinniger met Chromium se V8-enjin, maar maak Chromium effens minder bestand teen aanvalle. Hierdie instelling is af.</translation>
 <translation id="5821520528363214608">Dateer Chromium op om Chromium-data in jou Google-rekening te gebruik en te stoor</translation>
 <translation id="5824893331272123205">Kon nie hierdie paneel laai nie, probeer weer</translation>
 <translation id="5862307444128926510">Welkom by Chromium</translation>
@@ -358,7 +362,6 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="5987687638152509985">Dateer Chromium op om sinkronisering te begin</translation>
 <translation id="5988505247484123880">Dit is algemeen vir werwe wat jy besoek om dinge waarin jy belangstel te onthou en jou ervaring te personaliseer. Werwe kan ook inligting oor jou belangstellings in Chromium stoor.</translation>
 <translation id="6003112304606738118">Laai tans af … <ph name="HOURS" /> uur oor</translation>
-<translation id="6019451407441383358">Jy kan van die Chromium-kieslys bo regs af boekmerke, leesmodus en meer oopmaak</translation>
 <translation id="6040143037577758943">Maak toe</translation>
 <translation id="6058380562449900225">Laat Chromium toestemmings van werwe verwyder wat jy nie onlangs besoek het nie om jou data te beskerm. Stop nie kennisgewings nie.</translation>
 <translation id="6063093106622310249">&amp;Maak in Chromium oop</translation>
@@ -432,6 +435,7 @@ Sommige kenmerke sal dalk nie beskikbaar wees nie. Spesifiseer 'n ander profielg
 <translation id="6729124504294600478">Sluit Chromium by Web- en Appaktiwiteit en gekoppelde Google-dienste in om personalisering en ander kenmerke te kry</translation>
 <translation id="6734291798041940871">Chromium is reeds vir alle gebruikers op jou rekenaar geïnstalleer.</translation>
 <translation id="674245979920622322">Jy het nie onlangs die webwerf besoek nie. Chromium het <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> en nog <ph name="COUNT" /> verwyder</translation>
+<translation id="6751374565094704799">Maak werwe vinniger met Chromium se V8-enjin, maar maak Chromium effens minder bestand teen aanvalle. Hierdie instelling is aan.</translation>
 <translation id="67706546131546258">Chromium beveel aan dat hierdie lêer geskandeer word omdat dit gevaarlik kan wees.</translation>
 <translation id="6779406956731413166">Chromium-bedryfstelsel word moontlik gemaak deur bykomende <ph name="BEGIN_LINK_CROS_OSS" />oopbronsagteware<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6831043979455480757">Vertaal</translation>
@@ -528,7 +532,6 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="8118331347066725040">Stuur terugvoer vir soektog met Lens</translation>
 <translation id="8133124826068723441">Chromium-bedryfstelsel kon nie jou data sinkroniseer nie omdat sinkronisering nie vir jou domein beskikbaar is nie.</translation>
 <translation id="813913629614996137">Inisialiseer tans …</translation>
-<translation id="8166782796394721554">Skakel bykomende beskerming in Chromium se JavaScript- en WebAssembly-enjin aan</translation>
 <translation id="81770708095080097">Hierdie lêer is gevaarlik en daarom het Chromium dit geblokkeer.</translation>
 <translation id="8177472873527554730">Kan nie inhoud op die bladsy vind nie</translation>
 <translation id="8200109504272824693">Voer jou wagfrase in om Chromium-data in jou rekening, <ph name="USER_EMAIL" />, te gebruik en te stoor</translation>
@@ -600,6 +603,7 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="9106612006984859720">Jy het Windows 10 of nuwer nodig om in die toekoms Chromium-opdaterings te kry. Hierdie rekenaar gebruik Windows 8.1.</translation>
 <translation id="91086099826398415">Maak skakel in 'n nuwe Chromium-oortjie oop</translation>
 <translation id="911206726377975832">Vee ook jou blaaidata uit?</translation>
+<translation id="9134482777260927479">Huiswerkhulp</translation>
 <translation id="9148058034647219655">Gaan uit</translation>
 <translation id="9158494823179993217">Jou stelseladministrateur het Chromium opgestel om 'n alternatiewe blaaier oop te maak om na <ph name="TARGET_URL_HOSTNAME" /> toe te gaan.</translation>
 <translation id="9185526690718004400">Begin weer om &amp;Chromium op te dateer</translation>

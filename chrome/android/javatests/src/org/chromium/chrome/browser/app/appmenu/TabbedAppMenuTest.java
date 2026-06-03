@@ -8,6 +8,9 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.base.test.util.Batch.PER_CLASS;
+import static org.chromium.chrome.browser.ui.appmenu.AppMenuHandler.AppMenuItemType.DIVIDER;
+
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ListView;
@@ -30,13 +33,16 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.browser.bookmarks.PowerBookmarkUtils;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
@@ -66,6 +72,7 @@ import java.io.IOException;
 import java.util.concurrent.Callable;
 
 /** Tests tabbed mode app menu popup. */
+@Batch(PER_CLASS)
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class TabbedAppMenuTest {
@@ -201,6 +208,7 @@ public class TabbedAppMenuTest {
     @SmallTest
     @Feature({"Browser", "Main", "Bookmark", "RenderTest"})
     @Restriction(DeviceFormFactor.PHONE)
+    @DisableFeatures({ChromeFeatureList.ANDROID_THEME_MODULE})
     public void testBookmarkMenuItem() throws IOException {
         PropertyModel bookmarkStarPropertyModel =
                 AppMenuTestSupport.getMenuItemPropertyModel(
@@ -356,11 +364,12 @@ public class TabbedAppMenuTest {
                     Assert.assertTrue(mAppMenuHandler.isAppMenuShowing());
                 });
 
+        pressKey(KeyEvent.KEYCODE_DPAD_DOWN);
+
         // Make sure the menu is ready to be selected.
         CriteriaHelper.pollUiThread(
                 () -> {
-                    getListView().setSelection(0);
-                    Criteria.checkThat(getCurrentFocusedRow(), Matchers.is(0));
+                    Criteria.checkThat(getCurrentFocusedRow(), Matchers.not(-1));
                 });
     }
 
@@ -375,9 +384,15 @@ public class TabbedAppMenuTest {
         // Move to the boundary.
         final int end = towardsTop ? 0 : getCount() - 1;
         int increment = towardsTop ? -1 : 1;
-        for (int index = getCurrentFocusedRow(); index != end; index += increment) {
+        ListView listView = getListView();
+        int index = getCurrentFocusedRow();
+        while (index != end) {
             pressKey(towardsTop ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN);
-            final int expectedPosition = index + increment;
+            do {
+                index += increment;
+            } while (listView.getAdapter().getItemViewType(index) == DIVIDER);
+
+            final int expectedPosition = index;
             CriteriaHelper.pollInstrumentationThread(
                     () -> {
                         Criteria.checkThat(getCurrentFocusedRow(), Matchers.is(expectedPosition));

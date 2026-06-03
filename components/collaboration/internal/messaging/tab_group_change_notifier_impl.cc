@@ -175,11 +175,17 @@ void TabGroupChangeNotifierImpl::
   ProcessChangesSinceStartup();
 }
 
+bool TabGroupChangeNotifierImpl::IsInProgressInitialMergeOrDisableSync() {
+  return sync_bridge_update_type_ ==
+             tab_groups::SyncBridgeUpdateType::kInitialMerge ||
+         sync_bridge_update_type_ ==
+             tab_groups::SyncBridgeUpdateType::kDisableSync;
+}
+
 void TabGroupChangeNotifierImpl::OnTabGroupAdded(
     const tab_groups::SavedTabGroup& group,
     tab_groups::TriggerSource source) {
-  if (!is_initialized_ || sync_bridge_update_type_ !=
-                              tab_groups::SyncBridgeUpdateType::kDefaultState) {
+  if (!is_initialized_ || IsInProgressInitialMergeOrDisableSync()) {
     return;
   }
   if (!group.is_shared_tab_group()) {
@@ -201,6 +207,10 @@ void TabGroupChangeNotifierImpl::OnTabGroupAdded(
 
 void TabGroupChangeNotifierImpl::BeforeTabGroupUpdateFromRemote(
     const base::Uuid& sync_group_id) {
+  if (!is_initialized_ || IsInProgressInitialMergeOrDisableSync()) {
+    return;
+  }
+
   auto group_it = last_known_tab_groups_.find(sync_group_id);
   if (group_it == last_known_tab_groups_.end()) {
     return;
@@ -236,8 +246,7 @@ void TabGroupChangeNotifierImpl::BeforeTabGroupUpdateFromRemote(
 void TabGroupChangeNotifierImpl::OnTabGroupUpdated(
     const tab_groups::SavedTabGroup& group,
     tab_groups::TriggerSource source) {
-  if (!is_initialized_ || sync_bridge_update_type_ !=
-                              tab_groups::SyncBridgeUpdateType::kDefaultState) {
+  if (!is_initialized_ || IsInProgressInitialMergeOrDisableSync()) {
     return;
   }
 
@@ -253,8 +262,7 @@ void TabGroupChangeNotifierImpl::OnTabGroupUpdated(
 
 void TabGroupChangeNotifierImpl::AfterTabGroupUpdateFromRemote(
     const base::Uuid& sync_group_id) {
-  if (!is_initialized_ || sync_bridge_update_type_ !=
-                              tab_groups::SyncBridgeUpdateType::kDefaultState) {
+  if (!is_initialized_ || IsInProgressInitialMergeOrDisableSync()) {
     return;
   }
 
@@ -264,8 +272,7 @@ void TabGroupChangeNotifierImpl::AfterTabGroupUpdateFromRemote(
 void TabGroupChangeNotifierImpl::OnTabGroupRemoved(
     const base::Uuid& sync_id,
     tab_groups::TriggerSource source) {
-  if (!is_initialized_ || sync_bridge_update_type_ !=
-                              tab_groups::SyncBridgeUpdateType::kDefaultState) {
+  if (!is_initialized_ || IsInProgressInitialMergeOrDisableSync()) {
     return;
   }
   auto group_it = last_known_tab_groups_.find(sync_id);
@@ -320,6 +327,8 @@ void TabGroupChangeNotifierImpl::OnTabSelected(
 void TabGroupChangeNotifierImpl::OnTabLastSeenTimeChanged(
     const base::Uuid& tab_id,
     tab_groups::TriggerSource source) {
+  // We don't check for IsInProgressInitialMergeOrDisableSync() as last seen
+  // time is received from another bridge.
   if (!is_initialized_) {
     return;
   }
@@ -346,7 +355,7 @@ void TabGroupChangeNotifierImpl::OnSyncBridgeUpdateTypeChanged(
   sync_bridge_update_type_ = sync_bridge_update_type;
 
   if (sync_bridge_update_type_ ==
-      tab_groups::SyncBridgeUpdateType::kDisableSync) {
+      tab_groups::SyncBridgeUpdateType::kCompletedDisableSyncThisSession) {
     for (auto& observer : observers_) {
       observer.OnSyncDisabled();
     }

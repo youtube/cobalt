@@ -15,6 +15,7 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -266,15 +267,17 @@ void FormFieldParser::ParseFormFields(
                       field_candidates);
 
   ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
-      context, fields, field_candidates, is_form_tag);
+      fields, field_candidates, is_form_tag, context.client_country,
+      context.log_manager);
 }
 
 // static
 void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
-    ParsingContext& context,
     const std::vector<std::unique_ptr<AutofillField>>& fields,
     FieldCandidatesMap& field_candidates,
-    bool is_form_tag) {
+    bool is_form_tag,
+    GeoIpCountryCode client_country,
+    LogManager* log_manager) {
   // Set to count distinct field types.
   FieldTypeSet heuristic_types;
   for (const auto& [field_id, candidates] : field_candidates) {
@@ -302,9 +305,9 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
   }
 
   FieldTypeSet permitted_single_field_types{
-      MERCHANT_PROMO_CODE, IBAN_VALUE,
-      CREDIT_CARD_STANDALONE_VERIFICATION_CODE};
-  if (AddressFieldParser::IsStandaloneZipSupported(context.client_country)) {
+      MERCHANT_PROMO_CODE, IBAN_VALUE, CREDIT_CARD_STANDALONE_VERIFICATION_CODE,
+      EMAIL_ADDRESS};
+  if (AddressFieldParser::IsStandaloneZipSupported(client_country)) {
     permitted_single_field_types.insert(ADDRESS_HOME_ZIP);
   }
 
@@ -318,36 +321,16 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
     permitted_single_field_types.insert(EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
   }
 
-  // For historic reasons email addresses are only retained if they appear in
-  // a <form> tag. It's unclear whether that's necessary.
-  FieldTypeSet permitted_single_field_types_in_form{EMAIL_ADDRESS};
-
-  // `AutofillEnableEmailHeuristicOutsideForms` permits email fields to be
-  // filled even when they are not in a <form> tag.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillEnableEmailHeuristicOutsideForms)) {
-    permitted_single_field_types.insert(EMAIL_ADDRESS);
-    permitted_single_field_types_in_form.erase(EMAIL_ADDRESS);
-  }
-
-  // Returns whether a field type may exist as a stand-alone field.
-  auto retainable_field_type =
-      [&is_form_tag, &permitted_single_field_types_in_form,
-       &permitted_single_field_types](FieldType heuristic_type) {
-        return (is_form_tag && permitted_single_field_types_in_form.contains(
-                                   heuristic_type)) ||
-               permitted_single_field_types.contains(heuristic_type);
-      };
-
   struct WipedField {
     FieldGlobalId field_id;
     FieldType best_heuristic_type;
   };
+
   std::vector<WipedField> wiped_fields;
-  if (IsLoggingActive(context.log_manager)) {
+  if (IsLoggingActive(log_manager)) {
     for (const auto& [field_id, candidates] : field_candidates) {
       FieldType heuristic_type = candidates.BestHeuristicType();
-      if (!retainable_field_type(heuristic_type)) {
+      if (!permitted_single_field_types.contains(heuristic_type)) {
         wiped_fields.emplace_back(WipedField{field_id, heuristic_type});
       }
     }
@@ -359,12 +342,13 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
   // clear everything.
   base::EraseIf(
       field_candidates,
-      [&retainable_field_type](
+      [&permitted_single_field_types](
           const FieldCandidatesMap::container_type::value_type& candidate) {
-        return !retainable_field_type(candidate.second.BestHeuristicType());
+        return !permitted_single_field_types.contains(
+            candidate.second.BestHeuristicType());
       });
 
-  if (IsLoggingActive(context.log_manager)) {
+  if (IsLoggingActive(log_manager)) {
     LogBuffer table_rows;
     for (const auto& field : fields) {
       LOG_AF(table_rows) << Tr{} << "Field:" << *field;
@@ -381,7 +365,7 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
 
       LOG_AF(table_rows) << Tr{} << std::move(name) << std::move(description);
     }
-    LOG_AF(context.log_manager)
+    LOG_AF(log_manager)
         << LoggingScope::kParsing
         << LogMessage::kLocalHeuristicDidNotFindEnoughFillableFields
         << Tag{"table"} << Attrib{"class", "form"} << std::move(table_rows)

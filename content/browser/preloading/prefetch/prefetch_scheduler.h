@@ -33,10 +33,11 @@ class PrefetchService;
 //
 // TODO(crbug.com/406403063): Rethink about granularity. We don't stick on the
 // above policy. More rough priorities e.g. kBase/kHigh/kBurst might work well.
+// This will eventually be done by `PrefetchPriority`(crbug.com/426404355).
 //
 // See also `PrefetchScheduler::NotifyAttributeMightChangedAndProgressAsync()`
 // when you add a new one.
-enum class PrefetchPriority {
+enum class PrefetchSchedulerPriority {
   // Default.
   kBase = 0,
   // For tests. Do not use outside tests.
@@ -49,8 +50,10 @@ enum class PrefetchPriority {
   kBurstThreshold = 10,
   // For tests. Do not use outside tests.
   kBurstTest = 11,
+  // Priority derived from `PrefetchPriority`.
+  kBurstForPrefetchPriority = 12,
   // Burst priority for prefetch ahead of prerender.
-  kBurstAheadOfPrerender = 12,
+  kBurstAheadOfPrerender = 13,
 };
 
 // Priority queue for prefetches
@@ -61,7 +64,7 @@ class PrefetchQueue {
  public:
   struct Item {
     Item(base::WeakPtr<PrefetchContainer> prefetch_container,
-         PrefetchPriority priority);
+         PrefetchSchedulerPriority priority);
     ~Item();
 
     // Movable but not copyable.
@@ -71,7 +74,7 @@ class PrefetchQueue {
     Item& operator=(const Item&) = delete;
 
     base::WeakPtr<PrefetchContainer> prefetch_container;
-    PrefetchPriority priority;
+    PrefetchSchedulerPriority priority;
   };
 
   PrefetchQueue();
@@ -86,7 +89,7 @@ class PrefetchQueue {
   size_t size() const { return queue_.size(); }
 
   void Push(base::WeakPtr<PrefetchContainer> prefetch_container,
-            PrefetchPriority priority);
+            PrefetchSchedulerPriority priority);
 
   // Pops `PrefetchContainer`
   //
@@ -95,8 +98,9 @@ class PrefetchQueue {
   // - `pred`
   // - Priority is larger or equal to `threshold_priority`.
   template <class Predicate>
-  std::optional<PrefetchQueue::Item> Pop(Predicate pred,
-                                         PrefetchPriority threshold_priority) {
+  std::optional<PrefetchQueue::Item> Pop(
+      Predicate pred,
+      PrefetchSchedulerPriority threshold_priority) {
     for (auto it = queue_.cbegin(); it != queue_.cend(); ++it) {
       if (it->priority < threshold_priority) {
         break;
@@ -120,7 +124,7 @@ class PrefetchQueue {
   //
   // Returns true iff priority is updated.
   bool MaybeUpdatePriority(PrefetchContainer& prefetch_container,
-                           PrefetchPriority priority);
+                           PrefetchSchedulerPriority priority);
 
  private:
   std::vector<PrefetchQueue::Item> queue_;
@@ -189,11 +193,11 @@ class CONTENT_EXPORT PrefetchScheduler {
   void Progress();
 
   void SetCalculatePriorityForTesting(
-      base::RepeatingCallback<PrefetchPriority(const PrefetchContainer&)>
-          callback);
+      base::RepeatingCallback<
+          PrefetchSchedulerPriority(const PrefetchContainer&)> callback);
 
  private:
-  PrefetchPriority CalculatePriority(
+  PrefetchSchedulerPriority CalculatePriority(
       const PrefetchContainer& prefetch_container);
 
   void ProgressAsync();
@@ -218,7 +222,7 @@ class CONTENT_EXPORT PrefetchScheduler {
   // `PrefetchScheduler::ProgressAsync()`.
   bool in_eviction_ = false;
 
-  base::RepeatingCallback<PrefetchPriority(const PrefetchContainer&)>
+  base::RepeatingCallback<PrefetchSchedulerPriority(const PrefetchContainer&)>
       calculate_priority_for_test_;
 
 #if DCHECK_IS_ON()

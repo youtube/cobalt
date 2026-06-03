@@ -167,6 +167,8 @@ public class ChromeSiteSettingsDelegate implements SiteSettingsDelegate {
                 return !BuildConfig.IS_DESKTOP_ANDROID;
             case SiteSettingsCategory.Type.SERIAL_PORT:
                 return DeviceFeatureMap.isEnabled(DeviceFeatureList.BLUETOOTH_RFCOMM_ANDROID);
+            case SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS:
+                return ChromeFeatureList.isEnabled(ChromeFeatureList.LOCAL_NETWORK_ACCESS);
             default:
                 return true;
         }
@@ -196,6 +198,11 @@ public class ChromeSiteSettingsDelegate implements SiteSettingsDelegate {
     @Override
     public boolean isAlwaysBlock3pcsIncognitoEnabled() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO);
+    }
+
+    @Override
+    public boolean isDisplayWildcardInContentSettingsEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.DISPLAY_WILDCARD_CONTENT_SETTINGS);
     }
 
     @Override

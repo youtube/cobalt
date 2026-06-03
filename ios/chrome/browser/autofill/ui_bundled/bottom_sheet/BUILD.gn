@@ -168,6 +168,7 @@ source_set("bottom_sheet_egtest") {
     "//ios/chrome/browser/autofill/ui_bundled:autofill_ui_constants",
     "//ios/chrome/browser/autofill/ui_bundled:eg_test_support+eg2",
     "//ios/chrome/browser/autofill/ui_bundled/authentication:card_unmask_authentication_selection_constants",
+    "//ios/chrome/browser/autofill/ui_bundled/authentication:egtest_util",
     "//ios/chrome/browser/autofill/ui_bundled/manual_fill:eg_test_support+eg2",
     "//ios/chrome/browser/metrics/model:eg_test_support+eg2",
     "//ios/chrome/browser/settings/ui_bundled:settings_root_constants",
@@ -267,6 +268,7 @@ source_set("save_card_bottom_sheet_view_controller_unittest") {
   testonly = true
   sources = [ "save_card_bottom_sheet_view_controller_unittest.mm" ]
   deps = [
+    ":save_card_bottom_sheet_consumer",
     ":save_card_bottom_sheet_view_controller",
     "//components/strings:components_strings_grit",
     "//ios/chrome/common/ui/confirmation_alert",
@@ -292,10 +294,12 @@ source_set("save_card_bottom_sheet_mediator") {
     ":save_card_bottom_sheet_mutator",
     "//base",
     "//components/autofill/ios/browser",
+    "//components/strings:components_strings_grit",
     "//ios/chrome/browser/autofill/model/bottom_sheet:save_card_bottom_sheet_model",
     "//ios/chrome/browser/autofill/model/message",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/ui/util",
+    "//ui/base",
   ]
   frameworks = [ "UIKit.framework" ]
 }

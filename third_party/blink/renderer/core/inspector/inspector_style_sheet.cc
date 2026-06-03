@@ -172,7 +172,8 @@ bool VerifyRuleText(Document* document, const String& rule_text) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = rule_text + " div { " + bogus_property_name + ": none; }";
+  String text =
+      StrCat({rule_text, " div { ", bogus_property_name, ": none; }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -206,16 +207,17 @@ bool VerifyStyleText(Document* document,
                      const String& text,
                      StyleRule::RuleType rule_type = StyleRule::kStyle) {
   if (rule_type == StyleRule::kProperty) {
-    return VerifyRuleText(document, "@property --property {" + text + "}");
+    return VerifyRuleText(document,
+                          StrCat({"@property --property {", text, "}"}));
   }
-  return VerifyRuleText(document, "div {" + text + "}");
+  return VerifyRuleText(document, StrCat({"div {", text, "}"}));
 }
 
 bool VerifyNestedDeclarations(Document* document, const String& rule_text) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = ".a { .b {} " + rule_text + " }";
+  String text = StrCat({".a { .b {} ", rule_text, " }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -245,7 +247,7 @@ bool VerifyPropertyNameText(Document* document, const String& name_text) {
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
   String text =
-      "@property " + name_text + " { syntax: \"*\"; inherits: false; }";
+      StrCat({"@property ", name_text, " { syntax: \"*\"; inherits: false; }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -266,8 +268,8 @@ bool VerifyKeyframeKeyText(Document* document, const String& key_text) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = "@keyframes boguzAnim { " + key_text +
-                " { -webkit-boguz-propertee : none; } }";
+  String text = StrCat({"@keyframes boguzAnim { ", key_text,
+                        " { -webkit-boguz-propertee : none; } }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -297,7 +299,8 @@ bool VerifySelectorText(Document* document, const String& selector_text) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = selector_text + " { " + bogus_property_name + ": none; }";
+  String text =
+      StrCat({selector_text, " { ", bogus_property_name, ": none; }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -327,8 +330,8 @@ bool VerifyMediaText(Document* document, const String& media_text) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = "@media " + media_text + " { div { " + bogus_property_name +
-                ": none; } }";
+  String text = StrCat(
+      {"@media ", media_text, " { div { ", bogus_property_name, ": none; } }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -365,8 +368,8 @@ bool VerifyContainerQueryText(Document* document,
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = "@container " + container_query_text + " { div { " +
-                bogus_property_name + ": none; } }";
+  String text = StrCat({"@container ", container_query_text, " { div { ",
+                        bogus_property_name, ": none; } }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -405,8 +408,8 @@ bool VerifySupportsText(Document* document, const String& supports_text) {
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
-  String text = "@supports " + supports_text + " { div { " +
-                bogus_property_name + ": none; } }";
+  String text = StrCat({"@supports ", supports_text, " { div { ",
+                        bogus_property_name, ": none; } }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -443,7 +446,7 @@ bool VerifyScopeText(Document* document, const String& scope_text) {
       ParserContextForDocument(document));
   CSSRuleSourceDataList source_data;
   String text =
-      "@scope " + scope_text + " { " + bogus_property_name + ": none; }";
+      StrCat({"@scope ", scope_text, " { ", bogus_property_name, ": none; }"});
   InspectorCSSParserObserver observer(text, document, &source_data);
   CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
                                     style_sheet, text, observer);
@@ -729,7 +732,7 @@ void InspectorStyle::PopulateAllProperties(
     String value = style_->GetPropertyValueWithHint(name, i);
     bool important = !style_->GetPropertyPriorityWithHint(name, i).empty();
     if (important)
-      value = value + " !important";
+      value = StrCat({value, " !important"});
     result.push_back(CSSPropertySourceData(name, value, important, false, true,
                                            SourceRange()));
   }
@@ -935,7 +938,7 @@ InspectorStyle::LonghandProperties(
               .setValue(value)
               .build();
       if (property_entry.important) {
-        longhand->setValue(value + " !important");
+        longhand->setValue(StrCat({value, " !important"}));
         longhand->setImportant(true);
       }
       result->emplace_back(std::move(longhand));
@@ -1130,7 +1133,8 @@ CSSPropertyRule* InspectorStyleSheet::SetPropertyName(
           page_style_sheet_->OwnerDocument()->GetExecutionContext(), text)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        "The property name '" + text + "' is invalid and cannot be parsed");
+        StrCat({"The property name '", text,
+                "' is invalid and cannot be parsed"}));
     return nullptr;
   }
 
@@ -1438,7 +1442,8 @@ CSSStyleRule* InspectorStyleSheet::InsertCSSOMRuleInStyleSheet(
     page_style_sheet_->deleteRule(index, ASSERT_NO_EXCEPTION);
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        "The rule '" + rule_text + "' could not be added in style sheet.");
+        StrCat(
+            {"The rule '", rule_text, "' could not be added in style sheet."}));
     return nullptr;
   }
   return style_rule;
@@ -1465,7 +1470,8 @@ CSSStyleRule* InspectorStyleSheet::InsertCSSOMRuleInMediaRule(
     media_rule->deleteRule(index, ASSERT_NO_EXCEPTION);
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        "The rule '" + rule_text + "' could not be added in media rule.");
+        StrCat(
+            {"The rule '", rule_text, "' could not be added in media rule."}));
     return nullptr;
   }
   return style_rule;

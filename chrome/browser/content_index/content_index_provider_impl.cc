@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "base/barrier_closure.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/task/single_thread_task_runner.h"
@@ -239,6 +240,10 @@ void ContentIndexProviderImpl::PauseDownload(const ContentId& id) {
 }
 
 void ContentIndexProviderImpl::ResumeDownload(const ContentId& id) {
+  NOTREACHED();
+}
+
+void ContentIndexProviderImpl::ValidateDangerousDownload(const ContentId& id) {
   NOTREACHED();
 }
 
