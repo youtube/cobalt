@@ -77,9 +77,6 @@
 #if !defined(_AIX) && !defined(V8_OS_FUCHSIA) && !V8_OS_ZOS
 #include <sys/syscall.h>
 #endif
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 
 #if V8_OS_FREEBSD || V8_OS_DARWIN || V8_OS_OPENBSD || V8_OS_SOLARIS
 #define MAP_ANONYMOUS MAP_ANON
@@ -1231,10 +1228,6 @@ static void* ThreadEntry(void* arg) {
   }
 #endif
   DCHECK_NE(thread->data()->thread_, kNoThread);
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kScript);
-#endif
   thread->NotifyStartedAndRun();
   return nullptr;
 }

@@ -40,6 +40,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
 #endif
 
 #include "base/check.h"

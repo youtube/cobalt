@@ -75,6 +75,10 @@ if (enable_ppapi) {
   content_shared_components += [ "//content/ppapi_plugin:ppapi_plugin_sources" ]
 }
 
+if (is_cobalt) {
+  content_shared_components += [ "//cobalt/shell:buildflags" ]
+}
+
 if (is_component_build) {
   component("content") {
     public_deps =

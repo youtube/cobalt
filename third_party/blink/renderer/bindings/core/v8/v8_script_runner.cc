@@ -67,8 +67,6 @@
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
-#include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
-
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
 #endif

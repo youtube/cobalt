@@ -256,6 +256,10 @@ source_set("filters") {
       "manifest_demuxer.h",
     ]
   }
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
 }
 
 source_set("perftests") {

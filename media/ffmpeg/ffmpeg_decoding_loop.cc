@@ -8,6 +8,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
 #endif
 #include "media/ffmpeg/ffmpeg_common.h"
 
