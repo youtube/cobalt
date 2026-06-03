@@ -65,11 +65,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
   private MediaSessionCompat.Callback mMediaSessionCallback;
-  private String mLastTitle = null;
-  private String mLastArtist = null;
-  private String mLastAlbum = null;
-  private Bitmap mLastArtwork = null;
-  private Long mLastDuration = null;
   private LifecycleCallback mLifecycleCallback = null;
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
@@ -223,11 +218,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     mMediaSession.setActive(false);
     mMediaSession.release();
     mMediaSession = null;
-    mLastTitle = null;
-    mLastArtist = null;
-    mLastAlbum = null;
-    mLastArtwork = null;
-    mLastDuration = null;
 
     Log.i(TAG, "MediaSession has been deactivated.");
   }
@@ -359,15 +349,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     mMediaSession.setMetadata(metadataBuilder.build());
-    mLastTitle = null;
-    mLastArtist = null;
-    mLastAlbum = null;
-    mLastArtwork = null;
-    mLastDuration = null;
-  }
-
-  private static boolean safeEquals(Object a, Object b) {
-    return (a == b) || (a != null && a.equals(b));
   }
 
   private void updateMetadata() {
@@ -380,36 +361,16 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       return;
     }
 
-    String title = mMetadata.getTitle();
-    String artist = mMetadata.getArtist();
-    String album = mMetadata.getAlbum();
-    Bitmap artwork = mArtworkImage;
-    Long duration = mPosition != null ? mPosition.getDuration() : null;
-
-    if (safeEquals(title, mLastTitle)
-        && safeEquals(artist, mLastArtist)
-        && safeEquals(album, mLastAlbum)
-        && artwork == mLastArtwork
-        && safeEquals(duration, mLastDuration)) {
-      return;
-    }
-
-    mLastTitle = title;
-    mLastArtist = artist;
-    mLastAlbum = album;
-    mLastArtwork = artwork;
-    mLastDuration = duration;
-
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     metadataBuilder
-        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
-    if (artwork != null) {
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, artwork);
+        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mMetadata.getTitle())
+        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mMetadata.getArtist())
+        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, mMetadata.getAlbum());
+    if (mArtworkImage != null) {
+      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, mArtworkImage);
     }
-    if (duration != null) {
-      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
+    if (mPosition != null) {
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mPosition.getDuration());
     }
     // Set mediaSession's metadata to update the "Now Playing Card".
     MediaMetadataCompat metadata = metadataBuilder.build();

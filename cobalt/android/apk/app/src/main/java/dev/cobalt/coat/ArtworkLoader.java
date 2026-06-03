@@ -35,8 +35,6 @@ public class ArtworkLoader {
     void onArtworkLoaded(Bitmap bitmap);
   }
 
-  private static final Size TARGET_ARTWORK_SIZE = new Size(512, 512);
-
   @VisibleForTesting @NonNull volatile String mRequestedArtworkUrl = "";
   @VisibleForTesting @NonNull volatile String mCurrentArtworkUrl = "";
   @VisibleForTesting volatile Bitmap mCurrentArtwork = null;
@@ -65,7 +63,7 @@ public class ArtworkLoader {
       return null;
     }
 
-    MediaImage image = getBestFitImage(images, TARGET_ARTWORK_SIZE);
+    MediaImage image = getBestFitImage(images, DisplayUtil.getDisplaySize());
     String url = image.getSrc().getSpec();
 
     // Check if this artwork is already loaded or requested.
