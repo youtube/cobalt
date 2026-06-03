@@ -107,6 +107,10 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "ui/gfx/geometry/size.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_renderer.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "media/filters/hls_data_source_provider_impl.h"
 #include "third_party/blink/renderer/platform/media/multi_buffer_data_source_factory.h"
@@ -396,6 +400,7 @@ WebMediaPlayer::NetworkState PipelineErrorToNetworkState(
     case media::DEMUXER_ERROR_COULD_NOT_PARSE:
     case media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
     case media::DEMUXER_ERROR_DETECTED_HLS:
+    case media::DEMUXER_ERROR_PROGRESSIVE_DISABLED:
     case media::DECODER_ERROR_NOT_SUPPORTED:
     case media::DEMUXER_ERROR_BITSTREAM_CONVERSION_FAILED:
       return WebMediaPlayer::kNetworkStateFormatError;
@@ -2988,6 +2993,14 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
 
   media_metrics_provider_->SetRendererType(renderer_type_);
   media_log_->SetProperty<MediaLogProperty::kRendererName>(renderer_type_);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "Renderer Type is " << GetRendererName(renderer_type_) << ".";
+  if (renderer_type_ == media::RendererType::kStarboard) {
+    // StarboardRenderer always uses full screen with overlay video mode.
+    overlay_info_.is_fullscreen = true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),

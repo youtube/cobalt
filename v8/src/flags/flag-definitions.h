@@ -612,10 +612,14 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
+<<<<<<< HEAD
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_truncation)
 // This might be too big of a hammer but we must prohibit moving the C++
 // trampolines while we are executing a C++ code.
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
+=======
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_pretenure_store_values)
+>>>>>>> parent of 8b8fe095bf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
@@ -1515,7 +1519,8 @@ DEFINE_BOOL_READONLY(turbo_rewrite_far_jumps, false,
 DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
-DEFINE_BOOL(turbo_fast_api_calls, true, "enable fast API calls from TurboFan")
+DEFINE_BOOL(turbo_fast_api_calls, V8_ENABLE_TURBOFAN_BOOL,
+            "enable fast API calls from TurboFan")
 
 DEFINE_BOOL(fast_api_allow_float_in_sim, false,
             "allow float parameters to be passed in simulator mode")
@@ -1716,10 +1721,10 @@ DEFINE_UINT(wasm_max_committed_code_mb, kMaxCommittedWasmCodeMB,
             "maximum committed code space for wasm (in MB)")
 DEFINE_UINT(wasm_max_code_space_size_mb, kDefaultMaxWasmCodeSpaceSizeMb,
             "maximum size of a single wasm code space")
-DEFINE_BOOL(wasm_tier_up, true,
+DEFINE_BOOL(wasm_tier_up, V8_ENABLE_TURBOFAN_BOOL,
             "enable tier up to the optimizing compiler (requires --liftoff to "
             "have an effect)")
-DEFINE_BOOL(wasm_dynamic_tiering, true,
+DEFINE_BOOL(wasm_dynamic_tiering, V8_ENABLE_TURBOFAN_BOOL,
             "enable dynamic tier up to the optimizing compiler")
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_dynamic_tiering)
 DEFINE_BOOL(wasm_sync_tier_up, false,
@@ -2039,6 +2044,10 @@ DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
 // DrumBrake flags.
 DEFINE_EXPERIMENTAL_FEATURE(wasm_jitless,
                             "Execute all wasm code in the Wasm interpreter")
+#ifdef V8_OS_TVOS
+// Enable wasm_jitless on tvOS where jit is not available.
+DEFINE_IMPLICATION(jitless, wasm_jitless)
+#endif
 DEFINE_BOOL(wasm_jitless_if_available_for_testing, false,
             "Enables the Wasm interpreter, for testing, but only if "
             "the 'v8_enable_drumbrake' flag is set.")
@@ -2357,12 +2366,6 @@ DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
-DEFINE_BOOL(
-    compact_code_space_with_stack, true,
-    "Perform code space compaction when finalizing a full GC with stack")
-// Disabling compaction with stack implies also disabling code space compaction
-// with stack.
-DEFINE_NEG_NEG_IMPLICATION(compact_with_stack, compact_code_space_with_stack)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
@@ -3124,7 +3127,6 @@ DEFINE_BOOL(freeze_flags_after_init, true,
 #endif
 DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
             "Generate Intel CET compatible code")
-DEFINE_NEG_IMPLICATION(cet_compatible, compact_code_space_with_stack)
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,

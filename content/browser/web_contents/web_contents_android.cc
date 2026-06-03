@@ -495,6 +495,14 @@ void WebContentsAndroid::ResumeLoadingCreatedWebContents(JNIEnv* env) {
   web_contents_->ResumeLoadingCreatedWebContents();
 }
 
+void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+  web_contents_->SetPageFrozen(true);
+}
+
+void WebContentsAndroid::OnResume(JNIEnv* env) {
+  web_contents_->SetPageFrozen(false);
+}
+
 void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
                                                        jint importance) {
   web_contents_->SetPrimaryMainFrameImportance(

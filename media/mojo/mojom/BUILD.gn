@@ -5,6 +5,10 @@
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 mojom("mojom") {
   generate_java = true
 
@@ -85,6 +89,10 @@ mojom("mojom") {
     ]
   }
 
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/starboard_media_types.mojom" ]
+  }
+
   public_deps = [
     ":audio_data",
     ":encryption_pattern",
@@ -136,6 +144,10 @@ mojom("mojom") {
 
   if (enable_cast_renderer) {
     enabled_features += [ "enable_cast_renderer" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    enabled_features += [ "use_starboard_media" ]
   }
 
   shared_typemaps = [
@@ -813,6 +825,30 @@ mojom("mojom") {
           "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.media:fuchsia.media_hlcpp",
           "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.media.drm:fuchsia.media.drm_hlcpp",
         ]
+      },
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    cpp_typemaps += [
+      {
+        types = [
+          {
+            mojom = "media.mojom.StarboardRendererConfig"
+            cpp = "::media::StarboardRendererConfig"
+          },
+        ]
+        traits_headers = [ "//media/base/ipc/media_param_traits_macros.h" ]
+      },
+      {
+        types = [
+          {
+            mojom = "media.mojom.StarboardRenderingMode"
+            cpp = "::media::StarboardRenderingMode"
+          },
+        ]
+        traits_headers = [ "starboard/starboard_rendering_mode_mojom_traits.h" ]
+        traits_public_deps = [ "//media" ]
       },
     ]
   }

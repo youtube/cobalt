@@ -3144,7 +3144,15 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
   EXPECT_EQ(frame.requested_max_ack_delay,
             std::max(rtt_stats->min_rtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
+<<<<<<< HEAD
   EXPECT_EQ(frame.ack_eliciting_threshold, 10u);
+=======
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_EQ(frame.packet_tolerance, kMaxRetransmittablePacketsBeforeAck);
+#else
+  EXPECT_EQ(frame.packet_tolerance, 10u);
+#endif
+>>>>>>> parent of 8b8fe095bf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {

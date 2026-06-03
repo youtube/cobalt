@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/bindings/modules/v8/serialization/v8_script_value_serializer_for_modules.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include "base/containers/to_vector.h"
 #include "base/notreached.h"
@@ -32,9 +33,11 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_dom_file_system.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_track.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_restriction_target.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_certificate.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel_state.h"
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
@@ -53,11 +56,13 @@
 #include "third_party/blink/renderer/modules/mediastream/mock_video_capturer_source.h"
 #include "third_party/blink/renderer/modules/mediastream/restriction_target.h"
 #include "third_party/blink/renderer/modules/mediastream/test/transfer_test_utils.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/peerconnection/rtc_certificate.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_certificate_generator.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel_transfer_list.h"
 #include "third_party/blink/renderer/modules/peerconnection/testing/fake_webrtc_data_channel.h"
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/webcodecs/array_buffer_util.h"
 #include "third_party/blink/renderer/modules/webcodecs/audio_data.h"
 #include "third_party/blink/renderer/modules/webcodecs/audio_data_transfer_list.h"
@@ -119,6 +124,7 @@ testing::AssertionResult HadDOMExceptionInModulesTest(const StringView& name,
   return testing::AssertionSuccess();
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 static const char kEcdsaPrivateKey[] =
     "-----BEGIN PRIVATE KEY-----\n"
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQghHwQ1xYtCoEhFk7r\n"
@@ -269,6 +275,7 @@ TEST(V8ScriptValueSerializerForModulesTest, DecodeInvalidRTCCertificate) {
       V8ScriptValueDeserializerForModules(script_state, input).Deserialize();
   EXPECT_TRUE(result->IsNull());
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 // A bunch of voodoo which allows the asynchronous WebCrypto operations to be
 // called synchronously, with the resulting JavaScript values extracted.
@@ -1904,6 +1911,7 @@ TEST(V8ScriptValueSerializerForModulesTest,
   EXPECT_FALSE(blink_track->Ended());
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 TEST(V8ScriptValueSerializerForModulesTest, TransferRTCDataChannel) {
   test::TaskEnvironment task_environment;
   V8TestingScope scope;
@@ -1960,6 +1968,7 @@ TEST(V8ScriptValueSerializerForModulesTest, TransferRTCDataChannel) {
   EXPECT_EQ(native_channel->unregister_call_count(), 0);
   EXPECT_FALSE(native_channel->close_was_called());
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 #if !BUILDFLAG(IS_ANDROID)  // SubCaptureTargets are not exposed on Android.
 TEST(V8ScriptValueSerializerForModulesTest, RoundTripCropTarget) {

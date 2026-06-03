@@ -11,6 +11,12 @@ import("//media/gpu/args.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/libaom/options.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+} else {
+  use_starboard_media = false
+}
+
 # This flag sets defaults for the current generation of cast devices.
 is_cast_media_device = is_castos || is_cast_android
 
@@ -85,7 +91,7 @@ declare_args() {
 
   # Enables IAMF audio handling in chromium. This includes demuxing,
   # on-device decoding and bitstream passthrough as supported by device.
-  enable_platform_iamf_audio = false
+  enable_platform_iamf_audio = true
 
   # Enable Dolby Vision demuxing. Enabled by default for Chromecast and Windows.
   # Actual decoding must be provided by the platform. Since most Dolby Vision
@@ -347,6 +353,9 @@ declare_args() {
   # Currently it is available on Win, Mac and Linux, since it requires the audio
   # service to run in a separate process.
   chrome_wide_echo_cancellation_supported = is_win || is_mac || is_linux
+  if (is_cobalt && use_starboard_media) {
+    chrome_wide_echo_cancellation_supported = false
+  }
 }
 
 # Do not expand this list without double-checking with OWNERS, this is a list of
@@ -368,6 +377,10 @@ media_subcomponent_deps = [
   "//media/renderers",
   "//media/video",
 ]
+
+if (is_cobalt && use_starboard_media) {
+  media_subcomponent_deps += [ "//media/starboard" ]
+}
 
 if (is_fuchsia) {
   media_subcomponent_deps += [ "//media/fuchsia/common" ]
