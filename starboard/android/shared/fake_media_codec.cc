@@ -153,17 +153,13 @@ bool FakeMediaCodec::WaitForOutputReleased(size_t num_packets, int timeout_ms) {
 
 std::vector<FakeMediaCodec::QueuedInput> FakeMediaCodec::ConsumeQueuedInputs() {
   std::lock_guard lock(mutex_);
-  std::vector<QueuedInput> result;
-  result.swap(queued_inputs_);
-  return result;
+  return std::move(queued_inputs_);
 }
 
 std::vector<FakeMediaCodec::ReleasedOutput>
 FakeMediaCodec::ConsumeReleasedOutputs() {
   std::lock_guard lock(mutex_);
-  std::vector<ReleasedOutput> result;
-  result.swap(released_outputs_);
-  return result;
+  return std::move(released_outputs_);
 }
 
 // FakeMediaCodecFactory

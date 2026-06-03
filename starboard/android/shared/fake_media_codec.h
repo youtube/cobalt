@@ -34,6 +34,21 @@ namespace starboard {
 // This class is thread-safe.
 class FakeMediaCodec : public MediaCodec {
  public:
+  struct QueuedInput {
+    int index;
+    int offset;
+    int size;
+    int64_t pts;
+    int flags;
+    bool is_decode_only;
+  };
+
+  struct ReleasedOutput {
+    int index;
+    bool render;
+    int64_t timestamp_ns;
+  };
+
   explicit FakeMediaCodec(Handler* handler,
                           std::atomic<FakeMediaCodec*>* tracker);
   ~FakeMediaCodec() override;
@@ -73,21 +88,7 @@ class FakeMediaCodec : public MediaCodec {
   bool WaitForInputQueue(size_t num_packets, int timeout_ms);
   bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
 
-  struct QueuedInput {
-    int index;
-    int offset;
-    int size;
-    int64_t pts;
-    int flags;
-    bool is_decode_only;
-  };
   std::vector<QueuedInput> ConsumeQueuedInputs();
-
-  struct ReleasedOutput {
-    int index;
-    bool render;
-    int64_t timestamp_ns;
-  };
   std::vector<ReleasedOutput> ConsumeReleasedOutputs();
 
  private:
