@@ -435,7 +435,8 @@ bool Relocations::ResolveSymbol(Word rel_type,
   if (sym) {
     address = reinterpret_cast<void*>(base_memory_address_ + sym->st_value);
   } else {
-    address = exported_symbols_->Lookup(sym_name);
+    bool is_weak = dynamic_section_->IsWeakById(rel_symbol);
+    address = exported_symbols_->Lookup(sym_name, is_weak);
   }
 
   SB_DLOG(INFO) << "Resolve: address=0x" << std::hex << address;

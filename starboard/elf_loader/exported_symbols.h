@@ -29,7 +29,7 @@ class ExportedSymbols {
  public:
   ExportedSymbols();
   // Returns the address of the symbol |name|. If it's not found, returns NULL.
-  const void* Lookup(const char* name);
+  const void* Lookup(const char* name, bool is_weak = false);
 
  private:
   std::map<std::string, const void*> map_;
